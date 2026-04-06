@@ -64,10 +64,10 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         _timeoutCtrl.text = '300000';
         break;
       case 'zai':
-        _nameCtrl.text = 'Z.AI (GLM)';
-        _descCtrl.text = 'Z.AI GLM via Anthropic-compatible interface';
+        _nameCtrl.text = 'Z.AI (GLM-5.1)';
+        _descCtrl.text = 'Z.AI GLM-5.1 via Anthropic-compatible interface';
         _baseUrlCtrl.text = 'https://api.z.ai/api/anthropic';
-        _modelCtrl.text = 'GLM-5';
+        _modelCtrl.text = 'GLM-5.1';
         _smallFastModelCtrl.text = 'GLM-4.7';
         _timeoutCtrl.text = '300000';
         break;
@@ -80,12 +80,20 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         _timeoutCtrl.text = '600000';
         break;
       case 'minimax':
-        _nameCtrl.text = 'MiniMax';
-        _descCtrl.text = 'MiniMax via OpenAI-compatible interface';
+        _nameCtrl.text = 'MiniMax (M2.7)';
+        _descCtrl.text = 'MiniMax M2.7 via OpenAI-compatible interface';
         _baseUrlCtrl.text = 'https://api.minimax.io/v1';
-        _modelCtrl.text = 'MiniMax-Text-01';
-        _smallFastModelCtrl.text = 'MiniMax-Text-01';
+        _modelCtrl.text = 'M2.7';
+        _smallFastModelCtrl.text = 'M2.7';
         _timeoutCtrl.text = '300000';
+        break;
+      case 'openrouter':
+        _nameCtrl.text = 'OpenRouter';
+        _descCtrl.text = 'OpenRouter — unified gateway to 200+ models';
+        _baseUrlCtrl.text = 'https://openrouter.ai/api/v1';
+        _modelCtrl.text = 'anthropic/claude-opus-4-6';
+        _smallFastModelCtrl.text = 'anthropic/claude-sonnet-4-6';
+        _timeoutCtrl.text = '600000';
         break;
       case 'openai':
         _nameCtrl.text = 'OpenAI (GPT-5)';
@@ -365,7 +373,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
               _ProviderCard(
                 id: 'zai',
                 name: 'Z.AI GLM',
-                description: 'GLM-5, 4.7, 4.6',
+                description: 'GLM-5.1, 4.7',
                 icon: Icons.bolt,
                 color: colorForProfile('zai'),
                 isSelected: _selectedProvider == 'zai',
@@ -383,11 +391,20 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
               _ProviderCard(
                 id: 'minimax',
                 name: 'MiniMax',
-                description: 'MiniMax-Text-01',
+                description: 'M2.7',
                 icon: Icons.memory,
                 color: colorForProfile('minimax'),
                 isSelected: _selectedProvider == 'minimax',
                 onTap: () => _selectProvider('minimax'),
+              ),
+              _ProviderCard(
+                id: 'openrouter',
+                name: 'OpenRouter',
+                description: '200+ models',
+                icon: Icons.hub,
+                color: colorForProfile('openrouter'),
+                isSelected: _selectedProvider == 'openrouter',
+                onTap: () => _selectProvider('openrouter'),
               ),
               _ProviderCard(
                 id: 'openai',
@@ -608,6 +625,8 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         return 'DeepSeek';
       case 'minimax':
         return 'MiniMax';
+      case 'openrouter':
+        return 'OpenRouter';
       case 'openai':
         return 'OpenAI';
       case 'azure-openai':
@@ -627,6 +646,8 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         return Icons.psychology;
       case 'minimax':
         return Icons.memory;
+      case 'openrouter':
+        return Icons.hub;
       case 'openai':
         return Icons.smart_toy;
       case 'azure-openai':
@@ -646,6 +667,8 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         return 'DeepSeek API Key';
       case 'minimax':
         return 'MiniMax API Key';
+      case 'openrouter':
+        return 'OpenRouter API Key';
       case 'openai':
         return 'OpenAI API Key';
       case 'azure-openai':

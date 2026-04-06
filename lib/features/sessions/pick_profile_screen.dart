@@ -157,6 +157,10 @@ IconData _iconForProfile(String id) {
       return Icons.psychology_rounded;
     case 'zai':
       return Icons.bolt_rounded;
+    case 'minimax':
+      return Icons.memory_rounded;
+    case 'openrouter':
+      return Icons.hub_rounded;
     case 'openai':
       return Icons.smart_toy_rounded;
     case 'azure-openai':

@@ -74,6 +74,13 @@ class TemplateSelector extends StatelessWidget {
               onTap: () => onSelect('minimax'),
             ),
             TemplateChip(
+              label: 'OpenRouter',
+              icon: Icons.hub,
+              color: colorForProfile('openrouter'),
+              isSelected: selectedTemplate == 'openrouter',
+              onTap: () => onSelect('openrouter'),
+            ),
+            TemplateChip(
               label: 'OpenAI',
               icon: Icons.smart_toy,
               color: colorForProfile('openai'),

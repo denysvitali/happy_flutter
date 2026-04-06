@@ -214,7 +214,7 @@ void main() {
       );
       expect(
         envVars['OPENAI_MODEL'],
-        contains('MiniMax'),
+        contains('M2.7'),
         reason: 'MiniMax profile must set OPENAI_MODEL',
       );
     });
@@ -1378,8 +1378,8 @@ void main() {
       expect(result, isNull);
     });
 
-    test('builtInProfiles returns all 6 profiles', () {
-      expect(builtInProfiles.length, 6);
+    test('builtInProfiles returns all 7 profiles', () {
+      expect(builtInProfiles.length, 7);
       final ids = builtInProfiles.map((p) => p.id).toSet();
       expect(
         ids,
@@ -1388,6 +1388,7 @@ void main() {
           'deepseek',
           'zai',
           'minimax',
+          'openrouter',
           'openai',
           'azure-openai',
         ]),

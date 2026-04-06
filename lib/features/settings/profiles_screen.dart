@@ -475,6 +475,8 @@ IconData _iconForProfile(String id) {
       return Icons.bolt;
     case 'minimax':
       return Icons.memory;
+    case 'openrouter':
+      return Icons.hub;
     case 'openai':
       return Icons.smart_toy;
     case 'azure-openai':

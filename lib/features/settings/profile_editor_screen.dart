@@ -278,9 +278,9 @@ class _ProfileEditorScreenState
 
       switch (templateId) {
         case 'zai':
-          _nameCtrl.text = 'Z.AI (GLM)';
+          _nameCtrl.text = 'Z.AI (GLM-5.1)';
           _descCtrl.text =
-              'Z.AI GLM via Anthropic-compatible interface';
+              'Z.AI GLM-5.1 via Anthropic-compatible interface';
           _envRows.addAll([
             EnvRow(
               name: 'ANTHROPIC_BASE_URL',
@@ -288,14 +288,14 @@ class _ProfileEditorScreenState
             ),
             EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
             EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
-            EnvRow(name: 'ANTHROPIC_MODEL', value: 'GLM-5'),
+            EnvRow(name: 'ANTHROPIC_MODEL', value: 'GLM-5.1'),
             EnvRow(
               name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-              value: 'GLM-5',
+              value: 'GLM-5.1',
             ),
             EnvRow(
               name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-              value: 'GLM-5',
+              value: 'GLM-5.1',
             ),
             EnvRow(
               name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
@@ -304,9 +304,9 @@ class _ProfileEditorScreenState
           ]);
           break;
         case 'minimax':
-          _nameCtrl.text = 'MiniMax';
+          _nameCtrl.text = 'MiniMax (M2.7)';
           _descCtrl.text =
-              'MiniMax via OpenAI-compatible interface';
+              'MiniMax M2.7 via OpenAI-compatible interface';
           _envRows.addAll([
             EnvRow(
               name: 'OPENAI_BASE_URL',
@@ -315,13 +315,38 @@ class _ProfileEditorScreenState
             EnvRow(name: 'OPENAI_API_KEY', value: ''),
             EnvRow(
               name: 'OPENAI_MODEL',
-              value: 'MiniMax-Text-01',
+              value: 'M2.7',
             ),
             EnvRow(
               name: 'OPENAI_SMALL_FAST_MODEL',
-              value: 'MiniMax-Text-01',
+              value: 'M2.7',
             ),
             EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
+          ]);
+          break;
+        case 'openrouter':
+          _nameCtrl.text = 'OpenRouter';
+          _descCtrl.text =
+              'OpenRouter — unified gateway to 200+ models';
+          _envRows.addAll([
+            EnvRow(
+              name: 'ANTHROPIC_BASE_URL',
+              value: 'https://openrouter.ai/api/v1',
+            ),
+            EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
+            EnvRow(name: 'API_TIMEOUT_MS', value: '600000'),
+            EnvRow(
+              name: 'ANTHROPIC_MODEL',
+              value: 'anthropic/claude-opus-4-6',
+            ),
+            EnvRow(
+              name: 'ANTHROPIC_SMALL_FAST_MODEL',
+              value: 'anthropic/claude-sonnet-4-6',
+            ),
+            EnvRow(
+              name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+              value: '1',
+            ),
           ]);
           break;
         case 'deepseek':

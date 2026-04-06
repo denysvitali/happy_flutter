@@ -11,6 +11,7 @@ const _builtInIds = [
   'deepseek',
   'zai',
   'minimax',
+  'openrouter',
   'openai',
   'azure-openai',
 ];
@@ -85,11 +86,11 @@ AIBackendProfile? getBuiltInProfile(String id) {
     case 'zai':
       return AIBackendProfile(
         id: 'zai',
-        name: 'Z.AI (GLM)',
+        name: 'Z.AI (GLM-5.1)',
         description:
-            'Z.AI GLM via Anthropic-compatible interface',
+            'Z.AI GLM-5.1 via Anthropic-compatible interface',
         isBuiltIn: true,
-        defaultModelMode: 'GLM-5',
+        defaultModelMode: 'GLM-5.1',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -106,15 +107,15 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_MODEL',
-            value: r'${Z_AI_MODEL:-GLM-5}',
+            value: r'${Z_AI_MODEL:-GLM-5.1}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-            value: r'${Z_AI_OPUS_MODEL:-GLM-5}',
+            value: r'${Z_AI_OPUS_MODEL:-GLM-5.1}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-            value: r'${Z_AI_SONNET_MODEL:-GLM-5}',
+            value: r'${Z_AI_SONNET_MODEL:-GLM-5.1}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
@@ -131,11 +132,11 @@ AIBackendProfile? getBuiltInProfile(String id) {
     case 'minimax':
       return AIBackendProfile(
         id: 'minimax',
-        name: 'MiniMax',
+        name: 'MiniMax (M2.7)',
         description:
-            'MiniMax via OpenAI-compatible interface',
+            'MiniMax M2.7 via OpenAI-compatible interface',
         isBuiltIn: true,
-        defaultModelMode: 'MiniMax-Text-01',
+        defaultModelMode: 'M2.7',
         environmentVariables: [
           EnvironmentVariable(
             name: 'OPENAI_BASE_URL',
@@ -147,11 +148,11 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'OPENAI_MODEL',
-            value: r'${MINIMAX_MODEL:-MiniMax-Text-01}',
+            value: r'${MINIMAX_MODEL:-M2.7}',
           ),
           EnvironmentVariable(
             name: 'OPENAI_SMALL_FAST_MODEL',
-            value: r'${MINIMAX_SMALL_FAST_MODEL:-MiniMax-Text-01}',
+            value: r'${MINIMAX_SMALL_FAST_MODEL:-M2.7}',
           ),
           EnvironmentVariable(
             name: 'API_TIMEOUT_MS',
@@ -161,6 +162,51 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
+          gemini: false,
+        ),
+      );
+
+    case 'openrouter':
+      return AIBackendProfile(
+        id: 'openrouter',
+        name: 'OpenRouter',
+        description:
+            'OpenRouter — unified gateway to 200+ models',
+        isBuiltIn: true,
+        defaultModelMode: 'anthropic/claude-opus-4-6',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value:
+                r'${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_AUTH_TOKEN',
+            value: r'${OPENROUTER_API_KEY:-}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_MODEL',
+            value:
+                r'${OPENROUTER_MODEL:-anthropic/claude-opus-4-6}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_SMALL_FAST_MODEL',
+            value:
+                r'${OPENROUTER_SMALL_FAST_MODEL:-anthropic/claude-sonnet-4-6}',
+          ),
+          EnvironmentVariable(
+            name: 'API_TIMEOUT_MS',
+            value: r'${OPENROUTER_API_TIMEOUT_MS:-600000}',
+          ),
+          EnvironmentVariable(
+            name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+            value:
+                r'${OPENROUTER_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
           gemini: false,
         ),
       );
