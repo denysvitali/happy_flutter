@@ -29,14 +29,15 @@ class AuthStateNotifier extends Notifier<AuthState> {
     // Register for token refresh failure notifications.
     _tokenRefreshFailedListener = _handleTokenRefreshFailed;
     tokenRefreshManager.onRefreshFailed(_tokenRefreshFailedListener!);
+    ref.onDispose(() {
+      final listener = _tokenRefreshFailedListener;
+      if (listener != null) {
+        tokenRefreshManager.removeOnRefreshFailed(listener);
+        _tokenRefreshFailedListener = null;
+      }
+    });
 
     return AuthState.unauthenticated;
-  }
-
-  void dispose() {
-    if (_tokenRefreshFailedListener != null) {
-      tokenRefreshManager.removeOnRefreshFailed(_tokenRefreshFailedListener!);
-    }
   }
 
   void _handleTokenRefreshFailed() {

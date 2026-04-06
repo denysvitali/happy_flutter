@@ -11,6 +11,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
@@ -27,22 +28,18 @@ class SessionsScreen extends ConsumerStatefulWidget {
   final String? initialTab;
 
   @override
-  ConsumerState<SessionsScreen> createState() =>
-      _SessionsScreenState();
+  ConsumerState<SessionsScreen> createState() => _SessionsScreenState();
 }
 
-class _SessionsScreenState
-    extends ConsumerState<SessionsScreen> {
+class _SessionsScreenState extends ConsumerState<SessionsScreen>
+    with SyncSubscriptionMixin {
   late AppTab _activeTab;
-  StreamSubscription<void>? _syncSubscription;
-  final _selectionNotifier =
-      ValueNotifier<SelectionState>(
+  final _selectionNotifier = ValueNotifier<SelectionState>(
     const SelectionState(),
   );
   final _searchController = TextEditingController();
   bool _isSearching = false;
   Timer? _searchDebounce;
-  int _lastDataChangeCounter = -1;
 
   @override
   void initState() {
@@ -50,24 +47,12 @@ class _SessionsScreenState
     _activeTab = _parseTab(widget.initialTab);
     _selectionNotifier.addListener(_onSelectionChanged);
     Future<void>.microtask(() async {
-      await ref
-          .read(sessionsNotifierProvider.notifier)
-          .refreshFromSync();
+      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
     });
-    _syncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
-      final counter = sync.dataChangeCounter;
-      if (counter == _lastDataChangeCounter) return;
-      _lastDataChangeCounter = counter;
-      ref
-          .read(sessionsNotifierProvider.notifier)
-          .loadFromSync();
-      ref
-          .read(machinesNotifierProvider.notifier)
-          .loadFromSync();
-      ref
-          .read(todoStateNotifierProvider.notifier)
-          .loadFromSync();
+    subscribeToDataChanged(ref, () {
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+      ref.read(machinesNotifierProvider.notifier).loadFromSync();
+      ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
   }
 
@@ -94,14 +79,12 @@ class _SessionsScreenState
 
   void _updateUrlTab(AppTab tab) {
     final router = GoRouter.of(context);
-    final currentUri =
-        router.routeInformationProvider.value.uri;
+    final currentUri = router.routeInformationProvider.value.uri;
 
     if (currentUri.path == '/sessions') {
       final newTab = _tabToString(tab);
       final newUri = currentUri.replace(
-        queryParameters:
-            newTab == 'sessions' ? {} : {'tab': newTab},
+        queryParameters: newTab == 'sessions' ? {} : {'tab': newTab},
       );
       router.replace(newUri.toString());
     }
@@ -114,7 +97,6 @@ class _SessionsScreenState
       ..dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
-    _syncSubscription?.cancel();
     super.dispose();
   }
 
@@ -124,35 +106,27 @@ class _SessionsScreenState
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final inboxBadgeCount = ref.watch(
-      friendsNotifierProvider
-          .select((s) => s.incomingRequests.length),
+      friendsNotifierProvider.select((s) => s.incomingRequests.length),
     );
     final showInboxDot = ref.watch(
-      feedNotifierProvider
-          .select((s) => s.unreadCount > 0),
+      feedNotifierProvider.select((s) => s.unreadCount > 0),
     );
 
     return PopScope(
       canPop: _activeTab == AppTab.sessions,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop &&
-            _activeTab != AppTab.sessions) {
-          setState(
-              () => _activeTab = AppTab.sessions);
+        if (!didPop && _activeTab != AppTab.sessions) {
+          setState(() => _activeTab = AppTab.sessions);
           _updateUrlTab(AppTab.sessions);
-        } else if (!didPop &&
-            _activeTab == AppTab.sessions) {
+        } else if (!didPop && _activeTab == AppTab.sessions) {
           final now = DateTime.now();
           if (_lastBackPressTime == null ||
               now.difference(_lastBackPressTime!) >
                   const Duration(seconds: 2)) {
             _lastBackPressTime = now;
-            ScaffoldMessenger.of(context)
-                .showSnackBar(
+            ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  context.l10n.sessionsPressBackToExit,
-                ),
+                content: Text(context.l10n.sessionsPressBackToExit),
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -196,8 +170,7 @@ class _SessionsScreenState
   ) {
     final sel = _selectionNotifier.value;
     if (sel.isActive) {
-      return _buildSelectionAppBar(
-          context, l10n, sel);
+      return _buildSelectionAppBar(context, l10n, sel);
     }
     return _buildNormalSessionsAppBar(context, l10n);
   }
@@ -206,8 +179,7 @@ class _SessionsScreenState
     BuildContext context,
     AppLocalizations l10n,
   ) {
-    final connectionStatus =
-        ref.watch(connectionNotifierProvider);
+    final connectionStatus = ref.watch(connectionNotifierProvider);
 
     if (_isSearching) {
       return AppBar(
@@ -230,12 +202,9 @@ class _SessionsScreenState
           ),
           onChanged: (_) {
             _searchDebounce?.cancel();
-            _searchDebounce = Timer(
-              const Duration(milliseconds: 300),
-              () {
-                if (mounted) setState(() {});
-              },
-            );
+            _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+              if (mounted) setState(() {});
+            });
           },
         ),
         actions: [
@@ -255,19 +224,16 @@ class _SessionsScreenState
     return AppBar(
       title: Text(l10n.sessionHistoryTitle),
       actions: [
-        ConnectionStatusBadge(
-            status: connectionStatus),
+        ConnectionStatusBadge(status: connectionStatus),
         IconButton(
           icon: const Icon(Icons.search),
           tooltip: l10n.commonSearch,
-          onPressed: () =>
-              setState(() => _isSearching = true),
+          onPressed: () => setState(() => _isSearching = true),
         ),
         IconButton(
           icon: const Icon(Icons.add),
           tooltip: l10n.sessionsNew,
-          onPressed: () =>
-              _showNewSessionDialog(context),
+          onPressed: () => _showNewSessionDialog(context),
         ),
       ],
     );
@@ -280,31 +246,23 @@ class _SessionsScreenState
   ) {
     final cs = Theme.of(context).colorScheme;
     final allIds = _allSelectableSessionIds();
-    final allSelected = allIds.isNotEmpty &&
-        allIds.every(sel.selectedIds.contains);
-    final hasActiveSelected =
-        _hasActiveSessionsInSelection(sel);
+    final allSelected =
+        allIds.isNotEmpty && allIds.every(sel.selectedIds.contains);
+    final hasActiveSelected = _hasActiveSessionsInSelection(sel);
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.close),
         tooltip: l10n.commonCancel,
         onPressed: _exitSelectionMode,
       ),
-      title: Text(
-        l10n.sessionsSelectedCount(
-          sel.selectedIds.length,
-        ),
-      ),
+      title: Text(l10n.sessionsSelectedCount(sel.selectedIds.length)),
       actions: [
         TextButton(
           onPressed: sel.isBatchDeleting
               ? null
-              : () =>
-                  _toggleSelectAll(allIds, allSelected),
+              : () => _toggleSelectAll(allIds, allSelected),
           child: Text(
-            allSelected
-                ? l10n.sessionsDeselectAll
-                : l10n.sessionsSelectAll,
+            allSelected ? l10n.sessionsDeselectAll : l10n.sessionsSelectAll,
           ),
         ),
         if (hasActiveSelected)
@@ -313,20 +271,16 @@ class _SessionsScreenState
                 ? SizedBox(
                     width: 20,
                     height: 20,
-                    child:
-                        CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: cs.onSurfaceVariant,
                     ),
                   )
                 : const Icon(Icons.archive_outlined),
             tooltip: l10n.sessionsArchive,
-            onPressed:
-                (sel.selectedIds.isEmpty ||
-                        sel.isBatchDeleting)
-                    ? null
-                    : () => _confirmBatchArchive(
-                        context, sel),
+            onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
+                ? null
+                : () => _confirmBatchArchive(context, sel),
           ),
         IconButton(
           icon: Icon(
@@ -351,17 +305,11 @@ class _SessionsScreenState
                     color: cs.error,
                   ),
                 )
-              : Icon(
-                  Icons.delete_outline,
-                  color: cs.error,
-                ),
+              : Icon(Icons.delete_outline, color: cs.error),
           tooltip: l10n.commonDelete,
-          onPressed:
-              (sel.selectedIds.isEmpty ||
-                      sel.isBatchDeleting)
-                  ? null
-                  : () => _confirmBatchDelete(
-                      context, sel),
+          onPressed: (sel.selectedIds.isEmpty || sel.isBatchDeleting)
+              ? null
+              : () => _confirmBatchDelete(context, sel),
         ),
       ],
     );
@@ -401,16 +349,12 @@ class _SessionsScreenState
   }
 
   Set<String> _allSelectableSessionIds() {
-    final sessions =
-        ref.read(sessionsNotifierProvider);
+    final sessions = ref.read(sessionsNotifierProvider);
     return sessions.values.map((s) => s.id).toSet();
   }
 
-  bool _hasActiveSessionsInSelection(
-    SelectionState sel,
-  ) {
-    final sessions =
-        ref.read(sessionsNotifierProvider);
+  bool _hasActiveSessionsInSelection(SelectionState sel) {
+    final sessions = ref.read(sessionsNotifierProvider);
     return sel.selectedIds.any((id) {
       final s = sessions[id];
       return s != null && isSessionActive(s);
@@ -438,19 +382,13 @@ class _SessionsScreenState
   }
 
   void _exitSelectionMode() {
-    _selectionNotifier.value =
-        const SelectionState();
+    _selectionNotifier.value = const SelectionState();
   }
 
-  void _toggleSelectAll(
-    Set<String> allIds,
-    bool currentlyAllSelected,
-  ) {
+  void _toggleSelectAll(Set<String> allIds, bool currentlyAllSelected) {
     final current = _selectionNotifier.value;
     _selectionNotifier.value = current.copyWith(
-      selectedIds: currentlyAllSelected
-          ? {}
-          : Set<String>.of(allIds),
+      selectedIds: currentlyAllSelected ? {} : Set<String>.of(allIds),
     );
   }
 
@@ -460,8 +398,7 @@ class _SessionsScreenState
   ) async {
     final l10n = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
-    final sessions =
-        ref.read(sessionsNotifierProvider);
+    final sessions = ref.read(sessionsNotifierProvider);
     final activeIds = sel.selectedIds.where((id) {
       final s = sessions[id];
       return s != null && isSessionActive(s);
@@ -475,18 +412,14 @@ class _SessionsScreenState
         final dl10n = AppLocalizations.of(ctx);
         return AlertDialog(
           title: Text(dl10n.sessionsArchiveSession),
-          content: Text(
-            dl10n.sessionsArchiveNConfirm(count),
-          ),
+          content: Text(dl10n.sessionsArchiveNConfirm(count)),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: Text(dl10n.commonCancel),
             ),
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop(ctx, true),
               child: Text(dl10n.sessionsArchive),
             ),
           ],
@@ -495,14 +428,12 @@ class _SessionsScreenState
     );
     if (confirmed != true) return;
 
-    _selectionNotifier.value =
-        sel.copyWith(isBatchDeleting: true);
+    _selectionNotifier.value = sel.copyWith(isBatchDeleting: true);
 
     var failCount = 0;
     for (final id in activeIds) {
       try {
-        await SessionsApi()
-            .setSessionArchived(id, true);
+        await SessionsApi().setSessionArchived(id, true);
         sync.markSessionArchived(id);
       } catch (e, st) {
         logger.error(
@@ -516,21 +447,14 @@ class _SessionsScreenState
     }
 
     if (mounted) {
-      ref
-          .read(sessionsNotifierProvider.notifier)
-          .loadFromSync();
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
     }
 
     _exitSelectionMode();
 
     if (failCount > 0 && mounted) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.sessionsArchivePartialFail(
-                failCount),
-          ),
-        ),
+        SnackBar(content: Text(l10n.sessionsArchivePartialFail(failCount))),
       );
     }
   }
@@ -548,22 +472,17 @@ class _SessionsScreenState
         final dl10n = AppLocalizations.of(ctx);
         return AlertDialog(
           title: Text(dl10n.chatDeleteSession),
-          content: Text(
-            dl10n.sessionsDeleteNConfirm(count),
-          ),
+          content: Text(dl10n.sessionsDeleteNConfirm(count)),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: Text(dl10n.commonCancel),
             ),
             TextButton(
               style: TextButton.styleFrom(
-                foregroundColor:
-                    Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.error,
               ),
-              onPressed: () =>
-                  Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop(ctx, true),
               child: Text(dl10n.commonDelete),
             ),
           ],
@@ -572,11 +491,9 @@ class _SessionsScreenState
     );
     if (confirmed != true) return;
 
-    _selectionNotifier.value =
-        sel.copyWith(isBatchDeleting: true);
+    _selectionNotifier.value = sel.copyWith(isBatchDeleting: true);
 
-    final ids =
-        List<String>.from(sel.selectedIds);
+    final ids = List<String>.from(sel.selectedIds);
 
     final failCount = await ref
         .read(sessionsNotifierProvider.notifier)
@@ -586,33 +503,21 @@ class _SessionsScreenState
 
     if (failCount > 0 && mounted) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.sessionsDeletePartialFail(
-                failCount),
-          ),
-        ),
+        SnackBar(content: Text(l10n.sessionsDeletePartialFail(failCount))),
       );
     }
   }
 
-  static Future<void> _showNewSessionDialog(
-    BuildContext context,
-  ) async {
+  static Future<void> _showNewSessionDialog(BuildContext context) async {
     final sessionId = await showDialog<String>(
       context: context,
       builder: (context) => const NewSessionDialog(),
     );
-    if (!context.mounted ||
-        sessionId == null ||
-        sessionId.isEmpty) {
+    if (!context.mounted || sessionId == null || sessionId.isEmpty) {
       return;
     }
     unawaited(
-      context.pushNamed(
-        'chat',
-        pathParameters: {'sessionId': sessionId},
-      ),
+      context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
     );
   }
 }

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,32 +8,24 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Debug screen showing session state and sync status.
 class SessionDebugScreen extends ConsumerStatefulWidget {
   const SessionDebugScreen({super.key});
 
   @override
-  ConsumerState<SessionDebugScreen> createState() =>
-      _SessionDebugScreenState();
+  ConsumerState<SessionDebugScreen> createState() => _SessionDebugScreenState();
 }
 
-class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
-  StreamSubscription<void>? _syncSubscription;
-
+class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
+    with SyncSubscriptionMixin {
   @override
   void initState() {
     super.initState();
-    _syncSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
+    subscribeToDataChanged(ref, () {
       setState(() {});
     });
-  }
-
-  @override
-  void dispose() {
-    _syncSubscription?.cancel();
-    super.dispose();
   }
 
   @override
@@ -47,8 +37,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
 
     final sessions = sync.sessions;
     final sessionCount = sessions.length;
-    final activeSessions =
-        sessions.values.where((s) => s.active).length;
+    final activeSessions = sessions.values.where((s) => s.active).length;
     final onlineSessions = sessions.values
         .where((s) => s.presence == 'online')
         .length;
@@ -89,8 +78,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
                 icon: Icons.power,
                 label: 'Sync initialized',
                 value: syncInitialized ? 'Yes' : 'No',
-                valueColor:
-                    syncInitialized ? AppColors.success : cs.error,
+                valueColor: syncInitialized ? AppColors.success : cs.error,
               ),
               _InfoRow(
                 icon: Icons.check_circle,
@@ -274,9 +262,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
           Row(
             children: [
               Icon(
-                session.active
-                    ? Icons.play_circle
-                    : Icons.pause_circle,
+                session.active ? Icons.play_circle : Icons.pause_circle,
                 size: 18,
                 color: session.active ? AppColors.success : cs.outline,
               ),
@@ -299,12 +285,9 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: session.presence == 'online'
-                      ? AppColors.success.withValues(
-                          alpha: AppOpacity.subtle,
-                        )
+                      ? AppColors.success.withValues(alpha: AppOpacity.subtle)
                       : cs.surfaceContainerHighest,
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.xs),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                 ),
                 child: Text(
                   session.presence,
@@ -318,9 +301,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
             ],
           ),
           Padding(
-            padding: const EdgeInsets.only(
-              left: AppSpacing.xxxl,
-            ),
+            padding: const EdgeInsets.only(left: AppSpacing.xxxl),
             child: Text(
               'ID: ${session.id.substring(0, 16)}...'
               ' | cursor: ${sync.sessionMessageCursors[session.id] ?? 0}'
@@ -405,9 +386,9 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen> {
       ..writeln('  Machines: ${sync.machines.length}');
 
     Clipboard.setData(ClipboardData(text: buffer.toString()));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Session debug info copied')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Session debug info copied')));
   }
 }
 
