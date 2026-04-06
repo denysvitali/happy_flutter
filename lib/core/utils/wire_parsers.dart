@@ -41,4 +41,14 @@ class WireParsers {
     if (value is String) return value;
     return value.toString();
   }
+
+  /// Safely cast a dynamic value to `Map<String, dynamic>?`.
+  ///
+  /// Returns `null` when the value is not a Map (e.g. a List or a
+  /// String). This prevents `TypeError` crashes from hard
+  /// `as Map<String, dynamic>?` casts on unexpected wire shapes.
+  static Map<String, dynamic>? asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    return null;
+  }
 }

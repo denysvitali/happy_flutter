@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 /// Tool definitions with icons, subtitles, descriptions, and metadata.
 ///
@@ -164,7 +165,7 @@ class KnownTools {
       minimal: false,
       extractSubtitle: (tool, _) {
         final input =
-            tool['input'] as Map<String, dynamic>?;
+            WireParsers.asMap(tool['input']);
         return input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
@@ -181,7 +182,7 @@ class KnownTools {
       minimal: false,
       extractSubtitle: (tool, _) {
         final input =
-            tool['input'] as Map<String, dynamic>?;
+            WireParsers.asMap(tool['input']);
         return input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
@@ -408,7 +409,7 @@ class KnownTools {
       isMutable: true,
       extractSubtitle: (tool, metadata) {
         // Gemini sends data in nested structure
-        final toolCall = tool['input']?['toolCall'] as Map<String, dynamic>?;
+        final toolCall = WireParsers.asMap(tool['input']?['toolCall']);
         if (toolCall != null) {
           final content = toolCall['content'] as List?;
           if (content != null && content.isNotEmpty) {
@@ -442,7 +443,7 @@ class KnownTools {
       minimal: true,
       isMutable: true,
       extractSubtitle: (tool, _) {
-        final toolCall = tool['input']?['toolCall'] as Map<String, dynamic>?;
+        final toolCall = WireParsers.asMap(tool['input']?['toolCall']);
         final title = toolCall?['title'] as String?;
         if (title != null) {
           // Extract command from title like "rm file.txt [cwd /path] (description)"
@@ -476,7 +477,7 @@ class KnownTools {
       extractSubtitle: (tool, _) {
         final parsedCmd = tool['input']?['parsed_cmd'] as List?;
         if (parsedCmd != null && parsedCmd.isNotEmpty) {
-          final cmd = parsedCmd[0] as Map<String, dynamic>?;
+          final cmd = WireParsers.asMap(parsedCmd[0]);
           return cleanShellCommand(cmd?['cmd'] as String?);
         }
         final command = tool['input']?['command'] as List?;
@@ -493,7 +494,7 @@ class KnownTools {
       hideDefaultError: true,
       isMutable: true,
       extractSubtitle: (tool, _) {
-        final changes = tool['input']?['changes'] as Map<String, dynamic>?;
+        final changes = WireParsers.asMap(tool['input']?['changes']);
         if (changes != null && changes.isNotEmpty) {
           final files = changes.keys.toList();
           if (files.length == 1) {

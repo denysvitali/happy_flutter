@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/logger_service.dart' show logger;
 import '../../../../core/services/sync_service.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/utils/wire_parsers.dart';
 import 'ask_user_question_widgets.dart';
 
 /// Question option model.
@@ -82,7 +83,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
   @override
   Widget build(BuildContext context) {
     final input =
-        widget.tool['input'] as Map<String, dynamic>? ?? {};
+        WireParsers.asMap(widget.tool['input']) ?? {};
     final questions = input['questions'] as List?;
 
     if (questions == null || questions.isEmpty) {
@@ -496,7 +497,7 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
     });
 
     final input =
-        widget.tool['input'] as Map<String, dynamic>?
+        WireParsers.asMap(widget.tool['input'])
             ?? {};
     final questions =
         input['questions'] as List? ?? [];
@@ -530,8 +531,8 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
     }
 
     try {
-      final permission = widget.tool['permission']
-          as Map<String, dynamic>?;
+      final permission = WireParsers.asMap(
+            widget.tool['permission']);
       final permId = permission?['id'] as String?;
       if (permId != null) {
         // Include answers in updatedInput so the CLI

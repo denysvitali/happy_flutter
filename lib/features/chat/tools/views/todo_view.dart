@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 
 /// Task list item model.
@@ -61,7 +62,7 @@ class _TodoViewState extends State<TodoView> {
 
   List<TodoItem> _resolveTodos() {
     final input =
-        widget.tool['input'] as Map<String, dynamic>? ?? {};
+        WireParsers.asMap(widget.tool['input']) ?? {};
     final rawResult = widget.tool['result'];
     final result =
         rawResult is Map<String, dynamic> ? rawResult : null;

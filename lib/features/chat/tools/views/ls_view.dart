@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 
 /// Entry model for LS results.
@@ -140,7 +141,7 @@ class _LSViewState extends State<LSView> {
   @override
   Widget build(BuildContext context) {
     final input =
-        widget.tool['input'] as Map<String, dynamic>? ?? {};
+        WireParsers.asMap(widget.tool['input']) ?? {};
     final result = widget.tool['result'];
     final state = widget.tool['state'] as String? ?? '';
 

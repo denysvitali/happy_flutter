@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/wire_parsers.dart';
 import '../../markdown/markdown_view.dart';
 import '../tool_section_view.dart';
 
@@ -23,7 +24,7 @@ class ExitPlanToolView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final input =
-        tool['input'] as Map<String, dynamic>? ?? {};
+        WireParsers.asMap(tool['input']) ?? {};
     final plan = input['plan'] as String? ?? '';
     final displayPlan =
         plan.isEmpty ? '(no plan provided)' : plan;

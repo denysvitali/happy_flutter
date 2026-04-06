@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 
 import '../tool_section_view.dart';
@@ -30,7 +31,7 @@ class ReadView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final input = tool['input'] as Map<String, dynamic>? ?? {};
+    final input = WireParsers.asMap(tool['input']) ?? {};
     final result = tool['result'];
     final state = tool['state'] as String? ?? '';
 

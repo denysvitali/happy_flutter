@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
 import '../../../core/utils/tool_error_parser.dart';
+import '../../../core/utils/wire_parsers.dart';
 import 'json_viewer.dart';
 import 'known_tools.dart';
 import 'permission_footer.dart';
@@ -130,7 +131,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     _prevState = initial;
 
     final initPermission =
-        widget.tool['permission'] as Map<String, dynamic>?;
+        WireParsers.asMap(widget.tool['permission']);
     final hasPermissionRequest = isPermissionPending(initPermission);
 
     if (initial == ToolState.running || hasPermissionRequest) {
@@ -153,7 +154,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     );
 
     final updatedPermission =
-        widget.tool['permission'] as Map<String, dynamic>?;
+        WireParsers.asMap(widget.tool['permission']);
     final hasPermissionRequest = isPermissionPending(updatedPermission);
 
     if (hasPermissionRequest && !_expanded) {
@@ -368,9 +369,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     final theme = Theme.of(context);
     final toolName = widget.tool['name'] as String? ?? 'Unknown';
     final toolState = widget.tool['state'] as String? ?? 'pending';
-    final toolInput = widget.tool['input'] as Map<String, dynamic>?;
+    final toolInput = WireParsers.asMap(widget.tool['input']);
     final toolResult = widget.tool['result'];
-    final permission = widget.tool['permission'] as Map<String, dynamic>?;
+    final permission = WireParsers.asMap(widget.tool['permission']);
     final createdAt = widget.tool['createdAt'] as int?;
 
     final knownTool = KnownTools.get(toolName);

@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/code_block_widget.dart';
 
 import '../tool_section_view.dart';
@@ -25,7 +26,7 @@ class CodexBashView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final input = tool['input'] as Map<String, dynamic>? ?? {};
+    final input = WireParsers.asMap(tool['input']) ?? {};
     final result = tool['result'];
     final state = tool['state'] as String? ?? '';
 
@@ -38,7 +39,7 @@ class CodexBashView extends StatelessWidget {
     String? commandStr;
 
     if (parsedCmd != null && parsedCmd.isNotEmpty) {
-      final firstCmd = parsedCmd[0] as Map<String, dynamic>?;
+      final firstCmd = WireParsers.asMap(parsedCmd[0]);
       if (firstCmd != null) {
         operationType = firstCmd['type'] as String? ?? 'bash';
         fileName = firstCmd['name'] as String?;

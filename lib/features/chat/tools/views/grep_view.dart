@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 import 'grep_view_widgets.dart';
 
@@ -55,7 +56,7 @@ class _GrepViewState extends State<GrepView> {
   @override
   Widget build(BuildContext context) {
     final input =
-        widget.tool['input'] as Map<String, dynamic>? ?? {};
+        WireParsers.asMap(widget.tool['input']) ?? {};
     final result = widget.tool['result'];
 
     final pattern = input['pattern'] as String? ?? '';

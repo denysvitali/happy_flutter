@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 
 /// File item model for Glob results.
@@ -134,7 +135,7 @@ class _GlobViewState extends State<GlobView> {
   @override
   Widget build(BuildContext context) {
     final input =
-        widget.tool['input'] as Map<String, dynamic>? ?? {};
+        WireParsers.asMap(widget.tool['input']) ?? {};
     final result = widget.tool['result'];
     final state = widget.tool['state'] as String? ?? '';
 

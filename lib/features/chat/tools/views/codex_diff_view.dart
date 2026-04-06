@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
 import 'package:happy_flutter/core/ui/diff/diff_view.dart';
-
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
@@ -22,7 +22,7 @@ class CodexDiffView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final input = tool['input'] as Map<String, dynamic>? ?? {};
+    final input = WireParsers.asMap(tool['input']) ?? {};
     final unifiedDiff = input['unified_diff'] as String?;
 
     if (unifiedDiff == null || unifiedDiff.isEmpty) {

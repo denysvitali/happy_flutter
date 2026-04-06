@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../../syntax_highlighter.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
@@ -70,8 +71,8 @@ class CodexPatchView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = ToolViewColors.of(context);
-    final input = tool['input'] as Map<String, dynamic>? ?? {};
-    final changes = input['changes'] as Map<String, dynamic>?;
+    final input = WireParsers.asMap(tool['input']) ?? {};
+    final changes = WireParsers.asMap(input['changes']);
     final autoApproved = input['auto_approved'] as bool?;
 
     if (changes == null || changes.isEmpty) {
@@ -106,7 +107,7 @@ class CodexPatchView extends StatelessWidget {
     final result = <FileChange>[];
     for (final entry in changes.entries) {
       final path = entry.key;
-      final data = entry.value as Map<String, dynamic>? ?? {};
+      final data = WireParsers.asMap(entry.value) ?? {};
       result.add(FileChange(
         path: path,
         hasAdd: data['add'] != null,
@@ -459,7 +460,7 @@ class _FileChangeDetail extends StatelessWidget {
       ));
     }
 
-    final addData = changeData['add'] as Map<String, dynamic>?;
+    final addData = WireParsers.asMap(changeData['add']);
     if (addData != null) {
       addContentSection(
         'added',
@@ -469,7 +470,7 @@ class _FileChangeDetail extends StatelessWidget {
       );
     }
 
-    final modifyData = changeData['modify'] as Map<String, dynamic>?;
+    final modifyData = WireParsers.asMap(changeData['modify']);
     if (modifyData != null) {
       addContentSection(
         'before',
@@ -497,7 +498,7 @@ class _FileChangeDetail extends StatelessWidget {
       );
     }
 
-    final deleteData = changeData['delete'] as Map<String, dynamic>?;
+    final deleteData = WireParsers.asMap(changeData['delete']);
     if (deleteData != null) {
       addContentSection(
         'removed',

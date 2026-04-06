@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/components/diff_view_widget.dart'
     as dw show DiffView;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Edit tool diffs.
@@ -41,7 +42,7 @@ class _EditViewState extends State<EditView> {
     final cs = theme.colorScheme;
 
     final input =
-        widget.tool['input'] as Map<String, dynamic>? ?? {};
+        WireParsers.asMap(widget.tool['input']) ?? {};
     final filePath = input['path'] as String? ??
         input['file_path'] as String? ??
         '';

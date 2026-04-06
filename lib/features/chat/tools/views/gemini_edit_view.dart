@@ -3,6 +3,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
 import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
@@ -30,7 +31,7 @@ class _GeminiEditViewState extends State<GeminiEditView> {
   @override
   Widget build(BuildContext context) {
     final c = ToolViewColors.of(context);
-    final input = widget.tool['input'] as Map<String, dynamic>? ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
 
     String? filePath;
     String? oldText;
@@ -41,7 +42,7 @@ class _GeminiEditViewState extends State<GeminiEditView> {
       final toolCall = input['toolCall'] as Map<String, dynamic>;
       final content = toolCall['content'];
       if (content is List && content.isNotEmpty) {
-        final first = content[0] as Map<String, dynamic>?;
+        final first = WireParsers.asMap(content[0]);
         filePath = first?['path'] as String?;
       }
       // Check toolCall.title
@@ -61,7 +62,7 @@ class _GeminiEditViewState extends State<GeminiEditView> {
     if (filePath == null) {
       final inputList = input['input'];
       if (inputList is List && inputList.isNotEmpty) {
-        final first = inputList[0] as Map<String, dynamic>?;
+        final first = WireParsers.asMap(inputList[0]);
         filePath = first?['path'] as String?;
       }
     }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
-
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/utils/wire_parsers.dart';
 import '../../markdown/markdown_view.dart';
 import '../known_tools.dart';
 import '../tool_status_indicator.dart';
@@ -41,7 +41,7 @@ class TaskView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final input = tool['input'] as Map<String, dynamic>?;
+    final input = WireParsers.asMap(tool['input']);
     final description = input?['description'] as String?;
     final prompt = input?['prompt'] as String?;
     final headerText = description ?? prompt ?? 'Task';
@@ -452,7 +452,7 @@ class _InlineNestedTaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final input =
-        tool['input'] as Map<String, dynamic>?;
+        WireParsers.asMap(tool['input']);
     final description =
         input?['description'] as String? ??
             input?['prompt'] as String? ??
