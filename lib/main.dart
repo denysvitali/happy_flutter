@@ -53,10 +53,11 @@ Future<void> main() async {
   // in parallel — Sentry, storage, network, deep link, and Firebase.
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Start Sentry init in the background; it no longer blocks first frame.
-  unawaited(initSentryForPlatform());
-
-  await _runApp();
+  // Sentry MUST finish init before the app renders so its
+  // FlutterError.onError handler is installed before the
+  // ErrorBoundary captures _previousOnError.  The appRunner
+  // callback also wraps the entire app in Sentry's error zone.
+  await initSentryForPlatform(_runApp);
 }
 
 Future<void> _runApp() async {
