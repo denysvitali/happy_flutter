@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
@@ -151,80 +150,101 @@ class _CodexUsageBody extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         SettingsSection(
-          title: l10n.codexUsageTitle,
+          title: l10n.codexUsageAccount,
           children: [
             _CodexUsageStatRow(
-              icon: Icons.token,
-              title: l10n.totalTokens,
-              value: _formatCount(report.totalTokens),
+              icon: Icons.alternate_email,
+              title: l10n.codexUsageEmail,
+              value: report.email ?? '-',
               iconColor: AppColors.info,
             ),
             _CodexUsageStatRow(
-              icon: Icons.forum_outlined,
-              title: l10n.codexUsageThreads,
-              value: _formatCount(report.threadCount),
+              icon: Icons.workspace_premium_outlined,
+              title: l10n.codexUsagePlan,
+              value: report.planType ?? '-',
               iconColor: AppColors.success,
             ),
-            _CodexUsageStatRow(
-              icon: Icons.update,
-              title: l10n.codexUsageLastUpdated,
-              value: _formatTimestamp(report.lastSeenAt),
-              iconColor: AppColors.warning,
-            ),
-            if (report.databasePath.isNotEmpty)
-              _CodexUsageStatRow(
-                icon: Icons.storage_outlined,
-                title: l10n.codexUsageDatabase,
-                value: report.databasePath,
-                iconColor: AppColors.info,
-              ),
           ],
         ),
-        if (report.byModel.isNotEmpty) ...[
+        if (report.rateLimit != null) ...[
           const SizedBox(height: AppSpacing.lg),
           SettingsSection(
-            title: l10n.reports,
+            title: l10n.codexUsageSessionLimits,
             children: [
-              for (final model in report.byModel)
-                _CodexUsageModelRow(model: model),
+              _CodexUsageBooleanRow(
+                icon: Icons.check_circle_outline,
+                title: l10n.codexUsageCreditsAvailable,
+                value: report.rateLimit!.allowed,
+                iconColor: AppColors.info,
+              ),
+              if (report.rateLimit!.primaryWindow != null)
+                _CodexUsageWindowRow(
+                  icon: Icons.schedule,
+                  title: l10n.codexUsageFiveHourWindow,
+                  window: report.rateLimit!.primaryWindow!,
+                  iconColor: AppColors.warning,
+                ),
+              if (report.rateLimit!.secondaryWindow != null)
+                _CodexUsageWindowRow(
+                  icon: Icons.date_range_outlined,
+                  title: l10n.codexUsageWeeklyWindow,
+                  window: report.rateLimit!.secondaryWindow!,
+                  iconColor: AppColors.success,
+                ),
+            ],
+          ),
+        ],
+        if (report.codeReviewRateLimit != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          SettingsSection(
+            title: l10n.codexUsageCodeReview,
+            children: [
+              _CodexUsageBooleanRow(
+                icon: Icons.rate_review_outlined,
+                title: l10n.codexUsageCreditsAvailable,
+                value: report.codeReviewRateLimit!.allowed,
+                iconColor: AppColors.info,
+              ),
+              if (report.codeReviewRateLimit!.primaryWindow != null)
+                _CodexUsageWindowRow(
+                  icon: Icons.schedule,
+                  title: l10n.codexUsagePrimaryWindow,
+                  window: report.codeReviewRateLimit!.primaryWindow!,
+                  iconColor: AppColors.warning,
+                ),
+              if (report.codeReviewRateLimit!.secondaryWindow != null)
+                _CodexUsageWindowRow(
+                  icon: Icons.date_range_outlined,
+                  title: l10n.codexUsageSecondaryWindow,
+                  window: report.codeReviewRateLimit!.secondaryWindow!,
+                  iconColor: AppColors.success,
+                ),
+            ],
+          ),
+        ],
+        if (report.credits != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          SettingsSection(
+            title: l10n.codexUsageCredits,
+            children: [
+              _CodexUsageBooleanRow(
+                icon: Icons.account_balance_wallet_outlined,
+                title: l10n.codexUsageCreditsAvailable,
+                value: report.credits!.hasCredits,
+                iconColor: AppColors.info,
+              ),
+              _CodexUsageStatRow(
+                icon: Icons.payments_outlined,
+                title: l10n.codexUsageCreditsBalance,
+                value: report.credits!.unlimited
+                    ? l10n.codexUsageUnlimited
+                    : (report.credits!.balance ?? '-'),
+                iconColor: AppColors.success,
+              ),
             ],
           ),
         ],
       ],
-    );
-  }
-
-  static String _formatCount(int value) {
-    return NumberFormat.decimalPattern().format(value);
-  }
-
-  static String _formatTimestamp(int value) {
-    if (value <= 0) return '-';
-    final date = DateTime.fromMillisecondsSinceEpoch(value);
-    return DateFormat('MMM d, yyyy HH:mm').format(date);
-  }
-}
-
-class _CodexUsageModelRow extends StatelessWidget {
-  const _CodexUsageModelRow({required this.model});
-
-  final CodexUsageSummaryByModel model;
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitle =
-        '${_CodexUsageBody._formatCount(model.totalTokens)} tokens • '
-        '${_CodexUsageBody._formatCount(model.threadCount)} threads';
-
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      leading: const Icon(Icons.memory_outlined, color: AppColors.info),
-      title: Text(model.model),
-      subtitle: Text(subtitle),
     );
   }
 }
@@ -377,24 +397,76 @@ class _CodexUsageStatRow extends StatelessWidget {
         vertical: AppSpacing.md,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 18, color: iconColor),
           const SizedBox(width: AppSpacing.md),
           Expanded(child: Text(title, style: textTheme.bodyMedium)),
-          const SizedBox(width: AppSpacing.md),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: cs.onSurface,
-              ),
+          Text(
+            value,
+            style: textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: cs.onSurface,
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _CodexUsageBooleanRow extends StatelessWidget {
+  const _CodexUsageBooleanRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.iconColor,
+  });
+
+  final IconData icon;
+  final String title;
+  final bool value;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return _CodexUsageStatRow(
+      icon: icon,
+      title: title,
+      value: value ? l10n.commonYes : l10n.commonNo,
+      iconColor: iconColor,
+    );
+  }
+}
+
+class _CodexUsageWindowRow extends StatelessWidget {
+  const _CodexUsageWindowRow({
+    required this.icon,
+    required this.title,
+    required this.window,
+    required this.iconColor,
+  });
+
+  final IconData icon;
+  final String title;
+  final CodexUsageWindow window;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final resetAt = DateTime.fromMillisecondsSinceEpoch(window.resetAt * 1000);
+    final resetLabel =
+        '${resetAt.year}-${_twoDigits(resetAt.month)}-'
+        '${_twoDigits(resetAt.day)} ${_twoDigits(resetAt.hour)}:'
+        '${_twoDigits(resetAt.minute)}';
+
+    return _CodexUsageStatRow(
+      icon: icon,
+      title: title,
+      value: '${window.usedPercent}% | $resetLabel',
+      iconColor: iconColor,
+    );
+  }
+
+  String _twoDigits(int value) => value.toString().padLeft(2, '0');
 }

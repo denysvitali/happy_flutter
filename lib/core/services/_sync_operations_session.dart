@@ -354,8 +354,8 @@ extension SyncSessionOperations on Sync {
 python3 <<'PY'
 import json
 import os
-import sqlite3
-from glob import glob
+import urllib.error
+import urllib.request
 
 
 def fail(message):
@@ -363,62 +363,66 @@ def fail(message):
     raise SystemExit(0)
 
 
-candidates = sorted(glob(os.path.expanduser('~/.codex/state_*.sqlite')))
-if not candidates:
-    fail('Codex state database not found')
+try:
+    with open(os.path.expanduser('~/.codex/auth.json'), 'r',
+              encoding='utf-8') as auth_file:
+        auth = json.load(auth_file)
+except Exception as exc:
+    fail(f'Failed to read Codex auth.json: {exc}')
 
-database_path = candidates[-1]
+def find_access_token(value):
+    if isinstance(value, dict):
+        preferred_keys = (
+            'accessToken',
+            'access_token',
+            'token',
+            'idToken',
+            'id_token',
+        )
+        for key in preferred_keys:
+            token = value.get(key)
+            if isinstance(token, str) and token:
+                return token
+        for nested in value.values():
+            token = find_access_token(nested)
+            if token:
+                return token
+    elif isinstance(value, list):
+        for nested in value:
+            token = find_access_token(nested)
+            if token:
+                return token
+    return None
+
+
+access_token = find_access_token(auth)
+if not access_token:
+    fail('No Codex access token found in auth.json')
+
+request = urllib.request.Request(
+    'https://chatgpt.com/backend-api/wham/usage',
+    headers={
+        'Authorization': f'Bearer {access_token}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'codex-cli',
+    },
+)
 
 try:
-    connection = sqlite3.connect(database_path)
-    connection.row_factory = sqlite3.Row
+    with urllib.request.urlopen(request, timeout=20) as response:
+        payload = json.loads(response.read().decode('utf-8'))
+except urllib.error.HTTPError as exc:
+    body = exc.read().decode('utf-8', errors='replace')
+    fail(f'Codex usage request failed ({exc.code}): {body}')
 except Exception as exc:
-    fail(f'Failed to open Codex database: {exc}')
+    fail(f'Failed to fetch Codex usage: {exc}')
 
-try:
-    thread_count_row = connection.execute(
-        'SELECT COUNT(*) AS count FROM threads'
-    ).fetchone()
-    totals_row = connection.execute(
-        '''
-        SELECT
-            COALESCE(SUM(tokens_used), 0) AS total_tokens,
-            COALESCE(MIN(created_at), 0) AS first_seen_at,
-            COALESCE(MAX(updated_at), 0) AS last_seen_at
-        FROM threads
-        '''
-    ).fetchone()
-    by_model_rows = connection.execute(
-        '''
-        SELECT
-            COALESCE(NULLIF(model, ''), 'unknown') AS model,
-            COALESCE(SUM(tokens_used), 0) AS total_tokens,
-            COUNT(*) AS thread_count
-        FROM threads
-        GROUP BY COALESCE(NULLIF(model, ''), 'unknown')
-        ORDER BY total_tokens DESC, thread_count DESC, model ASC
-        '''
-    ).fetchall()
-except Exception as exc:
-    fail(f'Failed to query Codex database: {exc}')
-finally:
-    connection.close()
+if isinstance(payload, dict) and isinstance(payload.get('data'), dict):
+    payload = payload['data']
 
-payload = {
-    'totalTokens': int(totals_row['total_tokens'] or 0),
-    'threadCount': int(thread_count_row['count'] or 0),
-    'firstSeenAt': int(totals_row['first_seen_at'] or 0),
-    'lastSeenAt': int(totals_row['last_seen_at'] or 0),
-    'databasePath': database_path,
-    'byModel': [
-        {
-            'model': str(row['model'] or 'unknown'),
-            'totalTokens': int(row['total_tokens'] or 0),
-            'threadCount': int(row['thread_count'] or 0),
-        }
-        for row in by_model_rows
-    ],
-}
+if not isinstance(payload, dict):
+    fail('Codex usage response was not an object')
 
 print(json.dumps({'success': True, 'data': payload}))
 PY

@@ -5134,26 +5134,86 @@ abstract class AppLocalizations {
   /// No description provided for @codexUsageSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Local Codex token usage on your machines'**
+  /// **'Rate limits and credits for Codex on your machines'**
   String get codexUsageSubtitle;
 
-  /// No description provided for @codexUsageThreads.
+  /// No description provided for @codexUsageAccount.
   ///
   /// In en, this message translates to:
-  /// **'Threads'**
-  String get codexUsageThreads;
+  /// **'Account'**
+  String get codexUsageAccount;
 
-  /// No description provided for @codexUsageLastUpdated.
+  /// No description provided for @codexUsageEmail.
   ///
   /// In en, this message translates to:
-  /// **'Last Updated'**
-  String get codexUsageLastUpdated;
+  /// **'Email'**
+  String get codexUsageEmail;
 
-  /// No description provided for @codexUsageDatabase.
+  /// No description provided for @codexUsagePlan.
   ///
   /// In en, this message translates to:
-  /// **'Database'**
-  String get codexUsageDatabase;
+  /// **'Plan'**
+  String get codexUsagePlan;
+
+  /// No description provided for @codexUsageSessionLimits.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get codexUsageSessionLimits;
+
+  /// No description provided for @codexUsageCodeReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Code Review'**
+  String get codexUsageCodeReview;
+
+  /// No description provided for @codexUsageFiveHourWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'5-hour window'**
+  String get codexUsageFiveHourWindow;
+
+  /// No description provided for @codexUsageWeeklyWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly window'**
+  String get codexUsageWeeklyWindow;
+
+  /// No description provided for @codexUsagePrimaryWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary window'**
+  String get codexUsagePrimaryWindow;
+
+  /// No description provided for @codexUsageSecondaryWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Secondary window'**
+  String get codexUsageSecondaryWindow;
+
+  /// No description provided for @codexUsageCredits.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits'**
+  String get codexUsageCredits;
+
+  /// No description provided for @codexUsageCreditsBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits Balance'**
+  String get codexUsageCreditsBalance;
+
+  /// No description provided for @codexUsageCreditsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits Available'**
+  String get codexUsageCreditsAvailable;
+
+  /// No description provided for @codexUsageUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited'**
+  String get codexUsageUnlimited;
 
   /// No description provided for @codexUsageNoMachines.
   ///

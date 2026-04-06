@@ -2784,16 +2784,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get codexUsageTitle => 'Codex Usage';
 
   @override
-  String get codexUsageSubtitle => 'Local Codex token usage on your machines';
+  String get codexUsageSubtitle =>
+      'Rate limits and credits for Codex on your machines';
 
   @override
-  String get codexUsageThreads => 'Threads';
+  String get codexUsageAccount => 'Account';
 
   @override
-  String get codexUsageLastUpdated => 'Last Updated';
+  String get codexUsageEmail => 'Email';
 
   @override
-  String get codexUsageDatabase => 'Database';
+  String get codexUsagePlan => 'Plan';
+
+  @override
+  String get codexUsageSessionLimits => 'Usage';
+
+  @override
+  String get codexUsageCodeReview => 'Code Review';
+
+  @override
+  String get codexUsageFiveHourWindow => '5-hour window';
+
+  @override
+  String get codexUsageWeeklyWindow => 'Weekly window';
+
+  @override
+  String get codexUsagePrimaryWindow => 'Primary window';
+
+  @override
+  String get codexUsageSecondaryWindow => 'Secondary window';
+
+  @override
+  String get codexUsageCredits => 'Credits';
+
+  @override
+  String get codexUsageCreditsBalance => 'Credits Balance';
+
+  @override
+  String get codexUsageCreditsAvailable => 'Credits Available';
+
+  @override
+  String get codexUsageUnlimited => 'Unlimited';
 
   @override
   String get codexUsageNoMachines => 'No machines available';
