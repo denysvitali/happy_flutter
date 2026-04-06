@@ -6,6 +6,7 @@ import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/shell_script_parser.dart';
+import 'profile_setup_catalog.dart';
 import 'widgets/profile_editor_widgets.dart';
 
 /// Full-screen editor for creating or editing a custom AI backend
@@ -259,138 +260,24 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   }
 
   void _applyTemplate(String templateId) {
+    final template = profileSetupTemplate(templateId);
+    if (template == null) {
+      return;
+    }
+
     setState(() {
       _selectedTemplate = templateId;
-      // Clear existing env rows
       for (final r in _envRows) {
         r.dispose();
       }
       _envRows.clear();
-
-      switch (templateId) {
-        case 'zai':
-          _nameCtrl.text = 'Z.AI (GLM-5.1)';
-          _descCtrl.text =
-              'Z.AI GLM Coding Plan via Anthropic-compatible interface';
-          _envRows.addAll([
-            EnvRow(
-              name: 'ANTHROPIC_BASE_URL',
-              value: 'https://api.z.ai/api/anthropic',
-            ),
-            EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
-            EnvRow(name: 'API_TIMEOUT_MS', value: '3000000'),
-            EnvRow(
-              name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
-              value: '1',
-            ),
-            EnvRow(name: 'ANTHROPIC_DEFAULT_OPUS_MODEL', value: 'glm-5.1'),
-            EnvRow(name: 'ANTHROPIC_DEFAULT_SONNET_MODEL', value: 'glm-4.7'),
-            EnvRow(name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', value: 'glm-4.5-air'),
-          ]);
-          break;
-        case 'minimax':
-          _nameCtrl.text = 'MiniMax (MiniMax-M2.7)';
-          _descCtrl.text = 'MiniMax-M2.7 via Anthropic-compatible interface';
-          _envRows.addAll([
-            EnvRow(
-              name: 'ANTHROPIC_BASE_URL',
-              value: 'https://api.minimax.io/anthropic',
-            ),
-            EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
-            EnvRow(name: 'ANTHROPIC_MODEL', value: 'MiniMax-M2.7'),
-            EnvRow(name: 'ANTHROPIC_SMALL_FAST_MODEL', value: 'MiniMax-M2.7'),
-            EnvRow(
-              name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-              value: 'MiniMax-M2.7',
-            ),
-            EnvRow(name: 'ANTHROPIC_DEFAULT_OPUS_MODEL', value: 'MiniMax-M2.7'),
-            EnvRow(
-              name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-              value: 'MiniMax-M2.7',
-            ),
-            EnvRow(name: 'API_TIMEOUT_MS', value: '3000000'),
-            EnvRow(
-              name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
-              value: '1',
-            ),
-          ]);
-          break;
-        case 'openrouter':
-          _nameCtrl.text = 'OpenRouter';
-          _descCtrl.text = 'OpenRouter — unified gateway to 200+ models';
-          _envRows.addAll([
-            EnvRow(
-              name: 'ANTHROPIC_BASE_URL',
-              value: 'https://openrouter.ai/api',
-            ),
-            EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
-            EnvRow(name: 'ANTHROPIC_API_KEY', value: ''),
-            EnvRow(
-              name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-              value: 'anthropic/claude-opus-4.6',
-            ),
-            EnvRow(
-              name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-              value: 'anthropic/claude-sonnet-4.6',
-            ),
-            EnvRow(
-              name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-              value: 'anthropic/claude-haiku-4.5',
-            ),
-            EnvRow(
-              name: 'CLAUDE_CODE_SUBAGENT_MODEL',
-              value: 'anthropic/claude-opus-4.6',
-            ),
-          ]);
-          break;
-        case 'deepseek':
-          _nameCtrl.text = 'DeepSeek (Chat)';
-          _descCtrl.text =
-              'DeepSeek API via Anthropic-compatible '
-              'interface';
-          _envRows.addAll([
-            EnvRow(
-              name: 'ANTHROPIC_BASE_URL',
-              value: 'https://api.deepseek.com/anthropic',
-            ),
-            EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
-            EnvRow(name: 'API_TIMEOUT_MS', value: '600000'),
-            EnvRow(name: 'ANTHROPIC_MODEL', value: 'deepseek-chat'),
-            EnvRow(
-              name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-              value: 'deepseek-chat',
-            ),
-            EnvRow(
-              name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
-              value: '1',
-            ),
-          ]);
-          break;
-        case 'openai':
-          _nameCtrl.text = 'OpenAI (GPT-5)';
-          _descCtrl.text = 'OpenAI GPT-5 Codex API';
-          _envRows.addAll([
-            EnvRow(name: 'OPENAI_BASE_URL', value: 'https://api.openai.com/v1'),
-            EnvRow(name: 'OPENAI_API_KEY', value: ''),
-            EnvRow(name: 'OPENAI_MODEL', value: 'gpt-5-codex-high'),
-            EnvRow(name: 'OPENAI_SMALL_FAST_MODEL', value: 'gpt-5-codex-low'),
-            EnvRow(name: 'API_TIMEOUT_MS', value: '600000'),
-          ]);
-          break;
-        case 'anthropic':
-          _nameCtrl.text = 'Anthropic (Default)';
-          _descCtrl.text = 'Official Anthropic Claude API';
-          _envRows.addAll([
-            EnvRow(
-              name: 'ANTHROPIC_BASE_URL',
-              value: 'https://api.anthropic.com',
-            ),
-            EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
-            EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
-            EnvRow(name: 'ANTHROPIC_MODEL', value: 'claude-opus-4-5'),
-          ]);
-          break;
-      }
+      _nameCtrl.text = template.name;
+      _descCtrl.text = template.description ?? '';
+      _envRows.addAll(
+        template.environmentVariables.map(
+          (env) => EnvRow(name: env.name, value: env.value),
+        ),
+      );
       _showScript = _envRows.isNotEmpty;
     });
   }

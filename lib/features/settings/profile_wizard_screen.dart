@@ -6,6 +6,7 @@ import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'profile_setup_catalog.dart';
 
 /// Multi-step wizard for creating a new AI profile.
 /// Step 1: Choose provider
@@ -54,59 +55,52 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
   }
 
   void _applyProviderDefaults(String provider) {
+    final template = profileSetupTemplate(provider);
+    if (template == null) {
+      return;
+    }
+
+    _nameCtrl.text = template.name;
+    _descCtrl.text = template.description ?? '';
+
     switch (provider) {
       case 'anthropic':
-        _nameCtrl.text = 'Anthropic (Default)';
-        _descCtrl.text = 'Official Anthropic Claude API';
         _baseUrlCtrl.text = 'https://api.anthropic.com';
         _modelCtrl.text = 'claude-opus-4-5';
         _smallFastModelCtrl.text = 'claude-sonnet-4-5';
         _timeoutCtrl.text = '300000';
         break;
       case 'zai':
-        _nameCtrl.text = 'Z.AI (GLM-5.1)';
-        _descCtrl.text =
-            'Z.AI GLM Coding Plan via Anthropic-compatible interface';
         _baseUrlCtrl.text = 'https://api.z.ai/api/anthropic';
         _modelCtrl.text = '';
         _smallFastModelCtrl.text = 'GLM-4.7';
         _timeoutCtrl.text = '3000000';
         break;
       case 'deepseek':
-        _nameCtrl.text = 'DeepSeek (Chat)';
-        _descCtrl.text = 'DeepSeek API via Anthropic-compatible interface';
         _baseUrlCtrl.text = 'https://api.deepseek.com/anthropic';
         _modelCtrl.text = 'deepseek-chat';
         _smallFastModelCtrl.text = '';
         _timeoutCtrl.text = '600000';
         break;
       case 'minimax':
-        _nameCtrl.text = 'MiniMax (MiniMax-M2.7)';
-        _descCtrl.text = 'MiniMax-M2.7 via Anthropic-compatible interface';
         _baseUrlCtrl.text = 'https://api.minimax.io/anthropic';
         _modelCtrl.text = 'MiniMax-M2.7';
         _smallFastModelCtrl.text = 'MiniMax-M2.7';
         _timeoutCtrl.text = '3000000';
         break;
       case 'openrouter':
-        _nameCtrl.text = 'OpenRouter';
-        _descCtrl.text = 'OpenRouter — unified gateway to 200+ models';
         _baseUrlCtrl.text = 'https://openrouter.ai/api';
         _modelCtrl.text = 'anthropic/claude-opus-4.6';
         _smallFastModelCtrl.text = 'anthropic/claude-sonnet-4.6';
         _timeoutCtrl.text = '';
         break;
       case 'openai':
-        _nameCtrl.text = 'OpenAI (GPT-5)';
-        _descCtrl.text = 'OpenAI GPT-5 Codex API';
         _baseUrlCtrl.text = 'https://api.openai.com/v1';
         _modelCtrl.text = 'gpt-5-codex-high';
         _smallFastModelCtrl.text = 'gpt-5-codex-low';
         _timeoutCtrl.text = '600000';
         break;
       case 'azure-openai':
-        _nameCtrl.text = 'Azure OpenAI';
-        _descCtrl.text = 'Azure OpenAI Service';
         _baseUrlCtrl.text = '';
         _modelCtrl.text = '';
         _smallFastModelCtrl.text = '';
@@ -489,71 +483,19 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: [
-              _ProviderCard(
-                id: 'anthropic',
-                name: 'Anthropic',
-                description: 'Claude API',
-                icon: Icons.auto_awesome,
-                color: colorForProfile('anthropic'),
-                isSelected: _selectedProvider == 'anthropic',
-                onTap: () => _selectProvider('anthropic'),
-              ),
-              _ProviderCard(
-                id: 'zai',
-                name: 'Z.AI GLM',
-                description: 'GLM Coding Plan',
-                icon: Icons.bolt,
-                color: colorForProfile('zai'),
-                isSelected: _selectedProvider == 'zai',
-                onTap: () => _selectProvider('zai'),
-              ),
-              _ProviderCard(
-                id: 'deepseek',
-                name: 'DeepSeek',
-                description: 'deepseek-chat',
-                icon: Icons.psychology,
-                color: colorForProfile('deepseek'),
-                isSelected: _selectedProvider == 'deepseek',
-                onTap: () => _selectProvider('deepseek'),
-              ),
-              _ProviderCard(
-                id: 'minimax',
-                name: 'MiniMax',
-                description: 'MiniMax-M2.7',
-                icon: Icons.memory,
-                color: colorForProfile('minimax'),
-                isSelected: _selectedProvider == 'minimax',
-                onTap: () => _selectProvider('minimax'),
-              ),
-              _ProviderCard(
-                id: 'openrouter',
-                name: 'OpenRouter',
-                description: '200+ models',
-                icon: Icons.hub,
-                color: colorForProfile('openrouter'),
-                isSelected: _selectedProvider == 'openrouter',
-                onTap: () => _selectProvider('openrouter'),
-              ),
-              _ProviderCard(
-                id: 'openai',
-                name: 'OpenAI',
-                description: 'GPT-5 Codex',
-                icon: Icons.smart_toy,
-                color: colorForProfile('openai'),
-                isSelected: _selectedProvider == 'openai',
-                onTap: () => _selectProvider('openai'),
-              ),
-              _ProviderCard(
-                id: 'azure-openai',
-                name: 'Azure',
-                description: 'Enterprise OpenAI',
-                icon: Icons.cloud,
-                color: colorForProfile('azure-openai'),
-                isSelected: _selectedProvider == 'azure-openai',
-                onTap: () => _selectProvider('azure-openai'),
-              ),
-            ],
+            children: profileSetupOptions
+                .map(
+                  (option) => _ProviderCard(
+                    id: option.id,
+                    name: option.label,
+                    description: option.shortDescription,
+                    icon: option.icon,
+                    color: colorForProfile(option.id),
+                    isSelected: _selectedProvider == option.id,
+                    onTap: () => _selectProvider(option.id),
+                  ),
+                )
+                .toList(growable: false),
           ),
         ],
       ),
@@ -742,66 +684,15 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
   }
 
   String _getProviderName(String provider) {
-    switch (provider) {
-      case 'anthropic':
-        return 'Anthropic';
-      case 'zai':
-        return 'Z.AI (GLM)';
-      case 'deepseek':
-        return 'DeepSeek';
-      case 'minimax':
-        return 'MiniMax';
-      case 'openrouter':
-        return 'OpenRouter';
-      case 'openai':
-        return 'OpenAI';
-      case 'azure-openai':
-        return 'Azure OpenAI';
-      default:
-        return provider;
-    }
+    return profileSetupOption(provider)?.label ?? provider;
   }
 
   IconData _getProviderIcon(String provider) {
-    switch (provider) {
-      case 'anthropic':
-        return Icons.auto_awesome;
-      case 'zai':
-        return Icons.bolt;
-      case 'deepseek':
-        return Icons.psychology;
-      case 'minimax':
-        return Icons.memory;
-      case 'openrouter':
-        return Icons.hub;
-      case 'openai':
-        return Icons.smart_toy;
-      case 'azure-openai':
-        return Icons.cloud;
-      default:
-        return Icons.computer;
-    }
+    return profileSetupOption(provider)?.icon ?? Icons.computer;
   }
 
   String _getApiKeyLabel(String provider) {
-    switch (provider) {
-      case 'anthropic':
-        return 'Anthropic API Key';
-      case 'zai':
-        return 'Z.AI API Key';
-      case 'deepseek':
-        return 'DeepSeek API Key';
-      case 'minimax':
-        return 'MiniMax API Key';
-      case 'openrouter':
-        return 'OpenRouter API Key';
-      case 'openai':
-        return 'OpenAI API Key';
-      case 'azure-openai':
-        return 'Azure API Key';
-      default:
-        return 'API Key';
-    }
+    return profileSetupOption(provider)?.apiKeyLabel ?? 'API Key';
   }
 }
 

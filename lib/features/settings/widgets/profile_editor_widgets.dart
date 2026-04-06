@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../profile_setup_catalog.dart';
 
 /// Quick-setup template chips for choosing a pre-configured
 /// AI backend profile.
@@ -29,9 +30,7 @@ class TemplateSelector extends StatelessWidget {
       children: [
         Text(
           l10n.profilesQuickSetup,
-          style: textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
@@ -44,50 +43,17 @@ class TemplateSelector extends StatelessWidget {
         Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
-          children: [
-            TemplateChip(
-              label: 'Anthropic',
-              icon: Icons.auto_awesome,
-              color: colorForProfile('anthropic'),
-              isSelected: selectedTemplate == 'anthropic',
-              onTap: () => onSelect('anthropic'),
-            ),
-            TemplateChip(
-              label: 'Z.AI GLM',
-              icon: Icons.bolt,
-              color: colorForProfile('zai'),
-              isSelected: selectedTemplate == 'zai',
-              onTap: () => onSelect('zai'),
-            ),
-            TemplateChip(
-              label: 'DeepSeek',
-              icon: Icons.psychology,
-              color: colorForProfile('deepseek'),
-              isSelected: selectedTemplate == 'deepseek',
-              onTap: () => onSelect('deepseek'),
-            ),
-            TemplateChip(
-              label: 'MiniMax',
-              icon: Icons.memory,
-              color: colorForProfile('minimax'),
-              isSelected: selectedTemplate == 'minimax',
-              onTap: () => onSelect('minimax'),
-            ),
-            TemplateChip(
-              label: 'OpenRouter',
-              icon: Icons.hub,
-              color: colorForProfile('openrouter'),
-              isSelected: selectedTemplate == 'openrouter',
-              onTap: () => onSelect('openrouter'),
-            ),
-            TemplateChip(
-              label: 'OpenAI',
-              icon: Icons.smart_toy,
-              color: colorForProfile('openai'),
-              isSelected: selectedTemplate == 'openai',
-              onTap: () => onSelect('openai'),
-            ),
-          ],
+          children: profileSetupOptions
+              .map(
+                (option) => TemplateChip(
+                  label: option.label,
+                  icon: option.icon,
+                  color: colorForProfile(option.id),
+                  isSelected: selectedTemplate == option.id,
+                  onTap: () => onSelect(option.id),
+                ),
+              )
+              .toList(growable: false),
         ),
       ],
     );
@@ -140,8 +106,7 @@ class TemplateChip extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: AppFontSize.sm,
-                  fontWeight:
-                      isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected ? color : null,
                 ),
               ),
@@ -213,9 +178,7 @@ class EnvVarsSection extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         if (envRows.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.md,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Text(
               l10n.profilesEnvVarsEmpty,
               style: textTheme.bodySmall?.copyWith(
@@ -251,16 +214,12 @@ class EnvVarsSection extends StatelessWidget {
                     ),
                     maxLines: 2,
                     minLines: 1,
-                    textCapitalization:
-                        TextCapitalization.characters,
+                    textCapitalization: TextCapitalization.characters,
                     onChanged: (_) => onChanged(),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  flex: 3,
-                  child: ValueField(row: row),
-                ),
+                Expanded(flex: 3, child: ValueField(row: row)),
                 IconButton(
                   icon: Icon(
                     Icons.remove_circle_outline,
@@ -305,9 +264,7 @@ class ScriptSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.sm),
           onTap: onToggle,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.sm,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Row(
               children: [
                 Icon(
@@ -351,10 +308,7 @@ class ScriptSection extends StatelessWidget {
               alignLabelWithHint: true,
             ),
             maxLines: 6,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-            ),
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
           ),
         ],
       ],
@@ -365,8 +319,8 @@ class ScriptSection extends StatelessWidget {
 /// Mutable row state for a single env variable entry.
 class EnvRow {
   EnvRow({String name = '', String value = ''})
-      : nameCtrl = TextEditingController(text: name),
-        valueCtrl = TextEditingController(text: value);
+    : nameCtrl = TextEditingController(text: name),
+      valueCtrl = TextEditingController(text: value);
 
   final TextEditingController nameCtrl;
   final TextEditingController valueCtrl;
@@ -397,8 +351,7 @@ class _ValueFieldState extends State<ValueField> {
       maxLines: 3,
       minLines: 2,
       decoration: InputDecoration(
-        labelText:
-            AppLocalizations.of(context).profilesEnvValueLabel,
+        labelText: AppLocalizations.of(context).profilesEnvValueLabel,
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
@@ -412,10 +365,7 @@ class _ValueFieldState extends State<ValueField> {
           onPressed: () => setState(() => _obscure = !_obscure),
         ),
       ),
-      style: const TextStyle(
-        fontFamily: 'monospace',
-        fontSize: AppFontSize.md,
-      ),
+      style: const TextStyle(fontFamily: 'monospace', fontSize: AppFontSize.md),
     );
   }
 }
