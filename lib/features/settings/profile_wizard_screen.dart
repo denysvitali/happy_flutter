@@ -81,7 +81,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         break;
       case 'minimax':
         _nameCtrl.text = 'MiniMax (M2.7)';
-        _descCtrl.text = 'MiniMax M2.7 via OpenAI-compatible interface';
+        _descCtrl.text = 'MiniMax M2.7 via Anthropic-compatible interface';
         _baseUrlCtrl.text = 'https://api.minimax.io/v1';
         _modelCtrl.text = 'M2.7';
         _smallFastModelCtrl.text = 'M2.7';
@@ -121,8 +121,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     final envVars = <EnvironmentVariable>[];
 
     // Determine which env vars to use based on provider type
-    if (_selectedProvider == 'openai' ||
-        _selectedProvider == 'minimax') {
+    if (_selectedProvider == 'openai') {
       envVars
         ..add(EnvironmentVariable(
           name: 'OPENAI_BASE_URL',
@@ -233,7 +232,6 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     switch (provider) {
       case 'openai':
       case 'azure-openai':
-      case 'minimax':
         return const ProfileCompatibility(
           claude: false,
           codex: true,

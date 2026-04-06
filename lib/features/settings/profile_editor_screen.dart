@@ -306,22 +306,26 @@ class _ProfileEditorScreenState
         case 'minimax':
           _nameCtrl.text = 'MiniMax (M2.7)';
           _descCtrl.text =
-              'MiniMax M2.7 via OpenAI-compatible interface';
+              'MiniMax M2.7 via Anthropic-compatible interface';
           _envRows.addAll([
             EnvRow(
-              name: 'OPENAI_BASE_URL',
+              name: 'ANTHROPIC_BASE_URL',
               value: 'https://api.minimax.io/v1',
             ),
-            EnvRow(name: 'OPENAI_API_KEY', value: ''),
+            EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
             EnvRow(
-              name: 'OPENAI_MODEL',
+              name: 'ANTHROPIC_MODEL',
               value: 'M2.7',
             ),
             EnvRow(
-              name: 'OPENAI_SMALL_FAST_MODEL',
+              name: 'ANTHROPIC_SMALL_FAST_MODEL',
               value: 'M2.7',
             ),
             EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
+            EnvRow(
+              name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+              value: '1',
+            ),
           ]);
           break;
         case 'openrouter':

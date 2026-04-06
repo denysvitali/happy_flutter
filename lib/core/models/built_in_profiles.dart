@@ -134,34 +134,39 @@ AIBackendProfile? getBuiltInProfile(String id) {
         id: 'minimax',
         name: 'MiniMax (M2.7)',
         description:
-            'MiniMax M2.7 via OpenAI-compatible interface',
+            'MiniMax M2.7 via Anthropic-compatible interface',
         isBuiltIn: true,
         defaultModelMode: 'M2.7',
         environmentVariables: [
           EnvironmentVariable(
-            name: 'OPENAI_BASE_URL',
+            name: 'ANTHROPIC_BASE_URL',
             value: r'${MINIMAX_BASE_URL:-https://api.minimax.io/v1}',
           ),
           EnvironmentVariable(
-            name: 'OPENAI_API_KEY',
+            name: 'ANTHROPIC_AUTH_TOKEN',
             value: r'${MINIMAX_API_KEY:-}',
           ),
           EnvironmentVariable(
-            name: 'OPENAI_MODEL',
+            name: 'ANTHROPIC_MODEL',
             value: r'${MINIMAX_MODEL:-M2.7}',
           ),
           EnvironmentVariable(
-            name: 'OPENAI_SMALL_FAST_MODEL',
+            name: 'ANTHROPIC_SMALL_FAST_MODEL',
             value: r'${MINIMAX_SMALL_FAST_MODEL:-M2.7}',
           ),
           EnvironmentVariable(
             name: 'API_TIMEOUT_MS',
             value: r'${MINIMAX_API_TIMEOUT_MS:-300000}',
           ),
+          EnvironmentVariable(
+            name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+            value:
+                r'${MINIMAX_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
+          ),
         ],
         compatibility: const ProfileCompatibility(
-          claude: false,
-          codex: true,
+          claude: true,
+          codex: false,
           gemini: false,
         ),
       );

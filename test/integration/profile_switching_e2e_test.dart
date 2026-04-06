@@ -203,19 +203,19 @@ void main() {
           as Map<String, dynamic>?;
       expect(envVars, isNotNull);
       expect(
-        envVars!['OPENAI_BASE_URL'],
+        envVars!['ANTHROPIC_BASE_URL'],
         contains('minimax'),
-        reason: 'MiniMax profile must set OPENAI_BASE_URL',
+        reason: 'MiniMax profile must set ANTHROPIC_BASE_URL',
       );
       expect(
-        envVars['OPENAI_API_KEY'],
+        envVars['ANTHROPIC_AUTH_TOKEN'],
         isNotNull,
-        reason: 'MiniMax profile must set OPENAI_API_KEY',
+        reason: 'MiniMax profile must set ANTHROPIC_AUTH_TOKEN',
       );
       expect(
-        envVars['OPENAI_MODEL'],
+        envVars['ANTHROPIC_MODEL'],
         contains('M2.7'),
-        reason: 'MiniMax profile must set OPENAI_MODEL',
+        reason: 'MiniMax profile must set ANTHROPIC_MODEL',
       );
     });
 
