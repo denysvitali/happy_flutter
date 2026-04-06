@@ -290,7 +290,7 @@ as Map<String, dynamic>,
 /// @nodoc
 mixin _$ApiUpdateNewSession {
 
- String get t; String get id;@JsonKey(fromJson: _asInt) int get createdAt;@JsonKey(fromJson: _asInt) int get updatedAt;
+ String get t; String get id; int get createdAt; int get updatedAt;
 /// Create a copy of ApiUpdateNewSession
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -323,7 +323,7 @@ abstract mixin class $ApiUpdateNewSessionCopyWith<$Res>  {
   factory $ApiUpdateNewSessionCopyWith(ApiUpdateNewSession value, $Res Function(ApiUpdateNewSession) _then) = _$ApiUpdateNewSessionCopyWithImpl;
 @useResult
 $Res call({
- String t, String id,@JsonKey(fromJson: _asInt) int createdAt,@JsonKey(fromJson: _asInt) int updatedAt
+ String t, String id, int createdAt, int updatedAt
 });
 
 
@@ -431,7 +431,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String t,  String id, @JsonKey(fromJson: _asInt)  int createdAt, @JsonKey(fromJson: _asInt)  int updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String t,  String id,  int createdAt,  int updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ApiUpdateNewSession() when $default != null:
 return $default(_that.t,_that.id,_that.createdAt,_that.updatedAt);case _:
@@ -452,7 +452,7 @@ return $default(_that.t,_that.id,_that.createdAt,_that.updatedAt);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String t,  String id, @JsonKey(fromJson: _asInt)  int createdAt, @JsonKey(fromJson: _asInt)  int updatedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String t,  String id,  int createdAt,  int updatedAt)  $default,) {final _that = this;
 switch (_that) {
 case _ApiUpdateNewSession():
 return $default(_that.t,_that.id,_that.createdAt,_that.updatedAt);case _:
@@ -472,7 +472,7 @@ return $default(_that.t,_that.id,_that.createdAt,_that.updatedAt);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String t,  String id, @JsonKey(fromJson: _asInt)  int createdAt, @JsonKey(fromJson: _asInt)  int updatedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String t,  String id,  int createdAt,  int updatedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _ApiUpdateNewSession() when $default != null:
 return $default(_that.t,_that.id,_that.createdAt,_that.updatedAt);case _:
@@ -487,13 +487,13 @@ return $default(_that.t,_that.id,_that.createdAt,_that.updatedAt);case _:
 @JsonSerializable()
 
 class _ApiUpdateNewSession implements ApiUpdateNewSession {
-  const _ApiUpdateNewSession({this.t = '', this.id = '', @JsonKey(fromJson: _asInt) this.createdAt = 0, @JsonKey(fromJson: _asInt) this.updatedAt = 0});
+  const _ApiUpdateNewSession({this.t = '', this.id = '', this.createdAt = 0, this.updatedAt = 0});
   factory _ApiUpdateNewSession.fromJson(Map<String, dynamic> json) => _$ApiUpdateNewSessionFromJson(json);
 
 @override@JsonKey() final  String t;
 @override@JsonKey() final  String id;
-@override@JsonKey(fromJson: _asInt) final  int createdAt;
-@override@JsonKey(fromJson: _asInt) final  int updatedAt;
+@override@JsonKey() final  int createdAt;
+@override@JsonKey() final  int updatedAt;
 
 /// Create a copy of ApiUpdateNewSession
 /// with the given fields replaced by the non-null parameter values.
@@ -528,7 +528,7 @@ abstract mixin class _$ApiUpdateNewSessionCopyWith<$Res> implements $ApiUpdateNe
   factory _$ApiUpdateNewSessionCopyWith(_ApiUpdateNewSession value, $Res Function(_ApiUpdateNewSession) _then) = __$ApiUpdateNewSessionCopyWithImpl;
 @override @useResult
 $Res call({
- String t, String id,@JsonKey(fromJson: _asInt) int createdAt,@JsonKey(fromJson: _asInt) int updatedAt
+ String t, String id, int createdAt, int updatedAt
 });
 
 
@@ -828,7 +828,7 @@ as String,
 /// @nodoc
 mixin _$ApiUpdateSessionState {
 
- String get t; String get id;@JsonKey(fromJson: _versionedValueFromJson) VersionedValue? get agentState;@JsonKey(fromJson: _versionedValueFromJson) VersionedValue? get metadata;
+ String get t; String get id; VersionedValue? get agentState; VersionedValue? get metadata;
 /// Create a copy of ApiUpdateSessionState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -861,7 +861,7 @@ abstract mixin class $ApiUpdateSessionStateCopyWith<$Res>  {
   factory $ApiUpdateSessionStateCopyWith(ApiUpdateSessionState value, $Res Function(ApiUpdateSessionState) _then) = _$ApiUpdateSessionStateCopyWithImpl;
 @useResult
 $Res call({
- String t, String id,@JsonKey(fromJson: _versionedValueFromJson) VersionedValue? agentState,@JsonKey(fromJson: _versionedValueFromJson) VersionedValue? metadata
+ String t, String id, VersionedValue? agentState, VersionedValue? metadata
 });
 
 
@@ -993,7 +993,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String t,  String id, @JsonKey(fromJson: _versionedValueFromJson)  VersionedValue? agentState, @JsonKey(fromJson: _versionedValueFromJson)  VersionedValue? metadata)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String t,  String id,  VersionedValue? agentState,  VersionedValue? metadata)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ApiUpdateSessionState() when $default != null:
 return $default(_that.t,_that.id,_that.agentState,_that.metadata);case _:
@@ -1014,7 +1014,7 @@ return $default(_that.t,_that.id,_that.agentState,_that.metadata);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String t,  String id, @JsonKey(fromJson: _versionedValueFromJson)  VersionedValue? agentState, @JsonKey(fromJson: _versionedValueFromJson)  VersionedValue? metadata)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String t,  String id,  VersionedValue? agentState,  VersionedValue? metadata)  $default,) {final _that = this;
 switch (_that) {
 case _ApiUpdateSessionState():
 return $default(_that.t,_that.id,_that.agentState,_that.metadata);case _:
@@ -1034,7 +1034,7 @@ return $default(_that.t,_that.id,_that.agentState,_that.metadata);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String t,  String id, @JsonKey(fromJson: _versionedValueFromJson)  VersionedValue? agentState, @JsonKey(fromJson: _versionedValueFromJson)  VersionedValue? metadata)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String t,  String id,  VersionedValue? agentState,  VersionedValue? metadata)?  $default,) {final _that = this;
 switch (_that) {
 case _ApiUpdateSessionState() when $default != null:
 return $default(_that.t,_that.id,_that.agentState,_that.metadata);case _:
@@ -1049,13 +1049,13 @@ return $default(_that.t,_that.id,_that.agentState,_that.metadata);case _:
 @JsonSerializable()
 
 class _ApiUpdateSessionState implements ApiUpdateSessionState {
-  const _ApiUpdateSessionState({this.t = '', this.id = '', @JsonKey(fromJson: _versionedValueFromJson) this.agentState, @JsonKey(fromJson: _versionedValueFromJson) this.metadata});
+  const _ApiUpdateSessionState({this.t = '', this.id = '', this.agentState, this.metadata});
   factory _ApiUpdateSessionState.fromJson(Map<String, dynamic> json) => _$ApiUpdateSessionStateFromJson(json);
 
 @override@JsonKey() final  String t;
 @override@JsonKey() final  String id;
-@override@JsonKey(fromJson: _versionedValueFromJson) final  VersionedValue? agentState;
-@override@JsonKey(fromJson: _versionedValueFromJson) final  VersionedValue? metadata;
+@override final  VersionedValue? agentState;
+@override final  VersionedValue? metadata;
 
 /// Create a copy of ApiUpdateSessionState
 /// with the given fields replaced by the non-null parameter values.
@@ -1090,7 +1090,7 @@ abstract mixin class _$ApiUpdateSessionStateCopyWith<$Res> implements $ApiUpdate
   factory _$ApiUpdateSessionStateCopyWith(_ApiUpdateSessionState value, $Res Function(_ApiUpdateSessionState) _then) = __$ApiUpdateSessionStateCopyWithImpl;
 @override @useResult
 $Res call({
- String t, String id,@JsonKey(fromJson: _versionedValueFromJson) VersionedValue? agentState,@JsonKey(fromJson: _versionedValueFromJson) VersionedValue? metadata
+ String t, String id, VersionedValue? agentState, VersionedValue? metadata
 });
 
 
@@ -1148,8 +1148,8 @@ $VersionedValueCopyWith<$Res>? get metadata {
 /// @nodoc
 mixin _$VersionedValue {
 
-@JsonKey(fromJson: _asInt) int get version;/// The serialised value string. Null on the wire is normalised to `''`.
-@JsonKey(fromJson: _vvValueFromJson) String get value;
+ int get version;/// The serialised value string. Null on the wire is normalised to `''`.
+ String get value;
 /// Create a copy of VersionedValue
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1182,7 +1182,7 @@ abstract mixin class $VersionedValueCopyWith<$Res>  {
   factory $VersionedValueCopyWith(VersionedValue value, $Res Function(VersionedValue) _then) = _$VersionedValueCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(fromJson: _asInt) int version,@JsonKey(fromJson: _vvValueFromJson) String value
+ int version, String value
 });
 
 
@@ -1288,7 +1288,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _asInt)  int version, @JsonKey(fromJson: _vvValueFromJson)  String value)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int version,  String value)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VersionedValue() when $default != null:
 return $default(_that.version,_that.value);case _:
@@ -1309,7 +1309,7 @@ return $default(_that.version,_that.value);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _asInt)  int version, @JsonKey(fromJson: _vvValueFromJson)  String value)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int version,  String value)  $default,) {final _that = this;
 switch (_that) {
 case _VersionedValue():
 return $default(_that.version,_that.value);case _:
@@ -1329,7 +1329,7 @@ return $default(_that.version,_that.value);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: _asInt)  int version, @JsonKey(fromJson: _vvValueFromJson)  String value)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int version,  String value)?  $default,) {final _that = this;
 switch (_that) {
 case _VersionedValue() when $default != null:
 return $default(_that.version,_that.value);case _:
@@ -1344,12 +1344,12 @@ return $default(_that.version,_that.value);case _:
 @JsonSerializable()
 
 class _VersionedValue implements VersionedValue {
-  const _VersionedValue({@JsonKey(fromJson: _asInt) this.version = 0, @JsonKey(fromJson: _vvValueFromJson) this.value = ''});
+  const _VersionedValue({this.version = 0, this.value = ''});
   factory _VersionedValue.fromJson(Map<String, dynamic> json) => _$VersionedValueFromJson(json);
 
-@override@JsonKey(fromJson: _asInt) final  int version;
+@override@JsonKey() final  int version;
 /// The serialised value string. Null on the wire is normalised to `''`.
-@override@JsonKey(fromJson: _vvValueFromJson) final  String value;
+@override@JsonKey() final  String value;
 
 /// Create a copy of VersionedValue
 /// with the given fields replaced by the non-null parameter values.
@@ -1384,7 +1384,7 @@ abstract mixin class _$VersionedValueCopyWith<$Res> implements $VersionedValueCo
   factory _$VersionedValueCopyWith(_VersionedValue value, $Res Function(_VersionedValue) _then) = __$VersionedValueCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(fromJson: _asInt) int version,@JsonKey(fromJson: _vvValueFromJson) String value
+ int version, String value
 });
 
 

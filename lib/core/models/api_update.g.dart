@@ -26,8 +26,8 @@ _ApiUpdateNewSession _$ApiUpdateNewSessionFromJson(Map<String, dynamic> json) =>
     _ApiUpdateNewSession(
       t: json['t'] as String? ?? '',
       id: json['id'] as String? ?? '',
-      createdAt: json['createdAt'] == null ? 0 : _asInt(json['createdAt']),
-      updatedAt: json['updatedAt'] == null ? 0 : _asInt(json['updatedAt']),
+      createdAt: (json['createdAt'] as num?)?.toInt() ?? 0,
+      updatedAt: (json['updatedAt'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$ApiUpdateNewSessionToJson(
@@ -53,8 +53,12 @@ _ApiUpdateSessionState _$ApiUpdateSessionStateFromJson(
 ) => _ApiUpdateSessionState(
   t: json['t'] as String? ?? '',
   id: json['id'] as String? ?? '',
-  agentState: _versionedValueFromJson(json['agentState']),
-  metadata: _versionedValueFromJson(json['metadata']),
+  agentState: json['agentState'] == null
+      ? null
+      : VersionedValue.fromJson(json['agentState'] as Map<String, dynamic>),
+  metadata: json['metadata'] == null
+      ? null
+      : VersionedValue.fromJson(json['metadata'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$ApiUpdateSessionStateToJson(
@@ -68,8 +72,8 @@ Map<String, dynamic> _$ApiUpdateSessionStateToJson(
 
 _VersionedValue _$VersionedValueFromJson(Map<String, dynamic> json) =>
     _VersionedValue(
-      version: json['version'] == null ? 0 : _asInt(json['version']),
-      value: json['value'] == null ? '' : _vvValueFromJson(json['value']),
+      version: (json['version'] as num?)?.toInt() ?? 0,
+      value: json['value'] as String? ?? '',
     );
 
 Map<String, dynamic> _$VersionedValueToJson(_VersionedValue instance) =>

@@ -11,3 +11,10 @@ const sentryDsn =
     'https://fa6df69a31f94f648a2facd2d074cd22'
     '@$sentryHost'
     '/1';
+
+/// Performance sampling. Kept high because GlitchTip volume is small and
+/// the app currently under-samples user-visible failures and slow paths.
+const sentryTracesSampleRate = 1.0;
+const sentryProfilesSampleRate = 0.5;
+const sentryReplaySessionSampleRate = 0.25;
+const sentryReplayOnErrorSampleRate = 1.0;

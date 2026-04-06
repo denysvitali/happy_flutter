@@ -39,20 +39,22 @@ extension SyncMessagingMerge on Sync {
     Map<String, dynamic> outerContent,
   ) {
     Map<String, dynamic>? envelope;
-    if (nestedContent is Map<String, dynamic>) {
-      if (nestedContent['type'] == 'session' &&
-          nestedContent['data'] is Map<String, dynamic>) {
-        envelope = nestedContent['data'] as Map<String, dynamic>;
+    final nestedMap = WireParsers.asMap(nestedContent);
+    if (nestedMap != null) {
+      final nestedData = WireParsers.asMap(nestedMap['data']);
+      if (nestedMap['type'] == 'session' && nestedData != null) {
+        envelope = nestedData;
       } else {
-        envelope = nestedContent;
+        envelope = nestedMap;
       }
     }
     if (envelope == null) return ([], []);
 
     final event = envelope['ev'] ?? envelope['event'];
-    if (event is! Map<String, dynamic>) return ([], []);
+    final eventMap = WireParsers.asMap(event);
+    if (eventMap == null) return ([], []);
 
-    final eventType = (event['t'] ?? event['type']) as String?;
+    final eventType = (eventMap['t'] ?? eventMap['type']) as String?;
     if (eventType == null) return ([], []);
 
     final eventRole = envelope['role'] as String?;
@@ -105,7 +107,8 @@ extension SyncMessagingMerge on Sync {
             'createdAt': eventCreatedAt,
             'role': 'agent',
             'kind': 'text',
-            'content': (event['text'] ?? event['message'])?.toString() ?? '',
+            'content':
+                (eventMap['text'] ?? eventMap['message'])?.toString() ?? '',
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
@@ -117,9 +120,10 @@ extension SyncMessagingMerge on Sync {
     }
 
     if (eventType == 'text') {
-      final text = (event['text'] ?? event['message'])?.toString() ?? '';
+      final text =
+          (eventMap['text'] ?? eventMap['message'])?.toString() ?? '';
       if (eventRole == MessageRole.agent) {
-        final thinking = event['thinking'] == true;
+        final thinking = eventMap['thinking'] == true;
         return (
           [
             {
@@ -184,10 +188,13 @@ extension SyncMessagingMerge on Sync {
 
     if (eventType == 'tool-call-start') {
       if (eventRole != 'agent') return ([], []);
-      final args = event['args'] ?? event['input'];
-      final input = args is Map<String, dynamic> ? args : <String, dynamic>{};
+      final args = eventMap['args'] ?? eventMap['input'];
+      final input = WireParsers.asMap(args) ?? <String, dynamic>{};
       final callId =
-          (event['call'] ?? event['callId'] ?? event['toolUseId']) as String?;
+          (eventMap['call'] ??
+                  eventMap['callId'] ??
+                  eventMap['toolUseId'])
+              as String?;
       return (
         [
           {
@@ -197,11 +204,13 @@ extension SyncMessagingMerge on Sync {
             'createdAt': eventCreatedAt,
             'role': 'agent',
             'kind': 'tool-call',
-            'name': (event['name'] ?? event['tool'])?.toString() ?? 'unknown',
+            'name':
+                (eventMap['name'] ?? eventMap['tool'])?.toString() ??
+                'unknown',
             'input': input,
             'toolUseId': callId ?? envelopeId,
             'state': 'running',
-            'content': event,
+            'content': eventMap,
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
@@ -214,15 +223,23 @@ extension SyncMessagingMerge on Sync {
 
     if (eventType == 'tool-call-end') {
       final callId =
-          (event['call'] ?? event['callId'] ?? event['toolUseId']) as String?;
+          (eventMap['call'] ??
+                  eventMap['callId'] ??
+                  eventMap['toolUseId'])
+              as String?;
       if (callId == null || callId.isEmpty) return ([], []);
       return (
         [],
         [
           {
             'toolUseId': callId,
-            'result': event['result'] ?? event['output'] ?? event['content'],
-            'isError': event['isError'] == true || event['is_error'] == true,
+            'result':
+                eventMap['result'] ??
+                eventMap['output'] ??
+                eventMap['content'],
+            'isError':
+                eventMap['isError'] == true ||
+                eventMap['is_error'] == true,
             'createdAt': eventCreatedAt,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,
@@ -234,8 +251,8 @@ extension SyncMessagingMerge on Sync {
 
     if (eventType == 'file') {
       if (eventRole != 'agent') return ([], []);
-      final image = event['image'];
-      final imageMeta = image is Map<String, dynamic>
+      final image = WireParsers.asMap(eventMap['image']);
+      final imageMeta = image != null
           ? {
               'width': image['width'],
               'height': image['height'],
@@ -253,14 +270,14 @@ extension SyncMessagingMerge on Sync {
             'kind': 'tool-call',
             'name': 'file',
             'input': {
-              'ref': event['ref'],
-              'name': event['name'],
-              'size': event['size'],
+              'ref': eventMap['ref'],
+              'name': eventMap['name'],
+              'size': eventMap['size'],
               'image': ?imageMeta,
             },
             'toolUseId': envelopeId,
             'state': 'completed',
-            'content': event,
+            'content': eventMap,
             'raw': outerContent,
             if (isSidechain) 'isSidechain': true,
             if (uuid.isNotEmpty) 'uuid': uuid,

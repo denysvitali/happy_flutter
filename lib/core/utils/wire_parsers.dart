@@ -49,6 +49,13 @@ class WireParsers {
   /// `as Map<String, dynamic>?` casts on unexpected wire shapes.
   static Map<String, dynamic>? asMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      try {
+        return Map<String, dynamic>.from(value);
+      } catch (_) {
+        return null;
+      }
+    }
     return null;
   }
 }

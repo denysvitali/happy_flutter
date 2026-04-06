@@ -11,20 +11,22 @@ void _processSessionContent({
   required List<Map<String, dynamic>> toolResults,
 }) {
   Map<String, dynamic>? envelope;
-  if (nestedContent is Map<String, dynamic>) {
-    if (nestedContent['type'] == 'session' &&
-        nestedContent['data'] is Map<String, dynamic>) {
-      envelope = nestedContent['data'] as Map<String, dynamic>;
+  final nestedMap = WireParsers.asMap(nestedContent);
+  if (nestedMap != null) {
+    final nestedData = WireParsers.asMap(nestedMap['data']);
+    if (nestedMap['type'] == 'session' && nestedData != null) {
+      envelope = nestedData;
     } else {
-      envelope = nestedContent;
+      envelope = nestedMap;
     }
   }
   if (envelope == null) return;
 
   final event = envelope['ev'] ?? envelope['event'];
-  if (event is! Map<String, dynamic>) return;
+  final eventMap = WireParsers.asMap(event);
+  if (eventMap == null) return;
 
-  final eventType = (event['t'] ?? event['type']) as String?;
+  final eventType = (eventMap['t'] ?? eventMap['type']) as String?;
   if (eventType == null) return;
 
   final eventRole = envelope['role'] as String?;
@@ -70,7 +72,8 @@ void _processSessionContent({
       'createdAt': envelopeCreatedAt,
       'role': 'agent',
       'kind': 'text',
-      'content': (event['text'] ?? event['message'])?.toString() ?? '',
+      'content':
+          (eventMap['text'] ?? eventMap['message'])?.toString() ?? '',
       'raw': outerContent,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
@@ -80,9 +83,10 @@ void _processSessionContent({
   }
 
   if (eventType == 'text') {
-    final text = (event['text'] ?? event['message'])?.toString() ?? '';
+    final text =
+        (eventMap['text'] ?? eventMap['message'])?.toString() ?? '';
     if (eventRole == 'agent') {
-      final thinking = event['thinking'] == true;
+      final thinking = eventMap['thinking'] == true;
       messages.add({
         'id': envelopeId,
         'localId': localId,
@@ -119,11 +123,12 @@ void _processSessionContent({
 
   if (eventType == 'tool-call-start') {
     if (eventRole != 'agent') return;
-    final args = event['args'] ?? event['input'];
-    final input =
-        args is Map<String, dynamic> ? args : <String, dynamic>{};
+    final args = eventMap['args'] ?? eventMap['input'];
+    final input = WireParsers.asMap(args) ?? <String, dynamic>{};
     final callId =
-        (event['call'] ?? event['callId'] ?? event['toolUseId'])
+        (eventMap['call'] ??
+                eventMap['callId'] ??
+                eventMap['toolUseId'])
             as String?;
     messages.add({
       'id': envelopeId,
@@ -132,11 +137,12 @@ void _processSessionContent({
       'createdAt': envelopeCreatedAt,
       'role': 'agent',
       'kind': 'tool-call',
-      'name': (event['name'] ?? event['tool'])?.toString() ?? 'unknown',
+      'name':
+          (eventMap['name'] ?? eventMap['tool'])?.toString() ?? 'unknown',
       'input': input,
       'toolUseId': callId ?? envelopeId,
       'state': 'running',
-      'content': event,
+      'content': eventMap,
       'raw': outerContent,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
@@ -147,15 +153,19 @@ void _processSessionContent({
 
   if (eventType == 'tool-call-end') {
     final callId =
-        (event['call'] ?? event['callId'] ?? event['toolUseId'])
+        (eventMap['call'] ??
+                eventMap['callId'] ??
+                eventMap['toolUseId'])
             as String?;
     if (callId == null || callId.isEmpty) return;
     toolResults.add({
       'toolUseId': callId,
       'result':
-          event['result'] ?? event['output'] ?? event['content'],
+          eventMap['result'] ??
+          eventMap['output'] ??
+          eventMap['content'],
       'isError':
-          event['isError'] == true || event['is_error'] == true,
+          eventMap['isError'] == true || eventMap['is_error'] == true,
       'createdAt': envelopeCreatedAt,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
@@ -166,8 +176,8 @@ void _processSessionContent({
 
   if (eventType == 'file') {
     if (eventRole != 'agent') return;
-    final image = event['image'];
-    final imageMeta = image is Map<String, dynamic>
+    final image = WireParsers.asMap(eventMap['image']);
+    final imageMeta = image != null
         ? {
             'width': image['width'],
             'height': image['height'],
@@ -183,14 +193,14 @@ void _processSessionContent({
       'kind': 'tool-call',
       'name': 'file',
       'input': {
-        'ref': event['ref'],
-        'name': event['name'],
-        'size': event['size'],
+        'ref': eventMap['ref'],
+        'name': eventMap['name'],
+        'size': eventMap['size'],
         'image': ?imageMeta,
       },
       'toolUseId': envelopeId,
       'state': 'completed',
-      'content': event,
+      'content': eventMap,
       'raw': outerContent,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,

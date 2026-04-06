@@ -13,10 +13,11 @@ void _processOutputContent({
   required List<Map<String, dynamic>> usageUpdates,
   List<String>? droppedReasons,
 }) {
-  final data = nestedContent['data'];
-  if (data is! Map<String, dynamic>) {
+  final data = WireParsers.asMap(nestedContent['data']);
+  if (data == null) {
     droppedReasons?.add(
-      'seq=$seq id=$id: output data is ${data?.runtimeType ?? 'null'}, '
+      'seq=$seq id=$id: output data is '
+      '${nestedContent['data']?.runtimeType ?? 'null'}, '
       'expected Map',
     );
     return;
@@ -37,9 +38,10 @@ void _processOutputContent({
         ? meta.uuid!
         : id; // id is never null — always a wire id string
 
-    final agentMsg = data['message'];
-    if (agentMsg is! Map<String, dynamic>) {
-      if (agentMsg is String && agentMsg.isNotEmpty) {
+    final rawAgentMsg = data['message'];
+    final agentMsg = WireParsers.asMap(rawAgentMsg);
+    if (agentMsg == null) {
+      if (rawAgentMsg is String && rawAgentMsg.isNotEmpty) {
         messages.add({
           'id': id,
           'localId': localId,
@@ -47,7 +49,7 @@ void _processOutputContent({
           'createdAt': createdAt,
           'role': 'agent',
           'kind': 'text',
-          'content': agentMsg,
+          'content': rawAgentMsg,
           'raw': outerContent,
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
@@ -56,7 +58,7 @@ void _processOutputContent({
       } else {
         droppedReasons?.add(
           'seq=$seq id=$id: assistant message field is '
-          '${agentMsg?.runtimeType ?? 'null'}, expected Map or '
+          '${rawAgentMsg?.runtimeType ?? 'null'}, expected Map or '
           'non-empty String',
         );
       }
@@ -110,11 +112,12 @@ void _processOutputContent({
 
     var i = 0;
     for (final c in agentContentList) {
-      if (c is! Map<String, dynamic>) {
+      final block = WireParsers.asMap(c);
+      if (block == null) {
         i++;
         continue;
       }
-      final type = c['type'] as String?;
+      final type = block['type'] as String?;
 
       if (type == 'text') {
         messages.add({
@@ -124,7 +127,7 @@ void _processOutputContent({
           'createdAt': createdAt,
           'role': 'agent',
           'kind': 'text',
-          'content': c['text']?.toString() ?? '',
+          'content': block['text']?.toString() ?? '',
           'raw': outerContent,
           'model': ?agentModel,
           if (meta.isSidechain) 'isSidechain': true,
@@ -140,7 +143,7 @@ void _processOutputContent({
           'role': 'agent',
           'kind': 'text',
           'isThinking': true,
-          'content': '*Thinking...*\n\n*${c['thinking']}*',
+          'content': '*Thinking...*\n\n*${block['thinking']}*',
           'raw': outerContent,
           'model': ?agentModel,
           if (meta.isSidechain) 'isSidechain': true,
@@ -152,8 +155,8 @@ void _processOutputContent({
           type == 'mcp_tool_use' ||
           type == 'code_execution_tool_use') {
         final toolUseUuid =
-            (c['id'] as String?)?.isNotEmpty ?? false
-                ? c['id'] as String
+            (block['id'] as String?)?.isNotEmpty ?? false
+                ? block['id'] as String
                 : effectiveUuid;
         messages.add({
           'id': '${id}_u$i',
@@ -162,11 +165,11 @@ void _processOutputContent({
           'createdAt': createdAt,
           'role': 'agent',
           'kind': 'tool-call',
-          'name': c['name'] ?? c['server_name'] ?? type,
-          'input': WireParsers.asMap(c['input']) ?? <String, dynamic>{},
-          'toolUseId': c['id'],
+          'name': block['name'] ?? block['server_name'] ?? type,
+          'input': WireParsers.asMap(block['input']) ?? <String, dynamic>{},
+          'toolUseId': block['id'],
           'state': 'running',
-          'content': c,
+          'content': block,
           'raw': outerContent,
           'model': ?agentModel,
           if (meta.isSidechain) 'isSidechain': true,
@@ -178,12 +181,12 @@ void _processOutputContent({
           type == 'server_tool_result' ||
           type == 'mcp_tool_result' ||
           type == 'code_execution_tool_result') {
-        final toolUseId = c['tool_use_id'] as String?;
+        final toolUseId = block['tool_use_id'] as String?;
         if (toolUseId != null && toolUseId.isNotEmpty) {
           toolResults.add({
             'toolUseId': toolUseId,
-            'result': c['content'],
-            'isError': c['is_error'] == true,
+            'result': block['content'],
+            'isError': block['is_error'] == true,
             'createdAt': createdAt,
             if (meta.isSidechain) 'isSidechain': true,
             'uuid': effectiveUuid,
@@ -203,7 +206,8 @@ void _processOutputContent({
 
   if (dataType == 'user') {
     if (meta.isSidechain) {
-      final msgContent = data['message']?['content'];
+      final userMessage = WireParsers.asMap(data['message']);
+      final msgContent = userMessage?['content'];
       final promptText = msgContent is String
           ? msgContent
           : (msgContent is List

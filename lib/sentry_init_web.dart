@@ -17,20 +17,22 @@ Future<void> initSentryForPlatform([
     options
       ..dsn = sentryDsn
       ..sendDefaultPii = true
-      ..tracesSampleRate = 0.2
+      ..tracesSampleRate = sentryTracesSampleRate
       // ignore: experimental_member_use
-      ..profilesSampleRate = 0.2
+      ..profilesSampleRate = sentryProfilesSampleRate
       ..release =
           _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..environment = kReleaseMode ? 'production' : 'debug'
       // ── Breadcrumb limits ──
-      ..maxBreadcrumbs = 100
+      ..maxBreadcrumbs = 200
+      ..attachStacktrace = true
       // ── Session replay ──
-      ..replay.sessionSampleRate = 0.1
-      ..replay.onErrorSampleRate = 1.0
+      ..replay.sessionSampleRate = sentryReplaySessionSampleRate
+      ..replay.onErrorSampleRate = sentryReplayOnErrorSampleRate
       // Print Sentry diagnostics to console in debug builds.
       ..debug = kDebugMode
       // ── Filter noisy events ──
+      ..beforeBreadcrumb = _beforeBreadcrumb
       ..beforeSend = _beforeSend;
   }, appRunner: appRunner != null ? () => appRunner() : null);
 
@@ -77,4 +79,20 @@ FutureOr<SentryEvent?> _beforeSend(
   }
 
   return event;
+}
+
+Breadcrumb? _beforeBreadcrumb(Breadcrumb? breadcrumb, Hint hint) {
+  if (breadcrumb == null) return null;
+  final message = breadcrumb.message ?? '';
+  if (breadcrumb.category == 'websocket' &&
+      (message == 'ws event: ephemeral' || message == 'ws event: update')) {
+    return null;
+  }
+
+  if (breadcrumb.category == 'console' &&
+      message.contains('[machine-activity]')) {
+    return null;
+  }
+
+  return breadcrumb;
 }

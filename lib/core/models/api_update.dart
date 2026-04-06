@@ -11,6 +11,18 @@ int _asInt(dynamic value) {
   return 0;
 }
 
+Map<String, dynamic> _mapOrEmpty(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) {
+    try {
+      return Map<String, dynamic>.from(value);
+    } catch (_) {
+      return const <String, dynamic>{};
+    }
+  }
+  return const <String, dynamic>{};
+}
+
 @freezed
 abstract class ApiUpdateNewMessage with _$ApiUpdateNewMessage {
   const factory ApiUpdateNewMessage({
@@ -20,7 +32,11 @@ abstract class ApiUpdateNewMessage with _$ApiUpdateNewMessage {
   }) = _ApiUpdateNewMessage;
 
   factory ApiUpdateNewMessage.fromJson(Map<String, dynamic> json) =>
-      _$ApiUpdateNewMessageFromJson(json);
+      ApiUpdateNewMessage(
+        t: json['t'] as String? ?? '',
+        sid: json['sid'] as String? ?? '',
+        message: _mapOrEmpty(json['message']),
+      );
 }
 
 @freezed
@@ -28,12 +44,17 @@ abstract class ApiUpdateNewSession with _$ApiUpdateNewSession {
   const factory ApiUpdateNewSession({
     @Default('') String t,
     @Default('') String id,
-    @JsonKey(fromJson: _asInt) @Default(0) int createdAt,
-    @JsonKey(fromJson: _asInt) @Default(0) int updatedAt,
+    @Default(0) int createdAt,
+    @Default(0) int updatedAt,
   }) = _ApiUpdateNewSession;
 
   factory ApiUpdateNewSession.fromJson(Map<String, dynamic> json) =>
-      _$ApiUpdateNewSessionFromJson(json);
+      ApiUpdateNewSession(
+        t: json['t'] as String? ?? '',
+        id: json['id'] as String? ?? '',
+        createdAt: _asInt(json['createdAt']),
+        updatedAt: _asInt(json['updatedAt']),
+      );
 }
 
 @freezed
@@ -48,8 +69,9 @@ abstract class ApiDeleteSession with _$ApiDeleteSession {
 }
 
 VersionedValue? _versionedValueFromJson(dynamic value) {
-  if (value is Map<String, dynamic>) {
-    return VersionedValue.fromJson(value);
+  final map = _mapOrEmpty(value);
+  if (map.isNotEmpty) {
+    return VersionedValue.fromJson(map);
   }
   return null;
 }
@@ -59,12 +81,17 @@ abstract class ApiUpdateSessionState with _$ApiUpdateSessionState {
   const factory ApiUpdateSessionState({
     @Default('') String t,
     @Default('') String id,
-    @JsonKey(fromJson: _versionedValueFromJson) VersionedValue? agentState,
-    @JsonKey(fromJson: _versionedValueFromJson) VersionedValue? metadata,
+    VersionedValue? agentState,
+    VersionedValue? metadata,
   }) = _ApiUpdateSessionState;
 
   factory ApiUpdateSessionState.fromJson(Map<String, dynamic> json) =>
-      _$ApiUpdateSessionStateFromJson(json);
+      ApiUpdateSessionState(
+        t: json['t'] as String? ?? '',
+        id: json['id'] as String? ?? '',
+        agentState: _versionedValueFromJson(json['agentState']),
+        metadata: _versionedValueFromJson(json['metadata']),
+      );
 }
 
 String _vvValueFromJson(dynamic value) {
@@ -75,14 +102,17 @@ String _vvValueFromJson(dynamic value) {
 @freezed
 abstract class VersionedValue with _$VersionedValue {
   const factory VersionedValue({
-    @JsonKey(fromJson: _asInt) @Default(0) int version,
+    @Default(0) int version,
 
     /// The serialised value string. Null on the wire is normalised to `''`.
-    @JsonKey(fromJson: _vvValueFromJson) @Default('') String value,
+    @Default('') String value,
   }) = _VersionedValue;
 
   factory VersionedValue.fromJson(Map<String, dynamic> json) =>
-      _$VersionedValueFromJson(json);
+      VersionedValue(
+        version: _asInt(json['version']),
+        value: _vvValueFromJson(json['value']),
+      );
 }
 
 // ── New payload classes for additional update types ──────────────────────────
@@ -139,10 +169,11 @@ class ApiUpdate {
     // 1. Wrapped: { body: { t: '...', ... } }  (original server format)
     // 2. Flat:    { t: '...', ... }             (direct Socket.io event data)
     final body = json['body'];
-    if (body is Map<String, dynamic>) {
+    final bodyMap = _mapOrEmpty(body);
+    if (bodyMap.isNotEmpty) {
       return ApiUpdate(
-        type: body['t'] as String? ?? '',
-        data: body,
+        type: bodyMap['t'] as String? ?? '',
+        data: bodyMap,
       );
     }
     // Flat format - the json itself is the data
