@@ -664,6 +664,20 @@ class MMKVStorage {
     await _ensureInitialized();
     _mmkv?.encodeString('outbox-entries', jsonStr);
   }
+
+  // ─── Version tracking ───────────────────────────────────────────
+
+  /// Get the installed version (null if first install).
+  String? getInstalledVersion() {
+    if (!_initialized) return null;
+    return _mmkv?.decodeString(_StorageKeys.installedVersion);
+  }
+
+  /// Save the installed version.
+  void setInstalledVersion(String version) {
+    if (!_initialized) return;
+    _mmkv?.encodeString(_StorageKeys.installedVersion, version);
+  }
 }
 
 /// Profile storage using MMKV

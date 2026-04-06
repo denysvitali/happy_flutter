@@ -11,7 +11,7 @@ class ChangelogEntry {
     required this.message,
     required this.type,
     this.scope,
-    this.isBreaking,
+    this.isBreaking = false,
   });
 
   /// Commit date (ISO 8601).
@@ -23,7 +23,7 @@ class ChangelogEntry {
   /// Optional scope extracted from feat(scope): pattern.
   final String? scope;
   /// True if the commit has a BREAKING CHANGE footer.
-  final bool? isBreaking;
+  final bool isBreaking;
 }
 
 /// Result of parsing a range of commits into a changelog.
@@ -46,7 +46,8 @@ class ChangelogResult {
 /// then parses each commit message using the Conventional Commits
 /// specification (https://www.conventionalcommits.org/).
 class ChangelogService {
-  ChangelogService({http.Client? client}) : _client = client ?? http.Client();
+  ChangelogService({http.Client? client})
+      : _client = client ?? http.Client();
 
   final http.Client _client;
 
@@ -136,19 +137,21 @@ class ChangelogService {
   /// Resolve a version tag (e.g. "1.2.3") to the commit SHA.
   Future<String?> _getTagSha(String tag) async {
     try {
-      final url = Uri.parse('$_githubApiBase/repos/$_repoOwner/$_repoName/git/refs/tags/$tag');
-      final response = await _client.get(
-        url,
-        headers: _headers,
+      final url = Uri.parse(
+        '$_githubApiBase/repos/$_repoOwner/$_repoName/git/refs/tags/$tag',
       );
+      final response = await _client.get(url, headers: _headers);
 
       if (response.statusCode == 404) {
         // Try without 'v' prefix
         final withoutV = tag.startsWith('v') ? tag.substring(1) : tag;
-        final url2 = Uri.parse('$_githubApiBase/repos/$_repoOwner/$_repoName/git/refs/tags/$withoutV');
+        final url2 = Uri.parse(
+          '$_githubApiBase/repos/$_repoOwner/$_repoName/git/refs/tags/$withoutV',
+        );
         final response2 = await _client.get(url2, headers: _headers);
         if (response2.statusCode == 200) {
-          final data = jsonDecode(response2.body) as Map<String, dynamic>;
+          final data =
+              jsonDecode(response2.body) as Map<String, dynamic>;
           return data['object']?['sha'] as String?;
         }
         return null;
@@ -157,7 +160,7 @@ class ChangelogService {
       if (response.statusCode != 200) return null;
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      //Annotated tag response wraps the sha in 'object'
+      // Annotated tag response wraps the sha in 'object'
       final object = data['object'] as Map<String, dynamic>?;
       if (object != null && object['type'] == 'tag') {
         // Peel the tag to get the commit SHA
@@ -176,7 +179,9 @@ class ChangelogService {
   /// Peel an annotated tag to get the underlying commit SHA.
   Future<String?> _peelTag(String tagSha) async {
     try {
-      final url = Uri.parse('$_githubApiBase/repos/$_repoOwner/$_repoName/git/tags/$tagSha');
+      final url = Uri.parse(
+        '$_githubApiBase/repos/$_repoOwner/$_repoName/git/tags/$tagSha',
+      );
       final response = await _client.get(url, headers: _headers);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -196,15 +201,19 @@ class ChangelogService {
       final String url;
       if (fromSha != null) {
         // Use commit comparison API
-        url = '$_githubApiBase/repos/$_repoOwner/$_repoName/compare/$fromSha...$toSha';
+        url =
+            '$_githubApiBase/repos/$_repoOwner/$_repoName/compare/$fromSha...$toSha';
       } else {
         // Get commits up to the tag (newest first, limit 100)
-        url = '$_githubApiBase/repos/$_repoOwner/$_repoName/commits?sha=$toSha&per_page=100';
+        url =
+            '$_githubApiBase/repos/$_repoOwner/$_repoName/commits?sha=$toSha&per_page=100';
       }
 
       final response = await _client.get(Uri.parse(url), headers: _headers);
       if (response.statusCode != 200) {
-        logger.warning('ChangelogService: compare API returned ${response.statusCode}');
+        logger.warning(
+          'ChangelogService: compare API returned ${response.statusCode}',
+        );
         return [];
       }
 
@@ -223,9 +232,7 @@ class ChangelogService {
       } else {
         // Commits list response: directly the array
         final commits = data as List<dynamic>? ?? [];
-        return commits
-            .map((c) => c as Map<String, dynamic>)
-            .toList();
+        return commits.map((c) => c as Map<String, dynamic>).toList();
       }
     } catch (e) {
       logger.warning('ChangelogService: failed to get commits in range', e);
@@ -238,8 +245,12 @@ class ChangelogService {
   ChangelogEntry? _parseCommit(Map<String, dynamic> commit) {
     try {
       final commitData = commit['commit'] as Map<String, dynamic>? ?? commit;
-      final message = (commitData['message'] as String? ?? '').split('\n').first;
-      final dateStr = (commitData['committer'] as Map<String, dynamic>?)?['date'] as String? ?? '';
+      final message =
+          (commitData['message'] as String? ?? '').split('\n').first;
+      final dateStr =
+          (commitData['committer'] as Map<String, dynamic>?)?['date']
+                  as String? ??
+              '';
 
       final match = _conventionalPrefix.firstMatch(message);
       if (match == null) return null;
