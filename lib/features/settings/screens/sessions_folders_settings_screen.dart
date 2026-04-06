@@ -145,7 +145,7 @@ class _SessionsFoldersSettingsScreenState
       },
     );
 
-    if (confirmed == true) {
+    if (confirmed ?? false) {
       await notifier.updateSetting(
         'folders',
         folders.where((f) => f != folder).toList(),
