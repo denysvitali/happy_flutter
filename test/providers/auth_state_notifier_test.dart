@@ -10,11 +10,17 @@ void main() {
 
   group('AuthStateNotifier', () {
     late ProviderContainer container;
+    late FlutterSecureStoragePlatform originalStoragePlatform;
 
     setUpAll(() {
+      originalStoragePlatform = FlutterSecureStoragePlatform.instance;
       FlutterSecureStoragePlatform.instance = TestFlutterSecureStoragePlatform(
         <String, String>{},
       );
+    });
+
+    tearDownAll(() {
+      FlutterSecureStoragePlatform.instance = originalStoragePlatform;
     });
 
     setUp(() {

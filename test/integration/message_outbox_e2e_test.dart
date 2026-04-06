@@ -40,19 +40,19 @@ void main() {
       // Stub fetchMessages so onSessionVisible doesn't hit the test
       // interceptor and cause unhandled async errors.
       sync.testFetchMessagesOverride = (_, __, ___) async => {
-            'messages': <dynamic>[],
-            'hasMore': false,
-          };
+        'messages': <dynamic>[],
+        'hasMore': false,
+      };
       // Stub fetchMessages so onSessionVisible doesn't hit the fail
       // interceptor and cause unhandled async errors.
       sync.testFetchMessagesOverride = (_, __, ___) async => {
-            'messages': <dynamic>[],
-            'hasMore': false,
-          };
+        'messages': <dynamic>[],
+        'hasMore': false,
+      };
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
-      sync.testGetSpawnEnvVarsOverride =
-          (_) async => (envVars: <String, String>{}, profile: null);
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
       sync.testSessions['sess-1'] = _onlineSession('sess-1');
       // Clear stale messages from previous test runs
       // (Sync is a singleton so state persists).
@@ -86,6 +86,7 @@ void main() {
     tearDown(() {
       ApiClient().dispose();
       messageOutbox.dispose();
+      messageOutbox.testStorage = MMKVStorage.testConstructor();
       sync.testFetchMessagesOverride = null;
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
@@ -119,91 +120,77 @@ void main() {
       timeout: const Timeout(Duration(seconds: 15)),
     );
 
-    test(
-      'optimistic message remains in list after failure',
-      () async {
-        await sync.sendMessage('sess-1', 'Persist me');
-        await sync.lastCompleteSendFuture;
+    test('optimistic message remains in list after failure', () async {
+      await sync.sendMessage('sess-1', 'Persist me');
+      await sync.lastCompleteSendFuture;
 
-        // Even though the send failed, the message must stay visible so
-        // the user can see what happened.
+      // Even though the send failed, the message must stay visible so
+      // the user can see what happened.
+      final msgs = sync.testSessionMessages('sess-1');
+      expect(
+        msgs,
+        isNotNull,
+        reason: 'Session messages list must still exist after failure',
+      );
+      expect(
+        msgs!,
+        isNotEmpty,
+        reason:
+            'Optimistic message must not be removed '
+            'on send failure',
+      );
+    });
+
+    test('message status transitions: sending → pending (→ failed)', () async {
+      final statuses = <String>[];
+
+      // Watch the stream for outbox-driven status
+      // changes. The listener reads current state, so
+      // fast transitions may be collapsed.
+      final sub = sync.onSessionMessagesChanged.listen((_) {
         final msgs = sync.testSessionMessages('sess-1');
-        expect(
-          msgs,
-          isNotNull,
-          reason: 'Session messages list must still exist after failure',
-        );
-        expect(
-          msgs!,
-          isNotEmpty,
-          reason:
-              'Optimistic message must not be removed '
-              'on send failure',
-        );
-      },
-    );
+        if (msgs == null || msgs.isEmpty) return;
+        final status = msgs.first['sendStatus'] as String?;
+        if (status != null && (statuses.isEmpty || statuses.last != status)) {
+          statuses.add(status);
+        }
+      });
 
-    test(
-      'message status transitions: sending → pending (→ failed)',
-      () async {
-        final statuses = <String>[];
+      await sync.sendMessage('sess-1', 'Status test');
 
-        // Watch the stream for outbox-driven status
-        // changes. The listener reads current state, so
-        // fast transitions may be collapsed.
-        final sub =
-            sync.onSessionMessagesChanged.listen((_) {
-          final msgs =
-              sync.testSessionMessages('sess-1');
-          if (msgs == null || msgs.isEmpty) return;
-          final status =
-              msgs.first['sendStatus'] as String?;
-          if (status != null &&
-              (statuses.isEmpty ||
-                  statuses.last != status)) {
-            statuses.add(status);
-          }
-        });
+      // The optimistic insert sets 'sending' in-memory
+      // before _completeSend runs. Read the status
+      // directly — the stream listener is async and may
+      // not have fired yet.
+      final msgsAfterSend = sync.testSessionMessages('sess-1');
+      expect(
+        msgsAfterSend,
+        isNotNull,
+        reason: 'Messages must exist after send',
+      );
+      expect(
+        msgsAfterSend!.first['sendStatus'],
+        'sending',
+        reason:
+            'Message should be optimistically '
+            'inserted as sending',
+      );
 
-        await sync.sendMessage('sess-1', 'Status test');
+      await sync.lastCompleteSendFuture;
 
-        // The optimistic insert sets 'sending' in-memory
-        // before _completeSend runs. Read the status
-        // directly — the stream listener is async and may
-        // not have fired yet.
-        final msgsAfterSend =
-            sync.testSessionMessages('sess-1');
-        expect(
-          msgsAfterSend,
-          isNotNull,
-          reason: 'Messages must exist after send',
-        );
-        expect(
-          msgsAfterSend!.first['sendStatus'],
-          'sending',
-          reason:
-              'Message should be optimistically '
-              'inserted as sending',
-        );
+      // After _completeSend fails, the outbox fires
+      // 'pending' via its onStatusChanged callback.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(
+        statuses,
+        contains('pending'),
+        reason:
+            'Outbox should update status to pending '
+            'after initial send failure',
+      );
 
-        await sync.lastCompleteSendFuture;
-
-        // After _completeSend fails, the outbox fires
-        // 'pending' via its onStatusChanged callback.
-        await Future<void>.delayed(
-          const Duration(milliseconds: 300),
-        );
-        expect(
-          statuses,
-          contains('pending'),
-          reason:
-              'Outbox should update status to pending '
-              'after initial send failure',
-        );
-
-        await sub.cancel();
-      },
-    );
+      await sub.cancel();
+    });
   });
 
   group('send success flow', () {
@@ -224,13 +211,13 @@ void main() {
       // Stub fetchMessages so onSessionVisible doesn't hit the test
       // interceptor and cause unhandled async errors.
       sync.testFetchMessagesOverride = (_, __, ___) async => {
-            'messages': <dynamic>[],
-            'hasMore': false,
-          };
+        'messages': <dynamic>[],
+        'hasMore': false,
+      };
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
-      sync.testGetSpawnEnvVarsOverride =
-          (_) async => (envVars: <String, String>{}, profile: null);
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
       sync.testSessions['sess-2'] = _onlineSession('sess-2');
       sync.testSetSessionMessages('sess-2', []);
       sync.testSetLastEphemeralAt(
@@ -253,6 +240,7 @@ void main() {
     tearDown(() {
       ApiClient().dispose();
       messageOutbox.dispose();
+      messageOutbox.testStorage = MMKVStorage.testConstructor();
       sync.testFetchMessagesOverride = null;
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
@@ -260,62 +248,53 @@ void main() {
       sync.testFetchSingleSessionOverride = null;
     });
 
-    test(
-      'successful HTTP POST marks message as sent',
-      () async {
-        await sync.sendMessage('sess-2', 'Hello success');
-        await sync.lastCompleteSendFuture;
+    test('successful HTTP POST marks message as sent', () async {
+      await sync.sendMessage('sess-2', 'Hello success');
+      await sync.lastCompleteSendFuture;
 
-        // Allow any async notifications to settle.
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+      // Allow any async notifications to settle.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
-        final msgs = sync.testSessionMessages('sess-2');
-        expect(msgs, isNotNull);
-        expect(msgs!, isNotEmpty);
-        expect(
-          msgs.first['sendStatus'],
-          'sent',
-          reason: 'Message should be marked sent after successful POST',
-        );
-      },
-    );
+      final msgs = sync.testSessionMessages('sess-2');
+      expect(msgs, isNotNull);
+      expect(msgs!, isNotEmpty);
+      expect(
+        msgs.first['sendStatus'],
+        'sent',
+        reason: 'Message should be marked sent after successful POST',
+      );
+    });
 
-    test(
-      'successful send merges server fields (id, seq, createdAt)',
-      () async {
-        await sync.sendMessage('sess-2', 'Merge server fields');
-        await sync.lastCompleteSendFuture;
+    test('successful send merges server fields (id, seq, createdAt)', () async {
+      await sync.sendMessage('sess-2', 'Merge server fields');
+      await sync.lastCompleteSendFuture;
 
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
-        final msgs = sync.testSessionMessages('sess-2');
-        expect(msgs, isNotNull);
-        expect(msgs!, isNotEmpty);
+      final msgs = sync.testSessionMessages('sess-2');
+      expect(msgs, isNotNull);
+      expect(msgs!, isNotEmpty);
 
-        final msg = msgs.first;
-        // Server-assigned id should replace the local placeholder id.
-        expect(
-          msg['id'],
-          startsWith('srv-'),
-          reason: 'Server-assigned id must replace local placeholder',
-        );
-        // seq and createdAt come from the server response.
-        expect(
-          msg['seq'],
-          greaterThan(0),
-          reason: 'Server-assigned seq must be set on the message',
-        );
-        expect(
-          msg['createdAt'],
-          isA<int>(),
-          reason: 'Server-assigned createdAt must be present',
-        );
-        expect(
-          msg['sendStatus'],
-          'sent',
-        );
-      },
-    );
+      final msg = msgs.first;
+      // Server-assigned id should replace the local placeholder id.
+      expect(
+        msg['id'],
+        startsWith('srv-'),
+        reason: 'Server-assigned id must replace local placeholder',
+      );
+      // seq and createdAt come from the server response.
+      expect(
+        msg['seq'],
+        greaterThan(0),
+        reason: 'Server-assigned seq must be set on the message',
+      );
+      expect(
+        msg['createdAt'],
+        isA<int>(),
+        reason: 'Server-assigned createdAt must be present',
+      );
+      expect(msg['sendStatus'], 'sent');
+    });
   });
 
   group('retry after failure', () {
@@ -336,13 +315,13 @@ void main() {
       // Stub fetchMessages so onSessionVisible doesn't hit the test
       // interceptor and cause unhandled async errors.
       sync.testFetchMessagesOverride = (_, __, ___) async => {
-            'messages': <dynamic>[],
-            'hasMore': false,
-          };
+        'messages': <dynamic>[],
+        'hasMore': false,
+      };
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
-      sync.testGetSpawnEnvVarsOverride =
-          (_) async => (envVars: <String, String>{}, profile: null);
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
       sync.testSessions['sess-3'] = _onlineSession('sess-3');
       sync.testSetSessionMessages('sess-3', []);
       sync.testSetLastEphemeralAt(
@@ -373,6 +352,7 @@ void main() {
     tearDown(() {
       ApiClient().dispose();
       messageOutbox.dispose();
+      messageOutbox.testStorage = MMKVStorage.testConstructor();
       sync.testFetchMessagesOverride = null;
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
@@ -380,66 +360,56 @@ void main() {
       sync.testFetchSingleSessionOverride = null;
     });
 
-    test(
-      'second manual send succeeds after initial failure',
-      () async {
-        // First call fails (interceptor rejects first request).
-        await sync.sendMessage('sess-3', 'First attempt');
-        await sync.lastCompleteSendFuture;
+    test('second manual send succeeds after initial failure', () async {
+      // First call fails (interceptor rejects first request).
+      await sync.sendMessage('sess-3', 'First attempt');
+      await sync.lastCompleteSendFuture;
 
-        // Allow async outbox status callbacks to settle.
-        await Future<void>.delayed(
-          const Duration(milliseconds: 300),
-        );
+      // Allow async outbox status callbacks to settle.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
 
-        // Verify that the first send failed and the message
-        // is queued.
-        final msgsAfterFail =
-            sync.testSessionMessages('sess-3');
-        expect(
-          msgsAfterFail,
-          isNotNull,
-          reason:
-              'Message must still be present after '
-              'initial failure',
-        );
-        // sendStatus should be 'sending' (before outbox fires)
-        // or 'pending' (after outbox queues it).
-        final statusAfterFail =
-            msgsAfterFail!.first['sendStatus'] as String?;
-        expect(
-          statusAfterFail,
-          anyOf('sending', 'pending'),
-          reason:
-              'After first failure message should be '
-              'sending or pending, not yet failed',
-        );
+      // Verify that the first send failed and the message
+      // is queued.
+      final msgsAfterFail = sync.testSessionMessages('sess-3');
+      expect(
+        msgsAfterFail,
+        isNotNull,
+        reason:
+            'Message must still be present after '
+            'initial failure',
+      );
+      // sendStatus should be 'sending' (before outbox fires)
+      // or 'pending' (after outbox queues it).
+      final statusAfterFail = msgsAfterFail!.first['sendStatus'] as String?;
+      expect(
+        statusAfterFail,
+        anyOf('sending', 'pending'),
+        reason:
+            'After first failure message should be '
+            'sending or pending, not yet failed',
+      );
 
-        // Now the interceptor will succeed on subsequent calls.
-        // Send a second message — this one goes through.
-        await sync.sendMessage('sess-3', 'Second attempt');
-        await sync.lastCompleteSendFuture;
+      // Now the interceptor will succeed on subsequent calls.
+      // Send a second message — this one goes through.
+      await sync.sendMessage('sess-3', 'Second attempt');
+      await sync.lastCompleteSendFuture;
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 100),
-        );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
-        final msgsAfterSuccess =
-            sync.testSessionMessages('sess-3');
-        expect(msgsAfterSuccess, isNotNull);
-        expect(msgsAfterSuccess!, isNotEmpty);
+      final msgsAfterSuccess = sync.testSessionMessages('sess-3');
+      expect(msgsAfterSuccess, isNotNull);
+      expect(msgsAfterSuccess!, isNotEmpty);
 
-        // The most recently added message should be sent.
-        final lastMsg = msgsAfterSuccess.last;
-        expect(
-          lastMsg['sendStatus'],
-          'sent',
-          reason:
-              'Second message should succeed after '
-              'interceptor no longer rejects',
-        );
-      },
-    );
+      // The most recently added message should be sent.
+      final lastMsg = msgsAfterSuccess.last;
+      expect(
+        lastMsg['sendStatus'],
+        'sent',
+        reason:
+            'Second message should succeed after '
+            'interceptor no longer rejects',
+      );
+    });
   });
 }
 
@@ -507,10 +477,7 @@ void _applyOutboxStatus(
 /// Always rejects POST to the messages endpoint with a connection timeout.
 class _AlwaysFailInterceptor extends Interceptor {
   @override
-  void onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) {
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (_isMessagesEndpoint(options.path)) {
       handler.reject(
         DioException(
@@ -536,10 +503,7 @@ class _AlwaysSucceedInterceptor extends Interceptor {
   int _callCount = 0;
 
   @override
-  void onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) {
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (_isMessagesEndpoint(options.path)) {
       _callCount++;
       final localId = _extractLocalId(options.data);
@@ -553,8 +517,7 @@ class _AlwaysSucceedInterceptor extends Interceptor {
                 'id': 'srv-$_callCount',
                 'seq': _callCount,
                 'localId': localId,
-                'createdAt':
-                    DateTime.now().millisecondsSinceEpoch,
+                'createdAt': DateTime.now().millisecondsSinceEpoch,
               },
             ],
           },
@@ -581,22 +544,17 @@ class _FailThenSucceedInterceptor extends Interceptor {
   int _postCount = 0;
 
   @override
-  void onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) {
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (_isMessagesEndpoint(options.path)) {
       // Only count POSTs (actual sends), not GETs (fetches).
-      final isPost =
-          options.method.toUpperCase() == 'POST';
+      final isPost = options.method.toUpperCase() == 'POST';
       if (isPost) _postCount++;
       if (isPost && _postCount <= failUntil) {
         handler.reject(
           DioException(
             requestOptions: options,
             type: DioExceptionType.connectionTimeout,
-            message:
-                'Simulated failure #$_postCount',
+            message: 'Simulated failure #$_postCount',
           ),
         );
         return;
@@ -612,8 +570,7 @@ class _FailThenSucceedInterceptor extends Interceptor {
                 'id': 'srv-$_postCount',
                 'seq': _postCount,
                 'localId': localId,
-                'createdAt': DateTime.now()
-                    .millisecondsSinceEpoch,
+                'createdAt': DateTime.now().millisecondsSinceEpoch,
               },
             ],
           },
@@ -659,22 +616,20 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

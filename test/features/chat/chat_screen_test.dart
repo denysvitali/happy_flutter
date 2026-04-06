@@ -30,16 +30,22 @@ class _FakeMMKVPlatform extends MMKVPluginPlatform {
     String? groupDir,
     int logLevel = 1,
     Pointer<NativeFunction<LogCallbackWrap>>? logHandler,
-  }) async =>
-      rootDir;
+  }) async => rootDir;
 
   @override
   Pointer<Void> Function(int, Pointer<Utf8>, int, int, int, int, int, int, int)
-      getDefaultMMKVFunc() =>
-          (int mode, Pointer<Utf8> cryptKey, int aes256, int expectedCapacity,
-              int enableKeyExpire, int expiredInSeconds,
-              int enableCompareBeforeSet, int recover, int itemSizeLimit) =>
-              Pointer<Void>.fromAddress(1);
+  getDefaultMMKVFunc() =>
+      (
+        int mode,
+        Pointer<Utf8> cryptKey,
+        int aes256,
+        int expectedCapacity,
+        int enableKeyExpire,
+        int expiredInSeconds,
+        int enableCompareBeforeSet,
+        int recover,
+        int itemSizeLimit,
+      ) => Pointer<Void>.fromAddress(1);
 
   @override
   ContentCallbackRegister registerContentLoadedHandlerFunc() =>
@@ -59,20 +65,19 @@ class _FakeMMKVPlatform extends MMKVPluginPlatform {
 
   @override
   Pointer<Uint8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint64>)
-      decodeBytesFunc() =>
-          (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint64> l) =>
-              Pointer<Uint8>.fromAddress(0);
+  decodeBytesFunc() =>
+      (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint64> l) =>
+          Pointer<Uint8>.fromAddress(0);
 
   @override
   int Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint8>, int)
-      encodeBytesFunc() =>
-          (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l) => 1;
+  encodeBytesFunc() =>
+      (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l) => 1;
 
   @override
   int Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint8>, int, int)
-      encodeBytesV2Func() =>
-          (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l, int e) =>
-              1;
+  encodeBytesV2Func() =>
+      (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l, int e) => 1;
 
   @override
   void Function(Pointer<Void>, Pointer<Utf8>) removeValueForKeyFunc() =>
@@ -128,10 +133,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const ttsChannel = MethodChannel('flutter_tts');
+  MMKVPluginPlatform? originalMMKVPlatform;
 
   setUpAll(() async {
     // Register a fake MMKV platform so DraftStorage and MMKVStorage can
     // initialise without the native MMKV library.
+    originalMMKVPlatform = MMKVPluginPlatform.instance;
     MMKVPluginPlatform.instance = _FakeMMKVPlatform();
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -139,6 +146,7 @@ void main() {
   });
 
   tearDownAll(() async {
+    MMKVPluginPlatform.instance = originalMMKVPlatform;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(ttsChannel, null);
     await TtsService().dispose();
@@ -166,9 +174,7 @@ void main() {
       expect(find.byType(ChatLoadingShimmer), findsOneWidget);
     });
 
-    testWidgets('shows empty chat view when no messages exist', (
-      tester,
-    ) async {
+    testWidgets('shows empty chat view when no messages exist', (tester) async {
       sync.testSetSessionMessages('session_1', const []);
 
       await tester.pumpWidget(
@@ -208,16 +214,8 @@ void main() {
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
-        {
-          'id': 'msg_1',
-          'role': 'user',
-          'content': 'Hello there',
-        },
-        {
-          'id': 'msg_2',
-          'role': 'assistant',
-          'content': 'Hi! How can I help?',
-        },
+        {'id': 'msg_1', 'role': 'user', 'content': 'Hello there'},
+        {'id': 'msg_2', 'role': 'assistant', 'content': 'Hi! How can I help?'},
       ]);
       sync.testSessions['session_1'] = _makeSession();
 
@@ -237,11 +235,7 @@ void main() {
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
-        {
-          'id': 'msg_1',
-          'role': 'user',
-          'content': 'First message',
-        },
+        {'id': 'msg_1', 'role': 'user', 'content': 'First message'},
       ]);
       sync.testSessions['session_1'] = _makeSession();
 
@@ -255,16 +249,8 @@ void main() {
 
       // Add a new message via sync
       sync.testSetSessionMessages('session_1', [
-        {
-          'id': 'msg_1',
-          'role': 'user',
-          'content': 'First message',
-        },
-        {
-          'id': 'msg_2',
-          'role': 'assistant',
-          'content': 'Response message',
-        },
+        {'id': 'msg_1', 'role': 'user', 'content': 'First message'},
+        {'id': 'msg_2', 'role': 'assistant', 'content': 'Response message'},
       ]);
       sync.testNotifySessionMessagesChanged('session_1');
 
@@ -288,9 +274,7 @@ void main() {
 
     testWidgets('shows status text for online session', (tester) async {
       sync.testSetSessionMessages('session_1', const []);
-      sync.testSessions['session_1'] = _makeSession(
-        presence: 'online',
-      );
+      sync.testSessions['session_1'] = _makeSession(presence: 'online');
 
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
@@ -304,9 +288,7 @@ void main() {
 
     testWidgets('shows status text for thinking session', (tester) async {
       sync.testSetSessionMessages('session_1', const []);
-      sync.testSessions['session_1'] = _makeSession(
-        thinking: true,
-      );
+      sync.testSessions['session_1'] = _makeSession(thinking: true);
 
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
@@ -316,9 +298,7 @@ void main() {
       expect(find.byType(AppBar), findsOneWidget);
     });
 
-    testWidgets('renders multiple messages in correct order', (
-      tester,
-    ) async {
+    testWidgets('renders multiple messages in correct order', (tester) async {
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       final messages = List.generate(
@@ -383,27 +363,13 @@ void main() {
       expect(find.text('Chat'), findsOneWidget);
     });
 
-    testWidgets('cleared divider shown after /clear message', (
-      tester,
-    ) async {
+    testWidgets('cleared divider shown after /clear message', (tester) async {
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
-        {
-          'id': 'msg_1',
-          'role': 'user',
-          'content': 'Before clear',
-        },
-        {
-          'id': 'msg_2',
-          'role': 'user',
-          'content': '/clear',
-        },
-        {
-          'id': 'msg_3',
-          'role': 'assistant',
-          'content': 'After clear',
-        },
+        {'id': 'msg_1', 'role': 'user', 'content': 'Before clear'},
+        {'id': 'msg_2', 'role': 'user', 'content': '/clear'},
+        {'id': 'msg_3', 'role': 'assistant', 'content': 'After clear'},
       ]);
       sync.testSessions['session_1'] = _makeSession();
 
@@ -478,11 +444,7 @@ void main() {
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', [
-        {
-          'id': 'msg_1',
-          'role': 'user',
-          'text': 'Message with text field',
-        },
+        {'id': 'msg_1', 'role': 'user', 'text': 'Message with text field'},
       ]);
       sync.testSessions['session_1'] = _makeSession();
 
