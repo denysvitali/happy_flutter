@@ -40,8 +40,9 @@ void main() {
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testSettingsSnapshot = Settings();
-      sync.testFetchMessagesOverride = (_, __, ___) async =>
-          <String, dynamic>{'messages': <dynamic>[]};
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <dynamic>[],
+      };
       _stubAllSyncs(sync);
     });
 
@@ -73,8 +74,8 @@ void main() {
       );
 
       expect(capturedParams, isNotNull);
-      final envVars = capturedParams!['environmentVariables']
-          as Map<String, dynamic>?;
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
       expect(envVars, isNotNull);
       expect(
         envVars!['ANTHROPIC_BASE_URL'],
@@ -118,8 +119,8 @@ void main() {
       );
 
       expect(capturedParams, isNotNull);
-      final envVars = capturedParams!['environmentVariables']
-          as Map<String, dynamic>?;
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
       expect(envVars, isNotNull);
       expect(
         envVars!['OPENAI_BASE_URL'],
@@ -164,8 +165,8 @@ void main() {
       );
 
       expect(capturedParams, isNotNull);
-      final envVars = capturedParams!['environmentVariables']
-          as Map<String, dynamic>?;
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
       expect(envVars, isNotNull);
       expect(
         envVars!['AZURE_OPENAI_API_VERSION'],
@@ -199,8 +200,8 @@ void main() {
       );
 
       expect(capturedParams, isNotNull);
-      final envVars = capturedParams!['environmentVariables']
-          as Map<String, dynamic>?;
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
       expect(envVars, isNotNull);
       expect(
         envVars!['ANTHROPIC_BASE_URL'],
@@ -214,8 +215,13 @@ void main() {
       );
       expect(
         envVars['ANTHROPIC_MODEL'],
-        contains('M2.7'),
+        contains('MiniMax-M2.7'),
         reason: 'MiniMax profile must set ANTHROPIC_MODEL',
+      );
+      expect(
+        envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'],
+        contains('MiniMax-M2.7'),
+        reason: 'MiniMax profile must set Anthropic tier overrides',
       );
     });
 
@@ -239,8 +245,8 @@ void main() {
       );
 
       expect(capturedParams, isNotNull);
-      final envVars = capturedParams!['environmentVariables']
-          as Map<String, dynamic>?;
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
       expect(envVars, isNotNull);
       expect(
         envVars!['ANTHROPIC_BASE_URL'],
@@ -248,22 +254,17 @@ void main() {
         reason: 'Z.AI profile must set ANTHROPIC_BASE_URL',
       );
       expect(
-        envVars['ANTHROPIC_MODEL'],
-        contains('GLM'),
-        reason: 'Z.AI profile must set ANTHROPIC_MODEL',
-      );
-      expect(
         envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'],
-        isNotNull,
-        reason: 'Z.AI profile must set model tier overrides',
+        contains('glm-5.1'),
+        reason: 'Z.AI profile must set Opus model override',
       );
+      expect(envVars['ANTHROPIC_DEFAULT_SONNET_MODEL'], contains('glm-4.7'));
+      expect(envVars['ANTHROPIC_DEFAULT_HAIKU_MODEL'], contains('glm-4.5-air'));
       expect(
-        envVars['ANTHROPIC_DEFAULT_SONNET_MODEL'],
-        isNotNull,
-      );
-      expect(
-        envVars['ANTHROPIC_DEFAULT_HAIKU_MODEL'],
-        isNotNull,
+        envVars.containsKey('ANTHROPIC_MODEL'),
+        isFalse,
+        reason:
+            'Z.AI profile should rely on tier overrides, not ANTHROPIC_MODEL',
       );
     });
 
@@ -288,8 +289,8 @@ void main() {
       expect(capturedParams, isNotNull);
       // SpawnSessionRequest.toJson() omits environmentVariables when
       // empty, so the key may be absent entirely.
-      final envVars = capturedParams!['environmentVariables']
-          as Map<String, dynamic>?;
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
       if (envVars != null) {
         expect(
           envVars.containsKey('ANTHROPIC_BASE_URL'),
@@ -324,60 +325,52 @@ void main() {
       expect(capturedParams, isNotNull);
       // Anthropic default has no env vars or config overrides, so
       // SpawnSessionRequest.toJson() omits the key entirely.
-      final envVars = capturedParams!['environmentVariables']
-          as Map<String, dynamic>?;
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
       if (envVars != null) {
         expect(
           envVars.containsKey('ANTHROPIC_BASE_URL'),
           isFalse,
-          reason:
-              'Anthropic default profile has no env overrides',
+          reason: 'Anthropic default profile has no env overrides',
         );
         expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
       }
     });
 
-    test(
-      'explicit profileId param overrides lastUsedProfile',
-      () async {
-        final sessionId = 'profile-override-1';
-        Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          capturedParams = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
+    test('explicit profileId param overrides lastUsedProfile', () async {
+      final sessionId = 'profile-override-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
         };
+      };
 
-        // Set global to OpenAI
-        await sync.applySettings({'lastUsedProfile': 'openai'});
+      // Set global to OpenAI
+      await sync.applySettings({'lastUsedProfile': 'openai'});
 
-        // But pass DeepSeek explicitly
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project',
-          profileId: 'deepseek',
-        );
+      // But pass DeepSeek explicitly
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        profileId: 'deepseek',
+      );
 
-        expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        // Should have DeepSeek vars, not OpenAI
-        expect(
-          envVars!['ANTHROPIC_BASE_URL'],
-          contains('deepseek'),
-          reason: 'Explicit profileId must override lastUsedProfile',
-        );
-        expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
-      },
-    );
+      expect(capturedParams, isNotNull);
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      // Should have DeepSeek vars, not OpenAI
+      expect(
+        envVars!['ANTHROPIC_BASE_URL'],
+        contains('deepseek'),
+        reason: 'Explicit profileId must override lastUsedProfile',
+      );
+      expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
+    });
   });
 
   group('Custom profile env vars on createSession', () {
@@ -394,8 +387,9 @@ void main() {
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testSettingsSnapshot = Settings();
-      sync.testFetchMessagesOverride = (_, __, ___) async =>
-          <String, dynamic>{'messages': <dynamic>[]};
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <dynamic>[],
+      };
       _stubAllSyncs(sync);
     });
 
@@ -412,11 +406,7 @@ void main() {
       () async {
         final sessionId = 'custom-anthropic-1';
         Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
+        sync.testMachineRPCOverride = (machineId, method, params) async {
           capturedParams = params;
           return <String, dynamic>{
             'type': 'success',
@@ -446,91 +436,80 @@ void main() {
         );
 
         expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
+        final envVars =
+            capturedParams!['environmentVariables'] as Map<String, dynamic>?;
         expect(envVars, isNotNull);
         expect(
           envVars!['ANTHROPIC_BASE_URL'],
           'https://my-proxy.example.com/v1',
-          reason: 'Custom profile anthropicConfig.baseUrl must map '
+          reason:
+              'Custom profile anthropicConfig.baseUrl must map '
               'to ANTHROPIC_BASE_URL',
         );
         expect(
           envVars['ANTHROPIC_AUTH_TOKEN'],
           'sk-custom-token-123',
-          reason: 'Custom profile anthropicConfig.authToken must map '
+          reason:
+              'Custom profile anthropicConfig.authToken must map '
               'to ANTHROPIC_AUTH_TOKEN',
         );
         expect(
           envVars['ANTHROPIC_MODEL'],
           'claude-opus-4-20250514',
-          reason: 'Custom profile anthropicConfig.model must map '
+          reason:
+              'Custom profile anthropicConfig.model must map '
               'to ANTHROPIC_MODEL',
         );
       },
     );
 
-    test(
-      'custom profile with openaiConfig sends correct env vars',
-      () async {
-        final sessionId = 'custom-openai-1';
-        Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          capturedParams = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
+    test('custom profile with openaiConfig sends correct env vars', () async {
+      final sessionId = 'custom-openai-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
         };
+      };
 
-        final customProfile = AIBackendProfile(
-          id: 'my-openai',
-          name: 'My OpenAI',
-          openaiConfig: OpenAIConfig(
-            apiKey: 'sk-openai-secret',
-            baseUrl: 'https://openai-proxy.example.com/v1',
-            model: 'gpt-4o',
-          ),
-        );
+      final customProfile = AIBackendProfile(
+        id: 'my-openai',
+        name: 'My OpenAI',
+        openaiConfig: OpenAIConfig(
+          apiKey: 'sk-openai-secret',
+          baseUrl: 'https://openai-proxy.example.com/v1',
+          model: 'gpt-4o',
+        ),
+      );
 
-        await sync.applySettings({
-          'profiles': [customProfile.toJson()],
-          'lastUsedProfile': 'my-openai',
-        });
+      await sync.applySettings({
+        'profiles': [customProfile.toJson()],
+        'lastUsedProfile': 'my-openai',
+      });
 
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project',
-        );
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
 
-        expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        expect(envVars!['OPENAI_API_KEY'], 'sk-openai-secret');
-        expect(
-          envVars['OPENAI_BASE_URL'],
-          'https://openai-proxy.example.com/v1',
-        );
-        expect(envVars['OPENAI_MODEL'], 'gpt-4o');
-      },
-    );
+      expect(capturedParams, isNotNull);
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      expect(envVars!['OPENAI_API_KEY'], 'sk-openai-secret');
+      expect(envVars['OPENAI_BASE_URL'], 'https://openai-proxy.example.com/v1');
+      expect(envVars['OPENAI_MODEL'], 'gpt-4o');
+    });
 
     test(
       'custom profile with azureOpenAIConfig sends correct env vars',
       () async {
         final sessionId = 'custom-azure-1';
         Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
+        sync.testMachineRPCOverride = (machineId, method, params) async {
           capturedParams = params;
           return <String, dynamic>{
             'type': 'success',
@@ -561,22 +540,16 @@ void main() {
         );
 
         expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
+        final envVars =
+            capturedParams!['environmentVariables'] as Map<String, dynamic>?;
         expect(envVars, isNotNull);
-        expect(
-          envVars!['AZURE_OPENAI_API_KEY'],
-          'azure-key-abc',
-        );
+        expect(envVars!['AZURE_OPENAI_API_KEY'], 'azure-key-abc');
         expect(
           envVars['AZURE_OPENAI_ENDPOINT'],
           'https://my-azure.openai.azure.com',
         );
         expect(envVars['AZURE_OPENAI_API_VERSION'], '2024-06-01');
-        expect(
-          envVars['AZURE_OPENAI_DEPLOYMENT_NAME'],
-          'my-deployment',
-        );
+        expect(envVars['AZURE_OPENAI_DEPLOYMENT_NAME'], 'my-deployment');
       },
     );
 
@@ -585,11 +558,7 @@ void main() {
       () async {
         final sessionId = 'custom-together-1';
         Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
+        sync.testMachineRPCOverride = (machineId, method, params) async {
           capturedParams = params;
           return <String, dynamic>{
             'type': 'success',
@@ -618,238 +587,197 @@ void main() {
         );
 
         expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
+        final envVars =
+            capturedParams!['environmentVariables'] as Map<String, dynamic>?;
         expect(envVars, isNotNull);
         expect(envVars!['TOGETHER_API_KEY'], 'together-key-xyz');
-        expect(
-          envVars['TOGETHER_MODEL'],
-          'meta-llama/Meta-Llama-3.1-70B',
-        );
+        expect(envVars['TOGETHER_MODEL'], 'meta-llama/Meta-Llama-3.1-70B');
       },
     );
 
-    test(
-      'custom profile with tmuxConfig sends correct env vars',
-      () async {
-        final sessionId = 'custom-tmux-1';
-        Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          capturedParams = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
+    test('custom profile with tmuxConfig sends correct env vars', () async {
+      final sessionId = 'custom-tmux-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
         };
+      };
 
-        final customProfile = AIBackendProfile(
-          id: 'my-tmux',
-          name: 'My Tmux',
-          tmuxConfig: TmuxConfig(
-            sessionName: 'dev-session',
-            tmpDir: '/tmp/my-tmux',
-            updateEnvironment: true,
+      final customProfile = AIBackendProfile(
+        id: 'my-tmux',
+        name: 'My Tmux',
+        tmuxConfig: TmuxConfig(
+          sessionName: 'dev-session',
+          tmpDir: '/tmp/my-tmux',
+          updateEnvironment: true,
+        ),
+      );
+
+      await sync.applySettings({
+        'profiles': [customProfile.toJson()],
+        'lastUsedProfile': 'my-tmux',
+      });
+
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
+
+      expect(capturedParams, isNotNull);
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      expect(envVars!['TMUX_SESSION_NAME'], 'dev-session');
+      expect(envVars['TMUX_TMPDIR'], '/tmp/my-tmux');
+      expect(envVars['TMUX_UPDATE_ENVIRONMENT'], 'true');
+    });
+
+    test('custom profile with explicit environmentVariables list', () async {
+      final sessionId = 'custom-envlist-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
+        };
+      };
+
+      final customProfile = AIBackendProfile(
+        id: 'my-env',
+        name: 'Env Profile',
+        environmentVariables: [
+          EnvironmentVariable(name: 'MY_CUSTOM_VAR', value: 'hello-world'),
+          EnvironmentVariable(name: 'FEATURE_FLAG', value: 'enabled'),
+        ],
+      );
+
+      await sync.applySettings({
+        'profiles': [customProfile.toJson()],
+        'lastUsedProfile': 'my-env',
+      });
+
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
+
+      expect(capturedParams, isNotNull);
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      expect(envVars!['MY_CUSTOM_VAR'], 'hello-world');
+      expect(envVars['FEATURE_FLAG'], 'enabled');
+    });
+
+    test('config fields override explicit environmentVariables list', () async {
+      final sessionId = 'custom-merge-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
+        };
+      };
+
+      // Profile with both environmentVariables AND anthropicConfig.
+      // The config fields should override matching env vars from the
+      // list because _profileEnvironmentVariables processes the list
+      // first, then the config.
+      final customProfile = AIBackendProfile(
+        id: 'my-merge',
+        name: 'Merge Profile',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value: 'https://from-env-list.com',
           ),
-        );
+          EnvironmentVariable(name: 'EXTRA_VAR', value: 'kept'),
+        ],
+        anthropicConfig: AnthropicConfig(baseUrl: 'https://from-config.com'),
+      );
 
-        await sync.applySettings({
-          'profiles': [customProfile.toJson()],
-          'lastUsedProfile': 'my-tmux',
-        });
+      await sync.applySettings({
+        'profiles': [customProfile.toJson()],
+        'lastUsedProfile': 'my-merge',
+      });
 
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project',
-        );
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
 
-        expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        expect(envVars!['TMUX_SESSION_NAME'], 'dev-session');
-        expect(envVars['TMUX_TMPDIR'], '/tmp/my-tmux');
-        expect(envVars['TMUX_UPDATE_ENVIRONMENT'], 'true');
-      },
-    );
+      expect(capturedParams, isNotNull);
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      // Config should override the env list entry
+      expect(
+        envVars!['ANTHROPIC_BASE_URL'],
+        'https://from-config.com',
+        reason:
+            'anthropicConfig.baseUrl must override the '
+            'environmentVariables list entry',
+      );
+      // Non-overlapping env vars should be kept
+      expect(envVars['EXTRA_VAR'], 'kept');
+    });
 
-    test(
-      'custom profile with explicit environmentVariables list',
-      () async {
-        final sessionId = 'custom-envlist-1';
-        Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          capturedParams = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
+    test('custom profile overrides built-in with same ID', () async {
+      final sessionId = 'custom-override-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
         };
+      };
 
-        final customProfile = AIBackendProfile(
-          id: 'my-env',
-          name: 'Env Profile',
-          environmentVariables: [
-            EnvironmentVariable(
-              name: 'MY_CUSTOM_VAR',
-              value: 'hello-world',
-            ),
-            EnvironmentVariable(
-              name: 'FEATURE_FLAG',
-              value: 'enabled',
-            ),
-          ],
-        );
+      // Custom profile with same ID as built-in 'openai'
+      final customProfile = AIBackendProfile(
+        id: 'openai',
+        name: 'My Custom OpenAI',
+        openaiConfig: OpenAIConfig(
+          apiKey: 'sk-custom-key',
+          baseUrl: 'https://custom-openai.example.com/v1',
+          model: 'my-custom-model',
+        ),
+      );
 
-        await sync.applySettings({
-          'profiles': [customProfile.toJson()],
-          'lastUsedProfile': 'my-env',
-        });
+      await sync.applySettings({
+        'profiles': [customProfile.toJson()],
+        'lastUsedProfile': 'openai',
+      });
 
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project',
-        );
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
 
-        expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        expect(envVars!['MY_CUSTOM_VAR'], 'hello-world');
-        expect(envVars['FEATURE_FLAG'], 'enabled');
-      },
-    );
-
-    test(
-      'config fields override explicit environmentVariables list',
-      () async {
-        final sessionId = 'custom-merge-1';
-        Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          capturedParams = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
-        };
-
-        // Profile with both environmentVariables AND anthropicConfig.
-        // The config fields should override matching env vars from the
-        // list because _profileEnvironmentVariables processes the list
-        // first, then the config.
-        final customProfile = AIBackendProfile(
-          id: 'my-merge',
-          name: 'Merge Profile',
-          environmentVariables: [
-            EnvironmentVariable(
-              name: 'ANTHROPIC_BASE_URL',
-              value: 'https://from-env-list.com',
-            ),
-            EnvironmentVariable(
-              name: 'EXTRA_VAR',
-              value: 'kept',
-            ),
-          ],
-          anthropicConfig: AnthropicConfig(
-            baseUrl: 'https://from-config.com',
-          ),
-        );
-
-        await sync.applySettings({
-          'profiles': [customProfile.toJson()],
-          'lastUsedProfile': 'my-merge',
-        });
-
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project',
-        );
-
-        expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        // Config should override the env list entry
-        expect(
-          envVars!['ANTHROPIC_BASE_URL'],
-          'https://from-config.com',
-          reason:
-              'anthropicConfig.baseUrl must override the '
-              'environmentVariables list entry',
-        );
-        // Non-overlapping env vars should be kept
-        expect(envVars['EXTRA_VAR'], 'kept');
-      },
-    );
-
-    test(
-      'custom profile overrides built-in with same ID',
-      () async {
-        final sessionId = 'custom-override-1';
-        Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          capturedParams = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
-        };
-
-        // Custom profile with same ID as built-in 'openai'
-        final customProfile = AIBackendProfile(
-          id: 'openai',
-          name: 'My Custom OpenAI',
-          openaiConfig: OpenAIConfig(
-            apiKey: 'sk-custom-key',
-            baseUrl: 'https://custom-openai.example.com/v1',
-            model: 'my-custom-model',
-          ),
-        );
-
-        await sync.applySettings({
-          'profiles': [customProfile.toJson()],
-          'lastUsedProfile': 'openai',
-        });
-
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project',
-        );
-
-        expect(capturedParams, isNotNull);
-        final envVars = capturedParams!['environmentVariables']
-            as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        // Custom profile should take precedence over built-in
-        expect(
-          envVars!['OPENAI_BASE_URL'],
-          'https://custom-openai.example.com/v1',
-          reason: 'Custom profile must override built-in with '
-              'same ID',
-        );
-        expect(envVars['OPENAI_API_KEY'], 'sk-custom-key');
-        expect(envVars['OPENAI_MODEL'], 'my-custom-model');
-      },
-    );
+      expect(capturedParams, isNotNull);
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      // Custom profile should take precedence over built-in
+      expect(
+        envVars!['OPENAI_BASE_URL'],
+        'https://custom-openai.example.com/v1',
+        reason:
+            'Custom profile must override built-in with '
+            'same ID',
+      );
+      expect(envVars['OPENAI_API_KEY'], 'sk-custom-key');
+      expect(envVars['OPENAI_MODEL'], 'my-custom-model');
+    });
   });
 
   group('Profile switching between sessions', () {
@@ -866,8 +794,9 @@ void main() {
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testSettingsSnapshot = Settings();
-      sync.testFetchMessagesOverride = (_, __, ___) async =>
-          <String, dynamic>{'messages': <dynamic>[]};
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <dynamic>[],
+      };
       _stubAllSyncs(sync);
     });
 
@@ -879,124 +808,107 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
-    test(
-      'switching profile between two createSession calls sends '
-      'different env vars',
-      () async {
-        final captures = <String, Map<String, dynamic>>{};
-        var callCount = 0;
+    test('switching profile between two createSession calls sends '
+        'different env vars', () async {
+      final captures = <String, Map<String, dynamic>>{};
+      var callCount = 0;
 
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          callCount++;
-          final sessionId = 'session-$callCount';
-          captures[sessionId] = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        callCount++;
+        final sessionId = 'session-$callCount';
+        captures[sessionId] = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
         };
+      };
 
-        // First session with DeepSeek
-        await sync.applySettings({'lastUsedProfile': 'deepseek'});
-        final session1 = await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project-a',
-        );
+      // First session with DeepSeek
+      await sync.applySettings({'lastUsedProfile': 'deepseek'});
+      final session1 = await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project-a',
+      );
 
-        // Switch to OpenAI
-        await sync.applySettings({'lastUsedProfile': 'openai'});
-        final session2 = await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project-b',
-        );
+      // Switch to OpenAI
+      await sync.applySettings({'lastUsedProfile': 'openai'});
+      final session2 = await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project-b',
+      );
 
-        final env1 = captures[session1]!['environmentVariables']
-            as Map<String, dynamic>;
-        final env2 = captures[session2]!['environmentVariables']
-            as Map<String, dynamic>;
+      final env1 =
+          captures[session1]!['environmentVariables'] as Map<String, dynamic>;
+      final env2 =
+          captures[session2]!['environmentVariables'] as Map<String, dynamic>;
 
-        // Session 1 should have DeepSeek vars
-        expect(
-          env1['ANTHROPIC_BASE_URL'],
-          contains('deepseek'),
-          reason: 'First session must use DeepSeek profile',
-        );
-        expect(env1.containsKey('OPENAI_BASE_URL'), isFalse);
+      // Session 1 should have DeepSeek vars
+      expect(
+        env1['ANTHROPIC_BASE_URL'],
+        contains('deepseek'),
+        reason: 'First session must use DeepSeek profile',
+      );
+      expect(env1.containsKey('OPENAI_BASE_URL'), isFalse);
 
-        // Session 2 should have OpenAI vars
-        expect(
-          env2['OPENAI_BASE_URL'],
-          'https://api.openai.com/v1',
-          reason: 'Second session must use OpenAI profile',
-        );
-        expect(env2.containsKey('ANTHROPIC_BASE_URL'), isFalse);
-      },
-    );
+      // Session 2 should have OpenAI vars
+      expect(
+        env2['OPENAI_BASE_URL'],
+        'https://api.openai.com/v1',
+        reason: 'Second session must use OpenAI profile',
+      );
+      expect(env2.containsKey('ANTHROPIC_BASE_URL'), isFalse);
+    });
 
-    test(
-      'switching from profile to no profile removes env vars',
-      () async {
-        final captures = <int, Map<String, dynamic>>{};
-        var callCount = 0;
+    test('switching from profile to no profile removes env vars', () async {
+      final captures = <int, Map<String, dynamic>>{};
+      var callCount = 0;
 
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          callCount++;
-          captures[callCount] = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': 'session-$callCount',
-            'dataEncryptionKey': null,
-          };
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        callCount++;
+        captures[callCount] = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': 'session-$callCount',
+          'dataEncryptionKey': null,
         };
+      };
 
-        // First session with DeepSeek
-        await sync.applySettings({'lastUsedProfile': 'deepseek'});
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project',
+      // First session with DeepSeek
+      await sync.applySettings({'lastUsedProfile': 'deepseek'});
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
+
+      // Switch to no profile
+      await sync.applySettings({'lastUsedProfile': null});
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project-2',
+      );
+
+      final env1 = captures[1]!['environmentVariables'] as Map<String, dynamic>;
+
+      // First session had profile vars
+      expect(env1['ANTHROPIC_BASE_URL'], contains('deepseek'));
+
+      // Second session should have NO profile vars — the key is
+      // omitted entirely when env vars are empty.
+      final env2 =
+          captures[2]!['environmentVariables'] as Map<String, dynamic>?;
+      if (env2 != null) {
+        expect(
+          env2.containsKey('ANTHROPIC_BASE_URL'),
+          isFalse,
+          reason:
+              'Clearing profile must remove all profile '
+              'env vars from subsequent sessions',
         );
-
-        // Switch to no profile
-        await sync.applySettings({'lastUsedProfile': null});
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project-2',
-        );
-
-        final env1 = captures[1]!['environmentVariables']
-            as Map<String, dynamic>;
-
-        // First session had profile vars
-        expect(env1['ANTHROPIC_BASE_URL'], contains('deepseek'));
-
-        // Second session should have NO profile vars — the key is
-        // omitted entirely when env vars are empty.
-        final env2 = captures[2]!['environmentVariables']
-            as Map<String, dynamic>?;
-        if (env2 != null) {
-          expect(
-            env2.containsKey('ANTHROPIC_BASE_URL'),
-            isFalse,
-            reason: 'Clearing profile must remove all profile '
-                'env vars from subsequent sessions',
-          );
-          expect(
-            env2.containsKey('ANTHROPIC_AUTH_TOKEN'),
-            isFalse,
-          );
-          expect(env2.containsKey('ANTHROPIC_MODEL'), isFalse);
-        }
-      },
-    );
+        expect(env2.containsKey('ANTHROPIC_AUTH_TOKEN'), isFalse);
+        expect(env2.containsKey('ANTHROPIC_MODEL'), isFalse);
+      }
+    });
   });
 
   group('Auto-restore uses session-specific profile', () {
@@ -1013,8 +925,9 @@ void main() {
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testSettingsSnapshot = Settings();
-      sync.testFetchMessagesOverride = (_, __, ___) async =>
-          <String, dynamic>{'messages': <dynamic>[]};
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <dynamic>[],
+      };
       _stubAllSyncs(sync);
     });
 
@@ -1027,207 +940,188 @@ void main() {
       sync.testGetSpawnEnvVarsOverride = null;
     });
 
-    test(
-      'auto-restore sends session-specific profile env vars, '
-      'not global lastUsedProfile',
-      () async {
-        final sessionId = 'auto-restore-1';
-        Map<String, dynamic>? capturedSpawnParams;
+    test('auto-restore sends session-specific profile env vars, '
+        'not global lastUsedProfile', () async {
+      final sessionId = 'auto-restore-1';
+      Map<String, dynamic>? capturedSpawnParams;
 
-        // The session was originally created with DeepSeek profile
-        // (stored in MMKV via _getSpawnEnvVarsForSession).
-        // We override this to simulate the stored profile.
-        sync.testGetSpawnEnvVarsOverride = (sid) async {
-          if (sid == sessionId) {
-            final deepseek = getBuiltInProfile('deepseek')!;
-            return (
-              envVars: <String, String>{
-                for (final v in deepseek.environmentVariables)
-                  v.name: v.value,
-              },
-              profile: deepseek,
-            );
-          }
+      // The session was originally created with DeepSeek profile
+      // (stored in MMKV via _getSpawnEnvVarsForSession).
+      // We override this to simulate the stored profile.
+      sync.testGetSpawnEnvVarsOverride = (sid) async {
+        if (sid == sessionId) {
+          final deepseek = getBuiltInProfile('deepseek')!;
           return (
-            envVars: <String, String>{},
-            profile: null,
+            envVars: <String, String>{
+              for (final v in deepseek.environmentVariables) v.name: v.value,
+            },
+            profile: deepseek,
           );
-        };
-
-        // Global profile is now OpenAI (user switched after creating
-        // the session).
-        await sync.applySettings({'lastUsedProfile': 'openai'});
-
-        // Set up an offline session that will trigger auto-restore
-        final now = DateTime.now().millisecondsSinceEpoch;
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 1,
-          createdAt: now - 60000,
-          updatedAt: now - 60000,
-          active: true,
-          activeAt: now,
-          metadataVersion: 1,
-          agentStateVersion: 0,
-          thinking: false,
-          presence: 'offline',
-          metadata: Metadata(
-            host: '',
-            machineId: 'machine-1',
-            path: '/home/user/project',
-            lifecycleState: 'archived',
-          ),
-        );
-
-        // Machine must be online for auto-restore
-        sync.testMachines['machine-1'] = Machine(
-          id: 'machine-1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: now,
-          metadataVersion: 0,
-          daemonStateVersion: 0,
-        );
-
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          if (method == 'spawn-happy-session') {
-            capturedSpawnParams = params;
-            return <String, dynamic>{
-              'type': 'success',
-              'sessionId': sessionId,
-              'dataEncryptionKey': null,
-            };
-          }
-          return <String, dynamic>{'type': 'error'};
-        };
-
-        sync.testFetchSingleSessionOverride = (_) async => null;
-        sync.testFetchMessagesOverride = (_, __, ___) async =>
-            <String, dynamic>{'messages': <dynamic>[]};
-
-        // sendMessage triggers auto-restore for offline sessions
-        try {
-          await sync.sendMessage(sessionId, 'hello');
-        } catch (_) {
-          // sendMessage may throw after auto-restore, that's fine
         }
+        return (envVars: <String, String>{}, profile: null);
+      };
 
+      // Global profile is now OpenAI (user switched after creating
+      // the session).
+      await sync.applySettings({'lastUsedProfile': 'openai'});
+
+      // Set up an offline session that will trigger auto-restore
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now - 60000,
+        updatedAt: now - 60000,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          lifecycleState: 'archived',
+        ),
+      );
+
+      // Machine must be online for auto-restore
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: now,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'error'};
+      };
+
+      sync.testFetchSingleSessionOverride = (_) async => null;
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <dynamic>[],
+      };
+
+      // sendMessage triggers auto-restore for offline sessions
+      try {
+        await sync.sendMessage(sessionId, 'hello');
+      } catch (_) {
+        // sendMessage may throw after auto-restore, that's fine
+      }
+
+      expect(
+        capturedSpawnParams,
+        isNotNull,
+        reason: 'Auto-restore should have triggered a spawn',
+      );
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      expect(
+        envVars!['ANTHROPIC_BASE_URL'],
+        contains('deepseek'),
+        reason:
+            'Auto-restore must use the session-specific '
+            'profile (DeepSeek), not the global '
+            'lastUsedProfile (OpenAI)',
+      );
+      expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
+    });
+
+    test('auto-restore with no saved profile sends empty env vars', () async {
+      final sessionId = 'auto-restore-noprofile-1';
+      Map<String, dynamic>? capturedSpawnParams;
+
+      // No profile saved for this session
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+
+      // Global profile is DeepSeek — should NOT be used
+      await sync.applySettings({'lastUsedProfile': 'deepseek'});
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now - 60000,
+        updatedAt: now - 60000,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          lifecycleState: 'archived',
+        ),
+      );
+
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: now,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'error'};
+      };
+
+      sync.testFetchSingleSessionOverride = (_) async => null;
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <dynamic>[],
+      };
+
+      try {
+        await sync.sendMessage(sessionId, 'hello');
+      } catch (_) {
+        // Expected
+      }
+
+      expect(capturedSpawnParams, isNotNull);
+      // No saved profile → empty env vars → key omitted from
+      // toJson entirely.
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>?;
+      if (envVars != null) {
         expect(
-          capturedSpawnParams,
-          isNotNull,
-          reason: 'Auto-restore should have triggered a spawn',
-        );
-        final envVars =
-            capturedSpawnParams!['environmentVariables']
-                as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        expect(
-          envVars!['ANTHROPIC_BASE_URL'],
-          contains('deepseek'),
-          reason: 'Auto-restore must use the session-specific '
-              'profile (DeepSeek), not the global '
-              'lastUsedProfile (OpenAI)',
+          envVars.containsKey('ANTHROPIC_BASE_URL'),
+          isFalse,
+          reason:
+              'Auto-restore with no saved profile must not '
+              'fall back to global lastUsedProfile',
         );
         expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
-      },
-    );
-
-    test(
-      'auto-restore with no saved profile sends empty env vars',
-      () async {
-        final sessionId = 'auto-restore-noprofile-1';
-        Map<String, dynamic>? capturedSpawnParams;
-
-        // No profile saved for this session
-        sync.testGetSpawnEnvVarsOverride = (_) async =>
-            (envVars: <String, String>{}, profile: null);
-
-        // Global profile is DeepSeek — should NOT be used
-        await sync.applySettings({'lastUsedProfile': 'deepseek'});
-
-        final now = DateTime.now().millisecondsSinceEpoch;
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 1,
-          createdAt: now - 60000,
-          updatedAt: now - 60000,
-          active: true,
-          activeAt: now,
-          metadataVersion: 1,
-          agentStateVersion: 0,
-          thinking: false,
-          presence: 'offline',
-          metadata: Metadata(
-            host: '',
-            machineId: 'machine-1',
-            path: '/home/user/project',
-            lifecycleState: 'archived',
-          ),
-        );
-
-        sync.testMachines['machine-1'] = Machine(
-          id: 'machine-1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: now,
-          metadataVersion: 0,
-          daemonStateVersion: 0,
-        );
-
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          if (method == 'spawn-happy-session') {
-            capturedSpawnParams = params;
-            return <String, dynamic>{
-              'type': 'success',
-              'sessionId': sessionId,
-              'dataEncryptionKey': null,
-            };
-          }
-          return <String, dynamic>{'type': 'error'};
-        };
-
-        sync.testFetchSingleSessionOverride = (_) async => null;
-        sync.testFetchMessagesOverride = (_, __, ___) async =>
-            <String, dynamic>{'messages': <dynamic>[]};
-
-        try {
-          await sync.sendMessage(sessionId, 'hello');
-        } catch (_) {
-          // Expected
-        }
-
-        expect(capturedSpawnParams, isNotNull);
-        // No saved profile → empty env vars → key omitted from
-        // toJson entirely.
-        final envVars =
-            capturedSpawnParams!['environmentVariables']
-                as Map<String, dynamic>?;
-        if (envVars != null) {
-          expect(
-            envVars.containsKey('ANTHROPIC_BASE_URL'),
-            isFalse,
-            reason: 'Auto-restore with no saved profile must not '
-                'fall back to global lastUsedProfile',
-          );
-          expect(
-            envVars.containsKey('OPENAI_BASE_URL'),
-            isFalse,
-          );
-        }
-      },
-    );
+      }
+    });
   });
 
   group('Profile permission mode propagation', () {
@@ -1244,8 +1138,9 @@ void main() {
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testSettingsSnapshot = Settings();
-      sync.testFetchMessagesOverride = (_, __, ___) async =>
-          <String, dynamic>{'messages': <dynamic>[]};
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <dynamic>[],
+      };
       _stubAllSyncs(sync);
     });
 
@@ -1257,61 +1152,51 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
-    test(
-      'profile defaultPermissionMode is forwarded on spawn',
-      () async {
-        final sessionId = 'perm-mode-1';
-        Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          capturedParams = params;
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
+    test('profile defaultPermissionMode is forwarded on spawn', () async {
+      final sessionId = 'perm-mode-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
         };
+      };
 
-        final customProfile = AIBackendProfile(
-          id: 'yolo-profile',
-          name: 'YOLO',
-          defaultPermissionMode: 'bypassPermissions',
-        );
+      final customProfile = AIBackendProfile(
+        id: 'yolo-profile',
+        name: 'YOLO',
+        defaultPermissionMode: 'bypassPermissions',
+      );
 
-        await sync.applySettings({
-          'profiles': [customProfile.toJson()],
-          'lastUsedProfile': 'yolo-profile',
-          'lastUsedPermissionMode': 'default',
-        });
+      await sync.applySettings({
+        'profiles': [customProfile.toJson()],
+        'lastUsedProfile': 'yolo-profile',
+        'lastUsedPermissionMode': 'default',
+      });
 
-        await sync.createSession(
-          machineId: 'machine-1',
-          path: '/home/user/project',
-        );
+      await sync.createSession(
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
 
-        expect(capturedParams, isNotNull);
-        expect(
-          capturedParams!['permissionMode'],
-          'bypassPermissions',
-          reason: 'Profile defaultPermissionMode must override '
-              'the global lastUsedPermissionMode',
-        );
-      },
-    );
+      expect(capturedParams, isNotNull);
+      expect(
+        capturedParams!['permissionMode'],
+        'bypassPermissions',
+        reason:
+            'Profile defaultPermissionMode must override '
+            'the global lastUsedPermissionMode',
+      );
+    });
 
     test(
       'falls back to global permission mode when profile has none',
       () async {
         final sessionId = 'perm-fallback-1';
         Map<String, dynamic>? capturedParams;
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
+        sync.testMachineRPCOverride = (machineId, method, params) async {
           capturedParams = params;
           return <String, dynamic>{
             'type': 'success',
@@ -1336,7 +1221,8 @@ void main() {
         expect(
           capturedParams!['permissionMode'],
           'plan',
-          reason: 'Must fall back to global permission mode '
+          reason:
+              'Must fall back to global permission mode '
               'when profile has no default',
         );
       },
@@ -1349,17 +1235,11 @@ void main() {
         id: 'deepseek',
         name: 'My DeepSeek Override',
         environmentVariables: [
-          EnvironmentVariable(
-            name: 'CUSTOM_VAR',
-            value: 'custom-value',
-          ),
+          EnvironmentVariable(name: 'CUSTOM_VAR', value: 'custom-value'),
         ],
       );
 
-      final result = resolveProfile(
-        'deepseek',
-        [custom],
-      );
+      final result = resolveProfile('deepseek', [custom]);
       expect(result, isNotNull);
       expect(result!.name, 'My DeepSeek Override');
       expect(result.environmentVariables.length, 1);
@@ -1369,7 +1249,7 @@ void main() {
     test('falls back to built-in when no custom match', () {
       final result = resolveProfile('deepseek', []);
       expect(result, isNotNull);
-      expect(result!.name, 'DeepSeek (Reasoner)');
+      expect(result!.name, 'DeepSeek (Chat)');
       expect(result.isBuiltIn, isTrue);
     });
 
@@ -1428,17 +1308,13 @@ void main() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-void _stubAllSyncs(
-  Sync instance, {
-  Future<void> Function()? sessionsFn,
-}) {
+void _stubAllSyncs(Sync instance, {Future<void> Function()? sessionsFn}) {
   try {
     instance.sessionsSync.dispose();
   } on Error {
     // Not initialized yet
   }
-  instance.sessionsSync =
-      InvalidateSync(sessionsFn ?? () async {});
+  instance.sessionsSync = InvalidateSync(sessionsFn ?? () async {});
   instance.settingsSync = InvalidateSync(() async {});
   instance.profileSync = InvalidateSync(() async {});
   instance.purchasesSync = InvalidateSync(() async {});
@@ -1470,22 +1346,15 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  Future<Uint8List?> decryptEncryptionKey(
-    String encryptedKey,
-  ) async {
-    return Uint8List.fromList(
-      utf8.encode('decrypted-$encryptedKey'),
-    );
+  Future<Uint8List?> decryptEncryptionKey(String encryptedKey) async {
+    return Uint8List.fromList(utf8.encode('decrypted-$encryptedKey'));
   }
 
   @override
-  Future<void> initializeSessions(
-    Map<String, Uint8List?> sessionKeys,
-  ) async {}
+  Future<void> initializeSessions(Map<String, Uint8List?> sessionKeys) async {}
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
   void removeSessionEncryption(String sessionId) {
@@ -1493,27 +1362,24 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {
   @override
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
     return data
-        .map(
-          (item) => item is Uint8List ? item : Uint8List.fromList([]),
-        )
+        .map((item) => item is Uint8List ? item : Uint8List.fromList([]))
         .toList();
   }
 
@@ -1523,6 +1389,5 @@ class _FakeEncryptor implements Encryptor {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -21,8 +21,7 @@ class ProfileEditorScreen extends ConsumerStatefulWidget {
       _ProfileEditorScreenState();
 }
 
-class _ProfileEditorScreenState
-    extends ConsumerState<ProfileEditorScreen> {
+class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
@@ -37,17 +36,13 @@ class _ProfileEditorScreenState
     super.initState();
     final p = widget.existing;
     _nameCtrl = TextEditingController(text: p?.name ?? '');
-    _descCtrl = TextEditingController(
-      text: p?.description ?? '',
-    );
-    _scriptCtrl = TextEditingController(
-      text: p?.startupBashScript ?? '',
-    );
+    _descCtrl = TextEditingController(text: p?.description ?? '');
+    _scriptCtrl = TextEditingController(text: p?.startupBashScript ?? '');
     _envRows = (p?.environmentVariables ?? [])
         .map((e) => EnvRow(name: e.name, value: e.value))
         .toList();
-    _showScript = p?.startupBashScript != null &&
-        p!.startupBashScript!.isNotEmpty;
+    _showScript =
+        p?.startupBashScript != null && p!.startupBashScript!.isNotEmpty;
   }
 
   @override
@@ -96,7 +91,8 @@ class _ProfileEditorScreenState
                 maxLines: 10,
                 decoration: InputDecoration(
                   labelText: l10n.profilesImportLabel,
-                  hintText: 'export ANTHROPIC_BASE_URL=...\n'
+                  hintText:
+                      'export ANTHROPIC_BASE_URL=...\n'
                       'export ANTHROPIC_AUTH_TOKEN=...',
                   border: const OutlineInputBorder(),
                   alignLabelWithHint: true,
@@ -135,9 +131,9 @@ class _ProfileEditorScreenState
     final result = parseShellScript(text);
     if (result.envVars.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.profilesImportNoVars)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.profilesImportNoVars)));
       }
       return;
     }
@@ -154,8 +150,7 @@ class _ProfileEditorScreenState
       final modelValue = modelVar.value;
       if (modelValue.isNotEmpty) {
         final parts = modelValue.split('/');
-        _nameCtrl.text =
-            parts.length > 1 ? parts.last : modelValue;
+        _nameCtrl.text = parts.length > 1 ? parts.last : modelValue;
       }
     }
 
@@ -184,8 +179,9 @@ class _ProfileEditorScreenState
     // Remove the user's stored override so resolveProfile falls
     // back to the immutable built-in definition.
     final settings = ref.read(settingsNotifierProvider);
-    final updatedProfiles =
-        settings.profiles.where((p) => p.id != existing.id).toList();
+    final updatedProfiles = settings.profiles
+        .where((p) => p.id != existing.id)
+        .toList();
 
     final failedMsg = context.l10n.profilesFailedToSave;
     try {
@@ -195,9 +191,9 @@ class _ProfileEditorScreenState
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(failedMsg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failedMsg)));
       }
     }
   }
@@ -220,17 +216,13 @@ class _ProfileEditorScreenState
     final updated = AIBackendProfile(
       id: existing?.id ?? 'custom_$now',
       name: _nameCtrl.text.trim(),
-      description: _descCtrl.text.trim().isEmpty
-          ? null
-          : _descCtrl.text.trim(),
-      startupBashScript:
-          _showScript && _scriptCtrl.text.trim().isNotEmpty
-              ? _scriptCtrl.text.trim()
-              : null,
+      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      startupBashScript: _showScript && _scriptCtrl.text.trim().isNotEmpty
+          ? _scriptCtrl.text.trim()
+          : null,
       environmentVariables: envVars,
       isBuiltIn: existing?.isBuiltIn ?? false,
-      compatibility: existing?.compatibility ??
-          const ProfileCompatibility(),
+      compatibility: existing?.compatibility ?? const ProfileCompatibility(),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     );
@@ -238,8 +230,7 @@ class _ProfileEditorScreenState
     final settings = ref.read(settingsNotifierProvider);
     final List<AIBackendProfile> profiles;
     if (existing != null) {
-      final alreadyStored =
-          settings.profiles.any((p) => p.id == updated.id);
+      final alreadyStored = settings.profiles.any((p) => p.id == updated.id);
       if (alreadyStored) {
         profiles = settings.profiles
             .map((p) => p.id == updated.id ? updated : p)
@@ -260,9 +251,9 @@ class _ProfileEditorScreenState
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(failedMsg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failedMsg)));
       }
     }
   }
@@ -280,48 +271,44 @@ class _ProfileEditorScreenState
         case 'zai':
           _nameCtrl.text = 'Z.AI (GLM-5.1)';
           _descCtrl.text =
-              'Z.AI GLM-5.1 via Anthropic-compatible interface';
+              'Z.AI GLM Coding Plan via Anthropic-compatible interface';
           _envRows.addAll([
             EnvRow(
               name: 'ANTHROPIC_BASE_URL',
               value: 'https://api.z.ai/api/anthropic',
             ),
             EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
-            EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
-            EnvRow(name: 'ANTHROPIC_MODEL', value: 'GLM-5.1'),
+            EnvRow(name: 'API_TIMEOUT_MS', value: '3000000'),
             EnvRow(
-              name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-              value: 'GLM-5.1',
+              name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+              value: '1',
             ),
-            EnvRow(
-              name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-              value: 'GLM-5.1',
-            ),
-            EnvRow(
-              name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-              value: 'GLM-4.7',
-            ),
+            EnvRow(name: 'ANTHROPIC_DEFAULT_OPUS_MODEL', value: 'glm-5.1'),
+            EnvRow(name: 'ANTHROPIC_DEFAULT_SONNET_MODEL', value: 'glm-4.7'),
+            EnvRow(name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', value: 'glm-4.5-air'),
           ]);
           break;
         case 'minimax':
-          _nameCtrl.text = 'MiniMax (M2.7)';
-          _descCtrl.text =
-              'MiniMax M2.7 via Anthropic-compatible interface';
+          _nameCtrl.text = 'MiniMax (MiniMax-M2.7)';
+          _descCtrl.text = 'MiniMax-M2.7 via Anthropic-compatible interface';
           _envRows.addAll([
             EnvRow(
               name: 'ANTHROPIC_BASE_URL',
-              value: 'https://api.minimax.io/v1',
+              value: 'https://api.minimax.io/anthropic',
             ),
             EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
+            EnvRow(name: 'ANTHROPIC_MODEL', value: 'MiniMax-M2.7'),
+            EnvRow(name: 'ANTHROPIC_SMALL_FAST_MODEL', value: 'MiniMax-M2.7'),
             EnvRow(
-              name: 'ANTHROPIC_MODEL',
-              value: 'M2.7',
+              name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+              value: 'MiniMax-M2.7',
             ),
+            EnvRow(name: 'ANTHROPIC_DEFAULT_OPUS_MODEL', value: 'MiniMax-M2.7'),
             EnvRow(
-              name: 'ANTHROPIC_SMALL_FAST_MODEL',
-              value: 'M2.7',
+              name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+              value: 'MiniMax-M2.7',
             ),
-            EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
+            EnvRow(name: 'API_TIMEOUT_MS', value: '3000000'),
             EnvRow(
               name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
               value: '1',
@@ -330,31 +317,34 @@ class _ProfileEditorScreenState
           break;
         case 'openrouter':
           _nameCtrl.text = 'OpenRouter';
-          _descCtrl.text =
-              'OpenRouter — unified gateway to 200+ models';
+          _descCtrl.text = 'OpenRouter — unified gateway to 200+ models';
           _envRows.addAll([
             EnvRow(
               name: 'ANTHROPIC_BASE_URL',
-              value: 'https://openrouter.ai/api/v1',
+              value: 'https://openrouter.ai/api',
             ),
             EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
-            EnvRow(name: 'API_TIMEOUT_MS', value: '600000'),
+            EnvRow(name: 'ANTHROPIC_API_KEY', value: ''),
             EnvRow(
-              name: 'ANTHROPIC_MODEL',
-              value: 'anthropic/claude-opus-4-6',
+              name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+              value: 'anthropic/claude-opus-4.6',
             ),
             EnvRow(
-              name: 'ANTHROPIC_SMALL_FAST_MODEL',
-              value: 'anthropic/claude-sonnet-4-6',
+              name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+              value: 'anthropic/claude-sonnet-4.6',
             ),
             EnvRow(
-              name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
-              value: '1',
+              name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+              value: 'anthropic/claude-haiku-4.5',
+            ),
+            EnvRow(
+              name: 'CLAUDE_CODE_SUBAGENT_MODEL',
+              value: 'anthropic/claude-opus-4.6',
             ),
           ]);
           break;
         case 'deepseek':
-          _nameCtrl.text = 'DeepSeek (Reasoner)';
+          _nameCtrl.text = 'DeepSeek (Chat)';
           _descCtrl.text =
               'DeepSeek API via Anthropic-compatible '
               'interface';
@@ -365,13 +355,14 @@ class _ProfileEditorScreenState
             ),
             EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
             EnvRow(name: 'API_TIMEOUT_MS', value: '600000'),
+            EnvRow(name: 'ANTHROPIC_MODEL', value: 'deepseek-chat'),
             EnvRow(
-              name: 'ANTHROPIC_MODEL',
-              value: 'deepseek-reasoner',
+              name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+              value: 'deepseek-chat',
             ),
             EnvRow(
-              name: 'ANTHROPIC_SMALL_FAST_MODEL',
-              value: 'deepseek-chat',
+              name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+              value: '1',
             ),
           ]);
           break;
@@ -379,19 +370,10 @@ class _ProfileEditorScreenState
           _nameCtrl.text = 'OpenAI (GPT-5)';
           _descCtrl.text = 'OpenAI GPT-5 Codex API';
           _envRows.addAll([
-            EnvRow(
-              name: 'OPENAI_BASE_URL',
-              value: 'https://api.openai.com/v1',
-            ),
+            EnvRow(name: 'OPENAI_BASE_URL', value: 'https://api.openai.com/v1'),
             EnvRow(name: 'OPENAI_API_KEY', value: ''),
-            EnvRow(
-              name: 'OPENAI_MODEL',
-              value: 'gpt-5-codex-high',
-            ),
-            EnvRow(
-              name: 'OPENAI_SMALL_FAST_MODEL',
-              value: 'gpt-5-codex-low',
-            ),
+            EnvRow(name: 'OPENAI_MODEL', value: 'gpt-5-codex-high'),
+            EnvRow(name: 'OPENAI_SMALL_FAST_MODEL', value: 'gpt-5-codex-low'),
             EnvRow(name: 'API_TIMEOUT_MS', value: '600000'),
           ]);
           break;
@@ -405,10 +387,7 @@ class _ProfileEditorScreenState
             ),
             EnvRow(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
             EnvRow(name: 'API_TIMEOUT_MS', value: '300000'),
-            EnvRow(
-              name: 'ANTHROPIC_MODEL',
-              value: 'claude-opus-4-5',
-            ),
+            EnvRow(name: 'ANTHROPIC_MODEL', value: 'claude-opus-4-5'),
           ]);
           break;
       }
@@ -427,9 +406,7 @@ class _ProfileEditorScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isEditing
-              ? l10n.profilesEditProfile
-              : l10n.profilesAddProfile,
+          isEditing ? l10n.profilesEditProfile : l10n.profilesAddProfile,
         ),
         actions: [
           if (isBuiltIn)
@@ -437,10 +414,7 @@ class _ProfileEditorScreenState
               onPressed: _resetToDefaults,
               child: Text(l10n.commonReset),
             ),
-          TextButton(
-            onPressed: _save,
-            child: Text(l10n.commonSave),
-          ),
+          TextButton(onPressed: _save, child: Text(l10n.commonSave)),
           const SizedBox(width: AppSpacing.sm),
         ],
       ),
@@ -507,8 +481,7 @@ class _ProfileEditorScreenState
               textTheme: tt,
               colorScheme: cs,
               controller: _scriptCtrl,
-              onToggle: () =>
-                  setState(() => _showScript = !_showScript),
+              onToggle: () => setState(() => _showScript = !_showScript),
             ),
 
             const SizedBox(height: AppSpacing.xxxl),

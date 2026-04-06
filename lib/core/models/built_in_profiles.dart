@@ -43,16 +43,14 @@ AIBackendProfile? getBuiltInProfile(String id) {
     case 'deepseek':
       return AIBackendProfile(
         id: 'deepseek',
-        name: 'DeepSeek (Reasoner)',
-        description:
-            'DeepSeek API via Anthropic-compatible interface',
+        name: 'DeepSeek (Chat)',
+        description: 'DeepSeek API via Anthropic-compatible interface',
         isBuiltIn: true,
-        defaultModelMode: 'deepseek-reasoner',
+        defaultModelMode: 'deepseek-chat',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
-            value:
-                r'${DEEPSEEK_BASE_URL:-https://api.deepseek.com/anthropic}',
+            value: r'${DEEPSEEK_BASE_URL:-https://api.deepseek.com/anthropic}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_AUTH_TOKEN',
@@ -64,16 +62,15 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_MODEL',
-            value: r'${DEEPSEEK_MODEL:-deepseek-reasoner}',
+            value: r'${DEEPSEEK_MODEL:-deepseek-chat}',
           ),
           EnvironmentVariable(
-            name: 'ANTHROPIC_SMALL_FAST_MODEL',
-            value: r'${DEEPSEEK_SMALL_FAST_MODEL:-deepseek-chat}',
+            name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+            value: r'${DEEPSEEK_HAIKU_MODEL:-deepseek-chat}',
           ),
           EnvironmentVariable(
             name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
-            value:
-                r'${DEEPSEEK_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
+            value: r'${DEEPSEEK_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
           ),
         ],
         compatibility: const ProfileCompatibility(
@@ -87,15 +84,13 @@ AIBackendProfile? getBuiltInProfile(String id) {
       return AIBackendProfile(
         id: 'zai',
         name: 'Z.AI (GLM-5.1)',
-        description:
-            'Z.AI GLM-5.1 via Anthropic-compatible interface',
+        description: 'Z.AI GLM Coding Plan via Anthropic-compatible interface',
         isBuiltIn: true,
         defaultModelMode: 'GLM-5.1',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
-            value:
-                r'${Z_AI_BASE_URL:-https://api.z.ai/api/anthropic}',
+            value: r'${Z_AI_BASE_URL:-https://api.z.ai/api/anthropic}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_AUTH_TOKEN',
@@ -103,23 +98,23 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'API_TIMEOUT_MS',
-            value: r'${Z_AI_API_TIMEOUT_MS:-300000}',
+            value: r'${Z_AI_API_TIMEOUT_MS:-3000000}',
           ),
           EnvironmentVariable(
-            name: 'ANTHROPIC_MODEL',
-            value: r'${Z_AI_MODEL:-GLM-5.1}',
+            name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+            value: r'${Z_AI_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-            value: r'${Z_AI_OPUS_MODEL:-GLM-5.1}',
+            value: r'${Z_AI_OPUS_MODEL:-glm-5.1}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-            value: r'${Z_AI_SONNET_MODEL:-GLM-5.1}',
+            value: r'${Z_AI_SONNET_MODEL:-glm-4.7}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-            value: r'${Z_AI_HAIKU_MODEL:-GLM-4.7}',
+            value: r'${Z_AI_HAIKU_MODEL:-glm-4.5-air}',
           ),
         ],
         compatibility: const ProfileCompatibility(
@@ -132,15 +127,14 @@ AIBackendProfile? getBuiltInProfile(String id) {
     case 'minimax':
       return AIBackendProfile(
         id: 'minimax',
-        name: 'MiniMax (M2.7)',
-        description:
-            'MiniMax M2.7 via Anthropic-compatible interface',
+        name: 'MiniMax (MiniMax-M2.7)',
+        description: 'MiniMax-M2.7 via Anthropic-compatible interface',
         isBuiltIn: true,
-        defaultModelMode: 'M2.7',
+        defaultModelMode: 'MiniMax-M2.7',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
-            value: r'${MINIMAX_BASE_URL:-https://api.minimax.io/v1}',
+            value: r'${MINIMAX_BASE_URL:-https://api.minimax.io/anthropic}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_AUTH_TOKEN',
@@ -148,20 +142,31 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_MODEL',
-            value: r'${MINIMAX_MODEL:-M2.7}',
+            value: r'${MINIMAX_MODEL:-MiniMax-M2.7}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_SMALL_FAST_MODEL',
-            value: r'${MINIMAX_SMALL_FAST_MODEL:-M2.7}',
+            value: r'${MINIMAX_SMALL_FAST_MODEL:-MiniMax-M2.7}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+            value: r'${MINIMAX_SONNET_MODEL:-MiniMax-M2.7}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+            value: r'${MINIMAX_OPUS_MODEL:-MiniMax-M2.7}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+            value: r'${MINIMAX_HAIKU_MODEL:-MiniMax-M2.7}',
           ),
           EnvironmentVariable(
             name: 'API_TIMEOUT_MS',
-            value: r'${MINIMAX_API_TIMEOUT_MS:-300000}',
+            value: r'${MINIMAX_API_TIMEOUT_MS:-3000000}',
           ),
           EnvironmentVariable(
             name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
-            value:
-                r'${MINIMAX_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
+            value: r'${MINIMAX_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
           ),
         ],
         compatibility: const ProfileCompatibility(
@@ -175,38 +180,34 @@ AIBackendProfile? getBuiltInProfile(String id) {
       return AIBackendProfile(
         id: 'openrouter',
         name: 'OpenRouter',
-        description:
-            'OpenRouter — unified gateway to 200+ models',
+        description: 'OpenRouter — unified gateway to 200+ models',
         isBuiltIn: true,
         defaultModelMode: 'anthropic/claude-opus-4-6',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
-            value:
-                r'${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}',
+            value: r'${OPENROUTER_BASE_URL:-https://openrouter.ai/api}',
           ),
           EnvironmentVariable(
             name: 'ANTHROPIC_AUTH_TOKEN',
             value: r'${OPENROUTER_API_KEY:-}',
           ),
+          EnvironmentVariable(name: 'ANTHROPIC_API_KEY', value: ''),
           EnvironmentVariable(
-            name: 'ANTHROPIC_MODEL',
-            value:
-                r'${OPENROUTER_MODEL:-anthropic/claude-opus-4-6}',
+            name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+            value: r'${OPENROUTER_OPUS_MODEL:-anthropic/claude-opus-4.6}',
           ),
           EnvironmentVariable(
-            name: 'ANTHROPIC_SMALL_FAST_MODEL',
-            value:
-                r'${OPENROUTER_SMALL_FAST_MODEL:-anthropic/claude-sonnet-4-6}',
+            name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+            value: r'${OPENROUTER_SONNET_MODEL:-anthropic/claude-sonnet-4.6}',
           ),
           EnvironmentVariable(
-            name: 'API_TIMEOUT_MS',
-            value: r'${OPENROUTER_API_TIMEOUT_MS:-600000}',
+            name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+            value: r'${OPENROUTER_HAIKU_MODEL:-anthropic/claude-haiku-4.5}',
           ),
           EnvironmentVariable(
-            name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
-            value:
-                r'${OPENROUTER_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
+            name: 'CLAUDE_CODE_SUBAGENT_MODEL',
+            value: r'${OPENROUTER_SUBAGENT_MODEL:-anthropic/claude-opus-4.6}',
           ),
         ],
         compatibility: const ProfileCompatibility(
@@ -228,22 +229,13 @@ AIBackendProfile? getBuiltInProfile(String id) {
             name: 'OPENAI_BASE_URL',
             value: 'https://api.openai.com/v1',
           ),
-          EnvironmentVariable(
-            name: 'OPENAI_MODEL',
-            value: 'gpt-5-codex-high',
-          ),
-          EnvironmentVariable(
-            name: 'OPENAI_API_TIMEOUT_MS',
-            value: '600000',
-          ),
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'gpt-5-codex-high'),
+          EnvironmentVariable(name: 'OPENAI_API_TIMEOUT_MS', value: '600000'),
           EnvironmentVariable(
             name: 'OPENAI_SMALL_FAST_MODEL',
             value: 'gpt-5-codex-low',
           ),
-          EnvironmentVariable(
-            name: 'API_TIMEOUT_MS',
-            value: '600000',
-          ),
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '600000'),
           EnvironmentVariable(
             name: 'CODEX_SMALL_FAST_MODEL',
             value: 'gpt-5-codex-low',
@@ -260,8 +252,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
       return AIBackendProfile(
         id: 'azure-openai',
         name: 'Azure OpenAI',
-        description:
-            'Azure OpenAI Service for enterprise deployments',
+        description: 'Azure OpenAI Service for enterprise deployments',
         isBuiltIn: true,
         defaultModelMode: 'gpt-5-codex',
         environmentVariables: [
@@ -273,14 +264,8 @@ AIBackendProfile? getBuiltInProfile(String id) {
             name: 'AZURE_OPENAI_DEPLOYMENT_NAME',
             value: 'gpt-5-codex',
           ),
-          EnvironmentVariable(
-            name: 'OPENAI_API_TIMEOUT_MS',
-            value: '600000',
-          ),
-          EnvironmentVariable(
-            name: 'API_TIMEOUT_MS',
-            value: '600000',
-          ),
+          EnvironmentVariable(name: 'OPENAI_API_TIMEOUT_MS', value: '600000'),
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '600000'),
         ],
         compatibility: const ProfileCompatibility(
           claude: false,

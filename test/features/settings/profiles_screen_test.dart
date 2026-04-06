@@ -42,8 +42,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -65,8 +64,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -86,8 +84,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -96,7 +93,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Anthropic (Default)'), findsOneWidget);
-      expect(find.text('DeepSeek (Reasoner)'), findsOneWidget);
+      expect(find.text('DeepSeek (Chat)'), findsOneWidget);
       expect(find.text('OpenAI (GPT-5)'), findsOneWidget);
       expect(find.text('Azure OpenAI'), findsOneWidget);
     });
@@ -110,8 +107,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -131,8 +127,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -157,8 +152,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -184,8 +178,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -199,10 +192,7 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(ProfilesScreen)),
       );
-      expect(
-        container.read(settingsNotifierProvider).lastUsedProfile,
-        isNull,
-      );
+      expect(container.read(settingsNotifierProvider).lastUsedProfile, isNull);
     });
 
     testWidgets('tapping built-in profile selects it', (tester) async {
@@ -214,8 +204,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -223,7 +212,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('DeepSeek (Reasoner)'));
+      await tester.tap(find.text('DeepSeek (Chat)'));
       await tester.pumpAndSettle();
 
       final container = ProviderScope.containerOf(
@@ -244,8 +233,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const ProfilesScreen(),
           ),
@@ -253,14 +241,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Official Anthropic Claude API'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('OpenAI GPT-5 Codex API'),
-        findsOneWidget,
-      );
+      expect(find.text('Official Anthropic Claude API'), findsOneWidget);
+      expect(find.text('OpenAI GPT-5 Codex API'), findsOneWidget);
     });
   });
 }

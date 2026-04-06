@@ -65,35 +65,36 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         break;
       case 'zai':
         _nameCtrl.text = 'Z.AI (GLM-5.1)';
-        _descCtrl.text = 'Z.AI GLM-5.1 via Anthropic-compatible interface';
+        _descCtrl.text =
+            'Z.AI GLM Coding Plan via Anthropic-compatible interface';
         _baseUrlCtrl.text = 'https://api.z.ai/api/anthropic';
-        _modelCtrl.text = 'GLM-5.1';
+        _modelCtrl.text = '';
         _smallFastModelCtrl.text = 'GLM-4.7';
-        _timeoutCtrl.text = '300000';
+        _timeoutCtrl.text = '3000000';
         break;
       case 'deepseek':
-        _nameCtrl.text = 'DeepSeek (Reasoner)';
+        _nameCtrl.text = 'DeepSeek (Chat)';
         _descCtrl.text = 'DeepSeek API via Anthropic-compatible interface';
         _baseUrlCtrl.text = 'https://api.deepseek.com/anthropic';
-        _modelCtrl.text = 'deepseek-reasoner';
-        _smallFastModelCtrl.text = 'deepseek-chat';
+        _modelCtrl.text = 'deepseek-chat';
+        _smallFastModelCtrl.text = '';
         _timeoutCtrl.text = '600000';
         break;
       case 'minimax':
-        _nameCtrl.text = 'MiniMax (M2.7)';
-        _descCtrl.text = 'MiniMax M2.7 via Anthropic-compatible interface';
-        _baseUrlCtrl.text = 'https://api.minimax.io/v1';
-        _modelCtrl.text = 'M2.7';
-        _smallFastModelCtrl.text = 'M2.7';
-        _timeoutCtrl.text = '300000';
+        _nameCtrl.text = 'MiniMax (MiniMax-M2.7)';
+        _descCtrl.text = 'MiniMax-M2.7 via Anthropic-compatible interface';
+        _baseUrlCtrl.text = 'https://api.minimax.io/anthropic';
+        _modelCtrl.text = 'MiniMax-M2.7';
+        _smallFastModelCtrl.text = 'MiniMax-M2.7';
+        _timeoutCtrl.text = '3000000';
         break;
       case 'openrouter':
         _nameCtrl.text = 'OpenRouter';
         _descCtrl.text = 'OpenRouter — unified gateway to 200+ models';
-        _baseUrlCtrl.text = 'https://openrouter.ai/api/v1';
-        _modelCtrl.text = 'anthropic/claude-opus-4-6';
-        _smallFastModelCtrl.text = 'anthropic/claude-sonnet-4-6';
-        _timeoutCtrl.text = '600000';
+        _baseUrlCtrl.text = 'https://openrouter.ai/api';
+        _modelCtrl.text = 'anthropic/claude-opus-4.6';
+        _smallFastModelCtrl.text = 'anthropic/claude-sonnet-4.6';
+        _timeoutCtrl.text = '';
         break;
       case 'openai':
         _nameCtrl.text = 'OpenAI (GPT-5)';
@@ -123,83 +124,216 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     // Determine which env vars to use based on provider type
     if (_selectedProvider == 'openai') {
       envVars
-        ..add(EnvironmentVariable(
-          name: 'OPENAI_BASE_URL',
-          value: _baseUrlCtrl.text,
-        ))
-        ..add(EnvironmentVariable(
-          name: 'OPENAI_API_KEY',
-          value: _apiKeyCtrl.text,
-        ))
-        ..add(EnvironmentVariable(
-          name: 'OPENAI_MODEL',
-          value: _modelCtrl.text,
-        ));
+        ..add(
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: _baseUrlCtrl.text,
+          ),
+        )
+        ..add(
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: _apiKeyCtrl.text),
+        )
+        ..add(
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: _modelCtrl.text),
+        );
       if (_smallFastModelCtrl.text.isNotEmpty) {
-        envVars.add(EnvironmentVariable(
-          name: 'OPENAI_SMALL_FAST_MODEL',
-          value: _smallFastModelCtrl.text,
-        ));
+        envVars.add(
+          EnvironmentVariable(
+            name: 'OPENAI_SMALL_FAST_MODEL',
+            value: _smallFastModelCtrl.text,
+          ),
+        );
       }
-      envVars.add(EnvironmentVariable(
-        name: 'API_TIMEOUT_MS',
-        value: _timeoutCtrl.text,
-      ));
+      envVars.add(
+        EnvironmentVariable(name: 'API_TIMEOUT_MS', value: _timeoutCtrl.text),
+      );
     } else if (_selectedProvider == 'azure-openai') {
       envVars
-        ..add(EnvironmentVariable(
-          name: 'AZURE_OPENAI_API_VERSION',
-          value: '2024-02-15-preview',
-        ))
-        ..add(EnvironmentVariable(
-          name: 'AZURE_OPENAI_DEPLOYMENT_NAME',
-          value: _modelCtrl.text,
-        ))
-        ..add(EnvironmentVariable(
-          name: 'OPENAI_API_KEY',
-          value: _apiKeyCtrl.text,
-        ))
-        ..add(EnvironmentVariable(
-          name: 'OPENAI_BASE_URL',
-          value: _baseUrlCtrl.text,
-        ))
-        ..add(EnvironmentVariable(
-          name: 'API_TIMEOUT_MS',
-          value: _timeoutCtrl.text,
-        ));
+        ..add(
+          EnvironmentVariable(
+            name: 'AZURE_OPENAI_API_VERSION',
+            value: '2024-02-15-preview',
+          ),
+        )
+        ..add(
+          EnvironmentVariable(
+            name: 'AZURE_OPENAI_DEPLOYMENT_NAME',
+            value: _modelCtrl.text,
+          ),
+        )
+        ..add(
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: _apiKeyCtrl.text),
+        )
+        ..add(
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: _baseUrlCtrl.text,
+          ),
+        )
+        ..add(
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: _timeoutCtrl.text),
+        );
     } else {
-      // Anthropic-compatible (Anthropic, Z.AI, DeepSeek)
+      // Anthropic-compatible providers
       envVars
-        ..add(EnvironmentVariable(
-          name: 'ANTHROPIC_BASE_URL',
-          value: _baseUrlCtrl.text,
-        ))
-        ..add(EnvironmentVariable(
-          name: 'ANTHROPIC_AUTH_TOKEN',
-          value: _apiKeyCtrl.text,
-        ))
-        ..add(EnvironmentVariable(
-          name: 'ANTHROPIC_MODEL',
-          value: _modelCtrl.text,
-        ));
-      if (_smallFastModelCtrl.text.isNotEmpty) {
-        envVars.add(EnvironmentVariable(
-          name: 'ANTHROPIC_SMALL_FAST_MODEL',
-          value: _smallFastModelCtrl.text,
-        ));
+        ..add(
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value: _baseUrlCtrl.text,
+          ),
+        )
+        ..add(
+          EnvironmentVariable(
+            name: 'ANTHROPIC_AUTH_TOKEN',
+            value: _apiKeyCtrl.text,
+          ),
+        );
+      if (_timeoutCtrl.text.isNotEmpty) {
+        envVars.add(
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: _timeoutCtrl.text),
+        );
       }
-      envVars.add(EnvironmentVariable(
-        name: 'API_TIMEOUT_MS',
-        value: _timeoutCtrl.text,
-      ));
+
+      switch (_selectedProvider) {
+        case 'zai':
+          envVars
+            ..add(
+              EnvironmentVariable(
+                name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+                value: '1',
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+                value: _modelCtrl.text.isNotEmpty ? _modelCtrl.text : 'glm-5.1',
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+                value: 'glm-4.5-air',
+              ),
+            );
+          break;
+        case 'deepseek':
+          envVars
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_MODEL',
+                value: _modelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+                value: 'deepseek-chat',
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+                value: '1',
+              ),
+            );
+          break;
+        case 'minimax':
+          envVars
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_MODEL',
+                value: _modelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_SMALL_FAST_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+                value: _modelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+                value: '1',
+              ),
+            );
+          break;
+        case 'openrouter':
+          envVars
+            ..add(EnvironmentVariable(name: 'ANTHROPIC_API_KEY', value: ''))
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+                value: _modelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+                value: 'anthropic/claude-haiku-4.5',
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'CLAUDE_CODE_SUBAGENT_MODEL',
+                value: _modelCtrl.text,
+              ),
+            );
+          break;
+        default:
+          if (_modelCtrl.text.isNotEmpty) {
+            envVars.add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_MODEL',
+                value: _modelCtrl.text,
+              ),
+            );
+          }
+          if (_smallFastModelCtrl.text.isNotEmpty) {
+            envVars.add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_SMALL_FAST_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            );
+          }
+      }
     }
 
     final profile = AIBackendProfile(
       id: 'custom_$now',
       name: _nameCtrl.text.trim(),
-      description: _descCtrl.text.trim().isEmpty
-          ? null
-          : _descCtrl.text.trim(),
+      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       environmentVariables: envVars,
       isBuiltIn: false,
       createdAt: now,
@@ -211,8 +345,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     final updatedProfiles = [...settings.profiles, profile];
 
     final messenger = ScaffoldMessenger.of(context);
-    final failedToSaveMsg =
-        AppLocalizations.of(context).profilesFailedToSave;
+    final failedToSaveMsg = AppLocalizations.of(context).profilesFailedToSave;
     try {
       await ref
           .read(settingsNotifierProvider.notifier)
@@ -222,9 +355,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           .updateSetting('lastUsedProfile', profile.id);
       if (mounted) context.pop();
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(failedToSaveMsg)),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(failedToSaveMsg)));
     }
   }
 
@@ -312,9 +443,11 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         steps: [
           Step(
             title: Text(l10n.profilesWizardStep1),
-            subtitle: Text(_selectedProvider != null
-                ? _getProviderName(_selectedProvider!)
-                : l10n.profilesWizardStep1Subtitle),
+            subtitle: Text(
+              _selectedProvider != null
+                  ? _getProviderName(_selectedProvider!)
+                  : l10n.profilesWizardStep1Subtitle,
+            ),
             isActive: _currentStep >= 0,
             state: _currentStep > 0 ? StepState.complete : StepState.indexed,
             content: _buildProviderSelection(tt, cs, l10n),
@@ -350,9 +483,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         children: [
           Text(
             l10n.profilesWizardSelectProvider,
-            style: tt.bodySmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.md),
           Wrap(
@@ -371,7 +502,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
               _ProviderCard(
                 id: 'zai',
                 name: 'Z.AI GLM',
-                description: 'GLM-5.1, 4.7',
+                description: 'GLM Coding Plan',
                 icon: Icons.bolt,
                 color: colorForProfile('zai'),
                 isSelected: _selectedProvider == 'zai',
@@ -380,7 +511,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
               _ProviderCard(
                 id: 'deepseek',
                 name: 'DeepSeek',
-                description: 'Reasoner, Chat',
+                description: 'deepseek-chat',
                 icon: Icons.psychology,
                 color: colorForProfile('deepseek'),
                 isSelected: _selectedProvider == 'deepseek',
@@ -389,7 +520,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
               _ProviderCard(
                 id: 'minimax',
                 name: 'MiniMax',
-                description: 'M2.7',
+                description: 'MiniMax-M2.7',
                 icon: Icons.memory,
                 color: colorForProfile('minimax'),
                 isSelected: _selectedProvider == 'minimax',
@@ -465,8 +596,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
               icon: Icon(
                 _obscureApiKey ? Icons.visibility_off : Icons.visibility,
               ),
-              onPressed: () =>
-                  setState(() => _obscureApiKey = !_obscureApiKey),
+              onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
             ),
           ),
           validator: (v) =>
@@ -562,15 +692,13 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _nameCtrl.text,
-                            style: tt.titleMedium,
-                          ),
+                          Text(_nameCtrl.text, style: tt.titleMedium),
                           if (_descCtrl.text.isNotEmpty)
                             Text(
                               _descCtrl.text,
-                              style: tt.bodySmall
-                                  ?.copyWith(color: cs.onSurfaceVariant),
+                              style: tt.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
                             ),
                         ],
                       ),
@@ -775,12 +903,7 @@ class _ReviewRow extends StatelessWidget {
               style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: tt.bodySmall,
-            ),
-          ),
+          Expanded(child: Text(value, style: tt.bodySmall)),
         ],
       ),
     );
