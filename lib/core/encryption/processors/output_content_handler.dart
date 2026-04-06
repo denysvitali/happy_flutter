@@ -163,7 +163,7 @@ void _processOutputContent({
           'role': 'agent',
           'kind': 'tool-call',
           'name': c['name'] ?? c['server_name'] ?? type,
-          'input': c['input'],
+          'input': WireParsers.asMap(c['input']) ?? <String, dynamic>{},
           'toolUseId': c['id'],
           'state': 'running',
           'content': c,

@@ -392,7 +392,8 @@ extension SyncMessagingParse on Sync {
             'role': 'agent',
             'kind': 'tool-call',
             'name': c['name'] ?? c['server_name'] ?? type,
-            'input': c['input'],
+            'input': WireParsers.asMap(c['input'])
+                ?? <String, dynamic>{},
             'toolUseId': c['id'],
             'state': 'running',
             'content': c,
@@ -603,7 +604,8 @@ extension SyncMessagingParse on Sync {
             'role': 'agent',
             'kind': 'tool-call',
             'name': data['name'],
-            'input': data['input'],
+            'input': WireParsers.asMap(data['input'])
+                ?? <String, dynamic>{},
             'toolUseId': data['callId'],
             'state': 'running',
             'content': data,
@@ -713,7 +715,8 @@ extension SyncMessagingParse on Sync {
             'role': 'agent',
             'kind': 'tool-call',
             'name': data['name'],
-            'input': data['input'],
+            'input': WireParsers.asMap(data['input'])
+                ?? <String, dynamic>{},
             'toolUseId': data['callId'],
             'state': 'running',
             'content': data,

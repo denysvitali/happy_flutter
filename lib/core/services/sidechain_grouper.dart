@@ -264,7 +264,7 @@ class SidechainGrouper {
         if (toolUseId != null && toolUseId.isNotEmpty) {
           uuidToTask[toolUseId] = child;
         }
-        final input = child['input'] as Map<String, dynamic>?;
+        final input = WireParsers.asMap(child['input']);
         final prompt = input?['prompt'] as String?;
         if (prompt != null && prompt.isNotEmpty) {
           promptToTask[prompt] = child;
