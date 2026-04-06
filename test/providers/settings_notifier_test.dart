@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/models/settings_update.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -8,13 +9,7 @@ class _StorageFreeSettingsNotifier extends SettingsNotifier {
   @override
   Future<void> updateSetting<T>(String key, T value) async {
     // Skip storage; apply only the in-memory update.
-    state = _applyUpdate(state, key, value);
-  }
-
-  Settings _applyUpdate(Settings current, String key, dynamic value) {
-    final json = current.toJson();
-    json[key] = value;
-    return Settings.fromJson(json);
+    state = SettingsUpdate.copyWithUpdated(state, key, value);
   }
 }
 
@@ -208,6 +203,17 @@ void main() {
       addTearDown(c.dispose);
       final settings = c.read(settingsNotifierProvider);
       expect(settings.profiles, isEmpty);
+    });
+
+    test('unknown setting key throws instead of failing silently', () async {
+      final c = makeContainer();
+      addTearDown(c.dispose);
+      final notifier = c.read(settingsNotifierProvider.notifier);
+
+      expect(
+        () => notifier.updateSetting('notARealSetting', true),
+        throwsArgumentError,
+      );
     });
   });
 }

@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/auth.dart';
 import '../models/settings.dart';
+import '../models/settings_update.dart';
 import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
 import 'server_config_storage.dart';
@@ -381,7 +382,8 @@ class SettingsStorage {
       return;
     }
 
-    final updated = _updateSetting(current, key, value) as Settings;
+    SettingsUpdate.applyMutable(current, key, value);
+    final updated = current;
 
     // Cancel existing debounce timer and start a new one
     _debounceTimer?.cancel();
@@ -392,74 +394,6 @@ class SettingsStorage {
 
     // Update cache immediately so in-memory reads are consistent
     _cacheSettings(updated);
-  }
-
-  dynamic _updateSetting(dynamic settings, String key, dynamic value) {
-    // Directly update mutable field instead of JSON roundtrip
-    final updated = settings as Settings;
-    switch (key) {
-      case 'schemaVersion':
-        updated.schemaVersion = value as int;
-      case 'themeMode':
-        updated.themeMode = value as String;
-      case 'viewInline':
-        updated.viewInline = value as bool;
-      case 'inferenceOpenAIKey':
-        updated.inferenceOpenAIKey = value as String?;
-      case 'expandTodos':
-        updated.expandTodos = value as bool;
-      case 'showLineNumbers':
-        updated.showLineNumbers = value as bool;
-      case 'showLineNumbersInToolViews':
-        updated.showLineNumbersInToolViews = value as bool;
-      case 'wrapLinesInDiffs':
-        updated.wrapLinesInDiffs = value as bool;
-      case 'analyticsOptOut':
-        updated.analyticsOptOut = value as bool;
-      case 'experiments':
-        updated.experiments = value as bool;
-      case 'markdownCopyV2':
-        updated.markdownCopyV2 = value as bool;
-      case 'useEnhancedSessionWizard':
-        updated.useEnhancedSessionWizard = value as bool;
-      case 'alwaysShowContextSize':
-        updated.alwaysShowContextSize = value as bool;
-      case 'agentInputEnterToSend':
-        updated.agentInputEnterToSend = value as bool;
-      case 'developerModeEnabled':
-        updated.developerModeEnabled = value as bool;
-      case 'avatarStyle':
-        updated.avatarStyle = value as String;
-      case 'showFlavorIcons':
-        updated.showFlavorIcons = value as bool;
-      case 'compactSessionView':
-        updated.compactSessionView = value as bool;
-      case 'hideInactiveSessions':
-        updated.hideInactiveSessions = value as bool;
-      case 'reviewPromptAnswered':
-        updated.reviewPromptAnswered = value as bool;
-      case 'reviewPromptLikedApp':
-        updated.reviewPromptLikedApp = value as bool?;
-      case 'ttsEnabled':
-        updated.ttsEnabled = value as bool;
-      case 'voiceAssistantLanguage':
-        updated.voiceAssistantLanguage = value as String?;
-      case 'preferredLanguage':
-        updated.preferredLanguage = value as String?;
-      case 'lastUsedAgent':
-        updated.lastUsedAgent = value as String?;
-      case 'lastUsedPermissionMode':
-        updated.lastUsedPermissionMode = value as String?;
-      case 'lastUsedModelMode':
-        updated.lastUsedModelMode = value as String?;
-      case 'lastUsedProfile':
-        updated.lastUsedProfile = value as String?;
-      case 'profiles':
-        updated.profiles = List<AIBackendProfile>.from(
-          value as List<AIBackendProfile>,
-        );
-    }
-    return updated;
   }
 
   /// Clear all settings
@@ -782,7 +716,9 @@ class Storage {
   /// Call this after storage is initialized and you have the current
   /// app version. Returns a record of (previousVersion, currentVersion)
   /// if the changelog should be shown, null otherwise.
-  ({String? fromVersion, String toVersion})? checkVersionChange(String currentVersion) {
+  ({String? fromVersion, String toVersion})? checkVersionChange(
+    String currentVersion,
+  ) {
     final storage = MMKVStorage();
     final installed = storage.getInstalledVersion();
 
