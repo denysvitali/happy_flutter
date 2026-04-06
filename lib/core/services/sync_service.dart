@@ -324,6 +324,10 @@ what you have, you must use the options mode.
   final Map<String, Completer<
     ({String sessionId, Session session, SessionEncryption sessionEncryption})
   >> _autoRestoreCompleters = {};
+  // Tracks the profileIdOverride used by each in-flight auto-restore.
+  // Used to detect when concurrent sendMessage calls with different
+  // profileIds should NOT share the same in-flight auto-restore.
+  final Map<String, String?> _autoRestoreProfileIds = {};
 
   // sessionId → epoch-ms of last ephemeral event (keep-alive or activity).
   // Used by _resolveSendTargetSession to avoid trusting stale 'online'

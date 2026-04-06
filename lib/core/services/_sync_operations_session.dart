@@ -682,19 +682,28 @@ extension SyncSessionOperations on Sync {
     );
 
     if (_autoRestoreInFlight.contains(sessionId)) {
-      logger.info(
-        '[sendMessage] auto-restore already in-flight for '
-        'session=$sessionId, awaiting result',
-      );
-      final pendingCompleter = _autoRestoreCompleters[sessionId];
-      if (pendingCompleter != null) {
-        return pendingCompleter.future;
+      final inFlightProfileId = _autoRestoreProfileIds[sessionId];
+      // Only share the in-flight auto-restore if the profileId matches.
+      // If profileId differs, fall through to start our own auto-restore
+      // to avoid using the wrong profile's env vars.
+      if (inFlightProfileId == profileId) {
+        logger.info(
+          '[sendMessage] auto-restore already in-flight for '
+          'session=$sessionId with same profileId=$profileId, awaiting result',
+        );
+        final pendingCompleter = _autoRestoreCompleters[sessionId];
+        if (pendingCompleter != null) {
+          return pendingCompleter.future;
+        }
+      } else {
+        logger.info(
+          '[sendMessage] auto-restore already in-flight for '
+          'session=$sessionId but profileId differs '
+          '($inFlightProfileId vs $profileId); starting own auto-restore',
+        );
       }
-      return (
-        sessionId: sessionId,
-        session: session,
-        sessionEncryption: sessionEncryption,
-      );
+      // If profiles don't match (or inFlightProfileId is null but we have
+      // a profileId), fall through to start our own auto-restore.
     }
     _autoRestoreInFlight.add(sessionId);
     final completer = Completer<
@@ -705,6 +714,7 @@ extension SyncSessionOperations on Sync {
       })
     >();
     _autoRestoreCompleters[sessionId] = completer;
+    _autoRestoreProfileIds[sessionId] = profileId;
     try {
       // Resolve profile env vars for this session before spawning.
       // Pass profileId from the sendMessage caller so we don't rely
@@ -868,6 +878,7 @@ extension SyncSessionOperations on Sync {
     } finally {
       _autoRestoreInFlight.remove(sessionId);
       _autoRestoreCompleters.remove(sessionId);
+      _autoRestoreProfileIds.remove(sessionId);
     }
   }
 }

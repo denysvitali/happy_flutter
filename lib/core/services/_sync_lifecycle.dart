@@ -328,6 +328,7 @@ extension SyncLifecycle on Sync {
     _sessionSpawnedProfile.clear();
     _autoRestoreInFlight.clear();
     _autoRestoreCompleters.clear();
+    _autoRestoreProfileIds.clear();
     _lastEphemeralAt.clear();
     _pendingNewSessionIds.clear();
     _sessionUsage.clear();
