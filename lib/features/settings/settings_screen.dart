@@ -173,9 +173,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(
-                    l10n.claudeConnectCliInfo,
-                  ),
+                  content: Text(l10n.claudeConnectCliInfo),
                   duration: const Duration(seconds: 4),
                 ),
               );
@@ -353,6 +351,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: l10n.claudeCodeLimits,
           subtitle: l10n.claudeCodeLimitsSubtitle,
           onTap: () => context.pushNamed('claude-limits'),
+        ),
+        SettingsNavRow(
+          icon: Icons.code,
+          title: l10n.codexUsageTitle,
+          subtitle: l10n.codexUsageSubtitle,
+          onTap: () => context.pushNamed('codex-usage'),
         ),
       ],
     );
@@ -554,22 +558,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                    'gradient',
-                    'pixelated',
-                    'brutalist',
-                    'geometric',
-                    'rings',
-                    'constellation',
-                    'wave',
-                  ]
-                  .map(
-                    (style) => RadioListTile(
-                      title: Text(_avatarStyleLabel(style)),
-                      value: style,
-                    ),
-                  )
-                  .toList(),
+              children:
+                  [
+                        'gradient',
+                        'pixelated',
+                        'brutalist',
+                        'geometric',
+                        'rings',
+                        'constellation',
+                        'wave',
+                      ]
+                      .map(
+                        (style) => RadioListTile(
+                          title: Text(_avatarStyleLabel(style)),
+                          value: style,
+                        ),
+                      )
+                      .toList(),
             ),
           ),
         );
@@ -613,7 +618,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
-
 
 class _ServerSection extends StatefulWidget {
   const _ServerSection();
@@ -669,10 +673,9 @@ class _ServerSectionState extends State<_ServerSection> {
                 size: 20,
                 color: isCustom
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: AppOpacity.medium),
+                    : Theme.of(context).colorScheme.onSurface.withValues(
+                        alpha: AppOpacity.medium,
+                      ),
               ),
               onTap: () => _showServerUrlDialog(context, url),
             );

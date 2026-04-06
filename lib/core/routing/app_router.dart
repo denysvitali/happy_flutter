@@ -29,11 +29,9 @@ import '../../features/sessions/pick_machine_screen.dart';
 import '../../features/sessions/pick_path_screen.dart';
 import '../../features/sessions/pick_profile_screen.dart';
 import '../../features/sessions/sessions_screen.dart';
-import '../../features/settings/screens/sessions_folders_settings_screen.dart';
-import '../../features/settings/screens/auto_archive_settings_screen.dart';
-import '../../features/settings/screens/smart_features_settings_screen.dart';
 import '../../features/settings/account_screen.dart';
 import '../../features/settings/claude_limits_screen.dart';
+import '../../features/settings/codex_usage_screen.dart';
 import '../../features/settings/developer_screen.dart';
 import '../../features/settings/features_settings_screen.dart';
 import '../../features/settings/link_device_screen.dart';
@@ -43,6 +41,9 @@ import '../../features/settings/profile_editor_screen.dart';
 import '../../features/settings/profile_wizard_screen.dart';
 import '../../features/settings/profiles_screen.dart';
 import '../../features/settings/restore_account_screen.dart';
+import '../../features/settings/screens/auto_archive_settings_screen.dart';
+import '../../features/settings/screens/sessions_folders_settings_screen.dart';
+import '../../features/settings/screens/smart_features_settings_screen.dart';
 import '../../features/settings/server_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/settings/theme_settings_screen.dart';
@@ -90,10 +91,7 @@ Page<void> _slideUpPage(Widget child, GoRouterState state) {
       ).chain(CurveTween(curve: Curves.easeOutCubic));
       return FadeTransition(
         opacity: animation,
-        child: SlideTransition(
-          position: animation.drive(tween),
-          child: child,
-        ),
+        child: SlideTransition(position: animation.drive(tween), child: child),
       );
     },
     transitionDuration: const Duration(milliseconds: 300),
@@ -263,20 +261,26 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/settings/sessions/folders',
         name: 'sessions-folders',
-        pageBuilder: (context, state) =>
-            _slidePage(const AuthGate(child: SessionsFoldersSettingsScreen()), state),
+        pageBuilder: (context, state) => _slidePage(
+          const AuthGate(child: SessionsFoldersSettingsScreen()),
+          state,
+        ),
       ),
       GoRoute(
         path: '/settings/sessions/auto-archive',
         name: 'sessions-auto-archive',
-        pageBuilder: (context, state) =>
-            _slidePage(const AuthGate(child: AutoArchiveSettingsScreen()), state),
+        pageBuilder: (context, state) => _slidePage(
+          const AuthGate(child: AutoArchiveSettingsScreen()),
+          state,
+        ),
       ),
       GoRoute(
         path: '/settings/smart-features',
         name: 'smart-features',
-        pageBuilder: (context, state) =>
-            _slidePage(const AuthGate(child: SmartFeaturesSettingsScreen()), state),
+        pageBuilder: (context, state) => _slidePage(
+          const AuthGate(child: SmartFeaturesSettingsScreen()),
+          state,
+        ),
       ),
       GoRoute(
         path: '/settings/theme',
@@ -293,10 +297,8 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/settings/features',
         name: 'features',
-        pageBuilder: (context, state) => _slidePage(
-          const AuthGate(child: FeaturesSettingsScreen()),
-          state,
-        ),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: FeaturesSettingsScreen()), state),
       ),
       GoRoute(
         path: '/settings/profiles',
@@ -330,10 +332,14 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/settings/claude-limits',
         name: 'claude-limits',
-        pageBuilder: (context, state) => _slidePage(
-          const AuthGate(child: ClaudeLimitsScreen()),
-          state,
-        ),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: ClaudeLimitsScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/codex-usage',
+        name: 'codex-usage',
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: CodexUsageScreen()), state),
       ),
       GoRoute(
         path: '/settings/developer',
@@ -366,10 +372,8 @@ GoRouter createRouter(String? initialDeepLink) {
           GoRoute(
             path: 'session',
             name: 'dev-session',
-            pageBuilder: (context, state) => _slidePage(
-              const AuthGate(child: SessionDebugScreen()),
-              state,
-            ),
+            pageBuilder: (context, state) =>
+                _slidePage(const AuthGate(child: SessionDebugScreen()), state),
           ),
           GoRoute(
             path: 'notifications',
@@ -415,10 +419,12 @@ GoRouter createRouter(String? initialDeepLink) {
         pageBuilder: (context, state) {
           final sid = state.pathParameters['sessionId']!;
           final extra = state.extra as Map<String, dynamic>?;
-          final path2 = extra?['path'] as String? ??
+          final path2 =
+              extra?['path'] as String? ??
               state.uri.queryParameters['path'] ??
               '';
-          final content = extra?['content'] as String? ??
+          final content =
+              extra?['content'] as String? ??
               state.uri.queryParameters['content'];
           return _slidePage(
             AuthGate(
@@ -615,9 +621,7 @@ GoRouter createRouter(String? initialDeepLink) {
         pageBuilder: (context, state) {
           final deviceId = state.uri.queryParameters['deviceId'];
           return _slidePage(
-            AuthGate(
-              child: SftpLogViewerScreen(initialDeviceId: deviceId),
-            ),
+            AuthGate(child: SftpLogViewerScreen(initialDeviceId: deviceId)),
             state,
           );
         },
@@ -637,9 +641,7 @@ GoRouter createRouter(String? initialDeepLink) {
             );
           }
           return _slidePage(
-            AuthGate(
-              child: SftpDirectoryManagerScreen(directory: directory),
-            ),
+            AuthGate(child: SftpDirectoryManagerScreen(directory: directory)),
             state,
           );
         },
@@ -650,9 +652,7 @@ GoRouter createRouter(String? initialDeepLink) {
         pageBuilder: (context, state) {
           final deviceId = state.uri.queryParameters['deviceId'];
           return _slidePage(
-            AuthGate(
-              child: SftpConnectionHistoryScreen(deviceId: deviceId),
-            ),
+            AuthGate(child: SftpConnectionHistoryScreen(deviceId: deviceId)),
             state,
           );
         },

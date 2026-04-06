@@ -2781,6 +2781,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get claudeLimitsUsage => 'Usage';
 
   @override
+  String get codexUsageTitle => 'Codex Usage';
+
+  @override
+  String get codexUsageSubtitle => 'Local Codex token usage on your machines';
+
+  @override
+  String get codexUsageThreads => 'Threads';
+
+  @override
+  String get codexUsageLastUpdated => 'Last Updated';
+
+  @override
+  String get codexUsageDatabase => 'Database';
+
+  @override
+  String get codexUsageNoMachines => 'No machines available';
+
+  @override
+  String get codexUsageSelectMachine => 'Machine';
+
+  @override
   String get claudeLimitsResetsAt => 'Resets';
 
   @override
@@ -4361,6 +4382,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get claudeLimitsNotAvailableSubtitle =>
       'Make sure Claude Code is installed and authenticated on the selected machine';
+
+  @override
+  String get codexUsageNoMachinesSubtitle =>
+      'Connect a machine to inspect local Codex usage';
+
+  @override
+  String get codexUsageNotAvailable => 'Codex usage not available';
+
+  @override
+  String get codexUsageNotAvailableSubtitle =>
+      'Make sure Codex has run on the selected machine and Python 3 is available';
 
   @override
   String get commonOperationInProgressConfirm =>

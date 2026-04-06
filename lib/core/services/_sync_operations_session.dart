@@ -14,11 +14,13 @@ extension SyncSessionOperations on Sync {
     required String machineId,
     required String path,
     bool approvedNewDirectoryCreation = false,
+
     /// Explicit profile ID for this session. Takes precedence over
     /// [_settingsSnapshot.lastUsedProfile]. Should be passed when creating a
     /// session so the correct profile env vars are used, rather than relying
     /// on [lastUsedProfile] which can change over time.
     String? profileId,
+
     /// Optional initial message to pipe directly to the agent's stdin
     /// on startup via the HAPPY_INITIAL_PROMPT env var.  Bypasses the
     /// WebSocket message chain which is unreliable for the very first
@@ -60,13 +62,13 @@ extension SyncSessionOperations on Sync {
     // Derive agent type and environment variables from the profile.
     // Use explicit profileId if provided, otherwise fall back to
     // [_settingsSnapshot.lastUsedProfile].
-    final effectiveProfileId =
-        profileId ?? _settingsSnapshot.lastUsedProfile;
+    final effectiveProfileId = profileId ?? _settingsSnapshot.lastUsedProfile;
     final profile = effectiveProfileId != null
         ? _resolveProfile(effectiveProfileId)
         : null;
-    final profileEnvVars =
-        profile != null ? _profileEnvironmentVariables(profile) : null;
+    final profileEnvVars = profile != null
+        ? _profileEnvironmentVariables(profile)
+        : null;
     final agent = _settingsSnapshot.lastUsedAgent;
     final permMode =
         profile?.defaultPermissionMode ??
@@ -114,8 +116,7 @@ extension SyncSessionOperations on Sync {
           await encryption.initializeSessions({sessionId: decryptedKey});
         }
       }
-      _sessionSpawnedAt[sessionId] =
-          DateTime.now().millisecondsSinceEpoch;
+      _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
       _sessionSpawnedProfile[sessionId] = effectiveProfileId;
       logger.info(
         '[createSession] Registered session $sessionId '
@@ -215,34 +216,26 @@ extension SyncSessionOperations on Sync {
       await refreshSessions();
 
       final now = DateTime.now().millisecondsSinceEpoch;
-      final candidates =
-          _sessions.values
-              .where(
-                (s) {
-                  final ageMs = now - s.createdAt;
-                  final matchesMachineId =
-                      s.metadata?.machineId == machineId;
-                  final matchesPath = s.metadata?.path == path;
-                  final recent = ageMs < 90000;
-                  final isMatch =
-                      matchesMachineId && matchesPath && recent;
-                  if (matchesPath && ageMs < 120000) {
-                    logger.info(
-                      '[createSession] checking session ${s.id}: '
-                      'machineId=${s.metadata?.machineId} '
-                      '(matches=$matchesMachineId) '
-                      'path=${s.metadata?.path} '
-                      '(matches=$matchesPath) '
-                      'age=${(ageMs / 1000).toStringAsFixed(1)}s '
-                      '(recent=$recent) '
-                      'isMatch=$isMatch',
-                    );
-                  }
-                  return isMatch;
-                },
-              )
-              .toList()
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final candidates = _sessions.values.where((s) {
+        final ageMs = now - s.createdAt;
+        final matchesMachineId = s.metadata?.machineId == machineId;
+        final matchesPath = s.metadata?.path == path;
+        final recent = ageMs < 90000;
+        final isMatch = matchesMachineId && matchesPath && recent;
+        if (matchesPath && ageMs < 120000) {
+          logger.info(
+            '[createSession] checking session ${s.id}: '
+            'machineId=${s.metadata?.machineId} '
+            '(matches=$matchesMachineId) '
+            'path=${s.metadata?.path} '
+            '(matches=$matchesPath) '
+            'age=${(ageMs / 1000).toStringAsFixed(1)}s '
+            '(recent=$recent) '
+            'isMatch=$isMatch',
+          );
+        }
+        return isMatch;
+      }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       logger.info(
         '[createSession] found ${candidates.length} candidate sessions '
@@ -284,8 +277,7 @@ extension SyncSessionOperations on Sync {
         BashResponse.fromJson,
       );
     } catch (error, stackTrace) {
-      if (error is StateError &&
-          error.message.contains('not connected')) {
+      if (error is StateError && error.message.contains('not connected')) {
         logger.info('machineBash: socket not connected');
       } else {
         logger.error('machineBash error', error, stackTrace);
@@ -307,17 +299,13 @@ extension SyncSessionOperations on Sync {
         ReadFileResponse.fromJson,
       );
     } catch (error, stackTrace) {
-      if (error is StateError &&
-          error.message.contains('not connected')) {
+      if (error is StateError && error.message.contains('not connected')) {
         logger.info('machineReadFile: socket not connected');
       } else {
         logger.error('machineReadFile error', error, stackTrace);
       }
     }
-    return const ReadFileResponse(
-      success: false,
-      error: 'RPC call failed',
-    );
+    return const ReadFileResponse(success: false, error: 'RPC call failed');
   }
 
   /// Fetch Claude Code usage limits from a machine via encrypted RPC.
@@ -347,17 +335,126 @@ extension SyncSessionOperations on Sync {
           error: 'machine offline',
         );
       } else {
-        logger.error(
-          'machineGetClaudeUsageLimits error',
-          error,
-          stackTrace,
-        );
+        logger.error('machineGetClaudeUsageLimits error', error, stackTrace);
       }
     }
     return const ClaudeUsageLimitsResponse(
       success: false,
       error: 'RPC call failed',
     );
+  }
+
+  /// Fetch Codex usage data from the machine's local Codex auth state.
+  Future<CodexUsageSummaryResponse> machineGetCodexUsage({
+    required String machineId,
+  }) async {
+    final machine = _machines[machineId];
+    final cwd = machine?.metadata?.homeDir ?? '/';
+    const command = r"""
+python3 <<'PY'
+import json
+import os
+import sqlite3
+from glob import glob
+
+
+def fail(message):
+    print(json.dumps({'success': False, 'error': message}))
+    raise SystemExit(0)
+
+
+candidates = sorted(glob(os.path.expanduser('~/.codex/state_*.sqlite')))
+if not candidates:
+    fail('Codex state database not found')
+
+database_path = candidates[-1]
+
+try:
+    connection = sqlite3.connect(database_path)
+    connection.row_factory = sqlite3.Row
+except Exception as exc:
+    fail(f'Failed to open Codex database: {exc}')
+
+try:
+    thread_count_row = connection.execute(
+        'SELECT COUNT(*) AS count FROM threads'
+    ).fetchone()
+    totals_row = connection.execute(
+        '''
+        SELECT
+            COALESCE(SUM(tokens_used), 0) AS total_tokens,
+            COALESCE(MIN(created_at), 0) AS first_seen_at,
+            COALESCE(MAX(updated_at), 0) AS last_seen_at
+        FROM threads
+        '''
+    ).fetchone()
+    by_model_rows = connection.execute(
+        '''
+        SELECT
+            COALESCE(NULLIF(model, ''), 'unknown') AS model,
+            COALESCE(SUM(tokens_used), 0) AS total_tokens,
+            COUNT(*) AS thread_count
+        FROM threads
+        GROUP BY COALESCE(NULLIF(model, ''), 'unknown')
+        ORDER BY total_tokens DESC, thread_count DESC, model ASC
+        '''
+    ).fetchall()
+except Exception as exc:
+    fail(f'Failed to query Codex database: {exc}')
+finally:
+    connection.close()
+
+payload = {
+    'totalTokens': int(totals_row['total_tokens'] or 0),
+    'threadCount': int(thread_count_row['count'] or 0),
+    'firstSeenAt': int(totals_row['first_seen_at'] or 0),
+    'lastSeenAt': int(totals_row['last_seen_at'] or 0),
+    'databasePath': database_path,
+    'byModel': [
+        {
+            'model': str(row['model'] or 'unknown'),
+            'totalTokens': int(row['total_tokens'] or 0),
+            'threadCount': int(row['thread_count'] or 0),
+        }
+        for row in by_model_rows
+    ],
+}
+
+print(json.dumps({'success': True, 'data': payload}))
+PY
+""";
+
+    final response = await machineBash(
+      machineId: machineId,
+      command: command,
+      cwd: cwd,
+    );
+
+    if (!response.success) {
+      return CodexUsageSummaryResponse(
+        success: false,
+        error: response.stderr.isNotEmpty ? response.stderr : response.error,
+      );
+    }
+
+    try {
+      final raw = jsonDecode(response.stdout) as Map<String, dynamic>;
+      final success = raw['success'] == true;
+      final data = raw['data'];
+      return CodexUsageSummaryResponse(
+        success: success,
+        data: success && data is Map<String, dynamic>
+            ? CodexUsageSummary.fromJson(data)
+            : null,
+        error: raw['error'] as String?,
+      );
+    } catch (error, stackTrace) {
+      logger.error('machineGetCodexUsage parse error', error, stackTrace);
+      return const CodexUsageSummaryResponse(
+        success: false,
+        error: 'Failed to parse Codex usage response',
+      );
+    }
   }
 
   /// Create a git worktree on a machine under `.dev/worktree/<name>`
@@ -427,9 +524,7 @@ extension SyncSessionOperations on Sync {
   }
 
   /// Mirrors React Native's `getProfileEnvironmentVariables`.
-  Map<String, String> _profileEnvironmentVariables(
-    AIBackendProfile profile,
-  ) {
+  Map<String, String> _profileEnvironmentVariables(AIBackendProfile profile) {
     final envVars = <String, String>{};
 
     for (final v in profile.environmentVariables) {
@@ -474,8 +569,7 @@ extension SyncSessionOperations on Sync {
         envVars['AZURE_OPENAI_API_VERSION'] = azure.apiVersion!;
       }
       if (azure.deploymentName != null) {
-        envVars['AZURE_OPENAI_DEPLOYMENT_NAME'] =
-            azure.deploymentName!;
+        envVars['AZURE_OPENAI_DEPLOYMENT_NAME'] = azure.deploymentName!;
       }
     }
 
@@ -498,31 +592,31 @@ extension SyncSessionOperations on Sync {
         envVars['TMUX_TMPDIR'] = tmux.tmpDir!;
       }
       if (tmux.updateEnvironment != null) {
-        envVars['TMUX_UPDATE_ENVIRONMENT'] =
-            tmux.updateEnvironment.toString();
+        envVars['TMUX_UPDATE_ENVIRONMENT'] = tmux.updateEnvironment.toString();
       }
     }
 
     return envVars;
   }
+
   /// Build daemon spawn environment variables with safe defaults.
-  Map<String, String> _spawnEnvironmentVariables(
-    Map<String, String>? base,
-  ) {
+  Map<String, String> _spawnEnvironmentVariables(Map<String, String>? base) {
     return <String, String>{...?base};
   }
+
   /// Never pass --model when spawning sessions. The model is always
   /// determined by profile env vars (ANTHROPIC_MODEL, OPENAI_MODEL, etc.)
   /// or the CLI's own defaults. Passing --model causes stale model names
   /// (e.g. GLM-5) to leak across profile switches.
   String? _getModelOverride({AIBackendProfile? profile}) => null;
+
   /// Get environment variables and profile for spawning a session, using
   /// the profile associated with the session if available. Does NOT fall
   /// back to [lastUsedProfile] — if no profile is saved for the session,
   /// returns empty env vars and null profile to avoid using a wrong profile
   /// after profile switches.
   Future<({Map<String, String> envVars, AIBackendProfile? profile})>
-      _getSpawnEnvVarsForSession(
+  _getSpawnEnvVarsForSession(
     String sessionId, {
     String? profileIdOverride,
   }) async {
@@ -530,8 +624,8 @@ extension SyncSessionOperations on Sync {
     if (override != null) return override(sessionId);
     // Prefer the in-memory override (from sendMessage) over MMKV,
     // which may not have flushed a recent debounced write yet.
-    final profileId = profileIdOverride ??
-        await MMKVStorage().getSessionProfile(sessionId);
+    final profileId =
+        profileIdOverride ?? await MMKVStorage().getSessionProfile(sessionId);
     if (profileId != null) {
       final profile = _resolveProfile(profileId);
       if (profile != null) {
@@ -569,8 +663,7 @@ extension SyncSessionOperations on Sync {
     final lifecycleStateSince = session.metadata?.lifecycleStateSince;
     final lifecycleRecent =
         lifecycleStateSince != null &&
-        DateTime.now().millisecondsSinceEpoch - lifecycleStateSince <
-            120000;
+        DateTime.now().millisecondsSinceEpoch - lifecycleStateSince < 120000;
     final spawnedAt = _sessionSpawnedAt[sessionId];
     final recentlySpawned =
         spawnedAt != null &&
@@ -598,7 +691,8 @@ extension SyncSessionOperations on Sync {
     // Detect profile mismatch: if the user switched profiles since the
     // session was spawned, kill the running daemon so it gets respawned
     // with the correct env vars below.
-    final profileChanged = profileId != null &&
+    final profileChanged =
+        profileId != null &&
         _sessionSpawnedProfile.containsKey(sessionId) &&
         _sessionSpawnedProfile[sessionId] != profileId;
 
@@ -706,13 +800,14 @@ extension SyncSessionOperations on Sync {
       // a profileId), fall through to start our own auto-restore.
     }
     _autoRestoreInFlight.add(sessionId);
-    final completer = Completer<
-      ({
-        String sessionId,
-        Session session,
-        SessionEncryption sessionEncryption,
-      })
-    >();
+    final completer =
+        Completer<
+          ({
+            String sessionId,
+            Session session,
+            SessionEncryption sessionEncryption,
+          })
+        >();
     _autoRestoreCompleters[sessionId] = completer;
     _autoRestoreProfileIds[sessionId] = profileId;
     try {
@@ -775,8 +870,7 @@ extension SyncSessionOperations on Sync {
         seedSession: session,
         result: result,
       );
-      _sessionSpawnedProfile[restoredSessionId] =
-          spawnResult.profile?.id;
+      _sessionSpawnedProfile[restoredSessionId] = spawnResult.profile?.id;
       if (restoredSessionId != sessionId) {
         logger.info(
           '[sendMessage] auto-restore redirected session '
@@ -815,8 +909,7 @@ extension SyncSessionOperations on Sync {
       var restoredSessionEncryption = encryption.getSessionEncryption(
         restoredSessionId,
       );
-      if (restoredSessionEncryption == null &&
-          restoredSessionId == sessionId) {
+      if (restoredSessionEncryption == null && restoredSessionId == sessionId) {
         restoredSessionEncryption = sessionEncryption;
       }
       if (restoredSessionEncryption == null) {

@@ -5125,6 +5125,48 @@ abstract class AppLocalizations {
   /// **'Usage'**
   String get claudeLimitsUsage;
 
+  /// No description provided for @codexUsageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex Usage'**
+  String get codexUsageTitle;
+
+  /// No description provided for @codexUsageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Codex token usage on your machines'**
+  String get codexUsageSubtitle;
+
+  /// No description provided for @codexUsageThreads.
+  ///
+  /// In en, this message translates to:
+  /// **'Threads'**
+  String get codexUsageThreads;
+
+  /// No description provided for @codexUsageLastUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Updated'**
+  String get codexUsageLastUpdated;
+
+  /// No description provided for @codexUsageDatabase.
+  ///
+  /// In en, this message translates to:
+  /// **'Database'**
+  String get codexUsageDatabase;
+
+  /// No description provided for @codexUsageNoMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'No machines available'**
+  String get codexUsageNoMachines;
+
+  /// No description provided for @codexUsageSelectMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine'**
+  String get codexUsageSelectMachine;
+
   /// No description provided for @claudeLimitsResetsAt.
   ///
   /// In en, this message translates to:
@@ -8190,6 +8232,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Make sure Claude Code is installed and authenticated on the selected machine'**
   String get claudeLimitsNotAvailableSubtitle;
+
+  /// No description provided for @codexUsageNoMachinesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a machine to inspect local Codex usage'**
+  String get codexUsageNoMachinesSubtitle;
+
+  /// No description provided for @codexUsageNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex usage not available'**
+  String get codexUsageNotAvailable;
+
+  /// No description provided for @codexUsageNotAvailableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make sure Codex has run on the selected machine and Python 3 is available'**
+  String get codexUsageNotAvailableSubtitle;
 
   /// No description provided for @commonOperationInProgressConfirm.
   ///
