@@ -281,7 +281,16 @@ class MMKVStorage {
   );
 
   Future<void> _ensureInitialized() async {
-    if (!_initialized) await initialize();
+    if (!_initialized) {
+      try {
+        await initialize();
+      } catch (e) {
+        // MMKV init failed - log severe warning but don't crash.
+        // Storage operations will return defaults/nulls gracefully.
+        // _initialized remains false so next call will retry.
+        logger.error('MMKV: Initialization failed, storage unavailable', e);
+      }
+    }
   }
 
   /// Initialize MMKV and migrate data from SharedPreferences if needed
@@ -291,6 +300,8 @@ class MMKVStorage {
     try {
       await MMKV.initialize();
       _instance._mmkv = MMKV.defaultMMKV();
+
+      // Only mark initialized after _mmkv is confirmed non-null
       _instance._initialized = true;
 
       // Initialize in-memory caches
@@ -315,9 +326,9 @@ class MMKVStorage {
       }
     } catch (e) {
       logger.warning('MMKV: Initialization failed: $e');
-      // Mark initialized even on failure so callers don't retry;
-      // all operations guard on _mmkv being non-null.
-      _instance._initialized = true;
+      // Do NOT mark _initialized = true on failure;
+      // _ensureInitialized() will retry on next access.
+      rethrow;
     }
   }
 
