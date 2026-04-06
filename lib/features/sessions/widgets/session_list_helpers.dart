@@ -88,7 +88,8 @@ SortedSessions computeSortedSessions(
   final active = <Session>[];
   final inactive = <Session>[];
   for (final s in sessionList) {
-    if (optimisticallyArchivedIds.contains(s.id)) {
+    if (s.archived ||
+        optimisticallyArchivedIds.contains(s.id)) {
       continue;
     }
     if (isSessionActive(s)) {
