@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonCancel => 'Cancel';
 
   @override
+  String get commonAdd => 'Add';
+
+  @override
   String get commonOk => 'OK';
 
   @override
@@ -675,6 +678,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMachines => 'Machines';
+
+  @override
+  String get settingsSessions => 'Sessions';
 
   @override
   String get settingsFeatures => 'Features';
@@ -2424,6 +2430,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionsDeselectAll => 'Deselect All';
+
+  @override
+  String get sessionsPin => 'Pin';
+
+  @override
+  String get sessionsUnpin => 'Unpin';
+
+  @override
+  String get sessionsFolders => 'Session Folders';
+
+  @override
+  String get sessionsFoldersEmpty =>
+      'No folders yet. Create one to organize your sessions.';
+
+  @override
+  String get sessionsFoldersAdd => 'Add Folder';
+
+  @override
+  String get sessionsFoldersName => 'Folder name';
+
+  @override
+  String sessionsFoldersDeleteConfirm(String name) {
+    return 'Delete folder \"$name\"? Sessions in this folder will become unfiled.';
+  }
+
+  @override
+  String get sessionsFoldersRename => 'Rename Folder';
+
+  @override
+  String get autoArchiveTitle => 'Auto-Archive';
+
+  @override
+  String get autoArchiveSection => 'Auto-Archive';
+
+  @override
+  String get autoArchiveAfterDays => 'Archive after days';
+
+  @override
+  String get autoArchiveAfterDaysDesc => 'Archive sessions older than N days';
+
+  @override
+  String get autoArchiveIdleAfterDays => 'Archive idle after days';
+
+  @override
+  String get autoArchiveIdleAfterDaysDesc =>
+      'Archive sessions with no activity for N days';
+
+  @override
+  String get autoArchiveOnClose => 'Archive on app close';
+
+  @override
+  String get autoArchiveOnCloseDesc =>
+      'Automatically archive matching sessions when the app closes';
+
+  @override
+  String get autoArchiveDisabled => 'Disabled';
+
+  @override
+  String get autoArchiveDays => 'days';
 
   @override
   String get sessionsRecentTitle => 'Recent Sessions';
@@ -4718,4 +4783,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String appearanceThemeBasedOnDevice(String mode) {
     return 'Based on your device\'s $mode appearance setting.';
   }
+
+  @override
+  String get smartFeaturesTitle => 'Smart Features';
+
+  @override
+  String get smartFeaturesSection => 'On-device AI';
+
+  @override
+  String get smartFeaturesEnabled => 'Enable Smart Features';
+
+  @override
+  String get smartFeaturesEnabledDesc =>
+      'Enable on-device AI features for smarter session ranking and auto-generated tags';
+
+  @override
+  String get smartFeaturesStatus => 'Status';
+
+  @override
+  String get smartFeaturesReady => 'Gemma ready';
+
+  @override
+  String get smartFeaturesUnavailable => 'Gemma unavailable';
+
+  @override
+  String get smartFeaturesUnavailableDesc =>
+      'Gemma 2B model not loaded. Smart features use simple heuristics instead.';
+
+  @override
+  String get semanticSearchTitle => 'Semantic Search';
+
+  @override
+  String get semanticSearchDesc =>
+      'Rank sessions by semantic similarity to your query';
+
+  @override
+  String get autoTagsTitle => 'Auto Tags';
+
+  @override
+  String get autoTagsDesc =>
+      'Automatically generate tags for sessions based on content';
 }

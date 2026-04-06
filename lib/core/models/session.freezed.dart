@@ -1201,7 +1201,11 @@ mixin _$Session {
 @JsonKey(fromJson: _sessionIdFromJson) String get id;@JsonKey(fromJson: _asApiInt) int get seq;@JsonKey(fromJson: _asApiInt) int get createdAt;@JsonKey(fromJson: _asApiInt) int get updatedAt; bool get active;@JsonKey(fromJson: _asApiInt) int get activeAt;@JsonKey(fromJson: _asApiInt) int get metadataVersion;@JsonKey(fromJson: _asApiInt) int get agentStateVersion; bool get thinking; bool get archived;@JsonKey(fromJson: _metadataFromJson) Metadata? get metadata;@JsonKey(fromJson: _agentStateFromJson) AgentState? get agentState;@JsonKey(fromJson: _asApiIntNullable) int? get thinkingAt;/// Either the string `'online'` or an integer timestamp of last seen.
 @JsonKey(fromJson: _presenceFromJson) String get presence;@JsonKey(fromJson: _todoListFromJson) List<TodoItem>? get todos;@JsonKey(fromJson: _asApiStringNullable) String? get draft;@JsonKey(fromJson: _asApiStringNullable) String? get permissionMode;@JsonKey(fromJson: _asApiStringNullable) String? get modelMode;@JsonKey(fromJson: _usageDataFromJson) UsageData? get latestUsage;/// The highest message seq number in the session, as reported by the
 /// server. Used for lazy tail-loading to avoid fetching all history.
-@JsonKey(fromJson: _asApiIntNullable) int? get lastSeq;
+@JsonKey(fromJson: _asApiIntNullable) int? get lastSeq;/// Local-only: whether this session is pinned for quick access.
+/// Not synced to the server.
+@JsonKey(includeFromJson: false, includeToJson: false) bool get pinned;/// Local-only: the folder this session belongs to.
+/// Not synced to the server.
+@JsonKey(includeFromJson: false, includeToJson: false) String? get folder;
 /// Create a copy of Session
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1214,16 +1218,16 @@ $SessionCopyWith<Session> get copyWith => _$SessionCopyWithImpl<Session>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Session&&(identical(other.id, id) || other.id == id)&&(identical(other.seq, seq) || other.seq == seq)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.active, active) || other.active == active)&&(identical(other.activeAt, activeAt) || other.activeAt == activeAt)&&(identical(other.metadataVersion, metadataVersion) || other.metadataVersion == metadataVersion)&&(identical(other.agentStateVersion, agentStateVersion) || other.agentStateVersion == agentStateVersion)&&(identical(other.thinking, thinking) || other.thinking == thinking)&&(identical(other.archived, archived) || other.archived == archived)&&(identical(other.metadata, metadata) || other.metadata == metadata)&&(identical(other.agentState, agentState) || other.agentState == agentState)&&(identical(other.thinkingAt, thinkingAt) || other.thinkingAt == thinkingAt)&&(identical(other.presence, presence) || other.presence == presence)&&const DeepCollectionEquality().equals(other.todos, todos)&&(identical(other.draft, draft) || other.draft == draft)&&(identical(other.permissionMode, permissionMode) || other.permissionMode == permissionMode)&&(identical(other.modelMode, modelMode) || other.modelMode == modelMode)&&(identical(other.latestUsage, latestUsage) || other.latestUsage == latestUsage)&&(identical(other.lastSeq, lastSeq) || other.lastSeq == lastSeq));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Session&&(identical(other.id, id) || other.id == id)&&(identical(other.seq, seq) || other.seq == seq)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.active, active) || other.active == active)&&(identical(other.activeAt, activeAt) || other.activeAt == activeAt)&&(identical(other.metadataVersion, metadataVersion) || other.metadataVersion == metadataVersion)&&(identical(other.agentStateVersion, agentStateVersion) || other.agentStateVersion == agentStateVersion)&&(identical(other.thinking, thinking) || other.thinking == thinking)&&(identical(other.archived, archived) || other.archived == archived)&&(identical(other.metadata, metadata) || other.metadata == metadata)&&(identical(other.agentState, agentState) || other.agentState == agentState)&&(identical(other.thinkingAt, thinkingAt) || other.thinkingAt == thinkingAt)&&(identical(other.presence, presence) || other.presence == presence)&&const DeepCollectionEquality().equals(other.todos, todos)&&(identical(other.draft, draft) || other.draft == draft)&&(identical(other.permissionMode, permissionMode) || other.permissionMode == permissionMode)&&(identical(other.modelMode, modelMode) || other.modelMode == modelMode)&&(identical(other.latestUsage, latestUsage) || other.latestUsage == latestUsage)&&(identical(other.lastSeq, lastSeq) || other.lastSeq == lastSeq)&&(identical(other.pinned, pinned) || other.pinned == pinned)&&(identical(other.folder, folder) || other.folder == folder));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,seq,createdAt,updatedAt,active,activeAt,metadataVersion,agentStateVersion,thinking,archived,metadata,agentState,thinkingAt,presence,const DeepCollectionEquality().hash(todos),draft,permissionMode,modelMode,latestUsage,lastSeq]);
+int get hashCode => Object.hashAll([runtimeType,id,seq,createdAt,updatedAt,active,activeAt,metadataVersion,agentStateVersion,thinking,archived,metadata,agentState,thinkingAt,presence,const DeepCollectionEquality().hash(todos),draft,permissionMode,modelMode,latestUsage,lastSeq,pinned,folder]);
 
 @override
 String toString() {
-  return 'Session(id: $id, seq: $seq, createdAt: $createdAt, updatedAt: $updatedAt, active: $active, activeAt: $activeAt, metadataVersion: $metadataVersion, agentStateVersion: $agentStateVersion, thinking: $thinking, archived: $archived, metadata: $metadata, agentState: $agentState, thinkingAt: $thinkingAt, presence: $presence, todos: $todos, draft: $draft, permissionMode: $permissionMode, modelMode: $modelMode, latestUsage: $latestUsage, lastSeq: $lastSeq)';
+  return 'Session(id: $id, seq: $seq, createdAt: $createdAt, updatedAt: $updatedAt, active: $active, activeAt: $activeAt, metadataVersion: $metadataVersion, agentStateVersion: $agentStateVersion, thinking: $thinking, archived: $archived, metadata: $metadata, agentState: $agentState, thinkingAt: $thinkingAt, presence: $presence, todos: $todos, draft: $draft, permissionMode: $permissionMode, modelMode: $modelMode, latestUsage: $latestUsage, lastSeq: $lastSeq, pinned: $pinned, folder: $folder)';
 }
 
 
@@ -1234,7 +1238,7 @@ abstract mixin class $SessionCopyWith<$Res>  {
   factory $SessionCopyWith(Session value, $Res Function(Session) _then) = _$SessionCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(fromJson: _sessionIdFromJson) String id,@JsonKey(fromJson: _asApiInt) int seq,@JsonKey(fromJson: _asApiInt) int createdAt,@JsonKey(fromJson: _asApiInt) int updatedAt, bool active,@JsonKey(fromJson: _asApiInt) int activeAt,@JsonKey(fromJson: _asApiInt) int metadataVersion,@JsonKey(fromJson: _asApiInt) int agentStateVersion, bool thinking, bool archived,@JsonKey(fromJson: _metadataFromJson) Metadata? metadata,@JsonKey(fromJson: _agentStateFromJson) AgentState? agentState,@JsonKey(fromJson: _asApiIntNullable) int? thinkingAt,@JsonKey(fromJson: _presenceFromJson) String presence,@JsonKey(fromJson: _todoListFromJson) List<TodoItem>? todos,@JsonKey(fromJson: _asApiStringNullable) String? draft,@JsonKey(fromJson: _asApiStringNullable) String? permissionMode,@JsonKey(fromJson: _asApiStringNullable) String? modelMode,@JsonKey(fromJson: _usageDataFromJson) UsageData? latestUsage,@JsonKey(fromJson: _asApiIntNullable) int? lastSeq
+@JsonKey(fromJson: _sessionIdFromJson) String id,@JsonKey(fromJson: _asApiInt) int seq,@JsonKey(fromJson: _asApiInt) int createdAt,@JsonKey(fromJson: _asApiInt) int updatedAt, bool active,@JsonKey(fromJson: _asApiInt) int activeAt,@JsonKey(fromJson: _asApiInt) int metadataVersion,@JsonKey(fromJson: _asApiInt) int agentStateVersion, bool thinking, bool archived,@JsonKey(fromJson: _metadataFromJson) Metadata? metadata,@JsonKey(fromJson: _agentStateFromJson) AgentState? agentState,@JsonKey(fromJson: _asApiIntNullable) int? thinkingAt,@JsonKey(fromJson: _presenceFromJson) String presence,@JsonKey(fromJson: _todoListFromJson) List<TodoItem>? todos,@JsonKey(fromJson: _asApiStringNullable) String? draft,@JsonKey(fromJson: _asApiStringNullable) String? permissionMode,@JsonKey(fromJson: _asApiStringNullable) String? modelMode,@JsonKey(fromJson: _usageDataFromJson) UsageData? latestUsage,@JsonKey(fromJson: _asApiIntNullable) int? lastSeq,@JsonKey(includeFromJson: false, includeToJson: false) bool pinned,@JsonKey(includeFromJson: false, includeToJson: false) String? folder
 });
 
 
@@ -1251,7 +1255,7 @@ class _$SessionCopyWithImpl<$Res>
 
 /// Create a copy of Session
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? seq = null,Object? createdAt = null,Object? updatedAt = null,Object? active = null,Object? activeAt = null,Object? metadataVersion = null,Object? agentStateVersion = null,Object? thinking = null,Object? archived = null,Object? metadata = freezed,Object? agentState = freezed,Object? thinkingAt = freezed,Object? presence = null,Object? todos = freezed,Object? draft = freezed,Object? permissionMode = freezed,Object? modelMode = freezed,Object? latestUsage = freezed,Object? lastSeq = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? seq = null,Object? createdAt = null,Object? updatedAt = null,Object? active = null,Object? activeAt = null,Object? metadataVersion = null,Object? agentStateVersion = null,Object? thinking = null,Object? archived = null,Object? metadata = freezed,Object? agentState = freezed,Object? thinkingAt = freezed,Object? presence = null,Object? todos = freezed,Object? draft = freezed,Object? permissionMode = freezed,Object? modelMode = freezed,Object? latestUsage = freezed,Object? lastSeq = freezed,Object? pinned = null,Object? folder = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,seq: null == seq ? _self.seq : seq // ignore: cast_nullable_to_non_nullable
@@ -1273,7 +1277,9 @@ as String?,permissionMode: freezed == permissionMode ? _self.permissionMode : pe
 as String?,modelMode: freezed == modelMode ? _self.modelMode : modelMode // ignore: cast_nullable_to_non_nullable
 as String?,latestUsage: freezed == latestUsage ? _self.latestUsage : latestUsage // ignore: cast_nullable_to_non_nullable
 as UsageData?,lastSeq: freezed == lastSeq ? _self.lastSeq : lastSeq // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,pinned: null == pinned ? _self.pinned : pinned // ignore: cast_nullable_to_non_nullable
+as bool,folder: freezed == folder ? _self.folder : folder // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 /// Create a copy of Session
@@ -1382,10 +1388,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _sessionIdFromJson)  String id, @JsonKey(fromJson: _asApiInt)  int seq, @JsonKey(fromJson: _asApiInt)  int createdAt, @JsonKey(fromJson: _asApiInt)  int updatedAt,  bool active, @JsonKey(fromJson: _asApiInt)  int activeAt, @JsonKey(fromJson: _asApiInt)  int metadataVersion, @JsonKey(fromJson: _asApiInt)  int agentStateVersion,  bool thinking,  bool archived, @JsonKey(fromJson: _metadataFromJson)  Metadata? metadata, @JsonKey(fromJson: _agentStateFromJson)  AgentState? agentState, @JsonKey(fromJson: _asApiIntNullable)  int? thinkingAt, @JsonKey(fromJson: _presenceFromJson)  String presence, @JsonKey(fromJson: _todoListFromJson)  List<TodoItem>? todos, @JsonKey(fromJson: _asApiStringNullable)  String? draft, @JsonKey(fromJson: _asApiStringNullable)  String? permissionMode, @JsonKey(fromJson: _asApiStringNullable)  String? modelMode, @JsonKey(fromJson: _usageDataFromJson)  UsageData? latestUsage, @JsonKey(fromJson: _asApiIntNullable)  int? lastSeq)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _sessionIdFromJson)  String id, @JsonKey(fromJson: _asApiInt)  int seq, @JsonKey(fromJson: _asApiInt)  int createdAt, @JsonKey(fromJson: _asApiInt)  int updatedAt,  bool active, @JsonKey(fromJson: _asApiInt)  int activeAt, @JsonKey(fromJson: _asApiInt)  int metadataVersion, @JsonKey(fromJson: _asApiInt)  int agentStateVersion,  bool thinking,  bool archived, @JsonKey(fromJson: _metadataFromJson)  Metadata? metadata, @JsonKey(fromJson: _agentStateFromJson)  AgentState? agentState, @JsonKey(fromJson: _asApiIntNullable)  int? thinkingAt, @JsonKey(fromJson: _presenceFromJson)  String presence, @JsonKey(fromJson: _todoListFromJson)  List<TodoItem>? todos, @JsonKey(fromJson: _asApiStringNullable)  String? draft, @JsonKey(fromJson: _asApiStringNullable)  String? permissionMode, @JsonKey(fromJson: _asApiStringNullable)  String? modelMode, @JsonKey(fromJson: _usageDataFromJson)  UsageData? latestUsage, @JsonKey(fromJson: _asApiIntNullable)  int? lastSeq, @JsonKey(includeFromJson: false, includeToJson: false)  bool pinned, @JsonKey(includeFromJson: false, includeToJson: false)  String? folder)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Session() when $default != null:
-return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,_that.activeAt,_that.metadataVersion,_that.agentStateVersion,_that.thinking,_that.archived,_that.metadata,_that.agentState,_that.thinkingAt,_that.presence,_that.todos,_that.draft,_that.permissionMode,_that.modelMode,_that.latestUsage,_that.lastSeq);case _:
+return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,_that.activeAt,_that.metadataVersion,_that.agentStateVersion,_that.thinking,_that.archived,_that.metadata,_that.agentState,_that.thinkingAt,_that.presence,_that.todos,_that.draft,_that.permissionMode,_that.modelMode,_that.latestUsage,_that.lastSeq,_that.pinned,_that.folder);case _:
   return orElse();
 
 }
@@ -1403,10 +1409,10 @@ return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _sessionIdFromJson)  String id, @JsonKey(fromJson: _asApiInt)  int seq, @JsonKey(fromJson: _asApiInt)  int createdAt, @JsonKey(fromJson: _asApiInt)  int updatedAt,  bool active, @JsonKey(fromJson: _asApiInt)  int activeAt, @JsonKey(fromJson: _asApiInt)  int metadataVersion, @JsonKey(fromJson: _asApiInt)  int agentStateVersion,  bool thinking,  bool archived, @JsonKey(fromJson: _metadataFromJson)  Metadata? metadata, @JsonKey(fromJson: _agentStateFromJson)  AgentState? agentState, @JsonKey(fromJson: _asApiIntNullable)  int? thinkingAt, @JsonKey(fromJson: _presenceFromJson)  String presence, @JsonKey(fromJson: _todoListFromJson)  List<TodoItem>? todos, @JsonKey(fromJson: _asApiStringNullable)  String? draft, @JsonKey(fromJson: _asApiStringNullable)  String? permissionMode, @JsonKey(fromJson: _asApiStringNullable)  String? modelMode, @JsonKey(fromJson: _usageDataFromJson)  UsageData? latestUsage, @JsonKey(fromJson: _asApiIntNullable)  int? lastSeq)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _sessionIdFromJson)  String id, @JsonKey(fromJson: _asApiInt)  int seq, @JsonKey(fromJson: _asApiInt)  int createdAt, @JsonKey(fromJson: _asApiInt)  int updatedAt,  bool active, @JsonKey(fromJson: _asApiInt)  int activeAt, @JsonKey(fromJson: _asApiInt)  int metadataVersion, @JsonKey(fromJson: _asApiInt)  int agentStateVersion,  bool thinking,  bool archived, @JsonKey(fromJson: _metadataFromJson)  Metadata? metadata, @JsonKey(fromJson: _agentStateFromJson)  AgentState? agentState, @JsonKey(fromJson: _asApiIntNullable)  int? thinkingAt, @JsonKey(fromJson: _presenceFromJson)  String presence, @JsonKey(fromJson: _todoListFromJson)  List<TodoItem>? todos, @JsonKey(fromJson: _asApiStringNullable)  String? draft, @JsonKey(fromJson: _asApiStringNullable)  String? permissionMode, @JsonKey(fromJson: _asApiStringNullable)  String? modelMode, @JsonKey(fromJson: _usageDataFromJson)  UsageData? latestUsage, @JsonKey(fromJson: _asApiIntNullable)  int? lastSeq, @JsonKey(includeFromJson: false, includeToJson: false)  bool pinned, @JsonKey(includeFromJson: false, includeToJson: false)  String? folder)  $default,) {final _that = this;
 switch (_that) {
 case _Session():
-return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,_that.activeAt,_that.metadataVersion,_that.agentStateVersion,_that.thinking,_that.archived,_that.metadata,_that.agentState,_that.thinkingAt,_that.presence,_that.todos,_that.draft,_that.permissionMode,_that.modelMode,_that.latestUsage,_that.lastSeq);case _:
+return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,_that.activeAt,_that.metadataVersion,_that.agentStateVersion,_that.thinking,_that.archived,_that.metadata,_that.agentState,_that.thinkingAt,_that.presence,_that.todos,_that.draft,_that.permissionMode,_that.modelMode,_that.latestUsage,_that.lastSeq,_that.pinned,_that.folder);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1423,10 +1429,10 @@ return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: _sessionIdFromJson)  String id, @JsonKey(fromJson: _asApiInt)  int seq, @JsonKey(fromJson: _asApiInt)  int createdAt, @JsonKey(fromJson: _asApiInt)  int updatedAt,  bool active, @JsonKey(fromJson: _asApiInt)  int activeAt, @JsonKey(fromJson: _asApiInt)  int metadataVersion, @JsonKey(fromJson: _asApiInt)  int agentStateVersion,  bool thinking,  bool archived, @JsonKey(fromJson: _metadataFromJson)  Metadata? metadata, @JsonKey(fromJson: _agentStateFromJson)  AgentState? agentState, @JsonKey(fromJson: _asApiIntNullable)  int? thinkingAt, @JsonKey(fromJson: _presenceFromJson)  String presence, @JsonKey(fromJson: _todoListFromJson)  List<TodoItem>? todos, @JsonKey(fromJson: _asApiStringNullable)  String? draft, @JsonKey(fromJson: _asApiStringNullable)  String? permissionMode, @JsonKey(fromJson: _asApiStringNullable)  String? modelMode, @JsonKey(fromJson: _usageDataFromJson)  UsageData? latestUsage, @JsonKey(fromJson: _asApiIntNullable)  int? lastSeq)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: _sessionIdFromJson)  String id, @JsonKey(fromJson: _asApiInt)  int seq, @JsonKey(fromJson: _asApiInt)  int createdAt, @JsonKey(fromJson: _asApiInt)  int updatedAt,  bool active, @JsonKey(fromJson: _asApiInt)  int activeAt, @JsonKey(fromJson: _asApiInt)  int metadataVersion, @JsonKey(fromJson: _asApiInt)  int agentStateVersion,  bool thinking,  bool archived, @JsonKey(fromJson: _metadataFromJson)  Metadata? metadata, @JsonKey(fromJson: _agentStateFromJson)  AgentState? agentState, @JsonKey(fromJson: _asApiIntNullable)  int? thinkingAt, @JsonKey(fromJson: _presenceFromJson)  String presence, @JsonKey(fromJson: _todoListFromJson)  List<TodoItem>? todos, @JsonKey(fromJson: _asApiStringNullable)  String? draft, @JsonKey(fromJson: _asApiStringNullable)  String? permissionMode, @JsonKey(fromJson: _asApiStringNullable)  String? modelMode, @JsonKey(fromJson: _usageDataFromJson)  UsageData? latestUsage, @JsonKey(fromJson: _asApiIntNullable)  int? lastSeq, @JsonKey(includeFromJson: false, includeToJson: false)  bool pinned, @JsonKey(includeFromJson: false, includeToJson: false)  String? folder)?  $default,) {final _that = this;
 switch (_that) {
 case _Session() when $default != null:
-return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,_that.activeAt,_that.metadataVersion,_that.agentStateVersion,_that.thinking,_that.archived,_that.metadata,_that.agentState,_that.thinkingAt,_that.presence,_that.todos,_that.draft,_that.permissionMode,_that.modelMode,_that.latestUsage,_that.lastSeq);case _:
+return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,_that.activeAt,_that.metadataVersion,_that.agentStateVersion,_that.thinking,_that.archived,_that.metadata,_that.agentState,_that.thinkingAt,_that.presence,_that.todos,_that.draft,_that.permissionMode,_that.modelMode,_that.latestUsage,_that.lastSeq,_that.pinned,_that.folder);case _:
   return null;
 
 }
@@ -1438,7 +1444,7 @@ return $default(_that.id,_that.seq,_that.createdAt,_that.updatedAt,_that.active,
 @JsonSerializable()
 
 class _Session extends Session {
-  const _Session({@JsonKey(fromJson: _sessionIdFromJson) required this.id, @JsonKey(fromJson: _asApiInt) required this.seq, @JsonKey(fromJson: _asApiInt) required this.createdAt, @JsonKey(fromJson: _asApiInt) required this.updatedAt, required this.active, @JsonKey(fromJson: _asApiInt) required this.activeAt, @JsonKey(fromJson: _asApiInt) required this.metadataVersion, @JsonKey(fromJson: _asApiInt) required this.agentStateVersion, required this.thinking, this.archived = false, @JsonKey(fromJson: _metadataFromJson) this.metadata, @JsonKey(fromJson: _agentStateFromJson) this.agentState, @JsonKey(fromJson: _asApiIntNullable) this.thinkingAt, @JsonKey(fromJson: _presenceFromJson) this.presence = 'offline', @JsonKey(fromJson: _todoListFromJson) final  List<TodoItem>? todos, @JsonKey(fromJson: _asApiStringNullable) this.draft, @JsonKey(fromJson: _asApiStringNullable) this.permissionMode, @JsonKey(fromJson: _asApiStringNullable) this.modelMode, @JsonKey(fromJson: _usageDataFromJson) this.latestUsage, @JsonKey(fromJson: _asApiIntNullable) this.lastSeq}): _todos = todos,super._();
+  const _Session({@JsonKey(fromJson: _sessionIdFromJson) required this.id, @JsonKey(fromJson: _asApiInt) required this.seq, @JsonKey(fromJson: _asApiInt) required this.createdAt, @JsonKey(fromJson: _asApiInt) required this.updatedAt, required this.active, @JsonKey(fromJson: _asApiInt) required this.activeAt, @JsonKey(fromJson: _asApiInt) required this.metadataVersion, @JsonKey(fromJson: _asApiInt) required this.agentStateVersion, required this.thinking, this.archived = false, @JsonKey(fromJson: _metadataFromJson) this.metadata, @JsonKey(fromJson: _agentStateFromJson) this.agentState, @JsonKey(fromJson: _asApiIntNullable) this.thinkingAt, @JsonKey(fromJson: _presenceFromJson) this.presence = 'offline', @JsonKey(fromJson: _todoListFromJson) final  List<TodoItem>? todos, @JsonKey(fromJson: _asApiStringNullable) this.draft, @JsonKey(fromJson: _asApiStringNullable) this.permissionMode, @JsonKey(fromJson: _asApiStringNullable) this.modelMode, @JsonKey(fromJson: _usageDataFromJson) this.latestUsage, @JsonKey(fromJson: _asApiIntNullable) this.lastSeq, @JsonKey(includeFromJson: false, includeToJson: false) this.pinned = false, @JsonKey(includeFromJson: false, includeToJson: false) this.folder}): _todos = todos,super._();
   factory _Session.fromJson(Map<String, dynamic> json) => _$SessionFromJson(json);
 
 @override@JsonKey(fromJson: _sessionIdFromJson) final  String id;
@@ -1472,6 +1478,12 @@ class _Session extends Session {
 /// The highest message seq number in the session, as reported by the
 /// server. Used for lazy tail-loading to avoid fetching all history.
 @override@JsonKey(fromJson: _asApiIntNullable) final  int? lastSeq;
+/// Local-only: whether this session is pinned for quick access.
+/// Not synced to the server.
+@override@JsonKey(includeFromJson: false, includeToJson: false) final  bool pinned;
+/// Local-only: the folder this session belongs to.
+/// Not synced to the server.
+@override@JsonKey(includeFromJson: false, includeToJson: false) final  String? folder;
 
 /// Create a copy of Session
 /// with the given fields replaced by the non-null parameter values.
@@ -1486,16 +1498,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Session&&(identical(other.id, id) || other.id == id)&&(identical(other.seq, seq) || other.seq == seq)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.active, active) || other.active == active)&&(identical(other.activeAt, activeAt) || other.activeAt == activeAt)&&(identical(other.metadataVersion, metadataVersion) || other.metadataVersion == metadataVersion)&&(identical(other.agentStateVersion, agentStateVersion) || other.agentStateVersion == agentStateVersion)&&(identical(other.thinking, thinking) || other.thinking == thinking)&&(identical(other.archived, archived) || other.archived == archived)&&(identical(other.metadata, metadata) || other.metadata == metadata)&&(identical(other.agentState, agentState) || other.agentState == agentState)&&(identical(other.thinkingAt, thinkingAt) || other.thinkingAt == thinkingAt)&&(identical(other.presence, presence) || other.presence == presence)&&const DeepCollectionEquality().equals(other._todos, _todos)&&(identical(other.draft, draft) || other.draft == draft)&&(identical(other.permissionMode, permissionMode) || other.permissionMode == permissionMode)&&(identical(other.modelMode, modelMode) || other.modelMode == modelMode)&&(identical(other.latestUsage, latestUsage) || other.latestUsage == latestUsage)&&(identical(other.lastSeq, lastSeq) || other.lastSeq == lastSeq));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Session&&(identical(other.id, id) || other.id == id)&&(identical(other.seq, seq) || other.seq == seq)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.active, active) || other.active == active)&&(identical(other.activeAt, activeAt) || other.activeAt == activeAt)&&(identical(other.metadataVersion, metadataVersion) || other.metadataVersion == metadataVersion)&&(identical(other.agentStateVersion, agentStateVersion) || other.agentStateVersion == agentStateVersion)&&(identical(other.thinking, thinking) || other.thinking == thinking)&&(identical(other.archived, archived) || other.archived == archived)&&(identical(other.metadata, metadata) || other.metadata == metadata)&&(identical(other.agentState, agentState) || other.agentState == agentState)&&(identical(other.thinkingAt, thinkingAt) || other.thinkingAt == thinkingAt)&&(identical(other.presence, presence) || other.presence == presence)&&const DeepCollectionEquality().equals(other._todos, _todos)&&(identical(other.draft, draft) || other.draft == draft)&&(identical(other.permissionMode, permissionMode) || other.permissionMode == permissionMode)&&(identical(other.modelMode, modelMode) || other.modelMode == modelMode)&&(identical(other.latestUsage, latestUsage) || other.latestUsage == latestUsage)&&(identical(other.lastSeq, lastSeq) || other.lastSeq == lastSeq)&&(identical(other.pinned, pinned) || other.pinned == pinned)&&(identical(other.folder, folder) || other.folder == folder));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,seq,createdAt,updatedAt,active,activeAt,metadataVersion,agentStateVersion,thinking,archived,metadata,agentState,thinkingAt,presence,const DeepCollectionEquality().hash(_todos),draft,permissionMode,modelMode,latestUsage,lastSeq]);
+int get hashCode => Object.hashAll([runtimeType,id,seq,createdAt,updatedAt,active,activeAt,metadataVersion,agentStateVersion,thinking,archived,metadata,agentState,thinkingAt,presence,const DeepCollectionEquality().hash(_todos),draft,permissionMode,modelMode,latestUsage,lastSeq,pinned,folder]);
 
 @override
 String toString() {
-  return 'Session(id: $id, seq: $seq, createdAt: $createdAt, updatedAt: $updatedAt, active: $active, activeAt: $activeAt, metadataVersion: $metadataVersion, agentStateVersion: $agentStateVersion, thinking: $thinking, archived: $archived, metadata: $metadata, agentState: $agentState, thinkingAt: $thinkingAt, presence: $presence, todos: $todos, draft: $draft, permissionMode: $permissionMode, modelMode: $modelMode, latestUsage: $latestUsage, lastSeq: $lastSeq)';
+  return 'Session(id: $id, seq: $seq, createdAt: $createdAt, updatedAt: $updatedAt, active: $active, activeAt: $activeAt, metadataVersion: $metadataVersion, agentStateVersion: $agentStateVersion, thinking: $thinking, archived: $archived, metadata: $metadata, agentState: $agentState, thinkingAt: $thinkingAt, presence: $presence, todos: $todos, draft: $draft, permissionMode: $permissionMode, modelMode: $modelMode, latestUsage: $latestUsage, lastSeq: $lastSeq, pinned: $pinned, folder: $folder)';
 }
 
 
@@ -1506,7 +1518,7 @@ abstract mixin class _$SessionCopyWith<$Res> implements $SessionCopyWith<$Res> {
   factory _$SessionCopyWith(_Session value, $Res Function(_Session) _then) = __$SessionCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(fromJson: _sessionIdFromJson) String id,@JsonKey(fromJson: _asApiInt) int seq,@JsonKey(fromJson: _asApiInt) int createdAt,@JsonKey(fromJson: _asApiInt) int updatedAt, bool active,@JsonKey(fromJson: _asApiInt) int activeAt,@JsonKey(fromJson: _asApiInt) int metadataVersion,@JsonKey(fromJson: _asApiInt) int agentStateVersion, bool thinking, bool archived,@JsonKey(fromJson: _metadataFromJson) Metadata? metadata,@JsonKey(fromJson: _agentStateFromJson) AgentState? agentState,@JsonKey(fromJson: _asApiIntNullable) int? thinkingAt,@JsonKey(fromJson: _presenceFromJson) String presence,@JsonKey(fromJson: _todoListFromJson) List<TodoItem>? todos,@JsonKey(fromJson: _asApiStringNullable) String? draft,@JsonKey(fromJson: _asApiStringNullable) String? permissionMode,@JsonKey(fromJson: _asApiStringNullable) String? modelMode,@JsonKey(fromJson: _usageDataFromJson) UsageData? latestUsage,@JsonKey(fromJson: _asApiIntNullable) int? lastSeq
+@JsonKey(fromJson: _sessionIdFromJson) String id,@JsonKey(fromJson: _asApiInt) int seq,@JsonKey(fromJson: _asApiInt) int createdAt,@JsonKey(fromJson: _asApiInt) int updatedAt, bool active,@JsonKey(fromJson: _asApiInt) int activeAt,@JsonKey(fromJson: _asApiInt) int metadataVersion,@JsonKey(fromJson: _asApiInt) int agentStateVersion, bool thinking, bool archived,@JsonKey(fromJson: _metadataFromJson) Metadata? metadata,@JsonKey(fromJson: _agentStateFromJson) AgentState? agentState,@JsonKey(fromJson: _asApiIntNullable) int? thinkingAt,@JsonKey(fromJson: _presenceFromJson) String presence,@JsonKey(fromJson: _todoListFromJson) List<TodoItem>? todos,@JsonKey(fromJson: _asApiStringNullable) String? draft,@JsonKey(fromJson: _asApiStringNullable) String? permissionMode,@JsonKey(fromJson: _asApiStringNullable) String? modelMode,@JsonKey(fromJson: _usageDataFromJson) UsageData? latestUsage,@JsonKey(fromJson: _asApiIntNullable) int? lastSeq,@JsonKey(includeFromJson: false, includeToJson: false) bool pinned,@JsonKey(includeFromJson: false, includeToJson: false) String? folder
 });
 
 
@@ -1523,7 +1535,7 @@ class __$SessionCopyWithImpl<$Res>
 
 /// Create a copy of Session
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? seq = null,Object? createdAt = null,Object? updatedAt = null,Object? active = null,Object? activeAt = null,Object? metadataVersion = null,Object? agentStateVersion = null,Object? thinking = null,Object? archived = null,Object? metadata = freezed,Object? agentState = freezed,Object? thinkingAt = freezed,Object? presence = null,Object? todos = freezed,Object? draft = freezed,Object? permissionMode = freezed,Object? modelMode = freezed,Object? latestUsage = freezed,Object? lastSeq = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? seq = null,Object? createdAt = null,Object? updatedAt = null,Object? active = null,Object? activeAt = null,Object? metadataVersion = null,Object? agentStateVersion = null,Object? thinking = null,Object? archived = null,Object? metadata = freezed,Object? agentState = freezed,Object? thinkingAt = freezed,Object? presence = null,Object? todos = freezed,Object? draft = freezed,Object? permissionMode = freezed,Object? modelMode = freezed,Object? latestUsage = freezed,Object? lastSeq = freezed,Object? pinned = null,Object? folder = freezed,}) {
   return _then(_Session(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,seq: null == seq ? _self.seq : seq // ignore: cast_nullable_to_non_nullable
@@ -1545,7 +1557,9 @@ as String?,permissionMode: freezed == permissionMode ? _self.permissionMode : pe
 as String?,modelMode: freezed == modelMode ? _self.modelMode : modelMode // ignore: cast_nullable_to_non_nullable
 as String?,latestUsage: freezed == latestUsage ? _self.latestUsage : latestUsage // ignore: cast_nullable_to_non_nullable
 as UsageData?,lastSeq: freezed == lastSeq ? _self.lastSeq : lastSeq // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,pinned: null == pinned ? _self.pinned : pinned // ignore: cast_nullable_to_non_nullable
+as bool,folder: freezed == folder ? _self.folder : folder // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

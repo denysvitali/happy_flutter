@@ -521,6 +521,17 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                 ),
               ),
 
+              // Pin indicator
+              if (widget.command.isPinned)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.sm),
+                  child: Icon(
+                    Icons.push_pin,
+                    size: AppSpacing.lg,
+                    color: colorScheme.primary,
+                  ),
+                ),
+
               // Shortcut
               if (widget.command.shortcut != null)
                 Container(

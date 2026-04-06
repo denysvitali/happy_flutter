@@ -775,4 +775,28 @@ class Storage {
   Future<void> clearServerConfig() async {
     unawaited(ServerConfigStorage().clearAll());
   }
+
+  /// Check if this is a fresh install or an upgrade and return
+  /// changelog info if needed.
+  ///
+  /// Call this after storage is initialized and you have the current
+  /// app version. Returns a record of (previousVersion, currentVersion)
+  /// if the changelog should be shown, null otherwise.
+  ({String? previous, String current})? checkVersionChange(String currentVersion) {
+    final storage = MMKVStorage();
+    final installed = storage.getInstalledVersion();
+
+    if (installed == null) {
+      // First install — no changelog to show
+      storage.setInstalledVersion(currentVersion);
+      return null;
+    }
+
+    if (installed != currentVersion) {
+      storage.setInstalledVersion(currentVersion);
+      return (previous: installed, current: currentVersion);
+    }
+
+    return null;
+  }
 }

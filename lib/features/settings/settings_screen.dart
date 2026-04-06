@@ -101,7 +101,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: AppSpacing.lg),
           _buildFeaturesSection(context),
           const SizedBox(height: AppSpacing.lg),
+          _buildSmartFeaturesSection(context),
+          const SizedBox(height: AppSpacing.lg),
           _buildSocialSection(context),
+          const SizedBox(height: AppSpacing.lg),
+          _buildSessionsSection(context),
           const SizedBox(height: AppSpacing.lg),
           _buildMachinesSection(
             context,
@@ -369,6 +373,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildSmartFeaturesSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SettingsSection(
+      title: l10n.smartFeaturesTitle,
+      children: [
+        SettingsNavRow(
+          icon: Icons.auto_awesome,
+          title: l10n.smartFeaturesTitle,
+          subtitle: l10n.smartFeaturesEnabledDesc,
+          onTap: () => context.pushNamed('smart-features'),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSocialSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return SettingsSection(
@@ -385,6 +404,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: l10n.settingsOpenInbox,
           subtitle: l10n.settingsOpenInboxSubtitle,
           onTap: () => context.pushNamed('inbox'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSessionsSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return SettingsSection(
+      title: l10n.settingsSessions,
+      children: [
+        SettingsNavRow(
+          icon: Icons.folder_outlined,
+          title: l10n.sessionsFolders,
+          subtitle: l10n.sessionsFolders,
+          onTap: () => context.pushNamed('sessions-folders'),
+        ),
+        SettingsNavRow(
+          icon: Icons.auto_awesome_outlined,
+          title: l10n.autoArchiveTitle,
+          subtitle: l10n.autoArchiveSection,
+          onTap: () => context.pushNamed('sessions-auto-archive'),
         ),
       ],
     );

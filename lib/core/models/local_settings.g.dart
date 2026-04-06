@@ -6,6 +6,22 @@ part of 'local_settings.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_AutoArchiveSettings _$AutoArchiveSettingsFromJson(Map<String, dynamic> json) =>
+    _AutoArchiveSettings(
+      autoArchiveAfterDays: (json['autoArchiveAfterDays'] as num?)?.toInt(),
+      autoArchiveIdleAfterDays: (json['autoArchiveIdleAfterDays'] as num?)
+          ?.toInt(),
+      autoArchiveOnAppClose: json['autoArchiveOnAppClose'] as bool? ?? false,
+    );
+
+Map<String, dynamic> _$AutoArchiveSettingsToJson(
+  _AutoArchiveSettings instance,
+) => <String, dynamic>{
+  'autoArchiveAfterDays': instance.autoArchiveAfterDays,
+  'autoArchiveIdleAfterDays': instance.autoArchiveIdleAfterDays,
+  'autoArchiveOnAppClose': instance.autoArchiveOnAppClose,
+};
+
 _LocalSettings _$LocalSettingsFromJson(Map<String, dynamic> json) =>
     _LocalSettings(
       debugMode: json['debugMode'] as bool? ?? false,
@@ -18,6 +34,11 @@ _LocalSettings _$LocalSettingsFromJson(Map<String, dynamic> json) =>
             (k, e) => MapEntry(k, e as String),
           ) ??
           const <String, String>{},
+      autoArchiveSettings: json['autoArchiveSettings'] == null
+          ? null
+          : AutoArchiveSettings.fromJson(
+              json['autoArchiveSettings'] as Map<String, dynamic>,
+            ),
     );
 
 Map<String, dynamic> _$LocalSettingsToJson(_LocalSettings instance) =>
@@ -28,4 +49,5 @@ Map<String, dynamic> _$LocalSettingsToJson(_LocalSettings instance) =>
       'themePreference': instance.themePreference,
       'markdownCopyV2': instance.markdownCopyV2,
       'acknowledgedCliVersions': instance.acknowledgedCliVersions,
+      'autoArchiveSettings': instance.autoArchiveSettings?.toJson(),
     };

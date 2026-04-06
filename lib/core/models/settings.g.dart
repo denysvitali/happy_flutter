@@ -49,6 +49,9 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..favoriteMachines = (json['favoriteMachines'] as List<dynamic>)
       .map((e) => e as String)
       .toList()
+  ..folders = (json['folders'] as List<dynamic>)
+      .map((e) => e as String)
+      .toList()
   ..dismissedCLIWarnings = DismissedCLIWarnings.fromJson(
     json['dismissedCLIWarnings'] as Map<String, dynamic>,
   );
@@ -89,6 +92,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'lastUsedProfile': instance.lastUsedProfile,
   'favoriteDirectories': instance.favoriteDirectories,
   'favoriteMachines': instance.favoriteMachines,
+  'folders': instance.folders,
   'dismissedCLIWarnings': instance.dismissedCLIWarnings.toJson(),
 };
 

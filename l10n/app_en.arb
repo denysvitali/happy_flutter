@@ -8,6 +8,7 @@
     "description": "App title"
   },
   "commonCancel": "Cancel",
+  "commonAdd": "Add",
   "commonOk": "OK",
   "commonYes": "Yes",
   "commonNo": "No",
@@ -247,6 +248,7 @@
   "settingsConnectAccount": "Connect account",
   "settingsGithub": "GitHub",
   "settingsMachines": "Machines",
+  "settingsSessions": "Sessions",
   "settingsFeatures": "Features",
   "settingsSocial": "Social",
   "settingsAccount": "Account",
@@ -909,6 +911,29 @@
   "sessionsAgent": "Agent",
   "sessionsSelectAll": "Select All",
   "sessionsDeselectAll": "Deselect All",
+  "sessionsPin": "Pin",
+  "sessionsUnpin": "Unpin",
+  "sessionsFolders": "Session Folders",
+  "sessionsFoldersEmpty": "No folders yet. Create one to organize your sessions.",
+  "sessionsFoldersAdd": "Add Folder",
+  "sessionsFoldersName": "Folder name",
+  "sessionsFoldersDeleteConfirm": "Delete folder \"{name}\"? Sessions in this folder will become unfiled.",
+  "@sessionsFoldersDeleteConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "sessionsFoldersRename": "Rename Folder",
+  "autoArchiveTitle": "Auto-Archive",
+  "autoArchiveSection": "Auto-Archive",
+  "autoArchiveAfterDays": "Archive after days",
+  "autoArchiveAfterDaysDesc": "Archive sessions older than N days",
+  "autoArchiveIdleAfterDays": "Archive idle after days",
+  "autoArchiveIdleAfterDaysDesc": "Archive sessions with no activity for N days",
+  "autoArchiveOnClose": "Archive on app close",
+  "autoArchiveOnCloseDesc": "Automatically archive matching sessions when the app closes",
+  "autoArchiveDisabled": "Disabled",
+  "autoArchiveDays": "days",
   "sessionsRecentTitle": "Recent Sessions",
   "sessionsRecentEmpty": "No recent sessions",
   "sessionsPressBackToExit": "Press back again to exit",
@@ -1864,5 +1889,18 @@
         "type": "String"
       }
     }
-  }
+  },
+  "smartFeaturesTitle": "Smart Features",
+  "smartFeaturesSection": "On-device AI",
+  "smartFeaturesEnabled": "Enable Smart Features",
+  "smartFeaturesEnabledDesc": "Enable on-device AI features for smarter session ranking and auto-generated tags",
+  "smartFeaturesStatus": "Status",
+  "smartFeaturesReady": "Gemma ready",
+  "smartFeaturesUnavailable": "Gemma unavailable",
+  "smartFeaturesUnavailableDesc": "Gemma 2B model not loaded. Smart features use simple heuristics instead.",
+  "semanticSearchTitle": "Semantic Search",
+  "semanticSearchDesc": "Rank sessions by semantic similarity to your query",
+  "autoTagsTitle": "Auto Tags",
+  "autoTagsDesc": "Automatically generate tags for sessions based on content",
+  "commonAdd": "Add"
 }

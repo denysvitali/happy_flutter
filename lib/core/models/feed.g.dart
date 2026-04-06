@@ -40,12 +40,11 @@ _FeedBody _$FeedBodyFromJson(Map<String, dynamic> json) => _FeedBody(
   text: json['text'] as String?,
 );
 
-Map<String, dynamic> _$FeedBodyToJson(_FeedBody instance) {
-  final json = <String, dynamic>{'kind': instance.kind};
-  if (instance.uid != null) json['uid'] = instance.uid;
-  if (instance.text != null) json['text'] = instance.text;
-  return json;
-}
+Map<String, dynamic> _$FeedBodyToJson(_FeedBody instance) => <String, dynamic>{
+  'kind': instance.kind,
+  'uid': instance.uid,
+  'text': instance.text,
+};
 
 _AppNotification _$AppNotificationFromJson(Map<String, dynamic> json) =>
     _AppNotification(

@@ -20,6 +20,7 @@ class _Keys {
   static const String sessionLastSeq = 'session-last-seq';
   static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
   static const String sessionsCache = 'sessions-cache';
+  static const String installedVersion = 'installed-version';
 
   // Server config keys moved to server_config_storage_web.dart.
 }
@@ -482,6 +483,24 @@ class MMKVStorage {
       logger.warning(
         'WebStorage: failed to clear session messages: $e',
       );
+    });
+  }
+
+  // ─── Version tracking ─────────────────────────────────────────────
+
+  /// Get the installed version (null if first install)
+  String? getInstalledVersion() {
+    if (!_initialized) return null;
+    return _prefs?.getString(_Keys.installedVersion);
+  }
+
+  /// Save the installed version
+  void setInstalledVersion(String version) {
+    if (!_initialized) return;
+    _getPrefs().then((prefs) {
+      prefs.setString(_Keys.installedVersion, version);
+    }).catchError((Object e) {
+      logger.warning('WebStorage: failed to persist installed version: $e');
     });
   }
 

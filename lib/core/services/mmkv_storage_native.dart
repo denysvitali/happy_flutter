@@ -23,6 +23,7 @@ class _StorageKeys {
   static const String sessionFirstLoadedSeq =
       'session-first-loaded-seq';
   static const String sessionsCache = 'sessions-cache';
+  static const String installedVersion = 'installed-version';
 }
 
 /// Generic store for a JSON-encoded `Map<String, String>` in MMKV.

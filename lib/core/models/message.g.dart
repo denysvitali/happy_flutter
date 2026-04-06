@@ -91,28 +91,15 @@ _MessageMeta _$MessageMetaFromJson(Map<String, dynamic> json) => _MessageMeta(
   displayText: json['displayText'] as String?,
 );
 
-Map<String, dynamic> _$MessageMetaToJson(_MessageMeta instance) {
-  final json = <String, dynamic>{};
-  if (instance.sentFrom != null) json['sentFrom'] = instance.sentFrom;
-  if (instance.permissionMode != null) {
-    json['permissionMode'] = instance.permissionMode;
-  }
-  if (instance.model != null) json['model'] = instance.model;
-  if (instance.fallbackModel != null) {
-    json['fallbackModel'] = instance.fallbackModel;
-  }
-  if (instance.customSystemPrompt != null) {
-    json['customSystemPrompt'] = instance.customSystemPrompt;
-  }
-  if (instance.appendSystemPrompt != null) {
-    json['appendSystemPrompt'] = instance.appendSystemPrompt;
-  }
-  if (instance.allowedTools != null) {
-    json['allowedTools'] = instance.allowedTools;
-  }
-  if (instance.disallowedTools != null) {
-    json['disallowedTools'] = instance.disallowedTools;
-  }
-  if (instance.displayText != null) json['displayText'] = instance.displayText;
-  return json;
-}
+Map<String, dynamic> _$MessageMetaToJson(_MessageMeta instance) =>
+    <String, dynamic>{
+      'sentFrom': instance.sentFrom,
+      'permissionMode': instance.permissionMode,
+      'model': instance.model,
+      'fallbackModel': instance.fallbackModel,
+      'customSystemPrompt': instance.customSystemPrompt,
+      'appendSystemPrompt': instance.appendSystemPrompt,
+      'allowedTools': instance.allowedTools,
+      'disallowedTools': instance.disallowedTools,
+      'displayText': instance.displayText,
+    };

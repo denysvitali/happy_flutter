@@ -3,6 +3,22 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'local_settings.freezed.dart';
 part 'local_settings.g.dart';
 
+/// Auto-archive settings for sessions.
+@freezed
+abstract class AutoArchiveSettings with _$AutoArchiveSettings {
+  const factory AutoArchiveSettings({
+    /// Archive sessions older than N days. Null = disabled.
+    int? autoArchiveAfterDays,
+    /// Archive sessions with no messages for N days. Null = disabled.
+    int? autoArchiveIdleAfterDays,
+    /// Whether to archive sessions when the app closes.
+    @Default(false) bool autoArchiveOnAppClose,
+  }) = _AutoArchiveSettings;
+
+  factory AutoArchiveSettings.fromJson(Map<String, dynamic> json) =>
+      _$AutoArchiveSettingsFromJson(json);
+}
+
 /// LocalSettings model
 /// Device-specific settings that should NOT be synced across devices
 @freezed
@@ -14,6 +30,7 @@ abstract class LocalSettings with _$LocalSettings {
     @Default('adaptive') String themePreference,
     @Default(false) bool markdownCopyV2,
     @Default(<String, String>{}) Map<String, String> acknowledgedCliVersions,
+    AutoArchiveSettings? autoArchiveSettings,
   }) = _LocalSettings;
 
   const LocalSettings._();

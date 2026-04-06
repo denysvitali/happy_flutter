@@ -57,8 +57,32 @@ class CommandPaletteController {
     final router = GoRouter.of(context);
     final l10n = AppLocalizations.of(context);
 
-    final commands = <CommandItem>[
-      // Navigation commands
+    final commands = <CommandItem>[];
+
+    // Pinned sessions appear at the very top
+    final pinnedSessions = sessions.values.where((s) => s.pinned).toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+    for (final session in pinnedSessions) {
+      final sessionName =
+          session.metadata?.name ?? 'Session ${session.id.substring(0, 6)}';
+      commands.add(
+        CommandItem(
+          id: 'session-${session.id}',
+          title: sessionName,
+          subtitle: session.metadata?.path ?? 'Switch to session',
+          icon: Icons.push_pin,
+          category: l10n.commandCategoryRecentSessions,
+          isPinned: true,
+          action: () {
+            router.go('/chat/${session.id}');
+          },
+        ),
+      );
+    }
+
+    // Navigation commands
+    commands.addAll([
       CommandItem(
         id: 'new-session',
         title: l10n.commandNewSessionTitle,
@@ -161,10 +185,13 @@ class CommandPaletteController {
           router.go('/friends');
         },
       ),
-    ];
+    ]);
 
-    // Add recent sessions (up to 5)
-    final recentSessions = sessions.values.toList()
+    // Add recent sessions (up to 5, excluding already-pinned)
+    final pinnedIds = pinnedSessions.map((s) => s.id).toSet();
+    final recentSessions = sessions.values
+        .where((s) => !pinnedIds.contains(s.id))
+        .toList()
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
     final recentCount = recentSessions.length > 5 ? 5 : recentSessions.length;
@@ -181,6 +208,7 @@ class CommandPaletteController {
           subtitle: session.metadata?.path ?? 'Switch to session',
           icon: Icons.access_time,
           category: l10n.commandCategoryRecentSessions,
+          isPinned: session.pinned,
           action: () {
             router.go('/chat/${session.id}');
           },

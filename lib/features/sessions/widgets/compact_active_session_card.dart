@@ -205,6 +205,14 @@ class _CompactActiveSessionCardState
                             unreadCount: widget.unreadCount,
                             todoProgress: todoProgress,
                           ),
+                          if (session.pinned) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            Icon(
+                              Icons.push_pin,
+                              size: AppSpacing.lg,
+                              color: cs.primary,
+                            ),
+                          ],
                         ],
                       ),
                     ),

@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'core/api/api_client.dart';
 import 'core/encryption/sodium_singleton.dart';
@@ -103,11 +104,21 @@ Future<void> _runApp() async {
 
   final deepLink = await deepLinkFuture;
 
+  // Check if this is a new version that needs a changelog.
+  ({String? fromVersion, String toVersion})? changelogInfo;
+  try {
+    final packageInfo = await PackageInfo.fromPlatform();
+    changelogInfo = storage.Storage().checkVersionChange(packageInfo.version);
+  } catch (_) {}
+
   runApp(
     ErrorBoundary(
       child: ProviderScope(
         child: SentryWidget(
-          child: HappyApp(initialDeepLink: deepLink),
+          child: HappyApp(
+            initialDeepLink: deepLink,
+            changelogInfo: changelogInfo,
+          ),
         ),
       ),
     ),
@@ -172,8 +183,14 @@ Future<String?> _getInitialDeepLink() async {
 }
 
 class HappyApp extends ConsumerStatefulWidget {
-  const HappyApp({super.key, this.initialDeepLink});
+  const HappyApp({
+    super.key,
+    this.initialDeepLink,
+    this.changelogInfo,
+  });
+
   final String? initialDeepLink;
+  final ({String? fromVersion, String toVersion})? changelogInfo;
 
   @override
   ConsumerState<HappyApp> createState() => _HappyAppState();
@@ -183,6 +200,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
     with WidgetsBindingObserver {
   late final GoRouter _router;
   AppThemeMode? _lastAppliedThemeMode;
+
+  /// If non-null, the app should show the changelog on first frame.
+  ({String? fromVersion, String toVersion})? _changelogInfo;
 
   // Battery diagnostics — track paused↔resumed cycle frequency.
   // Only paused/resumed are counted (not intermediate states like inactive,
@@ -197,6 +217,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _changelogInfo = widget.changelogInfo;
     _router = createRouter(widget.initialDeepLink);
     NotificationService.instance.updateRouter(_router);
     _setupDeepLinkListener();
@@ -204,6 +225,25 @@ class _HappyAppState extends ConsumerState<HappyApp>
       ref.read(authStateNotifierProvider.notifier).checkAuth();
       unawaited(_initializeTheme());
       _processInitialDeepLink();
+      _maybeShowChangelog();
+    });
+  }
+
+  void _maybeShowChangelog() {
+    final info = _changelogInfo;
+    if (info == null) return;
+    // Show changelog after the first frame has rendered.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _router.pushNamed(
+        'changelog',
+        extra: {
+          'fromVersion': info.fromVersion,
+          'toVersion': info.toVersion,
+        },
+      );
+      // Only show once.
+      _changelogInfo = null;
     });
   }
 

@@ -7,6 +7,7 @@ import '../../features/artifacts/artifact_detail_screen.dart';
 import '../../features/artifacts/artifacts_list_screen.dart';
 import '../../features/artifacts/edit_artifact_screen.dart';
 import '../../features/artifacts/new_artifact_screen.dart';
+import '../../features/changelog/changelog_screen.dart';
 import '../../features/chat/agent_conversation_screen.dart';
 import '../../features/chat/chat_screen.dart';
 import '../../features/chat/message_detail_screen.dart';
@@ -28,6 +29,9 @@ import '../../features/sessions/pick_machine_screen.dart';
 import '../../features/sessions/pick_path_screen.dart';
 import '../../features/sessions/pick_profile_screen.dart';
 import '../../features/sessions/sessions_screen.dart';
+import '../../features/settings/screens/sessions_folders_settings_screen.dart';
+import '../../features/settings/screens/auto_archive_settings_screen.dart';
+import '../../features/settings/screens/smart_features_settings_screen.dart';
 import '../../features/settings/account_screen.dart';
 import '../../features/settings/claude_limits_screen.dart';
 import '../../features/settings/developer_screen.dart';
@@ -255,6 +259,24 @@ GoRouter createRouter(String? initialDeepLink) {
         name: 'machines',
         pageBuilder: (context, state) =>
             _slidePage(const AuthGate(child: MachinesScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/sessions/folders',
+        name: 'sessions-folders',
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: SessionsFoldersSettingsScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/sessions/auto-archive',
+        name: 'sessions-auto-archive',
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: AutoArchiveSettingsScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/smart-features',
+        name: 'smart-features',
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: SmartFeaturesSettingsScreen()), state),
       ),
       GoRoute(
         path: '/settings/theme',
@@ -630,6 +652,24 @@ GoRouter createRouter(String? initialDeepLink) {
           return _slidePage(
             AuthGate(
               child: SftpConnectionHistoryScreen(deviceId: deviceId),
+            ),
+            state,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/changelog',
+        name: 'changelog',
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final fromVersion = extra?['fromVersion'] as String?;
+          final toVersion = extra?['toVersion'] as String? ?? '';
+          return _slidePage(
+            AuthGate(
+              child: ChangelogScreen(
+                fromVersion: fromVersion,
+                toVersion: toVersion,
+              ),
             ),
             state,
           );

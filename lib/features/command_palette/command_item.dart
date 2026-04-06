@@ -10,6 +10,7 @@ class CommandItem {
     this.icon,
     this.shortcut,
     this.category,
+    this.isPinned = false,
   });
 
   /// Unique identifier for the command
@@ -33,6 +34,9 @@ class CommandItem {
   /// Action to execute when command is selected
   final VoidCallback action;
 
+  /// Whether this command is a pinned session.
+  final bool isPinned;
+
   /// Creates a copy with optional field overrides
   CommandItem copyWith({
     String? id,
@@ -42,6 +46,7 @@ class CommandItem {
     String? shortcut,
     String? category,
     VoidCallback? action,
+    bool? isPinned,
   }) {
     return CommandItem(
       id: id ?? this.id,
@@ -51,6 +56,7 @@ class CommandItem {
       shortcut: shortcut ?? this.shortcut,
       category: category ?? this.category,
       action: action ?? this.action,
+      isPinned: isPinned ?? this.isPinned,
     );
   }
 }

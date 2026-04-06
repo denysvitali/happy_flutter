@@ -2,16 +2,42 @@ import 'package:riverpod/riverpod.dart';
 
 import '../models/session.dart';
 import '../services/logger_service.dart' show logger;
+import '../services/pinned_sessions_storage.dart';
+import '../services/session_folders_storage.dart';
 import '../services/sync_service.dart';
 
 class SessionsNotifier extends Notifier<Map<String, Session>> {
   int _lastDataChangeCounter = -1;
+  final _pinnedStorage = PinnedSessionsStorage.instance;
+  final _foldersStorage = SessionFoldersStorage.instance;
 
   @override
   Map<String, Session> build() => {};
 
   void setSessions(List<Session> sessions) {
     state = {for (final session in sessions) session.id: session};
+    _mergeLocalState();
+  }
+
+  void _mergeLocalState() {
+    final pinned = _pinnedStorage.getPinned();
+    final folders = _foldersStorage.getAllFolders();
+    if (pinned.isEmpty && folders.isEmpty) return;
+    for (final id in {...pinned, ...folders.keys}) {
+      final session = state[id];
+      if (session == null) continue;
+      var updated = session;
+      if (pinned.contains(id) && !session.pinned) {
+        updated = updated.copyWith(pinned: true);
+      }
+      final folder = folders[id];
+      if (folder != null && session.folder != folder) {
+        updated = updated.copyWith(folder: folder);
+      }
+      if (!identical(updated, session)) {
+        state = {...state, id: updated};
+      }
+    }
   }
 
   void loadFromSync() {
@@ -33,6 +59,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       if (!changed) return;
     }
     state = Map<String, Session>.from(next);
+    _mergeLocalState();
   }
 
   Future<void> refreshFromSync() async {
@@ -105,6 +132,34 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       );
     }
     return failCount;
+  }
+
+  /// Pins [id] locally. No server sync.
+  Future<void> pinSession(String id) async {
+    final session = state[id];
+    if (session == null) return;
+    state = {...state, id: session.copyWith(pinned: true)};
+    await _pinnedStorage.pinSession(id);
+  }
+
+  /// Unpins [id] locally. No server sync.
+  Future<void> unpinSession(String id) async {
+    final session = state[id];
+    if (session == null) return;
+    state = {...state, id: session.copyWith(pinned: false)};
+    await _pinnedStorage.unpinSession(id);
+  }
+
+  /// Assigns [folder] to [id] locally. No server sync.
+  Future<void> setSessionFolder(String id, String? folder) async {
+    final session = state[id];
+    if (session == null) return;
+    state = {...state, id: session.copyWith(folder: folder)};
+    if (folder != null) {
+      await _foldersStorage.setFolder(id, folder);
+    } else {
+      await _foldersStorage.removeSession(id);
+    }
   }
 }
 

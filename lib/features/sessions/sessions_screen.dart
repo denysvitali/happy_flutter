@@ -329,6 +329,19 @@ class _SessionsScreenState
                         context, sel),
           ),
         IconButton(
+          icon: Icon(
+            _hasPinnedInSelection(sel)
+                ? Icons.push_pin
+                : Icons.push_pin_outlined,
+          ),
+          tooltip: _hasPinnedInSelection(sel)
+              ? l10n.sessionsUnpin
+              : l10n.sessionsPin,
+          onPressed: sel.selectedIds.isEmpty
+              ? null
+              : () => _pinOrUnpinSelected(sel),
+        ),
+        IconButton(
           icon: sel.isBatchDeleting
               ? SizedBox(
                   width: 20,
@@ -402,6 +415,26 @@ class _SessionsScreenState
       final s = sessions[id];
       return s != null && isSessionActive(s);
     });
+  }
+
+  bool _hasPinnedInSelection(SelectionState sel) {
+    final sessions = ref.read(sessionsNotifierProvider);
+    return sel.selectedIds.any((id) => sessions[id]?.pinned ?? false);
+  }
+
+  Future<void> _pinOrUnpinSelected(SelectionState sel) async {
+    final sessions = ref.read(sessionsNotifierProvider);
+    final notifier = ref.read(sessionsNotifierProvider.notifier);
+    final hasPinned = _hasPinnedInSelection(sel);
+    for (final id in sel.selectedIds) {
+      final session = sessions[id];
+      if (session == null) continue;
+      if (hasPinned) {
+        if (session.pinned) await notifier.unpinSession(id);
+      } else {
+        if (!session.pinned) await notifier.pinSession(id);
+      }
+    }
   }
 
   void _exitSelectionMode() {

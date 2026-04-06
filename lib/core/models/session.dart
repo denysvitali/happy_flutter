@@ -334,6 +334,17 @@ abstract class Session with _$Session {
     /// The highest message seq number in the session, as reported by the
     /// server. Used for lazy tail-loading to avoid fetching all history.
     @JsonKey(fromJson: _asApiIntNullable) int? lastSeq,
+
+    /// Local-only: whether this session is pinned for quick access.
+    /// Not synced to the server.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(false)
+    bool pinned,
+
+    /// Local-only: the folder this session belongs to.
+    /// Not synced to the server.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    String? folder,
   }) = _Session;
 
   const Session._();

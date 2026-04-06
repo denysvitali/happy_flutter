@@ -139,6 +139,9 @@ class SettingsNotifier extends Notifier<Settings> {
       'profiles' => settings.copyWith(
         profiles: value as List<AIBackendProfile>,
       ),
+      'folders' => settings.copyWith(
+        folders: (value as List<dynamic>).cast<String>(),
+      ),
       _ => settings,
     };
   }

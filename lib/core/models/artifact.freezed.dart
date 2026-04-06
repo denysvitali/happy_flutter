@@ -15,9 +15,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Artifact {
 
-@JsonKey(fromJson: _asRequiredString) String get id;@JsonKey(fromJson: _asRequiredString) String get header;// Base64 encoded encrypted JSON
-@JsonKey(fromJson: _asApiInt) int get headerVersion;@JsonKey(fromJson: _asRequiredString) String get dataEncryptionKey;// Base64 encoded encryption key
-@JsonKey(fromJson: _asApiInt) int get seq;@JsonKey(fromJson: _asApiInt) int get createdAt;@JsonKey(fromJson: _asApiInt) int get updatedAt; String? get body;// Base64 encoded encrypted JSON
+@JsonKey(fromJson: _asRequiredString) String get id;// Base64 encoded encrypted JSON
+@JsonKey(fromJson: _asRequiredString) String get header;@JsonKey(fromJson: _asApiInt) int get headerVersion;// Base64 encoded encryption key
+@JsonKey(fromJson: _asRequiredString) String get dataEncryptionKey;@JsonKey(fromJson: _asApiInt) int get seq;@JsonKey(fromJson: _asApiInt) int get createdAt;@JsonKey(fromJson: _asApiInt) int get updatedAt; String? get body;// Base64 encoded encrypted JSON
 @JsonKey(fromJson: _asApiIntNullable) int? get bodyVersion;
 /// Create a copy of Artifact
 /// with the given fields replaced by the non-null parameter values.
@@ -224,11 +224,11 @@ class _Artifact implements Artifact {
   factory _Artifact.fromJson(Map<String, dynamic> json) => _$ArtifactFromJson(json);
 
 @override@JsonKey(fromJson: _asRequiredString) final  String id;
-@override@JsonKey(fromJson: _asRequiredString) final  String header;
 // Base64 encoded encrypted JSON
+@override@JsonKey(fromJson: _asRequiredString) final  String header;
 @override@JsonKey(fromJson: _asApiInt) final  int headerVersion;
-@override@JsonKey(fromJson: _asRequiredString) final  String dataEncryptionKey;
 // Base64 encoded encryption key
+@override@JsonKey(fromJson: _asRequiredString) final  String dataEncryptionKey;
 @override@JsonKey(fromJson: _asApiInt) final  int seq;
 @override@JsonKey(fromJson: _asApiInt) final  int createdAt;
 @override@JsonKey(fromJson: _asApiInt) final  int updatedAt;

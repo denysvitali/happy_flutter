@@ -109,18 +109,12 @@ _ArtifactUpdateRequest _$ArtifactUpdateRequestFromJson(
 
 Map<String, dynamic> _$ArtifactUpdateRequestToJson(
   _ArtifactUpdateRequest instance,
-) {
-  final json = <String, dynamic>{};
-  if (instance.header != null) json['header'] = instance.header;
-  if (instance.expectedHeaderVersion != null) {
-    json['expectedHeaderVersion'] = instance.expectedHeaderVersion;
-  }
-  if (instance.body != null) json['body'] = instance.body;
-  if (instance.expectedBodyVersion != null) {
-    json['expectedBodyVersion'] = instance.expectedBodyVersion;
-  }
-  return json;
-}
+) => <String, dynamic>{
+  'header': instance.header,
+  'expectedHeaderVersion': instance.expectedHeaderVersion,
+  'body': instance.body,
+  'expectedBodyVersion': instance.expectedBodyVersion,
+};
 
 _ArtifactUpdateResponse _$ArtifactUpdateResponseFromJson(
   Map<String, dynamic> json,

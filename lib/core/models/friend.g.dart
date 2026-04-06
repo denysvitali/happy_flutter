@@ -14,13 +14,14 @@ _AvatarRef _$AvatarRefFromJson(Map<String, dynamic> json) => _AvatarRef(
   thumbhash: json['thumbhash'] as String?,
 );
 
-Map<String, dynamic> _$AvatarRefToJson(_AvatarRef instance) {
-  final json = <String, dynamic>{'path': instance.path, 'url': instance.url};
-  if (instance.width != null) json['width'] = instance.width;
-  if (instance.height != null) json['height'] = instance.height;
-  if (instance.thumbhash != null) json['thumbhash'] = instance.thumbhash;
-  return json;
-}
+Map<String, dynamic> _$AvatarRefToJson(_AvatarRef instance) =>
+    <String, dynamic>{
+      'path': instance.path,
+      'url': instance.url,
+      'width': instance.width,
+      'height': instance.height,
+      'thumbhash': instance.thumbhash,
+    };
 
 _UserProfile _$UserProfileFromJson(Map<String, dynamic> json) => _UserProfile(
   id: json['id'] as String,

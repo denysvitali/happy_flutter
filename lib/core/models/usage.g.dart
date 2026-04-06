@@ -46,16 +46,13 @@ _UsageQueryParams _$UsageQueryParamsFromJson(Map<String, dynamic> json) =>
       groupBy: $enumDecodeNullable(_$UsageGroupByEnumMap, json['groupBy']),
     );
 
-Map<String, dynamic> _$UsageQueryParamsToJson(_UsageQueryParams instance) {
-  final json = <String, dynamic>{};
-  if (instance.sessionId != null) json['sessionId'] = instance.sessionId;
-  if (instance.startTime != null) json['startTime'] = instance.startTime;
-  if (instance.endTime != null) json['endTime'] = instance.endTime;
-  if (instance.groupBy != null) {
-    json['groupBy'] = _$UsageGroupByEnumMap[instance.groupBy];
-  }
-  return json;
-}
+Map<String, dynamic> _$UsageQueryParamsToJson(_UsageQueryParams instance) =>
+    <String, dynamic>{
+      'sessionId': instance.sessionId,
+      'startTime': instance.startTime,
+      'endTime': instance.endTime,
+      'groupBy': _$UsageGroupByEnumMap[instance.groupBy],
+    };
 
 const _$UsageGroupByEnumMap = {
   UsageGroupBy.hour: 'hour',

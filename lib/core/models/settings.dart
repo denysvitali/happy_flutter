@@ -63,6 +63,7 @@ class Settings {
   String? lastUsedProfile;
   List<String> favoriteDirectories = ['~/src', '~/Desktop', '~/Documents'];
   List<String> favoriteMachines = [];
+  List<String> folders = [];
   DismissedCLIWarnings dismissedCLIWarnings = DismissedCLIWarnings();
 
   @override
@@ -97,6 +98,7 @@ class Settings {
           lastUsedPermissionMode == other.lastUsedPermissionMode &&
           lastUsedModelMode == other.lastUsedModelMode &&
           lastUsedProfile == other.lastUsedProfile &&
+          folders == other.folders &&
           profiles.length == other.profiles.length &&
           profiles.asMap().entries.every(
                 (e) => identical(e.value, other.profiles[e.key]),
@@ -117,6 +119,7 @@ class Settings {
     preferredLanguage,
     usagePeriod,
     lastUsedProfile,
+    Object.hashAll(folders),
     Object.hashAll(profiles),
   );
 
@@ -165,6 +168,7 @@ class Settings {
     Object? lastUsedProfile = _unset,
     List<String>? favoriteDirectories,
     List<String>? favoriteMachines,
+    List<String>? folders,
     DismissedCLIWarnings? dismissedCLIWarnings,
   }) {
     return Settings()
@@ -232,6 +236,9 @@ class Settings {
       ..favoriteMachines = favoriteMachines != null
           ? List<String>.from(favoriteMachines)
           : this.favoriteMachines
+      ..folders = folders != null
+          ? List<String>.from(folders)
+          : this.folders
       ..dismissedCLIWarnings =
           dismissedCLIWarnings ?? this.dismissedCLIWarnings;
   }

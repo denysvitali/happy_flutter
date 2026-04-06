@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get commonCancel;
 
+  /// No description provided for @commonAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get commonAdd;
+
   /// No description provided for @commonOk.
   ///
   /// In en, this message translates to:
@@ -1284,6 +1290,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Machines'**
   String get settingsMachines;
+
+  /// No description provided for @settingsSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get settingsSessions;
 
   /// No description provided for @settingsFeatures.
   ///
@@ -4428,6 +4440,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deselect All'**
   String get sessionsDeselectAll;
+
+  /// No description provided for @sessionsPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get sessionsPin;
+
+  /// No description provided for @sessionsUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get sessionsUnpin;
+
+  /// No description provided for @sessionsFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Session Folders'**
+  String get sessionsFolders;
+
+  /// No description provided for @sessionsFoldersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No folders yet. Create one to organize your sessions.'**
+  String get sessionsFoldersEmpty;
+
+  /// No description provided for @sessionsFoldersAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Folder'**
+  String get sessionsFoldersAdd;
+
+  /// No description provided for @sessionsFoldersName.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name'**
+  String get sessionsFoldersName;
+
+  /// No description provided for @sessionsFoldersDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder \"{name}\"? Sessions in this folder will become unfiled.'**
+  String sessionsFoldersDeleteConfirm(String name);
+
+  /// No description provided for @sessionsFoldersRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Folder'**
+  String get sessionsFoldersRename;
+
+  /// No description provided for @autoArchiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Archive'**
+  String get autoArchiveTitle;
+
+  /// No description provided for @autoArchiveSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Archive'**
+  String get autoArchiveSection;
+
+  /// No description provided for @autoArchiveAfterDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive after days'**
+  String get autoArchiveAfterDays;
+
+  /// No description provided for @autoArchiveAfterDaysDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive sessions older than N days'**
+  String get autoArchiveAfterDaysDesc;
+
+  /// No description provided for @autoArchiveIdleAfterDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive idle after days'**
+  String get autoArchiveIdleAfterDays;
+
+  /// No description provided for @autoArchiveIdleAfterDaysDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive sessions with no activity for N days'**
+  String get autoArchiveIdleAfterDaysDesc;
+
+  /// No description provided for @autoArchiveOnClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Archive on app close'**
+  String get autoArchiveOnClose;
+
+  /// No description provided for @autoArchiveOnCloseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically archive matching sessions when the app closes'**
+  String get autoArchiveOnCloseDesc;
+
+  /// No description provided for @autoArchiveDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get autoArchiveDisabled;
+
+  /// No description provided for @autoArchiveDays.
+  ///
+  /// In en, this message translates to:
+  /// **'days'**
+  String get autoArchiveDays;
 
   /// No description provided for @sessionsRecentTitle.
   ///
@@ -8676,6 +8796,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Based on your device\'s {mode} appearance setting.'**
   String appearanceThemeBasedOnDevice(String mode);
+
+  /// No description provided for @smartFeaturesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart Features'**
+  String get smartFeaturesTitle;
+
+  /// No description provided for @smartFeaturesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device AI'**
+  String get smartFeaturesSection;
+
+  /// No description provided for @smartFeaturesEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Smart Features'**
+  String get smartFeaturesEnabled;
+
+  /// No description provided for @smartFeaturesEnabledDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable on-device AI features for smarter session ranking and auto-generated tags'**
+  String get smartFeaturesEnabledDesc;
+
+  /// No description provided for @smartFeaturesStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get smartFeaturesStatus;
+
+  /// No description provided for @smartFeaturesReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma ready'**
+  String get smartFeaturesReady;
+
+  /// No description provided for @smartFeaturesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma unavailable'**
+  String get smartFeaturesUnavailable;
+
+  /// No description provided for @smartFeaturesUnavailableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma 2B model not loaded. Smart features use simple heuristics instead.'**
+  String get smartFeaturesUnavailableDesc;
+
+  /// No description provided for @semanticSearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Semantic Search'**
+  String get semanticSearchTitle;
+
+  /// No description provided for @semanticSearchDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank sessions by semantic similarity to your query'**
+  String get semanticSearchDesc;
+
+  /// No description provided for @autoTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto Tags'**
+  String get autoTagsTitle;
+
+  /// No description provided for @autoTagsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically generate tags for sessions based on content'**
+  String get autoTagsDesc;
 }
 
 class _AppLocalizationsDelegate
