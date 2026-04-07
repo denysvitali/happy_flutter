@@ -40,9 +40,11 @@ class SortedSessions {
   const SortedSessions({
     required this.active,
     required this.inactive,
+    required this.signature,
   });
   final List<Session> active;
   final List<Session> inactive;
+  final int signature;
 }
 
 /// Compute sorted active/inactive lists, only if
@@ -65,9 +67,16 @@ SortedSessions computeSortedSessions(
       getLastMessageTimestamp,
   String searchQuery = '',
 }) {
+  final signature = _computeSortedSessionsSignature(
+    sessions,
+    optimisticallyArchivedIds: optimisticallyArchivedIds,
+    getLastMessageTimestamp: getLastMessageTimestamp,
+    searchQuery: searchQuery,
+  );
+
   if (previous != null &&
-      identical(sessions, lastSessions) &&
-      searchQuery == lastSearchQuery) {
+      (identical(sessions, lastSessions) && searchQuery == lastSearchQuery ||
+          previous.signature == signature)) {
     return previous;
   }
 
@@ -115,7 +124,38 @@ SortedSessions computeSortedSessions(
         getLastMessageTimestamp(b.id) ?? b.updatedAt;
     return bTs.compareTo(aTs);
   });
-  return SortedSessions(active: active, inactive: inactive);
+  return SortedSessions(
+    active: active,
+    inactive: inactive,
+    signature: signature,
+  );
+}
+
+int _computeSortedSessionsSignature(
+  Map<String, Session> sessions, {
+  required Set<String> optimisticallyArchivedIds,
+  required int? Function(String sessionId) getLastMessageTimestamp,
+  required String searchQuery,
+}) {
+  var signature = sessions.length ^ searchQuery.hashCode;
+  for (final entry in sessions.entries) {
+    final session = entry.value;
+    signature = Object.hash(
+      signature,
+      entry.key,
+      session.archived,
+      session.active,
+      session.presence,
+      session.activeAt,
+      session.updatedAt,
+      session.metadata?.name,
+      session.metadata?.path,
+      session.metadata?.summary?.text,
+      getLastMessageTimestamp(session.id),
+      optimisticallyArchivedIds.contains(session.id),
+    );
+  }
+  return signature;
 }
 
 // ─── Visibility helper ────────────────────────────────

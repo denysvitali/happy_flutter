@@ -64,6 +64,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   late final ValueNotifier<bool> _autoScrollNotifier = ValueNotifier<bool>(
     true,
   );
+  late final ValueNotifier<int> _messagePaneRevision =
+      ValueNotifier<int>(0);
   bool get _autoScroll => _autoScrollNotifier.value;
   set _autoScroll(bool value) => _autoScrollNotifier.value = value;
   static const double _autoScrollThreshold = 100;
@@ -92,6 +94,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<Map<String, dynamic>>? _cachedVisibleSource;
   int _cachedMessagesLength = -1;
   int _cachedVisibleCount = -1;
+  List<Map<String, dynamic>?>? _cachedListItems;
+  List<Map<String, dynamic>>? _cachedListItemsSource;
+  int _cachedListItemsVisibleCount = -1;
+  Map<String, int>? _cachedKeyToListIndex;
 
   bool _initialLoadComplete = false;
   final Set<String> _seenMessageIds = {};
@@ -250,6 +256,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _controller.dispose();
     _scrollController.dispose();
     _autoScrollNotifier.dispose();
+    _messagePaneRevision.dispose();
     TtsService().stop();
     super.dispose();
   }
@@ -353,8 +360,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         latestSession?.agentState?.requests?.isNotEmpty ?? false;
     final newPermission = !hadRequests && hasRequests;
 
-    // Batch all state updates into a single setState
-    setState(() {
+    final needsScreenRebuild = sessionChanged;
+    void applyUpdates() {
       // Update session and metadata
       if (sessionChanged) {
         _session = latestSession;
@@ -440,7 +447,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (loadFailed) {
         _loadFailed = true;
       }
-    });
+    }
+
+    if (needsScreenRebuild) {
+      setState(applyUpdates);
+    } else {
+      applyUpdates();
+      _bumpMessagePaneRevision();
+    }
 
     // Post-state-update side effects
     if (messagesChanged && _autoScroll) {
@@ -484,6 +498,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _neighborCacheSource = null;
     _neighborCacheLength = -1;
     _neighborCacheSourceHash = 0;
+    _cachedListItems = null;
+    _cachedListItemsSource = null;
+    _cachedListItemsVisibleCount = -1;
+    _cachedKeyToListIndex = null;
+  }
+
+  void _bumpMessagePaneRevision() {
+    _messagePaneRevision.value++;
   }
 
   String _messageKey(Map<String, dynamic> m) =>
@@ -539,10 +561,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         0,
         _messages.length,
       );
-      setState(() {
-        _visibleCount = targetCount;
-        _isLoadingMore = false; // Reset synchronously since we didn't call sync
-      });
+      _visibleCount = targetCount;
+      _isLoadingMore = false;
+      _bumpMessagePaneRevision();
       return;
     }
 
@@ -551,7 +572,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _isLoadingMore = true;
       sync.fetchOlderMessages(widget.sessionId).whenComplete(() {
         if (mounted) {
-          setState(() => _isLoadingMore = false);
+          _isLoadingMore = false;
+          _bumpMessagePaneRevision();
         }
       });
     }
@@ -675,67 +697,72 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             const OfflineBanner(),
             Expanded(
-              child: Stack(
-                children: [
-                  AnimatedSwitcher(
-                    duration: AppDuration.normal,
-                    child: _isLoadingMessages
-                        ? const ChatLoadingShimmer(key: ValueKey('loading'))
-                        : _messages.isEmpty
-                        ? (_loadFailed
-                              ? RetryErrorView(onRetry: _retry)
-                              : EmptyChatView(
-                                  key: const ValueKey('empty'),
-                                  onSuggestionTap: _onSuggestionTap,
-                                ))
-                        : _buildMessageList(),
-                  ),
-                  // The scroll-to-bottom pill listens to _autoScrollNotifier
-                  // directly so that scroll events do NOT trigger a full
-                  // _ChatScreenState rebuild (message list + app bar).
-                  RepaintBoundary(
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _autoScrollNotifier,
-                      builder: (context, autoScroll, _) {
-                        return ExcludeSemantics(
-                          excluding: autoScroll || _isLoadingMessages,
-                          child: IgnorePointer(
-                            ignoring: autoScroll || _isLoadingMessages,
-                            child: AnimatedOpacity(
-                              opacity: (!autoScroll && !_isLoadingMessages)
-                                  ? 1.0
-                                  : 0.0,
-                              duration: AppDuration.normal,
-                              curve: AppCurve.standard,
-                              child: AnimatedScale(
-                                scale: (!autoScroll && !_isLoadingMessages)
-                                    ? 1.0
-                                    : 0.8,
-                                duration: AppDuration.normal,
-                                curve: AppCurve.standard,
-                                child: Align(
-                                  alignment: Alignment.bottomCenter,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      bottom: AppSpacing.md,
-                                    ),
-                                    child: ScrollToBottomPill(
-                                      onTap: () {
-                                        HapticFeedback.lightImpact();
-                                        _autoScroll = true;
-                                        _scrollToBottom();
-                                      },
+              child: ValueListenableBuilder<int>(
+                valueListenable: _messagePaneRevision,
+                builder: (context, revision, child) {
+                  return Stack(
+                    children: [
+                      AnimatedSwitcher(
+                        duration: AppDuration.normal,
+                        child: _isLoadingMessages
+                            ? const ChatLoadingShimmer(key: ValueKey('loading'))
+                            : _messages.isEmpty
+                            ? (_loadFailed
+                                  ? RetryErrorView(onRetry: _retry)
+                                  : EmptyChatView(
+                                      key: const ValueKey('empty'),
+                                      onSuggestionTap: _onSuggestionTap,
+                                    ))
+                            : _buildMessageList(),
+                      ),
+                      // The scroll-to-bottom pill listens to
+                      // _autoScrollNotifier directly so scroll events do NOT
+                      // trigger a full _ChatScreenState rebuild.
+                      RepaintBoundary(
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: _autoScrollNotifier,
+                          builder: (context, autoScroll, _) {
+                            return ExcludeSemantics(
+                              excluding: autoScroll || _isLoadingMessages,
+                              child: IgnorePointer(
+                                ignoring: autoScroll || _isLoadingMessages,
+                                child: AnimatedOpacity(
+                                  opacity: (!autoScroll && !_isLoadingMessages)
+                                      ? 1.0
+                                      : 0.0,
+                                  duration: AppDuration.normal,
+                                  curve: AppCurve.standard,
+                                  child: AnimatedScale(
+                                    scale: (!autoScroll && !_isLoadingMessages)
+                                        ? 1.0
+                                        : 0.8,
+                                    duration: AppDuration.normal,
+                                    curve: AppCurve.standard,
+                                    child: Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: AppSpacing.md,
+                                        ),
+                                        child: ScrollToBottomPill(
+                                          onTap: () {
+                                            HapticFeedback.lightImpact();
+                                            _autoScroll = true;
+                                            _scrollToBottom();
+                                          },
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             ChatInput(

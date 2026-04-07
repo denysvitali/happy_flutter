@@ -30,29 +30,42 @@ extension _ChatScreenBuilders on _ChatScreenState {
 
     final metadataJson = _metadataJson;
 
-    final items = <Map<String, dynamic>?>[];
-    for (final msg in visibleMessages) {
-      // Sidechain (agent) messages should only appear inside
-      // the AgentConversationScreen, never in the main chat.
-      if (msg['isSidechain'] == true) continue;
-      items.add(msg);
-      final role = msg['role'] as String?;
-      final content = msg['content'] ?? msg['text'];
-      final text = content is String ? content : content?.toString() ?? '';
-      if (role == 'user' && text.trim() == '/clear') {
-        items.add(null);
+    if (!identical(visibleMessages, _cachedListItemsSource) ||
+        _visibleCount != _cachedListItemsVisibleCount ||
+        _cachedListItems == null ||
+        _cachedKeyToListIndex == null) {
+      final items = <Map<String, dynamic>?>[];
+      for (final msg in visibleMessages) {
+        // Sidechain (agent) messages should only appear inside
+        // the AgentConversationScreen, never in the main chat.
+        if (msg['isSidechain'] == true) continue;
+        items.add(msg);
+        final role = msg['role'] as String?;
+        final content = msg['content'] ?? msg['text'];
+        final text = content is String ? content : content?.toString() ?? '';
+        if (role == 'user' && text.trim() == '/clear') {
+          items.add(null);
+        }
       }
+
+      final keyToListIndex = <String, int>{};
+      for (var i = 0; i < items.length; i++) {
+        final m = items[i];
+        if (m == null) continue;
+        final k = m['id'] as String? ?? m['toolUseId'] as String?;
+        if (k != null) {
+          keyToListIndex[k] = items.length - 1 - i;
+        }
+      }
+
+      _cachedListItemsSource = visibleMessages;
+      _cachedListItemsVisibleCount = _visibleCount;
+      _cachedListItems = items;
+      _cachedKeyToListIndex = keyToListIndex;
     }
 
-    final keyToListIndex = <String, int>{};
-    for (var i = 0; i < items.length; i++) {
-      final m = items[i];
-      if (m == null) continue;
-      final k = m['id'] as String? ?? m['toolUseId'] as String?;
-      if (k != null) {
-        keyToListIndex[k] = items.length - 1 - i;
-      }
-    }
+    final items = _cachedListItems!;
+    final keyToListIndex = _cachedKeyToListIndex!;
 
     // Only rebuild neighbor cache if the items list actually changed.
     // The _refreshFromSync method handles cache invalidation when messages

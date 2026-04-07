@@ -180,19 +180,30 @@ extension SyncLifecycle on Sync {
           resetSessionDeltaCursor: needsFullFetch,
         );
 
-        // Invalidate sessions that had pending socket messages
-        // before suspend.
+        final sessionsToRefresh = <String>{};
+
+        // Invalidate sessions that had pending socket messages before suspend.
         if (_sessionsWithPendingSocketMessages.isNotEmpty) {
           final pendingSessionIds = _sessionsWithPendingSocketMessages.toList();
           for (final sessionId in pendingSessionIds) {
             _sessionsNeedingTailRefresh.add(sessionId);
+            sessionsToRefresh.add(sessionId);
           }
           logger.info(
             '[Sync] resuming — invalidating '
             '${pendingSessionIds.length} sessions with '
             'pending socket messages',
           );
-          for (final sessionId in pendingSessionIds) {
+          _sessionsWithPendingSocketMessages.clear();
+        }
+
+        // Always invalidate the visible session.
+        if (_visibleSessionId != null) {
+          sessionsToRefresh.add(_visibleSessionId!);
+        }
+
+        if (sessionsToRefresh.isNotEmpty) {
+          for (final sessionId in sessionsToRefresh) {
             if (!messagesSync.containsKey(sessionId)) {
               messagesSync[sessionId] = InvalidateSync(
                 () => fetchMessages(sessionId),
@@ -200,21 +211,12 @@ extension SyncLifecycle on Sync {
                 name: 'fetchMessages:$sessionId',
               );
             }
-            unawaited(
-              sessionsSync.invalidateAndAwait().then((_) {
-                messagesSync[sessionId]?.invalidate();
-              }),
-            );
           }
-          _sessionsWithPendingSocketMessages.clear();
-        }
 
-        // Always invalidate the visible session.
-        if (_visibleSessionId != null) {
           unawaited(
             sessionsSync.invalidateAndAwait().then((_) {
-              if (_visibleSessionId != null) {
-                messagesSync[_visibleSessionId]?.invalidate();
+              for (final sessionId in sessionsToRefresh) {
+                messagesSync[sessionId]?.invalidate();
               }
             }),
           );

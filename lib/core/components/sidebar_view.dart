@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
-import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -416,13 +415,9 @@ class _DefaultSessionContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
-    // Watch the sessions map directly — select() with a new List
-    // always returns != on reference equality, defeating the purpose.
-    final sessions = ref.watch(sessionsNotifierProvider);
-    final sessionList = sessions.values.toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final sessionIds = ref.watch(recentSessionIdsProvider);
 
-    if (sessionList.isEmpty) {
+    if (sessionIds.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -442,32 +437,35 @@ class _DefaultSessionContent extends ConsumerWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.all(AppSpacing.sm),
-      itemCount: sessionList.length,
+      itemCount: sessionIds.length,
       itemBuilder: (context, index) {
-        final session = sessionList[index];
-        return _SessionListItem(
-          key: ValueKey(session.id),
-          session: session,
-          lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+        final sessionId = sessionIds[index];
+        return _SidebarSessionListItem(
+          key: ValueKey(sessionId),
+          sessionId: sessionId,
         );
       },
     );
   }
 }
 
-class _SessionListItem extends StatelessWidget {
-  const _SessionListItem({
-    required this.session,
-    required this.lastMessageTimestamp,
+class _SidebarSessionListItem extends ConsumerWidget {
+  const _SidebarSessionListItem({
+    required this.sessionId,
     super.key,
   });
-  final Session session;
-  final int? lastMessageTimestamp;
+  final String sessionId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(sessionByIdProvider(sessionId));
+    if (session == null) {
+      return const SizedBox.shrink();
+    }
+
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final lastMessageTimestamp = sync.getLastMessageTimestamp(session.id);
 
     return Card(
       margin: const EdgeInsets.symmetric(
