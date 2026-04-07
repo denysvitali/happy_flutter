@@ -172,6 +172,20 @@ extension SyncMessagingSend on Sync {
       onSessionVisible(targetSessionId);
     }
 
+    // Sending a message is definitive local activity for this session.
+    // Reflect that immediately so the sessions list promotes the row
+    // even before the next debounced fetch/update-session round-trip.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final currentSession = _sessions[targetSessionId];
+    if (currentSession != null) {
+      _sessions[targetSessionId] = currentSession.copyWith(
+        active: true,
+        activeAt: now,
+        updatedAt: now,
+      );
+      _notifyDataChanged({SyncDomain.sessions});
+    }
+
     // ── Optimistic insert — UI sees the message immediately ──
     // This runs BEFORE encryption so the user gets instant feedback on tap.
     _upsertSessionMessages(targetSessionId, [
@@ -179,7 +193,7 @@ extension SyncMessagingSend on Sync {
         'id': localId,
         'localId': localId,
         'seq': 0,
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'createdAt': now,
         'role': 'user',
         'kind': 'text',
         'content': text,

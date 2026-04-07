@@ -495,6 +495,7 @@ what you have, you must use the options mode.
   String? getLastMessagePreview(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return null;
+    String? toolFallback;
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
       // Skip sidechain messages — they appear inside the agent
@@ -503,9 +504,11 @@ what you have, you must use the options mode.
       final role = msg['role'] as String?;
       if (role != MessageRole.agent && role != MessageRole.user) continue;
       final kind = msg['kind'] as String?;
-      // Skip tool-call and agent-event messages — they don't have
-      // meaningful preview text.
-      if (kind == 'tool-call' || kind == 'agent-event') continue;
+      if (kind == 'tool-call') {
+        toolFallback ??= _toolPreview(msg);
+        continue;
+      }
+      if (kind == 'agent-event') continue;
       // Skip thinking blocks — they are collapsed in the UI and
       // don't represent the final assistant response.
       if (msg['isThinking'] == true) continue;
@@ -514,7 +517,7 @@ what you have, you must use the options mode.
         return _cleanPreviewText(text.trim());
       }
     }
-    return null;
+    return toolFallback;
   }
 
   /// Returns the role ([MessageRole.user] or [MessageRole.agent]) of
@@ -522,21 +525,32 @@ what you have, you must use the options mode.
   String? getLastMessageRole(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return null;
+    var sawToolCall = false;
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
       if (msg['isSidechain'] == true) continue;
       final role = msg['role'] as String?;
       if (role != MessageRole.agent && role != MessageRole.user) continue;
       final kind = msg['kind'] as String?;
-      if (kind == 'tool-call' || kind == 'agent-event') continue;
+      if (kind == 'tool-call') {
+        sawToolCall = true;
+        continue;
+      }
+      if (kind == 'agent-event') continue;
       if (msg['isThinking'] == true) continue;
       final text = (msg['content'] ?? msg['text']) as String?;
       if (text != null && text.trim().isNotEmpty) return role;
     }
-    return null;
+    return sawToolCall ? MessageRole.agent : null;
   }
 
   static const _kPreviewMaxLen = 120;
+
+  String? _toolPreview(Map<String, dynamic> message) {
+    final name = message['name'] as String?;
+    if (name == null || name.isEmpty) return null;
+    return _cleanPreviewText('Used $name');
+  }
 
   /// Strips markdown formatting, collapses whitespace, and truncates
   /// [raw] to a clean single-line preview string.
