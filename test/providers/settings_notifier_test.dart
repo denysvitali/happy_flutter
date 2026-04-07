@@ -205,6 +205,31 @@ void main() {
       expect(settings.profiles, isEmpty);
     });
 
+    test('fromJson falls back to defaults for null server fields', () {
+      final settings = Settings.fromJson({
+        'themeMode': null,
+        'viewInline': null,
+        'recentMachinePaths': null,
+        'profiles': null,
+        'favoriteDirectories': null,
+        'favoriteMachines': null,
+        'folders': null,
+        'dismissedCLIWarnings': null,
+      });
+
+      expect(settings.themeMode, 'system');
+      expect(settings.viewInline, isFalse);
+      expect(settings.recentMachinePaths, isEmpty);
+      expect(settings.profiles, isEmpty);
+      expect(
+        settings.favoriteDirectories,
+        equals(['~/src', '~/Desktop', '~/Documents']),
+      );
+      expect(settings.favoriteMachines, isEmpty);
+      expect(settings.folders, isEmpty);
+      expect(settings.dismissedCLIWarnings.perMachine, isEmpty);
+    });
+
     test('unknown setting key throws instead of failing silently', () async {
       final c = makeContainer();
       addTearDown(c.dispose);

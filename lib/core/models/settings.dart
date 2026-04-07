@@ -17,7 +17,7 @@ class Settings {
   Settings();
 
   factory Settings.fromJson(Map<String, dynamic> json) =>
-      _$SettingsFromJson(json);
+      _$SettingsFromJson(_normalizeSettingsJson(json));
 
   int schemaVersion = 2;
   String themeMode = 'system';
@@ -242,6 +242,19 @@ class Settings {
       ..dismissedCLIWarnings =
           dismissedCLIWarnings ?? this.dismissedCLIWarnings;
   }
+}
+
+Map<String, dynamic> _normalizeSettingsJson(Map<String, dynamic> json) {
+  final defaults = Settings().toJson();
+  final normalized = <String, dynamic>{...defaults, ...json};
+
+  for (final entry in defaults.entries) {
+    if (json[entry.key] == null) {
+      normalized[entry.key] = entry.value;
+    }
+  }
+
+  return normalized;
 }
 
 @JsonSerializable(explicitToJson: true)
