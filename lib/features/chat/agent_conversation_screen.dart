@@ -305,7 +305,6 @@ class _AgentConversationScreenState
       child: ToolView(
         tool: msg,
         metadata: WireParsers.asMap(_taskMsg?['metadata']),
-        messages: sync.sessionMessages[widget.sessionId],
         sessionId: widget.sessionId,
         isSessionOnline: sync.sessions[widget.sessionId]?.presence == 'online',
         onPress: () {

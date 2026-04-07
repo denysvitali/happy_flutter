@@ -382,6 +382,5 @@ typedef ToolViewBuilder =
     Widget Function(
       Map<String, dynamic> tool,
       Map<String, dynamic>? metadata,
-      List<Map<String, dynamic>>? messages,
       String? sessionId,
     );

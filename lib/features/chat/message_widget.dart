@@ -177,7 +177,6 @@ class _MessageWidgetState extends State<MessageWidget>
           child: ToolView(
             tool: widget.messageData,
             metadata: widget.metadata,
-            messages: widget.messages,
             sessionId: widget.sessionId,
             isSessionOnline: widget.isSessionOnline,
             onPress: (widget.sessionId != null && messageId != null)

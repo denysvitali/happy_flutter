@@ -104,6 +104,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   // Track when the actual messages list changes (not just rebuilds)
   List<Map<String, dynamic>>? _lastMessagesList;
+  int _lastMessageFingerprint = 0;
 
   // Pre-computed neighbor cache for message list items (replacing O(N)
   // scans).
@@ -217,6 +218,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _didStartInitialLoad = false;
       _lastDataChangeCounter = -1;
       _lastMessagesList = null;
+      _lastMessageFingerprint = 0;
       // Reset UI state
       _isSending = false;
       _isAborting = false;
@@ -314,6 +316,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final sessionChanged = latestSession != _session;
     var messagesChanged = !identical(latestMessages, _messages);
+    final latestMessageFingerprint = messagesChanged ||
+            latestMessages.length != _messages.length ||
+            _lastMessageFingerprint == 0
+        ? _computeMessageFingerprint(latestMessages)
+        : _lastMessageFingerprint;
+
+    if (messagesChanged &&
+        latestMessages.length == _messages.length &&
+        latestMessageFingerprint == _lastMessageFingerprint) {
+      messagesChanged = false;
+    }
 
     // When the session changes, always refresh messages — the session
     // object replacement may coincide with message updates that the
@@ -409,6 +422,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
 
         _messages = latestMessages;
+        _lastMessageFingerprint = latestMessageFingerprint;
         _prevMessagesLength = latestMessages.length;
 
         // Handle message visibility and seen tracking
@@ -510,6 +524,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   String _messageKey(Map<String, dynamic> m) =>
       m['id'] as String? ?? m['toolUseId'] as String? ?? '';
+
+  int _computeMessageFingerprint(List<Map<String, dynamic>> messages) {
+    var hash = messages.length;
+    for (final message in messages) {
+      final content = message['content'] ?? message['text'];
+      final contentHash = switch (content) {
+        final String text => Object.hash(text.length, text.hashCode),
+        final List<dynamic> list => list.length,
+        final Map<dynamic, dynamic> map => map.length,
+        _ => content?.hashCode ?? 0,
+      };
+      hash = Object.hash(
+        hash,
+        message['id'],
+        message['toolUseId'],
+        message['seq'],
+        message['role'],
+        message['kind'],
+        message['state'],
+        message['isThinking'],
+        contentHash,
+      );
+    }
+    return hash;
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -23,7 +23,6 @@ class TaskView extends StatelessWidget {
     required this.onNavigate,
     super.key,
     this.metadata,
-    this.messages,
   });
 
   /// The tool call data.
@@ -34,9 +33,6 @@ class TaskView extends StatelessWidget {
 
   /// Optional metadata.
   final Map<String, dynamic>? metadata;
-
-  /// All session messages (unused in this widget).
-  final List<Map<String, dynamic>>? messages;
 
   @override
   Widget build(BuildContext context) {
