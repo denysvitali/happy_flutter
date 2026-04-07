@@ -207,6 +207,77 @@ void main() {
     );
 
     test(
+      'inline codex tool-call and result are merged into a rendered tool',
+      () async {
+        const sessionId = 'visible-codex-tool-1';
+
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 20,
+        );
+        sync.testSetSessionMessages(sessionId, []);
+        sync.testSetSessionLastSeq(sessionId, 20);
+        sync.testVisibleSessionId = sessionId;
+        sync.messagesSync[sessionId] = InvalidateSync(
+          () => sync.fetchMessages(sessionId),
+        );
+
+        sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': _makeEncryptedStructuredMessage(
+            'msg-tool-1',
+            seq: 21,
+            data: {
+              'type': 'tool-call',
+              'name': 'CodexBash',
+              'callId': 'call-1',
+              'input': {
+                'command': ['/bin/bash -lc pwd'],
+                'parsed_cmd': [
+                  {'cmd': '/bin/bash -lc pwd'},
+                ],
+              },
+            },
+          ),
+        });
+
+        sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': _makeEncryptedStructuredMessage(
+            'msg-tool-2',
+            seq: 22,
+            data: {
+              'type': 'tool-call-result',
+              'callId': 'call-1',
+              'output': {
+                'stdout': '/tmp/work\n',
+                'exitCode': 0,
+                'status': 'completed',
+              },
+            },
+          ),
+        });
+
+        await Future<void>.delayed(
+          const Duration(milliseconds: 300),
+        );
+
+        final msgs = sync.testSessionMessages(sessionId);
+        expect(msgs, isNotNull);
+        expect(msgs, hasLength(1));
+        expect(msgs!.single['kind'], 'tool-call');
+        expect(msgs.single['name'], 'CodexBash');
+        expect(msgs.single['state'], 'completed');
+        expect(
+          (msgs.single['result'] as Map<String, dynamic>)['stdout'],
+          '/tmp/work\n',
+        );
+      },
+    );
+
+    test(
       'inline message triggers onSessionMessagesChanged notification',
       () async {
         const sessionId = 'visible-notify-1';
@@ -533,14 +604,26 @@ Map<String, dynamic> _makeEncryptedMessage(
   required int seq,
   required String content,
 }) {
+  return _makeEncryptedStructuredMessage(
+    id,
+    seq: seq,
+    data: {
+      'type': 'message',
+      'message': content,
+    },
+  );
+}
+
+Map<String, dynamic> _makeEncryptedStructuredMessage(
+  String id, {
+  required int seq,
+  required Map<String, dynamic> data,
+}) {
   final innerContent = {
     'role': 'agent',
     'content': {
       'type': 'codex',
-      'data': {
-        'type': 'message',
-        'message': content,
-      },
+      'data': data,
     },
   };
   final jsonStr = jsonEncode(innerContent);

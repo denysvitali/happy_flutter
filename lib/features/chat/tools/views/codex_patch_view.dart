@@ -108,11 +108,20 @@ class CodexPatchView extends StatelessWidget {
     for (final entry in changes.entries) {
       final path = entry.key;
       final data = WireParsers.asMap(entry.value) ?? {};
+      final kind = data['kind'] as String?;
+      final normalizedKind = switch (kind) {
+        'create' || 'add' => 'add',
+        'update' || 'modify' => 'modify',
+        'delete' || 'remove' => 'delete',
+        _ => null,
+      };
       result.add(FileChange(
         path: path,
-        hasAdd: data['add'] != null,
-        hasModify: data['modify'] != null,
-        hasDelete: data['delete'] != null,
+        hasAdd: data['add'] != null || normalizedKind == 'add',
+        hasModify:
+            data['modify'] != null || normalizedKind == 'modify',
+        hasDelete:
+            data['delete'] != null || normalizedKind == 'delete',
         changeData: data,
       ));
     }
