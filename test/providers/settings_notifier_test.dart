@@ -35,7 +35,7 @@ void main() {
       expect(settings.compactSessionView, isFalse);
       expect(settings.expandTodos, isTrue);
       expect(settings.showLineNumbers, isTrue);
-      expect(settings.agentInputEnterToSend, isTrue);
+      expect(settings.agentInputEnterToSend, isFalse);
       expect(settings.avatarStyle, 'brutalist');
     });
 

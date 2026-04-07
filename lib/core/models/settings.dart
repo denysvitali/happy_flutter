@@ -33,7 +33,7 @@ class Settings {
   bool markdownCopyV2 = false;
   bool useEnhancedSessionWizard = false;
   bool alwaysShowContextSize = false;
-  bool agentInputEnterToSend = true;
+  bool agentInputEnterToSend = false;
   bool developerModeEnabled = false;
   String avatarStyle = 'brutalist';
   bool showFlavorIcons = false;
