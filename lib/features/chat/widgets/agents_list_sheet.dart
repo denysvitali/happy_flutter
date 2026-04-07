@@ -181,7 +181,7 @@ class _AgentTile extends StatelessWidget {
     final state = agent['state'] as String? ?? 'pending';
     final toolState = _parseToolState(state);
     final runInBackground = input?['run_in_background'] as bool? ?? false;
-    final children = agent['children'] as List<dynamic>?;
+    final children = WireParsers.asList(agent['children']);
     final childCount = children?.length ?? 0;
     final msgId = agent['id'] as String?;
 

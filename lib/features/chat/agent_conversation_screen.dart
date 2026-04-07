@@ -75,7 +75,7 @@ class _AgentConversationScreenState
     final messages = sync.sessionMessages[widget.sessionId] ?? [];
     for (final msg in messages) {
       if (msg['id'] == widget.messageId) {
-        final children = msg['children'] as List<dynamic>?;
+        final children = WireParsers.asList(msg['children']);
         final count = children?.length ?? 0;
         final fingerprint = _computeChildrenFingerprint(children);
         final childrenChanged = fingerprint != _prevChildFingerprint;
@@ -172,7 +172,7 @@ class _AgentConversationScreenState
     final state = _taskMsg?['state'] as String? ?? 'pending';
     final isRunning = state == 'running';
     final children =
-        (_taskMsg?['children'] as List<dynamic>?)
+        WireParsers.asList(_taskMsg?['children'])
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         [];
@@ -332,7 +332,7 @@ class _AgentConversationScreenState
     final subagentType = input?['subagent_type'] as String?;
     final state = msg['state'] as String? ?? 'pending';
     final toolState = _parseToolState(state);
-    final children = msg['children'] as List<dynamic>?;
+    final children = WireParsers.asList(msg['children']);
     final childCount = children?.length ?? 0;
     final msgId = msg['id'] as String?;
 

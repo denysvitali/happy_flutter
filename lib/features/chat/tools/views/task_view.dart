@@ -53,7 +53,7 @@ class TaskView extends StatelessWidget {
     final showPromptDetail =
         description != null && prompt != null;
 
-    final children = tool['children'] as List<dynamic>?;
+    final children = WireParsers.asList(tool['children']);
     final toolCalls = _extractToolCalls(children);
     final shownTools = toolCalls.length > _kMaxToolsShown
         ? toolCalls.sublist(
@@ -459,8 +459,7 @@ class _InlineNestedTaskRow extends StatelessWidget {
     final subagentType =
         input?['subagent_type'] as String?;
 
-    final children =
-        tool['children'] as List<dynamic>?;
+    final children = WireParsers.asList(tool['children']);
     final nestedToolCalls = children
             ?.whereType<Map<String, dynamic>>()
             .where((c) => c['kind'] == 'tool-call')

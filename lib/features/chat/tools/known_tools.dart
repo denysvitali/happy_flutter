@@ -168,7 +168,7 @@ class KnownTools {
         return input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
-        final children = tool['children'] as List<dynamic>?;
+        final children = WireParsers.asList(tool['children']);
         final count = children?.length ?? 0;
         return count > 0 ? '$count steps' : null;
       },
@@ -183,7 +183,7 @@ class KnownTools {
         return input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
-        final children = tool['children'] as List<dynamic>?;
+        final children = WireParsers.asList(tool['children']);
         final count = children?.length ?? 0;
         return count > 0 ? '$count steps' : null;
       },

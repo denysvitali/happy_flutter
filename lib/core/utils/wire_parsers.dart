@@ -58,4 +58,24 @@ class WireParsers {
     }
     return null;
   }
+
+  /// Safely cast a dynamic value to `List<dynamic>?`.
+  ///
+  /// Returns `null` when the value is not a List.
+  static List<dynamic>? asList(dynamic value) {
+    if (value is List<dynamic>) return value;
+    if (value is List) {
+      return List<dynamic>.from(value);
+    }
+    return null;
+  }
+
+  /// Safely cast a dynamic value to `List<String>?`.
+  ///
+  /// Filters out non-string entries rather than throwing.
+  static List<String>? asStringList(dynamic value) {
+    final list = asList(value);
+    if (list == null) return null;
+    return list.whereType<String>().toList(growable: false);
+  }
 }

@@ -46,6 +46,7 @@ class ApiClient {
       sendTimeout: const Duration(seconds: 30),
       contentType: 'application/json',
       responseType: ResponseType.json,
+      validateStatus: (_) => true,
     );
 
     _dio = Dio(baseOptions);

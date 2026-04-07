@@ -5,6 +5,7 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/permission_description.dart';
+import '../../../core/utils/wire_parsers.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
@@ -151,8 +152,9 @@ class _PermissionFooterState extends State<PermissionFooter> {
     final mode = permission['mode'] as String?;
     final isApprovedViaAllEdits = isApproved && mode == 'acceptEdits';
 
-    final rawAllowedTools = permission['allowedTools'] as List<dynamic>?;
-    final allowedTools = rawAllowedTools?.cast<String>();
+    final allowedTools = WireParsers.asStringList(
+      permission['allowedTools'],
+    );
 
     final isApprovedForSession =
         isApproved &&

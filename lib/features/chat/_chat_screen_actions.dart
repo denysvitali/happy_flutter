@@ -61,7 +61,7 @@ extension _ChatScreenActions on _ChatScreenState {
         selectedProfile = deduped.firstWhere((p) => p.id == effectiveProfileId);
       } catch (_) {
         selectedProfile = null;
-        logger.warning(
+        logger.info(
           '[ChatScreen] saved profile "$effectiveProfileId" no longer '
           'exists in settings; falling back to no profile',
         );
@@ -345,15 +345,20 @@ extension _ChatScreenActions on _ChatScreenState {
       _rawModelModeString = rawModelString;
       _permissionMode = newPermissionMode;
     });
-    final notifier = ref.read(chatActionNotifierProvider.notifier);
-    notifier.saveProfile(widget.sessionId, profile?.id);
-    // Save the profile's defaultModelMode, not 'default'
-    notifier.saveModelMode(widget.sessionId, rawModelString);
     if (profilePermMode != null) {
-      notifier.savePermissionMode(
-        widget.sessionId,
-        newPermissionMode.toModeString(),
-      );
+      ref.read(chatActionNotifierProvider.notifier)
+        ..saveProfile(widget.sessionId, profile?.id)
+        // Save the profile's defaultModelMode, not 'default'
+        ..saveModelMode(widget.sessionId, rawModelString)
+        ..savePermissionMode(
+          widget.sessionId,
+          newPermissionMode.toModeString(),
+        );
+    } else {
+      ref.read(chatActionNotifierProvider.notifier)
+        ..saveProfile(widget.sessionId, profile?.id)
+        // Save the profile's defaultModelMode, not 'default'
+        ..saveModelMode(widget.sessionId, rawModelString);
     }
 
     // The next sendMessage call will automatically detect the profile

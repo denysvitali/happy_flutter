@@ -252,6 +252,36 @@ Map<String, dynamic> _normalizeSettingsJson(Map<String, dynamic> json) {
     }
   }
 
+  void normalizeListField(String key) {
+    final value = normalized[key];
+    if (value is List) return;
+    normalized[key] = defaults[key];
+  }
+
+  normalizeListField('recentMachinePaths');
+  normalizeListField('profiles');
+  normalizeListField('favoriteDirectories');
+  normalizeListField('favoriteMachines');
+  normalizeListField('folders');
+
+  final dismissed = normalized['dismissedCLIWarnings'];
+  if (dismissed is! Map) {
+    normalized['dismissedCLIWarnings'] = defaults['dismissedCLIWarnings'];
+  } else {
+    final dismissedMap = Map<String, dynamic>.from(dismissed);
+    final dismissedDefaults =
+        defaults['dismissedCLIWarnings'] as Map<String, dynamic>;
+    final perMachine = dismissedMap['perMachine'];
+    if (perMachine is! Map) {
+      dismissedMap['perMachine'] = dismissedDefaults['perMachine'];
+    }
+    final global = dismissedMap['global'];
+    if (global is! Map) {
+      dismissedMap['global'] = dismissedDefaults['global'];
+    }
+    normalized['dismissedCLIWarnings'] = dismissedMap;
+  }
+
   return normalized;
 }
 

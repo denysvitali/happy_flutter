@@ -109,7 +109,7 @@ class _ToolDetailView extends StatelessWidget {
     final input = WireParsers.asMap(data['input']);
     final result = data['result'];
     final permission = WireParsers.asMap(data['permission']);
-    final messages = data['messages'] as List<dynamic>?;
+    final messages = WireParsers.asList(data['messages']);
 
     final knownTool = KnownTools.get(toolName);
     final isTask = toolName == 'Task';
@@ -405,9 +405,9 @@ class _ChildToolItem extends StatelessWidget {
     final knownTool = KnownTools.get(toolName);
     var title = toolName;
     if (knownTool?.extractDescription != null) {
-      title = knownTool!.extractDescription!(tool, null) ?? toolName;
+      title = knownTool?.extractDescription?.call(tool, null) ?? toolName;
     } else if (knownTool?.title is String) {
-      title = knownTool!.title;
+      title = knownTool?.title as String? ?? toolName;
     }
 
     return Card(
