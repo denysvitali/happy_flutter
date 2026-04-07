@@ -1,4 +1,5 @@
 import '../../../core/models/session.dart';
+import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/utils/session_utils.dart';
 import 'session_headers.dart';
 
@@ -67,6 +68,7 @@ SortedSessions computeSortedSessions(
       getLastMessageTimestamp,
   String searchQuery = '',
 }) {
+  final stopwatch = Stopwatch()..start();
   final signature = _computeSortedSessionsSignature(
     sessions,
     optimisticallyArchivedIds: optimisticallyArchivedIds,
@@ -77,6 +79,7 @@ SortedSessions computeSortedSessions(
   if (previous != null &&
       (identical(sessions, lastSessions) && searchQuery == lastSearchQuery ||
           previous.signature == signature)) {
+    stopwatch.stop();
     return previous;
   }
 
@@ -124,11 +127,21 @@ SortedSessions computeSortedSessions(
         getLastMessageTimestamp(b.id) ?? b.updatedAt;
     return bTs.compareTo(aTs);
   });
-  return SortedSessions(
+  final result = SortedSessions(
     active: active,
     inactive: inactive,
     signature: signature,
   );
+  stopwatch.stop();
+  if (stopwatch.elapsedMilliseconds >= 8) {
+    logger.debug(
+      '[Perf] computeSortedSessions '
+      'count=${sessions.length} '
+      'query="${searchQuery.trim()}" '
+      'elapsedMs=${stopwatch.elapsedMilliseconds}',
+    );
+  }
+  return result;
 }
 
 int _computeSortedSessionsSignature(

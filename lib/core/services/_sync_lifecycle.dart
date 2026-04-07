@@ -24,6 +24,7 @@ extension SyncLifecycle on Sync {
     // backgrounded.  Checked in InvalidateSync._run() before the
     // await _action() call.
     InvalidateSync.isBackgrounded = true;
+    _lastSuspendedAtMs = DateTime.now().millisecondsSinceEpoch;
     // Cancel all InvalidateSync retry/cooldown timers.  This stops any
     // exponential-backoff network retries that would otherwise fire while
     // backgrounded (e.g. a settings fetch retry scheduled 1-5s out).
@@ -165,13 +166,25 @@ extension SyncLifecycle on Sync {
           return;
         }
 
+        final suspendDuration = _lastSuspendedAtMs != null
+            ? DateTime.now().millisecondsSinceEpoch - _lastSuspendedAtMs!
+            : 0;
+        final shouldRunGlobalInvalidation = suspendDuration > 30 * 1000;
+
         // Keep the session delta cursor on resume, even after long
         // background periods. Resetting it forces a full sessions fetch
         // and decrypt of the entire catalog, which makes foreground
         // reconnects scale with total session count instead of recent
         // activity. The visible session and any sessions with pending
         // socket messages are refreshed separately below.
-        _invalidateAllSyncs(force: true);
+        if (shouldRunGlobalInvalidation) {
+          _invalidateAllSyncs(force: true);
+        } else {
+          logger.debug(
+            '[Sync] resume: skipping broad invalidation '
+            'after short suspend (${suspendDuration}ms)',
+          );
+        }
 
         final sessionsToRefresh = <String>{};
 
@@ -213,6 +226,8 @@ extension SyncLifecycle on Sync {
               }
             }),
           );
+        } else if (shouldRunGlobalInvalidation) {
+          unawaited(sessionsSync.invalidateAndAwait());
         }
       },
     );

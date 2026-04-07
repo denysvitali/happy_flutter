@@ -2,6 +2,7 @@ part of 'chat_screen.dart';
 
 extension _ChatScreenBuilders on _ChatScreenState {
   Widget _buildMessageList() {
+    final stopwatch = Stopwatch()..start();
     final totalCount = _messages.length;
     final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
 
@@ -72,7 +73,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // change.
     _rebuildNeighborCache(items);
 
-    return ListView.builder(
+    final listView = ListView.builder(
       controller: _scrollController,
       reverse: true,
       padding: const EdgeInsets.only(
@@ -190,5 +191,16 @@ extension _ChatScreenBuilders on _ChatScreenState {
         );
       },
     );
+    stopwatch.stop();
+    if (stopwatch.elapsedMilliseconds >= 8) {
+      logger.debug(
+        '[Perf] buildMessageList '
+        'session=${widget.sessionId} '
+        'visible=${items.length} '
+        'total=$totalCount '
+        'elapsedMs=${stopwatch.elapsedMilliseconds}',
+      );
+    }
+    return listView;
   }
 }

@@ -261,6 +261,7 @@ what you have, you must use the options mode.
   int? _lastInvalidateAllSyncsAtMs;
   /// Timestamp of last resume() call for debouncing rapid pause/resume cycles.
   int? _lastResumeAtMs;
+  int? _lastSuspendedAtMs;
 
   /// Minimum interval between resume() calls — prevents socket reconnect
   /// loops
