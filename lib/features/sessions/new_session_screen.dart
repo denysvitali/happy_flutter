@@ -16,9 +16,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
-List<Machine> sortMachinesForSessionCreation(
-  Iterable<Machine> machines,
-) {
+List<Machine> sortMachinesForSessionCreation(Iterable<Machine> machines) {
   final sorted = machines.toList()
     ..sort((a, b) {
       if (a.active != b.active) {
@@ -34,12 +32,10 @@ class NewSessionScreen extends ConsumerStatefulWidget {
   const NewSessionScreen({super.key});
 
   @override
-  ConsumerState<NewSessionScreen> createState() =>
-      _NewSessionScreenState();
+  ConsumerState<NewSessionScreen> createState() => _NewSessionScreenState();
 }
 
-class _NewSessionScreenState
-    extends ConsumerState<NewSessionScreen> {
+class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   Machine? _selectedMachine;
   final _pathController = TextEditingController();
   final _messageController = TextEditingController();
@@ -56,8 +52,7 @@ class _NewSessionScreenState
     _selectedProfileId = settings.lastUsedProfile;
     // Refresh machines so encryption keys are up-to-date before spawn.
     Future<void>.microtask(
-      () =>
-          ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
+      () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
     );
   }
 
@@ -79,8 +74,7 @@ class _NewSessionScreenState
   String _profileDisplayName() {
     if (_selectedProfileId == null) return 'None';
     final settings = ref.read(settingsNotifierProvider);
-    final profile =
-        resolveProfile(_selectedProfileId!, settings.profiles);
+    final profile = resolveProfile(_selectedProfileId!, settings.profiles);
     return profile?.name ?? _selectedProfileId!;
   }
 
@@ -118,23 +112,16 @@ class _NewSessionScreenState
           ? resolveProfile(_selectedProfileId!, settings.profiles)
           : null;
       final permissionMode =
-          profile?.defaultPermissionMode ??
-          settings.lastUsedPermissionMode;
+          profile?.defaultPermissionMode ?? settings.lastUsedPermissionMode;
       if (permissionMode != null) {
-        unawaited(
-          DraftStorage()
-              .savePermissionMode(sessionId, permissionMode),
-        );
+        unawaited(DraftStorage().savePermissionMode(sessionId, permissionMode));
       }
       final modelMode = profile?.defaultModelMode;
       if (modelMode != null) {
-        unawaited(
-          DraftStorage().saveModelMode(sessionId, modelMode),
-        );
+        unawaited(DraftStorage().saveModelMode(sessionId, modelMode));
       }
       if (_selectedProfileId != null) {
-        await DraftStorage()
-            .saveProfileId(sessionId, _selectedProfileId!);
+        await DraftStorage().saveProfileId(sessionId, _selectedProfileId!);
       }
       // Persist the initial message on the server via the normal
       // sendMessage flow.  The daemon child already received the
@@ -160,24 +147,13 @@ class _NewSessionScreenState
       // Just read the in-memory state — no redundant server fetch.
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       if (!mounted) return;
-      context.goNamed(
-        'chat',
-        pathParameters: {'sessionId': sessionId},
-      );
+      context.goNamed('chat', pathParameters: {'sessionId': sessionId});
     } catch (e, st) {
-      logger.warning(
-        '[NewSessionScreen] createSession failed: $e',
-        e,
-        st,
-      );
+      logger.warning('[NewSessionScreen] createSession failed: $e', e, st);
       if (!mounted) return;
       setState(() => _isCreating = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Bad state: ', ''),
-          ),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))),
       );
     }
   }
@@ -195,8 +171,7 @@ class _NewSessionScreenState
     final machineId = _selectedMachine?.id;
     final result = await context.pushNamed<String>(
       'pick-path',
-      queryParameters:
-          machineId != null ? {'machineId': machineId} : const {},
+      queryParameters: machineId != null ? {'machineId': machineId} : const {},
     );
     if (result != null) {
       setState(() {
@@ -206,7 +181,10 @@ class _NewSessionScreenState
   }
 
   Future<void> _pickProfile() async {
-    final result = await context.pushNamed<String?>('pick-profile');
+    final result = await context.pushNamed<String?>(
+      'pick-profile',
+      queryParameters: {'agent': _selectedAgent},
+    );
     // result is the profile ID or null for "None"
     if (!mounted) return;
     setState(() {
@@ -233,10 +211,7 @@ class _NewSessionScreenState
     }
   }
 
-  bool _isAgentCompatible(
-    String agent,
-    ProfileCompatibility compat,
-  ) {
+  bool _isAgentCompatible(String agent, ProfileCompatibility compat) {
     switch (agent) {
       case 'claude':
         return compat.claude;
@@ -253,8 +228,7 @@ class _NewSessionScreenState
   ProfileCompatibility? _currentProfileCompatibility() {
     if (_selectedProfileId == null) return null;
     final settings = ref.read(settingsNotifierProvider);
-    final profile =
-        resolveProfile(_selectedProfileId!, settings.profiles);
+    final profile = resolveProfile(_selectedProfileId!, settings.profiles);
     return profile?.compatibility;
   }
 
@@ -345,10 +319,7 @@ class _NewSessionScreenState
                   ),
                 ),
                 if (_selectedMachine != null) ...[
-                  Divider(
-                    height: 1,
-                    color: cs.outlineVariant,
-                  ),
+                  Divider(height: 1, color: cs.outlineVariant),
                   AppTappable(
                     onTap: _pickPath,
                     borderRadius: const BorderRadius.vertical(
@@ -369,8 +340,7 @@ class _NewSessionScreenState
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             l10n.pickSelectPath,
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(
+                            style: theme.textTheme.bodyMedium?.copyWith(
                               color: cs.primary,
                               fontWeight: FontWeight.w500,
                             ),
@@ -379,8 +349,7 @@ class _NewSessionScreenState
                           Icon(
                             Icons.chevron_right,
                             size: 18,
-                            color: cs.primary
-                                .withValues(
+                            color: cs.primary.withValues(
                               alpha: AppOpacity.medium,
                             ),
                           ),
@@ -456,8 +425,7 @@ class _NewSessionScreenState
                   Icon(
                     Icons.chevron_right,
                     size: 20,
-                    color: cs.onSurface
-                        .withValues(alpha: AppOpacity.medium),
+                    color: cs.onSurface.withValues(alpha: AppOpacity.medium),
                   ),
                 ],
               ),
@@ -502,9 +470,7 @@ class _NewSessionScreenState
           AppCard(
             padding: EdgeInsets.zero,
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: TextField(
                 controller: _messageController,
                 decoration: InputDecoration(
@@ -526,9 +492,7 @@ class _NewSessionScreenState
           if (connectionStatus != ConnectionStatus.connected &&
               connectionStatus != ConnectionStatus.error)
             Padding(
-              padding: const EdgeInsets.only(
-                bottom: AppSpacing.md,
-              ),
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -558,9 +522,7 @@ class _NewSessionScreenState
             width: double.infinity,
             height: AppTouchTarget.comfortable,
             child: FilledButton.icon(
-              onPressed: _canCreate(connectionStatus)
-                  ? _createSession
-                  : null,
+              onPressed: _canCreate(connectionStatus) ? _createSession : null,
               icon: _isCreating
                   ? SizedBox(
                       width: 18,
@@ -588,10 +550,7 @@ class _NewSessionScreenState
 
 /// Machine picker row — shows placeholder or selected machine info.
 class _MachinePickerRow extends StatelessWidget {
-  const _MachinePickerRow({
-    required this.machine,
-    required this.hint,
-  });
+  const _MachinePickerRow({required this.machine, required this.hint});
 
   final Machine? machine;
   final String hint;
@@ -610,9 +569,7 @@ class _MachinePickerRow extends StatelessWidget {
         children: [
           SettingsIconContainer(
             icon: Icons.computer_outlined,
-            color: machine != null
-                ? cs.primary
-                : cs.onSurfaceVariant,
+            color: machine != null ? cs.primary : cs.onSurfaceVariant,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -638,8 +595,7 @@ class _MachinePickerRow extends StatelessWidget {
                       if (machine!.metadata?.host != null)
                         Text(
                           machine!.metadata!.host!,
-                          style:
-                              theme.textTheme.bodySmall?.copyWith(
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: cs.onSurfaceVariant,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -650,8 +606,7 @@ class _MachinePickerRow extends StatelessWidget {
           Icon(
             Icons.chevron_right,
             size: 20,
-            color:
-                cs.onSurface.withValues(alpha: AppOpacity.medium),
+            color: cs.onSurface.withValues(alpha: AppOpacity.medium),
           ),
         ],
       ),

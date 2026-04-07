@@ -52,14 +52,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('None'), findsOneWidget);
-      expect(
-        find.text('Use default configuration'),
-        findsOneWidget,
-      );
+      expect(find.text('Use default configuration'), findsOneWidget);
     });
 
-    testWidgets('renders all built-in profiles',
-        (tester) async {
+    testWidgets('renders only Claude-compatible built-in profiles by default', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -77,17 +75,19 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Check that built-in profile names appear
-      for (final profile in builtInProfiles) {
-        expect(
-          find.text(profile.name),
-          findsOneWidget,
-        );
+      for (final profile in builtInProfiles.where(
+        (profile) => profile.compatibility.claude,
+      )) {
+        expect(find.text(profile.name), findsOneWidget);
+      }
+      for (final profile in builtInProfiles.where(
+        (profile) => !profile.compatibility.claude,
+      )) {
+        expect(find.text(profile.name), findsNothing);
       }
     });
 
-    testWidgets('shows check icon for selected profile',
-        (tester) async {
+    testWidgets('shows check icon for selected profile', (tester) async {
       final settings = Settings();
       settings.lastUsedProfile = 'anthropic';
 
@@ -109,14 +109,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // The selected profile should show a check icon
-      expect(
-        find.byIcon(Icons.check_circle_rounded),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
     });
 
-    testWidgets('shows BUILT-IN section header',
-        (tester) async {
+    testWidgets('shows BUILT-IN section header', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -137,8 +133,7 @@ void main() {
       expect(find.text('BUILT-IN'), findsOneWidget);
     });
 
-    testWidgets('shows custom profile in list when set',
-        (tester) async {
+    testWidgets('shows custom profile in list when set', (tester) async {
       final settings = Settings()
         ..profiles = [
           AIBackendProfile(
@@ -171,10 +166,54 @@ void main() {
       await tester.fling(listView, const Offset(0, -500), 800);
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('My Custom Profile'),
-        findsOneWidget,
+      expect(find.text('My Custom Profile'), findsOneWidget);
+    });
+
+    testWidgets('filters profiles for Codex sessions', (tester) async {
+      final settings = Settings()
+        ..profiles = [
+          AIBackendProfile(
+            id: 'claude-only',
+            name: 'Claude Only',
+            compatibility: const ProfileCompatibility(
+              claude: true,
+              codex: false,
+              gemini: false,
+            ),
+          ),
+          AIBackendProfile(
+            id: 'codex-only',
+            name: 'Codex Only',
+            compatibility: const ProfileCompatibility(
+              claude: false,
+              codex: true,
+              gemini: false,
+            ),
+          ),
+        ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsNotifierProvider.overrideWith(
+              () => _StubSettingsNotifier(settings),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(agent: 'codex'),
+          ),
+        ),
       );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('OpenAI (GPT-5)'), findsOneWidget);
+      expect(find.text('Azure OpenAI'), findsOneWidget);
+      expect(find.text('Codex Only'), findsOneWidget);
+      expect(find.text('Anthropic (Default)'), findsNothing);
+      expect(find.text('Claude Only'), findsNothing);
     });
 
     testWidgets('does not show custom profile when none '
@@ -196,10 +235,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('My Custom Profile'),
-        findsNothing,
-      );
+      expect(find.text('My Custom Profile'), findsNothing);
     });
   });
 }

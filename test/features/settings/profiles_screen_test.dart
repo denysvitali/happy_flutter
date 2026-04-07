@@ -244,5 +244,50 @@ void main() {
       expect(find.text('Official Anthropic Claude API'), findsOneWidget);
       expect(find.text('OpenAI GPT-5 Codex API'), findsOneWidget);
     });
+
+    testWidgets('shows custom profiles only in compatible agent sections', (
+      tester,
+    ) async {
+      final preset = Settings()
+        ..profiles = [
+          AIBackendProfile(
+            id: 'claude-only',
+            name: 'Claude Only',
+            compatibility: const ProfileCompatibility(
+              claude: true,
+              codex: false,
+              gemini: false,
+            ),
+          ),
+          AIBackendProfile(
+            id: 'codex-only',
+            name: 'Codex Only',
+            compatibility: const ProfileCompatibility(
+              claude: false,
+              codex: true,
+              gemini: false,
+            ),
+          ),
+        ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsNotifierProvider.overrideWith(
+              () => _PresetSettingsNotifier(preset),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const ProfilesScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Claude Only'), findsOneWidget);
+      expect(find.text('Codex Only'), findsOneWidget);
+    });
   });
 }

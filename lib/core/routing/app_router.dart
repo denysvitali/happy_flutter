@@ -497,8 +497,13 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/new/pick/profile',
         name: 'pick-profile',
-        pageBuilder: (context, state) =>
-            _slidePage(const AuthGate(child: PickProfileScreen()), state),
+        pageBuilder: (context, state) {
+          final agent = state.uri.queryParameters['agent'] ?? 'claude';
+          return _slidePage(
+            AuthGate(child: PickProfileScreen(agent: agent)),
+            state,
+          );
+        },
       ),
       GoRoute(
         path: '/machine/:machineId',

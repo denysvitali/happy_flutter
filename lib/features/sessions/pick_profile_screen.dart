@@ -15,7 +15,9 @@ import '../../core/theme/app_tokens.dart';
 ///
 /// Pops with the selected profile ID string, or `null` for "None".
 class PickProfileScreen extends ConsumerWidget {
-  const PickProfileScreen({super.key});
+  const PickProfileScreen({super.key, this.agent = 'claude'});
+
+  final String agent;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,6 +30,12 @@ class PickProfileScreen extends ConsumerWidget {
     final customProfiles = ref.watch(
       settingsNotifierProvider.select((s) => s.profiles),
     );
+    final filteredBuiltInProfiles = builtInProfiles
+        .where((profile) => profile.compatibility.supportsAgent(agent))
+        .toList();
+    final filteredCustomProfiles = customProfiles
+        .where((profile) => profile.compatibility.supportsAgent(agent))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -69,29 +77,23 @@ class PickProfileScreen extends ConsumerWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                for (int i = 0;
-                    i < builtInProfiles.length;
-                    i++) ...[
+                for (int i = 0; i < filteredBuiltInProfiles.length; i++) ...[
                   _ProfileTile(
-                    name: builtInProfiles[i].name,
-                    description:
-                        builtInProfiles[i].description ?? '',
-                    icon: _iconForProfile(builtInProfiles[i].id),
-                    color: colorForProfile(builtInProfiles[i].id),
-                    isSelected:
-                        selectedId == builtInProfiles[i].id,
+                    name: filteredBuiltInProfiles[i].name,
+                    description: filteredBuiltInProfiles[i].description ?? '',
+                    icon: _iconForProfile(filteredBuiltInProfiles[i].id),
+                    color: colorForProfile(filteredBuiltInProfiles[i].id),
+                    isSelected: selectedId == filteredBuiltInProfiles[i].id,
                     isFirst: i == 0,
-                    isLast: i == builtInProfiles.length - 1,
-                    onTap: () => context
-                        .pop<String?>(builtInProfiles[i].id),
+                    isLast: i == filteredBuiltInProfiles.length - 1,
+                    onTap: () =>
+                        context.pop<String?>(filteredBuiltInProfiles[i].id),
                   ),
-                  if (i < builtInProfiles.length - 1)
+                  if (i < filteredBuiltInProfiles.length - 1)
                     Divider(
                       height: 1,
                       indent: AppSpacing.lg + 36 + AppSpacing.md,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outlineVariant,
+                      color: Theme.of(context).colorScheme.outlineVariant,
                     ),
                 ],
               ],
@@ -99,7 +101,7 @@ class PickProfileScreen extends ConsumerWidget {
           ),
 
           // ── Custom profiles ───────────────────────────────────────
-          if (customProfiles.isNotEmpty) ...[
+          if (filteredCustomProfiles.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xl),
             AppSectionHeader(
               title: l10n.pickProfileCustomSection,
@@ -110,31 +112,25 @@ class PickProfileScreen extends ConsumerWidget {
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
-                  for (int i = 0;
-                      i < customProfiles.length;
-                      i++) ...[
+                  for (int i = 0; i < filteredCustomProfiles.length; i++) ...[
                     _ProfileTile(
-                      name: customProfiles[i].name,
-                      description: customProfiles[i]
-                              .description ??
+                      name: filteredCustomProfiles[i].name,
+                      description:
+                          filteredCustomProfiles[i].description ??
                           l10n.pickProfileCustomDescription,
                       icon: Icons.person_outline_rounded,
                       color: cs.primary,
-                      isSelected:
-                          selectedId == customProfiles[i].id,
+                      isSelected: selectedId == filteredCustomProfiles[i].id,
                       isFirst: i == 0,
-                      isLast: i == customProfiles.length - 1,
-                      onTap: () => context
-                          .pop<String?>(customProfiles[i].id),
+                      isLast: i == filteredCustomProfiles.length - 1,
+                      onTap: () =>
+                          context.pop<String?>(filteredCustomProfiles[i].id),
                     ),
-                    if (i < customProfiles.length - 1)
+                    if (i < filteredCustomProfiles.length - 1)
                       Divider(
                         height: 1,
-                        indent:
-                            AppSpacing.lg + 36 + AppSpacing.md,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outlineVariant,
+                        indent: AppSpacing.lg + 36 + AppSpacing.md,
+                        color: Theme.of(context).colorScheme.outlineVariant,
                       ),
                   ],
                 ],
@@ -208,10 +204,7 @@ class _ProfileCard extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           children: [
-            SettingsIconContainer(
-              icon: icon,
-              color: color,
-            ),
+            SettingsIconContainer(icon: icon, color: color),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
@@ -236,17 +229,12 @@ class _ProfileCard extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             if (isSelected)
-              Icon(
-                Icons.check_circle_rounded,
-                color: cs.primary,
-                size: 22,
-              )
+              Icon(Icons.check_circle_rounded, color: cs.primary, size: 22)
             else
               Icon(
                 Icons.chevron_right,
                 size: 20,
-                color: cs.onSurface
-                    .withValues(alpha: AppOpacity.medium),
+                color: cs.onSurface.withValues(alpha: AppOpacity.medium),
               ),
           ],
         ),
@@ -283,12 +271,8 @@ class _ProfileTile extends StatelessWidget {
     final cs = theme.colorScheme;
 
     final borderRadius = BorderRadius.vertical(
-      top: isFirst
-          ? const Radius.circular(AppRadius.lg)
-          : Radius.zero,
-      bottom: isLast
-          ? const Radius.circular(AppRadius.lg)
-          : Radius.zero,
+      top: isFirst ? const Radius.circular(AppRadius.lg) : Radius.zero,
+      bottom: isLast ? const Radius.circular(AppRadius.lg) : Radius.zero,
     );
 
     return AppTappable(
@@ -306,10 +290,7 @@ class _ProfileTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            SettingsIconContainer(
-              icon: icon,
-              color: color,
-            ),
+            SettingsIconContainer(icon: icon, color: color),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
@@ -317,8 +298,7 @@ class _ProfileTile extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style:
-                        theme.textTheme.bodyMedium?.copyWith(
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isSelected ? cs.primary : null,
                     ),
@@ -327,8 +307,7 @@ class _ProfileTile extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       description,
-                      style:
-                          theme.textTheme.bodySmall?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         color: cs.onSurfaceVariant,
                       ),
                       maxLines: 2,
@@ -340,17 +319,12 @@ class _ProfileTile extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             if (isSelected)
-              Icon(
-                Icons.check_circle_rounded,
-                color: cs.primary,
-                size: 20,
-              )
+              Icon(Icons.check_circle_rounded, color: cs.primary, size: 20)
             else
               Icon(
                 Icons.chevron_right,
                 size: 20,
-                color: cs.onSurface
-                    .withValues(alpha: AppOpacity.medium),
+                color: cs.onSurface.withValues(alpha: AppOpacity.medium),
               ),
           ],
         ),

@@ -101,8 +101,8 @@ class Settings {
           folders == other.folders &&
           profiles.length == other.profiles.length &&
           profiles.asMap().entries.every(
-                (e) => identical(e.value, other.profiles[e.key]),
-              );
+            (e) => identical(e.value, other.profiles[e.key]),
+          );
 
   @override
   int get hashCode => Object.hash(
@@ -236,9 +236,7 @@ class Settings {
       ..favoriteMachines = favoriteMachines != null
           ? List<String>.from(favoriteMachines)
           : this.favoriteMachines
-      ..folders = folders != null
-          ? List<String>.from(folders)
-          : this.folders
+      ..folders = folders != null ? List<String>.from(folders) : this.folders
       ..dismissedCLIWarnings =
           dismissedCLIWarnings ?? this.dismissedCLIWarnings;
   }
@@ -558,4 +556,17 @@ class ProfileCompatibility {
   final bool gemini;
 
   Map<String, dynamic> toJson() => _$ProfileCompatibilityToJson(this);
+
+  bool supportsAgent(String agent) {
+    switch (agent) {
+      case 'claude':
+        return claude;
+      case 'codex':
+        return codex;
+      case 'gemini':
+        return gemini;
+      default:
+        return true;
+    }
+  }
 }

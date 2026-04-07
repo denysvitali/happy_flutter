@@ -34,10 +34,7 @@ extension _ChatScreenActions on _ChatScreenState {
           PermissionModeExtension.fromString(session!.permissionMode!) ??
           PermissionMode.defaultMode;
       unawaited(
-        storage.savePermissionMode(
-          sessionId,
-          permissionMode.toModeString(),
-        ),
+        storage.savePermissionMode(sessionId, permissionMode.toModeString()),
       );
     }
 
@@ -49,7 +46,11 @@ extension _ChatScreenActions on _ChatScreenState {
     // Profile.
     final seen = <String>{};
     final deduped = <AIBackendProfile>[];
+    final flavor = session?.metadata?.flavor;
     for (final p in [...settings.profiles, ...builtInProfiles]) {
+      if (!p.compatibility.supportsAgent(flavor ?? 'claude')) {
+        continue;
+      }
       if (seen.add(p.id)) deduped.add(p);
     }
 
@@ -57,8 +58,7 @@ extension _ChatScreenActions on _ChatScreenState {
     final effectiveProfileId = savedProfileId ?? settings.lastUsedProfile;
     if (effectiveProfileId != null) {
       try {
-        selectedProfile =
-            deduped.firstWhere((p) => p.id == effectiveProfileId);
+        selectedProfile = deduped.firstWhere((p) => p.id == effectiveProfileId);
       } catch (_) {
         selectedProfile = null;
         logger.warning(
@@ -69,7 +69,6 @@ extension _ChatScreenActions on _ChatScreenState {
     }
 
     // Model mode.
-    final flavor = session?.metadata?.flavor;
     String? rawModelModeString;
     var modelMode = ClaudeModel.defaultModel;
 
@@ -137,16 +136,15 @@ extension _ChatScreenActions on _ChatScreenState {
     // Safety timer: if loading is still in progress after 15s,
     // force-clear the spinner and report to Sentry.
     _loadingSafetyTimer?.cancel();
-    _loadingSafetyTimer = Timer(
-      const Duration(seconds: 15),
-      () {
-        if (!mounted || !_isLoadingMessages) return;
-        logger.warning(
-          '[ChatScreen] Safety timeout: loading stuck '
-          'for 15s session=$sessionId '
-          'messages=${_messages.length}',
-        );
-        unawaited(Sentry.captureMessage(
+    _loadingSafetyTimer = Timer(const Duration(seconds: 15), () {
+      if (!mounted || !_isLoadingMessages) return;
+      logger.warning(
+        '[ChatScreen] Safety timeout: loading stuck '
+        'for 15s session=$sessionId '
+        'messages=${_messages.length}',
+      );
+      unawaited(
+        Sentry.captureMessage(
           'ChatScreen loading stuck for 15s',
           level: SentryLevel.warning,
           params: [sessionId],
@@ -155,42 +153,45 @@ extension _ChatScreenActions on _ChatScreenState {
             'messageCount': _messages.length.toString(),
             'initialLoadComplete': _initialLoadComplete.toString(),
             'syncInitialized': sync.isInitialized.toString(),
-            'hasMsgSync':
-                (sync.messagesSync[sessionId] != null).toString(),
-            'syncMessages':
-                sync.messagesForSession(sessionId).length.toString(),
+            'hasMsgSync': (sync.messagesSync[sessionId] != null).toString(),
+            'syncMessages': sync
+                .messagesForSession(sessionId)
+                .length
+                .toString(),
             'elapsedMs': stopwatch.elapsedMilliseconds,
           }),
-        ));
-        // Finish the transaction as failed
-        transaction.setData('timeout', true);
-        unawaited(transaction.finish());
-        setState(() {
-          _isLoadingMessages = false;
-          _initialLoadComplete = true;
-          if (_messages.isEmpty) _loadFailed = true;
-        });
-      },
-    );
+        ),
+      );
+      // Finish the transaction as failed
+      transaction.setData('timeout', true);
+      unawaited(transaction.finish());
+      setState(() {
+        _isLoadingMessages = false;
+        _initialLoadComplete = true;
+        if (_messages.isEmpty) _loadFailed = true;
+      });
+    });
 
     try {
       final cacheSpan = transaction.startChild(
         'chat.cache.check',
         description: 'Check cached messages',
       );
-      unawaited(
-        (cacheSpan..setData('cachedCount', _messages.length)).finish(),
-      );
+      unawaited((cacheSpan..setData('cachedCount', _messages.length)).finish());
 
-      unawaited(Sentry.addBreadcrumb(Breadcrumb(
-        message: 'ChatScreen._doInitialLoad started',
-        category: 'chat.load',
-        data: {
-          'sessionId': sessionId,
-          'hasCachedMessages': _messages.isNotEmpty,
-          'syncInitialized': sync.isInitialized,
-        },
-      )));
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'ChatScreen._doInitialLoad started',
+            category: 'chat.load',
+            data: {
+              'sessionId': sessionId,
+              'hasCachedMessages': _messages.isNotEmpty,
+              'syncInitialized': sync.isInitialized,
+            },
+          ),
+        ),
+      );
 
       // Span for onSessionVisible
       final visibleSpan = transaction.startChild(
@@ -218,9 +219,9 @@ extension _ChatScreenActions on _ChatScreenState {
         description: 'Await message sync queue',
       );
       try {
-        await sync.messagesSync[sessionId]
-            ?.awaitQueue()
-            .timeout(const Duration(seconds: 5));
+        await sync.messagesSync[sessionId]?.awaitQueue().timeout(
+          const Duration(seconds: 5),
+        );
         awaitSpan.setData('timedOut', false);
       } catch (e) {
         success = false;
@@ -238,14 +239,16 @@ extension _ChatScreenActions on _ChatScreenState {
         stack,
       );
       transaction.setData('error', error.toString());
-      unawaited(Sentry.captureException(
-        error,
-        stackTrace: stack,
-        hint: Hint.withMap({
-          'context': 'ChatScreen._doInitialLoad',
-          'sessionId': sessionId,
-        }),
-      ));
+      unawaited(
+        Sentry.captureException(
+          error,
+          stackTrace: stack,
+          hint: Hint.withMap({
+            'context': 'ChatScreen._doInitialLoad',
+            'sessionId': sessionId,
+          }),
+        ),
+      );
     } finally {
       _loadingSafetyTimer?.cancel();
       _loadingSafetyTimer = null;
@@ -256,17 +259,21 @@ extension _ChatScreenActions on _ChatScreenState {
       return;
     }
 
-    unawaited(Sentry.addBreadcrumb(Breadcrumb(
-      message: 'ChatScreen._doInitialLoad completed',
-      category: 'chat.load',
-      data: {
-        'sessionId': sessionId,
-        'success': success,
-        'elapsedMs': stopwatch.elapsedMilliseconds,
-        'messageCount': _messages.length,
-        'syncMessages': sync.messagesForSession(sessionId).length,
-      },
-    )));
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'ChatScreen._doInitialLoad completed',
+          category: 'chat.load',
+          data: {
+            'sessionId': sessionId,
+            'success': success,
+            'elapsedMs': stopwatch.elapsedMilliseconds,
+            'messageCount': _messages.length,
+            'syncMessages': sync.messagesForSession(sessionId).length,
+          },
+        ),
+      ),
+    );
 
     _refreshFromSync(
       markLoaded: true,
@@ -322,15 +329,14 @@ extension _ChatScreenActions on _ChatScreenState {
             _session?.metadata?.flavor,
           )
         : ClaudeModel.defaultModel;
-    final rawModelString =
-        profileDefaultModelMode ?? newModel.modeString;
+    final rawModelString = profileDefaultModelMode ?? newModel.modeString;
 
     // Apply the profile's default permission mode (consistent with
     // how NewSessionScreen applies it on session creation).
     final profilePermMode = profile?.defaultPermissionMode;
     final newPermissionMode = profilePermMode != null
         ? (PermissionModeExtension.fromString(profilePermMode) ??
-            _permissionMode)
+              _permissionMode)
         : _permissionMode;
 
     setState(() {
@@ -405,9 +411,7 @@ extension _ChatScreenActions on _ChatScreenState {
 
   void _onSuggestionTap(String suggestion) {
     _controller.text = suggestion;
-    _controller.selection = TextSelection.collapsed(
-      offset: suggestion.length,
-    );
+    _controller.selection = TextSelection.collapsed(offset: suggestion.length);
   }
 
   Future<void> _onOptionPress(String option) async {
@@ -436,17 +440,14 @@ extension _ChatScreenActions on _ChatScreenState {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${context.l10n.chatFailedToSend}: $e'),
-          ),
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
       }
     }
   }
 
   Future<void> _retryMessage(Map<String, dynamic> message) async {
-    final localId =
-        message['localId'] as String? ?? message['id'] as String?;
+    final localId = message['localId'] as String? ?? message['id'] as String?;
     if (localId == null) return;
 
     try {
@@ -459,9 +460,9 @@ extension _ChatScreenActions on _ChatScreenState {
         st,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to retry message: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to retry message: $e')));
       }
     }
   }
@@ -509,9 +510,7 @@ extension _ChatScreenActions on _ChatScreenState {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                context.l10n.chatFailedToClear(e.toString()),
-              ),
+              content: Text(context.l10n.chatFailedToClear(e.toString())),
             ),
           );
         }
@@ -588,9 +587,7 @@ extension _ChatScreenActions on _ChatScreenState {
           _invalidateNeighborCache();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${context.l10n.chatFailedToSend}: $e'),
-          ),
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
         );
       }
     } finally {
@@ -615,18 +612,12 @@ extension _ChatScreenActions on _ChatScreenState {
       unawaited(storage.removeProfileId(sentSessionId));
     }
     unawaited(
-      storage.savePermissionMode(
-        sentSessionId,
-        _permissionMode.toModeString(),
-      ),
+      storage.savePermissionMode(sentSessionId, _permissionMode.toModeString()),
     );
     final modelStr = _rawModelModeString ?? _modelMode.modeString;
     unawaited(storage.saveModelMode(sentSessionId, modelStr));
 
-    context.goNamed(
-      'chat',
-      pathParameters: {'sessionId': sentSessionId},
-    );
+    context.goNamed('chat', pathParameters: {'sessionId': sentSessionId});
     return true;
   }
 }

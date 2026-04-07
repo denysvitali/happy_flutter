@@ -28,6 +28,16 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final selectedProfileId = ref.watch(
       settingsNotifierProvider.select((s) => s.lastUsedProfile),
     );
+    final effectiveProfiles = _effectiveProfiles(customProfiles);
+    final claudeProfiles = effectiveProfiles
+        .where((profile) => profile.compatibility.supportsAgent('claude'))
+        .toList();
+    final codexProfiles = effectiveProfiles
+        .where((profile) => profile.compatibility.supportsAgent('codex'))
+        .toList();
+    final geminiProfiles = effectiveProfiles
+        .where((profile) => profile.compatibility.supportsAgent('gemini'))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -58,80 +68,84 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                 isSelected: selectedProfileId == null,
                 onTap: () {
                   ref
-                      .read(
-                          settingsNotifierProvider.notifier)
-                      .updateSetting(
-                          'lastUsedProfile', null);
+                      .read(settingsNotifierProvider.notifier)
+                      .updateSetting('lastUsedProfile', null);
                 },
               ),
-              ...builtInProfiles.map((profile) {
-                // Use customised version if user has configured
-                // this built-in profile.
-                final effective = resolveProfile(
-                  profile.id,
-                  customProfiles,
-                );
-                final isSelected =
-                    selectedProfileId == profile.id;
-                return _buildProfileRow(
-                  context: context,
-                  profile: effective ?? profile,
-                  isSelected: isSelected,
-                  onTap: () {
-                    ref
-                        .read(settingsNotifierProvider
-                            .notifier)
-                        .updateSetting(
-                          'lastUsedProfile',
-                          profile.id,
-                        );
-                  },
-                  onEdit: () => context.pushNamed(
-                    'profile-editor',
-                    extra: effective ?? profile,
-                  ),
-                );
-              }),
             ],
           ),
+          _buildAgentSection(
+            context: context,
+            title: l10n.settingsClaudeCode,
+            profiles: claudeProfiles,
+            selectedProfileId: selectedProfileId,
+          ),
+          _buildAgentSection(
+            context: context,
+            title: l10n.sessionsCodex,
+            profiles: codexProfiles,
+            selectedProfileId: selectedProfileId,
+          ),
+          _buildAgentSection(
+            context: context,
+            title: l10n.sessionsGemini,
+            profiles: geminiProfiles,
+            selectedProfileId: selectedProfileId,
+          ),
+        ],
+      ),
+    );
+  }
 
-          if (customProfiles.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xxl),
-            SettingsSection(
-              title: l10n.profilesCustomTitle,
-              children: [
-                ...customProfiles.map((profile) {
-                  final isSelected =
-                      selectedProfileId == profile.id;
-                  return _buildProfileRow(
-                    context: context,
-                    profile: profile,
-                    isSelected: isSelected,
-                    onTap: () {
-                      ref
-                          .read(settingsNotifierProvider
-                              .notifier)
-                          .updateSetting(
-                            'lastUsedProfile',
-                            profile.id,
-                          );
-                    },
-                    onEdit: () => context.pushNamed(
-                      'profile-editor',
-                      extra: profile,
-                    ),
-                    onDuplicate: () => _duplicateProfile(context, ref, profile),
-                    onDelete: () =>
-                        _confirmDeleteProfile(
-                      context,
-                      ref,
-                      profile,
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ],
+  List<AIBackendProfile> _effectiveProfiles(
+    List<AIBackendProfile> customProfiles,
+  ) {
+    final seen = <String>{};
+    final resolved = <AIBackendProfile>[];
+    for (final profile in [...customProfiles, ...builtInProfiles]) {
+      if (seen.add(profile.id)) {
+        resolved.add(profile);
+      }
+    }
+    return resolved;
+  }
+
+  Widget _buildAgentSection({
+    required BuildContext context,
+    required String title,
+    required List<AIBackendProfile> profiles,
+    required String? selectedProfileId,
+  }) {
+    if (profiles.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xxl),
+      child: SettingsSection(
+        title: title,
+        children: [
+          ...profiles.map((profile) {
+            final isSelected = selectedProfileId == profile.id;
+            final isCustom = !profile.isBuiltIn;
+            return _buildProfileRow(
+              context: context,
+              profile: profile,
+              isSelected: isSelected,
+              onTap: () {
+                ref
+                    .read(settingsNotifierProvider.notifier)
+                    .updateSetting('lastUsedProfile', profile.id);
+              },
+              onEdit: () => context.pushNamed('profile-editor', extra: profile),
+              onDuplicate: isCustom
+                  ? () => _duplicateProfile(context, ref, profile)
+                  : null,
+              onDelete: isCustom
+                  ? () => _confirmDeleteProfile(context, ref, profile)
+                  : null,
+            );
+          }),
         ],
       ),
     );
@@ -150,32 +164,27 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final iconColor = profile == null
         ? cs.onSurfaceVariant
         : profile.isBuiltIn
-            ? colorForProfile(profile.id)
-            : cs.primary;
+        ? colorForProfile(profile.id)
+        : cs.primary;
     final icon = profile == null
         ? Icons.remove
         : profile.isBuiltIn
-            ? _iconForProfile(profile.id)
-            : Icons.person_outline;
+        ? _iconForProfile(profile.id)
+        : Icons.person_outline;
 
     return SettingsRow(
       icon: icon,
       iconColor: iconColor,
-      title: profile?.name ??
-          AppLocalizations.of(context).profilesNone,
-      subtitle: profile?.description ??
-          AppLocalizations.of(context)
-              .profilesDefaultDescription,
+      title: profile?.name ?? AppLocalizations.of(context).profilesNone,
+      subtitle:
+          profile?.description ??
+          AppLocalizations.of(context).profilesDefaultDescription,
       onTap: onTap,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isSelected)
-            Icon(
-              Icons.check_circle,
-              color: cs.primary,
-              size: AppSpacing.xl,
-            ),
+            Icon(Icons.check_circle, color: cs.primary, size: AppSpacing.xl),
           if (onDuplicate != null)
             IconButton(
               icon: Icon(
@@ -235,7 +244,8 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                 maxLines: 10,
                 decoration: InputDecoration(
                   labelText: l10n.profilesImportLabel,
-                  hintText: 'export ANTHROPIC_BASE_URL=...\nexport '
+                  hintText:
+                      'export ANTHROPIC_BASE_URL=...\nexport '
                       'ANTHROPIC_AUTH_TOKEN=...',
                   border: const OutlineInputBorder(),
                   alignLabelWithHint: true,
@@ -274,9 +284,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final result = parseShellScript(text);
     if (result.envVars.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.profilesImportNoVars)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.profilesImportNoVars)));
       }
       return;
     }
@@ -302,8 +312,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              l10n.profilesImportParsed
-                  .replaceAll('{count}', '${result.envVars.length}'),
+              l10n.profilesImportParsed.replaceAll(
+                '{count}',
+                '${result.envVars.length}',
+              ),
             ),
           ),
         );
@@ -402,8 +414,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          AppLocalizations.of(context)
-              .profilesDuplicated(profile.name),
+          AppLocalizations.of(context).profilesDuplicated(profile.name),
         ),
       ),
     );
