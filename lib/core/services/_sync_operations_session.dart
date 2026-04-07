@@ -945,9 +945,12 @@ PY
       // Transient network errors and unsupported RPC methods during
       // auto-restore are expected — log at info to avoid Sentry noise.
       if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcMethodNotAvailable(error)) {
+          Sync._isRpcMethodNotAvailable(error) ||
+          Sync._isRpcReplicaTimeout(error)) {
         final reason = Sync._isRpcMethodNotAvailable(error)
             ? 'RPC unavailable'
+            : Sync._isRpcReplicaTimeout(error)
+            ? 'RPC replica timeout'
             : 'transient';
         logger.info(
           '[sendMessage] auto-restore failed ($reason) '

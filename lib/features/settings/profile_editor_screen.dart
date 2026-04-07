@@ -42,8 +42,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     _envRows = (p?.environmentVariables ?? [])
         .map((e) => EnvRow(name: e.name, value: e.value))
         .toList();
-    _showScript =
-        p?.startupBashScript != null && p!.startupBashScript!.isNotEmpty;
+    _showScript = p?.startupBashScript?.isNotEmpty ?? false;
   }
 
   @override

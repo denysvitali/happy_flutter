@@ -213,9 +213,12 @@ extension SyncMessagingRpc on Sync {
       );
     } catch (error, stack) {
       if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcMethodNotAvailable(error)) {
+          Sync._isRpcMethodNotAvailable(error) ||
+          Sync._isRpcReplicaTimeout(error)) {
         final reason = Sync._isRpcMethodNotAvailable(error)
             ? 'RPC unavailable'
+            : Sync._isRpcReplicaTimeout(error)
+            ? 'RPC replica timeout'
             : 'transient';
         logger.info(
           '[permission] auto-restore failed ($reason) '

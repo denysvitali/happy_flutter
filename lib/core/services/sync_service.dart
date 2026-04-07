@@ -652,6 +652,16 @@ what you have, you must use the options mode.
     return msg.contains('not available') || msg.contains('RPC method');
   }
 
+  /// Whether [error] is an infra-side RPC forwarding failure during spawn or
+  /// auto-restore. The client cannot recover this locally, so it should not be
+  /// treated as an app bug.
+  static bool _isRpcReplicaTimeout(Object error) {
+    if (error is! StateError) return false;
+    final msg = error.message;
+    return msg.contains('forwarded via Redis') &&
+        msg.contains('no replica responded');
+  }
+
   bool _isSocketConnected() {
     return testSocketConnectedOverride ??
         socketIoClient.connectionStatus == ConnectionStatus.connected;

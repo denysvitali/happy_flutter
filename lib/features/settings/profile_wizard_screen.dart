@@ -614,6 +614,14 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
   }
 
   Widget _buildReviewStep(TextTheme tt, ColorScheme cs, AppLocalizations l10n) {
+    final selectedProvider = _selectedProvider;
+    if (selectedProvider == null) {
+      return Text(
+        l10n.profilesWizardSelectProvider,
+        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -626,8 +634,8 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
                 Row(
                   children: [
                     Icon(
-                      _getProviderIcon(_selectedProvider!),
-                      color: colorForProfile(_selectedProvider!),
+                      _getProviderIcon(selectedProvider),
+                      color: colorForProfile(selectedProvider),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
@@ -650,7 +658,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
                 const Divider(height: AppSpacing.xl),
                 _ReviewRow(
                   label: 'Provider',
-                  value: _getProviderName(_selectedProvider!),
+                  value: _getProviderName(selectedProvider),
                 ),
                 _ReviewRow(
                   label: 'Base URL',
