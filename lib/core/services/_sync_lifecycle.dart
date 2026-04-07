@@ -157,9 +157,16 @@ extension SyncLifecycle on Sync {
     // background management) does not fire HTTP requests that get
     // aborted when the app backgrounds again within ~1 second.
     // suspend() cancels this timer.
+    //
+    // The socket reconnected handler (in _sync_socket_events.dart)
+    // fires immediately on connect and triggers _invalidateAllSyncs,
+    // so this timer is a secondary fallback for:
+    //  - sessions with pending socket messages
+    //  - the visible session's message sync
+    //  - the case where the socket takes longer to connect
     _deferredResumeInvalidationTimer?.cancel();
     _deferredResumeInvalidationTimer = Timer(
-      const Duration(milliseconds: 1500),
+      const Duration(milliseconds: 500),
       () {
         _deferredResumeInvalidationTimer = null;
         if (!isInitialized || InvalidateSync.isBackgrounded) {

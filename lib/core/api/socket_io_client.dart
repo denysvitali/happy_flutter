@@ -101,7 +101,7 @@ class SocketIoClient {
           .setTransports(['websocket'])
           .enableReconnection()
           .setReconnectionDelay(2000) // 2s initial for better battery
-          .setReconnectionDelayMax(30000) // 30s max for unstable networks
+          .setReconnectionDelayMax(10000) // 10s max — 30s is too slow on mobile
           .setTransportOptions({
             'websocket': {
               'perMessageDeflate': {
@@ -258,13 +258,20 @@ class SocketIoClient {
   /// Reconnect using previously stored credentials.
   ///
   /// No-op if [connect] was never called (no credentials stored).
+  ///
+  /// Preserves [_hasConnectedOnce] so the [onConnect] handler fires
+  /// [_notifyReconnected] instead of treating the reconnection as a
+  /// first-ever connection.  Without this, [disconnect] resets the
+  /// flag and the Sync reconnected handler never fires on app resume.
   void reconnect() {
     final url = _serverUrl;
     final token = _authToken;
     final clientType = _clientType;
     if (url == null || token == null || clientType == null) return;
+    final hadConnectedOnce = _hasConnectedOnce;
     disconnect();
     connect(serverUrl: url, token: token, clientType: clientType);
+    _hasConnectedOnce = hadConnectedOnce;
   }
 
   /// Emit event through Socket.IO
