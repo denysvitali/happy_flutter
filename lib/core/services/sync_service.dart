@@ -259,8 +259,6 @@ what you have, you must use the options mode.
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
-  int? _suspendedAtMs;
-
   /// Timestamp of last resume() call for debouncing rapid pause/resume cycles.
   int? _lastResumeAtMs;
 

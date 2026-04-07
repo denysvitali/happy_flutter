@@ -24,8 +24,6 @@ extension SyncLifecycle on Sync {
     // backgrounded.  Checked in InvalidateSync._run() before the
     // await _action() call.
     InvalidateSync.isBackgrounded = true;
-    _suspendedAtMs = DateTime.now().millisecondsSinceEpoch;
-
     // Cancel all InvalidateSync retry/cooldown timers.  This stops any
     // exponential-backoff network retries that would otherwise fire while
     // backgrounded (e.g. a settings fetch retry scheduled 1-5s out).
@@ -167,18 +165,13 @@ extension SyncLifecycle on Sync {
           return;
         }
 
-        // Only force a full session fetch when the app was suspended
-        // long enough for delta results to be unreliable (>5 min).
-        // Short suspends (screen-off, quick app-switch) keep the delta
-        // cursor so we avoid re-fetching all sessions.
-        final suspendDuration = _suspendedAtMs != null
-            ? DateTime.now().millisecondsSinceEpoch - _suspendedAtMs!
-            : 0;
-        final needsFullFetch = suspendDuration > 5 * 60 * 1000;
-        _invalidateAllSyncs(
-          force: true,
-          resetSessionDeltaCursor: needsFullFetch,
-        );
+        // Keep the session delta cursor on resume, even after long
+        // background periods. Resetting it forces a full sessions fetch
+        // and decrypt of the entire catalog, which makes foreground
+        // reconnects scale with total session count instead of recent
+        // activity. The visible session and any sessions with pending
+        // socket messages are refreshed separately below.
+        _invalidateAllSyncs(force: true);
 
         final sessionsToRefresh = <String>{};
 

@@ -511,6 +511,27 @@ void main() {
         });
       },
     );
+
+    test(
+      'resume() preserves the sessions delta cursor after a long suspend',
+      () {
+        fakeAsync((async) {
+          sync.testLastSessionsFetchedAt = 1234567890;
+
+          sync.suspend();
+          async.elapse(const Duration(minutes: 6));
+          sync.resume();
+          async.elapse(const Duration(milliseconds: 1600));
+
+          expect(
+            sync.testLastSessionsFetchedAt,
+            equals(1234567890),
+            reason: 'Long resumes should keep incremental session sync '
+                'instead of forcing a full catalog refetch',
+          );
+        });
+      },
+    );
   });
 }
 
