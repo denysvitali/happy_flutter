@@ -202,6 +202,7 @@ extension SyncMessaging on Sync {
       }
 
       var page = 0;
+      var notifiedVisibleData = false;
       while (true) {
         // ── Check visibility ──
         // Continue fetching even when the session is no longer visible so
@@ -263,6 +264,7 @@ extension SyncMessaging on Sync {
             _postSendCatchUpTimers.remove(sessionId)?.cancel();
             _loadingOlderMessages.remove(sessionId);
             _sessionMessages.remove(sessionId);
+            _sessionContentSignatures.remove(sessionId);
             _sessionMessagesCache = null;
             _sessionMessagesViewCache.remove(sessionId);
             _todoLists.remove(sessionId);
@@ -324,18 +326,8 @@ extension SyncMessaging on Sync {
         // of a message we already have (same id, different
         // content).  Previously we filtered by id alone, which
         // silently dropped server-side updates.
-        final existingSignatures = <String, String?>{};
-        for (final m
-            in _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[]) {
-          final id = m['id'] as String?;
-          if (id != null) {
-            // Store the encrypted content blob ('c' field inside
-            // the content map) as a lightweight signature.
-            final content = m['content'];
-            final sig = content is Map ? content['c'] as String? : null;
-            existingSignatures[id] = sig;
-          }
-        }
+        final existingSignatures =
+            _sessionContentSignatures[sessionId] ?? const <String, String?>{};
         final newMessages = existingSignatures.isEmpty
             ? messages
             : [
@@ -447,8 +439,9 @@ extension SyncMessaging on Sync {
         // for all pages to complete. This is critical for sessions
         // with many messages where pagination + decryption exceeds
         // the 5s awaitQueue timeout in ChatScreen._doInitialLoad.
-        if (processed.messages.isNotEmpty) {
-          if (isStillVisible) {
+        if (processed.messages.isNotEmpty && isStillVisible) {
+          if (!notifiedVisibleData) {
+            notifiedVisibleData = true;
             _notifySessionMessagesChanged(sessionId);
             _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
           }

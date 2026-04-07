@@ -1,6 +1,46 @@
 part of 'sync_service.dart';
 
 extension SyncMessagingMerge on Sync {
+  String? _messageContentSignature(Map<String, dynamic> message) {
+    final content = message['content'];
+    if (content is Map) {
+      return content['c'] as String?;
+    }
+    return null;
+  }
+
+  void _rebuildSessionContentSignatures(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) {
+      _sessionContentSignatures.remove(sessionId);
+      return;
+    }
+
+    final signatures = <String, String?>{};
+    for (final message in messages) {
+      final id = message['id'] as String?;
+      if (id == null || id.isEmpty) continue;
+      signatures[id] = _messageContentSignature(message);
+    }
+    _sessionContentSignatures[sessionId] = signatures;
+  }
+
+  void _updateSessionContentSignatures(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    if (messages.isEmpty) return;
+    final signatures = _sessionContentSignatures.putIfAbsent(
+      sessionId,
+      () => <String, String?>{},
+    );
+    for (final message in messages) {
+      final id = message['id'] as String?;
+      if (id == null || id.isEmpty) continue;
+      signatures[id] = _messageContentSignature(message);
+    }
+  }
+
   Map<String, dynamic>? _extractUsageMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {
@@ -545,9 +585,10 @@ extension SyncMessagingMerge on Sync {
 
     if (_canAppendMessagesFastPath(existing, messages)) {
       final appended = <Map<String, dynamic>>[...existing, ...messages];
-      _sessionMessages[sessionId] = appended.length > maxMessages
+      final trimmed = appended.length > maxMessages
           ? appended.sublist(appended.length - maxMessages)
           : appended;
+      _sessionMessages[sessionId] = trimmed;
       if (sessionId == _visibleSessionId) {
         final afterCount = _sessionMessages[sessionId]?.length ?? 0;
         logger.debug(
@@ -560,6 +601,11 @@ extension SyncMessagingMerge on Sync {
       }
       _sessionMessagesCache = null;
       _sessionMessagesViewCache.remove(sessionId);
+      if (trimmed.length == appended.length) {
+        _updateSessionContentSignatures(sessionId, messages);
+      } else {
+        _rebuildSessionContentSignatures(sessionId);
+      }
       _ensureFirstLoadedSeq(sessionId);
       return;
     }
@@ -695,6 +741,7 @@ extension SyncMessagingMerge on Sync {
     _sessionMessages[sessionId] = sorted.length > maxMessages
         ? sorted.sublist(sorted.length - maxMessages)
         : sorted;
+    _rebuildSessionContentSignatures(sessionId);
     if (sessionId == _visibleSessionId && messages.isNotEmpty) {
       final afterCount = _sessionMessages[sessionId]?.length ?? 0;
       logger.debug(

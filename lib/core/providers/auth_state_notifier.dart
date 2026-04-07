@@ -68,10 +68,6 @@ class AuthStateNotifier extends Notifier<AuthState> {
           Future.wait<void>([
             sync.settingsSync.awaitQueue(),
             sync.profileSync.awaitQueue(),
-            sync.friendsSync.awaitQueue(),
-            sync.feedSync.awaitQueue(),
-            sync.artifactsSync.awaitQueue(),
-            sync.todosSync.awaitQueue(),
           ], eagerError: false).then((_) {
             AppLifecycleService.loadAll(ref);
             final profile = ref.read(profileNotifierProvider);

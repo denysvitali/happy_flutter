@@ -249,6 +249,7 @@ what you have, you must use the options mode.
   final List<FeedItem> _feedItems = <FeedItem>[];
   final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
+  final Map<String, Map<String, String?>> _sessionContentSignatures = {};
   Map<String, List<Map<String, dynamic>>>? _sessionMessagesCache;
   final Map<String, List<Map<String, dynamic>>> _sessionMessagesViewCache = {};
   final Map<String, Map<String, dynamic>> _sessionUsage = {};

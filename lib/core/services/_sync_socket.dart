@@ -197,19 +197,15 @@ extension SyncSocket on Sync {
     // These are non-critical and can be loaded lazily when accessed
     if (phase == null || phase == Sync._deferredSyncPhase) {
       _deferredSyncsTimer?.cancel();
-      _deferredSyncsTimer = Timer(const Duration(milliseconds: 2500), () {
+      _deferredSyncsTimer = Timer(const Duration(seconds: 10), () {
         // Only invalidate if sync is still initialized to avoid
         // errors after logout/dispose
         if (!isInitialized) return;
         logger.debug(
-          'Invalidating deferred syncs '
-          '(friends, feed, todos, artifacts, git status)',
+          'Invalidating background deferred syncs '
+          '(friend requests, git status)',
         );
-        friendsSync.invalidate();
         friendRequestsSync.invalidate();
-        feedSync.invalidate();
-        todosSync.invalidate();
-        artifactsSync.invalidate();
         sessionGitStatusSync.invalidate();
       });
     }
@@ -559,6 +555,7 @@ extension SyncSocket on Sync {
       final cached = MessageCacheService().getMessages(sessionId);
       if (cached.isNotEmpty) {
         _sessionMessages[sessionId] = cached;
+        _rebuildSessionContentSignatures(sessionId);
         _sessionMessagesViewCache.remove(sessionId);
 
         // Re-run the sidechain grouper so cached sidechain messages
@@ -566,11 +563,6 @@ extension SyncSocket on Sync {
         if (cached.any((m) => m['isSidechain'] == true)) {
           _groupSidechainMessages(sessionId);
         }
-
-        // Notify UI so ChatScreen refreshes with cached messages.
-        // Use UI-only notification — we just loaded these from MMKV,
-        // there is no reason to write them back immediately.
-        _notifySessionMessagesChangedUiOnly(sessionId);
 
         // Recalculate the older-messages boundary from the lowest
         // seq so the user can scroll up.

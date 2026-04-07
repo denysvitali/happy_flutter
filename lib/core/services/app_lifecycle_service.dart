@@ -24,10 +24,6 @@ abstract final class AppLifecycleService {
     ref.read(machinesNotifierProvider.notifier).loadFromSync();
     ref.read(settingsNotifierProvider.notifier).loadFromSync();
     ref.read(profileNotifierProvider.notifier).loadFromSync();
-    ref.read(friendsNotifierProvider.notifier).loadFromSync();
-    ref.read(feedNotifierProvider.notifier).loadFromSync();
-    ref.read(artifactsNotifierProvider.notifier).loadFromSync();
-    ref.read(todoStateNotifierProvider.notifier).loadFromSync();
   }
 
   /// Clears all domain notifier state on sign-out.
