@@ -126,8 +126,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     );
     _prevState = initial;
 
-    final initPermission =
-        WireParsers.asMap(widget.tool['permission']);
+    final initPermission = WireParsers.asMap(widget.tool['permission']);
     final hasPermissionRequest = isPermissionPending(initPermission);
 
     if (initial == ToolState.running || hasPermissionRequest) {
@@ -149,8 +148,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       widget.tool['state'] as String? ?? 'pending',
     );
 
-    final updatedPermission =
-        WireParsers.asMap(widget.tool['permission']);
+    final updatedPermission = WireParsers.asMap(widget.tool['permission']);
     final hasPermissionRequest = isPermissionPending(updatedPermission);
 
     if (hasPermissionRequest && !_expanded) {
@@ -168,8 +166,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         if (mounted) setState(() => _showCheckFlash = false);
       });
       _scheduleAutoCollapse();
-    } else if (_prevState == ToolState.running &&
-        newState == ToolState.error) {
+    } else if (_prevState == ToolState.running && newState == ToolState.error) {
       _pulseController
         ..stop()
         ..reset();
@@ -464,8 +461,7 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     // Build tool icon: emoji for MCP, KnownTools icon otherwise
     final Widget toolIcon;
     if (isMCP) {
-      final serverToken =
-          toolName.replaceFirst('mcp__', '').split('__').first;
+      final serverToken = toolName.replaceFirst('mcp__', '').split('__').first;
       toolIcon = Text(
         mcpServerEmoji(serverToken),
         style: const TextStyle(fontSize: 18),
@@ -592,8 +588,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         animation: _pulseAnim,
         child: invariantChild,
         builder: (context, child) {
-          final borderOpacity =
-              state == ToolState.running ? _pulseAnim.value : 1.0;
+          final borderOpacity = state == ToolState.running
+              ? _pulseAnim.value
+              : 1.0;
           final accentBorder = BorderSide(
             color: accentColor.withValues(alpha: borderOpacity),
             width: 4,
@@ -641,18 +638,12 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
 
     if (specificView != null) {
       return Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm + 2,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            specificView(
-              widget.tool,
-              widget.metadata,
-              widget.sessionId,
-            ),
+            specificView(widget.tool, widget.metadata, widget.sessionId),
             if (state == ToolState.error &&
                 toolResult != null &&
                 isPermissionNotDeniedOrCanceled(permission) &&
@@ -718,8 +709,10 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     'Task',
     'Agent',
     'TodoWrite',
+    'todo_list',
     'WebFetch',
     'WebSearch',
+    'web_search',
     'ExitPlanMode',
     'exit_plan_mode',
     'AskUserQuestion',
@@ -762,16 +755,15 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         onNavigate: () => widget.onPress?.call(),
       ),
       'TodoWrite': (t, m, s) => TodoView(tool: t, metadata: m),
+      'todo_list': (t, m, s) => TodoView(tool: t, metadata: m),
       'WebFetch': (t, m, s) => WebFetchView(tool: t, metadata: m),
       'WebSearch': (t, m, s) => WebSearchView(tool: t, metadata: m),
+      'web_search': (t, m, s) => WebSearchView(tool: t, metadata: m),
       'ExitPlanMode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
-      'exit_plan_mode': (t, m, s) =>
-          ExitPlanToolView(tool: t, metadata: m),
+      'exit_plan_mode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
       'AskUserQuestion': _buildAskUserQuestionView,
-      'NotebookRead': (t, m, s) =>
-          ReadView(tool: t, metadata: m, sessionId: s),
-      'NotebookEdit': (t, m, s) =>
-          EditView(tool: t, metadata: m, sessionId: s),
+      'NotebookRead': (t, m, s) => ReadView(tool: t, metadata: m, sessionId: s),
+      'NotebookEdit': (t, m, s) => EditView(tool: t, metadata: m, sessionId: s),
     };
     return views[toolName];
   }

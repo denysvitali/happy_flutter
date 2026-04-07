@@ -11,7 +11,6 @@ import 'package:happy_flutter/core/utils/wire_parsers.dart';
 /// - [minimal]: Whether to show minimal representation
 /// - Various optional extractors for subtitle, description, and status
 class ToolDefinition {
-
   const ToolDefinition({
     required this.icon,
     this.title,
@@ -23,6 +22,7 @@ class ToolDefinition {
     this.extractDescription,
     this.extractStatus,
   });
+
   /// Icon factory function that takes size and color parameters.
   final Widget Function(double size, Color color) icon;
 
@@ -164,13 +164,11 @@ class KnownTools {
       isMutable: true,
       minimal: false,
       extractSubtitle: (tool, _) {
-        final input =
-            WireParsers.asMap(tool['input']);
+        final input = WireParsers.asMap(tool['input']);
         return input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
-        final children =
-            tool['children'] as List<dynamic>?;
+        final children = tool['children'] as List<dynamic>?;
         final count = children?.length ?? 0;
         return count > 0 ? '$count steps' : null;
       },
@@ -181,13 +179,11 @@ class KnownTools {
       isMutable: true,
       minimal: false,
       extractSubtitle: (tool, _) {
-        final input =
-            WireParsers.asMap(tool['input']);
+        final input = WireParsers.asMap(tool['input']);
         return input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
-        final children =
-            tool['children'] as List<dynamic>?;
+        final children = tool['children'] as List<dynamic>?;
         final count = children?.length ?? 0;
         return count > 0 ? '$count steps' : null;
       },
@@ -352,12 +348,42 @@ class KnownTools {
         return 'Search: $truncated';
       },
     ),
+    'web_search': ToolDefinition(
+      icon: webSearchIcon,
+      title: 'Web Search',
+      minimal: true,
+      extractDescription: (tool, _) {
+        final query = tool['input']?['query'] as String?;
+        if (query == null) return null;
+        final truncated = query.length > 30
+            ? '${query.substring(0, 30)}...'
+            : query;
+        return 'Search: $truncated';
+      },
+    ),
     'TodoWrite': ToolDefinition(
       icon: todoIcon,
       title: 'Todo List',
       noStatus: true,
       minimal: false,
       extractDescription: (tool, _) {
+        final todos = tool['input']?['todos'] as List?;
+        if (todos != null) {
+          return '${todos.length} items';
+        }
+        return null;
+      },
+    ),
+    'todo_list': ToolDefinition(
+      icon: todoIcon,
+      title: 'Todo List',
+      noStatus: true,
+      minimal: false,
+      extractDescription: (tool, _) {
+        final items = tool['input']?['items'] as List?;
+        if (items != null) {
+          return '${items.length} items';
+        }
         final todos = tool['input']?['todos'] as List?;
         if (todos != null) {
           return '${todos.length} items';
@@ -398,11 +424,7 @@ class KnownTools {
         return null;
       },
     ),
-    'search': ToolDefinition(
-      icon: searchIcon,
-      title: 'Search',
-      minimal: true,
-    ),
+    'search': ToolDefinition(icon: searchIcon, title: 'Search', minimal: true),
     'edit': ToolDefinition(
       icon: editIcon,
       title: 'Edit File',

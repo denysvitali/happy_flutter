@@ -6,7 +6,6 @@ import '../tool_section_view.dart';
 
 /// Task list item model.
 class TodoItem {
-
   TodoItem({
     required this.content,
     required this.status,
@@ -25,7 +24,6 @@ class TodoItem {
 
 /// View for displaying TodoWrite tool todo lists.
 class TodoView extends StatefulWidget {
-
   const TodoView({required this.tool, super.key, this.metadata});
   final Map<String, dynamic> tool;
   final Map<String, dynamic>? metadata;
@@ -61,13 +59,14 @@ class _TodoViewState extends State<TodoView> {
   }
 
   List<TodoItem> _resolveTodos() {
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final rawResult = widget.tool['result'];
-    final result =
-        rawResult is Map<String, dynamic> ? rawResult : null;
+    final result = rawResult is Map<String, dynamic> ? rawResult : null;
 
     var todos = _parseTodos(input['todos']);
+    if (todos.isEmpty) {
+      todos = _parseTodos(input['items']);
+    }
     if (todos.isEmpty && result != null) {
       final newTodos = result['newTodos'] as List?;
       if (newTodos != null) {
@@ -83,6 +82,21 @@ class _TodoViewState extends State<TodoView> {
             .toList();
       }
     }
+    if (todos.isEmpty && result != null) {
+      todos = _parseTodos(result['items']);
+    }
+    if (todos.isEmpty && result != null) {
+      todos = _parseTodos(result['todos']);
+    }
+    final nestedOutput = result != null
+        ? WireParsers.asMap(result['output'])
+        : null;
+    if (todos.isEmpty && nestedOutput != null) {
+      todos = _parseTodos(nestedOutput['items']);
+    }
+    if (todos.isEmpty && nestedOutput != null) {
+      todos = _parseTodos(nestedOutput['todos']);
+    }
     return todos;
   }
 
@@ -92,9 +106,13 @@ class _TodoViewState extends State<TodoView> {
     return todos
         .map((t) {
           if (t is! Map<String, dynamic>) return null;
+          final text = t['content'] as String? ?? t['text'] as String? ?? '';
+          final completed = t['completed'] == true;
+          final status =
+              t['status'] as String? ?? (completed ? 'completed' : 'pending');
           return TodoItem(
-            content: t['content'] as String? ?? '',
-            status: t['status'] as String? ?? 'pending',
+            content: text,
+            status: status,
             priority: t['priority'] as String?,
             id: t['id'] as String?,
           );
@@ -107,8 +125,7 @@ class _TodoViewState extends State<TodoView> {
   Widget build(BuildContext context) {
     if (_todos.isEmpty) return const SizedBox.shrink();
 
-    final completed =
-        _todos.where((t) => t.isCompleted).length;
+    final completed = _todos.where((t) => t.isCompleted).length;
     final total = _todos.length;
 
     return ToolSectionView(
@@ -119,26 +136,21 @@ class _TodoViewState extends State<TodoView> {
           // Count summary header
           Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: _CountSummary(
-              completed: completed,
-              total: total,
-            ),
+            child: _CountSummary(completed: completed, total: total),
           ),
           // Task items
           ..._todos.map(
             (todo) => AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) =>
-                  FadeTransition(
-                    opacity: animation,
-                    child: SizeTransition(
-                      sizeFactor: animation,
-                      child: child,
-                    ),
-                  ),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SizeTransition(sizeFactor: animation, child: child),
+              ),
               child: _TodoRow(
-                key: ValueKey('${todo.id ?? todo.content}'
-                    '_${todo.status}'),
+                key: ValueKey(
+                  '${todo.id ?? todo.content}'
+                  '_${todo.status}',
+                ),
                 todo: todo,
               ),
             ),
@@ -151,10 +163,7 @@ class _TodoViewState extends State<TodoView> {
 
 /// Small summary label showing "X/Y done".
 class _CountSummary extends StatelessWidget {
-  const _CountSummary({
-    required this.completed,
-    required this.total,
-  });
+  const _CountSummary({required this.completed, required this.total});
 
   final int completed;
   final int total;
@@ -170,9 +179,7 @@ class _CountSummary extends StatelessWidget {
     return Row(
       children: [
         Icon(
-          allDone
-              ? Icons.check_circle_rounded
-              : Icons.checklist_rounded,
+          allDone ? Icons.check_circle_rounded : Icons.checklist_rounded,
           size: 14,
           color: color,
         ),
@@ -205,8 +212,7 @@ class _TodoRow extends StatelessWidget {
     } else if (todo.isInProgress) {
       statusColor = theme.colorScheme.primary;
     } else {
-      statusColor = theme.colorScheme.onSurfaceVariant
-          .withValues(alpha: 0.6);
+      statusColor = theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
     }
 
     final Widget statusIcon;
@@ -226,8 +232,7 @@ class _TodoRow extends StatelessWidget {
       );
     }
 
-    final decoration =
-        todo.isCompleted ? TextDecoration.lineThrough : null;
+    final decoration = todo.isCompleted ? TextDecoration.lineThrough : null;
     final textColor = todo.isCompleted
         ? theme.colorScheme.onSurfaceVariant
         : theme.colorScheme.onSurface;
@@ -237,10 +242,7 @@ class _TodoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: statusIcon,
-          ),
+          Padding(padding: const EdgeInsets.only(top: 1), child: statusIcon),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
@@ -280,12 +282,10 @@ class _PulsingIconState extends State<_PulsingIcon>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _opacity = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
-    );
+    _opacity = Tween<double>(
+      begin: 0.4,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
