@@ -261,7 +261,10 @@ extension SyncMessagingSend on Sync {
       );
       if (!ready) {
         if (recentlySpawned) {
-          throw _AgentStartupTimeout(targetSessionId);
+          logger.warning(
+            '[sendMessage] recently spawned session did not become ready '
+            'within timeout, sending anyway session=$targetSessionId',
+          );
         }
         logger.info(
           '[sendMessage] agent not ready for '
