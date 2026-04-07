@@ -48,21 +48,20 @@ class SessionsListContent extends ConsumerStatefulWidget {
       _SessionsListContentState();
 }
 
-class _SessionsListContentState
-    extends ConsumerState<SessionsListContent> {
+class _SessionsListContentState extends ConsumerState<SessionsListContent> {
   bool _hasLoaded = false;
   bool _animationTriggered = false;
   final Set<String> _collapsedActivePaths = {};
   final Set<String> _collapsedFolderKeys = {};
   final Set<String> _collapsedDateKeys = {};
-  ArchivedGrouping _archivedGrouping =
-      ArchivedGrouping.date;
+  ArchivedGrouping _archivedGrouping = ArchivedGrouping.date;
   SortedSessions? _sortedCache;
   Map<String, Session>? _lastSessionsMap;
   String? _lastSearchQuery;
+  List<ListItem>? _listItemsCache;
+  int? _listItemsCacheSignature;
 
-  ValueNotifier<SelectionState> get _sel =>
-      widget.selectionNotifier;
+  ValueNotifier<SelectionState> get _sel => widget.selectionNotifier;
 
   @override
   void initState() {
@@ -84,10 +83,7 @@ class _SessionsListContentState
     final current = _sel.value;
     if (!current.isActive) {
       HapticFeedback.mediumImpact();
-      _sel.value = SelectionState(
-        isActive: true,
-        selectedIds: {sessionId},
-      );
+      _sel.value = SelectionState(isActive: true, selectedIds: {sessionId});
     }
   }
 
@@ -110,36 +106,29 @@ class _SessionsListContentState
   @override
   Widget build(BuildContext context) {
     final sessions = ref.watch(sessionsNotifierProvider);
-    final machines = _archivedGrouping ==
-            ArchivedGrouping.folder
+    final machines = _archivedGrouping == ArchivedGrouping.folder
         ? ref.watch(machinesNotifierProvider)
         : ref.read(machinesNotifierProvider);
     final hideInactive = ref.watch(
-      settingsNotifierProvider
-          .select((s) => s.hideInactiveSessions),
+      settingsNotifierProvider.select((s) => s.hideInactiveSessions),
     );
     final showFlavorIcons = ref.watch(
-      settingsNotifierProvider
-          .select((s) => s.showFlavorIcons),
+      settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );
     final avatarStyle = ref.watch(
-      settingsNotifierProvider
-          .select((s) => parseAvatarStyle(s.avatarStyle)),
+      settingsNotifierProvider.select((s) => parseAvatarStyle(s.avatarStyle)),
     );
 
     final searchQuery = widget.searchQuery;
-    final optimisticallyArchivedIds =
-        sync.getOptimisticallyArchivedIds();
+    final optimisticallyArchivedIds = sync.getOptimisticallyArchivedIds();
 
     final sorted = computeSortedSessions(
       sessions,
       previous: _sortedCache,
       lastSessions: _lastSessionsMap,
       lastSearchQuery: _lastSearchQuery,
-      optimisticallyArchivedIds:
-          optimisticallyArchivedIds,
-      getLastMessageTimestamp:
-          sync.getLastMessageTimestamp,
+      optimisticallyArchivedIds: optimisticallyArchivedIds,
+      getLastMessageTimestamp: sync.getLastMessageTimestamp,
       searchQuery: searchQuery,
     );
     _sortedCache = sorted;
@@ -148,11 +137,9 @@ class _SessionsListContentState
 
     final activeSessions = sorted.active;
     final inactiveSessions = sorted.inactive;
-    final sessionListCount =
-        activeSessions.length + inactiveSessions.length;
+    final sessionListCount = activeSessions.length + inactiveSessions.length;
 
-    if (!_hasLoaded &&
-        (sessionListCount > 0 || sync.isInitialized)) {
+    if (!_hasLoaded && (sessionListCount > 0 || sync.isInitialized)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _hasLoaded = true);
       });
@@ -162,8 +149,7 @@ class _SessionsListContentState
       return const SessionListShimmer();
     }
 
-    if (sessionListCount == 0 &&
-        searchQuery.isNotEmpty) {
+    if (sessionListCount == 0 && searchQuery.isNotEmpty) {
       return _buildSearchEmptyState(context);
     }
 
@@ -178,9 +164,7 @@ class _SessionsListContentState
 
     return RefreshIndicator(
       onRefresh: () async {
-        await ref
-            .read(sessionsNotifierProvider.notifier)
-            .refreshFromSync();
+        await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
       },
       color: Theme.of(context).colorScheme.primary,
       child: _buildSessionsList(
@@ -206,20 +190,15 @@ class _SessionsListContentState
           Icon(
             Icons.search_off,
             size: 56,
-            color: cs.onSurfaceVariant
-                .withValues(alpha: AppOpacity.medium),
+            color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.medium),
           ),
           const SizedBox(height: AppSpacing.xl),
           Text(
             l10n.sessionsNoSearchResults,
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(
-                  color: cs.onSurfaceVariant
-                      .withValues(alpha: AppOpacity.half),
-                  fontWeight: FontWeight.w500,
-                ),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.half),
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           TextButton.icon(
@@ -236,20 +215,14 @@ class _SessionsListContentState
     return switch (item.type) {
       ListItemType.activeSession ||
       ListItemType.archivedSession ||
-      ListItemType.folderEntry =>
-        ValueKey('s-${item.session!.id}'),
-      ListItemType.pathHeader =>
-        ValueKey('p-${item.pathKey}'),
-      ListItemType.dateHeader =>
-        ValueKey('d-${item.dateKey}'),
-      ListItemType.folderHeader =>
-        ValueKey(
-          'f-${item.folderHeader?.folderKey}',
-        ),
-      ListItemType.sectionHeader =>
-        ValueKey('sh-${item.title}'),
-      ListItemType.archiveHeader =>
-        const ValueKey('archive-header'),
+      ListItemType.folderEntry => ValueKey('s-${item.session!.id}'),
+      ListItemType.pathHeader => ValueKey('p-${item.pathKey}'),
+      ListItemType.dateHeader => ValueKey('d-${item.dateKey}'),
+      ListItemType.folderHeader => ValueKey(
+        'f-${item.folderHeader?.folderKey}',
+      ),
+      ListItemType.sectionHeader => ValueKey('sh-${item.title}'),
+      ListItemType.archiveHeader => const ValueKey('archive-header'),
     };
   }
 
@@ -263,74 +236,16 @@ class _SessionsListContentState
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
-    final activeByPath = <String, List<Session>>{};
-    for (final s in activeSessions) {
-      final path = s.metadata?.path ?? 'Unknown';
-      activeByPath.putIfAbsent(path, () => []).add(s);
-    }
-
-    var staggerIndex = 0;
-    final items = <ListItem>[];
-
-    if (activeSessions.isNotEmpty) {
-      items.add(ListItem.sectionHeader(
-        context.l10n.sessionsActiveSessions,
-        staggerIndex,
-      ));
-
-      for (final entry in (activeByPath.entries.toList()
-        ..sort((a, b) => a.key.compareTo(b.key)))) {
-        final pathKey = entry.key;
-        final isPathCollapsed =
-            _collapsedActivePaths.contains(pathKey);
-        items.add(ListItem.pathHeader(
-          pathKey,
-          entry.value.length,
-          isPathCollapsed,
-          staggerIndex,
-        ));
-        if (!isPathCollapsed) {
-          for (final session in entry.value) {
-            items.add(ListItem.activeSession(
-              session,
-              staggerIndex,
-            ));
-            staggerIndex++;
-          }
-        }
-      }
-    }
-
-    if (shouldShowInactiveSessionsSection(
+    final items = _buildListItems(
+      context,
+      activeSessions,
+      inactiveSessions,
+      machines,
       hideInactive: hideInactive,
-      activeCount: activeSessions.length,
-      inactiveCount: inactiveSessions.length,
-    )) {
-      items.add(ListItem.archiveHeader(
-        inactiveSessions.length,
-        _archivedGrouping,
-        staggerIndex,
-      ));
-
-      final archivedItems =
-          _archivedGrouping == ArchivedGrouping.folder
-              ? _buildFolderGroupedItems(
-                  inactiveSessions,
-                  machines,
-                  startIndex: staggerIndex,
-                )
-              : _buildDateGroupedItems(
-                  inactiveSessions,
-                  startIndex: staggerIndex,
-                );
-      items.addAll(archivedItems);
-    }
+    );
 
     return ListView.builder(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.xs,
-        bottom: AppSpacing.lg,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
       itemCount: items.length,
       itemBuilder: (ctx, i) {
         final item = items[i];
@@ -351,6 +266,104 @@ class _SessionsListContentState
     );
   }
 
+  List<ListItem> _buildListItems(
+    BuildContext context,
+    List<Session> activeSessions,
+    List<Session> inactiveSessions,
+    Map<String, Machine> machines, {
+    required bool hideInactive,
+  }) {
+    final signature = Object.hashAll(<Object?>[
+      activeSessions.length,
+      inactiveSessions.length,
+      for (final session in activeSessions) session.id,
+      for (final session in inactiveSessions) session.id,
+      hideInactive,
+      _archivedGrouping,
+      Object.hashAllUnordered(_collapsedActivePaths),
+      Object.hashAllUnordered(_collapsedFolderKeys),
+      Object.hashAllUnordered(_collapsedDateKeys),
+      if (_archivedGrouping == ArchivedGrouping.folder)
+        for (final entry in machines.entries)
+          Object.hash(
+            entry.key,
+            entry.value.metadata?.displayName,
+            entry.value.metadata?.host,
+          ),
+    ]);
+
+    final cachedItems = _listItemsCache;
+    if (cachedItems != null && _listItemsCacheSignature == signature) {
+      return cachedItems;
+    }
+
+    final activeByPath = <String, List<Session>>{};
+    for (final s in activeSessions) {
+      final path = s.metadata?.path ?? 'Unknown';
+      activeByPath.putIfAbsent(path, () => []).add(s);
+    }
+
+    var staggerIndex = 0;
+    final items = <ListItem>[];
+
+    if (activeSessions.isNotEmpty) {
+      items.add(
+        ListItem.sectionHeader(
+          context.l10n.sessionsActiveSessions,
+          staggerIndex,
+        ),
+      );
+
+      for (final entry
+          in (activeByPath.entries.toList()
+            ..sort((a, b) => a.key.compareTo(b.key)))) {
+        final pathKey = entry.key;
+        final isPathCollapsed = _collapsedActivePaths.contains(pathKey);
+        items.add(
+          ListItem.pathHeader(
+            pathKey,
+            entry.value.length,
+            isPathCollapsed,
+            staggerIndex,
+          ),
+        );
+        if (!isPathCollapsed) {
+          for (final session in entry.value) {
+            items.add(ListItem.activeSession(session, staggerIndex));
+            staggerIndex++;
+          }
+        }
+      }
+    }
+
+    if (shouldShowInactiveSessionsSection(
+      hideInactive: hideInactive,
+      activeCount: activeSessions.length,
+      inactiveCount: inactiveSessions.length,
+    )) {
+      items.add(
+        ListItem.archiveHeader(
+          inactiveSessions.length,
+          _archivedGrouping,
+          staggerIndex,
+        ),
+      );
+
+      final archivedItems = _archivedGrouping == ArchivedGrouping.folder
+          ? _buildFolderGroupedItems(
+              inactiveSessions,
+              machines,
+              startIndex: staggerIndex,
+            )
+          : _buildDateGroupedItems(inactiveSessions, startIndex: staggerIndex);
+      items.addAll(archivedItems);
+    }
+
+    _listItemsCacheSignature = signature;
+    _listItemsCache = List<ListItem>.unmodifiable(items);
+    return _listItemsCache!;
+  }
+
   /// Builds a card for archived or folder-grouped sessions.
   /// Both [archivedSession] and [folderEntry] use the same
   /// layout (SessionCard + optional divider + dismissible).
@@ -368,51 +381,39 @@ class _SessionsListContentState
         SessionCard(
           session: session,
           onTap: sel.isActive
-              ? () => _onSessionTapInSelectionMode(
-                  session.id)
+              ? () => _onSessionTapInSelectionMode(session.id)
               : () => unawaited(
-                    context.pushNamed(
-                      'chat',
-                      pathParameters: {
-                        'sessionId': session.id,
-                      },
-                    ),
+                  context.pushNamed(
+                    'chat',
+                    pathParameters: {'sessionId': session.id},
                   ),
-          onLongPress: () =>
-              _onSessionLongPress(session.id),
+                ),
+          onLongPress: () => _onSessionLongPress(session.id),
           isFirst: item.isFirst!,
           isLast: item.isLast!,
           isSingle: item.isSingle!,
           compact: true,
           selectionMode: sel.isActive,
-          isSelected:
-              sel.selectedIds.contains(session.id),
+          isSelected: sel.selectedIds.contains(session.id),
           showFlavorIcon: showFlavorIcons,
           avatarStyle: avatarStyle,
-          lastMessageTimestamp:
-              sync.getLastMessageTimestamp(session.id),
-          lastMessagePreview:
-              sync.getLastMessagePreview(session.id),
-          lastMessageRole:
-              sync.getLastMessageRole(session.id),
+          lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+          lastMessagePreview: sync.getLastMessagePreview(session.id),
+          lastMessageRole: sync.getLastMessageRole(session.id),
         ),
         if (!item.isLast! && !item.isSingle!)
           Divider(
             height: 1,
             indent: 64,
-            color: Theme.of(context)
-                .colorScheme
-                .outlineVariant
-                .withValues(alpha: AppOpacity.soft),
+            color: Theme.of(
+              context,
+            ).colorScheme.outlineVariant.withValues(alpha: AppOpacity.soft),
           ),
       ],
     );
     return sel.isActive
         ? card
-        : DismissibleInactiveSession(
-            session: session,
-            child: card,
-          );
+        : DismissibleInactiveSession(session: session, child: card);
   }
 
   Widget _buildItemWidget(
@@ -427,29 +428,21 @@ class _SessionsListContentState
     switch (item.type) {
       case ListItemType.sectionHeader:
         return FadeInSection(
-          delay: Duration(
-            milliseconds:
-                kStaggerStep * item.staggerIndex,
-          ),
+          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
           child: SectionHeader(title: item.title!),
         );
 
       case ListItemType.pathHeader:
-        final isPathCollapsed =
-            _collapsedActivePaths.contains(item.pathKey!);
+        final isPathCollapsed = _collapsedActivePaths.contains(item.pathKey!);
         return FadeInSection(
-          delay: Duration(
-            milliseconds:
-                kStaggerStep * item.staggerIndex,
-          ),
+          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
           child: PathHeader(
             path: item.pathKey!,
             sessionCount: item.sessionCount!,
             isCollapsed: isPathCollapsed,
             onToggle: () => setState(() {
               if (isPathCollapsed) {
-                _collapsedActivePaths
-                    .remove(item.pathKey!);
+                _collapsedActivePaths.remove(item.pathKey!);
               } else {
                 _collapsedActivePaths.add(item.pathKey!);
               }
@@ -460,70 +453,50 @@ class _SessionsListContentState
       case ListItemType.activeSession:
         final session = item.session!;
         final card = GestureDetector(
-          onLongPress: () =>
-              _onSessionLongPress(session.id),
+          onLongPress: () => _onSessionLongPress(session.id),
           child: CompactActiveSessionCard(
             session: session,
             onTap: sel.isActive
-                ? () => _onSessionTapInSelectionMode(
-                    session.id)
+                ? () => _onSessionTapInSelectionMode(session.id)
                 : () => unawaited(
-                      context.pushNamed(
-                        'chat',
-                        pathParameters: {
-                          'sessionId': session.id,
-                        },
-                      ),
+                    context.pushNamed(
+                      'chat',
+                      pathParameters: {'sessionId': session.id},
                     ),
+                  ),
             showFlavorIcon: showFlavorIcons,
             avatarStyle: avatarStyle,
-            lastMessageTimestamp:
-                sync.getLastMessageTimestamp(session.id),
-            lastMessagePreview:
-                sync.getLastMessagePreview(session.id),
-            lastMessageRole:
-                sync.getLastMessageRole(session.id),
-            isSelected:
-                sel.selectedIds.contains(session.id),
+            lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+            lastMessagePreview: sync.getLastMessagePreview(session.id),
+            lastMessageRole: sync.getLastMessageRole(session.id),
+            isSelected: sel.selectedIds.contains(session.id),
             selectionMode: sel.isActive,
             unreadCount: sync.getUnreadCount(session.id),
           ),
         );
         return sel.isActive
             ? card
-            : DismissibleActiveSession(
-                session: session,
-                child: card,
-              );
+            : DismissibleActiveSession(session: session, child: card);
 
       case ListItemType.archiveHeader:
         return FadeInSection(
-          delay: Duration(
-            milliseconds:
-                kStaggerStep * item.staggerIndex,
-          ),
+          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
           child: ArchiveSectionHeader(
             count: item.sessionCount!,
             grouping: item.archivedGrouping!,
-            onGroupingChanged: (g) =>
-                setState(() => _archivedGrouping = g),
+            onGroupingChanged: (g) => setState(() => _archivedGrouping = g),
           ),
         );
 
       case ListItemType.dateHeader:
         return FadeInSection(
-          delay: Duration(
-            milliseconds:
-                kStaggerStep * item.staggerIndex,
-          ),
+          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
           child: CollapsibleDateHeader(
             date: item.title!,
             sessionCount: item.sessionCount!,
-            isCollapsed:
-                _collapsedDateKeys.contains(item.dateKey!),
+            isCollapsed: _collapsedDateKeys.contains(item.dateKey!),
             onToggle: () => setState(() {
-              if (_collapsedDateKeys
-                  .contains(item.dateKey!)) {
+              if (_collapsedDateKeys.contains(item.dateKey!)) {
                 _collapsedDateKeys.remove(item.dateKey!);
               } else {
                 _collapsedDateKeys.add(item.dateKey!);
@@ -543,14 +516,12 @@ class _SessionsListContentState
 
       case ListItemType.folderHeader:
         return FadeInSection(
-          delay: Duration(
-            milliseconds:
-                kStaggerStep * item.staggerIndex,
-          ),
+          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
           child: CollapsibleFolderHeader(
             header: item.folderHeader!,
-            isCollapsed: _collapsedFolderKeys
-                .contains(item.folderHeader!.folderKey),
+            isCollapsed: _collapsedFolderKeys.contains(
+              item.folderHeader!.folderKey,
+            ),
             onToggle: () => setState(() {
               final key = item.folderHeader!.folderKey;
               if (_collapsedFolderKeys.contains(key)) {
@@ -568,52 +539,48 @@ class _SessionsListContentState
     List<Session> sessions, {
     required int startIndex,
   }) {
-    final grouped =
-        groupSessionsByDateCategory(
-          sessions,
-          getLastMessageTimestamp:
-              sync.getLastMessageTimestamp,
-        );
+    final grouped = groupSessionsByDateCategory(
+      sessions,
+      getLastMessageTimestamp: sync.getLastMessageTimestamp,
+    );
 
     var itemIndex = startIndex;
     final items = <ListItem>[];
 
     for (final group in dateGroupOrder) {
       final dateSessions = grouped[group];
-      if (dateSessions == null ||
-          dateSessions.isEmpty) {
+      if (dateSessions == null || dateSessions.isEmpty) {
         continue;
       }
 
       final dateKey = group.name;
-      final isCollapsed =
-          _collapsedDateKeys.contains(dateKey);
+      final isCollapsed = _collapsedDateKeys.contains(dateKey);
 
-      items.add(ListItem.dateHeader(
-        dateKey,
-        _localizeDateGroup(group),
-        dateSessions.length,
-        itemIndex,
-      ));
+      items.add(
+        ListItem.dateHeader(
+          dateKey,
+          _localizeDateGroup(group),
+          dateSessions.length,
+          itemIndex,
+        ),
+      );
 
       if (!isCollapsed) {
-        for (var i = 0;
-            i < dateSessions.length;
-            i++) {
+        for (var i = 0; i < dateSessions.length; i++) {
           final session = dateSessions[i];
           final isFirst = i == 0;
-          final isLast =
-              i == dateSessions.length - 1;
-          final isSingle =
-              dateSessions.length == 1;
+          final isLast = i == dateSessions.length - 1;
+          final isSingle = dateSessions.length == 1;
 
-          items.add(ListItem.archivedSession(
-            session,
-            itemIndex,
-            isFirst: isFirst,
-            isLast: isLast,
-            isSingle: isSingle,
-          ));
+          items.add(
+            ListItem.archivedSession(
+              session,
+              itemIndex,
+              isFirst: isFirst,
+              isLast: isLast,
+              isSingle: isSingle,
+            ),
+          );
           itemIndex++;
         }
       }
@@ -638,13 +605,11 @@ class _SessionsListContentState
     Map<String, Machine> machines, {
     required int startIndex,
   }) {
-    final folderItems =
-        groupSessionsByFolder(
-          sessions,
-          machines,
-          getLastMessageTimestamp:
-              sync.getLastMessageTimestamp,
-        );
+    final folderItems = groupSessionsByFolder(
+      sessions,
+      machines,
+      getLastMessageTimestamp: sync.getLastMessageTimestamp,
+    );
 
     var itemIndex = startIndex;
     final items = <ListItem>[];
@@ -654,25 +619,23 @@ class _SessionsListContentState
       switch (item) {
         case SessionFolderHeader():
           currentFolderKey = item.folderKey;
-          items.add(ListItem.folderHeader(
-            item,
-            itemIndex,
-          ));
+          items.add(ListItem.folderHeader(item, itemIndex));
         case SessionFolderEntry():
           if (currentFolderKey != null &&
-              _collapsedFolderKeys
-                  .contains(currentFolderKey)) {
+              _collapsedFolderKeys.contains(currentFolderKey)) {
             continue;
           }
           final session = item.session;
 
-          items.add(ListItem.folderEntry(
-            session,
-            itemIndex,
-            isFirst: item.isFirst,
-            isLast: item.isLast,
-            isSingle: item.isSingle,
-          ));
+          items.add(
+            ListItem.folderEntry(
+              session,
+              itemIndex,
+              isFirst: item.isFirst,
+              isLast: item.isLast,
+              isSingle: item.isSingle,
+            ),
+          );
           itemIndex++;
       }
     }

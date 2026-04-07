@@ -90,16 +90,11 @@ class _MessageWidgetState extends State<MessageWidget>
         vsync: this,
         duration: const Duration(milliseconds: 200),
       );
-      _opacity = CurvedAnimation(
-        parent: _controller!,
-        curve: Curves.easeOut,
-      );
+      _opacity = CurvedAnimation(parent: _controller!, curve: Curves.easeOut);
       _slide = Tween<Offset>(
         begin: const Offset(0, 0.04),
         end: Offset.zero,
-      ).animate(
-        CurvedAnimation(parent: _controller!, curve: Curves.easeOut),
-      );
+      ).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeOut));
       _controller!.forward();
     } else {
       // Historical message — use static animations to avoid
@@ -121,10 +116,7 @@ class _MessageWidgetState extends State<MessageWidget>
 
     return FadeTransition(
       opacity: _opacity,
-      child: SlideTransition(
-        position: _slide,
-        child: body,
-      ),
+      child: SlideTransition(position: _slide, child: body),
     );
   }
 
@@ -139,8 +131,8 @@ class _MessageWidgetState extends State<MessageWidget>
       widget.isFirstInGroup,
       widget.isLastInGroup,
       widget.isStreaming,
-      widget.onOptionPress,
-      widget.onRetry,
+      widget.onOptionPress != null,
+      widget.onRetry != null,
     );
 
     if (_cachedBody != null && _cachedBodySignature == signature) {
@@ -171,9 +163,7 @@ class _MessageWidgetState extends State<MessageWidget>
       return _cacheBody(
         signature,
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           child: ToolView(
             tool: widget.messageData,
             metadata: widget.metadata,

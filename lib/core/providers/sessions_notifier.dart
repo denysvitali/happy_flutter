@@ -23,8 +23,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     final pinned = _pinnedStorage.getPinned();
     final folders = _foldersStorage.getAllFolders();
     if (pinned.isEmpty && folders.isEmpty) return;
+    Map<String, Session>? nextState;
     for (final id in {...pinned, ...folders.keys}) {
-      final session = state[id];
+      final source = nextState ?? state;
+      final session = source[id];
       if (session == null) continue;
       var updated = session;
       if (pinned.contains(id) && !session.pinned) {
@@ -35,8 +37,12 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
         updated = updated.copyWith(folder: folder);
       }
       if (!identical(updated, session)) {
-        state = {...state, id: updated};
+        nextState ??= Map<String, Session>.from(state);
+        nextState[id] = updated;
       }
+    }
+    if (nextState != null) {
+      state = nextState;
     }
   }
 
