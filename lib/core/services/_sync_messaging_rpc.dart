@@ -520,6 +520,19 @@ extension SyncMessagingRpc on Sync {
       });
     }
 
+    final needsVisibleRegroup = _sessionsNeedingVisibleRegroup.remove(
+      sessionId,
+    );
+    if (needsVisibleRegroup) {
+      final messages = _sessionMessages[sessionId];
+      if (messages != null &&
+          messages.any((message) => message['isSidechain'] == true)) {
+        _groupSidechainMessages(sessionId);
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged({SyncDomain.messages});
+      }
+    }
+
     // Evict stale messagesSync entries that haven't been used in 5 minutes.
     // Each InvalidateSync holds Timers, a Completer, and closures that
     // capture the Sync singleton — unbounded growth for 500+ sessions.

@@ -202,6 +202,8 @@ extension SyncMessaging on Sync {
       }
 
       var page = 0;
+      var didMutateMessages = false;
+      var shouldRegroupWhenVisible = false;
       var notifiedVisibleData = false;
       while (true) {
         // ── Check visibility ──
@@ -276,6 +278,7 @@ extension SyncMessaging on Sync {
             _sessionDataKeys.remove(sessionId);
             _sessionEncryptedDataKeys.remove(sessionId);
             _sessionsNeedingTailRefresh.remove(sessionId);
+            _sessionsNeedingVisibleRegroup.remove(sessionId);
             _sessionsWithPendingUpdates.remove(sessionId);
             _sessionsWithPendingSocketMessages.remove(sessionId);
             _sessionSpawnedAt.remove(sessionId);
@@ -387,6 +390,14 @@ extension SyncMessaging on Sync {
         }
         if (processed.messages.isNotEmpty) {
           _upsertSessionMessages(sessionId, processed.messages);
+          didMutateMessages = true;
+          shouldRegroupWhenVisible =
+              shouldRegroupWhenVisible ||
+              processed.messages.any(
+                (message) =>
+                    message['isSidechain'] == true ||
+                    message['kind'] == 'sidechain-root',
+              );
         }
 
         // ── Yield ──
@@ -469,13 +480,26 @@ extension SyncMessaging on Sync {
         // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
       }
+      final isVisibleAtCompletion = _visibleSessionId == sessionId;
       // Final notification in case some pages had no messages
       // (notification already fired per-page for non-empty pages).
       // Run sidechain grouping once after all pages are loaded —
       // previously this ran per-page doing O(4n) work each time.
-      _groupSidechainMessages(sessionId);
-      _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+      //
+      // For non-visible sessions, defer regrouping and UI-domain
+      // notifications until the session is opened. Background sync
+      // should update in-memory/cache state without forcing expensive
+      // main-isolate regroup + rebuild work across the app.
+      if (isVisibleAtCompletion) {
+        _groupSidechainMessages(sessionId);
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+      } else if (didMutateMessages) {
+        _scheduleSaveMessages(sessionId);
+        if (shouldRegroupWhenVisible) {
+          _sessionsNeedingVisibleRegroup.add(sessionId);
+        }
+      }
       // Finish the fetch span successfully
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       if (fetchSpan != null) unawaited(fetchSpan.finish());

@@ -458,6 +458,7 @@ extension SyncSocketEvents on Sync {
       _sessionMessagesViewCache.remove(sessionId);
       _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
+      _sessionsNeedingVisibleRegroup.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();
       _sessionDataKeys.remove(sessionId);
       _sessionEncryptedDataKeys.remove(sessionId);

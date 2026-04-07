@@ -306,6 +306,7 @@ what you have, you must use the options mode.
   final Map<String, Timer> _saveMsgsDebounceTimers = {};
   final Map<String, Timer> _postSendCatchUpTimers = {};
   final Set<String> _sessionsNeedingTailRefresh = <String>{};
+  final Set<String> _sessionsNeedingVisibleRegroup = <String>{};
 
   /// Sessions that received `new-message` socket events while they were
   /// not visible. When the user navigates to one of these sessions,
