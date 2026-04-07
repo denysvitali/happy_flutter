@@ -1188,6 +1188,11 @@ void main() {
         presence: 'online',
       );
       sync.testFetchSingleSessionOverride = (_) async => null;
+      // _isSessionReady requires a recent ephemeral event to trust 'online'
+      sync.testSetLastEphemeralAt(
+        sessionId,
+        DateTime.now().millisecondsSinceEpoch,
+      );
 
       // Mark as recently spawned (< 30s ago)
       sync.testSetSessionSpawnedAt(
@@ -1299,6 +1304,19 @@ void main() {
       sync.testFetchSingleSessionOverride = (_) async => null;
       interceptor.respondWith(sessionId);
 
+      // Session starts as 'starting' (optimistic placeholder) — simulate
+      // agent transitioning to 'running' so waitForAgentReady completes.
+      Future<void>.delayed(const Duration(milliseconds: 50), () {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        sync.testSessions[sessionId] = sync.sessions[sessionId]!.copyWith(
+          metadata: sync.sessions[sessionId]!.metadata?.copyWith(
+            lifecycleState: 'running',
+            lifecycleStateSince: now,
+          ),
+        );
+        sync.testNotifyDataChanged();
+      });
+
       final sentId = await sync.sendMessage(sessionId, 'Hello!');
       expect(sentId, sessionId);
 
@@ -1350,6 +1368,10 @@ void main() {
             presence: 'online',
             machineId: 'machine-1',
             path: '/home/user/project',
+          );
+          sync.testSetLastEphemeralAt(
+            sessionId,
+            DateTime.now().millisecondsSinceEpoch,
           );
           sync.testNotifyDataChanged();
         });
