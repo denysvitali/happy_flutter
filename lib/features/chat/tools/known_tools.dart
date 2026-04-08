@@ -348,19 +348,6 @@ class KnownTools {
         return 'Search: $truncated';
       },
     ),
-    'web_search': ToolDefinition(
-      icon: webSearchIcon,
-      title: 'Web Search',
-      minimal: true,
-      extractDescription: (tool, _) {
-        final query = tool['input']?['query'] as String?;
-        if (query == null) return null;
-        final truncated = query.length > 30
-            ? '${query.substring(0, 30)}...'
-            : query;
-        return 'Search: $truncated';
-      },
-    ),
     'TodoWrite': ToolDefinition(
       icon: todoIcon,
       title: 'Todo List',
