@@ -83,8 +83,11 @@ android {
             }
         }
         getByName("release") {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // Symbols are NOT stripped when minifyEnabled=false, so stack
+            // traces remain readable in GlitchTip. This is safe for open
+            // source apps where symbol leaking is not a concern.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
