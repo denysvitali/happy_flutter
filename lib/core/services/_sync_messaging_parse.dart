@@ -503,6 +503,29 @@ extension SyncMessagingParse on Sync {
       return ([], []);
     }
 
+    if (dataType == 'message') {
+      final text = data['message'] as String? ?? data['text'] as String?;
+      if (text == null || text.isEmpty) return ([], []);
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': text,
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': ?dataUuid,
+            'parentUuid': ?dataParentUuid,
+          },
+        ],
+        [],
+      );
+    }
+
     if (dataType == 'assistant') {
       if (dataUuid == null || dataUuid.isEmpty) return ([], []);
 
