@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'logger_service.dart';
+import 'performance_context_service.dart';
 
 /// Reports janky Flutter frames to Sentry/GlitchTip as performance
 /// transactions so that UI lag is visible in the dashboard alongside
@@ -72,7 +73,11 @@ class FrameMetricsService {
     )
       ..setData('count', snapshot.length)
       ..setData('avgMs', avgMs.round())
-      ..setData('maxMs', maxMs);
+      ..setData('maxMs', maxMs)
+      ..setData(
+        'currentRoute',
+        PerformanceContextService().currentRoute ?? 'unknown',
+      );
 
     unawaited(transaction.finish());
   }

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/api/api_client.dart';
 import 'core/encryption/sodium_singleton.dart';
@@ -20,6 +21,7 @@ import 'core/services/frame_metrics_service.dart';
 import 'core/services/logger_service.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/performance_context_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
@@ -63,6 +65,11 @@ Future<void> main() async {
 }
 
 Future<void> _runApp() async {
+  final startupTransaction = Sentry.startTransaction(
+    'app.startup',
+    'app.load',
+    bindToScope: false,
+  );
   // Installed here so Sentry's Zone and error handlers are set up first.
   remoteLoggerAutoInstall();
 
@@ -85,7 +92,13 @@ Future<void> _runApp() async {
 
   // Start all independent startup work concurrently.
   // These are awaited before the first frame.
-  final deepLinkFuture = _getInitialDeepLink();
+  final deepLinkSpan = startupTransaction.startChild(
+    'app.startup.deepLink',
+    description: 'Resolve initial deep link',
+  );
+  final deepLinkFuture = _getInitialDeepLink().whenComplete(() {
+    unawaited(deepLinkSpan.finish());
+  });
   unawaited(sodiumSingleton); // FFI load overlaps with storage/network
 
   // Defer Android user certificates and Firebase past first frame —
@@ -97,21 +110,56 @@ Future<void> _runApp() async {
   });
 
   // Await essentials: storage + network (server URL is needed for network).
+  final storageSpan = startupTransaction.startChild(
+    'app.startup.storage',
+    description: 'Initialize storage',
+  );
   await storage.Storage().initialize();
+  await storageSpan.finish();
   final serverUrl = getServerUrl();
+  final servicesSpan = startupTransaction.startChild(
+    'app.startup.services',
+    description: 'Initialize network and API client',
+  );
+  final networkSpan = servicesSpan.startChild(
+    'app.startup.networkMonitor',
+    description: 'Initialize network monitor',
+  );
+  final apiSpan = servicesSpan.startChild(
+    'app.startup.apiClient',
+    description: 'Initialize API client',
+  );
   await Future.wait([
-    NetworkMonitorService().initialize(),
-    ApiClient().initialize(serverUrl: serverUrl),
+    NetworkMonitorService().initialize().whenComplete(() {
+      unawaited(networkSpan.finish());
+    }),
+    ApiClient().initialize(serverUrl: serverUrl).whenComplete(() {
+      unawaited(apiSpan.finish());
+    }),
   ]);
+  await servicesSpan.finish();
 
   final deepLink = await deepLinkFuture;
 
   // Check if this is a new version that needs a changelog.
   ({String? fromVersion, String toVersion})? changelogInfo;
   try {
+    final packageInfoSpan = startupTransaction.startChild(
+      'app.startup.packageInfo',
+      description: 'Load package info and changelog state',
+    );
     final packageInfo = await PackageInfo.fromPlatform();
     changelogInfo = storage.Storage().checkVersionChange(packageInfo.version);
+    await packageInfoSpan.finish();
   } catch (_) {}
+
+  startupTransaction
+    ..setData('serverUrlHost', Uri.tryParse(serverUrl)?.host ?? 'unknown')
+    ..setData(
+      'currentRoute',
+      PerformanceContextService().currentRoute ?? 'unknown',
+    );
+  await startupTransaction.finish();
 
   runApp(
     ErrorBoundary(
@@ -130,8 +178,17 @@ Future<void> _runApp() async {
 /// Deferred initialization that runs after first frame. Keeps heavy,
 /// non-essential work (Firebase, Android certs) off the critical path.
 Future<void> _deferredInit() async {
+  final transaction = Sentry.startTransaction(
+    'app.deferredInit',
+    'app.load.deferred',
+    bindToScope: false,
+  );
   // Android user certificates — JNI calls + ASN.1 parsing.
   if (!kIsWeb && isAndroid) {
+    final certsSpan = transaction.startChild(
+      'app.deferredInit.userCerts',
+      description: 'Load Android user certificates',
+    );
     try {
       final certs = await FlutterUserCertificatesAndroid()
           .getUserCertificates();
@@ -141,11 +198,30 @@ Future<void> _deferredInit() async {
       }
     } catch (e) {
       logger.warning('Failed to load Android user certificates: $e');
+      certsSpan
+        ..status = const SpanStatus.internalError()
+        ..setData('error', e.toString());
+    } finally {
+      await certsSpan.finish();
     }
   }
 
   // Firebase push notifications — not needed for first screen.
-  await _initializeOptionalFirebase();
+  final firebaseSpan = transaction.startChild(
+    'app.deferredInit.firebase',
+    description: 'Initialize optional Firebase services',
+  );
+  try {
+    await _initializeOptionalFirebase();
+  } catch (e) {
+    firebaseSpan
+      ..status = const SpanStatus.internalError()
+      ..setData('error', e.toString());
+    rethrow;
+  } finally {
+    await firebaseSpan.finish();
+  }
+  await transaction.finish();
 }
 
 Future<void> _initializeOptionalFirebase() async {

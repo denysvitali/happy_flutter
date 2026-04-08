@@ -667,11 +667,21 @@ extension SyncMessaging on Sync {
     _loadingOlderMessages.add(sessionId);
     _notifyDataChanged({SyncDomain.messages});
 
+    final transaction = Sentry.startTransaction(
+      'chat.fetchOlderMessages',
+      'sync.pagination',
+      bindToScope: false,
+    )..setData('sessionId', sessionId);
+
     try {
       const pageSize = 100;
       final startSeq = (firstLoaded - 1 - pageSize).clamp(0, firstLoaded - 1);
 
       final Response<dynamic> response;
+      final httpSpan = transaction.startChild(
+        'chat.fetchOlderMessages.http',
+        description: 'Fetch older message page',
+      );
       if (testFetchOlderMessagesOverride != null) {
         final overrideResult = await testFetchOlderMessagesOverride!(
           sessionId,
@@ -691,27 +701,43 @@ extension SyncMessaging on Sync {
         );
 
         if (!apiClient.isSuccess(response)) {
+          httpSpan.setData('statusCode', response.statusCode ?? 0);
+          await httpSpan.finish(
+            status: const SpanStatus.internalError(),
+          );
           logger.warning(
             'Failed to fetch older messages: ${response.statusCode}',
+          );
+          await transaction.finish(
+            status: const SpanStatus.internalError(),
           );
           return;
         }
       }
+      httpSpan.setData('statusCode', response.statusCode ?? 0);
+      await httpSpan.finish();
 
       final data = response.data as Map<String, dynamic>;
       final messages = (data['messages'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
           .toList();
+      transaction.setData('fetchedMessages', messages.length);
 
       logger.debug(
         '[fetchOlderMessages] $sessionId '
         'msgs=${messages.length}',
       );
 
+      final decryptStart = Stopwatch()..start();
       final processed = await sessionEncryption.decryptAndProcessMessages(
         messages,
         sessionId,
       );
+      transaction
+        ..setData('decryptMs', decryptStart.elapsedMilliseconds)
+        ..setData('processedMessages', processed.messages.length)
+        ..setData('toolResults', processed.toolResults.length)
+        ..setData('usageUpdates', processed.usageUpdates.length);
 
       logger.debug(
         '[fetchOlderMessages] $sessionId '
@@ -756,7 +782,14 @@ extension SyncMessaging on Sync {
 
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages});
+      await transaction.finish();
     } catch (error, stack) {
+      transaction
+        ..setData('error', error.toString())
+        ..setData('currentRoute', PerformanceContextService().currentRoute);
+      await transaction.finish(
+        status: const SpanStatus.internalError(),
+      );
       logger.error('Error fetching older messages', error, stack);
       _paginationErrorController.add(sessionId);
     } finally {
