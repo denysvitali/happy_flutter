@@ -33,13 +33,15 @@ extension SyncSocketEvents on Sync {
           _sessionsWithPendingSocketMessages.add(sessionId);
         }
       }
-      // IMPORTANT: Chain after sessionsSync invalidation so
-      // fetchMessages runs AFTER fetchSessions has updated
-      // serverLastSeq.  Without this, fetchMessages may see
-      // stale serverLastSeq and skip via early exit.
+      // Chain messages fetch after the sessions fetch that
+      // _invalidateAllSyncs() already kicked off.  We await the
+      // existing queue instead of calling invalidateAndAwait()
+      // again, which would start a SECOND HTTP fetch cycle and
+      // was the primary cause of the N+1 sessions problem
+      // (~12 fetches per app load).
       if (_visibleSessionId != null) {
         unawaited(
-          sessionsSync.invalidateAndAwait().then((_) {
+          sessionsSync.awaitQueue().then((_) {
             if (_visibleSessionId != null) {
               messagesSync[_visibleSessionId]?.invalidate();
             }
@@ -374,11 +376,14 @@ extension SyncSocketEvents on Sync {
         _applyToolResults(sessionId, pending);
       }
       for (final u in processed.usageUpdates) {
-        _updateSessionUsage(
-          u['sessionId'] as String,
-          u['usage'] as Map<String, dynamic>,
-          u['timestamp'] as int,
-        );
+        final usageMap = WireParsers.asMap(u['usage']);
+        if (usageMap != null) {
+          _updateSessionUsage(
+            u['sessionId'] as String,
+            usageMap,
+            u['timestamp'] as int,
+          );
+        }
       }
       _applyPermissionRequests(sessionId);
 

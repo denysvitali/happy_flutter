@@ -43,8 +43,8 @@ class ArtifactEncryption {
         return null;
       }
 
-      final header = decrypted[0] as Map<String, dynamic>?;
-      if (header == null) {
+      final header = decrypted[0];
+      if (header is! Map<String, dynamic>) {
         return null;
       }
 
@@ -71,8 +71,8 @@ class ArtifactEncryption {
         return null;
       }
 
-      final body = decrypted[0] as Map<String, dynamic>?;
-      if (body == null) {
+      final body = decrypted[0];
+      if (body is! Map<String, dynamic>) {
         return null;
       }
 

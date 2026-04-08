@@ -689,6 +689,12 @@ what you have, you must use the options mode.
   /// Invalidate all sync managers
   static const int _invalidateAllSyncsCooldownMs = 10000;
 
+  /// Maximum number of non-visible sessions to refresh messages for on
+  /// resume.  Each failed fetch retries 3× with a 15 s HTTP timeout,
+  /// so capping this avoids launching dozens of parallel 54 s timeout
+  /// cascades that block the UI and saturate the network.
+  static const int _maxResumeMessageSyncs = 5;
+
   /// Phases for selective sync invalidation to prevent thundering herd
   static const _criticalSyncPhase = 0;
   static const _deferredSyncPhase = 1;
@@ -701,7 +707,19 @@ what you have, you must use the options mode.
   /// the cached one are re-serialized via `toJson()`.
   final Map<String, (Session, Map<String, dynamic>)> _sessionJsonCache = {};
 
-  static const Duration _sessionsRefreshDebounce = Duration(milliseconds: 250);
+  /// Debounce for the safety-net HTTP fetch after update-session events.
+  /// Since _handleUpdateSession patches unencrypted fields (presence,
+  /// active, title, thinking) inline, this fetch is only needed for
+  /// encrypted metadata/agentState changes which are infrequent.
+  /// Previously 250ms — caused N+1 fetches during startup bursts.
+  static const Duration _sessionsRefreshDebounce = Duration(seconds: 2);
+
+  /// Minimum interval between the end of one sessions fetch and the start
+  /// of the next.  Without this, socket event bursts (dozens of
+  /// update-session events per second during streaming) cause hundreds of
+  /// back-to-back /v2/sessions HTTP requests — the debounce timer only
+  /// throttles the *scheduling*, not the InvalidateSync itself.
+  static const Duration _sessionsSyncMinInterval = Duration(seconds: 2);
 
   /// Minimum interval between consecutive message fetches for a session.
   /// Prevents rapid-fire HTTP refetches when many socket events arrive
@@ -709,6 +727,9 @@ what you have, you must use the options mode.
   static const Duration _messagesSyncMinInterval = Duration(milliseconds: 500);
 
   static const Duration _machinesRefreshDebounce = Duration(milliseconds: 250);
+
+  /// Minimum interval between machine fetches via InvalidateSync.
+  static const Duration _machinesSyncMinInterval = Duration(seconds: 1);
 
   Timer? _machinesRefreshDebounceTimer;
   final Set<String> _pendingUpdateMachineIds = {};

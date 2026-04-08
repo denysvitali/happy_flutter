@@ -252,15 +252,15 @@ class _MessageHeader extends StatelessWidget {
             value: toolState,
           ),
           if (isTask && input != null) ...[
-            if (input!['subagent_type'] != null)
+            if (input?['subagent_type'] != null)
               _LabelValue(
                 label: context.l10n.messageDetailAgentType,
-                value: input!['subagent_type'].toString(),
+                value: input?['subagent_type'].toString() ?? '',
               ),
-            if (input!['description'] != null)
+            if (input?['description'] != null)
               _LabelValue(
                 label: context.l10n.messageDetailDescription,
-                value: input!['description'].toString(),
+                value: input?['description'].toString() ?? '',
               ),
           ],
         ],

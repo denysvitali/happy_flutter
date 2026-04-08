@@ -195,16 +195,34 @@ extension SyncLifecycle on Sync {
 
         final sessionsToRefresh = <String>{};
 
-        // Invalidate sessions that had pending socket messages before suspend.
+        // Invalidate sessions that had pending socket messages before
+        // suspend.  Cap the number of non-visible sessions to avoid
+        // launching dozens of parallel HTTP requests on resume — each
+        // failed fetch retries 3× with a 15 s timeout, so 20 sessions
+        // could mean 20 × 54 s of combined network time.  The visible
+        // session is always included separately below.
         if (_sessionsWithPendingSocketMessages.isNotEmpty) {
-          final pendingSessionIds = _sessionsWithPendingSocketMessages.toList();
+          var pendingSessionIds =
+              _sessionsWithPendingSocketMessages.toList();
+          // Remove the visible session — it's added unconditionally
+          // below, so it doesn't count against the cap.
+          pendingSessionIds.remove(_visibleSessionId);
+          if (pendingSessionIds.length > _maxResumeMessageSyncs) {
+            logger.info(
+              '[Sync] resume: capping pending message syncs '
+              'from ${pendingSessionIds.length} to '
+              '$_maxResumeMessageSyncs',
+            );
+            pendingSessionIds =
+                pendingSessionIds.take(_maxResumeMessageSyncs).toList();
+          }
           for (final sessionId in pendingSessionIds) {
             _sessionsNeedingTailRefresh.add(sessionId);
             sessionsToRefresh.add(sessionId);
           }
           logger.info(
             '[Sync] resuming — invalidating '
-            '${pendingSessionIds.length} sessions with '
+            '${sessionsToRefresh.length} sessions with '
             'pending socket messages',
           );
           _sessionsWithPendingSocketMessages.clear();
@@ -226,15 +244,22 @@ extension SyncLifecycle on Sync {
             }
           }
 
+          // Ensure sessions are fresh, then refresh messages.
+          // Use invalidate() + awaitQueue() instead of a second
+          // invalidateAndAwait() — the socket reconnection handler
+          // already kicked off a sessions fetch via
+          // _invalidateAllSyncs().  Starting another cycle would
+          // cause a redundant HTTP fetch.
+          sessionsSync.invalidate();
           unawaited(
-            sessionsSync.invalidateAndAwait().then((_) {
+            sessionsSync.awaitQueue().then((_) {
               for (final sessionId in sessionsToRefresh) {
                 messagesSync[sessionId]?.invalidate();
               }
             }),
           );
         } else if (shouldRunGlobalInvalidation) {
-          unawaited(sessionsSync.invalidateAndAwait());
+          sessionsSync.invalidate();
         }
       },
     );

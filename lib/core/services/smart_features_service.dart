@@ -35,8 +35,13 @@ class SmartFeaturesService {
   bool get autoTagsEnabled =>
       _storage.getBool(_keyAutoTagsEnabled) ?? false;
 
-  /// The session ranker instance.
-  late final SessionRanker sessionRanker;
+  /// The session ranker instance. Null until [initialize] completes.
+  SessionRanker? _sessionRanker;
+
+  /// The session ranker instance. Throws if accessed before
+  /// [initialize] completes — callers should check [_initialized].
+  SessionRanker get sessionRanker =>
+      _sessionRanker ??= SessionRanker(gemmaEnabled: false);
 
   bool _initialized = false;
 
@@ -45,13 +50,13 @@ class SmartFeaturesService {
     if (_initialized) return;
     _initialized = true;
 
-    sessionRanker = SessionRanker(
+    _sessionRanker = SessionRanker(
       gemmaEnabled: smartFeaturesEnabled,
     );
-    await sessionRanker.initialize();
+    await _sessionRanker!.initialize();
     logger.info(
       'SmartFeaturesService: initialized, '
-      'Gemma available=${sessionRanker.isAvailable}',
+      'Gemma available=${_sessionRanker!.isAvailable}',
     );
   }
 
@@ -84,13 +89,13 @@ class SmartFeaturesService {
 
   void _onSettingChanged() {
     if (smartFeaturesEnabled) {
-      sessionRanker = SessionRanker(gemmaEnabled: true);
-      sessionRanker.initialize();
+      _sessionRanker = SessionRanker(gemmaEnabled: true);
+      _sessionRanker!.initialize();
     }
   }
 
   void dispose() {
     _debounceTimer?.cancel();
-    sessionRanker.dispose();
+    _sessionRanker?.dispose();
   }
 }

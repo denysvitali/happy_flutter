@@ -22,9 +22,15 @@ class TtsService {
     logger.info('[TTS] init called (initialized=$_initialized)');
     _tts ??= FlutterTts();
     if (!_initialized) {
-      await _tts!.setSpeechRate(0.5);
-      await _tts!.setVolume(1.0);
-      await _tts!.setPitch(1.0);
+      try {
+        await _tts!.setSpeechRate(0.5);
+        await _tts!.setVolume(1.0);
+        await _tts!.setPitch(1.0);
+      } catch (e) {
+        _tts = null;
+        logger.warning('[TTS] init failed: $e');
+        return;
+      }
       _tts!.setStartHandler(() {
         logger.info('[TTS] Speech started');
       });
@@ -120,10 +126,10 @@ class TtsService {
         '"${clean.substring(0, clean.length.clamp(0, 80))}..."');
     try {
       await _tts!.stop();
-    } on MissingPluginException {
+    } catch (e) {
       _tts = null;
       _initialized = false;
-      logger.warning('[TTS] speak skipped: MissingPluginException on stop()');
+      logger.warning('[TTS] speak skipped: $e');
       return;
     }
     final result = await _tts!.speak(clean);
@@ -135,7 +141,7 @@ class TtsService {
     if (kIsWeb || _tts == null) return;
     try {
       await _tts!.stop();
-    } on MissingPluginException {
+    } catch (_) {
       _tts = null;
       _initialized = false;
     }
@@ -146,7 +152,7 @@ class TtsService {
     if (_tts != null) {
       try {
         await _tts!.stop();
-      } on MissingPluginException {
+      } catch (_) {
         // TTS not supported on this platform; nothing to stop.
       }
       _tts = null;

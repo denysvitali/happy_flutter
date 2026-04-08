@@ -80,11 +80,19 @@ extension SyncSocket on Sync {
     unawaited(_restoreAllCachedMessagesAsync());
 
     // Initialize sync managers
-    sessionsSync = InvalidateSync(fetchSessions, name: 'fetchSessions');
+    sessionsSync = InvalidateSync(
+      fetchSessions,
+      minInterval: Sync._sessionsSyncMinInterval,
+      name: 'fetchSessions',
+    );
     settingsSync = InvalidateSync(syncSettings, name: 'syncSettings');
     profileSync = InvalidateSync(fetchProfile, name: 'fetchProfile');
     purchasesSync = InvalidateSync(syncPurchases, name: 'syncPurchases');
-    machinesSync = InvalidateSync(fetchMachines, name: 'fetchMachines');
+    machinesSync = InvalidateSync(
+      fetchMachines,
+      minInterval: Sync._machinesSyncMinInterval,
+      name: 'fetchMachines',
+    );
     pushTokenSync = InvalidateSync(syncPushToken, name: 'syncPushToken');
     nativeUpdateSync = InvalidateSync(
       fetchNativeUpdate,

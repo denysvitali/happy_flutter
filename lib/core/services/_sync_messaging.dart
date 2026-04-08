@@ -289,48 +289,11 @@ extension SyncMessaging on Sync {
           // 404 means the session doesn't exist on the server. Clean up
           // the local session and stop retries to prevent repeated 404s.
           if (statusCode == 404) {
-            logger.warning(
+            logger.info(
               '[fetchMessages] Session $sessionId not found (404) '
               '— cleaning up local state',
             );
-            messagesSync.remove(sessionId)?.dispose();
-            _postSendCatchUpTimers.remove(sessionId)?.cancel();
-            _loadingOlderMessages.remove(sessionId);
-            _sessionMessages.remove(sessionId);
-            _sessionContentSignatures.remove(sessionId);
-            _sessionMessagesCache = null;
-            _sessionMessagesViewCache.remove(sessionId);
-            _todoLists.remove(sessionId);
-            if (sessionId == _visibleSessionId) {
-              _visibleSessionId = null;
-            }
-            _sessions.remove(sessionId);
-            _presenceTimers.remove(sessionId)?.cancel();
-            _sessionDataKeys.remove(sessionId);
-            _sessionEncryptedDataKeys.remove(sessionId);
-            _sessionsNeedingTailRefresh.remove(sessionId);
-            _sessionsNeedingVisibleRegroup.remove(sessionId);
-            _sessionsWithPendingUpdates.remove(sessionId);
-            _sessionsWithPendingSocketMessages.remove(sessionId);
-            _sessionsNeedingFetchProbe.remove(sessionId);
-            _sessionSpawnedAt.remove(sessionId);
-            _sessionSpawnedProfile.remove(sessionId);
-            _autoRestoreInFlight.remove(sessionId);
-            _pendingToolResults.remove(sessionId);
-            if (isInitialized) {
-              _sessionLastSeq.remove(sessionId);
-              MMKVStorage().saveSessionLastSeq(
-                Map.unmodifiable(_sessionLastSeq),
-              );
-              _sessionFirstLoadedSeq.remove(sessionId);
-              MMKVStorage().saveSessionFirstLoadedSeq(
-                Map.unmodifiable(_sessionFirstLoadedSeq),
-              );
-              _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
-              MessageCacheService().clearMessages(sessionId);
-              encryption.removeSessionEncryption(sessionId);
-            }
-            _scheduleSessionsRefresh();
+            _cleanupDeletedSession(sessionId);
           } else {
             // For other errors, notify UI so it stops the loading spinner
             // and can show an error/empty state instead of spinning forever.
@@ -345,7 +308,15 @@ extension SyncMessaging on Sync {
           break;
         }
 
-        final data = response.data as Map<String, dynamic>;
+        final data = WireParsers.asMap(response.data);
+        if (data == null) {
+          logger.warning(
+            '[fetchMessages] $sessionId page=$page: '
+            'response.data is ${response.data.runtimeType}, '
+            'expected Map',
+          );
+          break;
+        }
         final messages = (data['messages'] as List<dynamic>? ?? [])
             .whereType<Map<String, dynamic>>()
             .toList();
@@ -468,11 +439,14 @@ extension SyncMessaging on Sync {
           _applyToolResults(sessionId, pending);
         }
         for (final u in processed.usageUpdates) {
-          _updateSessionUsage(
-            u['sessionId'] as String,
-            u['usage'] as Map<String, dynamic>,
-            u['timestamp'] as int,
-          );
+          final usageMap = WireParsers.asMap(u['usage']);
+          if (usageMap != null) {
+            _updateSessionUsage(
+              u['sessionId'] as String,
+              usageMap,
+              u['timestamp'] as int,
+            );
+          }
         }
 
         // ── Apply permission requests (per-page, cheap) ──
@@ -582,6 +556,18 @@ extension SyncMessaging on Sync {
         ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       if (fetchSpan != null) unawaited(fetchSpan.finish());
     } on DioException catch (e) {
+      // If the server returns 404, the session was deleted. Clean up
+      // local state instead of retrying (which would produce 2 more
+      // wasted 404 requests via InvalidateSync).
+      if (e.response?.statusCode == 404) {
+        logger.info(
+          '[fetchMessages] $sessionId returned 404 — '
+          'cleaning up deleted session',
+        );
+        _cleanupDeletedSession(sessionId);
+        if (fetchSpan != null) unawaited(fetchSpan.finish());
+        return;
+      }
       fetchSpan?.setData('status', 'networkError');
       fetchSpan?.setData('dioExceptionType', e.type.name);
       fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
@@ -707,6 +693,15 @@ extension SyncMessaging on Sync {
           await httpSpan.finish(
             status: const SpanStatus.internalError(),
           );
+          if (response.statusCode == 404) {
+            logger.info(
+              '[fetchOlderMessages] $sessionId returned 404 — '
+              'cleaning up deleted session',
+            );
+            _cleanupDeletedSession(sessionId);
+            await transaction.finish();
+            return;
+          }
           logger.warning(
             'Failed to fetch older messages: ${response.statusCode}',
           );
@@ -719,7 +714,17 @@ extension SyncMessaging on Sync {
       httpSpan.setData('statusCode', response.statusCode ?? 0);
       await httpSpan.finish();
 
-      final data = response.data as Map<String, dynamic>;
+      final data = WireParsers.asMap(response.data);
+      if (data == null) {
+        logger.warning(
+          '[fetchOlderMessages] $sessionId: response.data is '
+          '${response.data.runtimeType}, expected Map',
+        );
+        await transaction.finish(
+          status: const SpanStatus.internalError(),
+        );
+        return;
+      }
       final messages = (data['messages'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
           .toList();
@@ -767,11 +772,14 @@ extension SyncMessaging on Sync {
         _applyToolResults(sessionId, pending);
       }
       for (final u in processed.usageUpdates) {
-        _updateSessionUsage(
-          u['sessionId'] as String,
-          u['usage'] as Map<String, dynamic>,
-          u['timestamp'] as int,
-        );
+        final usageMap = WireParsers.asMap(u['usage']);
+        if (usageMap != null) {
+          _updateSessionUsage(
+            u['sessionId'] as String,
+            usageMap,
+            u['timestamp'] as int,
+          );
+        }
       }
       _groupSidechainMessages(sessionId);
       _applyPermissionRequests(sessionId);
@@ -785,6 +793,23 @@ extension SyncMessaging on Sync {
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages});
       await transaction.finish();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        logger.info(
+          '[fetchOlderMessages] $sessionId returned 404 — '
+          'cleaning up deleted session',
+        );
+        _cleanupDeletedSession(sessionId);
+        await transaction.finish();
+      } else {
+        transaction
+          ..setData('error', e.toString())
+          ..setData('currentRoute', PerformanceContextService().currentRoute);
+        await transaction.finish(
+          status: const SpanStatus.internalError(),
+        );
+        _paginationErrorController.add(sessionId);
+      }
     } catch (error, stack) {
       transaction
         ..setData('error', error.toString())
@@ -832,5 +857,48 @@ extension SyncMessaging on Sync {
         Map.unmodifiable(_sessionFirstLoadedSeq),
       );
     }
+  }
+
+  /// Clean up all local state for a session that was deleted on the server.
+  void _cleanupDeletedSession(String sessionId) {
+    messagesSync.remove(sessionId)?.dispose();
+    _postSendCatchUpTimers.remove(sessionId)?.cancel();
+    _loadingOlderMessages.remove(sessionId);
+    _sessionMessages.remove(sessionId);
+    _sessionContentSignatures.remove(sessionId);
+    _sessionMessagesCache = null;
+    _sessionMessagesViewCache.remove(sessionId);
+    _todoLists.remove(sessionId);
+    if (sessionId == _visibleSessionId) {
+      _visibleSessionId = null;
+    }
+    _sessions.remove(sessionId);
+    _presenceTimers.remove(sessionId)?.cancel();
+    _sessionDataKeys.remove(sessionId);
+    _sessionEncryptedDataKeys.remove(sessionId);
+    _sessionsNeedingTailRefresh.remove(sessionId);
+    _sessionsNeedingVisibleRegroup.remove(sessionId);
+    _sessionsWithPendingUpdates.remove(sessionId);
+    _sessionsWithPendingSocketMessages.remove(sessionId);
+    _sessionsNeedingFetchProbe.remove(sessionId);
+    _sessionSpawnedAt.remove(sessionId);
+    _sessionSpawnedProfile.remove(sessionId);
+    _autoRestoreInFlight.remove(sessionId);
+    _pendingToolResults.remove(sessionId);
+    if (isInitialized) {
+      _sessionLastSeq.remove(sessionId);
+      MMKVStorage().saveSessionLastSeq(
+        Map.unmodifiable(_sessionLastSeq),
+      );
+      _sessionFirstLoadedSeq.remove(sessionId);
+      MMKVStorage().saveSessionFirstLoadedSeq(
+        Map.unmodifiable(_sessionFirstLoadedSeq),
+      );
+      _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
+      MessageCacheService().clearMessages(sessionId);
+      encryption.removeSessionEncryption(sessionId);
+    }
+    _scheduleSessionsRefresh();
+    _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
   }
 }

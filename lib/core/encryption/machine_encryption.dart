@@ -46,6 +46,9 @@ class MachineEncryption {
         return null;
       }
 
+      if (decrypted[0] is! Map<String, dynamic>) {
+        return null;
+      }
       final data = decrypted[0] as Map<String, dynamic>;
       _cache.setCachedMachineMetadata(_machineId, version, data);
       return data;
