@@ -15,7 +15,6 @@ import '../../../core/theme/app_tokens.dart';
 void showSessionMenu(
   BuildContext outerContext, {
   required String sessionId,
-  required bool isThinking,
   required VoidCallback onAbort,
 }) {
   final l10n = outerContext.l10n;
@@ -23,9 +22,7 @@ void showSessionMenu(
   showModalBottomSheet(
     context: outerContext,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     backgroundColor: cs.surface,
     builder: (sheetContext) => SafeArea(
@@ -33,10 +30,7 @@ void showSessionMenu(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: Icon(
-              Icons.settings_outlined,
-              color: cs.onSurfaceVariant,
-            ),
+            leading: Icon(Icons.settings_outlined, color: cs.onSurfaceVariant),
             title: Text(l10n.chatSessionSettings),
             onTap: () {
               HapticFeedback.lightImpact();
@@ -47,19 +41,15 @@ void showSessionMenu(
               );
             },
           ),
-          if (isThinking)
-            ListTile(
-              leading: Icon(Icons.stop_rounded, color: cs.error),
-              title: Text(
-                'Stop',
-                style: TextStyle(color: cs.error),
-              ),
-              onTap: () {
-                HapticFeedback.heavyImpact();
-                Navigator.pop(sheetContext);
-                onAbort();
-              },
-            ),
+          ListTile(
+            leading: Icon(Icons.stop_rounded, color: cs.error),
+            title: Text('Stop', style: TextStyle(color: cs.error)),
+            onTap: () {
+              HapticFeedback.heavyImpact();
+              Navigator.pop(sheetContext);
+              onAbort();
+            },
+          ),
           ListTile(
             leading: Icon(Icons.delete_outline, color: cs.error),
             title: Text(
@@ -69,10 +59,7 @@ void showSessionMenu(
             onTap: () {
               HapticFeedback.lightImpact();
               Navigator.pop(sheetContext);
-              showConfirmDeleteDialog(
-                outerContext,
-                sessionId: sessionId,
-              );
+              showConfirmDeleteDialog(outerContext, sessionId: sessionId);
             },
           ),
         ],

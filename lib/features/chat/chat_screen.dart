@@ -64,8 +64,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   late final ValueNotifier<bool> _autoScrollNotifier = ValueNotifier<bool>(
     true,
   );
-  late final ValueNotifier<int> _messagePaneRevision =
-      ValueNotifier<int>(0);
+  late final ValueNotifier<int> _messagePaneRevision = ValueNotifier<int>(0);
   bool get _autoScroll => _autoScrollNotifier.value;
   set _autoScroll(bool value) => _autoScrollNotifier.value = value;
   static const double _autoScrollThreshold = 100;
@@ -316,7 +315,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final sessionChanged = latestSession != _session;
     var messagesChanged = !identical(latestMessages, _messages);
-    final latestMessageFingerprint = messagesChanged ||
+    final latestMessageFingerprint =
+        messagesChanged ||
             latestMessages.length != _messages.length ||
             _lastMessageFingerprint == 0
         ? _computeMessageFingerprint(latestMessages)
@@ -728,7 +728,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           onMenuTap: () => showSessionMenu(
             context,
             sessionId: widget.sessionId,
-            isThinking: _session?.thinking ?? false,
             onAbort: _abortSession,
           ),
         ),
