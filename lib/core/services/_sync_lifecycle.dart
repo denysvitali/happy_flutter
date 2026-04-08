@@ -207,14 +207,14 @@ extension SyncLifecycle on Sync {
           // Remove the visible session — it's added unconditionally
           // below, so it doesn't count against the cap.
           pendingSessionIds.remove(_visibleSessionId);
-          if (pendingSessionIds.length > _maxResumeMessageSyncs) {
+          if (pendingSessionIds.length > Sync._maxResumeMessageSyncs) {
             logger.info(
               '[Sync] resume: capping pending message syncs '
               'from ${pendingSessionIds.length} to '
-              '$_maxResumeMessageSyncs',
+              '${Sync._maxResumeMessageSyncs}',
             );
             pendingSessionIds =
-                pendingSessionIds.take(_maxResumeMessageSyncs).toList();
+                pendingSessionIds.take(Sync._maxResumeMessageSyncs).toList();
           }
           for (final sessionId in pendingSessionIds) {
             _sessionsNeedingTailRefresh.add(sessionId);
