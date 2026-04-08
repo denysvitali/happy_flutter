@@ -136,11 +136,16 @@ class InvalidateSync {
 
     // Start a transaction for this sync operation to capture it in
     // performance monitoring, not just as a breadcrumb attached to errors.
+    final rawName = _name ?? 'unknown';
+    final normalizedName = rawName.split(':').first;
     final transaction = Sentry.startTransaction(
-      'sync.invalidate.${_name ?? 'unknown'}',
+      'sync.invalidate.$normalizedName',
       'sync.fetch',
       bindToScope: false,
-    )..setData('name', _name ?? 'unknown');
+    )
+      ..setData('name', rawName)
+      ..setData('normalizedName', normalizedName)
+      ..setData('hasDynamicSuffix', rawName != normalizedName);
 
     try {
       await _action();

@@ -14,7 +14,7 @@ extension SyncMessaging on Sync {
     // Start a Sentry span for this fetch operation
     final fetchSpan = Sentry.getSpan()?.startChild(
       'sync.fetchMessages',
-      description: 'Fetch messages for session $sessionId',
+      description: 'Fetch messages for visible/background session',
     );
     fetchSpan?.setData('sessionId', sessionId);
 
@@ -208,6 +208,20 @@ extension SyncMessaging on Sync {
       var didMutateMessages = false;
       var shouldRegroupWhenVisible = false;
       var notifiedVisibleData = false;
+      fetchSpan
+        ?..setData('isFirstLoad', isFirstLoad)
+        ..setData('forceTailRefresh', forceTailRefresh)
+        ..setData('forceProbe', forceProbe)
+        ..setData('gapTooLarge', gapTooLarge)
+        ..setData('cursorSeq', cursorSeq)
+        ..setData('serverLastSeq', serverLastSeq);
+
+      var totalFetchedMessages = 0;
+      var totalDecryptedMessages = 0;
+      var totalSkippedMessages = 0;
+      var totalToolResults = 0;
+      var totalUsageUpdates = 0;
+      var totalPagesFetched = 0;
       while (true) {
         // ── Check visibility ──
         // Continue fetching even when the session is no longer visible so
@@ -216,6 +230,15 @@ extension SyncMessaging on Sync {
         // per-page UI notification for non-visible sessions to avoid
         // unnecessary repaints.
         final isStillVisible = _visibleSessionId == sessionId;
+
+        final pageSpan = fetchSpan?.startChild(
+          'sync.fetchMessages.page',
+          description: 'Fetch/process page $page',
+        );
+        pageSpan
+          ?..setData('page', page)
+          ..setData('afterSeq', afterSeq)
+          ..setData('isVisible', isStillVisible);
 
         final fetchStart = Stopwatch()..start();
         final Response<dynamic> response;
@@ -238,9 +261,13 @@ extension SyncMessaging on Sync {
           );
         }
         final fetchMs = fetchStart.elapsedMilliseconds;
+        pageSpan?.setData('httpMs', fetchMs);
 
         if (!apiClient.isSuccess(response)) {
           final statusCode = response.statusCode;
+          pageSpan
+            ?..status = const SpanStatus.internalError()
+            ..setData('statusCode', statusCode ?? 0);
           logger.warning('Failed to fetch messages: $statusCode');
           unawaited(
             Sentry.addBreadcrumb(
@@ -309,6 +336,11 @@ extension SyncMessaging on Sync {
             _notifySessionMessagesChanged(sessionId);
           }
           _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+          if (pageSpan != null) {
+            await pageSpan.finish(
+              status: const SpanStatus.internalError(),
+            );
+          }
           break;
         }
 
@@ -317,6 +349,11 @@ extension SyncMessaging on Sync {
             .whereType<Map<String, dynamic>>()
             .toList();
         final hasMore = data['hasMore'] as bool? ?? false;
+        totalPagesFetched++;
+        totalFetchedMessages += messages.length;
+        pageSpan
+          ?..setData('fetchedMessages', messages.length)
+          ..setData('hasMore', hasMore);
 
         logger.debug(
           '[fetchMessages] $sessionId page=$page '
@@ -350,6 +387,18 @@ extension SyncMessaging on Sync {
         );
         final decryptMs = decryptStart.elapsedMilliseconds;
         final skippedCount = messages.length - newMessages.length;
+        totalSkippedMessages += skippedCount;
+        totalDecryptedMessages += newMessages.length;
+        totalToolResults += processed.toolResults.length;
+        totalUsageUpdates += processed.usageUpdates.length;
+        pageSpan
+          ?..setData('decryptMs', decryptMs)
+          ..setData('newMessages', newMessages.length)
+          ..setData('skippedMessages', skippedCount)
+          ..setData('processedMessages', processed.messages.length)
+          ..setData('toolResults', processed.toolResults.length)
+          ..setData('usageUpdates', processed.usageUpdates.length)
+          ..setData('maxSeq', processed.maxSeq);
         final userCount = processed.messages
             .where((message) => message['role'] == MessageRole.user)
             .length;
@@ -377,6 +426,7 @@ extension SyncMessaging on Sync {
         }
 
         // ── Yield before main-thread merge/group work ──
+        final mergeStart = Stopwatch()..start();
         await Future<void>.delayed(Duration.zero);
 
         // ── Upsert messages ──
@@ -426,6 +476,7 @@ extension SyncMessaging on Sync {
 
         // ── Apply permission requests (per-page, cheap) ──
         _applyPermissionRequests(sessionId);
+        pageSpan?.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
 
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
@@ -462,7 +513,12 @@ extension SyncMessaging on Sync {
           }
         }
 
-        if (!hasMore) break;
+        if (!hasMore) {
+          if (pageSpan != null) {
+            await pageSpan.finish();
+          }
+          break;
+        }
         page++;
 
         // Safety valve: stop this cycle to let the UI render, then
@@ -478,11 +534,18 @@ extension SyncMessaging on Sync {
           );
           // Re-trigger so the next cycle continues from the new cursor.
           messagesSync[sessionId]?.invalidate();
+          pageSpan?.setData('hitMaxPages', true);
+          if (pageSpan != null) {
+            await pageSpan.finish();
+          }
           break;
         }
 
         // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
+        if (pageSpan != null) {
+          await pageSpan.finish();
+        }
       }
       final isVisibleAtCompletion = _visibleSessionId == sessionId;
       // Final notification in case some pages had no messages
@@ -505,7 +568,17 @@ extension SyncMessaging on Sync {
         }
       }
       // Finish the fetch span successfully
-      fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      fetchSpan
+        ?..setData('pagesFetched', totalPagesFetched)
+        ..setData('totalFetchedMessages', totalFetchedMessages)
+        ..setData('totalDecryptedMessages', totalDecryptedMessages)
+        ..setData('totalSkippedMessages', totalSkippedMessages)
+        ..setData('totalToolResults', totalToolResults)
+        ..setData('totalUsageUpdates', totalUsageUpdates)
+        ..setData('mutatedMessages', didMutateMessages)
+        ..setData('regroupOnVisible', shouldRegroupWhenVisible)
+        ..setData('completedVisible', isVisibleAtCompletion)
+        ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       if (fetchSpan != null) unawaited(fetchSpan.finish());
     } on DioException catch (e) {
       fetchSpan?.setData('status', 'networkError');
