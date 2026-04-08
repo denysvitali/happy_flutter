@@ -3,14 +3,14 @@
 {
   packages = [
     pkgs.git
-    pkgs.flutter
+    pkgs.flutter338
     pkgs.jdk21
   ];
 
   android.enable = false;
 
   env = {
-    DART_SDK = "${pkgs.flutter.out}/bin/cache/dart-sdk";
+    DART_SDK = "${pkgs.flutter338.out}/bin/cache/dart-sdk";
     PKG_CONFIG_PATH = "/usr/lib/pkgconfig";
   };
 
