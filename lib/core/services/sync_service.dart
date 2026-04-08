@@ -92,6 +92,10 @@ class Sync {
 
   // Constants
   static const int sessionReadyTimeoutMs = 3000;
+  static const int _visibleMessageFetchPageLimit = 5;
+  static const int _backgroundMessageFetchPageLimit = 1;
+  static const Duration _messageFetchConnectTimeout = Duration(seconds: 10);
+  static const Duration _messageFetchReceiveTimeout = Duration(seconds: 15);
 
   /// Number of recent messages to load on first open of a session.
   static const int initialLoad = 200;

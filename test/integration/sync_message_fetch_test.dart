@@ -307,6 +307,42 @@ void main() {
       // Assert: tail refresh starts at lastSeq - initialLoad = 300 - 200 = 100
       expect(capturedAfterSeq.first, 100);
     });
+
+    test(
+      'non-visible session fetch stops after first page and requeues',
+      () async {
+        final sessionId = 'sess-bg';
+
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 250);
+        sync.testSetSessionLastSeq(sessionId, 0);
+        sync.testVisibleSessionId = null;
+        sync.messagesSync[sessionId] = InvalidateSync(
+          () async {},
+          name: 'fetchMessages',
+        );
+
+        final capturedAfterSeq = <int>[];
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          capturedAfterSeq.add(afterSeq);
+          if (capturedAfterSeq.length == 1) {
+            return _buildMessagesResponse([
+              _makeAgentMessage('msg-201', seq: 201, content: 'Recent'),
+            ], hasMore: true);
+          }
+          return _buildMessagesResponse([
+            _makeAgentMessage('msg-202', seq: 202, content: 'Next page'),
+          ]);
+        };
+
+        await sync.fetchMessages(sessionId);
+
+        expect(
+          capturedAfterSeq,
+          equals([50]),
+          reason: 'Background fetch should stop after a single page',
+        );
+      },
+    );
   });
 
   group('fetchMessages with socket inline processing', () {

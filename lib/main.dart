@@ -10,8 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:sentry_flutter/sentry_flutter.dart'
-    show Sentry, SpanStatus;
+import 'package:sentry_flutter/sentry_flutter.dart' show Sentry, SpanStatus;
 
 import 'core/api/api_client.dart';
 import 'core/encryption/sodium_singleton.dart';
@@ -142,18 +141,6 @@ Future<void> _runApp() async {
 
   final deepLink = await deepLinkFuture;
 
-  // Check if this is a new version that needs a changelog.
-  ({String? fromVersion, String toVersion})? changelogInfo;
-  try {
-    final packageInfoSpan = startupTransaction.startChild(
-      'app.startup.packageInfo',
-      description: 'Load package info and changelog state',
-    );
-    final packageInfo = await PackageInfo.fromPlatform();
-    changelogInfo = storage.Storage().checkVersionChange(packageInfo.version);
-    await packageInfoSpan.finish();
-  } catch (_) {}
-
   startupTransaction
     ..setData('serverUrlHost', Uri.tryParse(serverUrl)?.host ?? 'unknown')
     ..setData(
@@ -165,12 +152,7 @@ Future<void> _runApp() async {
   runApp(
     ErrorBoundary(
       child: ProviderScope(
-        child: SentryWidget(
-          child: HappyApp(
-            initialDeepLink: deepLink,
-            changelogInfo: changelogInfo,
-          ),
-        ),
+        child: SentryWidget(child: HappyApp(initialDeepLink: deepLink)),
       ),
     ),
   );
@@ -262,10 +244,9 @@ Future<String?> _getInitialDeepLink() async {
 }
 
 class HappyApp extends ConsumerStatefulWidget {
-  const HappyApp({super.key, this.initialDeepLink, this.changelogInfo});
+  const HappyApp({super.key, this.initialDeepLink});
 
   final String? initialDeepLink;
-  final ({String? fromVersion, String toVersion})? changelogInfo;
 
   @override
   ConsumerState<HappyApp> createState() => _HappyAppState();
@@ -293,16 +274,44 @@ class _HappyAppState extends ConsumerState<HappyApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _changelogInfo = widget.changelogInfo;
     _router = createRouter(widget.initialDeepLink);
     NotificationService.instance.updateRouter(_router);
     _setupDeepLinkListener();
     Future<void>.microtask(() {
       ref.read(authStateNotifierProvider.notifier).checkAuth();
       unawaited(_initializeTheme());
+      unawaited(_loadChangelogInfo());
       _processInitialDeepLink();
       _maybeShowChangelog();
     });
+  }
+
+  Future<void> _loadChangelogInfo() async {
+    if (_changelogInfo != null) return;
+    final transaction = Sentry.startTransaction(
+      'app.changelogCheck',
+      'app.load.deferred',
+      bindToScope: false,
+    );
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final info = storage.Storage().checkVersionChange(packageInfo.version);
+      transaction.setData('hasChangelog', info != null);
+      if (!mounted || info == null) {
+        await transaction.finish();
+        return;
+      }
+      setState(() {
+        _changelogInfo = info;
+      });
+      _maybeShowChangelog();
+      await transaction.finish();
+    } catch (error) {
+      transaction
+        ..status = const SpanStatus.internalError()
+        ..setData('error', error.toString());
+      await transaction.finish();
+    }
   }
 
   void _maybeShowChangelog() {

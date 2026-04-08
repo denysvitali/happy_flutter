@@ -202,8 +202,7 @@ extension SyncLifecycle on Sync {
         // could mean 20 × 54 s of combined network time.  The visible
         // session is always included separately below.
         if (_sessionsWithPendingSocketMessages.isNotEmpty) {
-          var pendingSessionIds =
-              _sessionsWithPendingSocketMessages.toList();
+          var pendingSessionIds = _sessionsWithPendingSocketMessages.toList();
           // Remove the visible session — it's added unconditionally
           // below, so it doesn't count against the cap.
           pendingSessionIds.remove(_visibleSessionId);
@@ -213,8 +212,9 @@ extension SyncLifecycle on Sync {
               'from ${pendingSessionIds.length} to '
               '${Sync._maxResumeMessageSyncs}',
             );
-            pendingSessionIds =
-                pendingSessionIds.take(Sync._maxResumeMessageSyncs).toList();
+            pendingSessionIds = pendingSessionIds
+                .take(Sync._maxResumeMessageSyncs)
+                .toList();
           }
           for (final sessionId in pendingSessionIds) {
             _sessionsNeedingTailRefresh.add(sessionId);
@@ -239,7 +239,7 @@ extension SyncLifecycle on Sync {
               messagesSync[sessionId] = InvalidateSync(
                 () => fetchMessages(sessionId),
                 minInterval: Sync._messagesSyncMinInterval,
-                name: 'fetchMessages:$sessionId',
+                name: 'fetchMessages',
               );
             }
           }

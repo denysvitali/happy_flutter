@@ -11,16 +11,26 @@ extension SyncMessaging on Sync {
     logger.debug('Fetching messages for session: $sessionId');
     final fetchStopwatch = Stopwatch()..start();
 
-    // Start a Sentry span for this fetch operation
-    final fetchSpan = Sentry.getSpan()?.startChild(
-      'sync.fetchMessages',
-      description: 'Fetch messages for visible/background session',
-    );
-    fetchSpan?.setData('sessionId', sessionId);
+    // Start a low-cardinality transaction if there is no parent span so
+    // GlitchTip can aggregate fetches across sessions.
+    final parentSpan = Sentry.getSpan();
+    final fetchSpan =
+        parentSpan?.startChild(
+          'sync.fetchMessages',
+          description: 'Fetch messages for visible/background session',
+        ) ??
+        Sentry.startTransaction(
+          'sync.fetchMessages',
+          'sync.fetch',
+          bindToScope: false,
+        );
+    fetchSpan
+      ..setData('sessionId', sessionId)
+      ..setData('hasParentSpan', parentSpan != null);
 
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      final encSpan = fetchSpan?.startChild(
+      final encSpan = fetchSpan.startChild(
         'sync.encryption.init',
         description: 'Wait for session encryption',
       );
@@ -44,16 +54,16 @@ extension SyncMessaging on Sync {
         await sessionsSync.invalidateAndAwait();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
-      if (encSpan != null) unawaited(encSpan.finish());
+      unawaited(encSpan.finish());
       if (sessionEncryption == null) {
         logger.warning(
           'Session encryption not initialized for '
           '$sessionId after 2 attempts, skipping',
         );
-        fetchSpan?.setData('status', 'preconditionFailed');
-        fetchSpan?.setData('encryptionInitFailed', true);
-        fetchSpan?.setData('elapsedMs', fetchStopwatch.elapsedMilliseconds);
-        if (fetchSpan != null) unawaited(fetchSpan.finish());
+        fetchSpan.setData('status', 'preconditionFailed');
+        fetchSpan.setData('encryptionInitFailed', true);
+        fetchSpan.setData('elapsedMs', fetchStopwatch.elapsedMilliseconds);
+        unawaited(fetchSpan.finish());
         unawaited(
           Sentry.addBreadcrumb(
             Breadcrumb(
@@ -209,7 +219,7 @@ extension SyncMessaging on Sync {
       var shouldRegroupWhenVisible = false;
       var notifiedVisibleData = false;
       fetchSpan
-        ?..setData('isFirstLoad', isFirstLoad)
+        ..setData('isFirstLoad', isFirstLoad)
         ..setData('forceTailRefresh', forceTailRefresh)
         ..setData('forceProbe', forceProbe)
         ..setData('gapTooLarge', gapTooLarge)
@@ -231,15 +241,23 @@ extension SyncMessaging on Sync {
         // unnecessary repaints.
         final isStillVisible = _visibleSessionId == sessionId;
 
-        final pageSpan = fetchSpan?.startChild(
+        final pageSpan = fetchSpan.startChild(
           'sync.fetchMessages.page',
           description: 'Fetch/process page $page',
         );
         pageSpan
-          ?..setData('page', page)
+          ..setData('page', page)
           ..setData('afterSeq', afterSeq)
           ..setData('isVisible', isStillVisible);
+        final maxPages = isStillVisible
+            ? Sync._visibleMessageFetchPageLimit
+            : Sync._backgroundMessageFetchPageLimit;
+        pageSpan.setData('maxPagesThisRun', maxPages);
 
+        final httpSpan = pageSpan.startChild(
+          'sync.fetchMessages.http',
+          description: 'Fetch message page',
+        );
         final fetchStart = Stopwatch()..start();
         final Response<dynamic> response;
         if (testFetchMessagesOverride != null) {
@@ -258,16 +276,22 @@ extension SyncMessaging on Sync {
           response = await apiClient.get(
             '/v3/sessions/$sessionId/messages',
             queryParameters: {'after_seq': afterSeq, 'limit': 100},
-            options: Options(receiveTimeout: const Duration(seconds: 15)),
+            options: Options(
+              connectTimeout: Sync._messageFetchConnectTimeout,
+              receiveTimeout: Sync._messageFetchReceiveTimeout,
+            ),
           );
         }
         final fetchMs = fetchStart.elapsedMilliseconds;
-        pageSpan?.setData('httpMs', fetchMs);
+        httpSpan
+          ..setData('httpMs', fetchMs)
+          ..setData('statusCode', response.statusCode ?? 0);
+        await httpSpan.finish();
 
         if (!apiClient.isSuccess(response)) {
           final statusCode = response.statusCode;
           pageSpan
-            ?..status = const SpanStatus.internalError()
+            ..status = const SpanStatus.internalError()
             ..setData('statusCode', statusCode ?? 0);
           logger.warning('Failed to fetch messages: $statusCode');
           unawaited(
@@ -300,11 +324,7 @@ extension SyncMessaging on Sync {
             _notifySessionMessagesChanged(sessionId);
           }
           _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
-          if (pageSpan != null) {
-            await pageSpan.finish(
-              status: const SpanStatus.internalError(),
-            );
-          }
+          await pageSpan.finish(status: const SpanStatus.internalError());
           break;
         }
 
@@ -324,7 +344,7 @@ extension SyncMessaging on Sync {
         totalPagesFetched++;
         totalFetchedMessages += messages.length;
         pageSpan
-          ?..setData('fetchedMessages', messages.length)
+          ..setData('fetchedMessages', messages.length)
           ..setData('hasMore', hasMore);
 
         logger.debug(
@@ -342,6 +362,10 @@ extension SyncMessaging on Sync {
         // of a message we already have (same id, different
         // content).  Previously we filtered by id alone, which
         // silently dropped server-side updates.
+        final filterSpan = pageSpan.startChild(
+          'sync.fetchMessages.filter',
+          description: 'Filter unchanged messages',
+        );
         final existingSignatures =
             _sessionContentSignatures[sessionId] ?? const <String, String?>{};
         final newMessages = existingSignatures.isEmpty
@@ -352,6 +376,16 @@ extension SyncMessaging on Sync {
                       _hasUpdatedContent(m, existingSignatures))
                     m,
               ];
+        filterSpan
+          ..setData('existingSignatures', existingSignatures.length)
+          ..setData('newMessages', newMessages.length)
+          ..setData('skippedMessages', messages.length - newMessages.length);
+        await filterSpan.finish();
+
+        final decryptSpan = pageSpan.startChild(
+          'sync.fetchMessages.decrypt',
+          description: 'Decrypt and process page',
+        );
         final decryptStart = Stopwatch()..start();
         final processed = await sessionEncryption.decryptAndProcessMessages(
           newMessages,
@@ -364,13 +398,20 @@ extension SyncMessaging on Sync {
         totalToolResults += processed.toolResults.length;
         totalUsageUpdates += processed.usageUpdates.length;
         pageSpan
-          ?..setData('decryptMs', decryptMs)
+          ..setData('decryptMs', decryptMs)
           ..setData('newMessages', newMessages.length)
           ..setData('skippedMessages', skippedCount)
           ..setData('processedMessages', processed.messages.length)
           ..setData('toolResults', processed.toolResults.length)
           ..setData('usageUpdates', processed.usageUpdates.length)
           ..setData('maxSeq', processed.maxSeq);
+        decryptSpan
+          ..setData('decryptMs', decryptMs)
+          ..setData('processedMessages', processed.messages.length)
+          ..setData('toolResults', processed.toolResults.length)
+          ..setData('usageUpdates', processed.usageUpdates.length)
+          ..setData('maxSeq', processed.maxSeq);
+        await decryptSpan.finish();
         final userCount = processed.messages
             .where((message) => message['role'] == MessageRole.user)
             .length;
@@ -398,6 +439,10 @@ extension SyncMessaging on Sync {
         }
 
         // ── Yield before main-thread merge/group work ──
+        final mergeSpan = pageSpan.startChild(
+          'sync.fetchMessages.merge',
+          description: 'Merge page into local state',
+        );
         final mergeStart = Stopwatch()..start();
         await Future<void>.delayed(Duration.zero);
 
@@ -451,7 +496,9 @@ extension SyncMessaging on Sync {
 
         // ── Apply permission requests (per-page, cheap) ──
         _applyPermissionRequests(sessionId);
-        pageSpan?.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
+        mergeSpan.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
+        await mergeSpan.finish();
+        pageSpan.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
 
         if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
@@ -489,9 +536,7 @@ extension SyncMessaging on Sync {
         }
 
         if (!hasMore) {
-          if (pageSpan != null) {
-            await pageSpan.finish();
-          }
+          await pageSpan.finish();
           break;
         }
         page++;
@@ -501,7 +546,6 @@ extension SyncMessaging on Sync {
         // re-trigger, messages beyond the cutoff are lost until the
         // next external invalidation — which may never come if all new
         // messages use the inline socket path.
-        const maxPages = 5; // 500 messages max per fetch cycle
         if (page >= maxPages) {
           logger.debug(
             '[fetchMessages] $sessionId hit $maxPages page limit '
@@ -509,18 +553,14 @@ extension SyncMessaging on Sync {
           );
           // Re-trigger so the next cycle continues from the new cursor.
           messagesSync[sessionId]?.invalidate();
-          pageSpan?.setData('hitMaxPages', true);
-          if (pageSpan != null) {
-            await pageSpan.finish();
-          }
+          pageSpan.setData('hitMaxPages', true);
+          await pageSpan.finish();
           break;
         }
 
         // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
-        if (pageSpan != null) {
-          await pageSpan.finish();
-        }
+        await pageSpan.finish();
       }
       final isVisibleAtCompletion = _visibleSessionId == sessionId;
       // Final notification in case some pages had no messages
@@ -533,18 +573,28 @@ extension SyncMessaging on Sync {
       // should update in-memory/cache state without forcing expensive
       // main-isolate regroup + rebuild work across the app.
       if (isVisibleAtCompletion) {
+        final finalizeSpan = fetchSpan.startChild(
+          'sync.fetchMessages.finalize',
+          description: 'Finalize visible fetch state',
+        );
         _groupSidechainMessages(sessionId);
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        await finalizeSpan.finish();
       } else if (didMutateMessages) {
+        final finalizeSpan = fetchSpan.startChild(
+          'sync.fetchMessages.finalize',
+          description: 'Persist background fetch state',
+        );
         _scheduleSaveMessages(sessionId);
         if (shouldRegroupWhenVisible) {
           _sessionsNeedingVisibleRegroup.add(sessionId);
         }
+        await finalizeSpan.finish();
       }
       // Finish the fetch span successfully
       fetchSpan
-        ?..setData('pagesFetched', totalPagesFetched)
+        ..setData('pagesFetched', totalPagesFetched)
         ..setData('totalFetchedMessages', totalFetchedMessages)
         ..setData('totalDecryptedMessages', totalDecryptedMessages)
         ..setData('totalSkippedMessages', totalSkippedMessages)
@@ -554,7 +604,7 @@ extension SyncMessaging on Sync {
         ..setData('regroupOnVisible', shouldRegroupWhenVisible)
         ..setData('completedVisible', isVisibleAtCompletion)
         ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
-      if (fetchSpan != null) unawaited(fetchSpan.finish());
+      unawaited(fetchSpan.finish());
     } on DioException catch (e) {
       // If the server returns 404, the session was deleted. Clean up
       // local state instead of retrying (which would produce 2 more
@@ -565,13 +615,13 @@ extension SyncMessaging on Sync {
           'cleaning up deleted session',
         );
         _cleanupDeletedSession(sessionId);
-        if (fetchSpan != null) unawaited(fetchSpan.finish());
+        unawaited(fetchSpan.finish());
         return;
       }
-      fetchSpan?.setData('status', 'networkError');
-      fetchSpan?.setData('dioExceptionType', e.type.name);
-      fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
-      if (fetchSpan != null) unawaited(fetchSpan.finish());
+      fetchSpan.setData('status', 'networkError');
+      fetchSpan.setData('dioExceptionType', e.type.name);
+      fetchSpan.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      unawaited(fetchSpan.finish());
       unawaited(
         Sentry.addBreadcrumb(
           Breadcrumb(
@@ -596,10 +646,10 @@ extension SyncMessaging on Sync {
       _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
       rethrow;
     } catch (error, stack) {
-      fetchSpan?.status = SpanStatus.internalError();
-      fetchSpan?.setData('error', error.toString());
-      fetchSpan?.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
-      if (fetchSpan != null) unawaited(fetchSpan.finish());
+      fetchSpan.status = SpanStatus.internalError();
+      fetchSpan.setData('error', error.toString());
+      fetchSpan.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      unawaited(fetchSpan.finish());
       unawaited(
         Sentry.addBreadcrumb(
           Breadcrumb(
@@ -690,9 +740,7 @@ extension SyncMessaging on Sync {
 
         if (!apiClient.isSuccess(response)) {
           httpSpan.setData('statusCode', response.statusCode ?? 0);
-          await httpSpan.finish(
-            status: const SpanStatus.internalError(),
-          );
+          await httpSpan.finish(status: const SpanStatus.internalError());
           if (response.statusCode == 404) {
             logger.info(
               '[fetchOlderMessages] $sessionId returned 404 — '
@@ -705,9 +753,7 @@ extension SyncMessaging on Sync {
           logger.warning(
             'Failed to fetch older messages: ${response.statusCode}',
           );
-          await transaction.finish(
-            status: const SpanStatus.internalError(),
-          );
+          await transaction.finish(status: const SpanStatus.internalError());
           return;
         }
       }
@@ -720,9 +766,7 @@ extension SyncMessaging on Sync {
           '[fetchOlderMessages] $sessionId: response.data is '
           '${response.data.runtimeType}, expected Map',
         );
-        await transaction.finish(
-          status: const SpanStatus.internalError(),
-        );
+        await transaction.finish(status: const SpanStatus.internalError());
         return;
       }
       final messages = (data['messages'] as List<dynamic>? ?? [])
@@ -805,18 +849,14 @@ extension SyncMessaging on Sync {
         transaction
           ..setData('error', e.toString())
           ..setData('currentRoute', PerformanceContextService().currentRoute);
-        await transaction.finish(
-          status: const SpanStatus.internalError(),
-        );
+        await transaction.finish(status: const SpanStatus.internalError());
         _paginationErrorController.add(sessionId);
       }
     } catch (error, stack) {
       transaction
         ..setData('error', error.toString())
         ..setData('currentRoute', PerformanceContextService().currentRoute);
-      await transaction.finish(
-        status: const SpanStatus.internalError(),
-      );
+      await transaction.finish(status: const SpanStatus.internalError());
       logger.error('Error fetching older messages', error, stack);
       _paginationErrorController.add(sessionId);
     } finally {
@@ -887,9 +927,7 @@ extension SyncMessaging on Sync {
     _pendingToolResults.remove(sessionId);
     if (isInitialized) {
       _sessionLastSeq.remove(sessionId);
-      MMKVStorage().saveSessionLastSeq(
-        Map.unmodifiable(_sessionLastSeq),
-      );
+      MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
       _sessionFirstLoadedSeq.remove(sessionId);
       MMKVStorage().saveSessionFirstLoadedSeq(
         Map.unmodifiable(_sessionFirstLoadedSeq),

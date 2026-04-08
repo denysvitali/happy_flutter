@@ -187,7 +187,7 @@ extension SyncSocketEvents on Sync {
       messagesSync[sessionId] = InvalidateSync(
         () => fetchMessages(sessionId),
         minInterval: Sync._messagesSyncMinInterval,
-        name: 'fetchMessages:$sessionId',
+        name: 'fetchMessages',
       );
     }
 
