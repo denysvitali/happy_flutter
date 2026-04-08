@@ -10,7 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:sentry_flutter/sentry_flutter.dart'
+    show Sentry, SpanStatus;
 
 import 'core/api/api_client.dart';
 import 'core/encryption/sodium_singleton.dart';
