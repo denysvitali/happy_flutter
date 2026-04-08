@@ -69,9 +69,13 @@ jobs:
         run: devenv shell -- flutter analyze --no-fatal-infos --no-fatal-warnings
 
   test:
-    name: Run Tests
+    name: Test (shard ${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -95,8 +99,64 @@ jobs:
       - name: Get dependencies
         run: devenv shell -- flutter pub get
 
-      - name: Run tests
-        run: devenv shell -- flutter test --coverage --concurrency=4
+      - name: Run tests (shard ${{ matrix.shard }}/8)
+        run: |
+          mapfile -t all_tests < <(find test -name '*_test.dart' \
+            ! -path 'test/golden/*' | sort)
+          total=${#all_tests[@]}
+          shard=$(( ${{ matrix.shard }} - 1 ))
+          num_shards=8
+          per_shard=$(( (total + num_shards - 1) / num_shards ))
+          start=$(( shard * per_shard ))
+          shard_tests=("${all_tests[@]:$start:$per_shard}")
+          if [ ${#shard_tests[@]} -eq 0 ]; then
+            echo "No tests in this shard, skipping."
+            exit 0
+          fi
+          echo "Running ${#shard_tests[@]} of $total test files"
+          devenv shell -- flutter test --coverage \
+            --concurrency=4 "${shard_tests[@]}"
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-shard-${{ matrix.shard }}
+          path: coverage/lcov.info
+          retention-days: 1
+          if-no-files-found: ignore
+
+  coverage:
+    name: Upload Coverage
+    needs: test
+    runs-on: ubuntu-latest
+    if: always() && needs.test.result == 'success'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-shard-*
+          path: coverage-shards
+
+      - name: Merge coverage reports
+        run: |
+          mkdir -p coverage
+          # Concatenate all shard lcov files, removing duplicate
+          # headers so Codecov merges them correctly.
+          first=true
+          for f in coverage-shards/*/lcov.info; do
+            [ -f "$f" ] || continue
+            if $first; then
+              cat "$f" >> coverage/lcov.info
+              first=false
+            else
+              cat "$f" >> coverage/lcov.info
+            fi
+          done
+          echo "Merged coverage from $(ls coverage-shards/ | wc -l) shards"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
