@@ -64,7 +64,9 @@ final class SettingsUpdate {
       ),
       'usagePeriod' => settings.copyWith(usagePeriod: value as String),
       'recentMachinePaths' => settings.copyWith(
-        recentMachinePaths: (value as List<dynamic>).cast<RecentMachinePath>(),
+        recentMachinePaths: (value as List<dynamic>?)
+                ?.cast<RecentMachinePath>() ??
+            [],
       ),
       'lastUsedAgent' => settings.copyWith(lastUsedAgent: value as String?),
       'lastUsedPermissionMode' => settings.copyWith(
@@ -74,17 +76,20 @@ final class SettingsUpdate {
         lastUsedModelMode: value as String?,
       ),
       'profiles' => settings.copyWith(
-        profiles: (value as List<dynamic>).cast<AIBackendProfile>(),
+        profiles:
+            (value as List<dynamic>?)?.cast<AIBackendProfile>() ?? [],
       ),
       'lastUsedProfile' => settings.copyWith(lastUsedProfile: value as String?),
       'favoriteDirectories' => settings.copyWith(
-        favoriteDirectories: (value as List<dynamic>).cast<String>(),
+        favoriteDirectories:
+            (value as List<dynamic>?)?.cast<String>() ?? [],
       ),
       'favoriteMachines' => settings.copyWith(
-        favoriteMachines: (value as List<dynamic>).cast<String>(),
+        favoriteMachines:
+            (value as List<dynamic>?)?.cast<String>() ?? [],
       ),
       'folders' => settings.copyWith(
-        folders: (value as List<dynamic>).cast<String>(),
+        folders: (value as List<dynamic>?)?.cast<String>() ?? [],
       ),
       'dismissedCLIWarnings' => settings.copyWith(
         dismissedCLIWarnings: value as DismissedCLIWarnings,

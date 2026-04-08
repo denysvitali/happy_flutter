@@ -258,6 +258,7 @@ extension SyncMessaging on Sync {
           response = await apiClient.get(
             '/v3/sessions/$sessionId/messages',
             queryParameters: {'after_seq': afterSeq, 'limit': 100},
+            options: Options(receiveTimeout: const Duration(seconds: 15)),
           );
         }
         final fetchMs = fetchStart.elapsedMilliseconds;
@@ -698,6 +699,7 @@ extension SyncMessaging on Sync {
         response = await apiClient.get(
           '/v3/sessions/$sessionId/messages',
           queryParameters: {'after_seq': startSeq, 'limit': pageSize},
+          options: Options(receiveTimeout: const Duration(seconds: 15)),
         );
 
         if (!apiClient.isSuccess(response)) {

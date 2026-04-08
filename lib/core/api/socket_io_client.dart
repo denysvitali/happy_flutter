@@ -106,6 +106,7 @@ class SocketIoClient {
           .enableReconnection()
           .setReconnectionDelay(2000) // 2s initial for better battery
           .setReconnectionDelayMax(10000) // 10s max — 30s is too slow on mobile
+          .enableForceNew() // bypass global Manager cache on reconnect
           .setTransportOptions({
             'websocket': {
               'perMessageDeflate': {
