@@ -218,6 +218,13 @@ extension SyncOperations on Sync {
         return;
       }
 
+      // Skip the expensive getToken() call if we've already registered a
+      // token on this device — the token only changes on app reinstall or
+      // FCM invalidation, both of which survive a warm restart.
+      if (_registeredPushToken != null) {
+        return;
+      }
+
       final token = await messaging.getToken();
       if (token == null || token.isEmpty) {
         return;

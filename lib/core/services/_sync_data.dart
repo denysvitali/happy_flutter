@@ -117,9 +117,13 @@ extension SyncData on Sync {
       // Decrypt sessions -- yield between each so the looper stays
       // responsive even when processing many sessions.
       final decryptedSessions = <Session>[];
-      for (final session in allSessions) {
-        // Yield to event queue before each session decrypt.
-        await Future<void>.delayed(Duration.zero);
+      for (var i = 0; i < allSessions.length; i++) {
+        // Yield to event queue every 10 sessions (instead of every
+        // session) to reduce event queue contention during warm start.
+        if (i > 0 && i % 10 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+        final session = allSessions[i];
 
         if (session is! Map<String, dynamic>) {
           logger.warning(

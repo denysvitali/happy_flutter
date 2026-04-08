@@ -185,7 +185,7 @@ extension SyncLifecycle on Sync {
         // activity. The visible session and any sessions with pending
         // socket messages are refreshed separately below.
         if (shouldRunGlobalInvalidation) {
-          _invalidateAllSyncs(force: true);
+          _invalidateAllSyncs();
         } else {
           logger.debug(
             '[Sync] resume: skipping broad invalidation '
@@ -358,6 +358,7 @@ extension SyncLifecycle on Sync {
     _sessionGitStatus.clear();
     _sessionSpawnedAt.clear();
     _sessionSpawnedProfile.clear();
+    _machineOfflineWarnedAtMs.clear();
     _autoRestoreInFlight.clear();
     _autoRestoreCompleters.clear();
     _autoRestoreProfileIds.clear();

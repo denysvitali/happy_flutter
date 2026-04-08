@@ -50,11 +50,16 @@ extension SyncSessionOperations on Sync {
       final now = DateTime.now().millisecondsSinceEpoch;
       const onlineThresholdMs = 120 * 1000;
       if (now - machine.activeAt >= onlineThresholdMs) {
-        logger.warning(
-          'Machine $machineId appears offline: '
-          'activeAt=${machine.activeAt}, now=$now, '
-          'delta=${now - machine.activeAt}ms',
-        );
+        // Rate-limit the warning to once per machine per 60 seconds.
+        final lastWarnedAt = _machineOfflineWarnedAtMs[machineId] ?? 0;
+        if (now - lastWarnedAt > 60000) {
+          _machineOfflineWarnedAtMs[machineId] = now;
+          logger.warning(
+            'Machine $machineId appears offline: '
+            'activeAt=${machine.activeAt}, now=$now, '
+            'delta=${now - machine.activeAt}ms',
+          );
+        }
         throw StateError('Machine is offline');
       }
     }
