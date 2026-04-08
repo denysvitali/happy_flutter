@@ -4,6 +4,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 
 import '../services/logger_service.dart' show logger;
+import '../services/performance_context_service.dart';
 
 /// Returns true for transient network errors (DNS failure,
 /// connection timeout, etc.) that are expected during brief
@@ -56,6 +57,8 @@ class SocketIoClient {
   String? _authToken;
   String? _clientType;
   bool _hasConnectedOnce = false;
+  int? _lastConnectStartedAtMs;
+  int? _lastDisconnectAtMs;
 
   // Stream controllers for events
   final _statusController = StreamController<ConnectionStatus>.broadcast();
@@ -91,6 +94,7 @@ class SocketIoClient {
     _serverUrl = serverUrl;
     _authToken = token;
     _clientType = clientType;
+    _lastConnectStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     _updateStatus(ConnectionStatus.connecting);
 
     _socket = sio.io(
@@ -127,7 +131,22 @@ class SocketIoClient {
         _hasConnectedOnce ? 'websocket.reconnect' : 'websocket.connect',
         'connection',
         bindToScope: false,
-      )..setData('recovered', _socket?.recovered ?? false);
+      )
+        ..setData('recovered', _socket?.recovered ?? false)
+        ..setData(
+          'connectDurationMs',
+          _elapsedSince(_lastConnectStartedAtMs),
+        )
+        ..setData(
+          'disconnectGapMs',
+          _lastConnectStartedAtMs != null && _lastDisconnectAtMs != null
+              ? _lastConnectStartedAtMs! - _lastDisconnectAtMs!
+              : null,
+        )
+        ..setData(
+          'currentRoute',
+          PerformanceContextService().currentRoute ?? 'unknown',
+        );
       await transaction.finish();
 
       if (_hasConnectedOnce && !(_socket?.recovered ?? false)) {
@@ -138,6 +157,7 @@ class SocketIoClient {
 
     _socket!.onDisconnect((_) async {
       logger.info('Socket.IO disconnected');
+      _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
       _updateStatus(ConnectionStatus.disconnected);
 
       // Track disconnection as a transaction
@@ -145,7 +165,11 @@ class SocketIoClient {
         'websocket.disconnect',
         'connection',
         bindToScope: false,
-      );
+      )
+        ..setData(
+          'currentRoute',
+          PerformanceContextService().currentRoute ?? 'unknown',
+        );
       await transaction.finish();
     });
 
@@ -167,7 +191,16 @@ class SocketIoClient {
         'websocket.connect_error',
         'connection',
         bindToScope: false,
-      )..setData('error', errorStr);
+      )
+        ..setData('error', errorStr)
+        ..setData(
+          'connectDurationMs',
+          _elapsedSince(_lastConnectStartedAtMs),
+        )
+        ..setData(
+          'currentRoute',
+          PerformanceContextService().currentRoute ?? 'unknown',
+        );
       await transaction.finish(
         status: const SpanStatus.internalError(),
       );
@@ -196,7 +229,16 @@ class SocketIoClient {
         'websocket.error',
         'connection',
         bindToScope: false,
-      )..setData('error', errorStr);
+      )
+        ..setData('error', errorStr)
+        ..setData(
+          'connectDurationMs',
+          _elapsedSince(_lastConnectStartedAtMs),
+        )
+        ..setData(
+          'currentRoute',
+          PerformanceContextService().currentRoute ?? 'unknown',
+        );
       await transaction.finish(
         status: const SpanStatus.internalError(),
       );
@@ -314,7 +356,9 @@ class SocketIoClient {
     final connected = await _waitForConnection();
     if (!connected) {
       // Socket not connected — treat as transient failure
-      logger.info('Socket.IO emitWithAck skipped: not connected, event: $event');
+      logger.info(
+        'Socket.IO emitWithAck skipped: not connected, event: $event',
+      );
       return null;
     }
     final completer = Completer<dynamic>();
@@ -416,6 +460,11 @@ class SocketIoClient {
     disconnect();
     _statusController.close();
     _messageHandlers.clear();
+  }
+
+  static int? _elapsedSince(int? startedAtMs) {
+    if (startedAtMs == null) return null;
+    return DateTime.now().millisecondsSinceEpoch - startedAtMs;
   }
 }
 

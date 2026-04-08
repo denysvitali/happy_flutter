@@ -251,6 +251,29 @@ class ApiClient {
         durationMs: durationMs,
       ),
     );
+
+    final isSlow = (durationMs ?? 0) >= 1000;
+    final isFailure = statusCode != null && statusCode >= 400;
+    if (isSlow || isFailure) {
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'HTTP request completed',
+            category: 'http.performance',
+            level: isFailure ? SentryLevel.warning : SentryLevel.info,
+            data: {
+              'method': options.method,
+              'path': options.path,
+              'statusCode': statusCode,
+              'durationMs': durationMs,
+              'requestBytes': requestBytes,
+              'responseBytes': responseBytes,
+              'cached': options.extra['fromCache'] == true,
+            },
+          ),
+        ),
+      );
+    }
   }
 
   /// Refresh the server URL without restarting the app.
