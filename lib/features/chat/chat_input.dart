@@ -224,12 +224,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Future<void> _loadDraft() async {
     final targetSessionId = widget.sessionId;
-    final draft =
-        await _draftStorage.getDraft(targetSessionId);
+    final draft = await _draftStorage.getDraft(targetSessionId);
     if (targetSessionId != widget.sessionId) return;
-    if (draft != null &&
-        draft.isNotEmpty &&
-        widget.controller.text.isEmpty) {
+    if (draft != null && draft.isNotEmpty && widget.controller.text.isEmpty) {
       widget.controller.text = draft;
       _previousText = draft;
     }
@@ -411,9 +408,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
               suggestions: _autocompleteController.suggestions,
               selectedIndex: _autocompleteController.selectedIndex,
               onSelect: (index) {
-                _applySuggestion(
-                  _autocompleteController.suggestions[index],
-                );
+                _applySuggestion(_autocompleteController.suggestions[index]);
               },
             );
           },
@@ -501,9 +496,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         children: [
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppSpacing.xs,
-              ),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               child: _buildTextField(context),
             ),
           ),
@@ -529,9 +522,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildTextField(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final hintColor = cs.onSurface.withValues(
-      alpha: AppOpacity.medium,
-    );
+    final hintColor = cs.onSurface.withValues(alpha: AppOpacity.medium);
     final l10n = AppLocalizations.of(context);
 
     return TextField(
@@ -561,12 +552,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
       autocorrect: true,
       maxLines: 6,
       minLines: 1,
-      textInputAction: widget.enterToSend
-          ? TextInputAction.send
-          : TextInputAction.newline,
-      onSubmitted: widget.enterToSend
-          ? (_) => widget.onSend()
-          : null,
+      // Always request a newline IME action so mobile keyboards show a
+      // return key instead of replacing it with a send action.
+      textInputAction: TextInputAction.newline,
+      onSubmitted: null,
     );
   }
 
