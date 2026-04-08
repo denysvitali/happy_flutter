@@ -197,7 +197,7 @@ void main() {
         sync.testSessions[sessionId] = _makeSession(sessionId);
 
         // The pending IDs set is cleared after the debounce timer fires
-        // (250 ms), so we check before it drains.
+        // (2s), so we check before it drains.
         sync.handleUpdate({
           't': 'update-session',
           'id': sessionId,
@@ -235,9 +235,9 @@ void main() {
               'after the update-session event is dispatched',
         );
 
-        // …then drained once the debounce timer fires (250 ms).
+        // …then drained once the debounce timer fires (2s).
         await Future<void>.delayed(
-          const Duration(milliseconds: 400),
+          const Duration(milliseconds: 2500),
         );
 
         expect(

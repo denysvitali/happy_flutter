@@ -157,7 +157,8 @@ void main() {
         instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
         instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
 
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        // _sessionsRefreshDebounce is 2s; wait long enough for it to fire.
+        await Future<void>.delayed(const Duration(milliseconds: 2500));
         await instance.sessionsSync.awaitQueue();
 
         expect(sessionsInvalidations, 1);
@@ -175,7 +176,7 @@ void main() {
         instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
         instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await Future<void>.delayed(const Duration(milliseconds: 2500));
         await instance.sessionsSync.awaitQueue();
 
         expect(sessionsInvalidations, 1);
@@ -190,7 +191,7 @@ void main() {
 
         instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await Future<void>.delayed(const Duration(milliseconds: 2500));
         await instance.sessionsSync.awaitQueue();
 
         expect(sessionsInvalidations, 2);
@@ -207,7 +208,7 @@ void main() {
         instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
         instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await Future<void>.delayed(const Duration(milliseconds: 2500));
         await instance.sessionsSync.awaitQueue();
 
         expect(sessionsInvalidations, 2);
