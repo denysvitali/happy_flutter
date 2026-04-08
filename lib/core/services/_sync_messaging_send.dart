@@ -686,6 +686,7 @@ extension SyncMessagingSend on Sync {
     final deadline = DateTime.now().add(const Duration(seconds: 30));
 
     // Immediate fetch so we do not wait for the first timer tick.
+    _sessionsNeedingFetchProbe.add(sessionId);
     messagesSync[sessionId]?.invalidate();
 
     _postSendCatchUpTimers[sessionId] = Timer.periodic(
@@ -696,6 +697,7 @@ extension SyncMessagingSend on Sync {
             DateTime.now().isAfter(deadline)) {
           timer.cancel();
           _postSendCatchUpTimers.remove(sessionId);
+          _sessionsNeedingFetchProbe.remove(sessionId);
           logger.info(
             '[sendMessage] catch-up polling ended '
             'session=$sessionId reason=timeout_or_inactive',
@@ -707,6 +709,7 @@ extension SyncMessagingSend on Sync {
         if (currentSeq > stopAfterSeq) {
           timer.cancel();
           _postSendCatchUpTimers.remove(sessionId);
+          _sessionsNeedingFetchProbe.remove(sessionId);
           logger.info(
             '[sendMessage] catch-up polling ended '
             'session=$sessionId reason=seq_advanced '
@@ -715,24 +718,11 @@ extension SyncMessagingSend on Sync {
           return;
         }
 
-        // If already caught up (cursor == serverLastSeq), skip the
-        // HTTP round-trip — the agent hasn't produced a response yet,
-        // and socket events will advance the seq when it does.
-        final session = _sessions[sessionId];
-        final serverLastSeq = session?.lastSeq ?? 0;
-        if (currentSeq > 0 &&
-            serverLastSeq > 0 &&
-            currentSeq >= serverLastSeq) {
-          return;
-        }
-
-        // Skip polling for non-visible sessions — socket events already
-        // trigger message fetches via _handleNewMessage, so the periodic
-        // poll is redundant and wastes HTTP round-trips (each returning 0
-        // messages).  When the user navigates back, onSessionVisible()
-        // triggers a fresh fetch to pick up anything missed.
-        // However, if socket events were missed (connection drop), the
-        // invalidation below ensures catch-up via HTTP on next poll.
+        // Force a probe instead of trusting session.lastSeq here. The
+        // sessions delta feed can lag behind message storage, so
+        // currentSeq >= serverLastSeq does NOT prove the agent has not
+        // responded yet.
+        _sessionsNeedingFetchProbe.add(sessionId);
         messagesSync[sessionId]?.invalidate();
         if (sessionId != _visibleSessionId) {
           return;

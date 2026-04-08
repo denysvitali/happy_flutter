@@ -14,19 +14,16 @@ extension SyncTestHelpers on Sync {
   int? get testLastSessionsFetchedAt => _lastSessionsFetchedAt;
 
   @visibleForTesting
-  set testLastSessionsFetchedAt(int? value) =>
-      _lastSessionsFetchedAt = value;
+  set testLastSessionsFetchedAt(int? value) => _lastSessionsFetchedAt = value;
 
   @visibleForTesting
   bool get testForceFullFetchNext => _forceFullFetchNext;
 
   @visibleForTesting
-  set testForceFullFetchNext(bool value) =>
-      _forceFullFetchNext = value;
+  set testForceFullFetchNext(bool value) => _forceFullFetchNext = value;
 
   @visibleForTesting
-  int? get testLastInvalidateAllSyncsAtMs =>
-      _lastInvalidateAllSyncsAtMs;
+  int? get testLastInvalidateAllSyncsAtMs => _lastInvalidateAllSyncsAtMs;
 
   @visibleForTesting
   set testLastInvalidateAllSyncsAtMs(int? value) =>
@@ -52,8 +49,7 @@ extension SyncTestHelpers on Sync {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
-    _sessionMessages[sessionId] =
-        List<Map<String, dynamic>>.from(messages);
+    _sessionMessages[sessionId] = List<Map<String, dynamic>>.from(messages);
     _sessionMessagesCache = null;
     _sessionMessagesViewCache.remove(sessionId);
   }
@@ -85,12 +81,10 @@ extension SyncTestHelpers on Sync {
   }
 
   @visibleForTesting
-  Set<String> get testSessionsWithPendingUpdates =>
-      _sessionsWithPendingUpdates;
+  Set<String> get testSessionsWithPendingUpdates => _sessionsWithPendingUpdates;
 
   @visibleForTesting
-  set testVisibleSessionId(String? value) =>
-      _visibleSessionId = value;
+  set testVisibleSessionId(String? value) => _visibleSessionId = value;
 
   @visibleForTesting
   void testNotifySessionMessagesChanged(String sessionId) {
@@ -112,6 +106,15 @@ extension SyncTestHelpers on Sync {
   void testSetPendingSocketMessages(Set<String> sessionIds) {
     _sessionsWithPendingSocketMessages.addAll(sessionIds);
   }
+
+  @visibleForTesting
+  void testAddFetchProbe(String sessionId) {
+    _sessionsNeedingFetchProbe.add(sessionId);
+  }
+
+  @visibleForTesting
+  bool testHasFetchProbe(String sessionId) =>
+      _sessionsNeedingFetchProbe.contains(sessionId);
 
   /// Test helper: check if a session has pending socket messages.
   @visibleForTesting
@@ -136,8 +139,7 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: check if _pendingUpdateSessionIds is empty.
   @visibleForTesting
-  bool testPendingUpdateSessionIdsEmpty() =>
-      _pendingUpdateSessionIds.isEmpty;
+  bool testPendingUpdateSessionIdsEmpty() => _pendingUpdateSessionIds.isEmpty;
 
   /// Test helper: get _visibleSessionId.
   @visibleForTesting
@@ -150,9 +152,7 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: get pending tool results for a session.
   @visibleForTesting
-  List<Map<String, dynamic>> testPendingToolResults(
-    String sessionId,
-  ) =>
+  List<Map<String, dynamic>> testPendingToolResults(String sessionId) =>
       _pendingToolResults[sessionId] ?? [];
 
   /// Test helper: get _sessionsNeedingTailRefresh as a set.
@@ -168,9 +168,7 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: get _sessionMessages for a session (null if none).
   @visibleForTesting
-  List<Map<String, dynamic>>? testSessionMessages(
-    String sessionId,
-  ) =>
+  List<Map<String, dynamic>>? testSessionMessages(String sessionId) =>
       _sessionMessages[sessionId];
 
   /// Test helper: get the first loaded seq for a session
@@ -204,15 +202,11 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: get _sessionSpawnedProfile map.
   @visibleForTesting
-  Map<String, String?> get testSessionSpawnedProfile =>
-      _sessionSpawnedProfile;
+  Map<String, String?> get testSessionSpawnedProfile => _sessionSpawnedProfile;
 
   /// Test helper: set the profile used when spawning a session.
   @visibleForTesting
-  void testSetSessionSpawnedProfile(
-    String sessionId,
-    String? profileId,
-  ) {
+  void testSetSessionSpawnedProfile(String sessionId, String? profileId) {
     _sessionSpawnedProfile[sessionId] = profileId;
   }
 
@@ -225,20 +219,16 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: invoke [_checkForNewPermissionRequests].
   @visibleForTesting
-  void testCheckForNewPermissionRequests(
-    Iterable<Session> sessions,
-  ) =>
+  void testCheckForNewPermissionRequests(Iterable<Session> sessions) =>
       _checkForNewPermissionRequests(sessions);
 
   /// Test helper: read [_notifiedPermissionIds].
   @visibleForTesting
-  Set<String> get testNotifiedPermissionIds =>
-      _notifiedPermissionIds;
+  Set<String> get testNotifiedPermissionIds => _notifiedPermissionIds;
 
   /// Test helper: get _autoRestoreInFlight set.
   @visibleForTesting
-  Set<String> get testAutoRestoreInFlight =>
-      _autoRestoreInFlight;
+  Set<String> get testAutoRestoreInFlight => _autoRestoreInFlight;
 
   /// Test helper: set the _isReady flag.
   @visibleForTesting
@@ -251,6 +241,5 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: set [_settingsSnapshot] for model override tests.
   @visibleForTesting
-  set testSettingsSnapshot(Settings value) =>
-      _settingsSnapshot = value;
+  set testSettingsSnapshot(Settings value) => _settingsSnapshot = value;
 }

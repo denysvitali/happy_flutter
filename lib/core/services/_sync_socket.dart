@@ -443,11 +443,19 @@ extension SyncSocket on Sync {
       if (sessionsRaw is List) {
         final restoredSessions = <Session>[];
         for (final item in sessionsRaw) {
-          if (item is Map<String, dynamic>) {
-            restoredSessions.add(Session.fromJson(item));
-          } else if (item is Map) {
-            restoredSessions.add(
-              Session.fromJson(Map<String, dynamic>.from(item)),
+          try {
+            if (item is Map<String, dynamic>) {
+              restoredSessions.add(Session.fromJson(item));
+            } else if (item is Map) {
+              restoredSessions.add(
+                Session.fromJson(Map<String, dynamic>.from(item)),
+              );
+            }
+          } catch (error, stack) {
+            logger.warning(
+              'Skipping malformed cached session during restore',
+              error,
+              stack,
             );
           }
         }

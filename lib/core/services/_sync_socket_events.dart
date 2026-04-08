@@ -236,6 +236,7 @@ extension SyncSocketEvents on Sync {
         final lastMs = _lastNoEmbedEventMs[sessionId] ?? 0;
         if (nowMs - lastMs < 50) return;
         _lastNoEmbedEventMs[sessionId] = nowMs;
+        _sessionsNeedingFetchProbe.add(sessionId);
         messagesSync[sessionId]?.invalidate();
       }
       logger.debug('New message received: $sessionId');
@@ -476,6 +477,7 @@ extension SyncSocketEvents on Sync {
       _sessionsNeedingTailRefresh.remove(sessionId);
       _sessionsWithPendingUpdates.remove(sessionId);
       _sessionsWithPendingSocketMessages.remove(sessionId);
+      _sessionsNeedingFetchProbe.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _sessionSpawnedProfile.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);

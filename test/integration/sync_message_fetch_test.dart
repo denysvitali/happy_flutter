@@ -67,43 +67,46 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
-    test('does NOT skip fetch when cursorSeq > serverLastSeq (socket outpaced)', () async {
-      // This is the bug we fixed: when socket events advance _sessionLastSeq
-      // past the server's lastSeq, the skip guard should NOT trigger.
-      final sessionId = 'sess-1';
+    test(
+      'does NOT skip fetch when cursorSeq > serverLastSeq (socket outpaced)',
+      () async {
+        // This is the bug we fixed: when socket events advance _sessionLastSeq
+        // past the server's lastSeq, the skip guard should NOT trigger.
+        final sessionId = 'sess-1';
 
-      // Pre-populate session with serverLastSeq=10 but cursor at 15
-      // (socket has advanced cursor beyond server's knowledge)
-      sync.testSessions[sessionId] = _makeSession(
-        sessionId,
-        lastSeq: 10, // server thinks last seq is 10
-      );
-      sync.testSetSessionLastSeq(sessionId, 15); // socket advanced to 15
-      // Put messages in memory so isFirstLoad=false (tests delta path)
-      sync.testSetSessionMessages(sessionId, [
-        {'id': 'msg-1', 'seq': 1, 'role': 'user'},
-      ]);
-
-      // HTTP mock: capture afterSeq and return messages
-      final capturedAfterSeq = <int>[];
-      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
-        capturedAfterSeq.add(afterSeq);
-        return _buildMessagesResponse([
-          _makeAgentMessage('msg-16', seq: 16, content: 'Hello'),
+        // Pre-populate session with serverLastSeq=10 but cursor at 15
+        // (socket has advanced cursor beyond server's knowledge)
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 10, // server thinks last seq is 10
+        );
+        sync.testSetSessionLastSeq(sessionId, 15); // socket advanced to 15
+        // Put messages in memory so isFirstLoad=false (tests delta path)
+        sync.testSetSessionMessages(sessionId, [
+          {'id': 'msg-1', 'seq': 1, 'role': 'user'},
         ]);
-      };
 
-      // Act: trigger fetchMessages
-      await sync.fetchMessages(sessionId);
+        // HTTP mock: capture afterSeq and return messages
+        final capturedAfterSeq = <int>[];
+        sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+          capturedAfterSeq.add(afterSeq);
+          return _buildMessagesResponse([
+            _makeAgentMessage('msg-16', seq: 16, content: 'Hello'),
+          ]);
+        };
 
-      // Assert: HTTP fetch should have been called (not skipped)
-      // because cursorSeq(15) > serverLastSeq(10)
-      expect(
-        capturedAfterSeq.contains(15),
-        isTrue,
-        reason: 'Should fetch from cursor 15 (socket advanced), not skip',
-      );
-    });
+        // Act: trigger fetchMessages
+        await sync.fetchMessages(sessionId);
+
+        // Assert: HTTP fetch should have been called (not skipped)
+        // because cursorSeq(15) > serverLastSeq(10)
+        expect(
+          capturedAfterSeq.contains(15),
+          isTrue,
+          reason: 'Should fetch from cursor 15 (socket advanced), not skip',
+        );
+      },
+    );
 
     test('skips fetch when cursorSeq == serverLastSeq (caught up)', () async {
       final sessionId = 'sess-1';
@@ -126,8 +129,43 @@ void main() {
       await sync.fetchMessages(sessionId);
 
       // Assert: no HTTP fetch for messages (already caught up)
-      expect(capturedAfterSeq, isEmpty, reason: 'Should skip when cursor == server');
+      expect(
+        capturedAfterSeq,
+        isEmpty,
+        reason: 'Should skip when cursor == server',
+      );
     });
+
+    test(
+      'fetch probe bypasses caught-up skip when server seq may be stale',
+      () async {
+        final sessionId = 'sess-1';
+
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
+        sync.testSetSessionLastSeq(sessionId, 10);
+        sync.testSetSessionMessages(sessionId, [
+          {'id': 'msg-1', 'seq': 1, 'role': 'user'},
+        ]);
+        sync.testAddFetchProbe(sessionId);
+
+        final capturedAfterSeq = <int>[];
+        sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+          capturedAfterSeq.add(afterSeq);
+          return _buildMessagesResponse([
+            _makeAgentMessage('msg-11', seq: 11, content: 'Late reply'),
+          ]);
+        };
+
+        await sync.fetchMessages(sessionId);
+
+        expect(
+          capturedAfterSeq,
+          equals([10]),
+          reason: 'Explicit probe should bypass the caught-up early exit',
+        );
+        expect(sync.testHasFetchProbe(sessionId), isFalse);
+      },
+    );
 
     test('skips fetch when forceTailRefresh but cursor == server', () async {
       // Regression: when onSessionVisible requests a tail refresh but
@@ -160,31 +198,34 @@ void main() {
       );
     });
 
-    test('fetches from cursor when cursorSeq < serverLastSeq (normal delta)', () async {
-      final sessionId = 'sess-1';
+    test(
+      'fetches from cursor when cursorSeq < serverLastSeq (normal delta)',
+      () async {
+        final sessionId = 'sess-1';
 
-      // Session with cursor at 5, server at 10
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
-      sync.testSetSessionLastSeq(sessionId, 5);
-      // Put messages in memory so isFirstLoad=false (tests delta path)
-      sync.testSetSessionMessages(sessionId, [
-        {'id': 'msg-1', 'seq': 1, 'role': 'user'},
-      ]);
-
-      final capturedAfterSeq = <int>[];
-      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
-        capturedAfterSeq.add(afterSeq);
-        return _buildMessagesResponse([
-          _makeAgentMessage('msg-6', seq: 6, content: 'Reply'),
-          _makeAgentMessage('msg-7', seq: 7, content: 'Reply 2'),
+        // Session with cursor at 5, server at 10
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
+        sync.testSetSessionLastSeq(sessionId, 5);
+        // Put messages in memory so isFirstLoad=false (tests delta path)
+        sync.testSetSessionMessages(sessionId, [
+          {'id': 'msg-1', 'seq': 1, 'role': 'user'},
         ]);
-      };
 
-      await sync.fetchMessages(sessionId);
+        final capturedAfterSeq = <int>[];
+        sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+          capturedAfterSeq.add(afterSeq);
+          return _buildMessagesResponse([
+            _makeAgentMessage('msg-6', seq: 6, content: 'Reply'),
+            _makeAgentMessage('msg-7', seq: 7, content: 'Reply 2'),
+          ]);
+        };
 
-      // Assert: fetched from cursor 5
-      expect(capturedAfterSeq.first, 5);
-    });
+        await sync.fetchMessages(sessionId);
+
+        // Assert: fetched from cursor 5
+        expect(capturedAfterSeq.first, 5);
+      },
+    );
 
     test('uses tail refresh on first load (isFirstLoad=true)', () async {
       final sessionId = 'sess-new';
@@ -219,24 +260,16 @@ void main() {
       // already-advanced cursor (which returns nothing).
       final sessionId = 'sess-1';
 
-      sync.testSessions[sessionId] = _makeSession(
-        sessionId,
-        lastSeq: 50,
-      );
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 50);
       // Socket advanced cursor to 50 while non-visible
       sync.testSetSessionLastSeq(sessionId, 50);
       // No messages in memory (first load)
 
       final capturedAfterSeq = <int>[];
-      sync.testFetchMessagesOverride =
-          (sessionId, afterSeq, limit) async {
+      sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
         capturedAfterSeq.add(afterSeq);
         return _buildMessagesResponse([
-          _makeAgentMessage(
-            'msg-1',
-            seq: 1,
-            content: 'Hello',
-          ),
+          _makeAgentMessage('msg-1', seq: 1, content: 'Hello'),
         ]);
       };
 
@@ -320,68 +353,54 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
-    test(
-      'non-visible session delta fetch preserves existing '
-      'messages (no destructive tail refresh)',
-      () async {
-        // Regression test: when socket messages arrive for a
-        // non-visible session, the cursor should NOT be advanced
-        // (messages aren't stored in memory). When the user
-        // navigates back, fetchMessages should use the
-        // incremental delta path (afterSeq = cursor) to fetch
-        // only the missing messages, NOT wipe and re-download
-        // the last 200 messages via tail refresh.
-        final sessionId = 'sess-delta';
+    test('non-visible session delta fetch preserves existing '
+        'messages (no destructive tail refresh)', () async {
+      // Regression test: when socket messages arrive for a
+      // non-visible session, the cursor should NOT be advanced
+      // (messages aren't stored in memory). When the user
+      // navigates back, fetchMessages should use the
+      // incremental delta path (afterSeq = cursor) to fetch
+      // only the missing messages, NOT wipe and re-download
+      // the last 200 messages via tail refresh.
+      final sessionId = 'sess-delta';
 
-        // User was viewing this session — has messages + cursor.
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 15, // server updated by socket events
-        );
-        sync.testSetSessionLastSeq(sessionId, 10); // cursor
-        sync.testSetSessionMessages(sessionId, [
-          {'id': 'msg-1', 'seq': 5, 'role': 'agent'},
-          {'id': 'msg-2', 'seq': 10, 'role': 'agent'},
+      // User was viewing this session — has messages + cursor.
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        lastSeq: 15, // server updated by socket events
+      );
+      sync.testSetSessionLastSeq(sessionId, 10); // cursor
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'msg-1', 'seq': 5, 'role': 'agent'},
+        {'id': 'msg-2', 'seq': 10, 'role': 'agent'},
+      ]);
+
+      final capturedAfterSeq = <int>[];
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        capturedAfterSeq.add(afterSeq);
+        return _buildMessagesResponse([
+          _makeAgentMessage('msg-3', seq: 15, content: 'New'),
         ]);
+      };
 
-        final capturedAfterSeq = <int>[];
-        sync.testFetchMessagesOverride =
-            (sid, afterSeq, limit) async {
-          capturedAfterSeq.add(afterSeq);
-          return _buildMessagesResponse([
-            _makeAgentMessage(
-              'msg-3',
-              seq: 15,
-              content: 'New',
-            ),
-          ]);
-        };
+      // fetchMessages should see cursor=10 < server=15 and
+      // fetch delta from cursor (not tail-load from 0).
+      await sync.fetchMessages(sessionId);
 
-        // fetchMessages should see cursor=10 < server=15 and
-        // fetch delta from cursor (not tail-load from 0).
-        await sync.fetchMessages(sessionId);
-
-        expect(
-          capturedAfterSeq.first,
-          10,
-          reason:
-              'Should fetch from cursor=10, not tail-load',
-        );
-        // Existing messages should be preserved (not wiped).
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(
-          msgs,
-          isNotNull,
-          reason: 'Messages should still exist',
-        );
-        expect(
-          msgs!.length,
-          greaterThanOrEqualTo(2),
-          reason:
-              'Existing messages should be preserved',
-        );
-      },
-    );
+      expect(
+        capturedAfterSeq.first,
+        10,
+        reason: 'Should fetch from cursor=10, not tail-load',
+      );
+      // Existing messages should be preserved (not wiped).
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull, reason: 'Messages should still exist');
+      expect(
+        msgs!.length,
+        greaterThanOrEqualTo(2),
+        reason: 'Existing messages should be preserved',
+      );
+    });
 
     test('socket event advances cursor before fetchMessages runs', () async {
       final sessionId = 'sess-1';
@@ -451,10 +470,7 @@ Map<String, dynamic> _makeAgentMessage(
     'role': 'agent',
     'content': {
       'type': 'output',
-      'data': {
-        'type': 'message',
-        'message': content,
-      },
+      'data': {'type': 'message', 'message': content},
     },
   };
   final json = jsonEncode(innerContent);
@@ -476,19 +492,21 @@ Map<String, dynamic> _makeAgentMessage(
 Map<String, dynamic> _buildSessionsResponse(List<Session> sessions) {
   return {
     'sessions': sessions
-        .map((s) => {
-              'id': s.id,
-              'seq': s.seq,
-              'createdAt': s.createdAt,
-              'updatedAt': s.updatedAt,
-              'active': s.active,
-              'activeAt': s.activeAt,
-              'metadataVersion': s.metadataVersion,
-              'agentStateVersion': s.agentStateVersion,
-              'thinking': s.thinking,
-              'presence': s.presence,
-              'lastSeq': s.lastSeq,
-            })
+        .map(
+          (s) => {
+            'id': s.id,
+            'seq': s.seq,
+            'createdAt': s.createdAt,
+            'updatedAt': s.updatedAt,
+            'active': s.active,
+            'activeAt': s.activeAt,
+            'metadataVersion': s.metadataVersion,
+            'agentStateVersion': s.agentStateVersion,
+            'thinking': s.thinking,
+            'presence': s.presence,
+            'lastSeq': s.lastSeq,
+          },
+        )
         .toList(),
     'hasNext': false,
   };
@@ -498,10 +516,7 @@ Map<String, dynamic> _buildMessagesResponse(
   List<Map<String, dynamic>> messages, {
   bool hasMore = false,
 }) {
-  return {
-    'messages': messages,
-    'hasMore': hasMore,
-  };
+  return {'messages': messages, 'hasMore': hasMore};
 }
 
 // ---------------------------------------------------------------------------
@@ -525,12 +540,12 @@ class _FakeEncryption implements Encryption {
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {
@@ -570,4 +585,3 @@ class _FakeEncryptor implements Encryptor {
     return results;
   }
 }
-

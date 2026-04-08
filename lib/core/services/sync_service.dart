@@ -205,6 +205,15 @@ what you have, you must use the options mode.
   /// used to collapse rapid-fire duplicate socket broadcasts.
   final Map<String, int> _lastNoEmbedEventMs = {};
 
+  /// Sessions that have an explicit reason to probe the messages API even when
+  /// the local cursor appears caught up to session.lastSeq.
+  ///
+  /// This is used for cases where the app knows a new message may exist but
+  /// the sessions snapshot can legitimately lag behind message storage:
+  /// visible `new-message` events without an embedded payload and post-send
+  /// catch-up polling after a successful user send.
+  final Set<String> _sessionsNeedingFetchProbe = <String>{};
+
   /// Per-session serial queue for inline message processing.
   final InlineMessageProcessor _inlineProcessor = InlineMessageProcessor();
 

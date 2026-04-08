@@ -123,73 +123,80 @@ void main() {
       () {
         instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
 
-        expect(
-          instance.testSessionsWithPendingUpdates,
-          contains('session_1'),
-        );
+        expect(instance.testSessionsWithPendingUpdates, contains('session_1'));
+      },
+    );
+
+    test('new-message invalidates messages sync for visible session '
+        'when only id is present', () async {
+      var messageInvalidations = 0;
+      instance.testVisibleSessionId = 'session_1';
+      instance.messagesSync['session_1'] = InvalidateSync(() async {
+        messageInvalidations++;
+      });
+
+      instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
+
+      await instance.messagesSync['session_1']?.awaitQueue();
+      expect(messageInvalidations, 1);
+    });
+
+    test('new-message with only id marks visible session for fetch probe', () {
+      instance.testVisibleSessionId = 'session_1';
+      instance.messagesSync['session_1'] = InvalidateSync(() async {});
+
+      instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
+
+      expect(instance.testHasFetchProbe('session_1'), isTrue);
+    });
+
+    test(
+      'update-session bursts are debounced into one sessions refresh',
+      () async {
+        instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
+
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await instance.sessionsSync.awaitQueue();
+
+        expect(sessionsInvalidations, 1);
       },
     );
 
     test(
-      'new-message invalidates messages sync for visible session '
-      'when only id is present',
+      'new-session bursts are debounced into one refresh when ready',
       () async {
-        var messageInvalidations = 0;
-        instance.testVisibleSessionId = 'session_1';
-        instance.messagesSync['session_1'] = InvalidateSync(() async {
-          messageInvalidations++;
-        });
+        instance.encryption = _TestEncryption(
+          sessions: {'session_1': _NoopSessionEncryption()},
+        );
 
-        instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-        await instance.messagesSync['session_1']?.awaitQueue();
-        expect(messageInvalidations, 1);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await instance.sessionsSync.awaitQueue();
+
+        expect(sessionsInvalidations, 1);
+        expect(instance.testForceFullFetchNext, false);
       },
     );
 
-    test('update-session bursts are debounced into one sessions refresh',
-        () async {
-      instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
-      instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
-      instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
+    test(
+      'new-session triggers one recovery full fetch when encryption missing',
+      () async {
+        instance.encryption = _TestEncryption();
 
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      await instance.sessionsSync.awaitQueue();
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-      expect(sessionsInvalidations, 1);
-    });
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await instance.sessionsSync.awaitQueue();
 
-    test('new-session bursts are debounced into one refresh when ready',
-        () async {
-      instance.encryption = _TestEncryption(
-        sessions: {
-          'session_1': _NoopSessionEncryption(),
-        },
-      );
-
-      instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-      instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-      instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      await instance.sessionsSync.awaitQueue();
-
-      expect(sessionsInvalidations, 1);
-      expect(instance.testForceFullFetchNext, false);
-    });
-
-    test('new-session triggers one recovery full fetch when encryption missing',
-        () async {
-      instance.encryption = _TestEncryption();
-
-      instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      await instance.sessionsSync.awaitQueue();
-
-      expect(sessionsInvalidations, 2);
-      expect(instance.testForceFullFetchNext, true);
-    });
+        expect(sessionsInvalidations, 2);
+        expect(instance.testForceFullFetchNext, true);
+      },
+    );
 
     test(
       'new-session burst triggers only one recovery full fetch when missing',
@@ -235,10 +242,7 @@ void main() {
         presence: 'offline',
       );
 
-      instance.handleEphemeralUpdate({
-        'type': 'session-alive',
-        'id': 's1',
-      });
+      instance.handleEphemeralUpdate({'type': 'session-alive', 'id': 's1'});
 
       final session = instance.testSessions['s1']!;
       expect(session.presence, 'online');
@@ -261,145 +265,135 @@ void main() {
         presence: 'offline',
       );
 
-      instance.handleEphemeralUpdate({
-        't': 'session-alive',
-        'sid': 's1',
-      });
+      instance.handleEphemeralUpdate({'t': 'session-alive', 'sid': 's1'});
 
       final session = instance.testSessions['s1']!;
       expect(session.presence, 'online');
     });
 
-    test(
-      'machine-activity without activeAt synthesises activeAt=now '
-      'so createSession 120s check stays fresh',
-      () {
-        final instance = Sync();
-        final staleAt = DateTime.now().millisecondsSinceEpoch - 200000;
-        instance.testMachines['m1'] = Machine(
-          id: 'm1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: staleAt, // 200 s ago — older than the 120 s threshold
-          metadataVersion: 0,
-          daemonStateVersion: 0,
-        );
+    test('machine-activity without activeAt synthesises activeAt=now '
+        'so createSession 120s check stays fresh', () {
+      final instance = Sync();
+      final staleAt = DateTime.now().millisecondsSinceEpoch - 200000;
+      instance.testMachines['m1'] = Machine(
+        id: 'm1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: staleAt, // 200 s ago — older than the 120 s threshold
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
 
-        final before = DateTime.now().millisecondsSinceEpoch;
-        instance.handleEphemeralUpdate({
-          'type': 'machine-activity',
-          'id': 'm1',
-          'active': true,
-          // no activeAt field
-        });
-        final after = DateTime.now().millisecondsSinceEpoch;
+      final before = DateTime.now().millisecondsSinceEpoch;
+      instance.handleEphemeralUpdate({
+        'type': 'machine-activity',
+        'id': 'm1',
+        'active': true,
+        // no activeAt field
+      });
+      final after = DateTime.now().millisecondsSinceEpoch;
 
-        final machine = instance.testMachines['m1']!;
-        expect(machine.active, isTrue);
-        // activeAt must have been refreshed to ~now
-        expect(machine.activeAt, greaterThanOrEqualTo(before));
-        expect(machine.activeAt, lessThanOrEqualTo(after));
-      },
-    );
+      final machine = instance.testMachines['m1']!;
+      expect(machine.active, isTrue);
+      // activeAt must have been refreshed to ~now
+      expect(machine.activeAt, greaterThanOrEqualTo(before));
+      expect(machine.activeAt, lessThanOrEqualTo(after));
+    });
 
-    test(
-      'machine-activity with activeAt uses the provided value',
-      () {
-        final instance = Sync();
-        final serverActiveAt = DateTime.now().millisecondsSinceEpoch - 5000;
-        instance.testMachines['m1'] = Machine(
-          id: 'm1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: false,
-          activeAt: 0,
-          metadataVersion: 0,
-          daemonStateVersion: 0,
-        );
+    test('machine-activity with activeAt uses the provided value', () {
+      final instance = Sync();
+      final serverActiveAt = DateTime.now().millisecondsSinceEpoch - 5000;
+      instance.testMachines['m1'] = Machine(
+        id: 'm1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: false,
+        activeAt: 0,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
 
-        instance.handleEphemeralUpdate({
-          'type': 'machine-activity',
-          'id': 'm1',
-          'active': true,
-          'activeAt': serverActiveAt,
-        });
+      instance.handleEphemeralUpdate({
+        'type': 'machine-activity',
+        'id': 'm1',
+        'active': true,
+        'activeAt': serverActiveAt,
+      });
 
-        final machine = instance.testMachines['m1']!;
-        expect(machine.active, isTrue);
-        expect(machine.activeAt, serverActiveAt);
-      },
-    );
+      final machine = instance.testMachines['m1']!;
+      expect(machine.active, isTrue);
+      expect(machine.activeAt, serverActiveAt);
+    });
 
-    test(
-      'machine-activity with active=false does not synthesise activeAt',
-      () {
-        final instance = Sync();
-        final originalActiveAt =
-            DateTime.now().millisecondsSinceEpoch - 5000;
-        instance.testMachines['m1'] = Machine(
-          id: 'm1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: originalActiveAt,
-          metadataVersion: 0,
-          daemonStateVersion: 0,
-        );
+    test('machine-activity with active=false does not synthesise activeAt', () {
+      final instance = Sync();
+      final originalActiveAt = DateTime.now().millisecondsSinceEpoch - 5000;
+      instance.testMachines['m1'] = Machine(
+        id: 'm1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: originalActiveAt,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
 
-        instance.handleEphemeralUpdate({
-          'type': 'machine-activity',
-          'id': 'm1',
-          'active': false,
-          // no activeAt
-        });
+      instance.handleEphemeralUpdate({
+        'type': 'machine-activity',
+        'id': 'm1',
+        'active': false,
+        // no activeAt
+      });
 
-        final machine = instance.testMachines['m1']!;
-        expect(machine.active, isFalse);
-        // activeAt unchanged — allows 120s window to expire naturally
-        expect(machine.activeAt, originalActiveAt);
-      },
-    );
+      final machine = instance.testMachines['m1']!;
+      expect(machine.active, isFalse);
+      // activeAt unchanged — allows 120s window to expire naturally
+      expect(machine.activeAt, originalActiveAt);
+    });
   });
 
   group('Sync global invalidation', () {
-    test('coalesces duplicate full-sync invalidations within cooldown', () async {
-      final instance = Sync();
-      var sessionsInvalidations = 0;
-      var machinesInvalidations = 0;
+    test(
+      'coalesces duplicate full-sync invalidations within cooldown',
+      () async {
+        final instance = Sync();
+        var sessionsInvalidations = 0;
+        var machinesInvalidations = 0;
 
-      instance.sessionsSync = InvalidateSync(() async {
-        sessionsInvalidations++;
-      });
-      instance.settingsSync = InvalidateSync(() async {});
-      instance.profileSync = InvalidateSync(() async {});
-      instance.purchasesSync = InvalidateSync(() async {});
-      instance.machinesSync = InvalidateSync(() async {
-        machinesInvalidations++;
-      });
-      instance.pushTokenSync = InvalidateSync(() async {});
-      instance.nativeUpdateSync = InvalidateSync(() async {});
-      instance.artifactsSync = InvalidateSync(() async {});
-      instance.friendsSync = InvalidateSync(() async {});
-      instance.friendRequestsSync = InvalidateSync(() async {});
-      instance.feedSync = InvalidateSync(() async {});
-      instance.todosSync = InvalidateSync(() async {});
-      instance.sessionGitStatusSync = InvalidateSync(() async {});
+        instance.sessionsSync = InvalidateSync(() async {
+          sessionsInvalidations++;
+        });
+        instance.settingsSync = InvalidateSync(() async {});
+        instance.profileSync = InvalidateSync(() async {});
+        instance.purchasesSync = InvalidateSync(() async {});
+        instance.machinesSync = InvalidateSync(() async {
+          machinesInvalidations++;
+        });
+        instance.pushTokenSync = InvalidateSync(() async {});
+        instance.nativeUpdateSync = InvalidateSync(() async {});
+        instance.artifactsSync = InvalidateSync(() async {});
+        instance.friendsSync = InvalidateSync(() async {});
+        instance.friendRequestsSync = InvalidateSync(() async {});
+        instance.feedSync = InvalidateSync(() async {});
+        instance.todosSync = InvalidateSync(() async {});
+        instance.sessionGitStatusSync = InvalidateSync(() async {});
 
-      instance.testInvalidateAllSyncs(force: true);
-      await instance.sessionsSync.awaitQueue();
-      await instance.machinesSync.awaitQueue();
+        instance.testInvalidateAllSyncs(force: true);
+        await instance.sessionsSync.awaitQueue();
+        await instance.machinesSync.awaitQueue();
 
-      instance.testInvalidateAllSyncs();
-      await instance.sessionsSync.awaitQueue();
-      await instance.machinesSync.awaitQueue();
+        instance.testInvalidateAllSyncs();
+        await instance.sessionsSync.awaitQueue();
+        await instance.machinesSync.awaitQueue();
 
-      expect(sessionsInvalidations, 1);
-      expect(machinesInvalidations, 1);
-    });
+        expect(sessionsInvalidations, 1);
+        expect(machinesInvalidations, 1);
+      },
+    );
 
     test('preserves sessions delta cursor during normal invalidation', () {
       final instance = Sync();
@@ -461,10 +455,18 @@ void main() {
       // Critical syncs should invalidate immediately
       await instance.sessionsSync.awaitQueue();
       await instance.machinesSync.awaitQueue();
-      expect(criticalInvalidations, 2, reason: 'Critical syncs should invalidate immediately');
+      expect(
+        criticalInvalidations,
+        2,
+        reason: 'Critical syncs should invalidate immediately',
+      );
 
       // Deferred syncs should NOT have invalidated yet
-      expect(deferredInvalidations, 0, reason: 'Deferred syncs should not invalidate immediately');
+      expect(
+        deferredInvalidations,
+        0,
+        reason: 'Deferred syncs should not invalidate immediately',
+      );
 
       // Wait for deferred syncs to be invalidated (after 2.5s delay)
       await Future.delayed(const Duration(milliseconds: 2600));
@@ -472,56 +474,62 @@ void main() {
       await instance.feedSync.awaitQueue();
       await instance.todosSync.awaitQueue();
 
-      expect(deferredInvalidations, 3, reason: 'Deferred syncs should invalidate after delay');
+      expect(
+        deferredInvalidations,
+        3,
+        reason: 'Deferred syncs should invalidate after delay',
+      );
     });
   });
 
   group('Sync auto-restore priming', () {
-    test('primes redirected spawned session locally without forcing full fetch',
-        () async {
-      final instance = Sync();
-      instance.testForceFullFetchNext = false;
-      final seedSession = Session(
-        id: 'old-session',
-        seq: 1,
-        createdAt: 1700000000000,
-        updatedAt: 1700000000000,
-        active: true,
-        activeAt: 1700000000000,
-        metadata: Metadata(
-          host: 'test-host',
-          machineId: 'machine-1',
-          path: '/repo',
-          flavor: 'claude',
-        ),
-        metadataVersion: 1,
-        agentStateVersion: 1,
-        thinking: false,
-        presence: 'offline',
-        permissionMode: 'default',
-        modelMode: 'default',
-      );
+    test(
+      'primes redirected spawned session locally without forcing full fetch',
+      () async {
+        final instance = Sync();
+        instance.testForceFullFetchNext = false;
+        final seedSession = Session(
+          id: 'old-session',
+          seq: 1,
+          createdAt: 1700000000000,
+          updatedAt: 1700000000000,
+          active: true,
+          activeAt: 1700000000000,
+          metadata: Metadata(
+            host: 'test-host',
+            machineId: 'machine-1',
+            path: '/repo',
+            flavor: 'claude',
+          ),
+          metadataVersion: 1,
+          agentStateVersion: 1,
+          thinking: false,
+          presence: 'offline',
+          permissionMode: 'default',
+          modelMode: 'default',
+        );
 
-      instance.testSessions['old-session'] = seedSession;
+        instance.testSessions['old-session'] = seedSession;
 
-      await instance.testPrimeSessionFromSpawnResult(
-        requestedSessionId: 'old-session',
-        restoredSessionId: 'new-session',
-        seedSession: seedSession,
-        result: const SpawnSessionResponse(
-          type: 'success',
-          sessionId: 'new-session',
-          directory: '/repo',
-        ),
-      );
+        await instance.testPrimeSessionFromSpawnResult(
+          requestedSessionId: 'old-session',
+          restoredSessionId: 'new-session',
+          seedSession: seedSession,
+          result: const SpawnSessionResponse(
+            type: 'success',
+            sessionId: 'new-session',
+            directory: '/repo',
+          ),
+        );
 
-      final restored = instance.sessions['new-session'];
-      expect(restored, isNotNull);
-      expect(restored?.metadata?.machineId, 'machine-1');
-      expect(restored?.metadata?.path, '/repo');
-      expect(restored?.metadata?.flavor, 'claude');
-      expect(instance.testForceFullFetchNext, false);
-    });
+        final restored = instance.sessions['new-session'];
+        expect(restored, isNotNull);
+        expect(restored?.metadata?.machineId, 'machine-1');
+        expect(restored?.metadata?.path, '/repo');
+        expect(restored?.metadata?.flavor, 'claude');
+        expect(instance.testForceFullFetchNext, false);
+      },
+    );
   });
 
   group('Sync.parseTodoListsFromDecryptedKv', () {
@@ -723,58 +731,48 @@ void main() {
       },
     );
 
-    test(
-      'returns true when session presence is online',
-      () async {
-        final instance = Sync();
-        instance.testSessions['s1'] = Session(
-          id: 's1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: 0,
-          metadataVersion: 0,
-          agentStateVersion: 0,
-          thinking: false,
+    test('returns true when session presence is online', () async {
+      final instance = Sync();
+      instance.testSessions['s1'] = Session(
+        id: 's1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'online',
+      );
+      final ready = await instance.waitForAgentReady('s1', 50);
+      expect(ready, true);
+    });
+
+    test('returns true when session comes online during wait', () async {
+      final instance = Sync();
+      instance.testSessions['s1'] = Session(
+        id: 's1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+      );
+      // Simulate daemon coming online after a short delay.
+      Future<void>.delayed(const Duration(milliseconds: 100), () {
+        instance.testSessions['s1'] = instance.testSessions['s1']!.copyWith(
           presence: 'online',
         );
-        final ready = await instance.waitForAgentReady('s1', 50);
-        expect(ready, true);
-      },
-    );
-
-    test(
-      'returns true when session comes online during wait',
-      () async {
-        final instance = Sync();
-        instance.testSessions['s1'] = Session(
-          id: 's1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: 0,
-          metadataVersion: 0,
-          agentStateVersion: 0,
-          thinking: false,
-          presence: 'offline',
-        );
-        // Simulate daemon coming online after a short delay.
-        Future<void>.delayed(
-          const Duration(milliseconds: 100),
-          () {
-            instance.testSessions['s1'] =
-                instance.testSessions['s1']!.copyWith(
-              presence: 'online',
-            );
-            instance.testNotifyDataChanged();
-          },
-        );
-        final ready = await instance.waitForAgentReady('s1', 2000);
-        expect(ready, true);
-      },
-    );
+        instance.testNotifyDataChanged();
+      });
+      final ready = await instance.waitForAgentReady('s1', 2000);
+      expect(ready, true);
+    });
   });
 
   group('Sync.getLastMessagePreview', () {
@@ -807,10 +805,7 @@ void main() {
         {'role': 'agent', 'text': 'hello', 'createdAt': 1},
         {'role': 'user', 'text': 'how are you?', 'createdAt': 2},
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'how are you?',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'how are you?');
     });
 
     test('finds last agent message', () {
@@ -818,10 +813,7 @@ void main() {
         {'role': 'user', 'text': 'hi', 'createdAt': 1},
         {'role': 'agent', 'text': 'Hi! How can I help?', 'createdAt': 2},
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'Hi! How can I help?',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'Hi! How can I help?');
     });
 
     test('skips system and tool messages', () {
@@ -830,10 +822,7 @@ void main() {
         {'role': 'agent', 'text': 'actual response', 'createdAt': 2},
         {'role': 'user', 'text': 'question', 'createdAt': 3},
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'question',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'question');
     });
 
     test('skips messages with empty text', () {
@@ -842,10 +831,7 @@ void main() {
         {'role': 'user', 'text': '   ', 'createdAt': 2},
         {'role': 'agent', 'text': 'real content', 'createdAt': 3},
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'real content',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'real content');
     });
 
     test('skips messages missing text field', () {
@@ -853,10 +839,7 @@ void main() {
         {'role': 'agent', 'createdAt': 1},
         {'role': 'user', 'text': 'visible', 'createdAt': 2},
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'visible',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'visible');
     });
 
     test('does not match wrong role names', () {
@@ -865,10 +848,7 @@ void main() {
         {'role': 'assistant', 'text': 'also wrong', 'createdAt': 2},
         {'role': 'user', 'text': 'correct role', 'createdAt': 3},
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'correct role',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'correct role');
     });
 
     test('finds message via content field (processed messages)', () {
@@ -886,10 +866,7 @@ void main() {
           'createdAt': 2,
         },
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'agent response',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'agent response');
       expect(instance.getLastMessageRole('s1'), 'agent');
     });
 
@@ -909,21 +886,13 @@ void main() {
           'createdAt': 2,
         },
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'main chat',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'main chat');
       expect(instance.getLastMessageRole('s1'), 'user');
     });
 
     test('skips tool-call and agent-event messages', () {
       instance.testSetSessionMessages('s1', [
-        {
-          'role': 'user',
-          'kind': 'text',
-          'content': 'prompt',
-          'createdAt': 1,
-        },
+        {'role': 'user', 'kind': 'text', 'content': 'prompt', 'createdAt': 1},
         {
           'role': 'agent',
           'kind': 'tool-call',
@@ -931,17 +900,9 @@ void main() {
           'content': 'tool data',
           'createdAt': 2,
         },
-        {
-          'role': 'agent',
-          'kind': 'agent-event',
-          'content': '',
-          'createdAt': 3,
-        },
+        {'role': 'agent', 'kind': 'agent-event', 'content': '', 'createdAt': 3},
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'prompt',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'prompt');
     });
 
     test('skips thinking blocks', () {
@@ -960,10 +921,7 @@ void main() {
           'createdAt': 2,
         },
       ]);
-      expect(
-        instance.getLastMessagePreview('s1'),
-        'actual response',
-      );
+      expect(instance.getLastMessagePreview('s1'), 'actual response');
     });
   });
 }

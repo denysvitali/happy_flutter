@@ -87,6 +87,7 @@ extension SyncMessaging on Sync {
           !_sessionMessages.containsKey(sessionId) ||
           (_sessionMessages[sessionId]?.isEmpty ?? true);
       final forceTailRefresh = _sessionsNeedingTailRefresh.remove(sessionId);
+      final forceProbe = _sessionsNeedingFetchProbe.remove(sessionId);
       int afterSeq;
 
       // Detect large gaps: when the cursor is far behind the session's
@@ -106,6 +107,7 @@ extension SyncMessaging on Sync {
         '[fetchMessages] $sessionId '
         'isFirstLoad=$isFirstLoad '
         'forceTailRefresh=$forceTailRefresh '
+        'forceProbe=$forceProbe '
         'gapTooLarge=$gapTooLarge '
         'cursorSeq=$cursorSeq '
         'serverLastSeq=$serverLastSeq',
@@ -124,6 +126,7 @@ extension SyncMessaging on Sync {
           cursorSeq <= serverLastSeq &&
           (serverLastSeq - cursorSeq) > Sync.initialLoad;
       if (!isFirstLoad &&
+          !forceProbe &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
           cursorSeq == serverLastSeq &&
@@ -281,6 +284,7 @@ extension SyncMessaging on Sync {
             _sessionsNeedingVisibleRegroup.remove(sessionId);
             _sessionsWithPendingUpdates.remove(sessionId);
             _sessionsWithPendingSocketMessages.remove(sessionId);
+            _sessionsNeedingFetchProbe.remove(sessionId);
             _sessionSpawnedAt.remove(sessionId);
             _sessionSpawnedProfile.remove(sessionId);
             _autoRestoreInFlight.remove(sessionId);
