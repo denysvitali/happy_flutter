@@ -173,7 +173,9 @@ extension SyncMessagingParse on Sync {
 
       // ACP type: unified agent communication protocol
       if (contentType == 'acp') {
-        return _processAcpContent(message, nestedContent, createdAt, content);
+        return _processAcpContent(
+          message, nestedContent, createdAt, content, sessionId,
+        );
       }
 
       // Session protocol envelope embedded directly under content.
@@ -917,6 +919,7 @@ extension SyncMessagingParse on Sync {
     Map<String, dynamic> nestedContent,
     int createdAt,
     Map<String, dynamic> outerContent,
+    String sessionId,
   ) {
     final data = nestedContent['data'];
     if (data is! Map<String, dynamic>) return ([], []);
@@ -930,6 +933,20 @@ extension SyncMessagingParse on Sync {
     final parentUuid =
         (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
             as String?;
+
+    // turn_aborted: clear thinking state when a turn is aborted.
+    // The server may send this instead of or before session_state_changed:idle.
+    if (dataType == 'turn_aborted') {
+      final current = _sessions[sessionId];
+      if (current != null) {
+        _sessions[sessionId] = current.copyWith(
+          thinking: false,
+          thinkingAt: null,
+        );
+        _notifyDataChanged({SyncDomain.sessions});
+      }
+      return ([], []);
+    }
 
     if (dataType == 'message' || dataType == 'reasoning') {
       return (
@@ -1052,7 +1069,7 @@ extension SyncMessagingParse on Sync {
       );
     }
 
-    // Skip task lifecycle events (task_started, task_complete, turn_aborted,
+    // Skip task lifecycle events (task_started, task_complete,
     // token_count, permission-request, etc.)
     return ([], []);
   }
