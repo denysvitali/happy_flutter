@@ -172,39 +172,36 @@ extension SyncSocket on Sync {
       _lastSessionsFetchedAt = null;
     }
 
-    // Phase 0: Critical syncs (sessions, machines) - immediate invalidation
-    // These are essential for core app functionality and navigation
+    // Phase 0: Critical syncs - immediate invalidation.
+    // Keep launch limited to the data needed for the default sessions tab.
     if (phase == null || phase == Sync._criticalSyncPhase) {
       sessionsSync.invalidate();
-      machinesSync.invalidate();
-
-      // Settings, profile, and purchases are also critical for UI
-      settingsSync.invalidate();
-      profileSync.invalidate();
-      purchasesSync.invalidate();
-
-      // Push token and native update are low-priority but fast
-      pushTokenSync.invalidate();
-      nativeUpdateSync.invalidate();
 
       logger.info(
-        'Invalidated critical syncs '
-        '(sessions, machines, settings, profile, purchases)',
+        'Invalidated critical syncs (sessions)',
       );
     }
 
-    // Phase 1: Deferred syncs - invalidate after 2-3 second staggered delay
-    // These are non-critical and can be loaded lazily when accessed
+    // Phase 1: Deferred syncs.
+    // These are non-critical for the initial sessions screen and can load
+    // shortly after first paint or on-demand when the user opens a tab.
     if (phase == null || phase == Sync._deferredSyncPhase) {
       _deferredSyncsTimer?.cancel();
-      _deferredSyncsTimer = Timer(const Duration(seconds: 10), () {
+      _deferredSyncsTimer = Timer(const Duration(seconds: 3), () {
         // Only invalidate if sync is still initialized to avoid
         // errors after logout/dispose
         if (!isInitialized) return;
         logger.debug(
           'Invalidating background deferred syncs '
-          '(friend requests, git status)',
+          '(machines, settings, profile, purchases, push token, '
+          'native update, friend requests, git status)',
         );
+        machinesSync.invalidate();
+        settingsSync.invalidate();
+        profileSync.invalidate();
+        purchasesSync.invalidate();
+        pushTokenSync.invalidate();
+        nativeUpdateSync.invalidate();
         friendRequestsSync.invalidate();
         sessionGitStatusSync.invalidate();
       });

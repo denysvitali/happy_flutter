@@ -34,6 +34,7 @@ class SessionsScreen extends ConsumerStatefulWidget {
 class _SessionsScreenState extends ConsumerState<SessionsScreen>
     with SyncSubscriptionMixin {
   late AppTab _activeTab;
+  late final Set<AppTab> _builtTabs;
   final _selectionNotifier = ValueNotifier<SelectionState>(
     const SelectionState(),
   );
@@ -45,6 +46,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   void initState() {
     super.initState();
     _activeTab = _parseTab(widget.initialTab);
+    _builtTabs = <AppTab>{_activeTab};
     _selectionNotifier.addListener(_onSelectionChanged);
     Future<void>.microtask(() async {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
@@ -149,10 +151,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         ),
         bottomNavigationBar: TabBar(
           activeTab: _activeTab,
-          onTabPress: (tab) {
-            setState(() => _activeTab = tab);
-            _updateUrlTab(tab);
-          },
+          onTabPress: _setActiveTab,
           inboxBadgeCount: inboxBadgeCount,
           showInboxBadge: showInboxDot,
         ),
@@ -336,15 +335,37 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     return IndexedStack(
       index: _activeTab.index,
       children: [
-        const InboxScreen(),
+        _buildInboxTab(),
         SessionsListContent(
           selectionNotifier: _selectionNotifier,
           searchQuery: _searchController.text,
           onClearSearch: _clearSearch,
         ),
-        const SettingsScreen(),
+        _buildSettingsTab(),
       ],
     );
+  }
+
+  Widget _buildInboxTab() {
+    if (_builtTabs.contains(AppTab.inbox)) {
+      return const InboxScreen();
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildSettingsTab() {
+    if (_builtTabs.contains(AppTab.settings)) {
+      return const SettingsScreen();
+    }
+    return const SizedBox.shrink();
+  }
+
+  void _setActiveTab(AppTab tab) {
+    setState(() {
+      _activeTab = tab;
+      _builtTabs.add(tab);
+    });
+    _updateUrlTab(tab);
   }
 
   // ── Selection helpers ─────────────────────────
