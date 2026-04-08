@@ -3,42 +3,53 @@ part of 'sync_service.dart';
 extension SyncSocketEvents on Sync {
   /// Subscribe to socket updates
   void subscribeToUpdates() {
-    socketIoClient
-      ..onMessage('update', handleUpdate)
-      ..onMessage('ephemeral', handleEphemeralUpdate)
-      ..onMessage('error', _handleErrorEvent)
-      ..onReconnected(() {
-        logger.info('Socket reconnected');
-        _invalidateAllSyncs();
-        // Re-fetch messages for the visible session immediately.
-        // For non-visible sessions that have messages in memory,
-        // mark them as having pending socket messages so
-        // onSessionVisible() triggers a server fetch when the user
-        // navigates to them.  Without this, messages received
-        // during the disconnect gap are permanently lost because
-        // no socket events were delivered.
-        for (final sessionId in _sessionMessages.keys) {
-          if (sessionId != _visibleSessionId) {
-            _sessionsWithPendingSocketMessages.add(sessionId);
-          }
+    _unsubscribeSocketUpdate?.call();
+    _unsubscribeSocketEphemeral?.call();
+    _unsubscribeSocketError?.call();
+    _unsubscribeSocketReconnected?.call();
+    _unsubscribeSocketStatus?.call();
+
+    _unsubscribeSocketUpdate = socketIoClient.onMessage('update', handleUpdate);
+    _unsubscribeSocketEphemeral = socketIoClient.onMessage(
+      'ephemeral',
+      handleEphemeralUpdate,
+    );
+    _unsubscribeSocketError = socketIoClient.onMessage(
+      'error',
+      _handleErrorEvent,
+    );
+    _unsubscribeSocketReconnected = socketIoClient.onReconnected(() {
+      logger.info('Socket reconnected');
+      _invalidateAllSyncs();
+      // Re-fetch messages for the visible session immediately.
+      // For non-visible sessions that have messages in memory,
+      // mark them as having pending socket messages so
+      // onSessionVisible() triggers a server fetch when the user
+      // navigates to them.  Without this, messages received
+      // during the disconnect gap are permanently lost because
+      // no socket events were delivered.
+      for (final sessionId in _sessionMessages.keys) {
+        if (sessionId != _visibleSessionId) {
+          _sessionsWithPendingSocketMessages.add(sessionId);
         }
-        // IMPORTANT: Chain after sessionsSync invalidation so
-        // fetchMessages runs AFTER fetchSessions has updated
-        // serverLastSeq.  Without this, fetchMessages may see
-        // stale serverLastSeq and skip via early exit.
-        if (_visibleSessionId != null) {
-          unawaited(
-            sessionsSync.invalidateAndAwait().then((_) {
-              if (_visibleSessionId != null) {
-                messagesSync[_visibleSessionId]?.invalidate();
-              }
-            }),
-          );
-        }
-      })
-      ..onStatusChange((status) {
-        _connectionStatus = status;
-      });
+      }
+      // IMPORTANT: Chain after sessionsSync invalidation so
+      // fetchMessages runs AFTER fetchSessions has updated
+      // serverLastSeq.  Without this, fetchMessages may see
+      // stale serverLastSeq and skip via early exit.
+      if (_visibleSessionId != null) {
+        unawaited(
+          sessionsSync.invalidateAndAwait().then((_) {
+            if (_visibleSessionId != null) {
+              messagesSync[_visibleSessionId]?.invalidate();
+            }
+          }),
+        );
+      }
+    });
+    _unsubscribeSocketStatus = socketIoClient.onStatusChange((status) {
+      _connectionStatus = status;
+    });
   }
 
   /// Handle incoming updates

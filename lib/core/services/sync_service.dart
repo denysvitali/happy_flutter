@@ -260,6 +260,12 @@ what you have, you must use the options mode.
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
+  void Function()? _unsubscribeSocketUpdate;
+  void Function()? _unsubscribeSocketEphemeral;
+  void Function()? _unsubscribeSocketError;
+  void Function()? _unsubscribeSocketReconnected;
+  void Function()? _unsubscribeSocketStatus;
+
   /// Timestamp of last resume() call for debouncing rapid pause/resume cycles.
   int? _lastResumeAtMs;
   int? _lastSuspendedAtMs;

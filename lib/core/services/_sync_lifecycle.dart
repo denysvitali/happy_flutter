@@ -259,10 +259,17 @@ extension SyncLifecycle on Sync {
     _sessionUnreadCounts.clear();
     _sessionUnreadLastIncrementMs.clear();
 
-    socketIoClient
-      ..offMessage('update')
-      ..offMessage('ephemeral')
-      ..disconnect();
+    _unsubscribeSocketUpdate?.call();
+    _unsubscribeSocketUpdate = null;
+    _unsubscribeSocketEphemeral?.call();
+    _unsubscribeSocketEphemeral = null;
+    _unsubscribeSocketError?.call();
+    _unsubscribeSocketError = null;
+    _unsubscribeSocketReconnected?.call();
+    _unsubscribeSocketReconnected = null;
+    _unsubscribeSocketStatus?.call();
+    _unsubscribeSocketStatus = null;
+    socketIoClient.disconnect();
 
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = null;
