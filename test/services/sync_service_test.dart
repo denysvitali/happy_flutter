@@ -362,7 +362,6 @@ void main() {
       () async {
         final instance = Sync();
         var sessionsInvalidations = 0;
-        var machinesInvalidations = 0;
 
         instance.sessionsSync = InvalidateSync(() async {
           sessionsInvalidations++;
@@ -370,9 +369,7 @@ void main() {
         instance.settingsSync = InvalidateSync(() async {});
         instance.profileSync = InvalidateSync(() async {});
         instance.purchasesSync = InvalidateSync(() async {});
-        instance.machinesSync = InvalidateSync(() async {
-          machinesInvalidations++;
-        });
+        instance.machinesSync = InvalidateSync(() async {});
         instance.pushTokenSync = InvalidateSync(() async {});
         instance.nativeUpdateSync = InvalidateSync(() async {});
         instance.artifactsSync = InvalidateSync(() async {});
@@ -384,14 +381,11 @@ void main() {
 
         instance.testInvalidateAllSyncs(force: true);
         await instance.sessionsSync.awaitQueue();
-        await instance.machinesSync.awaitQueue();
 
         instance.testInvalidateAllSyncs();
         await instance.sessionsSync.awaitQueue();
-        await instance.machinesSync.awaitQueue();
 
         expect(sessionsInvalidations, 1);
-        expect(machinesInvalidations, 1);
       },
     );
 
@@ -422,29 +416,26 @@ void main() {
       var criticalInvalidations = 0;
       var deferredInvalidations = 0;
 
-      // Track critical syncs (sessions, machines)
+      // Track critical syncs (sessions)
       instance.sessionsSync = InvalidateSync(() async {
         criticalInvalidations++;
       });
+      // Track deferred syncs that the timer actually invalidates
       instance.machinesSync = InvalidateSync(() async {
-        criticalInvalidations++;
+        deferredInvalidations++;
       });
-      instance.settingsSync = InvalidateSync(() async {});
+      instance.settingsSync = InvalidateSync(() async {
+        deferredInvalidations++;
+      });
       instance.profileSync = InvalidateSync(() async {});
       instance.purchasesSync = InvalidateSync(() async {});
       instance.pushTokenSync = InvalidateSync(() async {});
       instance.nativeUpdateSync = InvalidateSync(() async {});
 
-      // Track deferred syncs (friends, feed, todos)
-      instance.friendsSync = InvalidateSync(() async {
-        deferredInvalidations++;
-      });
-      instance.feedSync = InvalidateSync(() async {
-        deferredInvalidations++;
-      });
-      instance.todosSync = InvalidateSync(() async {
-        deferredInvalidations++;
-      });
+      // On-demand syncs (not invalidated by phased invalidation)
+      instance.friendsSync = InvalidateSync(() async {});
+      instance.feedSync = InvalidateSync(() async {});
+      instance.todosSync = InvalidateSync(() async {});
       instance.artifactsSync = InvalidateSync(() async {});
       instance.friendRequestsSync = InvalidateSync(() async {});
       instance.sessionGitStatusSync = InvalidateSync(() async {});
@@ -454,10 +445,9 @@ void main() {
 
       // Critical syncs should invalidate immediately
       await instance.sessionsSync.awaitQueue();
-      await instance.machinesSync.awaitQueue();
       expect(
         criticalInvalidations,
-        2,
+        1,
         reason: 'Critical syncs should invalidate immediately',
       );
 
@@ -468,15 +458,14 @@ void main() {
         reason: 'Deferred syncs should not invalidate immediately',
       );
 
-      // Wait for deferred syncs to be invalidated (after 2.5s delay)
-      await Future.delayed(const Duration(milliseconds: 2600));
-      await instance.friendsSync.awaitQueue();
-      await instance.feedSync.awaitQueue();
-      await instance.todosSync.awaitQueue();
+      // Wait for deferred syncs to be invalidated (after 3s delay)
+      await Future.delayed(const Duration(milliseconds: 3100));
+      await instance.machinesSync.awaitQueue();
+      await instance.settingsSync.awaitQueue();
 
       expect(
         deferredInvalidations,
-        3,
+        2,
         reason: 'Deferred syncs should invalidate after delay',
       );
     });

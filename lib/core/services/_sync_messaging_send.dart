@@ -438,7 +438,7 @@ extension SyncMessagingSend on Sync {
       logger.error('[sendMessage] error sending', e, stack);
       transaction.setData('error', e.toString());
       await transaction.finish(status: const SpanStatus.internalError());
-      if (!sent && e is _AgentStartupTimeout) {
+      if (!sent && _isPermanentSendFailure(e)) {
         _updateMessageSendStatus(targetSessionId, localId, 'failed');
         _notifySessionMessagesChanged(targetSessionId);
       } else if (!sent) {
@@ -459,6 +459,19 @@ extension SyncMessagingSend on Sync {
     if (!_sessionMessageChangeController.isClosed) {
       _sessionMessageChangeController.add(targetSessionId);
     }
+  }
+
+  /// Returns true for errors that indicate the message will never succeed
+  /// (e.g. session doesn't exist).  These should be marked failed
+  /// immediately rather than queued for retry.
+  static bool _isPermanentSendFailure(Object error) {
+    if (error is _AgentStartupTimeout) return true;
+    // 404 = session not found on server.  Retrying won't help.
+    if (error is StateError &&
+        error.message.contains('Failed to send message: 404')) {
+      return true;
+    }
+    return false;
   }
 
   /// Outbox delivery callback: re-attempt a single queued message.

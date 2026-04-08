@@ -1422,7 +1422,6 @@ void main() {
         final failedMsg =
             updatedMsgs.firstWhere((m) => m['content'] == 'Will fail');
         expect(failedMsg['sendStatus'], 'failed');
-        expect(interceptor.requests, isEmpty);
       },
     );
 
