@@ -32,7 +32,7 @@ on:
           - production
 
 env:
-  JAVA_VERSION: '17'
+  JAVA_VERSION: '21'
   DART_VM_OPTIONS: '--max-gen-heap-size=4096'
 
 permissions:
@@ -283,6 +283,13 @@ jobs:
       - name: Get dependencies
         run: devenv shell -- flutter pub get
 
+      - name: Stabilize Kotlin compiler
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo 'kotlin.compiler.execution.strategy=in-process'
+          } >> ~/.gradle/gradle.properties
+
       - name: Determine flavor
         id: flavor
         run: |
@@ -412,6 +419,14 @@ jobs:
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: devenv shell -- flutter pub get
+
+      - name: Stabilize Kotlin compiler
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo 'kotlin.compiler.execution.strategy=in-process'
+          } >> ~/.gradle/gradle.properties
 
       - name: Determine flavor
         id: flavor
