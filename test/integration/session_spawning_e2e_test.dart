@@ -128,10 +128,10 @@ void main() {
     });
 
     test(
-      'successful spawn forces full fetch before checking session',
+      'successful spawn hydrates only the new session before checking it',
       () async {
-        final sessionId = 'spawn-full-1';
-        var fetchWasForced = false;
+        final sessionId = 'spawn-hydrate-1';
+        var fetchSingleCalls = 0;
 
         sync.testMachineRPCOverride = (machineId, method, params) async {
           return <String, dynamic>{
@@ -141,21 +141,16 @@ void main() {
           };
         };
 
-        _stubAllSyncs(
-          sync,
-          sessionsFn: () async {
-            if (sync.testForceFullFetchNext) {
-              fetchWasForced = true;
-              sync.testForceFullFetchNext = false;
-              // Server returns the session this time
-              sync.testSessions[sessionId] = _makeSession(
-                sessionId,
-                machineId: 'machine-1',
-                path: '/home/user/project',
-              );
-            }
-          },
-        );
+        sync.testFetchSingleSessionOverride = (sid) async {
+          fetchSingleCalls++;
+          final session = _makeSession(
+            sid,
+            machineId: 'machine-1',
+            path: '/home/user/project',
+          );
+          sync.testSessions[sid] = session;
+          return session;
+        };
 
         await sync.createSession(
           machineId: 'machine-1',
@@ -163,11 +158,19 @@ void main() {
         );
 
         expect(
-          fetchWasForced,
-          isTrue,
-          reason: 'createSession must force a full fetch',
+          fetchSingleCalls,
+          1,
+          reason: 'createSession should hydrate the spawned session directly',
         );
-        expect(sync.sessions[sessionId], isNotNull);
+        expect(
+          sync.testForceFullFetchNext,
+          isFalse,
+          reason: 'createSession should not force a catalog-wide refresh',
+        );
+        expect(
+          sync.sessions[sessionId],
+          isNotNull,
+        );
       },
     );
 

@@ -128,12 +128,14 @@ extension SyncSessionOperations on Sync {
         'in _sessionSpawnedAt (profile=$effectiveProfileId)',
       );
 
-      // Force a full fetch (not delta) to ensure the newly created session
-      // is included in the results. This prevents a race condition where
-      // server clock skew causes the session to be excluded from delta
-      // fetches (changedSince > session.updatedAt).
-      _forceFullFetchNext = true;
-      await refreshSessions();
+      // Hydrate the spawned session directly instead of forcing a full
+      // sessions refresh. A full fetch decrypts the entire catalog and makes
+      // session creation scale with total session count.
+      await _hydrateSpawnedSession(
+        sessionId,
+        machineId: machineId,
+        path: path,
+      );
 
       // Optimistic insert: if the server's /v2/sessions endpoint hasn't
       // propagated the new session yet (replication lag between the RPC
@@ -266,6 +268,43 @@ extension SyncSessionOperations on Sync {
     }
 
     throw StateError(errorMsg);
+  }
+
+  Future<void> _hydrateSpawnedSession(
+    String sessionId, {
+    required String machineId,
+    required String path,
+  }) async {
+    const retryDelays = <Duration>[
+      Duration.zero,
+      Duration(milliseconds: 250),
+      Duration(milliseconds: 750),
+    ];
+
+    for (final delay in retryDelays) {
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+
+      final session = await fetchSingleSession(sessionId);
+      if (session != null) {
+        logger.info(
+          '[createSession] hydrated spawned session $sessionId '
+          'via fetchSingleSession',
+        );
+        return;
+      }
+    }
+
+    logger.info(
+      '[createSession] session $sessionId not yet visible via '
+      'fetchSingleSession; keeping optimistic placeholder '
+      '(machine=$machineId path=$path)',
+    );
+
+    // Kick a delta refresh in the background so the list reconciles shortly
+    // after the optimistic insert without blocking the create flow.
+    sessionsSync.invalidate();
   }
 
   /// Execute a bash command on a machine.
