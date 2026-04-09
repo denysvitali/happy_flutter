@@ -7,9 +7,26 @@ extension SyncMessagingRpc on Sync {
     Map<String, dynamic> params, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    final machineEncryption = encryption.getMachineEncryption(machineId);
+    var machineEncryption = encryption.getMachineEncryption(machineId);
     if (machineEncryption == null) {
-      throw StateError('Machine encryption not found for $machineId');
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message:
+                'machineRPC: encryption null, awaiting machines',
+            category: 'sync.machines',
+            data: {'machineId': machineId, 'method': method},
+          ),
+        ),
+      );
+      // Encryption may not be initialized yet — wait for pending fetch.
+      // This can happen after socket reconnect when machinesSync was
+      // invalidated but fetch hasn't completed yet.
+      await machinesSync.invalidateAndAwait();
+      machineEncryption = encryption.getMachineEncryption(machineId);
+      if (machineEncryption == null) {
+        throw StateError('Machine encryption not found for $machineId');
+      }
     }
 
     final encrypted = await machineEncryption.encryptRaw(params);
