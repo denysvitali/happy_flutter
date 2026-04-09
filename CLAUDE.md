@@ -7,6 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Always commit and push** after completing changes — do not wait for the user to ask
 - **Always use `rg` (ripgrep)** when searching for code, symbols, or strings
 - **Never create documentation files** (*.md, README updates) unless explicitly requested
+- **Treat chat send reliability as a P0 surface** — preserve one canonical `localId` across optimistic UI, REST send, retry, socket forwarding, and merge
+- **When touching core messaging code, add or update contract tests first** — repeated identical sends, optimistic replacement, retry identity, and out-of-order delivery are mandatory coverage
 
 ## Project Overview
 
