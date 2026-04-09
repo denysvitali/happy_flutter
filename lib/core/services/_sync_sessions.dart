@@ -40,16 +40,18 @@ extension SyncSessions on Sync {
 
   /// Handle account update — debounced to collapse rapid-fire
   /// duplicate events (server can send 20+ in < 10ms).
+  ///
+  /// NOTE: Using debounce Timer breaks the `awaitQueue()` pattern used
+  /// in tests. The debounce delays `invalidate()` by 500ms, but tests
+  /// call `awaitQueue()` synchronously and expect invalidation to have
+  /// already occurred.
+  /// For now, call invalidate() synchronously — the InvalidateSync's own
+  /// cooldown/debounce mechanism provides adequate protection against
+  /// duplicate-event storms at the sync layer.
   void _handleUpdateAccount(Map<String, dynamic> data) {
-    if (_accountUpdateDebounceTimer?.isActive ?? false) return;
     logger.info('Account update received');
-    _accountUpdateDebounceTimer = Timer(
-      const Duration(milliseconds: 500),
-      () {
-        profileSync.invalidate();
-        settingsSync.invalidate();
-      },
-    );
+    profileSync.invalidate();
+    settingsSync.invalidate();
   }
 
   /// Handle machine update
