@@ -10,6 +10,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Treat chat send reliability as a P0 surface** — preserve one canonical `localId` across optimistic UI, REST send, retry, socket forwarding, and merge
 - **When touching core messaging code, add or update contract tests first** — repeated identical sends, optimistic replacement, retry identity, and out-of-order delivery are mandatory coverage
 
+## Core Invariants
+
+- **One user action, one logical message** — a tap on send must create exactly one logical outbound message, even if transport retries, socket echoes, or fetch overlap occur
+- **One canonical message identity** — UI, sync, outbox, retry, HTTP, socket, and merge paths must all use the same `localId`
+- **Identical text is not identity** — repeated messages like `continue` are distinct sends and must never be deduplicated by content
+- **Optimistic replacement is by `localId`, never by position or text** — server-acked messages must replace the exact optimistic placeholder they correspond to
+
+## Verification Expectations
+
+- **Core messaging changes require targeted tests** — add or update protocol, integration, or state-machine tests that prove the contract you changed
+- **Run Flutter commands through `devenv`** — do not rely on host `flutter`/`dart`
+- **Prefer invariant assertions over snapshot-style assertions** — assert no duplicate logical message, no orphan optimistic row, no lost retry identity, and no silent collapse of repeated identical sends
+
+## Documentation Notes
+
+- **`AGENTS.md` is a symlink to this file** — update `CLAUDE.md` when the user asks to change agent instructions
+
 ## Project Overview
 
 Happy Flutter is **happy's mobile app**, built with Flutter.
