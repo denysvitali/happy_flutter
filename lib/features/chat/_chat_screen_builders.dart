@@ -14,7 +14,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
       _cachedVisibleCount = _visibleCount;
       _cachedVisibleMessages = _messages.sublist(startIndex);
     }
-    final visibleMessages = _cachedVisibleMessages!;
+    final visibleMessages = _cachedVisibleMessages ?? const [];
 
     final hasLocalMore = startIndex > 0;
 
@@ -65,8 +65,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
       _cachedKeyToListIndex = keyToListIndex;
     }
 
-    final items = _cachedListItems!;
-    final keyToListIndex = _cachedKeyToListIndex!;
+    final items = _cachedListItems ?? const [];
+    final keyToListIndex = _cachedKeyToListIndex ?? const {};
 
     // Only rebuild neighbor cache if the items list actually changed.
     // The _refreshFromSync method handles cache invalidation when messages

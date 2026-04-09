@@ -359,6 +359,15 @@ extension SyncSessionOperations on Sync {
     } catch (error, stackTrace) {
       if (error is StateError && error.message.contains('not connected')) {
         logger.info('machineReadFile: socket not connected');
+      } else if (Sync._isRpcMethodNotAvailable(error)) {
+        logger.info(
+          'machineReadFile: RPC method not available '
+          '(daemon too old) — $error',
+        );
+        return const ReadFileResponse(
+          success: false,
+          error: 'File viewing requires a newer machine agent',
+        );
       } else {
         logger.error('machineReadFile error', error, stackTrace);
       }

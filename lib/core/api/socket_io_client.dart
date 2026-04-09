@@ -7,8 +7,8 @@ import '../services/logger_service.dart' show logger;
 import '../services/performance_context_service.dart';
 
 /// Returns true for transient network errors (DNS failure,
-/// connection timeout, etc.) that are expected during brief
-/// connectivity loss on mobile.
+/// connection timeout, TLS handshake interruption, etc.) that are
+/// expected during brief connectivity loss on mobile.
 bool _isTransientSocketError(String error) {
   final lower = error.toLowerCase();
   return error.contains('ERR_NAME_NOT_RESOLVED') ||
@@ -23,6 +23,11 @@ bool _isTransientSocketError(String error) {
       error.contains('Connection closed') ||
       error.contains('Software caused connection abort') ||
       error.contains('xhr poll error') ||
+      // TLS handshake interrupted by network drop or server restart —
+      // these are transient and resolve on the next reconnect attempt.
+      lower.contains('handshakeexception') ||
+      lower.contains('connection terminated during handshake') ||
+      lower.contains('bad certificate') ||
       // Socket.IO internal timeout (ACK timeout or ping timeout)
       lower.contains('timeout') ||
       lower.contains('socket.io error: timeout');
@@ -83,6 +88,33 @@ class SocketIoClient {
   int? _lastConnectStartedAtMs;
   int? _lastDisconnectAtMs;
 
+  // Rate-limit Sentry captures for non-transient socket errors.
+  // A reconnection storm can fire dozens of identical errors within
+  // seconds; we capture at most one per 60-second window to avoid
+  // flooding the error tracker.
+  DateTime? _lastSentryErrorCapturedAt;
+  static const _sentryCaptureWindow = Duration(seconds: 60);
+
+  bool _shouldCaptureSentryForSocketError() {
+    final now = DateTime.now();
+    final last = _lastSentryErrorCapturedAt;
+    if (last == null || now.difference(last) >= _sentryCaptureWindow) {
+      _lastSentryErrorCapturedAt = now;
+      return true;
+    }
+    return false;
+  }
+
+  // Error flood throttle — track last-logged error text + timestamp so
+  // that a burst of identical errors (e.g. 100+ "timeout" events fired
+  // within 5 ms by the Socket.IO ping-timeout machinery) collapses to a
+  // single log + Sentry event instead of flooding the ring buffer and
+  // Sentry's event quota.
+  String? _lastErrorStr;
+  int? _lastErrorAtMs;
+  int _suppressedErrorCount = 0;
+  static const int _errorThrottleWindowMs = 5000;
+
   // Stream controllers for events
   final _statusController = StreamController<ConnectionStatus>.broadcast();
 
@@ -129,6 +161,12 @@ class SocketIoClient {
           .enableReconnection()
           .setReconnectionDelay(2000) // 2s initial for better battery
           .setReconnectionDelayMax(10000) // 10s max — 30s is too slow on mobile
+          // Cap internal reconnection attempts so a persistent server-side
+          // TLS failure (e.g. cert renewal, rolling restart) does not produce
+          // an unbounded storm of retries.  SocketIoClient.reconnect() resets
+          // the Manager and will restart the counter when called externally
+          // (e.g. on app resume).
+          .setReconnectionAttempts(10)
           .enableForceNew() // bypass global Manager cache on reconnect
           .setTransportOptions({
             'websocket': {
@@ -148,6 +186,7 @@ class SocketIoClient {
   void _setupEventHandlers() {
     _socket!.onConnect((_) async {
       logger.info('Socket.IO connected');
+      _resetErrorThrottle();
       _updateStatus(ConnectionStatus.connected);
 
       // Track connection as a transaction for performance monitoring
@@ -211,13 +250,16 @@ class SocketIoClient {
       final errorStr = error.toString();
       final isTransient = _isTransientSocketError(errorStr);
 
+      if (_shouldThrottleError(errorStr)) return;
+
       // Downgrade transient network errors to info to avoid
       // Sentry noise when the device briefly loses connectivity.
       if (isTransient) {
         logger.info('Socket.IO transient connect error: $error');
-      } else {
-        logger.warning('Socket.IO connect error: $error');
+        return;
       }
+
+      logger.warning('Socket.IO connect error: $error');
 
       final transaction = Sentry.startTransaction(
         'websocket.connect_error',
@@ -237,7 +279,7 @@ class SocketIoClient {
         status: const SpanStatus.internalError(),
       );
 
-      if (!isTransient) {
+      if (_shouldCaptureSentryForSocketError()) {
         unawaited(Sentry.captureException(
           Exception('Socket.IO connect error: $error'),
           stackTrace: StackTrace.current,
@@ -251,11 +293,14 @@ class SocketIoClient {
       final errorStr = error.toString();
       final isTransient = _isTransientSocketError(errorStr);
 
+      if (_shouldThrottleError(errorStr)) return;
+
       if (isTransient) {
         logger.info('Socket.IO transient error: $error');
-      } else {
-        logger.warning('Socket.IO error: $error');
+        return;
       }
+
+      logger.warning('Socket.IO error: $error');
 
       final transaction = Sentry.startTransaction(
         'websocket.error',
@@ -275,7 +320,7 @@ class SocketIoClient {
         status: const SpanStatus.internalError(),
       );
 
-      if (!isTransient) {
+      if (_shouldCaptureSentryForSocketError()) {
         unawaited(Sentry.captureException(
           Exception('Socket.IO error: $error'),
           stackTrace: StackTrace.current,
@@ -490,6 +535,47 @@ class SocketIoClient {
     disconnect();
     _statusController.close();
     _messageHandlers.clear();
+  }
+
+  /// Returns true when the error should be suppressed to prevent a flood of
+  /// identical entries.  The first occurrence of each distinct error string
+  /// is always logged; subsequent identical errors within
+  /// [_errorThrottleWindowMs] are counted and silently dropped.  When the
+  /// window expires the suppression count is emitted as a single summary
+  /// line so no information is permanently lost.
+  bool _shouldThrottleError(String errorStr) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (_lastErrorStr == errorStr &&
+        _lastErrorAtMs != null &&
+        nowMs - _lastErrorAtMs! < _errorThrottleWindowMs) {
+      _suppressedErrorCount++;
+      return true;
+    }
+    // Window expired or different error — flush suppression summary first.
+    if (_suppressedErrorCount > 0) {
+      logger.info(
+        'Socket.IO error suppressed $_suppressedErrorCount× '
+        'within ${_errorThrottleWindowMs}ms: $_lastErrorStr',
+      );
+      _suppressedErrorCount = 0;
+    }
+    _lastErrorStr = errorStr;
+    _lastErrorAtMs = nowMs;
+    return false;
+  }
+
+  /// Reset error-throttle state (called on clean connect so the first error
+  /// after a successful reconnection is always logged).
+  void _resetErrorThrottle() {
+    if (_suppressedErrorCount > 0) {
+      logger.info(
+        'Socket.IO error suppressed $_suppressedErrorCount× '
+        'within ${_errorThrottleWindowMs}ms: $_lastErrorStr',
+      );
+    }
+    _lastErrorStr = null;
+    _lastErrorAtMs = null;
+    _suppressedErrorCount = 0;
   }
 
   static int? _elapsedSince(int? startedAtMs) {

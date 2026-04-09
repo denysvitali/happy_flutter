@@ -114,10 +114,10 @@ class KvService {
 
       return KvMutateResponse.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      if (e.response?.statusCode == 409) {
-        return KvMutateResponse.fromJson(
-          e.response!.data as Map<String, dynamic>,
-        );
+      final responseData = e.response?.data;
+      if (e.response?.statusCode == 409 &&
+          responseData is Map<String, dynamic>) {
+        return KvMutateResponse.fromJson(responseData);
       }
       throw KvException('Failed to mutate KV values: ${e.message}');
     }

@@ -38,11 +38,18 @@ extension SyncSessions on Sync {
     await sessionsSync.invalidateAndAwait();
   }
 
-  /// Handle account update
+  /// Handle account update — debounced to collapse rapid-fire
+  /// duplicate events (server can send 20+ in < 10ms).
   void _handleUpdateAccount(Map<String, dynamic> data) {
+    if (_accountUpdateDebounceTimer?.isActive ?? false) return;
     logger.info('Account update received');
-    profileSync.invalidate();
-    settingsSync.invalidate();
+    _accountUpdateDebounceTimer = Timer(
+      const Duration(milliseconds: 500),
+      () {
+        profileSync.invalidate();
+        settingsSync.invalidate();
+      },
+    );
   }
 
   /// Handle machine update

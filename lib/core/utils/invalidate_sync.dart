@@ -62,10 +62,24 @@ class InvalidateSync {
     // the next invalidate() would skip because _running is stuck true.
     // This can happen when suspend() disposes all InvalidateSync instances
     // while background network requests are still in-flight.
+    //
+    // CRITICAL: Reset ALL state that could block a new operation BEFORE
+    // creating a new _currentOperation completer. The old completer may have
+    // an in-flight _run() that races with the revived one.
     if (_disposed) {
       _disposed = false;
       _running = false;
       _retryCount = 0;
+      _lastRunEnd = null;
+      // Complete (with error) any orphaned completer from the disposed run
+      // so that awaitQueue() callers are unblocked rather than hanging forever.
+      final oldOp = _currentOperation;
+      _currentOperation = null;
+      if (oldOp != null && !oldOp.isCompleted) {
+        oldOp.completeError(
+          StateError('InvalidateSync disposed during in-flight operation'),
+        );
+      }
     }
 
     // Always ensure a Completer exists so that awaitQueue() callers
@@ -99,10 +113,7 @@ class InvalidateSync {
     // Reset retry count when starting a fresh operation so that
     // a previously-exhausted InvalidateSync can recover on the
     // next call (e.g. after a socket reconnect).
-    if (_currentOperation == null) {
-      _retryCount = 0;
-    }
-    _currentOperation ??= Completer<void>();
+    _retryCount = 0;
     unawaited(_run());
   }
 
@@ -259,5 +270,11 @@ class InvalidateSync {
     _disposed = true;
     _retryTimer?.cancel();
     _cooldownTimer?.cancel();
+    // Complete the pending completer so awaitQueue() callers are unblocked.
+    // This is safe to call multiple times — if invalidate() already completed
+    // it, isCompleted will be true and the assignment is a no-op.
+    _currentOperation?.completeError(
+      StateError('InvalidateSync disposed'),
+    );
   }
 }

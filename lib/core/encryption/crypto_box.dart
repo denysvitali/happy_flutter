@@ -123,7 +123,11 @@ class CryptoBox {
 
       return decrypted;
     } catch (e, stack) {
-      logger.error('CryptoBox.decrypt failed', e, stack);
+      // Warning, not error: decryption failures are expected during
+      // key rotation or device re-link and are handled gracefully
+      // (returns null → caller falls back to legacy encryption).
+      // Using error would flood Sentry with one event per session.
+      logger.warning('CryptoBox.decrypt failed\n$e');
       return null;
     }
   }

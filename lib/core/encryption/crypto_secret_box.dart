@@ -91,7 +91,10 @@ class CryptoSecretBox {
       final jsonString = utf8.decode(decrypted);
       return jsonDecode(jsonString);
     } catch (e, stack) {
-      logger.error('CryptoSecretBox.decrypt failed', e, stack);
+      // Warning, not error: decryption failures are expected during
+      // key rotation or device re-link and are handled gracefully
+      // (returns null → caller skips the item).
+      logger.warning('CryptoSecretBox.decrypt failed\n$e');
       return null;
     }
   }

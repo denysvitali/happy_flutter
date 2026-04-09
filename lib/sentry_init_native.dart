@@ -60,6 +60,11 @@ Future<void> initSentryForPlatform([
       // almost always false positives and native-layer ANR events
       // bypass Dart's beforeSend filter.
       ..anrEnabled = false
+      // Automatic user interaction tracing creates a transaction for
+      // every tap (back button, list items, etc.) with a 3-second idle
+      // timeout. This produces false "error" transactions when widgets
+      // unmount during navigation and generates noise in GlitchTip.
+      ..enableUserInteractionTracing = false
       // ── Breadcrumb limits ──
       ..maxBreadcrumbs = 200
       ..attachStacktrace = true

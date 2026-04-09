@@ -94,8 +94,8 @@ class Sync {
   static const int sessionReadyTimeoutMs = 3000;
   static const int _visibleMessageFetchPageLimit = 5;
   static const int _backgroundMessageFetchPageLimit = 1;
-  static const Duration _messageFetchConnectTimeout = Duration(seconds: 10);
-  static const Duration _messageFetchReceiveTimeout = Duration(seconds: 15);
+  static const Duration _messageFetchConnectTimeout = Duration(seconds: 8);
+  static const Duration _messageFetchReceiveTimeout = Duration(seconds: 8);
 
   /// Number of recent messages to load on first open of a session.
   static const int initialLoad = 200;
@@ -296,6 +296,7 @@ what you have, you must use the options mode.
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _socialSyncsDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;
+  Timer? _accountUpdateDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
   final Map<String, Machine> _machines = <String, Machine>{};
   // Timers that drop presence back to 'offline' if no activity arrives.

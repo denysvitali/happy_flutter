@@ -124,9 +124,6 @@ class _SwipeBackRoute extends PageRoute<void> {
   _SwipeBackPage get _page => settings as _SwipeBackPage;
 
   @override
-  bool get popGestureEnabled => true;
-
-  @override
   bool get maintainState => true;
 
   @override

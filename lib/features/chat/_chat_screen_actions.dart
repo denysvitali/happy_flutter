@@ -210,7 +210,12 @@ extension _ChatScreenActions on _ChatScreenState {
         'chat.sync.refresh',
         description: 'Refresh from sync singleton',
       );
-      _refreshFromSync();
+      // If we have cached messages, clear the loading spinner
+      // immediately so users see content instead of waiting up
+      // to 5s for the sync queue to drain (warm start fix).
+      final hasCached = _messages.isNotEmpty ||
+          sync.messagesForSession(sessionId).isNotEmpty;
+      _refreshFromSync(markLoaded: hasCached);
       unawaited(refreshSpan.finish());
 
       // Span for awaiting message sync queue
