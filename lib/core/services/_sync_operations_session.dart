@@ -30,8 +30,22 @@ extension SyncSessionOperations on Sync {
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
     }
-    if (!_isSocketConnected()) {
-      throw StateError('Not connected to server');
+    // Check socket connectivity.  When the test override is set, use it
+    // directly (supports true/false).  Otherwise, wait for the socket to
+    // connect instead of failing immediately — during brief disconnects
+    // the socket may be reconnecting and will be available within seconds.
+    final socketOverride = testSocketConnectedOverride;
+    if (socketOverride != null) {
+      if (!socketOverride) {
+        throw StateError('Not connected to server');
+      }
+    } else {
+      final connected = await socketIoClient.waitForConnection(
+        timeout: const Duration(seconds: 5),
+      );
+      if (!connected) {
+        throw StateError('Not connected to server');
+      }
     }
 
     // Fail fast if the machine is offline — don't wait 60 s for a timeout.

@@ -8,7 +8,6 @@ import '../services/logger_service.dart';
 
 /// A utility class for managing async operations with invalidation
 class InvalidateSync {
-
   InvalidateSync(
     this._action, {
     Duration? minInterval,
@@ -21,6 +20,7 @@ class InvalidateSync {
   Completer<void>? _currentOperation;
   bool _invalidated = false;
   bool _running = false;
+  bool _disposed = false;
   int _retryCount = 0;
   Timer? _retryTimer;
   Timer? _cooldownTimer;
@@ -55,6 +55,18 @@ class InvalidateSync {
   /// Invalidate the current operation and schedule a retry
   void invalidate() {
     _invalidated = true;
+
+    // Revive a disposed instance so it can accept new invalidations after
+    // suspend/resume.  Without this, if dispose() was called while an operation
+    // was in-flight (leaving _running=true) or while a retry timer was pending,
+    // the next invalidate() would skip because _running is stuck true.
+    // This can happen when suspend() disposes all InvalidateSync instances
+    // while background network requests are still in-flight.
+    if (_disposed) {
+      _disposed = false;
+      _running = false;
+      _retryCount = 0;
+    }
 
     // Always ensure a Completer exists so that awaitQueue() callers
     // block until the invalidated work actually completes — even if
@@ -244,6 +256,7 @@ class InvalidateSync {
 
   /// Dispose resources
   void dispose() {
+    _disposed = true;
     _retryTimer?.cancel();
     _cooldownTimer?.cancel();
   }

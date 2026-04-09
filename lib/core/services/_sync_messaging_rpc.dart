@@ -13,6 +13,10 @@ extension SyncMessagingRpc on Sync {
     }
 
     final encrypted = await machineEncryption.encryptRaw(params);
+    // emitWithAck now throws SocketNotConnectedException (socket not connected)
+    // or SocketAckTimeoutException (ACK timeout) instead of returning null.
+    // These propagate as-is so callers can distinguish connection failures from
+    // application-level errors.
     final result = await socketIoClient.emitWithAck('rpc-call', {
       'method': '$machineId:$method',
       'params': encrypted,
@@ -68,6 +72,8 @@ extension SyncMessagingRpc on Sync {
     }
 
     final encrypted = await sessionEncryption.encryptRaw(params);
+    // emitWithAck now throws SocketNotConnectedException or
+    // SocketAckTimeoutException instead of returning null.
     final result = await socketIoClient.emitWithAck('rpc-call', {
       'method': '$sessionId:$method',
       'params': encrypted,
@@ -96,10 +102,11 @@ extension SyncMessagingRpc on Sync {
     final raw = override != null
         ? await override(machineId, method, params)
         : await machineRPC(machineId, method, params, timeout: timeout);
-    // Handle null or non-Map responses gracefully
+    // machineRPC now throws on null — this check is only needed for the
+    // test override path which may return null.
     if (raw == null) {
       throw StateError(
-        'Machine RPC $method returned null - encryption may have failed',
+        'Machine RPC $method returned null — test override may be misconfigured',
       );
     }
     if (raw is! Map<String, dynamic>) {

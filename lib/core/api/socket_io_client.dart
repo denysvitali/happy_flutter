@@ -30,10 +30,33 @@ bool _isTransientSocketError(String error) {
 
 /// Represents a decoded Socket.io message
 class SocketMessage {
-
   SocketMessage({required this.event, required this.data});
   final String event;
   final dynamic data;
+}
+
+/// Exception thrown when [SocketIoClient.emitWithAck] cannot deliver the
+/// event because the socket is not connected (connection timeout or
+/// explicitly disconnected).
+class SocketNotConnectedException implements Exception {
+  const SocketNotConnectedException(this.event);
+  final String event;
+
+  @override
+  String toString() =>
+      'SocketNotConnectedException: socket not connected, cannot emit '
+      'event "$event"';
+}
+
+/// Exception thrown when [SocketIoClient.emitWithAck] times out waiting
+/// for an ACK from the server.
+class SocketAckTimeoutException implements Exception {
+  const SocketAckTimeoutException(this.event);
+  final String event;
+
+  @override
+  String toString() =>
+      'SocketAckTimeoutException: ACK timeout for event "$event"';
 }
 
 /// WebSocket connection state
@@ -150,7 +173,15 @@ class SocketIoClient {
         );
       await transaction.finish();
 
-      if (_hasConnectedOnce && !(_socket?.recovered ?? false)) {
+      // Always notify reconnection handlers when this is not the first
+      // connection — even when Socket.IO reports successful state recovery
+      // (recovered=true).  The recovered flag only guarantees that Socket.IO
+      // replayed missed transport-level events, but server-side state (room
+      // memberships, auth context) may have changed during the disconnect gap.
+      // Skipping _notifyReconnected on recovery caused persistent stale-data
+      // bugs where sessions couldn't be created and messages weren't delivered
+      // until app restart.
+      if (_hasConnectedOnce) {
         _notifyReconnected();
       }
       _hasConnectedOnce = true;
@@ -328,7 +359,7 @@ class SocketIoClient {
   /// Waits for the socket to reach [ConnectionStatus.connected].
   /// Returns immediately if already connected. Returns normally
   /// (with false) if socket is null or [timeout] elapses.
-  Future<bool> _waitForConnection({
+  Future<bool> waitForConnection({
     Duration timeout = const Duration(seconds: 10),
   }) async {
     if (_socket != null && _status == ConnectionStatus.connected) return true;
@@ -354,13 +385,12 @@ class SocketIoClient {
     dynamic data, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    final connected = await _waitForConnection();
+    final connected = await waitForConnection();
     if (!connected) {
-      // Socket not connected — treat as transient failure
-      logger.info(
-        'Socket.IO emitWithAck skipped: not connected, event: $event',
-      );
-      return null;
+      // Throw a typed exception instead of returning null — null propagates
+      // silently and produces confusing "RPC failed: null" errors that are
+      // hard to distinguish from other failures.
+      throw SocketNotConnectedException(event);
     }
     final completer = Completer<dynamic>();
     _socket!.emitWithAck(event, data, ack: (response) {
@@ -369,9 +399,8 @@ class SocketIoClient {
     try {
       return await completer.future.timeout(timeout);
     } on TimeoutException {
-      // Treat ACK timeout as transient — Socket.IO will retry or reconnect
-      logger.info('Socket.IO ACK timeout for event: $event');
-      return null;
+      // Treat ACK timeout as transient — Socket.IO will retry or reconnect.
+      throw SocketAckTimeoutException(event);
     }
   }
 

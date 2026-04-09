@@ -390,10 +390,20 @@ extension SyncMessagingSend on Sync {
               'localId': localId,
             });
           } else {
+            // Socket is reconnecting — the REST POST already succeeded so
+            // the message is stored on the server.  Retry the daemon
+            // notification after a delay so the agent picks it up promptly
+            // once the socket reconnects, instead of waiting for the next
+            // daemon poll cycle (which may be 30+ seconds).
             logger.warning(
-              '[sendMessage] socket not connected, skipping '
-              'daemon notification '
+              '[sendMessage] socket not connected, scheduling '
+              'daemon notification retry '
               'session=$targetSessionId localId=$localId',
+            );
+            _retryDaemonNotification(
+              targetSessionId,
+              encryptedRawRecord,
+              localId,
             );
           }
         } else {
@@ -403,6 +413,17 @@ extension SyncMessagingSend on Sync {
             'session=$targetSessionId localId=$localId',
           );
           if (socketConnected) {
+            _socketSend('message', {
+              'sid': targetSessionId,
+              'message': encryptedRawRecord,
+              'localId': localId,
+            });
+            sent = true;
+            _updateMessageSendStatus(targetSessionId, localId, 'sent');
+            _notifySessionMessagesChanged(targetSessionId);
+          } else if (_isSocketConnected()) {
+            // Re-check socket — may have reconnected since the earlier
+            // snapshot was taken.
             _socketSend('message', {
               'sid': targetSessionId,
               'message': encryptedRawRecord,
@@ -550,6 +571,12 @@ extension SyncMessagingSend on Sync {
             'message': entry.encryptedContent,
             'localId': entry.localId,
           });
+        } else {
+          _retryDaemonNotification(
+            entry.sessionId,
+            entry.encryptedContent,
+            entry.localId,
+          );
         }
         if (messagesSync.containsKey(entry.sessionId)) {
           _startPostSendCatchUp(entry.sessionId, stopAfterSeq: serverSeq ?? 0);
@@ -692,6 +719,44 @@ extension SyncMessagingSend on Sync {
 
     // Notify listeners
     _notifySessionMessagesChanged(sessionId);
+  }
+
+  /// Retry emitting a daemon notification after a brief delay.
+  ///
+  /// When the socket was reconnecting at the time of the REST POST, the
+  /// message is already stored on the server.  This method waits for the
+  /// socket to reconnect and then emits the notification so the daemon
+  /// processes the message promptly, instead of waiting for its next poll
+  /// cycle.  Fires once and gives up silently if the socket doesn't
+  /// reconnect within the timeout.
+  void _retryDaemonNotification(
+    String sessionId,
+    String encryptedRawRecord,
+    String localId,
+  ) {
+    // Fire-and-forget: await the socket connection then emit.
+    // Guard with catchError so the Future never produces an unhandled
+    // error during test teardown or after sync shutdown.
+    unawaited(
+      socketIoClient.waitForConnection(
+        timeout: const Duration(seconds: 10),
+      ).then((connected) {
+        if (!connected || !isInitialized) return;
+        if (!_isSocketConnected()) return;
+        logger.info(
+          '[sendMessage] retrying daemon notification '
+          'session=$sessionId localId=$localId',
+        );
+        _socketSend('message', {
+          'sid': sessionId,
+          'message': encryptedRawRecord,
+          'localId': localId,
+        });
+      }).catchError((_) {
+        // Silently swallow — the message is already stored on the server
+        // via REST POST and the daemon will pick it up on its next poll.
+      }),
+    );
   }
 
   void _startPostSendCatchUp(String sessionId, {required int stopAfterSeq}) {
