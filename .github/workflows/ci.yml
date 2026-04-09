@@ -62,7 +62,16 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: devenv shell -- flutter pub get
+        run: |
+          for attempt in 1 2 3; do
+            if devenv shell -- flutter pub get; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 10
+          done
 
       - name: Analyze code
         run: devenv shell -- flutter analyze --no-fatal-infos --no-fatal-warnings
@@ -96,7 +105,16 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: devenv shell -- flutter pub get
+        run: |
+          for attempt in 1 2 3; do
+            if devenv shell -- flutter pub get; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 10
+          done
 
       - name: Run tests (shard ${{ matrix.shard }}/8)
         run: |
@@ -191,7 +209,16 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: devenv shell -- flutter pub get
+        run: |
+          for attempt in 1 2 3; do
+            if devenv shell -- flutter pub get; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 10
+          done
 
       - name: Run golden tests
         run: devenv shell -- flutter test test/golden/golden_test.dart
@@ -274,7 +301,16 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Get dependencies
-        run: devenv shell -- flutter pub get
+        run: |
+          for attempt in 1 2 3; do
+            if devenv shell -- flutter pub get; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 10
+          done
 
       - name: Stabilize Kotlin compiler
         run: |
@@ -404,7 +440,16 @@ jobs:
 
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: devenv shell -- flutter pub get
+        run: |
+          for attempt in 1 2 3; do
+            if devenv shell -- flutter pub get; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 10
+          done
 
       - name: Stabilize Kotlin compiler
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -513,7 +558,16 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: devenv shell -- flutter pub get
+        run: |
+          for attempt in 1 2 3; do
+            if devenv shell -- flutter pub get; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 10
+          done
 
       - name: Build Web
         run: |
