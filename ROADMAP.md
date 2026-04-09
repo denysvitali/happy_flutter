@@ -2,7 +2,7 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-04-04
+**Last Updated**: 2026-04-09
 
 ## P0: Core Messaging & Session Reliability
 
@@ -18,7 +18,7 @@ The current test count is not enough if this contract can break without failing 
 |------|--------|-------------|
 | Canonical message identity contract tests | In Progress | Add a dedicated suite that asserts a single `localId` survives optimistic UI, REST send, socket forwarding, outbox retry, server ack, and merge. |
 | Repeated identical send tests | In Progress | Cover `continue`/same-text repeated sends and prove they produce distinct `localId`s and distinct logical messages. |
-| Optimistic replacement invariants | Not Started | Assert that server-acked messages replace the exact optimistic placeholder by `localId`, never by text similarity or list position. |
+| Optimistic replacement invariants | Done | Added contract coverage asserting that server-acked messages replace the exact optimistic placeholder by `localId`, never by text similarity or list position, including repeated identical user text. |
 | Retry identity invariants | Not Started | Assert that failed sends remain retryable under the same `localId` and do not create a second logical message unless the user sends again explicitly. |
 | Out-of-order delivery tests | Not Started | Add coverage for REST success before socket echo, socket echo before fetch, fetch overlap with inline processing, and duplicate broadcasts. |
 | Core messaging state-machine tests | Not Started | Model `draft -> sending -> sent/pending/failed -> merged` explicitly and test valid/invalid transitions. |

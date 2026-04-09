@@ -415,6 +415,101 @@ void main() {
         );
       },
     );
+
+    test(
+      'server ack replaces the exact optimistic placeholder by localId, '
+      'not by repeated text or list position',
+      () async {
+        const sessionId = 'optimistic-merge-2';
+
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 9,
+        );
+
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'local-1',
+            'localId': 'local-1',
+            'seq': 0,
+            'role': 'user',
+            'createdAt': 1700000000000,
+            'sendStatus': 'sending',
+            'content': 'continue',
+          },
+          {
+            'id': 'local-2',
+            'localId': 'local-2',
+            'seq': 0,
+            'role': 'user',
+            'createdAt': 1700000001000,
+            'sendStatus': 'sending',
+            'content': 'continue',
+          },
+          {
+            'id': 'local-3',
+            'localId': 'local-3',
+            'seq': 0,
+            'role': 'user',
+            'createdAt': 1700000002000,
+            'sendStatus': 'sending',
+            'content': 'continue',
+          },
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 0);
+
+        sync.testUpsertSessionMessages(sessionId, [
+          {
+            'id': 'server-msg-2',
+            'localId': 'local-2',
+            'seq': 9,
+            'role': 'user',
+            'createdAt': 1700000003000,
+            'sendStatus': 'sent',
+            'content': 'continue',
+          },
+        ]);
+
+        final msgs = sync.testSessionMessages(sessionId);
+        expect(msgs, isNotNull);
+        expect(
+          msgs!,
+          hasLength(3),
+          reason:
+              'A server ack must replace one optimistic placeholder, '
+              'not add a duplicate logical message',
+        );
+
+        expect(
+          msgs.where((m) => m['id'] == 'local-1'),
+          hasLength(1),
+          reason:
+              'The first repeated-text placeholder must remain because '
+              'its localId was not acknowledged',
+        );
+        expect(
+          msgs.where((m) => m['id'] == 'local-2'),
+          isEmpty,
+          reason:
+              'Only the placeholder matching the acked localId may be '
+              'replaced',
+        );
+        expect(
+          msgs.where((m) => m['id'] == 'local-3'),
+          hasLength(1),
+          reason:
+              'Later repeated-text placeholders must not be replaced by '
+              'position',
+        );
+
+        final serverCopies = msgs
+            .where((m) => m['id'] == 'server-msg-2')
+            .toList();
+        expect(serverCopies, hasLength(1));
+        expect(serverCopies.single['localId'], 'local-2');
+        expect(serverCopies.single['sendStatus'], 'sent');
+      },
+    );
   });
 
   group('sidechain merge-path regression', () {
