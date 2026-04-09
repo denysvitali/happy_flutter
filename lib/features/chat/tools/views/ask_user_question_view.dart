@@ -493,7 +493,6 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
 
     setState(() {
       _isSubmitting = true;
-      _isSubmitted = true;
     });
 
     final input =
@@ -556,6 +555,13 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
           lines.join('\n'),
         );
       }
+      // Only mark as submitted after the RPC/message
+      // actually succeeds — if the CLI agent has
+      // disconnected the RPC will fail and the user
+      // should see the interactive view again.
+      if (mounted) {
+        setState(() => _isSubmitted = true);
+      }
     } catch (e, st) {
       final msg = e.toString();
       // Expected race condition when server already resolved/expired
@@ -568,12 +574,21 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
           msg.contains('expired');
       if (isExpectedRace) {
         logger.info('Submit answer skipped: $e');
+        // Permission already resolved — treat as
+        // submitted so the UI doesn't show stale
+        // interactive controls.
+        if (mounted) {
+          setState(() => _isSubmitted = true);
+        }
       } else {
         logger.warning(
           'Failed to submit answer: $e',
           e,
           st,
         );
+        // Don't set _isSubmitted — show the
+        // interactive view again so the user can
+        // retry or see that submission failed.
       }
     } finally {
       if (mounted) {
