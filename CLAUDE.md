@@ -12,20 +12,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Core Invariants
 
-- **One user action, one logical message** — a tap on send must create exactly one logical outbound message, even if transport retries, socket echoes, or fetch overlap occur
-- **One canonical message identity** — UI, sync, outbox, retry, HTTP, socket, and merge paths must all use the same `localId`
-- **Identical text is not identity** — repeated messages like `continue` are distinct sends and must never be deduplicated by content
-- **Optimistic replacement is by `localId`, never by position or text** — server-acked messages must replace the exact optimistic placeholder they correspond to
+- **One tap, one logical message**
+- **One canonical `localId` across UI, sync, HTTP, socket, retry, and merge**
+- **Repeated text like `continue` is never identity**
+- **Optimistic replacement is by `localId`, not by text or position**
 
 ## Verification Expectations
 
-- **Core messaging changes require targeted tests** — add or update protocol, integration, or state-machine tests that prove the contract you changed
-- **Run Flutter commands through `devenv`** — do not rely on host `flutter`/`dart`
-- **Prefer invariant assertions over snapshot-style assertions** — assert no duplicate logical message, no orphan optimistic row, no lost retry identity, and no silent collapse of repeated identical sends
+- **Core messaging changes require targeted contract tests**
+- **Run Flutter commands through `devenv`**
+- **Assert invariants: no duplicate logical message, no orphan optimistic row, no lost retry identity**
 
 ## Documentation Notes
 
-- **`AGENTS.md` is a symlink to this file** — update `CLAUDE.md` when the user asks to change agent instructions
+- **`AGENTS.md` points to this file**
 
 ## Project Overview
 
