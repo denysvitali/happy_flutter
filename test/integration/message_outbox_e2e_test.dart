@@ -410,6 +410,114 @@ void main() {
             'interceptor no longer rejects',
       );
     });
+
+    test(
+      'manual retry keeps the canonical localId and does not create a '
+      'second logical message',
+    () async {
+      await sync.sendMessage('sess-3', 'Retry me');
+      await sync.lastCompleteSendFuture;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      final failedMsgs = sync.testSessionMessages('sess-3');
+      expect(failedMsgs, isNotNull);
+      expect(failedMsgs!, hasLength(1));
+
+      final originalLocalId = failedMsgs.first['localId'] as String?;
+      expect(originalLocalId, isNotNull);
+      expect(messageOutbox.contains(originalLocalId!), isTrue);
+
+      await messageOutbox.remove(originalLocalId);
+      _applyOutboxStatus(sync, 'sess-3', originalLocalId, 'failed');
+
+      messageOutbox.configure(
+        deliver: sync.testDeliverOutboxEntry,
+        onStatusChanged: (sid, lid, status) {
+          _applyOutboxStatus(sync, sid, lid, status);
+        },
+      );
+
+      await sync.retryFailedMessage('sess-3', originalLocalId);
+      await Future<void>.delayed(const Duration(milliseconds: 1400));
+
+      final msgsAfterRetry = sync.testSessionMessages('sess-3');
+      expect(msgsAfterRetry, isNotNull);
+      expect(
+        msgsAfterRetry!,
+        hasLength(1),
+        reason:
+            'Retrying an existing failed message must not create a '
+            'second logical message',
+      );
+
+      final retried = msgsAfterRetry.single;
+      expect(retried['localId'], originalLocalId);
+      expect(
+        retried['id'],
+        startsWith('srv-'),
+        reason: 'Successful retry should merge the server-assigned id',
+      );
+      expect(retried['sendStatus'], 'sent');
+      expect(
+        interceptor.capturedLocalIds,
+        [originalLocalId, originalLocalId],
+        reason:
+            'Initial POST and explicit retry must both use the same '
+            'canonical localId',
+      );
+    });
+
+    test(
+      'a fresh resend after failure creates a new localId and preserves '
+      'the original failed message',
+    () async {
+      await sync.sendMessage('sess-3', 'continue');
+      await sync.lastCompleteSendFuture;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      final msgsAfterFail = sync.testSessionMessages('sess-3');
+      expect(msgsAfterFail, isNotNull);
+      expect(msgsAfterFail!, hasLength(1));
+
+      final failedLocalId = msgsAfterFail.first['localId'] as String?;
+      expect(failedLocalId, isNotNull);
+      expect(messageOutbox.contains(failedLocalId!), isTrue);
+
+      await messageOutbox.remove(failedLocalId);
+      _applyOutboxStatus(sync, 'sess-3', failedLocalId, 'failed');
+
+      await sync.sendMessage('sess-3', 'continue');
+      await sync.lastCompleteSendFuture;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      final msgsAfterResend = sync.testSessionMessages('sess-3');
+      expect(msgsAfterResend, isNotNull);
+      expect(
+        msgsAfterResend!,
+        hasLength(2),
+        reason:
+            'An explicit resend is a new user action and must produce '
+            'a second logical message',
+      );
+
+      final failedCopies = msgsAfterResend
+          .where((m) => m['localId'] == failedLocalId)
+          .toList();
+      expect(failedCopies, hasLength(1));
+      expect(failedCopies.single['sendStatus'], 'failed');
+
+      final sentCopies = msgsAfterResend
+          .where((m) => m['localId'] != failedLocalId)
+          .toList();
+      expect(sentCopies, hasLength(1));
+      expect(
+        sentCopies.single['localId'],
+        isNot(failedLocalId),
+        reason: 'A fresh resend must mint a new localId',
+      );
+      expect(sentCopies.single['sendStatus'], 'sent');
+      expect(sentCopies.single['content'], 'continue');
+    });
   });
 }
 
@@ -542,6 +650,7 @@ class _FailThenSucceedInterceptor extends Interceptor {
 
   final int failUntil;
   int _postCount = 0;
+  final List<String?> capturedLocalIds = <String?>[];
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
@@ -549,6 +658,10 @@ class _FailThenSucceedInterceptor extends Interceptor {
       // Only count POSTs (actual sends), not GETs (fetches).
       final isPost = options.method.toUpperCase() == 'POST';
       if (isPost) _postCount++;
+      final localId = _extractLocalId(options.data);
+      if (isPost) {
+        capturedLocalIds.add(localId);
+      }
       if (isPost && _postCount <= failUntil) {
         handler.reject(
           DioException(
@@ -559,7 +672,6 @@ class _FailThenSucceedInterceptor extends Interceptor {
         );
         return;
       }
-      final localId = _extractLocalId(options.data);
       handler.resolve(
         Response<dynamic>(
           requestOptions: options,

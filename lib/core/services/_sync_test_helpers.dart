@@ -247,4 +247,9 @@ extension SyncTestHelpers on Sync {
   /// Test helper: set [_settingsSnapshot] for model override tests.
   @visibleForTesting
   set testSettingsSnapshot(Settings value) => _settingsSnapshot = value;
+
+  /// Test helper: invoke [_deliverOutboxEntry] through the real retry path.
+  @visibleForTesting
+  Future<bool> testDeliverOutboxEntry(OutboxEntry entry) =>
+      _deliverOutboxEntry(entry);
 }
