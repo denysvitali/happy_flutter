@@ -271,10 +271,11 @@ class InvalidateSync {
     _retryTimer?.cancel();
     _cooldownTimer?.cancel();
     // Complete the pending completer so awaitQueue() callers are unblocked.
-    // This is safe to call multiple times — if invalidate() already completed
-    // it, isCompleted will be true and the assignment is a no-op.
-    _currentOperation?.completeError(
-      StateError('InvalidateSync disposed'),
-    );
+    // Must check isCompleted first — completeError throws on an
+    // already-completed Completer.
+    final op = _currentOperation;
+    if (op != null && !op.isCompleted) {
+      op.completeError(StateError('InvalidateSync disposed'));
+    }
   }
 }

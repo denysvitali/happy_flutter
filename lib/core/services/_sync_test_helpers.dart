@@ -145,6 +145,11 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   String? testGetVisibleSessionId() => _visibleSessionId;
 
+  /// Test helper: set _visibleSessionId without triggering
+  /// onSessionVisible side effects (message fetches, MMKV reads, etc).
+  @visibleForTesting
+  void testSetVisibleSessionId(String? id) => _visibleSessionId = id;
+
   /// Test helper: check if inline queue contains a session.
   @visibleForTesting
   bool testInlineQueueContains(String sessionId) =>

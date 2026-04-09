@@ -202,7 +202,10 @@ void main() {
       'is deleted (prevents stale reference)',
       () async {
         final visibleId = 'visible-session';
-        sync.onSessionVisible(visibleId);
+        // Use the test helper to set _visibleSessionId directly so we don't
+        // trigger onSessionVisible's fetch/MessagesSync side effects, which
+        // cause unhandled async errors when the session is immediately deleted.
+        sync.testSetVisibleSessionId(visibleId);
 
         expect(sync.testGetVisibleSessionId(), equals(visibleId));
 
