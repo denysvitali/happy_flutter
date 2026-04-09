@@ -296,7 +296,6 @@ what you have, you must use the options mode.
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _socialSyncsDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;
-  Timer? _accountUpdateDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
   final Map<String, Machine> _machines = <String, Machine>{};
   // Timers that drop presence back to 'offline' if no activity arrives.
@@ -651,8 +650,13 @@ what you have, you must use the options mode.
 
   /// Returns true for transient network errors that are not actionable
   /// (e.g. DNS failure, timeout, Cronet aborting a connection because the
-  /// app was backgrounded).
+  /// app was backgrounded, or Socket.IO connection issues).
   static bool _isTransientConnectionError(Object error) {
+    // Check for typed socket exceptions first
+    if (error is SocketNotConnectedException ||
+        error is SocketAckTimeoutException) {
+      return true;
+    }
     final msg = error.toString();
     return msg.contains('ERR_CONNECTION_ABORTED') ||
         msg.contains('ERR_CONNECTION_RESET') ||
