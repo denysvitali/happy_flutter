@@ -20,7 +20,7 @@ The current test count is not enough if this contract can break without failing 
 | Repeated identical send tests | In Progress | Cover `continue`/same-text repeated sends and prove they produce distinct `localId`s and distinct logical messages. |
 | Optimistic replacement invariants | Done | Added contract coverage asserting that server-acked messages replace the exact optimistic placeholder by `localId`, never by text similarity or list position, including repeated identical user text. |
 | Retry identity invariants | Done | Added contract coverage proving explicit retry preserves the original `localId` and logical message, while a fresh user resend creates a new `localId` and a second logical message. |
-| Out-of-order delivery tests | Not Started | Add coverage for REST success before socket echo, socket echo before fetch, fetch overlap with inline processing, and duplicate broadcasts. |
+| Out-of-order delivery tests | In Progress | Added coverage for REST success before a later socket echo and REST success before a later fetch overlap. Remaining gaps: socket echo before fetch and broader duplicate-broadcast sequencing. |
 | Core messaging state-machine tests | Not Started | Model `draft -> sending -> sent/pending/failed -> merged` explicitly and test valid/invalid transitions. |
 | User-visible core E2E scenarios | Not Started | Add E2E coverage for rapid follow-ups, background/resume mid-send, disconnected socket with successful REST persistence, and follow-up sends while the agent is still thinking. |
 | Invariant telemetry | Not Started | Emit counters/logs for unmatched optimistic rows, duplicate `localId`s, unknown acked `localId`s, and retry-created duplicates. |

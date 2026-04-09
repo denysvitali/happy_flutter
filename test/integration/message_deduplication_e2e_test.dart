@@ -804,6 +804,119 @@ void main() {
         }
       },
     );
+
+    test(
+      'REST-acked message followed by later socket echo keeps one '
+      'logical message',
+    () async {
+      const sessionId = 'cross-source-2';
+
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        lastSeq: 11,
+      );
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': 'srv-msg-1',
+          'localId': 'local-1',
+          'seq': 11,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000011000,
+          'content': 'continue',
+          'sendStatus': 'sent',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 11);
+
+      sync.testVisibleSessionId = sessionId;
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
+      sync.testFetchMessagesOverride = (_, __, ___) async {
+        return _buildMessagesResponse([]);
+      };
+
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        'message': _makeEncryptedMessage(
+          'srv-msg-1',
+          seq: 11,
+          content: 'continue',
+          role: 'user',
+          localId: 'local-1',
+        ),
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull);
+
+      final matching = msgs!.where((m) => m['id'] == 'srv-msg-1').toList();
+      expect(
+        matching,
+        hasLength(1),
+        reason:
+            'A socket echo arriving after REST ack must not duplicate the '
+            'already-acked logical message',
+      );
+      expect(matching.single['localId'], 'local-1');
+    });
+
+    test(
+      'REST-acked message followed by later fetch overlap keeps one '
+      'logical message',
+    () async {
+      const sessionId = 'cross-source-3';
+
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        lastSeq: 11,
+      );
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': 'srv-msg-1',
+          'localId': 'local-1',
+          'seq': 11,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000011000,
+          'content': 'continue',
+          'sendStatus': 'sent',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 10);
+
+      sync.testFetchMessagesOverride = (_, __, ___) async {
+        return _buildMessagesResponse([
+          _makeEncryptedMessage(
+            'srv-msg-1',
+            seq: 11,
+            content: 'continue',
+            role: 'user',
+            localId: 'local-1',
+          ),
+        ]);
+      };
+
+      await sync.fetchMessages(sessionId);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull);
+
+      final matching = msgs!.where((m) => m['id'] == 'srv-msg-1').toList();
+      expect(
+        matching,
+        hasLength(1),
+        reason:
+            'A fetch overlapping with an already-acked message must not '
+            'create a second logical copy',
+      );
+      expect(matching.single['localId'], 'local-1');
+    });
   });
 }
 
