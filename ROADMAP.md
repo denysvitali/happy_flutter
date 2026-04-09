@@ -4,6 +4,31 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-04-04
 
+## P0: Core Messaging & Session Reliability
+
+The app lives or dies on one invariant:
+
+`one user tap -> one stable localId -> one optimistic row -> one persisted message -> one retry identity -> one final merged message`
+
+The current test count is not enough if this contract can break without failing CI. Before adding more feature work, the core send path needs explicit contract coverage.
+
+### Immediate Test Priorities
+
+| Task | Status | Description |
+|------|--------|-------------|
+| Canonical message identity contract tests | In Progress | Add a dedicated suite that asserts a single `localId` survives optimistic UI, REST send, socket forwarding, outbox retry, server ack, and merge. |
+| Repeated identical send tests | In Progress | Cover `continue`/same-text repeated sends and prove they produce distinct `localId`s and distinct logical messages. |
+| Optimistic replacement invariants | Not Started | Assert that server-acked messages replace the exact optimistic placeholder by `localId`, never by text similarity or list position. |
+| Retry identity invariants | Not Started | Assert that failed sends remain retryable under the same `localId` and do not create a second logical message unless the user sends again explicitly. |
+| Out-of-order delivery tests | Not Started | Add coverage for REST success before socket echo, socket echo before fetch, fetch overlap with inline processing, and duplicate broadcasts. |
+| Core messaging state-machine tests | Not Started | Model `draft -> sending -> sent/pending/failed -> merged` explicitly and test valid/invalid transitions. |
+| User-visible core E2E scenarios | Not Started | Add E2E coverage for rapid follow-ups, background/resume mid-send, disconnected socket with successful REST persistence, and follow-up sends while the agent is still thinking. |
+| Invariant telemetry | Not Started | Emit counters/logs for unmatched optimistic rows, duplicate `localId`s, unknown acked `localId`s, and retry-created duplicates. |
+
+### Engineering Rule
+
+For core chat flows, no layer may invent a second message identity when a canonical `localId` already exists. UI, sync, retry, and merge code must all use the same identifier.
+
 ## Project Context
 
 - **Flutter Version**: 3.38.7 (Dart 3.10+)
