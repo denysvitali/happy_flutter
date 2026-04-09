@@ -21,6 +21,18 @@ extension SyncSocketEvents on Sync {
     _unsubscribeSocketReconnected = socketIoClient.onReconnected(() {
       logger.info('Socket reconnected');
       _invalidateAllSyncs();
+      // Refresh _lastEphemeralAt for all sessions that show as online.
+      // Without this, stale timestamps from before the disconnect cause
+      // looksReady to return false and trigger unnecessary auto-restore.
+      // After a reconnect the daemon's ephemeral events will update the
+      // timestamps with fresh values; the 90s threshold provides a safety
+      // window so we don't falsely trigger auto-restore for live sessions.
+      for (final entry in _sessions.entries) {
+        if (entry.value.isOnline) {
+          _lastEphemeralAt[entry.key] =
+              DateTime.now().millisecondsSinceEpoch;
+        }
+      }
       // Re-fetch messages for the visible session immediately.
       // For non-visible sessions that have messages in memory,
       // mark them as having pending socket messages so

@@ -904,11 +904,22 @@ PY
         timeout: const Duration(seconds: 60),
       );
       if (result.type != 'success') {
+        final errorMsg = result.errorMessage ?? '';
+        // If the error indicates the session/machine doesn't exist, treat it
+        // as permanent — don't return fallback which would cause _completeSend
+        // to POST to a non-existent session and lose the message.
+        final isPermanent = errorMsg.contains('not found') ||
+            errorMsg.contains('does not exist') ||
+            errorMsg.contains('not exist');
         logger.warning(
           '[sendMessage] auto-restore not successful '
           'session=$sessionId type=${result.type ?? 'null'} '
-          'error=${result.errorMessage ?? 'unknown'}',
+          'error=$errorMsg '
+          'isPermanent=$isPermanent',
         );
+        if (isPermanent) {
+          throw StateError('Session not found: $sessionId — $errorMsg');
+        }
         final fallback = (
           sessionId: sessionId,
           session: session,
@@ -924,13 +935,7 @@ PY
           '[sendMessage] auto-restore returned empty session id '
           'for requested=$sessionId',
         );
-        final fallback = (
-          sessionId: sessionId,
-          session: session,
-          sessionEncryption: sessionEncryption,
-        );
-        completer.complete(fallback);
-        return fallback;
+        throw StateError('Session not found: $sessionId — empty session id');
       }
 
       await _primeSessionFromSpawnResult(
@@ -988,17 +993,12 @@ PY
         );
       }
       if (restoredSessionEncryption == null) {
-        logger.warning(
-          '[sendMessage] auto-restore missing encryption for '
-          'session=$restoredSessionId; using original session',
+        // Encryption is permanently unavailable for this session — throw so
+        // the message goes to outbox for retry, rather than sending to a
+        // session we can't encrypt messages for.
+        throw StateError(
+          'Session encryption not found: $restoredSessionId',
         );
-        final fallback = (
-          sessionId: sessionId,
-          session: session,
-          sessionEncryption: sessionEncryption,
-        );
-        completer.complete(fallback);
-        return fallback;
       }
 
       final restored = (

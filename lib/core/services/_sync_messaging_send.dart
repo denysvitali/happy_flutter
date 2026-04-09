@@ -486,8 +486,7 @@ extension SyncMessagingSend on Sync {
   /// (e.g. session doesn't exist).  These should be marked failed
   /// immediately rather than queued for retry.
   static bool _isPermanentSendFailure(Object error) {
-    if (error is _AgentStartupTimeout) return true;
-    // 404 = session not found on server.  Retrying won't help.
+    // 404 = session not found on server. Retrying won't help.
     if (error is StateError &&
         error.message.contains('Failed to send message: 404')) {
       return true;
@@ -602,6 +601,7 @@ extension SyncMessagingSend on Sync {
       // Counting exceptions as failures risks permanently losing a message
       // that the server already has (e.g., after 3 retries the client marks
       // it as failed even though the server stored it).
+      // Still notify the UI so the message isn't stuck in "pending" state.
       logger.error(
         '[MessageOutbox] local processing threw after HTTP 200 '
         'localId=${entry.localId} — '
@@ -609,6 +609,7 @@ extension SyncMessagingSend on Sync {
         e,
         stack,
       );
+      _notifySessionMessagesChanged(entry.sessionId);
       return true;
     }
   }
