@@ -123,9 +123,12 @@ class InvalidateSync {
     // Skip if backgrounded — don't perform any network I/O while the app is
     // not visible.  This guards against the case where resume() triggers a sync
     // but the OS immediately backgrounds the app again before the action runs.
+    // We complete the operation so that any callers awaiting awaitQueue() are
+    // unblocked rather than hanging forever.
     if (isBackgrounded) {
       backgroundedSkipCount++;
       _running = false;
+      _completeOperation();
       return;
     }
 

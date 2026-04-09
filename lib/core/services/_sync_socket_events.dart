@@ -595,7 +595,6 @@ extension SyncSocketEvents on Sync {
           : data['activeAt'] is double
           ? (data['activeAt'] as double).toInt()
           : null;
-      final title = data['title'] as String?;
       final thinking = data['thinking'] as bool?;
       final thinkingAt = data['thinkingAt'] is int
           ? data['thinkingAt'] as int
@@ -604,14 +603,19 @@ extension SyncSocketEvents on Sync {
           : null;
       final archived = data['archived'] as bool?;
 
-      // Only update if at least one unencrypted field is present.
-      if (presence != null ||
-          active != null ||
-          activeAt != null ||
-          title != null ||
-          thinking != null ||
-          thinkingAt != null ||
-          archived != null) {
+      // Only update if at least one unencrypted field is present AND
+      // has actually changed.  Without the value check, copyWith still
+      // creates a new object every time and notifies all listeners —
+      // including providers that watch the whole sessions map — even when
+      // the presence/active/etc. values are identical to current ones.
+      final hasChanged =
+          (presence != null && presence != session.presence) ||
+          (active != null && active != session.active) ||
+          (activeAt != null && activeAt != session.activeAt) ||
+          (thinking != null && thinking != session.thinking) ||
+          (thinkingAt != null && thinkingAt != session.thinkingAt) ||
+          (archived != null && archived != session.archived);
+      if (hasChanged) {
         _sessions[sessionId] = session.copyWith(
           presence: presence ?? session.presence,
           active: active ?? session.active,

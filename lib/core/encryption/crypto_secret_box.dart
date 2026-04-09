@@ -95,4 +95,32 @@ class CryptoSecretBox {
       return null;
     }
   }
+
+  /// Decrypt a batch of items, yielding to the event loop between items.
+  ///
+  /// Each CryptoSecretBox.decrypt call blocks the main isolate on native
+  /// FFI (libsodium crypto_secretbox_open_easy).  This method yields
+  /// every item so the UI stays responsive during large legacy NaCl
+  /// batch decryptions.
+  ///
+  /// Note: A true isolate-based approach (Isolate.run) is not viable here
+  /// because Sodium initialization (SodiumInit.init()) is async and must
+  /// complete before decryption.  The per-item yield is the simplest
+  /// approach that keeps the UI thread-free without complex worker-isolate
+  /// machinery.
+  static Future<List<dynamic>> decryptBatchInIsolate(
+    List<Uint8List> data,
+    Uint8List secretKey,
+  ) async {
+    if (data.isEmpty) return [];
+    final results = <dynamic>[];
+    for (var i = 0; i < data.length; i++) {
+      results.add(await decrypt(data[i], secretKey));
+      // Yield every item so the Flutter UI can render between decryptions.
+      // This keeps the main isolate responsive even when decrypting
+      // hundreds of legacy NaCl messages on cold start.
+      await Future<void>.delayed(Duration.zero);
+    }
+    return results;
+  }
 }
