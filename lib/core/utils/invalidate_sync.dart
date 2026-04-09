@@ -71,14 +71,14 @@ class InvalidateSync {
       _running = false;
       _retryCount = 0;
       _lastRunEnd = null;
-      // Complete (with error) any orphaned completer from the disposed run
-      // so that awaitQueue() callers are unblocked rather than hanging forever.
+      // Complete any orphaned completer from the disposed run normally so
+      // that awaitQueue() callers are silently unblocked.  Using
+      // completeError here previously caused unhandled StateError crashes
+      // in callers that don't wrap the await in try/catch.
       final oldOp = _currentOperation;
       _currentOperation = null;
       if (oldOp != null && !oldOp.isCompleted) {
-        oldOp.completeError(
-          StateError('InvalidateSync disposed during in-flight operation'),
-        );
+        oldOp.complete();
       }
     }
 
@@ -265,17 +265,21 @@ class InvalidateSync {
     });
   }
 
-  /// Dispose resources
+  /// Dispose resources.
+  ///
+  /// Completes any pending operation **normally** so that callers awaiting
+  /// [awaitQueue] are silently unblocked.  Disposal during app suspend is an
+  /// expected lifecycle event — propagating an error would surface as an
+  /// unhandled StateError crash in every caller that doesn't wrap the await
+  /// in a try/catch (which is most of them).
   void dispose() {
     _disposed = true;
     _retryTimer?.cancel();
     _cooldownTimer?.cancel();
-    // Complete the pending completer so awaitQueue() callers are unblocked.
-    // Must check isCompleted first — completeError throws on an
-    // already-completed Completer.
     final op = _currentOperation;
+    _currentOperation = null;
     if (op != null && !op.isCompleted) {
-      op.completeError(StateError('InvalidateSync disposed'));
+      op.complete();
     }
   }
 }

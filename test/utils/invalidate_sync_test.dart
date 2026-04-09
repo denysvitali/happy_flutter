@@ -68,6 +68,99 @@ void main() {
       expect(callCount, 2);
     });
 
+    group('dispose lifecycle', () {
+      test('dispose completes awaitQueue normally', () async {
+        final blocker = Completer<void>();
+        final sync = InvalidateSync(() => blocker.future);
+
+        sync.invalidate();
+        // Yield so _run() starts and awaits the blocker.
+        await Future<void>.delayed(Duration.zero);
+
+        // Dispose while the action is in-flight.
+        sync.dispose();
+
+        // awaitQueue must complete without throwing.
+        await sync.awaitQueue();
+      });
+
+      test(
+        'dispose during in-flight op does not crash '
+        'invalidateAndAwait callers',
+        () async {
+          final blocker = Completer<void>();
+          final sync = InvalidateSync(() => blocker.future);
+
+          final future = sync.invalidateAndAwait();
+          await Future<void>.delayed(Duration.zero);
+
+          sync.dispose();
+
+          // Must complete normally — previously threw StateError.
+          await future;
+        },
+      );
+
+      test('revive after dispose runs new action', () async {
+        var callCount = 0;
+        final blocker = Completer<void>();
+        final sync = InvalidateSync(() async {
+          callCount++;
+          if (callCount == 1) {
+            await blocker.future;
+          }
+        });
+
+        sync.invalidate();
+        await Future<void>.delayed(Duration.zero);
+
+        // Dispose while first action is in-flight.
+        sync.dispose();
+
+        // Revive by calling invalidate() again.
+        sync.invalidate();
+        await sync.awaitQueue();
+
+        // The revived run should have executed.
+        expect(callCount, 2);
+      });
+
+      test(
+        'rapid suspend/resume cycle does not crash',
+        () async {
+          var callCount = 0;
+          final blockers = <Completer<void>>[];
+          final sync = InvalidateSync(() async {
+            callCount++;
+            final b = Completer<void>();
+            blockers.add(b);
+            await b.future;
+          });
+
+          // Simulate rapid suspend/resume cycling.
+          for (var i = 0; i < 5; i++) {
+            sync.invalidate();
+            await Future<void>.delayed(Duration.zero);
+            sync.dispose();
+          }
+
+          // Final revive.
+          sync.invalidate();
+
+          // Complete any pending blockers so the final run can
+          // proceed if it reuses one.
+          for (final b in blockers) {
+            if (!b.isCompleted) b.complete();
+          }
+
+          await sync.awaitQueue();
+
+          // At least the final run executed.
+          expect(callCount, greaterThanOrEqualTo(1));
+        },
+      );
+    });
+
     test(
       'invalidateAndAwait completes after first success even when '
       're-invalidated repeatedly during the run',

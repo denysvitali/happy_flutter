@@ -5,6 +5,7 @@ This file provides guidance to coding agents working with code in this repositor
 ## Workflow Rules
 
 - **Always commit and push** after completing changes — do not wait for the user to ask
+- **Use conventional commits** — prefix messages with `feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`, etc.
 - **Always use `rg` (ripgrep)** when searching for code, symbols, or strings
 - **Never create documentation files** (*.md, README updates) unless explicitly requested
 - **Treat chat send reliability as a P0 surface** — preserve one canonical `localId` across optimistic UI, REST send, retry, socket forwarding, and merge
