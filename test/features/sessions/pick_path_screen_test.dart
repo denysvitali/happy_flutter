@@ -69,15 +69,15 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Body confirm button (FilledButton) should be disabled
+      // AppBar confirm button (TextButton) should be disabled
       // when text is empty.
       final confirmButtons = find.widgetWithText(
-        FilledButton,
+        TextButton,
         'Confirm',
       );
       expect(confirmButtons, findsOneWidget);
 
-      final button = tester.widget<FilledButton>(
+      final button = tester.widget<TextButton>(
         confirmButtons,
       );
       expect(button.onPressed, isNull);
@@ -232,8 +232,8 @@ void main() {
       await tester.pump();
 
       // Confirm button should now be enabled
-      final filledButton = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Confirm'),
+      final filledButton = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Confirm'),
       );
       expect(filledButton.onPressed, isNotNull);
     });

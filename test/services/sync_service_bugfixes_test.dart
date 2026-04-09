@@ -428,7 +428,7 @@ void main() {
     test(
       'resume() chains visible session messagesSync invalidation '
       'AFTER sessionsSync completes (not in parallel)',
-      () async {
+      () {
         // THE RACE CONDITION BEING TESTED:
         //
         // OLD BUG: resume() called messagesSync.invalidate() immediately after
@@ -442,38 +442,41 @@ void main() {
         // sessionsSync.invalidateAndAwait().then(...), guaranteeing that
         // sessionsSync completes first and _sessions[sessionId].lastSeq is updated.
 
-        final visibleId = 'visible-session';
+        fakeAsync((async) {
+          final visibleId = 'visible-session';
 
-        // Track the ORDER in which sessionsSync and messagesSync are invalidated
-        final callOrder = <String>[];
-        sync.sessionsSync = InvalidateSync(() async {
-          callOrder.add('sessionsSync');
+          // Track the ORDER in which sessionsSync and messagesSync are invalidated
+          final callOrder = <String>[];
+          sync.sessionsSync = InvalidateSync(() async {
+            callOrder.add('sessionsSync');
+          });
+
+          // Create messagesSync for the visible session
+          sync.messagesSync[visibleId] = InvalidateSync(() async {
+            callOrder.add('messagesSync');
+          });
+
+          // Mark session as visible
+          sync.onSessionVisible(visibleId);
+          expect(sync.testGetVisibleSessionId(), equals(visibleId));
+
+          // Call resume()
+          sync.resume();
+
+          // resume() defers invalidation by 500ms — advance past that
+          // plus the InvalidateSync retry intervals.
+          async.elapse(const Duration(milliseconds: 2500));
+          async.flushMicrotasks();
+
+          // Verify messagesSync ran AFTER sessionsSync (chained, not parallel).
+          // sessionsSync may appear multiple times due to _invalidateAllSyncs
+          // calling it for both phase=null and phase=_criticalSyncPhase.
+          // The key invariant: messagesSync LAST (after all sessionsSync calls).
+          expect(callOrder.last, equals('messagesSync'),
+            reason: 'messagesSync must be the LAST call (chained after sessionsSync, '
+                'not parallel — this is the race condition fix)',
+          );
         });
-
-        // Create messagesSync for the visible session
-        sync.messagesSync[visibleId] = InvalidateSync(() async {
-          callOrder.add('messagesSync');
-        });
-
-        // Mark session as visible
-        sync.onSessionVisible(visibleId);
-        expect(sync.testGetVisibleSessionId(), equals(visibleId));
-
-        // Call resume()
-        sync.resume();
-
-        // Wait for all async operations to complete
-        await sync.sessionsSync.awaitQueue();
-        await sync.messagesSync[visibleId]!.awaitQueue();
-
-        // Verify messagesSync ran AFTER sessionsSync (chained, not parallel).
-        // sessionsSync may appear multiple times due to _invalidateAllSyncs
-        // calling it for both phase=null and phase=_criticalSyncPhase.
-        // The key invariant: messagesSync LAST (after all sessionsSync calls).
-        expect(callOrder.last, equals('messagesSync'),
-          reason: 'messagesSync must be the LAST call (chained after sessionsSync, '
-              'not parallel — this is the race condition fix)',
-        );
       },
     );
 
