@@ -500,19 +500,22 @@ class _ChatInputState extends ConsumerState<ChatInput>
               child: _buildTextField(context),
             ),
           ),
+          if (widget.isAgentThinking)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.xs),
+              child: AbortButton(
+                isAborting: widget.isAborting,
+                onTap: widget.onAbort,
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.xsm),
-            child: widget.isAgentThinking
-                ? AbortButton(
-                    isAborting: widget.isAborting,
-                    onTap: widget.onAbort,
-                  )
-                : SendButton(
-                    isSending: widget.isSending,
-                    isSendDisabled: widget.isSendDisabled,
-                    onTap: _onSendTap,
-                    scaleAnimation: _sendScale,
-                  ),
+            child: SendButton(
+              isSending: widget.isSending,
+              isSendDisabled: widget.isSendDisabled,
+              onTap: _onSendTap,
+              scaleAnimation: _sendScale,
+            ),
           ),
         ],
       ),
