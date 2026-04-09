@@ -18,6 +18,7 @@ class ChatActionNotifier extends Notifier<void> {
   Future<String> sendMessage(
     String sessionId,
     String text, {
+    String? clientLocalId,
     String? displayText,
     String? permissionMode,
     String? modelMode,
@@ -29,6 +30,7 @@ class ChatActionNotifier extends Notifier<void> {
     return sync.sendMessage(
       sessionId,
       text,
+      clientLocalId: clientLocalId,
       displayText: displayText,
       permissionMode: permissionMode,
       modelMode: modelMode,
@@ -37,10 +39,7 @@ class ChatActionNotifier extends Notifier<void> {
   }
 
   /// Abort a running session.
-  Future<void> abortSession(
-    String sessionId, {
-    String reason = '',
-  }) async {
+  Future<void> abortSession(String sessionId, {String reason = ''}) async {
     if (!sync.isInitialized) {
       throw StateError('Sync is not initialized');
     }
@@ -105,7 +104,8 @@ class ChatActionNotifier extends Notifier<void> {
   }
 }
 
-final chatActionNotifierProvider =
-    NotifierProvider<ChatActionNotifier, void>(() {
-  return ChatActionNotifier();
-});
+final chatActionNotifierProvider = NotifierProvider<ChatActionNotifier, void>(
+  () {
+    return ChatActionNotifier();
+  },
+);

@@ -11,6 +11,17 @@ class _AgentStartupTimeout implements Exception {
 }
 
 extension SyncMessagingSend on Sync {
+  /// Create a stable client-side message id that can be shared across
+  /// optimistic UI, REST persistence, socket forwarding, and retries.
+  String createLocalMessageId() {
+    try {
+      return encryption.generateId();
+    } catch (_) {
+      return '${DateTime.now().microsecondsSinceEpoch}-'
+          '${Random().nextInt(1 << 32)}';
+    }
+  }
+
   /// Send message to session.
   ///
   /// Returns the target session ID synchronously after the optimistic
@@ -25,6 +36,7 @@ extension SyncMessagingSend on Sync {
   Future<String> sendMessage(
     String sessionId,
     String text, {
+    String? clientLocalId,
     String? displayText,
     String? permissionMode,
     String? modelMode,
@@ -125,7 +137,7 @@ extension SyncMessagingSend on Sync {
         : isGemini
         ? 'gemini-2.5-pro'
         : 'default';
-    final localId = encryption.generateId();
+    final localId = clientLocalId ?? createLocalMessageId();
     final sentFrom = switch (defaultTargetPlatform) {
       TargetPlatform.android => 'android',
       TargetPlatform.iOS => 'ios',
@@ -739,24 +751,25 @@ extension SyncMessagingSend on Sync {
     // Guard with catchError so the Future never produces an unhandled
     // error during test teardown or after sync shutdown.
     unawaited(
-      socketIoClient.waitForConnection(
-        timeout: const Duration(seconds: 10),
-      ).then((connected) {
-        if (!connected || !isInitialized) return;
-        if (!_isSocketConnected()) return;
-        logger.info(
-          '[sendMessage] retrying daemon notification '
-          'session=$sessionId localId=$localId',
-        );
-        _socketSend('message', {
-          'sid': sessionId,
-          'message': encryptedRawRecord,
-          'localId': localId,
-        });
-      }).catchError((_) {
-        // Silently swallow — the message is already stored on the server
-        // via REST POST and the daemon will pick it up on its next poll.
-      }),
+      socketIoClient
+          .waitForConnection(timeout: const Duration(seconds: 10))
+          .then((connected) {
+            if (!connected || !isInitialized) return;
+            if (!_isSocketConnected()) return;
+            logger.info(
+              '[sendMessage] retrying daemon notification '
+              'session=$sessionId localId=$localId',
+            );
+            _socketSend('message', {
+              'sid': sessionId,
+              'message': encryptedRawRecord,
+              'localId': localId,
+            });
+          })
+          .catchError((_) {
+            // Silently swallow — the message is already stored on the server
+            // via REST POST and the daemon will pick it up on its next poll.
+          }),
     );
   }
 

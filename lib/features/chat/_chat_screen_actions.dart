@@ -213,8 +213,8 @@ extension _ChatScreenActions on _ChatScreenState {
       // If we have cached messages, clear the loading spinner
       // immediately so users see content instead of waiting up
       // to 5s for the sync queue to drain (warm start fix).
-      final hasCached = _messages.isNotEmpty ||
-          sync.messagesForSession(sessionId).isNotEmpty;
+      final hasCached =
+          _messages.isNotEmpty || sync.messagesForSession(sessionId).isNotEmpty;
       _refreshFromSync(markLoaded: hasCached);
       unawaited(refreshSpan.finish());
 
@@ -480,6 +480,7 @@ extension _ChatScreenActions on _ChatScreenState {
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
+    final localId = sync.createLocalMessageId();
 
     unawaited(TtsService().stop());
 
@@ -536,7 +537,8 @@ extension _ChatScreenActions on _ChatScreenState {
 
     // ── Optimistic UI: Show message immediately ──
     final optimisticMessage = <String, dynamic>{
-      'id': 'optimistic-${DateTime.now().millisecondsSinceEpoch}',
+      'id': localId,
+      'localId': localId,
       'role': 'user',
       'content': text,
       'text': text,
@@ -561,6 +563,7 @@ extension _ChatScreenActions on _ChatScreenState {
           .sendMessage(
             widget.sessionId,
             text,
+            clientLocalId: localId,
             displayText: text,
             permissionMode: _permissionMode.toModeString(),
             modelMode: _rawModelModeString ?? _modelMode.modeString,
@@ -583,7 +586,7 @@ extension _ChatScreenActions on _ChatScreenState {
         // so the user can see it and retry.
         setState(() {
           final idx = _messages.indexWhere(
-            (m) => m['id'] == optimisticMessage['id'],
+            (m) => m['localId'] == localId || m['id'] == localId,
           );
           if (idx != -1) {
             _messages = [

@@ -12,9 +12,7 @@ class _CapturingSessionEncryption implements SessionEncryption {
   Map<String, dynamic>? lastRawRecord;
 
   @override
-  Future<String> encryptRawRecord(
-    Map<String, dynamic> record,
-  ) async {
+  Future<String> encryptRawRecord(Map<String, dynamic> record) async {
     lastRawRecord = Map<String, dynamic>.from(record);
     return 'encrypted-content';
   }
@@ -33,8 +31,7 @@ class _CapturingSessionEncryption implements SessionEncryption {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeEncryption implements Encryption {
@@ -100,6 +97,10 @@ void main() {
         'sess-1',
         permissionMode: 'team-custom-mode',
       );
+      instance.testSetLastEphemeralAt(
+        'sess-1',
+        DateTime.now().millisecondsSinceEpoch,
+      );
 
       sessionEncryption = _CapturingSessionEncryption();
       instance.encryption = _FakeEncryption(
@@ -108,6 +109,11 @@ void main() {
       );
       instance.testSocketConnectedOverride = null;
       instance.testSocketSendOverride = null;
+      instance.testFetchMessagesOverride =
+          (_, __, ___) async => <String, dynamic>{
+            'messages': <Map<String, dynamic>>[],
+            'pagination': <String, dynamic>{'hasMore': false},
+          };
 
       capturedRequestData = null;
       capturedSocketEvent = null;
@@ -118,6 +124,11 @@ void main() {
           onRequest: (options, handler) {
             if (options.path == '/v3/sessions/sess-1/messages') {
               capturedRequestData = options.data;
+              final request = options.data as Map<String, dynamic>;
+              final requestMessages = request['messages'] as List<dynamic>;
+              final requestMessage =
+                  requestMessages.first as Map<String, dynamic>;
+              final requestLocalId = requestMessage['localId'] as String?;
               handler.resolve(
                 Response<dynamic>(
                   requestOptions: options,
@@ -127,7 +138,7 @@ void main() {
                       <String, dynamic>{
                         'id': 'srv-msg-1',
                         'seq': 2,
-                        'localId': 'local-1',
+                        'localId': requestLocalId,
                         'createdAt': 1700000005000,
                       },
                     ],
@@ -154,6 +165,7 @@ void main() {
       instance.testSessions.clear();
       instance.testSocketConnectedOverride = null;
       instance.testSocketSendOverride = null;
+      instance.testFetchMessagesOverride = null;
     });
 
     test('sends legacy user payload and sanitizes permission mode', () async {
@@ -181,6 +193,28 @@ void main() {
       expect(message['content'], 'encrypted-content');
     });
 
+    test('uses caller supplied localId when provided', () async {
+      await instance.sendMessage(
+        'sess-1',
+        'Hello from Flutter',
+        clientLocalId: 'client-local-42',
+      );
+      await instance.lastCompleteSendFuture;
+
+      final requestData = capturedRequestData as Map<String, dynamic>;
+      final messages = requestData['messages'] as List<dynamic>;
+      expect(messages, hasLength(1));
+      final message = messages.first as Map<String, dynamic>;
+      expect(message['localId'], 'client-local-42');
+      expect(message['content'], 'encrypted-content');
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final optimistic = localMessages.where(
+        (m) => m['localId'] == 'client-local-42',
+      );
+      expect(optimistic, isNotEmpty);
+    });
+
     test('uses REST as primary path even when socket is connected', () async {
       instance.testSocketConnectedOverride = true;
       instance.testSocketSendOverride = (event, data) {
@@ -206,8 +240,7 @@ void main() {
       // After REST ACK, a socket 'message' event is also emitted so the
       // daemon picks up the message (server deduplicates by localId).
       expect(capturedSocketEvent, 'message');
-      final socketPayload =
-          capturedSocketData as Map<String, dynamic>;
+      final socketPayload = capturedSocketData as Map<String, dynamic>;
       expect(socketPayload['sid'], 'sess-1');
       expect(socketPayload['localId'], 'local-1');
       expect(socketPayload['message'], 'encrypted-content');

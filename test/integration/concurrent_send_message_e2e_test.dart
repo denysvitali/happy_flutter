@@ -42,13 +42,10 @@ void main() {
       sync.testIsInitialized = true;
       sync.testSocketConnectedOverride = true;
       sync.testSocketSendOverride = (_, __) {};
-      sync.testFetchMessagesOverride =
-          (_, __, ___) async => _emptyMessagesPage;
+      sync.testFetchMessagesOverride = (_, __, ___) async => _emptyMessagesPage;
 
       interceptor = _TrackingInterceptor();
-      await ApiClient().initialize(
-        serverUrl: 'http://localhost',
-      );
+      await ApiClient().initialize(serverUrl: 'http://localhost');
       ApiClient().testDio!.interceptors.add(interceptor);
     });
 
@@ -59,80 +56,71 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
-    test(
-      '3 rapid sends all create optimistic messages',
-      () async {
-        const sessionId = 'sess-1';
+    test('3 rapid sends all create optimistic messages', () async {
+      const sessionId = 'sess-1';
 
-        // Fire all 3 without awaiting.
-        final f1 = sync.sendMessage(sessionId, 'msg A');
-        final f2 = sync.sendMessage(sessionId, 'msg B');
-        final f3 = sync.sendMessage(sessionId, 'msg C');
+      // Fire all 3 without awaiting.
+      final f1 = sync.sendMessage(sessionId, 'msg A');
+      final f2 = sync.sendMessage(sessionId, 'msg B');
+      final f3 = sync.sendMessage(sessionId, 'msg C');
 
-        // sendMessage is async: the optimistic insert runs
-        // after _resolveSendTargetSession (which yields at
-        // least once). Pump microtasks so all three inserts
-        // complete before we inspect the message list.
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+      // sendMessage is async: the optimistic insert runs
+      // after _resolveSendTargetSession (which yields at
+      // least once). Pump microtasks so all three inserts
+      // complete before we inspect the message list.
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(
-          msgs,
-          isNotNull,
-          reason:
-              'Session messages should exist after sends',
-        );
-        final optimistic = msgs!
-            .where((m) => m['sendStatus'] == 'sending')
-            .toList();
-        expect(
-          optimistic.length,
-          3,
-          reason:
-              'All 3 sends should insert an optimistic '
-              'message',
-        );
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(
+        msgs,
+        isNotNull,
+        reason: 'Session messages should exist after sends',
+      );
+      final optimistic = msgs!
+          .where((m) => m['sendStatus'] == 'sending')
+          .toList();
+      expect(
+        optimistic.length,
+        3,
+        reason:
+            'All 3 sends should insert an optimistic '
+            'message',
+      );
 
-        // Drain futures to avoid dangling async work.
-        await Future.wait([f1, f2, f3]);
-        await sync.lastCompleteSendFuture;
-      },
-    );
+      // Drain futures to avoid dangling async work.
+      await Future.wait([f1, f2, f3]);
+      await sync.lastCompleteSendFuture;
+    });
 
-    test(
-      'all concurrent sends eventually complete as sent',
-      () async {
-        const sessionId = 'sess-1';
+    test('all concurrent sends eventually complete as sent', () async {
+      const sessionId = 'sess-1';
 
-        await Future.wait([
-          sync.sendMessage(sessionId, 'msg A'),
-          sync.sendMessage(sessionId, 'msg B'),
-          sync.sendMessage(sessionId, 'msg C'),
-        ]);
-        await sync.lastCompleteSendFuture;
+      await Future.wait([
+        sync.sendMessage(sessionId, 'msg A'),
+        sync.sendMessage(sessionId, 'msg B'),
+        sync.sendMessage(sessionId, 'msg C'),
+      ]);
+      await sync.lastCompleteSendFuture;
 
-        final msgs = sync.testSessionMessages(sessionId)!;
-        // After background send completes, no message should still be
-        // in 'sending' state — they should all be 'sent'.
-        final stillSending = msgs
-            .where((m) => m['sendStatus'] == 'sending')
-            .toList();
-        expect(
-          stillSending,
-          isEmpty,
-          reason: 'No message should remain in "sending" state',
-        );
-        final sent = msgs
-            .where((m) => m['sendStatus'] == 'sent')
-            .toList();
-        expect(
-          sent.length,
-          greaterThanOrEqualTo(3),
-          reason: 'All 3 sends should reach "sent" status',
-        );
-      },
-    );
+      final msgs = sync.testSessionMessages(sessionId)!;
+      // After background send completes, no message should still be
+      // in 'sending' state — they should all be 'sent'.
+      final stillSending = msgs
+          .where((m) => m['sendStatus'] == 'sending')
+          .toList();
+      expect(
+        stillSending,
+        isEmpty,
+        reason: 'No message should remain in "sending" state',
+      );
+      final sent = msgs.where((m) => m['sendStatus'] == 'sent').toList();
+      expect(
+        sent.length,
+        greaterThanOrEqualTo(3),
+        reason: 'All 3 sends should reach "sent" status',
+      );
+    });
 
     test('each send gets a unique localId', () async {
       const sessionId = 'sess-1';
@@ -147,8 +135,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await Future<void>.delayed(Duration.zero);
 
-      final msgs =
-          sync.testSessionMessages(sessionId)!;
+      final msgs = sync.testSessionMessages(sessionId)!;
       final localIds = msgs
           .map((m) => m['localId'] as String?)
           .where((id) => id != null)
@@ -157,9 +144,34 @@ void main() {
       expect(
         localIds.length,
         3,
-        reason:
-            'Each send must produce a distinct localId',
+        reason: 'Each send must produce a distinct localId',
       );
+
+      await Future.wait([f1, f2, f3]);
+      await sync.lastCompleteSendFuture;
+    });
+
+    test('repeated identical messages still get distinct localIds', () async {
+      const sessionId = 'sess-1';
+
+      final f1 = sync.sendMessage(sessionId, 'continue');
+      final f2 = sync.sendMessage(sessionId, 'continue');
+      final f3 = sync.sendMessage(sessionId, 'continue');
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final msgs = sync.testSessionMessages(sessionId)!;
+      final continueMsgs = msgs
+          .where((m) => m['content'] == 'continue')
+          .toList();
+      expect(continueMsgs.length, 3);
+
+      final localIds = continueMsgs
+          .map((m) => m['localId'] as String?)
+          .whereType<String>()
+          .toSet();
+      expect(localIds.length, 3);
 
       await Future.wait([f1, f2, f3]);
       await sync.lastCompleteSendFuture;
@@ -208,13 +220,10 @@ void main() {
       sync.testIsInitialized = true;
       sync.testSocketConnectedOverride = true;
       sync.testSocketSendOverride = (_, __) {};
-      sync.testFetchMessagesOverride =
-          (_, __, ___) async => _emptyMessagesPage;
+      sync.testFetchMessagesOverride = (_, __, ___) async => _emptyMessagesPage;
 
       interceptor = _TrackingInterceptor();
-      await ApiClient().initialize(
-        serverUrl: 'http://localhost',
-      );
+      await ApiClient().initialize(serverUrl: 'http://localhost');
       ApiClient().testDio!.interceptors.add(interceptor);
     });
 
@@ -225,97 +234,88 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
-    test(
-      'sends to different sessions don\'t interfere',
-      () async {
-        // Send to both sessions concurrently.
-        await Future.wait([
-          sync.sendMessage('sess-A', 'hello from A'),
-          sync.sendMessage('sess-B', 'hello from B'),
-        ]);
-        await sync.lastCompleteSendFuture;
+    test('sends to different sessions don\'t interfere', () async {
+      // Send to both sessions concurrently.
+      await Future.wait([
+        sync.sendMessage('sess-A', 'hello from A'),
+        sync.sendMessage('sess-B', 'hello from B'),
+      ]);
+      await sync.lastCompleteSendFuture;
 
-        final msgsA = sync.testSessionMessages('sess-A');
-        final msgsB = sync.testSessionMessages('sess-B');
+      final msgsA = sync.testSessionMessages('sess-A');
+      final msgsB = sync.testSessionMessages('sess-B');
 
-        expect(msgsA, isNotNull, reason: 'sess-A should have messages');
-        expect(msgsB, isNotNull, reason: 'sess-B should have messages');
+      expect(msgsA, isNotNull, reason: 'sess-A should have messages');
+      expect(msgsB, isNotNull, reason: 'sess-B should have messages');
 
-        // Each session should have exactly its own message.
-        final sentA = msgsA!
-            .where((m) => m['content'] == 'hello from A')
-            .toList();
-        final sentB = msgsB!
-            .where((m) => m['content'] == 'hello from B')
-            .toList();
-        expect(
-          sentA.length,
-          greaterThanOrEqualTo(1),
-          reason: 'sess-A should contain the A message',
-        );
-        expect(
-          sentB.length,
-          greaterThanOrEqualTo(1),
-          reason: 'sess-B should contain the B message',
-        );
+      // Each session should have exactly its own message.
+      final sentA = msgsA!
+          .where((m) => m['content'] == 'hello from A')
+          .toList();
+      final sentB = msgsB!
+          .where((m) => m['content'] == 'hello from B')
+          .toList();
+      expect(
+        sentA.length,
+        greaterThanOrEqualTo(1),
+        reason: 'sess-A should contain the A message',
+      );
+      expect(
+        sentB.length,
+        greaterThanOrEqualTo(1),
+        reason: 'sess-B should contain the B message',
+      );
 
-        // Cross-contamination check: A's message should not appear in B.
-        final crossA = msgsB
-            .where((m) => m['content'] == 'hello from A')
-            .toList();
-        final crossB = msgsA
-            .where((m) => m['content'] == 'hello from B')
-            .toList();
-        expect(crossA, isEmpty, reason: 'sess-A message must not be in sess-B');
-        expect(crossB, isEmpty, reason: 'sess-B message must not be in sess-A');
-      },
-    );
+      // Cross-contamination check: A's message should not appear in B.
+      final crossA = msgsB
+          .where((m) => m['content'] == 'hello from A')
+          .toList();
+      final crossB = msgsA
+          .where((m) => m['content'] == 'hello from B')
+          .toList();
+      expect(crossA, isEmpty, reason: 'sess-A message must not be in sess-B');
+      expect(crossB, isEmpty, reason: 'sess-B message must not be in sess-A');
+    });
 
-    test(
-      'auto-restore and normal send don\'t block each other',
-      () async {
-        // sess-offline requires auto-restore (offline, no machineId/path set
-        // on metadata → _resolveSendTargetSession falls through immediately
-        // since machineId is null, so the send proceeds without spawning).
-        // sess-A is online and completes normally.
-        sync.testSetSessionMessages('sess-offline', []);
-        sync.testSessions['sess-offline'] = _makeSession(
-          'sess-offline',
-          presence: 'offline',
-        );
+    test('auto-restore and normal send don\'t block each other', () async {
+      // sess-offline requires auto-restore (offline, no machineId/path set
+      // on metadata → _resolveSendTargetSession falls through immediately
+      // since machineId is null, so the send proceeds without spawning).
+      // sess-A is online and completes normally.
+      sync.testSetSessionMessages('sess-offline', []);
+      sync.testSessions['sess-offline'] = _makeSession(
+        'sess-offline',
+        presence: 'offline',
+      );
 
-        final onlineDone = Completer<void>();
-        final offlineDone = Completer<void>();
+      final onlineDone = Completer<void>();
+      final offlineDone = Completer<void>();
 
-        // Launch both concurrently.
-        sync.sendMessage('sess-A', 'online msg').then((_) {
-          onlineDone.complete();
-        });
-        sync.sendMessage('sess-offline', 'offline msg').then((_) {
-          offlineDone.complete();
-        });
+      // Launch both concurrently.
+      sync.sendMessage('sess-A', 'online msg').then((_) {
+        onlineDone.complete();
+      });
+      sync.sendMessage('sess-offline', 'offline msg').then((_) {
+        offlineDone.complete();
+      });
 
-        // The online send should complete independently within a
-        // reasonable time even if the offline send takes longer.
-        await Future.any([
-          onlineDone.future,
-          Future<void>.delayed(const Duration(seconds: 5)),
-        ]);
+      // The online send should complete independently within a
+      // reasonable time even if the offline send takes longer.
+      await Future.any([
+        onlineDone.future,
+        Future<void>.delayed(const Duration(seconds: 5)),
+      ]);
 
-        expect(
-          onlineDone.isCompleted,
-          isTrue,
-          reason: 'Online send should complete independently of offline send',
-        );
+      expect(
+        onlineDone.isCompleted,
+        isTrue,
+        reason: 'Online send should complete independently of offline send',
+      );
 
-        // Clean up remaining futures.
-        await Future.wait([
-          onlineDone.future,
-          offlineDone.future,
-        ]);
-        await sync.lastCompleteSendFuture;
-      },
-    );
+      // Clean up remaining futures.
+      await Future.wait([onlineDone.future, offlineDone.future]);
+      await sync.lastCompleteSendFuture;
+    });
   });
 
   group('rapid fire ordering', () {
@@ -335,15 +335,10 @@ void main() {
       sync.testIsInitialized = true;
       sync.testSocketConnectedOverride = true;
       sync.testSocketSendOverride = (_, __) {};
-      sync.testFetchMessagesOverride =
-          (_, __, ___) async => _emptyMessagesPage;
+      sync.testFetchMessagesOverride = (_, __, ___) async => _emptyMessagesPage;
 
-      await ApiClient().initialize(
-        serverUrl: 'http://localhost',
-      );
-      ApiClient().testDio!.interceptors.add(
-        _TrackingInterceptor(),
-      );
+      await ApiClient().initialize(serverUrl: 'http://localhost');
+      ApiClient().testDio!.interceptors.add(_TrackingInterceptor());
     });
 
     tearDown(() {
@@ -353,61 +348,50 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
-    test(
-      'messages maintain insertion order',
-      () async {
-        const sessionId = 'sess-1';
+    test('messages maintain insertion order', () async {
+      const sessionId = 'sess-1';
 
-        // Fire without awaiting.
-        final f1 = sync.sendMessage(sessionId, 'msg A');
-        final f2 = sync.sendMessage(sessionId, 'msg B');
-        final f3 = sync.sendMessage(sessionId, 'msg C');
+      // Fire without awaiting.
+      final f1 = sync.sendMessage(sessionId, 'msg A');
+      final f2 = sync.sendMessage(sessionId, 'msg B');
+      final f3 = sync.sendMessage(sessionId, 'msg C');
 
-        // Let optimistic inserts complete.
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+      // Let optimistic inserts complete.
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-        // Capture insertion order after optimistic
-        // inserts.
-        final msgs =
-            sync.testSessionMessages(sessionId)!;
-        final optimistic = msgs
-            .where(
-              (m) =>
-                  m['content'] == 'msg A' ||
-                  m['content'] == 'msg B' ||
-                  m['content'] == 'msg C',
-            )
-            .toList();
+      // Capture insertion order after optimistic
+      // inserts.
+      final msgs = sync.testSessionMessages(sessionId)!;
+      final optimistic = msgs
+          .where(
+            (m) =>
+                m['content'] == 'msg A' ||
+                m['content'] == 'msg B' ||
+                m['content'] == 'msg C',
+          )
+          .toList();
 
-        expect(
-          optimistic.length,
-          3,
-          reason: 'All 3 messages should be present',
-        );
-        expect(
-          optimistic[0]['content'],
-          'msg A',
-          reason:
-              'First inserted message should be msg A',
-        );
-        expect(
-          optimistic[1]['content'],
-          'msg B',
-          reason:
-              'Second inserted message should be msg B',
-        );
-        expect(
-          optimistic[2]['content'],
-          'msg C',
-          reason:
-              'Third inserted message should be msg C',
-        );
+      expect(optimistic.length, 3, reason: 'All 3 messages should be present');
+      expect(
+        optimistic[0]['content'],
+        'msg A',
+        reason: 'First inserted message should be msg A',
+      );
+      expect(
+        optimistic[1]['content'],
+        'msg B',
+        reason: 'Second inserted message should be msg B',
+      );
+      expect(
+        optimistic[2]['content'],
+        'msg C',
+        reason: 'Third inserted message should be msg C',
+      );
 
-        await Future.wait([f1, f2, f3]);
-        await sync.lastCompleteSendFuture;
-      },
-    );
+      await Future.wait([f1, f2, f3]);
+      await sync.lastCompleteSendFuture;
+    });
   });
 }
 
@@ -420,15 +404,11 @@ class _TrackingInterceptor extends Interceptor {
   int _seqCounter = 1;
 
   @override
-  void onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) {
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final isMessagesPath =
         options.path.contains('/v3/sessions/') &&
         options.path.contains('/messages');
-    final isPost =
-        options.method.toUpperCase() == 'POST';
+    final isPost = options.method.toUpperCase() == 'POST';
 
     // Only intercept POST to the messages endpoint.
     if (isMessagesPath && isPost) {
@@ -447,8 +427,7 @@ class _TrackingInterceptor extends Interceptor {
                 'id': 'srv-$seq',
                 'seq': seq,
                 'localId': localId,
-                'createdAt': DateTime.now()
-                    .millisecondsSinceEpoch,
+                'createdAt': DateTime.now().millisecondsSinceEpoch,
               },
             ],
           },
@@ -497,22 +476,20 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {
@@ -555,10 +532,7 @@ const _emptyMessagesPage = <String, dynamic>{
   'hasMore': false,
 };
 
-Session _makeSession(
-  String id, {
-  String presence = 'online',
-}) {
+Session _makeSession(String id, {String presence = 'online'}) {
   return Session(
     id: id,
     seq: 1,
@@ -573,12 +547,8 @@ Session _makeSession(
   );
 }
 
-void _stubAllSyncs(
-  Sync instance, {
-  Future<void> Function()? sessionsFn,
-}) {
-  instance.sessionsSync =
-      InvalidateSync(sessionsFn ?? () async {});
+void _stubAllSyncs(Sync instance, {Future<void> Function()? sessionsFn}) {
+  instance.sessionsSync = InvalidateSync(sessionsFn ?? () async {});
   instance.settingsSync = InvalidateSync(() async {});
   instance.profileSync = InvalidateSync(() async {});
   instance.purchasesSync = InvalidateSync(() async {});
