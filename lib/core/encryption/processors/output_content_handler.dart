@@ -27,6 +27,34 @@ void _processOutputContent({
     // Expected server behaviour: compact summaries and meta messages are
     // intentionally filtered. Do not add to droppedReasons — these are not
     // errors and would spam GlitchTip with unique per-message entries.
+    //
+    // However, isMeta sidechain messages (task_started, task_progress,
+    // task_notification) carry UUID chain links that subsequent real
+    // sidechain messages reference via parentUuid.  Without a bridge
+    // record, the sidechain grouper cannot follow the chain from the
+    // real message back to the Task tool-call.  Emit a hidden bridge
+    // so the grouper can resolve the chain.
+    final metaSidechain =
+        data['isSidechain'] == true ||
+        data['is_sidechain'] == true;
+    if (metaSidechain) {
+      final metaUuid =
+          (data['uuid'] ?? data['id']) as String?;
+      final metaParentUuid = (data['subagent'] ??
+          data['parentUuid'] ??
+          data['parent_uuid']) as String?;
+      if (metaUuid != null && metaUuid.isNotEmpty) {
+        messages.add({
+          'id': '${id}_bridge',
+          'seq': seq,
+          'createdAt': createdAt,
+          'isSidechain': true,
+          'isBridge': true,
+          'uuid': metaUuid,
+          'parentUuid': metaParentUuid,
+        });
+      }
+    }
     return;
   }
 
