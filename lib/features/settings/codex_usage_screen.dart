@@ -454,19 +454,86 @@ class _CodexUsageWindowRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resetAt = DateTime.fromMillisecondsSinceEpoch(window.resetAt * 1000);
-    final resetLabel =
-        '${resetAt.year}-${_twoDigits(resetAt.month)}-'
-        '${_twoDigits(resetAt.day)} ${_twoDigits(resetAt.hour)}:'
-        '${_twoDigits(resetAt.minute)}';
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final percent = window.usedPercent.clamp(0, 100);
+    final fraction = percent / 100.0;
+    final resetsIn = _formatResetDuration(window.resetAfterSeconds);
 
-    return _CodexUsageStatRow(
-      icon: icon,
-      title: title,
-      value: '${window.usedPercent}% | $resetLabel',
-      iconColor: iconColor,
+    final Color barColor;
+    if (percent >= 90) {
+      barColor = AppColors.error;
+    } else if (percent >= 70) {
+      barColor = AppColors.warning;
+    } else {
+      barColor = AppColors.success;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.smd,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: iconColor),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Text(
+                '$percent%',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: barColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.xs),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 6,
+              backgroundColor: cs.surfaceContainerHighest,
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+          if (resetsIn != null) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              resetsIn,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
-  String _twoDigits(int value) => value.toString().padLeft(2, '0');
+  String? _formatResetDuration(int seconds) {
+    if (seconds <= 0) return null;
+    final dur = Duration(seconds: seconds);
+    if (dur.inHours >= 24) {
+      final days = dur.inDays;
+      return 'Resets in ${days}d ${dur.inHours % 24}h';
+    }
+    if (dur.inHours >= 1) {
+      return 'Resets in ${dur.inHours}h '
+          '${dur.inMinutes % 60}m';
+    }
+    return 'Resets in ${dur.inMinutes}m';
+  }
 }
