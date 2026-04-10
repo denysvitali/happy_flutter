@@ -13,6 +13,20 @@ extension SyncLifecycle on Sync {
   void suspend() {
     if (!isInitialized) return;
     logger.info('[Sync] suspending — disconnecting socket');
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Sync suspend',
+          category: 'sync.lifecycle',
+          level: SentryLevel.info,
+          data: <String, dynamic>{
+            'visibleSessionId': _visibleSessionId,
+            'pendingSocketSessions': _sessionsWithPendingSocketMessages.length,
+            'messageSyncCount': messagesSync.length,
+          },
+        ),
+      ),
+    );
 
     // Cancel deferred resume invalidation — if the app is backgrounding
     // before the 1.5s timer fired, no HTTP requests should be started.
@@ -120,22 +134,13 @@ extension SyncLifecycle on Sync {
   void resume() {
     if (!isInitialized) return;
 
-    // Debounce: if the app is fluttering between paused/resumed states (e.g.
-    // rapid screen lock/unlock), skip redundant resume calls.  Each resume
-    // reconnects the socket and kicks off a full sync invalidation — we don't
-    // want to do that more than once per _resumeDebounceWindowMs.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (_lastResumeAtMs != null &&
-        nowMs - _lastResumeAtMs! < Sync._resumeDebounceWindowMs) {
-      logger.debug(
-        '[Sync] resume debounced — '
-        'last resume ${nowMs - _lastResumeAtMs!}ms ago',
-      );
-      // Still clear the backgrounded flag so any pending operations
-      // can run.
-      InvalidateSync.isBackgrounded = false;
-      return;
-    }
+    final lastResumeGapMs = _lastResumeAtMs != null
+        ? nowMs - _lastResumeAtMs!
+        : null;
+    final isRapidResume =
+        lastResumeGapMs != null &&
+        lastResumeGapMs < Sync._resumeDebounceWindowMs;
     _lastResumeAtMs = nowMs;
 
     // Clear backgrounded flag BEFORE reconnecting so that any
@@ -145,17 +150,39 @@ extension SyncLifecycle on Sync {
     // await _action().
     InvalidateSync.isBackgrounded = false;
 
+    if (isRapidResume) {
+      logger.debug(
+        '[Sync] rapid resume — previous resume ${lastResumeGapMs}ms ago',
+      );
+    }
     logger.info('[Sync] resuming — reconnecting socket');
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Sync resume',
+          category: 'sync.lifecycle',
+          level: SentryLevel.info,
+          data: <String, dynamic>{
+            'rapidResume': isRapidResume,
+            'lastResumeGapMs': lastResumeGapMs,
+            'visibleSessionId': _visibleSessionId,
+            'pendingSocketSessions': _sessionsWithPendingSocketMessages.length,
+            'messageSyncCount': messagesSync.length,
+            'socketStatus': socketIoClient.connectionStatus.name,
+          },
+        ),
+      ),
+    );
     socketIoClient.reconnect();
 
     // Resume lightweight services immediately.
     messageOutbox.resume();
     NetworkMonitorService().resume();
 
-    // Defer network-heavy invalidations so that rapid
-    // foreground/background cycling (e.g. Android 16 aggressive
-    // background management) does not fire HTTP requests that get
-    // aborted when the app backgrounds again within ~1 second.
+    // Defer network-heavy invalidations so that foreground/background
+    // cycling (e.g. Android 16 aggressive background management) does not
+    // fire HTTP requests that get aborted when the app backgrounds again
+    // within ~1 second.
     // suspend() cancels this timer.
     //
     // The socket reconnected handler (in _sync_socket_events.dart)
@@ -177,6 +204,23 @@ extension SyncLifecycle on Sync {
             ? DateTime.now().millisecondsSinceEpoch - _lastSuspendedAtMs!
             : 0;
         final shouldRunGlobalInvalidation = suspendDuration > 30 * 1000;
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'Sync resume invalidation fired',
+              category: 'sync.lifecycle',
+              level: SentryLevel.info,
+              data: <String, dynamic>{
+                'rapidResume': isRapidResume,
+                'suspendDurationMs': suspendDuration,
+                'shouldRunGlobalInvalidation': shouldRunGlobalInvalidation,
+                'visibleSessionId': _visibleSessionId,
+                'pendingSocketSessions':
+                    _sessionsWithPendingSocketMessages.length,
+              },
+            ),
+          ),
+        );
 
         // Keep the session delta cursor on resume, even after long
         // background periods. Resetting it forces a full sessions fetch
