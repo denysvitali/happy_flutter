@@ -124,7 +124,7 @@ extension SyncLifecycle on Sync {
     _flushSessionMessageNotifications();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     _persistSessionsCache();
-    socketIoClient.disconnect();
+    socketIoClient.disconnect(preserveConnectionHistory: true);
   }
 
   /// Resume the sync engine when the app returns to the foreground.

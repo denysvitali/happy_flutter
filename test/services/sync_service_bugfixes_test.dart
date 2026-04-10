@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/api/socket_io_client.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
@@ -36,6 +37,11 @@ void main() {
       // can cause early return if resume() was called recently in prior test)
       sync.testClearSessionsWithPendingSocketMessages();
       sync.testResetLastResumeAtMs();
+      socketIoClient.testHasConnectedOnce = false;
+    });
+
+    tearDown(() {
+      socketIoClient.testHasConnectedOnce = false;
     });
 
     test('resume() creates messagesSync for non-visible sessions without one '
@@ -86,6 +92,28 @@ void main() {
             '(clearing it was the original bug causing message loss)',
       );
     });
+
+    test(
+      'suspend() preserves socket reconnect history for resume recovery',
+      () {
+        // Regression: background suspend used the same disconnect path as
+        // logout/full teardown, which reset the socket's "has connected"
+        // state. On resume the next connect looked like a first connect, so
+        // Sync.onReconnected recovery never fired and session streams stayed
+        // stale until a later manual refresh/restart.
+        socketIoClient.testHasConnectedOnce = true;
+
+        sync.suspend();
+
+        expect(
+          socketIoClient.testHasConnectedOnce,
+          isTrue,
+          reason:
+              'Lifecycle suspend must preserve reconnect history so resume '
+              'triggers the socket reconnected recovery path',
+        );
+      },
+    );
 
     test(
       'resume() clears _sessionsWithPendingSocketMessages after invalidating',

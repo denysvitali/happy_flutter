@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 
@@ -65,12 +66,7 @@ class SocketAckTimeoutException implements Exception {
 }
 
 /// WebSocket connection state
-enum ConnectionStatus {
-  disconnected,
-  connecting,
-  connected,
-  error,
-}
+enum ConnectionStatus { disconnected, connecting, connected, error }
 
 /// Socket.io compatible WebSocket client
 /// Matches React Native's apiSocket.ts behavior
@@ -170,9 +166,7 @@ class SocketIoClient {
           .enableForceNew() // bypass global Manager cache on reconnect
           .setTransportOptions({
             'websocket': {
-              'perMessageDeflate': {
-                'threshold': 1024,
-              },
+              'perMessageDeflate': {'threshold': 1024},
             },
           })
           .disableAutoConnect()
@@ -190,26 +184,27 @@ class SocketIoClient {
       _updateStatus(ConnectionStatus.connected);
 
       // Track connection as a transaction for performance monitoring
-      final transaction = Sentry.startTransaction(
-        _hasConnectedOnce ? 'websocket.reconnect' : 'websocket.connect',
-        'connection',
-        bindToScope: false,
-      )
-        ..setData('recovered', _socket?.recovered ?? false)
-        ..setData(
-          'connectDurationMs',
-          _elapsedSince(_lastConnectStartedAtMs),
-        )
-        ..setData(
-          'disconnectGapMs',
-          _lastConnectStartedAtMs != null && _lastDisconnectAtMs != null
-              ? _lastConnectStartedAtMs! - _lastDisconnectAtMs!
-              : null,
-        )
-        ..setData(
-          'currentRoute',
-          PerformanceContextService().currentRoute ?? 'unknown',
-        );
+      final transaction =
+          Sentry.startTransaction(
+              _hasConnectedOnce ? 'websocket.reconnect' : 'websocket.connect',
+              'connection',
+              bindToScope: false,
+            )
+            ..setData('recovered', _socket?.recovered ?? false)
+            ..setData(
+              'connectDurationMs',
+              _elapsedSince(_lastConnectStartedAtMs),
+            )
+            ..setData(
+              'disconnectGapMs',
+              _lastConnectStartedAtMs != null && _lastDisconnectAtMs != null
+                  ? _lastConnectStartedAtMs! - _lastDisconnectAtMs!
+                  : null,
+            )
+            ..setData(
+              'currentRoute',
+              PerformanceContextService().currentRoute ?? 'unknown',
+            );
       await transaction.finish();
 
       // Always notify reconnection handlers when this is not the first
@@ -232,15 +227,15 @@ class SocketIoClient {
       _updateStatus(ConnectionStatus.disconnected);
 
       // Track disconnection as a transaction
-      final transaction = Sentry.startTransaction(
-        'websocket.disconnect',
-        'connection',
-        bindToScope: false,
-      )
-        ..setData(
-          'currentRoute',
-          PerformanceContextService().currentRoute ?? 'unknown',
-        );
+      final transaction =
+          Sentry.startTransaction(
+            'websocket.disconnect',
+            'connection',
+            bindToScope: false,
+          )..setData(
+            'currentRoute',
+            PerformanceContextService().currentRoute ?? 'unknown',
+          );
       await transaction.finish();
     });
 
@@ -261,29 +256,30 @@ class SocketIoClient {
 
       logger.warning('Socket.IO connect error: $error');
 
-      final transaction = Sentry.startTransaction(
-        'websocket.connect_error',
-        'connection',
-        bindToScope: false,
-      )
-        ..setData('error', errorStr)
-        ..setData(
-          'connectDurationMs',
-          _elapsedSince(_lastConnectStartedAtMs),
-        )
-        ..setData(
-          'currentRoute',
-          PerformanceContextService().currentRoute ?? 'unknown',
-        );
-      await transaction.finish(
-        status: const SpanStatus.internalError(),
-      );
+      final transaction =
+          Sentry.startTransaction(
+              'websocket.connect_error',
+              'connection',
+              bindToScope: false,
+            )
+            ..setData('error', errorStr)
+            ..setData(
+              'connectDurationMs',
+              _elapsedSince(_lastConnectStartedAtMs),
+            )
+            ..setData(
+              'currentRoute',
+              PerformanceContextService().currentRoute ?? 'unknown',
+            );
+      await transaction.finish(status: const SpanStatus.internalError());
 
       if (_shouldCaptureSentryForSocketError()) {
-        unawaited(Sentry.captureException(
-          Exception('Socket.IO connect error: $error'),
-          stackTrace: StackTrace.current,
-        ));
+        unawaited(
+          Sentry.captureException(
+            Exception('Socket.IO connect error: $error'),
+            stackTrace: StackTrace.current,
+          ),
+        );
       }
     });
 
@@ -302,29 +298,30 @@ class SocketIoClient {
 
       logger.warning('Socket.IO error: $error');
 
-      final transaction = Sentry.startTransaction(
-        'websocket.error',
-        'connection',
-        bindToScope: false,
-      )
-        ..setData('error', errorStr)
-        ..setData(
-          'connectDurationMs',
-          _elapsedSince(_lastConnectStartedAtMs),
-        )
-        ..setData(
-          'currentRoute',
-          PerformanceContextService().currentRoute ?? 'unknown',
-        );
-      await transaction.finish(
-        status: const SpanStatus.internalError(),
-      );
+      final transaction =
+          Sentry.startTransaction(
+              'websocket.error',
+              'connection',
+              bindToScope: false,
+            )
+            ..setData('error', errorStr)
+            ..setData(
+              'connectDurationMs',
+              _elapsedSince(_lastConnectStartedAtMs),
+            )
+            ..setData(
+              'currentRoute',
+              PerformanceContextService().currentRoute ?? 'unknown',
+            );
+      await transaction.finish(status: const SpanStatus.internalError());
 
       if (_shouldCaptureSentryForSocketError()) {
-        unawaited(Sentry.captureException(
-          Exception('Socket.IO error: $error'),
-          stackTrace: StackTrace.current,
-        ));
+        unawaited(
+          Sentry.captureException(
+            Exception('Socket.IO error: $error'),
+            stackTrace: StackTrace.current,
+          ),
+        );
       }
     });
 
@@ -333,7 +330,8 @@ class SocketIoClient {
       // During AI streaming, 'update' events with new-message arrive
       // at 10-50/sec — recording each one floods Sentry's ring buffer
       // with useless breadcrumbs and adds allocation pressure.
-      final isStreamingUpdate = event == 'update' &&
+      final isStreamingUpdate =
+          event == 'update' &&
           data is Map<String, dynamic> &&
           data['t'] == 'new-message';
       if (!isStreamingUpdate) {
@@ -348,12 +346,14 @@ class SocketIoClient {
               : null;
           if (sid != null) breadcrumbData['sessionId'] = sid;
         }
-        Sentry.addBreadcrumb(Breadcrumb(
-          message: 'ws event: $event',
-          category: 'websocket',
-          level: SentryLevel.info,
-          data: breadcrumbData,
-        ));
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'ws event: $event',
+            category: 'websocket',
+            level: SentryLevel.info,
+            data: breadcrumbData,
+          ),
+        );
       }
 
       final handlers = _messageHandlers[event];
@@ -365,12 +365,19 @@ class SocketIoClient {
     });
   }
 
-  /// Disconnect from Socket.IO
-  void disconnect() {
+  /// Disconnect from Socket.IO.
+  ///
+  /// By default this is a full teardown and resets connection history so the
+  /// next connect is treated as a first connection. Lifecycle suspends can
+  /// preserve the history so the next foreground connect still runs
+  /// reconnection recovery.
+  void disconnect({bool preserveConnectionHistory = false}) {
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
-    _hasConnectedOnce = false;
+    if (!preserveConnectionHistory) {
+      _hasConnectedOnce = false;
+    }
     _updateStatus(ConnectionStatus.disconnected);
   }
 
@@ -388,7 +395,7 @@ class SocketIoClient {
     final clientType = _clientType;
     if (url == null || token == null || clientType == null) return;
     final hadConnectedOnce = _hasConnectedOnce;
-    disconnect();
+    disconnect(preserveConnectionHistory: true);
     connect(serverUrl: url, token: token, clientType: clientType);
     _hasConnectedOnce = hadConnectedOnce;
   }
@@ -438,9 +445,13 @@ class SocketIoClient {
       throw SocketNotConnectedException(event);
     }
     final completer = Completer<dynamic>();
-    _socket!.emitWithAck(event, data, ack: (response) {
-      if (!completer.isCompleted) completer.complete(response);
-    });
+    _socket!.emitWithAck(
+      event,
+      data,
+      ack: (response) {
+        if (!completer.isCompleted) completer.complete(response);
+      },
+    );
     try {
       return await completer.future.timeout(timeout);
     } on TimeoutException {
@@ -529,6 +540,12 @@ class SocketIoClient {
       listener();
     }
   }
+
+  @visibleForTesting
+  bool get testHasConnectedOnce => _hasConnectedOnce;
+
+  @visibleForTesting
+  set testHasConnectedOnce(bool value) => _hasConnectedOnce = value;
 
   /// Dispose resources
   void dispose() {
