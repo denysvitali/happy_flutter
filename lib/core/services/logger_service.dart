@@ -5,17 +5,13 @@ import 'package:flutter/foundation.dart'
     show kDebugMode, kReleaseMode, debugPrint, visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../../sentry_config.dart';
+
 /// Log levels in increasing order of severity
-enum LogLevel {
-  debug,
-  info,
-  warning,
-  error,
-}
+enum LogLevel { debug, info, warning, error }
 
 /// A single log entry
 class LogEntry {
-
   LogEntry({
     required this.timestamp,
     required this.level,
@@ -23,6 +19,7 @@ class LogEntry {
     this.error,
     this.stackTrace,
   });
+
   /// Timestamp when the log was created
   final DateTime timestamp;
 
@@ -40,7 +37,8 @@ class LogEntry {
 
   /// Convert to a formatted string for display/export
   String toFormattedString() {
-    final time = '${timestamp.hour.toString().padLeft(2, '0')}:'
+    final time =
+        '${timestamp.hour.toString().padLeft(2, '0')}:'
         '${timestamp.minute.toString().padLeft(2, '0')}:'
         '${timestamp.second.toString().padLeft(2, '0')}.'
         '${timestamp.millisecond.toString().padLeft(3, '0')}';
@@ -125,9 +123,8 @@ class LoggerService {
     );
 
     // Add to circular buffer (in release mode without dev mode, only errors)
-    final shouldBuffer = !kReleaseMode ||
-        _developerModeEnabled ||
-        level == LogLevel.error;
+    final shouldBuffer =
+        !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
     if (shouldBuffer) {
       _version++;
       _logs.add(entry);
@@ -139,9 +136,8 @@ class LoggerService {
     }
 
     // Forward to Sentry (errors only in release mode without dev mode)
-    final shouldForwardToSentry = !kReleaseMode ||
-        _developerModeEnabled ||
-        level == LogLevel.error;
+    final shouldForwardToSentry =
+        !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
     if (shouldForwardToSentry) {
       _forwardToSentry(entry);
     }
@@ -152,9 +148,8 @@ class LoggerService {
     }
 
     // Notify listeners
-    final shouldNotify = !kReleaseMode ||
-        _developerModeEnabled ||
-        level == LogLevel.error;
+    final shouldNotify =
+        !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
     if (shouldNotify) {
       for (final listener in _listeners) {
         try {
@@ -173,9 +168,11 @@ class LoggerService {
   /// → Sentry failure → …). Transport failures are surfaced as
   /// warning-level entries so they appear in DevLogsScreen.
   void _forwardToSentry(LogEntry entry) {
-    // Only forward warning and error levels.
-    if (entry.level != LogLevel.warning &&
-        entry.level != LogLevel.error) {
+    // Only forward error levels by default. Warning forwarding can create
+    // large event volume and noticeable overhead during reconnect/failure
+    // storms, which is exactly when the app is already under stress.
+    if (entry.level != LogLevel.error &&
+        !(sentryCaptureWarnings && entry.level == LogLevel.warning)) {
       return;
     }
     // Break circular forwarding for our own diagnostics.
@@ -195,19 +192,22 @@ class LoggerService {
           level: SentryLevel.warning,
           hint: Hint.withMap({
             'logger': 'LoggerService',
-            if (entry.error != null)
-              'error': entry.error.toString(),
+            if (entry.error != null) 'error': entry.error.toString(),
           }),
         );
       }
-      future.then((eventId) {
-        if (eventId == SentryId.empty()) {
-          warning('[Sentry] Event dropped '
-              '(filtered or DSN invalid)');
-        }
-      }).catchError((Object e) {
-        warning('[Sentry] Transport failed: $e');
-      });
+      future
+          .then((eventId) {
+            if (eventId == SentryId.empty()) {
+              warning(
+                '[Sentry] Event dropped '
+                '(filtered or DSN invalid)',
+              );
+            }
+          })
+          .catchError((Object e) {
+            warning('[Sentry] Transport failed: $e');
+          });
     } catch (e) {
       warning('[Sentry] Forward failed: $e');
     }
@@ -316,13 +316,17 @@ class LoggerService {
 
   /// Export logs in JSON format
   String exportLogsAsJson() {
-    final jsonList = _logs.map((entry) => {
-          'timestamp': entry.timestamp.toIso8601String(),
-          'level': entry.level.name,
-          'message': entry.message,
-          'error': entry.error?.toString(),
-          'stackTrace': entry.stackTrace?.toString(),
-        }).toList();
+    final jsonList = _logs
+        .map(
+          (entry) => {
+            'timestamp': entry.timestamp.toIso8601String(),
+            'level': entry.level.name,
+            'message': entry.message,
+            'error': entry.error?.toString(),
+            'stackTrace': entry.stackTrace?.toString(),
+          },
+        )
+        .toList();
     return jsonEncode(jsonList);
   }
 }

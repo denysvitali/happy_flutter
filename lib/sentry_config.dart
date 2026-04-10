@@ -14,7 +14,14 @@ const sentryDsn =
 
 /// Performance sampling. Kept high because GlitchTip volume is small and
 /// the app currently under-samples user-visible failures and slow paths.
-const sentryTracesSampleRate = 1.0;
-const sentryProfilesSampleRate = 0.5;
-const sentryReplaySessionSampleRate = 0.25;
-const sentryReplayOnErrorSampleRate = 1.0;
+///
+/// GlitchTip/Sentry runtime overhead became a user-visible regression.
+/// Keep crash reporting on, but sample performance data conservatively
+/// and disable the heaviest capture features by default.
+const sentryTracesSampleRate = 0.05;
+const sentryProfilesSampleRate = 0.0;
+const sentryReplaySessionSampleRate = 0.0;
+const sentryReplayOnErrorSampleRate = 0.0;
+const sentryAttachScreenshot = false;
+const sentryEnableFrameMetrics = false;
+const sentryCaptureWarnings = false;

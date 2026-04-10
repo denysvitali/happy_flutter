@@ -2,8 +2,7 @@
 import 'dart:async' show FutureOr, unawaited;
 import 'dart:io';
 
-import 'package:flutter/foundation.dart'
-    show kDebugMode, kReleaseMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/services/logger_service.dart';
@@ -33,18 +32,14 @@ class _SentryHttpOverrides extends HttpOverrides {
         ? prev.createHttpClient(context)
         : super.createHttpClient(context);
     return client
-      ..badCertificateCallback =
-          (cert, host, port) => host == sentryHost;
+      ..badCertificateCallback = (cert, host, port) => host == sentryHost;
   }
 }
 
-Future<void> initSentryForPlatform([
-  Future<void> Function()? appRunner,
-]) async {
+Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
   // Trust the self-hosted Sentry certificate before the SDK
   // creates its internal HTTP transport.
-  HttpOverrides.global =
-      _SentryHttpOverrides(HttpOverrides.current);
+  HttpOverrides.global = _SentryHttpOverrides(HttpOverrides.current);
 
   await SentryFlutter.init((options) {
     options
@@ -53,8 +48,7 @@ Future<void> initSentryForPlatform([
       ..tracesSampleRate = sentryTracesSampleRate
       // ignore: experimental_member_use
       ..profilesSampleRate = sentryProfilesSampleRate
-      ..release =
-          _sentryRelease.isNotEmpty ? _sentryRelease : null
+      ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..environment = kReleaseMode ? 'production' : 'debug'
       // ANR detection disabled — background ANRs on Android are
       // almost always false positives and native-layer ANR events
@@ -69,7 +63,7 @@ Future<void> initSentryForPlatform([
       ..maxBreadcrumbs = 200
       ..attachStacktrace = true
       // ── Attach screenshots on errors/ANRs ──
-      ..attachScreenshot = true
+      ..attachScreenshot = sentryAttachScreenshot
       // ── Session replay ──
       ..replay.sessionSampleRate = sentryReplaySessionSampleRate
       ..replay.onErrorSampleRate = sentryReplayOnErrorSampleRate
@@ -103,14 +97,10 @@ Future<void> _pingSentry() async {
     );
     return;
   } on SocketException catch (e) {
-    logger.warning(
-      '[Sentry] Server unreachable: $e',
-    );
+    logger.warning('[Sentry] Server unreachable: $e');
     return;
   } catch (e) {
-    logger.warning(
-      '[Sentry] Connectivity check failed: $e',
-    );
+    logger.warning('[Sentry] Connectivity check failed: $e');
     return;
   } finally {
     client.close();
@@ -125,9 +115,7 @@ Future<void> _pingSentry() async {
     return;
   }
 
-  logger.info(
-    '[Sentry] Server healthy (HTTP $statusCode)',
-  );
+  logger.info('[Sentry] Server healthy (HTTP $statusCode)');
 }
 
 /// Patterns that indicate a transient network error (DNS failure,
@@ -160,10 +148,7 @@ bool _isTransientNetworkEvent(SentryEvent event) {
   return false;
 }
 
-FutureOr<SentryEvent?> _beforeSend(
-  SentryEvent event,
-  Hint hint,
-) {
+FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   // Drop background ANRs — on Android these are almost always
   // false positives caused by the OS deprioritising the app.
   for (final exception in event.exceptions ?? <SentryException>[]) {

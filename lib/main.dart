@@ -32,6 +32,7 @@ import 'features/command_palette/command_palette.dart';
 import 'platform_io.dart' if (dart.library.js_interop) 'platform_stub.dart';
 import 'security_context_io.dart'
     if (dart.library.js_interop) 'security_context_stub.dart';
+import 'sentry_config.dart';
 import 'sentry_init_native.dart'
     if (dart.library.js_interop) 'sentry_init_web.dart';
 import 'sentry_widget.dart'
@@ -106,7 +107,9 @@ Future<void> _runApp() async {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(_deferredInit());
     // Start tracking janky frames for Sentry/GlitchTip visibility.
-    FrameMetricsService.instance.attach();
+    if (sentryEnableFrameMetrics && sentryTracesSampleRate > 0) {
+      FrameMetricsService.instance.attach();
+    }
   });
 
   // Await essentials: storage + network (server URL is needed for network).
