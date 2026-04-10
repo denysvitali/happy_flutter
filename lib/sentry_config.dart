@@ -3,6 +3,8 @@
 // Imported by both `sentry_init_native.dart` and `sentry_init_web.dart`
 // so the DSN is defined in exactly one place.
 
+import 'package:flutter/foundation.dart' show kReleaseMode;
+
 /// Keep GlitchTip enabled for crash capture, but disable the expensive
 /// runtime hooks that were hurting responsiveness.
 const sentryEnabled = true;
@@ -16,18 +18,15 @@ const sentryDsn =
     '@$sentryHost'
     '/1';
 
-/// Performance sampling. Kept high because GlitchTip volume is small and
-/// the app currently under-samples user-visible failures and slow paths.
-///
-/// GlitchTip/Sentry runtime overhead became a user-visible regression.
-/// Keep crash reporting on, but sample performance data conservatively
-/// and disable the heaviest capture features by default.
-const sentryTracesSampleRate = 0.05;
+/// Performance sampling:
+/// - release: very low rate to limit runtime overhead
+/// - non-release: higher rate to make local/preview diagnosis practical
+double get sentryTracesSampleRate => kReleaseMode ? 0.02 : 0.10;
 const sentryProfilesSampleRate = 0.0;
 const sentryReplaySessionSampleRate = 0.0;
 const sentryReplayOnErrorSampleRate = 0.0;
 const sentryAttachScreenshot = false;
 const sentryEnableFrameMetrics = false;
 const sentryCaptureWarnings = false;
-const sentryEnableDioInterceptor = false;
-const sentryEnableNavigationObserver = false;
+bool get sentryEnableDioInterceptor => sentryTracesSampleRate > 0;
+bool get sentryEnableNavigationObserver => sentryTracesSampleRate > 0;
