@@ -17,7 +17,9 @@ class SentryWidget extends StatelessWidget {
 
 class SentryNavigatorObserver extends NavigatorObserver {
   SentryNavigatorObserver()
-    : _delegate = sentryEnabled ? sentry.SentryNavigatorObserver() : null;
+    : _delegate = sentryEnabled && sentryEnableNavigationObserver
+          ? sentry.SentryNavigatorObserver()
+          : null;
 
   final NavigatorObserver? _delegate;
 

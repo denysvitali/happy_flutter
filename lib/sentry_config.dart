@@ -3,12 +3,9 @@
 // Imported by both `sentry_init_native.dart` and `sentry_init_web.dart`
 // so the DSN is defined in exactly one place.
 
-/// Hard kill-switch for GlitchTip/Sentry runtime integration.
-///
-/// The current priority is restoring app stability and responsiveness.
-/// Keep the code paths available, but do not initialize the SDK until
-/// the regression is understood with real device profiling.
-const sentryEnabled = false;
+/// Keep GlitchTip enabled for crash capture, but disable the expensive
+/// runtime hooks that were hurting responsiveness.
+const sentryEnabled = true;
 
 /// Hostname of the self-hosted GlitchTip instance (private CA).
 const sentryHost = 'glitchtip.k2.k8s.best';
@@ -32,3 +29,5 @@ const sentryReplayOnErrorSampleRate = 0.0;
 const sentryAttachScreenshot = false;
 const sentryEnableFrameMetrics = false;
 const sentryCaptureWarnings = false;
+const sentryEnableDioInterceptor = false;
+const sentryEnableNavigationObserver = false;

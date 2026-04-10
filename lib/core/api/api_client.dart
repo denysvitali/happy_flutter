@@ -161,7 +161,7 @@ class ApiClient {
         },
       ),
     );
-    if (sentryEnabled) {
+    if (sentryEnabled && sentryEnableDioInterceptor) {
       _dio!.addSentry();
     }
 
