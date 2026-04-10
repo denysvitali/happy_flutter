@@ -168,6 +168,8 @@ class LoggerService {
   /// → Sentry failure → …). Transport failures are surfaced as
   /// warning-level entries so they appear in DevLogsScreen.
   void _forwardToSentry(LogEntry entry) {
+    if (!sentryEnabled) return;
+
     // Only forward error levels by default. Warning forwarding can create
     // large event volume and noticeable overhead during reconnect/failure
     // storms, which is exactly when the app is already under stress.

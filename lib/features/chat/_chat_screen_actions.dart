@@ -65,6 +65,10 @@ extension _ChatScreenActions on _ChatScreenState {
           '[ChatScreen] saved profile "$effectiveProfileId" no longer '
           'exists in settings; falling back to no profile',
         );
+        // Clear the stale reference so it doesn't fire again.
+        if (savedProfileId != null) {
+          unawaited(DraftStorage().removeProfileId(sessionId));
+        }
       }
     }
 

@@ -368,12 +368,16 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               ),
               onPressed: () {
                 final settings = ref.read(settingsNotifierProvider);
+                final notifier = ref.read(settingsNotifierProvider.notifier);
                 final updatedProfiles = settings.profiles
                     .where((p) => p.id != profile.id)
                     .toList();
-                ref
-                    .read(settingsNotifierProvider.notifier)
-                    .updateSetting('profiles', updatedProfiles);
+                notifier.updateSetting('profiles', updatedProfiles);
+                // Clear global lastUsedProfile if it pointed to
+                // the deleted profile so it doesn't become stale.
+                if (settings.lastUsedProfile == profile.id) {
+                  notifier.updateSetting('lastUsedProfile', null);
+                }
                 Navigator.pop(context);
               },
               child: Text(l10n.commonDelete),

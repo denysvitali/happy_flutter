@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sentry_dio/sentry_dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../../sentry_config.dart';
 import '../services/http_request_logger.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/server_config.dart';
@@ -160,18 +161,17 @@ class ApiClient {
         },
       ),
     );
-    _dio!.addSentry();
+    if (sentryEnabled) {
+      _dio!.addSentry();
+    }
 
     // HTTP request tracker — records all requests to httpRequestLogger.
     _dio!.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          options.extra['_trackId'] =
-              httpRequestLogger.takeNextId();
-          options.extra['_trackStart'] =
-              DateTime.now().millisecondsSinceEpoch;
-          options.extra['_trackReqBytes'] =
-              _estimateRequestBytes(options.data);
+          options.extra['_trackId'] = httpRequestLogger.takeNextId();
+          options.extra['_trackStart'] = DateTime.now().millisecondsSinceEpoch;
+          options.extra['_trackReqBytes'] = _estimateRequestBytes(options.data);
           return handler.next(options);
         },
         onResponse: (response, handler) {
@@ -204,8 +204,7 @@ class ApiClient {
   }
 
   static int? _estimateResponseBytes(Response<dynamic> response) {
-    final cl =
-        response.headers.value(Headers.contentLengthHeader);
+    final cl = response.headers.value(Headers.contentLengthHeader);
     if (cl != null) {
       final parsed = int.tryParse(cl);
       if (parsed != null && parsed > 0) return parsed;
@@ -230,8 +229,7 @@ class ApiClient {
   ) {
     final id = options.extra['_trackId'] as int?;
     final startMs = options.extra['_trackStart'] as int?;
-    final requestBytes =
-        options.extra['_trackReqBytes'] as int?;
+    final requestBytes = options.extra['_trackReqBytes'] as int?;
     final now = DateTime.now();
     final durationMs = startMs != null
         ? now.millisecondsSinceEpoch - startMs
@@ -368,11 +366,7 @@ class ApiClient {
   }
 
   /// POST request
-  Future<Response> post(
-    String path, {
-    dynamic data,
-    Options? options,
-  }) async {
+  Future<Response> post(String path, {dynamic data, Options? options}) async {
     _ensureInitialized();
     // Generate deduplication key (includes data hash for mutations)
     final key = _generateRequestKey('POST', path, null, data);
@@ -382,8 +376,7 @@ class ApiClient {
     if (activeRequest != null) return activeRequest;
 
     // Start the request and store it
-    final requestFuture =
-        _dio!.post(path, data: data, options: options);
+    final requestFuture = _dio!.post(path, data: data, options: options);
     _activeRequests[key] = requestFuture;
 
     try {
@@ -397,11 +390,7 @@ class ApiClient {
   }
 
   /// PUT request
-  Future<Response> put(
-    String path, {
-    dynamic data,
-    Options? options,
-  }) async {
+  Future<Response> put(String path, {dynamic data, Options? options}) async {
     _ensureInitialized();
     // Generate deduplication key (includes data hash for mutations)
     final key = _generateRequestKey('PUT', path, null, data);
@@ -411,8 +400,7 @@ class ApiClient {
     if (activeRequest != null) return activeRequest;
 
     // Start the request and store it
-    final requestFuture =
-        _dio!.put(path, data: data, options: options);
+    final requestFuture = _dio!.put(path, data: data, options: options);
     _activeRequests[key] = requestFuture;
 
     try {
@@ -426,10 +414,7 @@ class ApiClient {
   }
 
   /// DELETE request
-  Future<Response> delete(
-    String path, {
-    Options? options,
-  }) async {
+  Future<Response> delete(String path, {Options? options}) async {
     _ensureInitialized();
     // Generate deduplication key for DELETE
     final key = _generateRequestKey('DELETE', path);
@@ -492,8 +477,7 @@ class ApiClient {
 
   /// Check if response indicates authentication error (401 or 403)
   bool isAuthError(Response<dynamic> response) {
-    return response.statusCode == 401 ||
-        response.statusCode == 403;
+    return response.statusCode == 401 || response.statusCode == 403;
   }
 
   /// Check if response indicates success
@@ -520,9 +504,7 @@ class ApiClient {
 
   void _ensureInitialized() {
     if (_dio == null) {
-      throw StateError(
-        'ApiClient not initialized. Call initialize() first.',
-      );
+      throw StateError('ApiClient not initialized. Call initialize() first.');
     }
   }
 
@@ -541,9 +523,9 @@ class ApiClient {
       );
       buffer
         ..write('?')
-        ..write(sortedParams.entries
-            .map((e) => '${e.key}=${e.value}')
-            .join('&'));
+        ..write(
+          sortedParams.entries.map((e) => '${e.key}=${e.value}').join('&'),
+        );
     }
     if (data != null && (method == 'POST' || method == 'PUT')) {
       // For POST/PUT, include a hash of the data to differentiate

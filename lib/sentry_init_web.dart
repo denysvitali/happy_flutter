@@ -1,8 +1,7 @@
 // Web platform Sentry initialization
 import 'dart:async' show FutureOr;
 
-import 'package:flutter/foundation.dart'
-    show kDebugMode, kReleaseMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/services/logger_service.dart';
@@ -10,9 +9,15 @@ import 'sentry_config.dart';
 
 const _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 
-Future<void> initSentryForPlatform([
-  Future<void> Function()? appRunner,
-]) async {
+Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
+  if (!sentryEnabled) {
+    logger.warning('[Sentry] Web SDK disabled by sentryEnabled=false');
+    if (appRunner != null) {
+      await appRunner();
+    }
+    return;
+  }
+
   await SentryFlutter.init((options) {
     options
       ..dsn = sentryDsn
@@ -20,8 +25,7 @@ Future<void> initSentryForPlatform([
       ..tracesSampleRate = sentryTracesSampleRate
       // ignore: experimental_member_use
       ..profilesSampleRate = sentryProfilesSampleRate
-      ..release =
-          _sentryRelease.isNotEmpty ? _sentryRelease : null
+      ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..environment = kReleaseMode ? 'production' : 'debug'
       // ── Breadcrumb limits ──
       ..maxBreadcrumbs = 200
@@ -31,6 +35,10 @@ Future<void> initSentryForPlatform([
       ..replay.onErrorSampleRate = sentryReplayOnErrorSampleRate
       // Print Sentry diagnostics to console in debug builds.
       ..debug = kDebugMode
+      // ── Disable auto user-interaction tracing ──
+      // Same as native: the idle-timeout creates false "error"
+      // transactions when widgets unmount during navigation.
+      ..enableUserInteractionTracing = false
       // ── Filter noisy events ──
       ..beforeBreadcrumb = _beforeBreadcrumb
       ..beforeSend = _beforeSend;
@@ -68,10 +76,7 @@ bool _isTransientNetworkEvent(SentryEvent event) {
   return false;
 }
 
-FutureOr<SentryEvent?> _beforeSend(
-  SentryEvent event,
-  Hint hint,
-) {
+FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   // Drop transient network errors (DNS, timeout, etc.) — these
   // are expected when the device briefly loses connectivity.
   if (_isTransientNetworkEvent(event)) {

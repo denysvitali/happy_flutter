@@ -2,7 +2,7 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-04-09
+**Last Updated**: 2026-04-10
 
 ## P0: Core Messaging & Session Reliability
 
@@ -24,6 +24,27 @@ The current test count is not enough if this contract can break without failing 
 | Core messaging state-machine tests | Not Started | Model `draft -> sending -> sent/pending/failed -> merged` explicitly and test valid/invalid transitions. |
 | User-visible core E2E scenarios | Not Started | Add E2E coverage for rapid follow-ups, background/resume mid-send, disconnected socket with successful REST persistence, and follow-up sends while the agent is still thinking. |
 | Invariant telemetry | Not Started | Emit counters/logs for unmatched optimistic rows, duplicate `localId`s, unknown acked `localId`s, and retry-created duplicates. |
+
+### Production Bugs (from GlitchTip, Apr 2026)
+
+| Issue | Severity | Count | Status | Description |
+|-------|----------|-------|--------|-------------|
+| InvalidateSync disposed crash | Fatal | 55 | Fix on main (1ba4ebc), **needs release** | App suspend races with in-flight `invalidateAndAwait()`; `dispose()` now completes normally instead of throwing `StateError`. Production build 113001 predates fix. |
+| Null check operator (chat load) | Fatal | 9 | Open | `TypeError: Null check operator used on a null value` during `chat.screen.load`. Obfuscated stack — needs debug build repro. |
+| Null check operator (general) | Error | 12 | Open | Same TypeError, different call site. Active since Apr 2, last seen Apr 9. |
+| Back button error rate | Error | 3/8 (37.5%) | Open | `StandardComponentType.backButton` click action failing intermittently. |
+| CryptoSecretBox.decrypt failed | Warning | 27 | Open | Decryption failures — possible key mismatch on legacy NaCl messages or corrupt ciphertext. |
+| Stale profile in ChatScreen | Warning | 9 | Open | Saved profile ID no longer exists in settings after profile deletion; should clear stale reference. |
+| Machine offline on session create | Warning | 33 | Open | No pre-check guard — user can tap "create session" on an offline machine. UX should disable or warn. |
+| fetchMessages dropped (output filter) | Warning | ~180 | Open | Large batches of messages dropped during fetch for output data/filter reasons. Needs investigation. |
+
+### Performance (from GlitchTip)
+
+| Metric | Value | Target | Notes |
+|--------|-------|--------|-------|
+| App cold start (`root /`) | avg 4.6s, p95 9.3s | < 3s avg | Includes deferred init (1.9s avg). Profile on real device to find bottlenecks. |
+| fetchMessages p95 | up to 54s (outlier sessions) | < 5s | Sessions with very large message histories. Consider pagination limits or incremental fetch. |
+| Deferred init | avg 1.9s | < 1s | `app.deferredInit` transaction — audit what's being loaded eagerly. |
 
 ### Engineering Rule
 
@@ -91,7 +112,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Test coverage reporting | Not Started | CI runs `flutter test` pass/fail but no coverage visibility. Add `--coverage` + Codecov upload. |
+| Test coverage reporting | Done | CI runs `flutter test --coverage` with Codecov upload on every push. |
 
 ---
 
@@ -115,17 +136,21 @@ For core chat flows, no layer may invent a second message identity when a canoni
 | UI Components | Done | Shimmer loading, command palette, diff view, tab bar, avatars, status bar theming |
 | Dev Tools | Done | Dev logs, encryption debug, network inspector, notification test, session debug |
 | i18n | Partial | Framework in place (`flutter: generate: true`), 10 locale ARB files (en, es, fr, de, ca, it, ja, pl, pt, ru, zh, zh_Hans), 4 generated. More languages may need translation coverage. |
-| CI/CD | Done | 4-job pipeline (analyze, test, build-debug, build-release), caching, `v*` tag releases with obfuscation |
+| CI/CD | Done | 7-job pipeline (analyze, test + coverage, golden, build-debug, build-release, build-web, deploy-web), caching, `v*` tag releases with obfuscation, Codecov |
 | Native | Partial | TTS, video call stubs, push stubs — WebRTC/biometric/audio not started |
 
 ---
 
 ## Next Steps
 
-1. **This sprint**: Persist session messages to MMKV for instant cold starts
-2. **This sprint**: Optimistic mutation layer for instant UI feedback
-3. **Next sprint**: Offline message outbox with retry queue
-4. **This quarter**: Sidebar navigation for tablet/desktop
+1. **Immediate**: Cut a production release to ship the InvalidateSync dispose fix (1ba4ebc) — 55 fatal crashes/day
+2. **This sprint**: Investigate and fix the two Null check operator fatals (chat.screen.load + general)
+3. **This sprint**: Fix back button 37.5% error rate
+4. **This sprint**: Guard session creation against offline machines (UX warning/disable)
+5. **This sprint**: Clean up stale profile references in ChatScreen
+6. **Next sprint**: Optimistic mutation layer for instant UI feedback
+7. **Next sprint**: Profile and reduce cold start time (avg 4.6s → target < 3s)
+8. **This quarter**: Sidebar navigation for tablet/desktop
 
 ---
 
@@ -133,5 +158,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Effort | Impact |
 |------|--------|--------|
+| Ship InvalidateSync fix to production | Very Low | Tag a release — eliminates 55 fatal crashes/day |
+| Guard offline machine in NewSessionDialog | Low | Disable create button or show warning when machine offline — eliminates 33 warnings/day |
+| Clear stale profile references | Low | On profile deletion, clear sessionId→profileId mappings — eliminates 9 warnings/day |
 | Streaming cursor in assistant bubble | Low | Makes AI response feel continuous vs discrete jumps |
-| Test coverage in CI | Very Low | One-line CI change, surfaces coverage gaps on every PR |

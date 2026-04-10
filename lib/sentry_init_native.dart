@@ -37,6 +37,14 @@ class _SentryHttpOverrides extends HttpOverrides {
 }
 
 Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
+  if (!sentryEnabled) {
+    logger.warning('[Sentry] SDK disabled by sentryEnabled=false');
+    if (appRunner != null) {
+      await appRunner();
+    }
+    return;
+  }
+
   // Trust the self-hosted Sentry certificate before the SDK
   // creates its internal HTTP transport.
   HttpOverrides.global = _SentryHttpOverrides(HttpOverrides.current);
