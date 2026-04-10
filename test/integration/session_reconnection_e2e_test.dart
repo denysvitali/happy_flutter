@@ -45,11 +45,7 @@ void main() {
       );
       final ts = sync.testLastInvalidateAllSyncsAtMs!;
       final now = DateTime.now().millisecondsSinceEpoch;
-      expect(
-        now - ts,
-        lessThan(2000),
-        reason: 'timestamp should be recent',
-      );
+      expect(now - ts, lessThan(2000), reason: 'timestamp should be recent');
     });
 
     test('invalidateAllSyncs respects cooldown', () async {
@@ -63,15 +59,13 @@ void main() {
       expect(
         sync.testLastInvalidateAllSyncsAtMs,
         equals(firstTs),
-        reason:
-            'second call within cooldown should not update the timestamp',
+        reason: 'second call within cooldown should not update the timestamp',
       );
     });
 
     test('forced invalidateAllSyncs bypasses cooldown', () async {
       // Seed a very recent timestamp to simulate just-ran cooldown.
-      final recent =
-          DateTime.now().millisecondsSinceEpoch - 100; // 100ms ago
+      final recent = DateTime.now().millisecondsSinceEpoch - 100; // 100ms ago
       sync.testLastInvalidateAllSyncsAtMs = recent;
 
       // Force should bypass the cooldown check.
@@ -108,63 +102,51 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'visible session fetches messages after reconnect',
-      () async {
-        const sessionId = 'sess-visible';
+    test('visible session fetches messages after reconnect', () async {
+      const sessionId = 'sess-visible';
 
-        // Pre-populate session with cursor at 10.
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 10,
-        );
-        sync.testSetSessionLastSeq(sessionId, 10);
-        sync.testSetSessionMessages(sessionId, [
-          _makePlainMessage('msg-1', seq: 1),
-          _makePlainMessage('msg-10', seq: 10),
+      // Pre-populate session with cursor at 10.
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
+      sync.testSetSessionLastSeq(sessionId, 10);
+      sync.testSetSessionMessages(sessionId, [
+        _makePlainMessage('msg-1', seq: 1),
+        _makePlainMessage('msg-10', seq: 10),
+      ]);
+
+      // Mark session visible and create the messagesSync entry.
+      sync.testVisibleSessionId = sessionId;
+      final fetchCalls = <int>[];
+      sync.messagesSync[sessionId] = InvalidateSync(() async {
+        // fetchMessages override records afterSeq.
+        await sync.fetchMessages(sessionId);
+      });
+
+      // Ensure server knows about newer messages (seq 11-15).
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
+
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        fetchCalls.add(afterSeq);
+        return _buildMessagesResponse([
+          _makeEncryptedMessage('msg-15', seq: 15),
         ]);
+      };
 
-        // Mark session visible and create the messagesSync entry.
-        sync.testVisibleSessionId = sessionId;
-        final fetchCalls = <int>[];
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () async {
-            // fetchMessages override records afterSeq.
-            await sync.fetchMessages(sessionId);
-          },
-        );
+      // Trigger the same code path as onReconnected: invalidate all
+      // then invalidate the visible session's messages.
+      sync.testInvalidateAllSyncs(force: true);
+      if (sync.testGetVisibleSessionId() != null) {
+        sync.messagesSync[sessionId]?.invalidate();
+      }
 
-        // Ensure server knows about newer messages (seq 11-15).
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 15,
-        );
+      // Wait for messagesSync to drain.
+      await sync.messagesSync[sessionId]?.awaitQueue();
 
-        sync.testFetchMessagesOverride =
-            (sid, afterSeq, limit) async {
-          fetchCalls.add(afterSeq);
-          return _buildMessagesResponse([
-            _makeEncryptedMessage('msg-15', seq: 15),
-          ]);
-        };
-
-        // Trigger the same code path as onReconnected: invalidate all
-        // then invalidate the visible session's messages.
-        sync.testInvalidateAllSyncs(force: true);
-        if (sync.testGetVisibleSessionId() != null) {
-          sync.messagesSync[sessionId]?.invalidate();
-        }
-
-        // Wait for messagesSync to drain.
-        await sync.messagesSync[sessionId]?.awaitQueue();
-
-        expect(
-          fetchCalls,
-          isNotEmpty,
-          reason: 'fetchMessages should be called for the visible session',
-        );
-      },
-    );
+      expect(
+        fetchCalls,
+        isNotEmpty,
+        reason: 'fetchMessages should be called for the visible session',
+      );
+    });
 
     test(
       'messages received during disconnect are fetched on reconnect',
@@ -178,15 +160,13 @@ void main() {
         );
         sync.testSetSessionLastSeq(sessionId, 10);
         sync.testSetSessionMessages(sessionId, [
-          for (var i = 1; i <= 10; i++)
-            _makePlainMessage('msg-$i', seq: i),
+          for (var i = 1; i <= 10; i++) _makePlainMessage('msg-$i', seq: i),
         ]);
 
         sync.testVisibleSessionId = sessionId;
 
         final fetchedSeqs = <int>[];
-        sync.testFetchMessagesOverride =
-            (sid, afterSeq, limit) async {
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
           fetchedSeqs.add(afterSeq);
           return _buildMessagesResponse([
             for (var i = 11; i <= 15; i++)
@@ -247,46 +227,26 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'pending socket messages are cleared on reconnect',
-      () async {
-        // Simulate sessions that received socket messages while
-        // the socket was down (or while non-visible).
-        sync.testSetPendingSocketMessages({
-          'sess-a',
-          'sess-b',
-          'sess-c',
-        });
+    test('pending socket messages are cleared on reconnect', () async {
+      // Simulate sessions that received socket messages while
+      // the socket was down (or while non-visible).
+      sync.testSetPendingSocketMessages({'sess-a', 'sess-b', 'sess-c'});
 
-        expect(
-          sync.testHasPendingSocketMessage('sess-a'),
-          isTrue,
-        );
-        expect(
-          sync.testHasPendingSocketMessage('sess-b'),
-          isTrue,
-        );
+      expect(sync.testHasPendingSocketMessage('sess-a'), isTrue);
+      expect(sync.testHasPendingSocketMessage('sess-b'), isTrue);
 
-        // On reconnect we re-fetch everything, so pending marker
-        // becomes irrelevant — clear it.
-        sync.testClearSessionsWithPendingSocketMessages();
+      // On reconnect we re-fetch everything, so pending marker
+      // becomes irrelevant — clear it.
+      sync.testClearSessionsWithPendingSocketMessages();
 
-        expect(
-          sync.testHasPendingSocketMessage('sess-a'),
-          isFalse,
-          reason:
-              'pending marker cleared after reconnect full-refetch',
-        );
-        expect(
-          sync.testHasPendingSocketMessage('sess-b'),
-          isFalse,
-        );
-        expect(
-          sync.testHasPendingSocketMessage('sess-c'),
-          isFalse,
-        );
-      },
-    );
+      expect(
+        sync.testHasPendingSocketMessage('sess-a'),
+        isFalse,
+        reason: 'pending marker cleared after reconnect full-refetch',
+      );
+      expect(sync.testHasPendingSocketMessage('sess-b'), isFalse);
+      expect(sync.testHasPendingSocketMessage('sess-c'), isFalse);
+    });
 
     test(
       'reconnect preserves existing messages while adding new ones',
@@ -294,20 +254,15 @@ void main() {
         const sessionId = 'sess-preserve';
 
         // Messages 1-10 are already in memory.
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 15,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
         sync.testSetSessionLastSeq(sessionId, 10);
         sync.testSetSessionMessages(sessionId, [
-          for (var i = 1; i <= 10; i++)
-            _makePlainMessage('msg-$i', seq: i),
+          for (var i = 1; i <= 10; i++) _makePlainMessage('msg-$i', seq: i),
         ]);
 
         sync.testVisibleSessionId = sessionId;
 
-        sync.testFetchMessagesOverride =
-            (sid, afterSeq, limit) async {
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
           // Only return the 5 new messages (11-15).
           return _buildMessagesResponse([
             for (var i = 11; i <= 15; i++)
@@ -374,35 +329,84 @@ void main() {
       sync.testLastInvalidateAllSyncsAtMs = null;
     });
 
-    test(
-      'testResetLastResumeAtMs allows immediate invalidation',
-      () async {
-        // Simulate a previous invalidation so the cooldown is active.
-        sync.testInvalidateAllSyncs(force: true);
-        final afterFirst = sync.testLastInvalidateAllSyncsAtMs;
-        expect(afterFirst, isNotNull);
+    test('testResetLastResumeAtMs allows immediate invalidation', () async {
+      // Simulate a previous invalidation so the cooldown is active.
+      sync.testInvalidateAllSyncs(force: true);
+      final afterFirst = sync.testLastInvalidateAllSyncsAtMs;
+      expect(afterFirst, isNotNull);
 
-        // Non-forced call is rejected by cooldown.
-        sync.testInvalidateAllSyncs();
-        expect(
-          sync.testLastInvalidateAllSyncsAtMs,
-          equals(afterFirst),
-          reason: 'cooldown should block non-forced call',
-        );
+      // Non-forced call is rejected by cooldown.
+      sync.testInvalidateAllSyncs();
+      expect(
+        sync.testLastInvalidateAllSyncsAtMs,
+        equals(afterFirst),
+        reason: 'cooldown should block non-forced call',
+      );
 
-        // After resetting the resume timestamp the forced call can run.
-        sync.testResetLastResumeAtMs();
-        // Ensure at least 1ms passes so the timestamp is strictly newer.
-        await Future<void>.delayed(const Duration(milliseconds: 2));
-        sync.testInvalidateAllSyncs(force: true);
-        expect(
-          sync.testLastInvalidateAllSyncsAtMs,
-          greaterThan(afterFirst!),
-          reason:
-              'forced call after reset should update the timestamp',
-        );
-      },
-    );
+      // After resetting the resume timestamp the forced call can run.
+      sync.testResetLastResumeAtMs();
+      // Ensure at least 1ms passes so the timestamp is strictly newer.
+      await Future<void>.delayed(const Duration(milliseconds: 2));
+      sync.testInvalidateAllSyncs(force: true);
+      expect(
+        sync.testLastInvalidateAllSyncsAtMs,
+        greaterThan(afterFirst!),
+        reason: 'forced call after reset should update the timestamp',
+      );
+    });
+
+    test('suspend then resume re-creates visible session message sync '
+        'and fetches missed messages', () async {
+      const sessionId = 'resume-visible-session';
+
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
+      sync.testVisibleSessionId = sessionId;
+      sync.testSetSessionLastSeq(sessionId, 10);
+      sync.testSetSessionMessages(sessionId, [
+        for (var i = 1; i <= 10; i++) _makePlainMessage('msg-$i', seq: i),
+      ]);
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
+
+      final afterSeqs = <int>[];
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        afterSeqs.add(afterSeq);
+        return _buildMessagesResponse([
+          for (var i = 11; i <= 15; i++)
+            _makeEncryptedMessage('msg-$i', seq: i),
+        ]);
+      };
+
+      sync.suspend();
+      expect(
+        sync.messagesSync.containsKey(sessionId),
+        isTrue,
+        reason: 'Visible session sync entry is retained in the map',
+      );
+
+      sync.resume();
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      await sync.messagesSync[sessionId]?.awaitQueue();
+
+      expect(
+        afterSeqs,
+        isNotEmpty,
+        reason: 'Resume should trigger a message fetch for the visible chat',
+      );
+      expect(
+        afterSeqs.first,
+        10,
+        reason: 'Visible session resume fetch must continue from the cursor',
+      );
+
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull);
+      final seqs = msgs!.map((m) => m['seq'] as int).toSet();
+      for (var i = 11; i <= 15; i++) {
+        expect(seqs, contains(i), reason: 'msg seq=$i should be restored');
+      }
+    });
   });
 }
 
@@ -465,9 +469,7 @@ Map<String, dynamic> _makeEncryptedMessage(
       'type': 'output',
       'data': {
         'type': 'assistant',
-        'message': {
-          'content': content.isEmpty ? 'msg $id' : content,
-        },
+        'message': {'content': content.isEmpty ? 'msg $id' : content},
       },
     },
   };
@@ -529,22 +531,20 @@ class _FakeEncryption implements Encryption {
       );
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

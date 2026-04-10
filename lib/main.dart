@@ -18,6 +18,7 @@ import 'core/i18n/app_localizations.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/frame_metrics_service.dart';
+import 'core/services/app_visibility_coordinator.dart';
 import 'core/services/logger_service.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
@@ -258,6 +259,8 @@ class HappyApp extends ConsumerStatefulWidget {
 class _HappyAppState extends ConsumerState<HappyApp>
     with WidgetsBindingObserver {
   late final GoRouter _router;
+  final AppVisibilityCoordinator _visibilityCoordinator =
+      AppVisibilityCoordinator();
   AppThemeMode? _lastAppliedThemeMode;
 
   /// If non-null, the app should show the changelog on first frame.
@@ -410,19 +413,26 @@ class _HappyAppState extends ConsumerState<HappyApp>
     }
 
     switch (state) {
+      case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
-        // App is fully backgrounded — disconnect the socket and cancel
-        // all timers to ensure zero network traffic and battery drain.
-        sync.suspend();
-        storage.SettingsStorage().suspend();
       case AppLifecycleState.resumed:
-        // App is foregrounded — reconnect and catch up on missed events.
-        sync.resume();
-        // Re-apply theme in case system dark/light mode changed.
-        _applyThemeFromSettings();
+        _visibilityCoordinator.handleLifecycleState(
+          state,
+          onSuspend: () {
+            // App is no longer visible — disconnect the socket and cancel
+            // all timers to ensure zero network traffic and battery drain.
+            sync.suspend();
+            storage.SettingsStorage().suspend();
+          },
+          onResume: () {
+            // App is foregrounded — reconnect and catch up on missed events.
+            sync.resume();
+            // Re-apply theme in case system dark/light mode changed.
+            _applyThemeFromSettings();
+          },
+        );
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
-      case AppLifecycleState.hidden:
         break;
     }
   }
