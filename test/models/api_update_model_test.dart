@@ -119,10 +119,7 @@ void main() {
       });
 
       test('handles null agentState and metadata', () {
-        final json = {
-          't': 'update-session-state',
-          'id': 'sess-1',
-        };
+        final json = {'t': 'update-session-state', 'id': 'sess-1'};
 
         final update = ApiUpdateSessionState.fromJson(json);
 
@@ -142,6 +139,14 @@ void main() {
 
         expect(update.agentState, isNull);
         expect(update.metadata, isNull);
+      });
+
+      test('accepts sid when id is absent', () {
+        final json = {'t': 'update-session-state', 'sid': 'sess-1'};
+
+        final update = ApiUpdateSessionState.fromJson(json);
+
+        expect(update.id, 'sess-1');
       });
     });
   });
@@ -197,10 +202,7 @@ void main() {
     group('fromJson', () {
       test('parses wrapped format (body key)', () {
         final json = {
-          'body': {
-            't': 'new-message',
-            'sid': 'sess-1',
-          },
+          'body': {'t': 'new-message', 'sid': 'sess-1'},
         };
 
         final update = ApiUpdate.fromJson(json);
@@ -232,9 +234,7 @@ void main() {
       test('wrapped format takes precedence over flat', () {
         final json = {
           't': 'flat-type',
-          'body': {
-            't': 'wrapped-type',
-          },
+          'body': {'t': 'wrapped-type'},
         };
 
         final update = ApiUpdate.fromJson(json);
@@ -285,9 +285,7 @@ void main() {
 
   group('ApiRelationshipUpdated', () {
     test('stores data', () {
-      const update = ApiRelationshipUpdated(
-        data: {'status': 'friend'},
-      );
+      const update = ApiRelationshipUpdated(data: {'status': 'friend'});
       expect(update.data, {'status': 'friend'});
     });
   });
@@ -295,9 +293,13 @@ void main() {
   group('ApiKvBatchUpdate', () {
     test('stores data', () {
       const update = ApiKvBatchUpdate(
-        data: {'keys': ['a', 'b']},
+        data: {
+          'keys': ['a', 'b'],
+        },
       );
-      expect(update.data, {'keys': ['a', 'b']});
+      expect(update.data, {
+        'keys': ['a', 'b'],
+      });
     });
   });
 }

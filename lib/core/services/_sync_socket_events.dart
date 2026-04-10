@@ -29,8 +29,7 @@ extension SyncSocketEvents on Sync {
       // window so we don't falsely trigger auto-restore for live sessions.
       for (final entry in _sessions.entries) {
         if (entry.value.isOnline) {
-          _lastEphemeralAt[entry.key] =
-              DateTime.now().millisecondsSinceEpoch;
+          _lastEphemeralAt[entry.key] = DateTime.now().millisecondsSinceEpoch;
         }
       }
       // Re-fetch messages for the visible session immediately.
@@ -589,7 +588,7 @@ extension SyncSocketEvents on Sync {
   /// eliminates the ~4 fetchSessions() HTTP calls/sec that were
   /// happening during active streaming even with debouncing.
   void _handleUpdateSession(Map<String, dynamic> data) {
-    final sessionId = data['id'] as String?;
+    final sessionId = data['id'] as String? ?? data['sid'] as String?;
     if (sessionId == null) return;
 
     // Apply delta patch directly to the in-memory session for

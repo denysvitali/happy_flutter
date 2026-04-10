@@ -118,6 +118,34 @@ void main() {
       },
     );
 
+    test('update-session accepts sid payloads', () async {
+      instance.testSessions['session_1'] = Session(
+        id: 'session_1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+      );
+
+      instance.handleUpdate({
+        't': 'update-session',
+        'sid': 'session_1',
+        'presence': 'online',
+        'thinking': true,
+      });
+
+      await instance.sessionsSync.awaitQueue();
+
+      final session = instance.testSessions['session_1']!;
+      expect(session.presence, 'online');
+      expect(session.thinking, true);
+    });
+
     test(
       'new-message marks non-visible session dirty when only id is present',
       () {

@@ -88,7 +88,7 @@ abstract class ApiUpdateSessionState with _$ApiUpdateSessionState {
   factory ApiUpdateSessionState.fromJson(Map<String, dynamic> json) =>
       ApiUpdateSessionState(
         t: json['t'] as String? ?? '',
-        id: json['id'] as String? ?? '',
+        id: json['id'] as String? ?? json['sid'] as String? ?? '',
         agentState: _versionedValueFromJson(json['agentState']),
         metadata: _versionedValueFromJson(json['metadata']),
       );
@@ -108,11 +108,10 @@ abstract class VersionedValue with _$VersionedValue {
     @Default('') String value,
   }) = _VersionedValue;
 
-  factory VersionedValue.fromJson(Map<String, dynamic> json) =>
-      VersionedValue(
-        version: _asInt(json['version']),
-        value: _vvValueFromJson(json['value']),
-      );
+  factory VersionedValue.fromJson(Map<String, dynamic> json) => VersionedValue(
+    version: _asInt(json['version']),
+    value: _vvValueFromJson(json['value']),
+  );
 }
 
 // ── New payload classes for additional update types ──────────────────────────
@@ -171,16 +170,10 @@ class ApiUpdate {
     final body = json['body'];
     final bodyMap = _mapOrEmpty(body);
     if (bodyMap.isNotEmpty) {
-      return ApiUpdate(
-        type: bodyMap['t'] as String? ?? '',
-        data: bodyMap,
-      );
+      return ApiUpdate(type: bodyMap['t'] as String? ?? '', data: bodyMap);
     }
     // Flat format - the json itself is the data
-    return ApiUpdate(
-      type: json['t'] as String? ?? '',
-      data: json,
-    );
+    return ApiUpdate(type: json['t'] as String? ?? '', data: json);
   }
   final String type;
   final dynamic data;
