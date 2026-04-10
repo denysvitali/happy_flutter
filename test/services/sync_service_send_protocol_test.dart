@@ -92,6 +92,7 @@ void main() {
     setUp(() async {
       instance = Sync();
       _stubAllSyncs(instance);
+      instance.testIsInitialized = true;
       instance.testSessions.clear();
       instance.testSessions['sess-1'] = _readySession(
         'sess-1',
@@ -109,8 +110,8 @@ void main() {
       );
       instance.testSocketConnectedOverride = null;
       instance.testSocketSendOverride = null;
-      instance.testFetchMessagesOverride =
-          (_, __, ___) async => <String, dynamic>{
+      instance.testFetchMessagesOverride = (_, __, ___) async =>
+          <String, dynamic>{
             'messages': <Map<String, dynamic>>[],
             'pagination': <String, dynamic>{'hasMore': false},
           };
@@ -163,6 +164,7 @@ void main() {
     tearDown(() {
       ApiClient().dispose();
       instance.testSessions.clear();
+      instance.testIsInitialized = false;
       instance.testSocketConnectedOverride = null;
       instance.testSocketSendOverride = null;
       instance.testFetchMessagesOverride = null;
@@ -244,6 +246,70 @@ void main() {
       expect(socketPayload['sid'], 'sess-1');
       expect(socketPayload['localId'], 'local-1');
       expect(socketPayload['message'], 'encrypted-content');
+    });
+
+    test('visible connected session delays post-send catch-up probe', () async {
+      final fetchCalls = <int>[];
+      instance.testVisibleSessionId = 'sess-1';
+      instance.testSocketConnectedOverride = true;
+      instance.testSocketSendOverride = (_, __) {};
+      instance.messagesSync['sess-1'] = InvalidateSync(
+        () => instance.fetchMessages('sess-1'),
+      );
+      instance.testFetchMessagesOverride = (_, afterSeq, ___) async {
+        fetchCalls.add(afterSeq);
+        return <String, dynamic>{
+          'messages': <Map<String, dynamic>>[],
+          'pagination': <String, dynamic>{'hasMore': false},
+        };
+      };
+
+      await instance.sendMessage('sess-1', 'Hello from Flutter');
+      await instance.lastCompleteSendFuture;
+      final fetchCountAfterSend = fetchCalls.length;
+
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(
+        fetchCalls.length,
+        fetchCountAfterSend,
+        reason:
+            'Visible session with live socket should not do an eager '
+            'post-send history fetch',
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 2300));
+      expect(
+        fetchCalls.length,
+        greaterThan(fetchCountAfterSend),
+        reason: 'Fallback probe should still run after a short delay',
+      );
+    });
+
+    test('non-visible session still probes immediately after send', () async {
+      final fetchCalls = <int>[];
+      instance.testVisibleSessionId = 'other-session';
+      instance.messagesSync['sess-1'] = InvalidateSync(
+        () => instance.fetchMessages('sess-1'),
+      );
+      instance.testFetchMessagesOverride = (_, afterSeq, ___) async {
+        fetchCalls.add(afterSeq);
+        return <String, dynamic>{
+          'messages': <Map<String, dynamic>>[],
+          'pagination': <String, dynamic>{'hasMore': false},
+        };
+      };
+
+      await instance.sendMessage('sess-1', 'Hello from Flutter');
+      await instance.lastCompleteSendFuture;
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      expect(
+        fetchCalls,
+        isNotEmpty,
+        reason:
+            'Background/non-visible sessions should keep the immediate '
+            'post-send safety probe',
+      );
     });
   });
 }

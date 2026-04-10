@@ -777,49 +777,78 @@ extension SyncMessagingSend on Sync {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     final deadline = DateTime.now().add(const Duration(seconds: 30));
 
-    // Immediate fetch so we do not wait for the first timer tick.
-    _sessionsNeedingFetchProbe.add(sessionId);
-    messagesSync[sessionId]?.invalidate();
+    bool shouldStop(String reason) {
+      if (!isInitialized ||
+          !messagesSync.containsKey(sessionId) ||
+          DateTime.now().isAfter(deadline)) {
+        _postSendCatchUpTimers.remove(sessionId)?.cancel();
+        _sessionsNeedingFetchProbe.remove(sessionId);
+        logger.info(
+          '[sendMessage] catch-up polling ended '
+          'session=$sessionId reason=$reason',
+        );
+        return true;
+      }
 
-    _postSendCatchUpTimers[sessionId] = Timer.periodic(
-      const Duration(seconds: 10),
-      (timer) {
-        if (!isInitialized ||
-            !messagesSync.containsKey(sessionId) ||
-            DateTime.now().isAfter(deadline)) {
-          timer.cancel();
-          _postSendCatchUpTimers.remove(sessionId);
-          _sessionsNeedingFetchProbe.remove(sessionId);
-          logger.info(
-            '[sendMessage] catch-up polling ended '
-            'session=$sessionId reason=timeout_or_inactive',
-          );
-          return;
-        }
+      final currentSeq = _sessionLastSeq[sessionId] ?? 0;
+      if (currentSeq > stopAfterSeq) {
+        _postSendCatchUpTimers.remove(sessionId)?.cancel();
+        _sessionsNeedingFetchProbe.remove(sessionId);
+        logger.info(
+          '[sendMessage] catch-up polling ended '
+          'session=$sessionId reason=seq_advanced '
+          'stopAfter=$stopAfterSeq current=$currentSeq',
+        );
+        return true;
+      }
 
-        final currentSeq = _sessionLastSeq[sessionId] ?? 0;
-        if (currentSeq > stopAfterSeq) {
-          timer.cancel();
-          _postSendCatchUpTimers.remove(sessionId);
-          _sessionsNeedingFetchProbe.remove(sessionId);
-          logger.info(
-            '[sendMessage] catch-up polling ended '
-            'session=$sessionId reason=seq_advanced '
-            'stopAfter=$stopAfterSeq current=$currentSeq',
-          );
-          return;
-        }
+      return false;
+    }
 
-        // Force a probe instead of trusting session.lastSeq here. The
-        // sessions delta feed can lag behind message storage, so
-        // currentSeq >= serverLastSeq does NOT prove the agent has not
-        // responded yet.
-        _sessionsNeedingFetchProbe.add(sessionId);
-        messagesSync[sessionId]?.invalidate();
-        if (sessionId != _visibleSessionId) {
-          return;
-        }
-      },
-    );
+    bool runProbe() {
+      if (shouldStop('timeout_or_inactive')) {
+        return false;
+      }
+
+      // Force a probe instead of trusting session.lastSeq here. The
+      // sessions delta feed can lag behind message storage, so
+      // currentSeq >= serverLastSeq does NOT prove the agent has not
+      // responded yet.
+      _sessionsNeedingFetchProbe.add(sessionId);
+      messagesSync[sessionId]?.invalidate();
+      return true;
+    }
+
+    void startPeriodicPolling() {
+      _postSendCatchUpTimers[sessionId] = Timer.periodic(
+        const Duration(seconds: 10),
+        (_) => runProbe(),
+      );
+    }
+
+    final shouldDelayInitialProbe =
+        sessionId == _visibleSessionId && _isSocketConnected();
+    if (shouldDelayInitialProbe) {
+      // Visible sessions with a live socket should receive inline updates
+      // without an eager history fetch. Keep a short fallback probe so a
+      // missed inline event still self-heals quickly.
+      _postSendCatchUpTimers[sessionId] = Timer(
+        Sync._visiblePostSendProbeDelay,
+        () {
+          final shouldContinue = runProbe();
+          if (!shouldContinue) {
+            return;
+          }
+          startPeriodicPolling();
+        },
+      );
+      return;
+    }
+
+    final shouldContinue = runProbe();
+    if (!shouldContinue) {
+      return;
+    }
+    startPeriodicPolling();
   }
 }
