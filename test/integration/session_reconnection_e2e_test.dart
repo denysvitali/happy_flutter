@@ -63,6 +63,24 @@ void main() {
       );
     });
 
+    test('reconnect always force-bypasses cooldown', () async {
+      // Seed a recent timestamp so the 10s cooldown gate is active.
+      sync.testLastInvalidateAllSyncsAtMs =
+          DateTime.now().millisecondsSinceEpoch - 100; // 100ms ago
+      final staleTs = sync.testLastInvalidateAllSyncsAtMs!;
+
+      // Simulate the reconnect handler: force-invalidate.
+      sync.testInvalidateAllSyncs(force: true);
+
+      expect(
+        sync.testLastInvalidateAllSyncsAtMs,
+        greaterThan(staleTs),
+        reason:
+            'reconnect must force-bypass the cooldown so sessions '
+            'are refetched and serverLastSeq is fresh',
+      );
+    });
+
     test('forced invalidateAllSyncs bypasses cooldown', () async {
       // Seed a very recent timestamp to simulate just-ran cooldown.
       final recent = DateTime.now().millisecondsSinceEpoch - 100; // 100ms ago
@@ -205,6 +223,64 @@ void main() {
       },
     );
   });
+
+    test(
+      'reconnect within cooldown window still fetches messages '
+      '(the stale-serverLastSeq bug)',
+      () async {
+        const sessionId = 'sess-cooldown';
+
+        // Pre-populate: cursor and local lastSeq both at 10 (caught up).
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 10,
+        );
+        sync.testSetSessionLastSeq(sessionId, 10);
+        sync.testSetSessionMessages(sessionId, [
+          for (var i = 1; i <= 10; i++) _makePlainMessage('msg-$i', seq: i),
+        ]);
+
+        sync.testVisibleSessionId = sessionId;
+        sync.messagesSync[sessionId] = InvalidateSync(
+          () => sync.fetchMessages(sessionId),
+        );
+
+        // Seed a very recent _lastInvalidateAllSyncsAtMs so the
+        // non-forced cooldown gate (10s) would block.
+        sync.testLastInvalidateAllSyncsAtMs =
+            DateTime.now().millisecondsSinceEpoch - 100;
+
+        // Simulate the reconnect: server now has messages up to 15,
+        // but our local _sessions[sessionId].lastSeq is still 10
+        // because the sessions fetch was (hypothetically) skipped.
+        // The fetch probe flag ensures fetchMessages still hits the
+        // server.
+        sync.testAddFetchProbe(sessionId);
+
+        final fetchCalls = <int>[];
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          fetchCalls.add(afterSeq);
+          return _buildMessagesResponse([
+            for (var i = 11; i <= 15; i++)
+              _makeEncryptedMessage('msg-$i', seq: i),
+          ]);
+        };
+
+        // Force-invalidate (as reconnect handler now does) + probe.
+        sync.testInvalidateAllSyncs(force: true);
+        sync.messagesSync[sessionId]?.invalidate();
+        await sync.messagesSync[sessionId]?.awaitQueue();
+
+        expect(
+          fetchCalls,
+          isNotEmpty,
+          reason:
+              'fetchMessages MUST hit the server on reconnect even '
+              'when cursorSeq == serverLastSeq, because serverLastSeq '
+              'may be stale if the sessions delta fetch was a no-op',
+        );
+      },
+    );
 
   group('pending socket messages on reconnect', () {
     late Sync sync;

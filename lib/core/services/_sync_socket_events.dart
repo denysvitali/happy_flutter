@@ -23,7 +23,15 @@ extension SyncSocketEvents on Sync {
       // Cancel reconnect watchdog — connection succeeded.
       _reconnectWatchdogTimer?.cancel();
       _reconnectWatchdogTimer = null;
-      _invalidateAllSyncs();
+      // Force-bypass the 10s cooldown gate — a reconnect means the
+      // socket was down and the local session catalog (especially
+      // lastSeq) is potentially stale.  Without force, rapid
+      // reconnects (or a reconnect shortly after the deferred resume
+      // timer) silently skip the sessions fetch.  fetchMessages then
+      // sees cursorSeq == serverLastSeq (both stale) and skips the
+      // HTTP round-trip, permanently losing messages that arrived
+      // during the disconnect gap.
+      _invalidateAllSyncs(force: true);
       // Refresh _lastEphemeralAt for all sessions that show as online.
       // Without this, stale timestamps from before the disconnect cause
       // looksReady to return false and trigger unnecessary auto-restore.
@@ -53,7 +61,13 @@ extension SyncSocketEvents on Sync {
       // again, which would start a SECOND HTTP fetch cycle and
       // was the primary cause of the N+1 sessions problem
       // (~12 fetches per app load).
+      //
+      // Mark the visible session as needing a fetch probe so that
+      // fetchMessages always hits the server — even if the sessions
+      // delta fetch returned nothing and serverLastSeq is still
+      // stale, the probe bypasses the caught-up skip guard.
       if (_visibleSessionId != null) {
+        _sessionsNeedingFetchProbe.add(_visibleSessionId!);
         unawaited(
           sessionsSync.awaitQueue().then((_) {
             if (_visibleSessionId != null) {
