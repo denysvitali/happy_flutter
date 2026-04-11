@@ -10,6 +10,10 @@ const kSlideDuration = 250;
 ///
 /// Each card slides up from 24 px below its final position, with an
 /// opacity fade, delayed by [index] * [kStaggerStep] ms.
+///
+/// When [animate] is `false`, the child is rendered directly without
+/// creating an [AnimationController], avoiding the overhead of dozens
+/// of idle controllers in already-visible lists.
 class StaggeredSlideIn extends StatefulWidget {
   const StaggeredSlideIn({
     required this.index,
@@ -28,55 +32,51 @@ class StaggeredSlideIn extends StatefulWidget {
 
 class _StaggeredSlideInState extends State<StaggeredSlideIn>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _opacity;
-  late Animation<Offset> _slide;
+  AnimationController? _controller;
+  Animation<double>? _opacity;
+  Animation<Offset>? _slide;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    if (!widget.animate) return;
+
+    final ctrl = AnimationController(
       duration: const Duration(milliseconds: kSlideDuration),
       vsync: this,
     );
-    _opacity = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
+    _controller = ctrl;
+    _opacity = CurvedAnimation(parent: ctrl, curve: Curves.easeOut);
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.10),
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      CurvedAnimation(parent: ctrl, curve: Curves.easeOut),
     );
 
-    if (widget.animate) {
-      final delayMs =
-          (kStaggerStep * widget.index).clamp(0, 300);
-      final delay = Duration(milliseconds: delayMs);
-      Future.delayed(delay, () {
-        if (mounted) _controller.forward();
-      });
-    } else {
-      _controller.value = 1.0;
-    }
+    final delayMs = (kStaggerStep * widget.index).clamp(0, 300);
+    Future<void>.delayed(Duration(milliseconds: delayMs), () {
+      if (mounted) ctrl.forward();
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final opacity = _opacity;
+    final slide = _slide;
+    if (opacity == null || slide == null) {
+      return RepaintBoundary(child: widget.child);
+    }
     return RepaintBoundary(
       child: FadeTransition(
-        opacity: _opacity,
-        child: SlideTransition(
-          position: _slide,
-          child: widget.child,
-        ),
+        opacity: opacity,
+        child: SlideTransition(position: slide, child: widget.child),
       ),
     );
   }

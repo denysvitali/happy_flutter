@@ -61,7 +61,26 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
   List<ListItem>? _listItemsCache;
   int? _listItemsCacheSignature;
 
+  /// Gate rapid taps on session cards.  Without this, 4 taps within
+  /// ~50ms each call pushNamed('chat') and create 4 ChatScreen
+  /// instances — which races their initState/build and causes
+  /// "Null check operator used on a null value" crashes.
+  int _lastNavTapMs = 0;
+  static const _navDebounceMs = 400;
+
   ValueNotifier<SelectionState> get _sel => widget.selectionNotifier;
+
+  void _navigateToChat(String sessionId) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastNavTapMs < _navDebounceMs) return;
+    _lastNavTapMs = nowMs;
+    unawaited(
+      context.pushNamed(
+        'chat',
+        pathParameters: {'sessionId': sessionId},
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -246,6 +265,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
 
     return ListView.builder(
       padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
+      // Session cards use RepaintBoundary via StaggeredSlideIn;
+      // disable the default keep-alive and repaint wrappers to
+      // avoid double-wrapping overhead on large lists.
+      addAutomaticKeepAlives: false,
+      addRepaintBoundaries: false,
       itemCount: items.length,
       itemBuilder: (ctx, i) {
         final item = items[i];
@@ -382,12 +406,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
           session: session,
           onTap: sel.isActive
               ? () => _onSessionTapInSelectionMode(session.id)
-              : () => unawaited(
-                  context.pushNamed(
-                    'chat',
-                    pathParameters: {'sessionId': session.id},
-                  ),
-                ),
+              : () => _navigateToChat(session.id),
           onLongPress: () => _onSessionLongPress(session.id),
           isFirst: item.isFirst!,
           isLast: item.isLast!,
@@ -427,27 +446,23 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
 
     switch (item.type) {
       case ListItemType.sectionHeader:
-        return FadeInSection(
-          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
-          child: SectionHeader(title: item.title!),
-        );
+        // StaggeredSlideIn already wraps every item with a staggered
+        // fade+slide — no need for a second FadeInSection controller.
+        return SectionHeader(title: item.title!);
 
       case ListItemType.pathHeader:
         final isPathCollapsed = _collapsedActivePaths.contains(item.pathKey!);
-        return FadeInSection(
-          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
-          child: PathHeader(
-            path: item.pathKey!,
-            sessionCount: item.sessionCount!,
-            isCollapsed: isPathCollapsed,
-            onToggle: () => setState(() {
-              if (isPathCollapsed) {
-                _collapsedActivePaths.remove(item.pathKey!);
-              } else {
-                _collapsedActivePaths.add(item.pathKey!);
-              }
-            }),
-          ),
+        return PathHeader(
+          path: item.pathKey!,
+          sessionCount: item.sessionCount!,
+          isCollapsed: isPathCollapsed,
+          onToggle: () => setState(() {
+            if (isPathCollapsed) {
+              _collapsedActivePaths.remove(item.pathKey!);
+            } else {
+              _collapsedActivePaths.add(item.pathKey!);
+            }
+          }),
         );
 
       case ListItemType.activeSession:
@@ -458,12 +473,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
             session: session,
             onTap: sel.isActive
                 ? () => _onSessionTapInSelectionMode(session.id)
-                : () => unawaited(
-                    context.pushNamed(
-                      'chat',
-                      pathParameters: {'sessionId': session.id},
-                    ),
-                  ),
+                : () => _navigateToChat(session.id),
             showFlavorIcon: showFlavorIcons,
             avatarStyle: avatarStyle,
             lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
@@ -479,30 +489,24 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
             : DismissibleActiveSession(session: session, child: card);
 
       case ListItemType.archiveHeader:
-        return FadeInSection(
-          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
-          child: ArchiveSectionHeader(
-            count: item.sessionCount!,
-            grouping: item.archivedGrouping!,
-            onGroupingChanged: (g) => setState(() => _archivedGrouping = g),
-          ),
+        return ArchiveSectionHeader(
+          count: item.sessionCount!,
+          grouping: item.archivedGrouping!,
+          onGroupingChanged: (g) => setState(() => _archivedGrouping = g),
         );
 
       case ListItemType.dateHeader:
-        return FadeInSection(
-          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
-          child: CollapsibleDateHeader(
-            date: item.title!,
-            sessionCount: item.sessionCount!,
-            isCollapsed: _collapsedDateKeys.contains(item.dateKey!),
-            onToggle: () => setState(() {
-              if (_collapsedDateKeys.contains(item.dateKey!)) {
-                _collapsedDateKeys.remove(item.dateKey!);
-              } else {
-                _collapsedDateKeys.add(item.dateKey!);
-              }
-            }),
-          ),
+        return CollapsibleDateHeader(
+          date: item.title!,
+          sessionCount: item.sessionCount!,
+          isCollapsed: _collapsedDateKeys.contains(item.dateKey!),
+          onToggle: () => setState(() {
+            if (_collapsedDateKeys.contains(item.dateKey!)) {
+              _collapsedDateKeys.remove(item.dateKey!);
+            } else {
+              _collapsedDateKeys.add(item.dateKey!);
+            }
+          }),
         );
 
       case ListItemType.archivedSession:
@@ -515,22 +519,19 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         );
 
       case ListItemType.folderHeader:
-        return FadeInSection(
-          delay: Duration(milliseconds: kStaggerStep * item.staggerIndex),
-          child: CollapsibleFolderHeader(
-            header: item.folderHeader!,
-            isCollapsed: _collapsedFolderKeys.contains(
-              item.folderHeader!.folderKey,
-            ),
-            onToggle: () => setState(() {
-              final key = item.folderHeader!.folderKey;
-              if (_collapsedFolderKeys.contains(key)) {
-                _collapsedFolderKeys.remove(key);
-              } else {
-                _collapsedFolderKeys.add(key);
-              }
-            }),
+        return CollapsibleFolderHeader(
+          header: item.folderHeader!,
+          isCollapsed: _collapsedFolderKeys.contains(
+            item.folderHeader!.folderKey,
           ),
+          onToggle: () => setState(() {
+            final key = item.folderHeader!.folderKey;
+            if (_collapsedFolderKeys.contains(key)) {
+              _collapsedFolderKeys.remove(key);
+            } else {
+              _collapsedFolderKeys.add(key);
+            }
+          }),
         );
     }
   }

@@ -80,6 +80,10 @@ extension _ChatScreenBuilders on _ChatScreenState {
         top: AppSpacing.xsm,
         bottom: AppSpacing.xs,
       ),
+      // Each message item is wrapped in RepaintBoundary already;
+      // skip the default automatic wrappers to reduce widget depth.
+      addAutomaticKeepAlives: false,
+      addRepaintBoundaries: false,
       itemCount: items.length + (showHeader ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;

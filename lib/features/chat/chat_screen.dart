@@ -526,28 +526,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       m['id'] as String? ?? m['toolUseId'] as String? ?? '';
 
   int _computeMessageFingerprint(List<Map<String, dynamic>> messages) {
-    var hash = messages.length;
-    for (final message in messages) {
-      final content = message['content'] ?? message['text'];
-      final contentHash = switch (content) {
-        final String text => Object.hash(text.length, text.hashCode),
-        final List<dynamic> list => list.length,
-        final Map<dynamic, dynamic> map => map.length,
-        _ => content?.hashCode ?? 0,
-      };
-      hash = Object.hash(
-        hash,
-        message['id'],
-        message['toolUseId'],
-        message['seq'],
-        message['role'],
-        message['kind'],
-        message['state'],
-        message['isThinking'],
-        contentHash,
-      );
+    // Hash length + first message + last N messages. This is O(1) instead
+    // of O(N) while still catching appends, streaming content updates,
+    // state changes on the newest message, and prepends (older page loads).
+    const tailSize = 5;
+    final len = messages.length;
+    var hash = len;
+    if (len == 0) return hash;
+
+    hash = _hashMessage(hash, messages.first);
+
+    final start = (len - tailSize).clamp(0, len);
+    for (var i = start; i < len; i++) {
+      hash = _hashMessage(hash, messages[i]);
     }
     return hash;
+  }
+
+  static int _hashMessage(int seed, Map<String, dynamic> message) {
+    final content = message['content'] ?? message['text'];
+    final contentHash = switch (content) {
+      final String text => Object.hash(text.length, text.hashCode),
+      final List<dynamic> list => list.length,
+      final Map<dynamic, dynamic> map => map.length,
+      _ => content?.hashCode ?? 0,
+    };
+    return Object.hash(
+      seed,
+      message['id'],
+      message['toolUseId'],
+      message['seq'],
+      message['role'],
+      message['kind'],
+      message['state'],
+      message['isThinking'],
+      contentHash,
+    );
   }
 
   void _scrollToBottom() {
