@@ -41,24 +41,25 @@ extension SyncLifecycle on Sync {
     // await _action() call.
     InvalidateSync.isBackgrounded = true;
     _lastSuspendedAtMs = DateTime.now().millisecondsSinceEpoch;
-    // Cancel all InvalidateSync retry/cooldown timers.  This stops any
-    // exponential-backoff network retries that would otherwise fire while
-    // backgrounded (e.g. a settings fetch retry scheduled 1-5s out).
-    sessionsSync.dispose();
-    settingsSync.dispose();
-    profileSync.dispose();
-    purchasesSync.dispose();
-    machinesSync.dispose();
-    pushTokenSync.dispose();
-    nativeUpdateSync.dispose();
-    artifactsSync.dispose();
-    friendsSync.dispose();
-    friendRequestsSync.dispose();
-    feedSync.dispose();
-    todosSync.dispose();
-    sessionGitStatusSync.dispose();
+    // Quiesce all InvalidateSync retry/cooldown timers without disposing the
+    // instances. Backgrounding is temporary; disposing here causes foreground
+    // refresh callers to race a teardown-only state and can surface as
+    // "InvalidateSync disposed" when the app resumes.
+    sessionsSync.suspend();
+    settingsSync.suspend();
+    profileSync.suspend();
+    purchasesSync.suspend();
+    machinesSync.suspend();
+    pushTokenSync.suspend();
+    nativeUpdateSync.suspend();
+    artifactsSync.suspend();
+    friendsSync.suspend();
+    friendRequestsSync.suspend();
+    feedSync.suspend();
+    todosSync.suspend();
+    sessionGitStatusSync.suspend();
     for (final sync in messagesSync.values) {
-      sync.dispose();
+      sync.suspend();
     }
 
     _dataChangeDebounceTimer?.cancel();
@@ -214,6 +215,10 @@ extension SyncLifecycle on Sync {
             ? DateTime.now().millisecondsSinceEpoch - _lastSuspendedAtMs!
             : 0;
         final shouldRunGlobalInvalidation = suspendDuration > 30 * 1000;
+        final socketNeedsHttpFallback =
+            socketIoClient.connectionStatus != ConnectionStatus.connected;
+        final shouldRefreshSessions =
+            shouldRunGlobalInvalidation || socketNeedsHttpFallback;
         unawaited(
           Sentry.addBreadcrumb(
             Breadcrumb(
@@ -224,6 +229,7 @@ extension SyncLifecycle on Sync {
                 'rapidResume': isRapidResume,
                 'suspendDurationMs': suspendDuration,
                 'shouldRunGlobalInvalidation': shouldRunGlobalInvalidation,
+                'socketNeedsHttpFallback': socketNeedsHttpFallback,
                 'visibleSessionId': _visibleSessionId,
                 'pendingSocketSessions':
                     _sessionsWithPendingSocketMessages.length,
@@ -240,6 +246,12 @@ extension SyncLifecycle on Sync {
         // socket messages are refreshed separately below.
         if (shouldRunGlobalInvalidation) {
           _invalidateAllSyncs();
+        } else if (socketNeedsHttpFallback) {
+          logger.info(
+            '[Sync] resume: socket not connected yet '
+            '(${socketIoClient.connectionStatus.name}) — '
+            'refreshing sessions via HTTP fallback',
+          );
         } else {
           logger.debug(
             '[Sync] resume: skipping broad invalidation '
@@ -304,15 +316,21 @@ extension SyncLifecycle on Sync {
           // already kicked off a sessions fetch via
           // _invalidateAllSyncs().  Starting another cycle would
           // cause a redundant HTTP fetch.
+          //
+          // Set forceProbe INSIDE the .then() callback so the flag
+          // isn't consumed by an earlier chained fetch (e.g. the
+          // socket reconnect handler's callback which shares the
+          // same sessionsSync queue).
           sessionsSync.invalidate();
           unawaited(
             sessionsSync.awaitQueue().then((_) {
               for (final sessionId in sessionsToRefresh) {
+                _sessionsNeedingFetchProbe.add(sessionId);
                 messagesSync[sessionId]?.invalidate();
               }
             }),
           );
-        } else if (shouldRunGlobalInvalidation) {
+        } else if (shouldRefreshSessions) {
           sessionsSync.invalidate();
         }
       },

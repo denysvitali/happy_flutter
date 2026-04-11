@@ -116,6 +116,31 @@ void main() {
     );
 
     test(
+      'suspend() does not dispose sessionsSync needed by later foreground refreshes',
+      () async {
+        var sessionsSyncRuns = 0;
+        sync.sessionsSync = InvalidateSync(() async {
+          sessionsSyncRuns++;
+        });
+
+        sync.suspend();
+        sync.resume();
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+
+        await sync.refreshSessions();
+
+        expect(
+          sessionsSyncRuns,
+          greaterThanOrEqualTo(1),
+          reason:
+              'Lifecycle suspend must quiesce sessionsSync rather than '
+              'disposing it so a later foreground refresh can reuse the '
+              'same sync object without lifecycle-state errors',
+        );
+      },
+    );
+
+    test(
       'resume() clears _sessionsWithPendingSocketMessages after invalidating',
       () {
         fakeAsync((async) {
@@ -178,6 +203,37 @@ void main() {
         );
       });
     });
+
+    test(
+      'short resume still refreshes sessions when socket is disconnected',
+      () {
+        fakeAsync((async) {
+          var sessionsSyncRuns = 0;
+
+          sync.sessionsSync = InvalidateSync(() async {
+            sessionsSyncRuns++;
+          });
+
+          sync.testLastSuspendedAtMs =
+              DateTime.now().millisecondsSinceEpoch - 5000;
+          sync.testSetVisibleSessionId(null);
+          sync.testClearSessionsWithPendingSocketMessages();
+
+          sync.resume();
+          async.elapse(const Duration(milliseconds: 600));
+
+          expect(
+            sessionsSyncRuns,
+            equals(1),
+            reason:
+                'Resume must refresh sessions via HTTP fallback when the '
+                'socket is still disconnected after a short background '
+                'period, otherwise foreground recovery stalls until the '
+                'watchdog fires',
+          );
+        });
+      },
+    );
   });
 
   group('Sync shutdown clears state to prevent leaks', () {

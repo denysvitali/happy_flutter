@@ -265,6 +265,30 @@ class InvalidateSync {
     });
   }
 
+  /// Quiesce lifecycle timers without tearing down the sync instance.
+  ///
+  /// App backgrounding is temporary, so we must not switch the instance into
+  /// the disposed state used by logout/shutdown. Doing so causes later resume
+  /// invalidations to race with screens still awaiting the old instance and can
+  /// surface as "InvalidateSync disposed" failures.
+  void suspend() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _cooldownTimer?.cancel();
+    _cooldownTimer = null;
+
+    // If work was only waiting on a cooldown/retry timer, complete the current
+    // awaiters normally so lifecycle suspend does not leak a stale pending
+    // future into foreground recovery.
+    if (!_running) {
+      final op = _currentOperation;
+      _currentOperation = null;
+      if (op != null && !op.isCompleted) {
+        op.complete();
+      }
+    }
+  }
+
   /// Dispose resources.
   ///
   /// Completes any pending operation **normally** so that callers awaiting

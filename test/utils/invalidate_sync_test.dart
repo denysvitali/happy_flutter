@@ -161,6 +161,50 @@ void main() {
       );
     });
 
+    group('suspend lifecycle', () {
+      test('suspend completes idle awaiters without disposing the instance', () async {
+        var callCount = 0;
+        final sync = InvalidateSync(() async {
+          callCount++;
+        });
+
+        sync.invalidate();
+        sync.suspend();
+        await sync.awaitQueue();
+
+        sync.invalidate();
+        await sync.awaitQueue();
+
+        expect(callCount, 2);
+      });
+
+      test(
+        'suspend preserves an in-flight operation and allows reuse later',
+        () async {
+          final blocker = Completer<void>();
+          var callCount = 0;
+          final sync = InvalidateSync(() async {
+            callCount++;
+            if (callCount == 1) {
+              await blocker.future;
+            }
+          });
+
+          sync.invalidate();
+          await Future<void>.delayed(Duration.zero);
+
+          sync.suspend();
+          blocker.complete();
+          await sync.awaitQueue();
+
+          sync.invalidate();
+          await sync.awaitQueue();
+
+          expect(callCount, 2);
+        },
+      );
+    });
+
     test(
       'invalidateAndAwait completes after first success even when '
       're-invalidated repeatedly during the run',
