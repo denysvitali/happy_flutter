@@ -62,15 +62,18 @@ extension SyncSocketEvents on Sync {
       // was the primary cause of the N+1 sessions problem
       // (~12 fetches per app load).
       //
-      // Mark the visible session as needing a fetch probe so that
-      // fetchMessages always hits the server — even if the sessions
-      // delta fetch returned nothing and serverLastSeq is still
-      // stale, the probe bypasses the caught-up skip guard.
+      // Chain a forced message fetch after the sessions fetch.
+      // Set the fetch-probe flag INSIDE the .then() callback — not
+      // before — so it isn't consumed by the resume timer's earlier
+      // chained fetch (which also awaits sessionsSync.awaitQueue()).
+      // The probe bypasses fetchMessages' "already caught up" skip
+      // even when the delta sessions fetch returned nothing and
+      // serverLastSeq is still stale.
       if (_visibleSessionId != null) {
-        _sessionsNeedingFetchProbe.add(_visibleSessionId!);
         unawaited(
           sessionsSync.awaitQueue().then((_) {
             if (_visibleSessionId != null) {
+              _sessionsNeedingFetchProbe.add(_visibleSessionId!);
               messagesSync[_visibleSessionId]?.invalidate();
             }
           }),
