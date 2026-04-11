@@ -170,44 +170,58 @@ Future<void> _deferredInit() async {
     'app.load.deferred',
     bindToScope: false,
   );
+  // Run Android certs and Firebase init in parallel — they are
+  // independent and each can take 500ms+.
+  final futures = <Future<void>>[];
+
   // Android user certificates — JNI calls + ASN.1 parsing.
   if (!kIsWeb && isAndroid) {
-    final certsSpan = transaction.startChild(
-      'app.deferredInit.userCerts',
-      description: 'Load Android user certificates',
-    );
-    try {
-      final certs = await FlutterUserCertificatesAndroid()
-          .getUserCertificates();
-      for (final derBytes in (certs ?? {}).values) {
-        final pem = _derToPem(derBytes);
-        SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
+    futures.add(() async {
+      final certsSpan = transaction.startChild(
+        'app.deferredInit.userCerts',
+        description: 'Load Android user certificates',
+      );
+      try {
+        final certs = await FlutterUserCertificatesAndroid()
+            .getUserCertificates();
+        for (final derBytes in (certs ?? {}).values) {
+          final pem = _derToPem(derBytes);
+          SecurityContext.defaultContext.setTrustedCertificatesBytes(
+            pem,
+          );
+        }
+      } catch (e) {
+        logger.warning(
+          'Failed to load Android user certificates: $e',
+        );
+        certsSpan
+          ..status = const SpanStatus.internalError()
+          ..setData('error', e.toString());
+      } finally {
+        await certsSpan.finish();
       }
-    } catch (e) {
-      logger.warning('Failed to load Android user certificates: $e');
-      certsSpan
-        ..status = const SpanStatus.internalError()
-        ..setData('error', e.toString());
-    } finally {
-      await certsSpan.finish();
-    }
+    }());
   }
 
   // Firebase push notifications — not needed for first screen.
-  final firebaseSpan = transaction.startChild(
-    'app.deferredInit.firebase',
-    description: 'Initialize optional Firebase services',
-  );
-  try {
-    await _initializeOptionalFirebase();
-  } catch (e) {
-    firebaseSpan
-      ..status = const SpanStatus.internalError()
-      ..setData('error', e.toString());
-    rethrow;
-  } finally {
-    await firebaseSpan.finish();
-  }
+  futures.add(() async {
+    final firebaseSpan = transaction.startChild(
+      'app.deferredInit.firebase',
+      description: 'Initialize optional Firebase services',
+    );
+    try {
+      await _initializeOptionalFirebase();
+    } catch (e) {
+      firebaseSpan
+        ..status = const SpanStatus.internalError()
+        ..setData('error', e.toString());
+      rethrow;
+    } finally {
+      await firebaseSpan.finish();
+    }
+  }());
+
+  await Future.wait(futures);
   await transaction.finish();
 }
 

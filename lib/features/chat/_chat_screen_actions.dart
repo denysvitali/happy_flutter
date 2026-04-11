@@ -29,13 +29,19 @@ extension _ChatScreenActions on _ChatScreenState {
       permissionMode =
           PermissionModeExtension.fromString(savedPermMode) ??
           PermissionMode.defaultMode;
-    } else if (session?.permissionMode != null) {
-      permissionMode =
-          PermissionModeExtension.fromString(session!.permissionMode!) ??
-          PermissionMode.defaultMode;
-      unawaited(
-        storage.savePermissionMode(sessionId, permissionMode.toModeString()),
-      );
+    } else {
+      final sessionPermMode = session?.permissionMode;
+      if (sessionPermMode != null) {
+        permissionMode =
+            PermissionModeExtension.fromString(sessionPermMode) ??
+            PermissionMode.defaultMode;
+        unawaited(
+          storage.savePermissionMode(
+            sessionId,
+            permissionMode.toModeString(),
+          ),
+        );
+      }
     }
 
     // Profile & settings (read once, used below for both model and profile).
@@ -84,17 +90,17 @@ extension _ChatScreenActions on _ChatScreenState {
         ClaudeModel.fromString(savedModelMode),
         flavor,
       );
-    } else if (session?.modelMode != null) {
-      rawModelModeString = session!.modelMode;
+    } else if (session?.modelMode case final sessionModelMode?) {
+      rawModelModeString = sessionModelMode;
       modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(session.modelMode),
+        ClaudeModel.fromString(sessionModelMode),
         flavor,
       );
-    } else if (selectedProfile?.defaultModelMode != null) {
-      // Use the profile's default model mode
-      rawModelModeString = selectedProfile!.defaultModelMode;
+    } else if (selectedProfile?.defaultModelMode
+        case final profileModelMode?) {
+      rawModelModeString = profileModelMode;
       modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(selectedProfile.defaultModelMode),
+        ClaudeModel.fromString(profileModelMode),
         flavor,
       );
     } else if (settings.lastUsedModelMode != null) {
