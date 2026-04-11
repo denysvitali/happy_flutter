@@ -20,6 +20,9 @@ extension SyncSocketEvents on Sync {
     );
     _unsubscribeSocketReconnected = socketIoClient.onReconnected(() {
       logger.info('Socket reconnected');
+      // Cancel reconnect watchdog — connection succeeded.
+      _reconnectWatchdogTimer?.cancel();
+      _reconnectWatchdogTimer = null;
       _invalidateAllSyncs();
       // Refresh _lastEphemeralAt for all sessions that show as online.
       // Without this, stale timestamps from before the disconnect cause
@@ -59,6 +62,16 @@ extension SyncSocketEvents on Sync {
           }),
         );
       }
+    });
+    _unsubscribeSocketReconnectExhausted?.call();
+    _unsubscribeSocketReconnectExhausted =
+        socketIoClient.onReconnectExhausted(() {
+      logger.warning(
+        '[Sync] socket reconnection attempts exhausted — '
+        'scheduling fresh reconnect in '
+        '${Sync._reconnectWatchdogDelayMs}ms',
+      );
+      _scheduleReconnectWatchdog();
     });
     _unsubscribeSocketStatus = socketIoClient.onStatusChange((status) {
       _connectionStatus = status;

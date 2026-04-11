@@ -279,6 +279,7 @@ what you have, you must use the options mode.
   void Function()? _unsubscribeSocketEphemeral;
   void Function()? _unsubscribeSocketError;
   void Function()? _unsubscribeSocketReconnected;
+  void Function()? _unsubscribeSocketReconnectExhausted;
   void Function()? _unsubscribeSocketStatus;
 
   /// Timestamp of last resume() call for debouncing rapid pause/resume cycles.
@@ -290,10 +291,16 @@ what you have, you must use the options mode.
   /// when the app cycles between paused and resumed states repeatedly.
   static const int _resumeDebounceWindowMs = 2000;
 
+  /// Delay before the reconnection watchdog fires on resume. If the
+  /// socket hasn't connected by this point, force a fresh reconnect
+  /// cycle to recover from exhausted Socket.IO attempts.
+  static const int _reconnectWatchdogDelayMs = 15000;
+
   /// Delay before firing network invalidations on resume. Cancelled by
   /// suspend() so that rapid foreground/background cycling does not produce
   /// wasted HTTP requests that the OS aborts mid-flight.
   Timer? _deferredResumeInvalidationTimer;
+  Timer? _reconnectWatchdogTimer;
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _socialSyncsDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;

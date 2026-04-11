@@ -84,6 +84,9 @@ class SocketIoClient {
   int? _lastConnectStartedAtMs;
   int? _lastDisconnectAtMs;
 
+  // Listeners notified when Socket.IO exhausts all reconnection attempts.
+  final _reconnectFailedListeners = <void Function()>[];
+
   // Rate-limit Sentry captures for non-transient socket errors.
   // A reconnection storm can fire dozens of identical errors within
   // seconds; we capture at most one per 60-second window to avoid
@@ -325,6 +328,25 @@ class SocketIoClient {
       }
     });
 
+    _socket!.onReconnectFailed((_) {
+      logger.warning(
+        'Socket.IO reconnection attempts exhausted',
+      );
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'Socket.IO reconnect_failed — attempts exhausted',
+            category: 'websocket',
+            level: SentryLevel.warning,
+          ),
+        ),
+      );
+      _updateStatus(ConnectionStatus.disconnected);
+      for (final listener in _reconnectFailedListeners) {
+        listener();
+      }
+    });
+
     _socket!.onAny((event, data) {
       // Only record non-streaming events as Sentry breadcrumbs.
       // During AI streaming, 'update' events with new-message arrive
@@ -466,6 +488,14 @@ class SocketIoClient {
     return () => _reconnectedListeners.remove(listener);
   }
 
+  /// Register a listener for when Socket.IO exhausts all reconnection
+  /// attempts.  The caller can use this to schedule a fresh [reconnect]
+  /// after a delay.
+  void Function() onReconnectExhausted(void Function() listener) {
+    _reconnectFailedListeners.add(listener);
+    return () => _reconnectFailedListeners.remove(listener);
+  }
+
   /// Register status change listener
   void Function() onStatusChange(void Function(ConnectionStatus) listener) {
     _statusListeners.add(listener);
@@ -552,6 +582,9 @@ class SocketIoClient {
     disconnect();
     _statusController.close();
     _messageHandlers.clear();
+    _reconnectedListeners.clear();
+    _reconnectFailedListeners.clear();
+    _statusListeners.clear();
   }
 
   /// Returns true when the error should be suppressed to prevent a flood of

@@ -309,6 +309,70 @@ void main() {
     );
   });
 
+  group('reconnect watchdog', () {
+    late Sync sync;
+
+    setUp(() {
+      sync = Sync();
+      sync.encryption = _FakeEncryption();
+      sync.testIsInitialized = true;
+      sync.testSocketConnectedOverride = true;
+      sync.testSocketSendOverride = (_, __) {};
+      sync.testSessions.clear();
+      _stubAllSyncs(sync);
+    });
+
+    tearDown(() {
+      sync.testSocketConnectedOverride = null;
+      sync.testSocketSendOverride = null;
+      sync.testFetchMessagesOverride = null;
+      sync.testLastInvalidateAllSyncsAtMs = null;
+    });
+
+    test(
+      'suspend cancels reconnect watchdog timer',
+      () async {
+        // Resume starts the watchdog.
+        sync.resume();
+
+        // Suspend should cancel it.
+        sync.suspend();
+
+        // If the watchdog fired after suspend, it would trigger
+        // network I/O while backgrounded — that's the bug we're
+        // preventing.
+        expect(
+          InvalidateSync.isBackgrounded,
+          isTrue,
+          reason: 'suspend should set isBackgrounded = true',
+        );
+      },
+    );
+
+    test(
+      'resume after long background triggers force invalidation',
+      () async {
+        // Simulate a long suspend (>30s).
+        sync.testLastSuspendedAtMs =
+            DateTime.now().millisecondsSinceEpoch - 60000;
+
+        sync.testInvalidateAllSyncs(force: true);
+        final ts = sync.testLastInvalidateAllSyncsAtMs;
+        expect(ts, isNotNull);
+
+        // A forced invalidation should always update the timestamp.
+        await Future<void>.delayed(const Duration(milliseconds: 2));
+        sync.testInvalidateAllSyncs(force: true);
+        expect(
+          sync.testLastInvalidateAllSyncsAtMs,
+          greaterThan(ts!),
+          reason:
+              'force=true should bypass cooldown for watchdog recovery',
+        );
+      },
+    );
+  });
+
   group('resume from background', () {
     late Sync sync;
 

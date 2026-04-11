@@ -32,6 +32,8 @@ extension SyncLifecycle on Sync {
     // before the 1.5s timer fired, no HTTP requests should be started.
     _deferredResumeInvalidationTimer?.cancel();
     _deferredResumeInvalidationTimer = null;
+    _reconnectWatchdogTimer?.cancel();
+    _reconnectWatchdogTimer = null;
 
     // Set backgrounded flag FIRST — this prevents any in-flight
     // InvalidateSync operations from performing network I/O while
@@ -179,6 +181,14 @@ extension SyncLifecycle on Sync {
     messageOutbox.resume();
     NetworkMonitorService().resume();
 
+    // Start a reconnection watchdog that fires if the socket hasn't
+    // connected within a reasonable window. This covers the case where
+    // Socket.IO's internal reconnection attempts are exhausted (e.g.
+    // flaky network on resume) and no connectivity change event fires
+    // to trigger a fresh reconnect. The watchdog is cancelled on
+    // suspend() and on successful socket connect.
+    _scheduleReconnectWatchdog();
+
     // Defer network-heavy invalidations so that foreground/background
     // cycling (e.g. Android 16 aggressive background management) does not
     // fire HTTP requests that get aborted when the app backgrounds again
@@ -309,8 +319,77 @@ extension SyncLifecycle on Sync {
     );
   }
 
+  /// Schedule (or reschedule) a reconnection watchdog timer.
+  ///
+  /// If the socket is not connected when the timer fires, a fresh
+  /// [socketIoClient.reconnect] cycle is started and syncs are
+  /// force-invalidated.  This recovers from:
+  ///   - Socket.IO exhausting its internal reconnection attempts
+  ///   - Transient network flakiness during foreground transition
+  ///   - Server restarts that outlast the initial reconnect window
+  ///
+  /// The timer is cancelled by [suspend] and reset by each call so
+  /// that reconnect-exhausted events and resume() don't stack timers.
+  void _scheduleReconnectWatchdog() {
+    _reconnectWatchdogTimer?.cancel();
+    // If already connected, no watchdog needed.
+    if (socketIoClient.connectionStatus == ConnectionStatus.connected) {
+      _reconnectWatchdogTimer = null;
+      return;
+    }
+    _reconnectWatchdogTimer = Timer(
+      const Duration(milliseconds: Sync._reconnectWatchdogDelayMs),
+      () {
+        _reconnectWatchdogTimer = null;
+        if (!isInitialized || InvalidateSync.isBackgrounded) return;
+
+        if (socketIoClient.connectionStatus ==
+            ConnectionStatus.connected) {
+          return;
+        }
+
+        logger.warning(
+          '[Sync] reconnect watchdog fired — socket still '
+          'disconnected, forcing fresh reconnect',
+        );
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'Sync reconnect watchdog triggered',
+              category: 'sync.lifecycle',
+              level: SentryLevel.warning,
+              data: <String, dynamic>{
+                'socketStatus':
+                    socketIoClient.connectionStatus.name,
+                'visibleSessionId': _visibleSessionId,
+              },
+            ),
+          ),
+        );
+
+        socketIoClient.reconnect();
+        // Force-invalidate all syncs since the deferred timer may
+        // have already fired and been dropped by the cooldown.
+        _invalidateAllSyncs(force: true);
+
+        // If the visible session has a message sync, kick it too.
+        if (_visibleSessionId != null) {
+          unawaited(
+            sessionsSync.awaitQueue().then((_) {
+              if (_visibleSessionId != null) {
+                messagesSync[_visibleSessionId]?.invalidate();
+              }
+            }),
+          );
+        }
+      },
+    );
+  }
+
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
+    _reconnectWatchdogTimer?.cancel();
+    _reconnectWatchdogTimer = null;
     _sessionsRefreshDebounceTimer?.cancel();
     _socialSyncsDebounceTimer?.cancel();
     _artifactsSyncDebounceTimer?.cancel();
@@ -336,6 +415,8 @@ extension SyncLifecycle on Sync {
     _unsubscribeSocketError = null;
     _unsubscribeSocketReconnected?.call();
     _unsubscribeSocketReconnected = null;
+    _unsubscribeSocketReconnectExhausted?.call();
+    _unsubscribeSocketReconnectExhausted = null;
     _unsubscribeSocketStatus?.call();
     _unsubscribeSocketStatus = null;
     socketIoClient.disconnect();

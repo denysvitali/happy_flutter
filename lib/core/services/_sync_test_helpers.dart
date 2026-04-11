@@ -137,6 +137,10 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testResetLastResumeAtMs() => _lastResumeAtMs = null;
 
+  /// Test helper: set _lastSuspendedAtMs to simulate a long background.
+  @visibleForTesting
+  set testLastSuspendedAtMs(int? value) => _lastSuspendedAtMs = value;
+
   /// Test helper: check if _pendingUpdateSessionIds is empty.
   @visibleForTesting
   bool testPendingUpdateSessionIdsEmpty() => _pendingUpdateSessionIds.isEmpty;

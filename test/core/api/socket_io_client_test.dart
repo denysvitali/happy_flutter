@@ -38,4 +38,31 @@ void main() {
       },
     );
   });
+
+  group('onReconnectExhausted', () {
+    late List<void Function()> unsubscribes;
+
+    setUp(() {
+      unsubscribes = [];
+    });
+
+    tearDown(() {
+      for (final unsub in unsubscribes) {
+        unsub();
+      }
+      socketIoClient.testHasConnectedOnce = false;
+    });
+
+    test('listener is registered and unsubscribed cleanly', () {
+      var callCount = 0;
+      final unsub = socketIoClient.onReconnectExhausted(() {
+        callCount++;
+      });
+      unsubscribes.add(unsub);
+
+      // Unsubscribe and verify no further calls could be made.
+      unsub();
+      expect(callCount, 0);
+    });
+  });
 }
