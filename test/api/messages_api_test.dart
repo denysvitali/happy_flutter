@@ -30,6 +30,7 @@ void main() {
           mockClient.get(
             '/v3/sessions/sess-123/messages',
             queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
           ),
         ).thenAnswer(
           (_) async => _response({
@@ -47,8 +48,37 @@ void main() {
               'after_seq': 0,
               'limit': 100,
             },
+            options: anyNamed('options'),
           ),
         ).called(1);
+      });
+
+      test('bypasses HTTP cache for message history fetches', () async {
+        when(mockClient.isSuccess(any)).thenReturn(true);
+        when(
+          mockClient.get(
+            any,
+            queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => _response({
+            'messages': <Map<String, dynamic>>[],
+            'hasMore': false,
+          }, 200),
+        );
+
+        await api.fetchMessages('sess-123', afterSeq: 0);
+
+        final captured = verify(
+          mockClient.get(
+            '/v3/sessions/sess-123/messages',
+            queryParameters: anyNamed('queryParameters'),
+            options: captureAnyNamed('options'),
+          ),
+        ).captured.single as Options;
+
+        expect(captured.extra?['bypassCache'], isTrue);
       });
 
       test('passes custom limit in query params', () async {
@@ -57,6 +87,7 @@ void main() {
           mockClient.get(
             any,
             queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
           ),
         ).thenAnswer(
           (_) async => _response({
@@ -78,6 +109,7 @@ void main() {
               'after_seq': 10,
               'limit': 50,
             },
+            options: anyNamed('options'),
           ),
         ).called(1);
       });
@@ -89,6 +121,7 @@ void main() {
           mockClient.get(
             any,
             queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
           ),
         ).thenAnswer(
           (_) async => _response({
@@ -126,6 +159,7 @@ void main() {
           mockClient.get(
             any,
             queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
           ),
         ).thenAnswer(
           (_) async => _response({
@@ -150,6 +184,7 @@ void main() {
           mockClient.get(
             any,
             queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
           ),
         ).thenAnswer(
           (_) async => _response(<String, dynamic>{}, 200),
@@ -170,6 +205,7 @@ void main() {
           mockClient.get(
             any,
             queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
           ),
         ).thenAnswer(
           (_) async => _response({'error': 'bad request'}, 400),
@@ -199,6 +235,7 @@ void main() {
           mockClient.get(
             any,
             queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
           ),
         ).thenAnswer(
           (_) async => _response({'error': 'not found'}, 404),
@@ -228,6 +265,7 @@ void main() {
           mockClient.get(
             any,
             queryParameters: anyNamed('queryParameters'),
+            options: anyNamed('options'),
           ),
         ).thenAnswer(
           (_) async =>

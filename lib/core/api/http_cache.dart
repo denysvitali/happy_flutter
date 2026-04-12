@@ -41,6 +41,9 @@ class HttpResponseCache {
 
   /// Get cached response if available and not expired
   Response? get(RequestOptions options) {
+    if (options.extra['bypassCache'] == true) {
+      return null;
+    }
     final key = generateKey(options);
     final entry = _cache[key];
     if (entry != null && !entry.isExpired) {
@@ -58,6 +61,7 @@ class HttpResponseCache {
     // Only cache successful GET requests
     if (options.method != 'GET') return;
     if (response.statusCode != 200) return;
+    if (options.extra['bypassCache'] == true) return;
 
     final maxAge = _parseMaxAge(response.headers);
     if (maxAge == 0) return; // no-store

@@ -277,6 +277,7 @@ extension SyncMessaging on Sync {
             '/v3/sessions/$sessionId/messages',
             queryParameters: {'after_seq': afterSeq, 'limit': 500},
             options: Options(
+              extra: const {'bypassCache': true},
               connectTimeout: Sync._messageFetchConnectTimeout,
               receiveTimeout: Sync._messageFetchReceiveTimeout,
             ),
@@ -735,7 +736,10 @@ extension SyncMessaging on Sync {
         response = await apiClient.get(
           '/v3/sessions/$sessionId/messages',
           queryParameters: {'after_seq': startSeq, 'limit': pageSize},
-          options: Options(receiveTimeout: const Duration(seconds: 15)),
+          options: Options(
+            extra: const {'bypassCache': true},
+            receiveTimeout: const Duration(seconds: 15),
+          ),
         );
 
         if (!apiClient.isSuccess(response)) {

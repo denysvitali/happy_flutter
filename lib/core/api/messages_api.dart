@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+
 import 'api_client.dart';
 import 'base_api_exception.dart';
 
@@ -19,6 +21,7 @@ class MessagesApi {
     final response = await _client.get(
       '/v3/sessions/$sessionId/messages',
       queryParameters: {'after_seq': afterSeq, 'limit': limit},
+      options: Options(extra: const {'bypassCache': true}),
     );
 
     if (!_client.isSuccess(response)) {

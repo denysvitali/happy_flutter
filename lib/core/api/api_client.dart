@@ -69,7 +69,8 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           // Check cache for GET requests
-          if (options.method == 'GET') {
+          if (options.method == 'GET' &&
+              options.extra['bypassCache'] != true) {
             final cachedResponse = _httpCache.get(options);
             if (cachedResponse != null) {
               return handler.resolve(cachedResponse);
@@ -79,7 +80,9 @@ class ApiClient {
         },
         onResponse: (response, handler) {
           // Cache successful GET responses
-          _httpCache.put(response.requestOptions, response);
+          if (response.requestOptions.extra['bypassCache'] != true) {
+            _httpCache.put(response.requestOptions, response);
+          }
 
           if (response.statusCode == 401) {
             logger.warning(
