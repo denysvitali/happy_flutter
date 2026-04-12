@@ -8,39 +8,32 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../sessions/session_avatar.dart';
 import 'agents_list_sheet.dart';
+import 'session_header_chip.dart';
 
 /// App bar for the chat screen showing session title,
 /// status, model info, and action buttons.
-class ChatAppBar extends StatelessWidget
-    implements PreferredSizeWidget {
+class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatAppBar({
     required this.session,
     required this.sessionTitle,
-    required this.statusText,
-    required this.statusColor,
-    required this.isThinking,
+    required this.statusChips,
     required this.onMenuTap,
     required this.onInfoTap,
     required this.sessionId,
-    this.modelLabel,
     this.avatarStyle,
     super.key,
   });
 
   final Session? session;
   final String sessionTitle;
-  final String statusText;
-  final Color statusColor;
-  final bool isThinking;
+  final List<ChatAppBarStatusChip> statusChips;
   final VoidCallback onMenuTap;
   final VoidCallback onInfoTap;
   final String sessionId;
-  final String? modelLabel;
   final AvatarStyle? avatarStyle;
 
   @override
-  Size get preferredSize =>
-      const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
   @override
   Widget build(BuildContext context) {
@@ -51,10 +44,7 @@ class ChatAppBar extends StatelessWidget
       scrolledUnderElevation: 0.5,
       actions: [
         // Agents list button with badge
-        _AgentsListButton(
-          activeCount: activeAgentCount,
-          sessionId: sessionId,
-        ),
+        _AgentsListButton(activeCount: activeAgentCount, sessionId: sessionId),
         _AppBarAction(
           icon: Icons.info_outline_rounded,
           tooltip: context.l10n.chatSessionSettings,
@@ -75,8 +65,7 @@ class ChatAppBar extends StatelessWidget
     if (session == null) {
       return Text(
         context.l10n.chatChat,
-        style: textTheme.titleMedium
-            ?.copyWith(fontWeight: FontWeight.w600),
+        style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       );
     }
 
@@ -108,21 +97,15 @@ class ChatAppBar extends StatelessWidget
               children: [
                 Text(
                   sessionTitle,
-                  style: textTheme.titleSmall
-                      ?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppSpacing.xxs),
-                _StatusRow(
-                  isThinking: isThinking,
-                  statusText: statusText,
-                  statusColor: statusColor,
-                  modelLabel: modelLabel,
-                ),
+                _StatusRow(statusChips: statusChips),
               ],
             ),
           ),
@@ -132,33 +115,14 @@ class ChatAppBar extends StatelessWidget
   }
 }
 
-/// Animated status row that cross-fades between
-/// typing indicator and status text.
+/// Animated status row that cross-fades between chip sets.
 class _StatusRow extends StatelessWidget {
-  const _StatusRow({
-    required this.isThinking,
-    required this.statusText,
-    required this.statusColor,
-    this.modelLabel,
-  });
+  const _StatusRow({required this.statusChips});
 
-  final bool isThinking;
-  final String statusText;
-  final Color statusColor;
-  final String? modelLabel;
+  final List<ChatAppBarStatusChip> statusChips;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final statusStyle = theme.textTheme.labelSmall
-        ?.copyWith(
-          color: cs.onSurfaceVariant,
-          fontWeight: FontWeight.w400,
-          fontSize: AppFontSize.xs,
-          height: 1.2,
-        );
-
     return AnimatedSwitcher(
       duration: AppDuration.normal,
       switchInCurve: Curves.easeOut,
@@ -175,59 +139,50 @@ class _StatusRow extends StatelessWidget {
           ),
         );
       },
-      child: isThinking
-          ? _AppBarTypingIndicator(
-              key: const ValueKey('typing'),
-              color: cs.primary,
-              label: statusText,
-            )
-          : Row(
-              key: ValueKey('status-$statusText'),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppStatusDot(
-                  color: statusColor,
-                  pulse: statusColor == AppColors.success,
-                  size: 6,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Flexible(
-                  child: Text(
-                    statusText,
-                    style: statusStyle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (modelLabel != null &&
-                    modelLabel!.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                    ),
-                    child: Text(
-                      '\u00B7',
-                      style: statusStyle?.copyWith(
-                        color: cs.onSurfaceVariant
-                            .withValues(alpha: 0.4),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    modelLabel!,
-                    style: statusStyle?.copyWith(
-                      color: cs.onSurfaceVariant
-                          .withValues(alpha: 0.6),
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
+      child: statusChips.isEmpty
+          ? const SizedBox.shrink()
+          : Wrap(
+              key: ValueKey(
+                statusChips
+                    .map((chip) => '${chip.text}:${chip.icon.codePoint}')
+                    .join('|'),
+              ),
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xxs,
+              children: statusChips.map((chip) {
+                return SessionHeaderChip(
+                  text: chip.text,
+                  leading: chip.showDot
+                      ? AppStatusDot(
+                          color: chip.color,
+                          pulse: chip.pulse,
+                          size: 6,
+                        )
+                      : Icon(chip.icon, size: 11, color: chip.color),
+                  textColor: chip.color,
+                  backgroundColor: chip.color.withValues(alpha: 0.08),
+                  borderColor: chip.color.withValues(alpha: 0.16),
+                );
+              }).toList(),
             ),
     );
   }
+}
+
+class ChatAppBarStatusChip {
+  const ChatAppBarStatusChip({
+    required this.text,
+    required this.color,
+    this.icon = Icons.circle,
+    this.showDot = false,
+    this.pulse = false,
+  });
+
+  final String text;
+  final Color color;
+  final IconData icon;
+  final bool showDot;
+  final bool pulse;
 }
 
 /// Compact action button for the app bar.
@@ -265,10 +220,7 @@ class _AppBarAction extends StatelessWidget {
 
 /// Agents list button with badge showing active agent count.
 class _AgentsListButton extends StatelessWidget {
-  const _AgentsListButton({
-    required this.activeCount,
-    required this.sessionId,
-  });
+  const _AgentsListButton({required this.activeCount, required this.sessionId});
 
   final int activeCount;
   final String sessionId;
@@ -301,9 +253,7 @@ class _AgentsListButton extends StatelessWidget {
                   top: Radius.circular(AppRadius.xl),
                 ),
               ),
-              builder: (context) => AgentsListSheet(
-                sessionId: sessionId,
-              ),
+              builder: (context) => AgentsListSheet(sessionId: sessionId),
             );
           },
         ),
@@ -312,18 +262,12 @@ class _AgentsListButton extends StatelessWidget {
             right: 0,
             top: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 4,
-                vertical: 1,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               decoration: BoxDecoration(
                 color: cs.error,
                 borderRadius: BorderRadius.circular(AppRadius.xs),
               ),
-              constraints: const BoxConstraints(
-                minWidth: 14,
-                minHeight: 14,
-              ),
+              constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
               child: Text(
                 activeCount > 9 ? '9+' : '$activeCount',
                 style: const TextStyle(
@@ -344,22 +288,16 @@ class _AgentsListButton extends StatelessWidget {
 /// Compact three-dot typing indicator for the app bar
 /// subtitle. Shows bouncing dots alongside a label.
 class _AppBarTypingIndicator extends StatefulWidget {
-  const _AppBarTypingIndicator({
-    required this.color,
-    this.label,
-    super.key,
-  });
+  const _AppBarTypingIndicator({required this.color, this.label, super.key});
 
   final Color color;
   final String? label;
 
   @override
-  State<_AppBarTypingIndicator> createState() =>
-      _AppBarTypingIndicatorState();
+  State<_AppBarTypingIndicator> createState() => _AppBarTypingIndicatorState();
 }
 
-class _AppBarTypingIndicatorState
-    extends State<_AppBarTypingIndicator>
+class _AppBarTypingIndicatorState extends State<_AppBarTypingIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
@@ -392,21 +330,13 @@ class _AppBarTypingIndicatorState
               animation: _ctrl,
               builder: (context, child) {
                 final phase = (_ctrl.value + i * 0.2) % 1.0;
-                final y = -2.0 *
-                    (phase < 0.5
-                        ? phase * 2
-                        : 2.0 - phase * 2);
-                return Transform.translate(
-                  offset: Offset(0, y),
-                  child: child,
-                );
+                final y = -2.0 * (phase < 0.5 ? phase * 2 : 2.0 - phase * 2);
+                return Transform.translate(offset: Offset(0, y), child: child);
               },
               child: Container(
                 width: 4,
                 height: 4,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 1.5,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 1.5),
                 decoration: BoxDecoration(
                   color: widget.color.withAlpha(200),
                   shape: BoxShape.circle,
@@ -414,18 +344,16 @@ class _AppBarTypingIndicatorState
               ),
             );
           }),
-          if (widget.label != null &&
-              widget.label!.isNotEmpty) ...[
+          if (widget.label != null && widget.label!.isNotEmpty) ...[
             const SizedBox(width: AppSpacing.xs),
             Text(
               widget.label!,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(
-                    color: cs.primary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: AppFontSize.xs,
-                    height: 1.2,
-                  ),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.primary,
+                fontWeight: FontWeight.w500,
+                fontSize: AppFontSize.xs,
+                height: 1.2,
+              ),
             ),
           ],
         ],

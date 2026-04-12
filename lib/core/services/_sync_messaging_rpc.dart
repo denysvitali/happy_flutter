@@ -12,8 +12,7 @@ extension SyncMessagingRpc on Sync {
       unawaited(
         Sentry.addBreadcrumb(
           Breadcrumb(
-            message:
-                'machineRPC: encryption null, awaiting machines',
+            message: 'machineRPC: encryption null, awaiting machines',
             category: 'sync.machines',
             data: {'machineId': machineId, 'method': method},
           ),
@@ -744,6 +743,16 @@ extension SyncMessagingRpc on Sync {
     final since = s.metadata?.lifecycleStateSince;
     if (since == null) return false;
     return DateTime.now().millisecondsSinceEpoch - since < 120000;
+  }
+
+  /// Whether the session currently looks reachable for incoming messages.
+  ///
+  /// This cross-checks ephemeral keep-alives with lifecycle metadata instead
+  /// of trusting raw `presence == 'online'` by itself.
+  bool isSessionReadyForMessages(String sessionId) {
+    final session = _sessions[sessionId];
+    if (session == null) return false;
+    return _isSessionReady(session);
   }
 
   /// Wait for agent to be ready.

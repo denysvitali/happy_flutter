@@ -273,29 +273,107 @@ void main() {
     });
 
     testWidgets('shows status text for online session', (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', const []);
       sync.testSessions['session_1'] = _makeSession(presence: 'online');
+      sync.testSetLastEphemeralAt(
+        'session_1',
+        DateTime.now().millisecondsSinceEpoch,
+      );
 
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-      // The status should show "Online" for online sessions
-      // The ChatAppBar reads status from _getStatusText
-      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.text('Connected'), findsOneWidget);
+      expect(find.text('Ready'), findsOneWidget);
     });
 
-    testWidgets('shows status text for thinking session', (tester) async {
+    testWidgets('shows provider-specific working status', (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', const []);
-      sync.testSessions['session_1'] = _makeSession(thinking: true);
+      sync.testSessions['session_1'] =
+          _makeSession(thinking: true, presence: 'online').copyWith(
+            metadata: const Metadata(
+              host: 'host',
+              flavor: 'codex',
+              machineId: 'machine-1',
+              path: '/repo',
+            ),
+          );
+      sync.testSetLastEphemeralAt(
+        'session_1',
+        DateTime.now().millisecondsSinceEpoch,
+      );
 
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.text('Codex working'), findsOneWidget);
+      expect(find.text('Claude is thinking...'), findsNothing);
+    });
+
+    testWidgets('shows offline and last seen chips for offline session', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] =
+          _makeSession(
+            updatedAt: DateTime.now()
+                .subtract(const Duration(minutes: 5))
+                .millisecondsSinceEpoch,
+          ).copyWith(
+            activeAt: DateTime.now()
+                .subtract(const Duration(minutes: 5))
+                .millisecondsSinceEpoch,
+          );
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Offline'), findsOneWidget);
+      expect(find.text('Last seen 5m ago'), findsOneWidget);
+    });
+
+    testWidgets('shows delivery status chips for latest outgoing message', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'local-1',
+          'localId': 'local-1',
+          'role': 'user',
+          'content': 'Hello',
+          'sendStatus': 'sent',
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession(presence: 'online');
+      sync.testSetLastEphemeralAt(
+        'session_1',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Delivered'), findsAtLeastNWidgets(1));
     });
 
     testWidgets('renders multiple messages in correct order', (tester) async {

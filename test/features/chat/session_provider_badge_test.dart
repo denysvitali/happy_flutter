@@ -42,9 +42,13 @@ void main() {
           appBar: ChatAppBar(
             session: _session(flavor: 'codex'),
             sessionTitle: 'Workspace',
-            statusText: 'Online',
-            statusColor: Colors.green,
-            isThinking: false,
+            statusChips: const [
+              ChatAppBarStatusChip(
+                text: 'Connected',
+                color: Colors.green,
+                showDot: true,
+              ),
+            ],
             onMenuTap: () {},
             onInfoTap: () {},
             sessionId: 'session-1',

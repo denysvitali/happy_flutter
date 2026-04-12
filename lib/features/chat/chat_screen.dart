@@ -644,21 +644,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return 'Chat';
   }
 
-  String _getStatusText(BuildContext context) {
-    final session = _session;
-    if (session == null) return '';
+  String _formatLastSeenLabel(BuildContext context, int activeAt) {
     final l10n = context.l10n;
-
-    final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
-    if (hasRequests) return l10n.chatPermissionRequired;
-
-    if (session.thinking) return l10n.chatThinking;
-
-    if (session.presence == 'online') {
-      return l10n.chatOnline;
-    }
-
-    final lastSeen = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+    final lastSeen = DateTime.fromMillisecondsSinceEpoch(activeAt);
     final diff = DateTime.now().difference(lastSeen);
     if (diff.inMinutes < 1) return l10n.chatLastSeenJustNow;
     if (diff.inMinutes < 60) {
@@ -670,24 +658,167 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return l10n.chatLastSeenDays(diff.inDays);
   }
 
-  Color _getStatusColor(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final session = _session;
-    if (session == null) return colorScheme.outline;
+  String _agentWorkingLabel() {
+    final flavor = _session?.metadata?.flavor?.toLowerCase();
+    switch (flavor) {
+      case 'codex':
+        return 'Codex working';
+      case 'gemini':
+        return 'Gemini working';
+      case 'claude':
+        return 'Claude working';
+      default:
+        return 'Agent working';
+    }
+  }
 
-    if (session.agentState?.requests?.isNotEmpty ?? false) {
-      return AppColors.info;
+  Map<String, dynamic>? _latestUserMessageWithStatus() {
+    for (var i = _messages.length - 1; i >= 0; i--) {
+      final message = _messages[i];
+      if (message['role'] != 'user') continue;
+      final status = message['sendStatus'] as String?;
+      if (status == null || status.isEmpty) continue;
+      return message;
     }
-    if (session.thinking) return colorScheme.primary;
-    if (session.presence == 'online') {
-      return AppColors.success;
+    return null;
+  }
+
+  List<ChatAppBarStatusChip> _buildStatusChips(BuildContext context) {
+    final session = _session;
+    if (session == null) return const [];
+
+    final chips = <ChatAppBarStatusChip>[];
+    final colorScheme = Theme.of(context).colorScheme;
+    final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
+    final isReady = sync.isSessionReadyForMessages(session.id);
+    final lifecycleState = session.metadata?.lifecycleState;
+    final lifecycleSince = session.metadata?.lifecycleStateSince;
+    final lifecycleIsRecent =
+        lifecycleSince != null &&
+        DateTime.now().millisecondsSinceEpoch - lifecycleSince < 120000;
+    final isConnecting =
+        !isReady &&
+        lifecycleIsRecent &&
+        (lifecycleState == 'starting' || lifecycleState == 'running');
+
+    if (isReady) {
+      chips.add(
+        const ChatAppBarStatusChip(
+          text: 'Connected',
+          color: AppColors.success,
+          showDot: true,
+          pulse: true,
+        ),
+      );
+    } else if (isConnecting) {
+      chips.add(
+        ChatAppBarStatusChip(
+          text: 'Connecting',
+          color: colorScheme.primary,
+          icon: Icons.sync_rounded,
+        ),
+      );
+    } else {
+      chips.add(
+        ChatAppBarStatusChip(
+          text: 'Offline',
+          color: colorScheme.outline,
+          icon: Icons.cloud_off_rounded,
+        ),
+      );
+      chips.add(
+        ChatAppBarStatusChip(
+          text: _formatLastSeenLabel(context, session.activeAt),
+          color: colorScheme.onSurfaceVariant,
+          icon: Icons.schedule_rounded,
+        ),
+      );
     }
-    return colorScheme.outline;
+
+    if (hasRequests) {
+      chips.add(
+        const ChatAppBarStatusChip(
+          text: 'Approval needed',
+          color: AppColors.warning,
+          icon: Icons.shield_outlined,
+        ),
+      );
+    } else if (session.thinking) {
+      chips.add(
+        ChatAppBarStatusChip(
+          text: _agentWorkingLabel(),
+          color: colorScheme.primary,
+          icon: Icons.auto_awesome_rounded,
+        ),
+      );
+    } else if (isReady) {
+      chips.add(
+        ChatAppBarStatusChip(
+          text: 'Ready',
+          color: colorScheme.onSurfaceVariant,
+          icon: Icons.check_circle_outline_rounded,
+        ),
+      );
+    }
+
+    final latestUserMessage = _latestUserMessageWithStatus();
+    final sendStatus = latestUserMessage?['sendStatus'] as String?;
+    if (sendStatus != null) {
+      switch (sendStatus) {
+        case 'sending':
+          chips.add(
+            ChatAppBarStatusChip(
+              text: 'Sending',
+              color: colorScheme.onSurfaceVariant,
+              icon: Icons.arrow_upward_rounded,
+            ),
+          );
+          break;
+        case 'pending':
+          chips.add(
+            const ChatAppBarStatusChip(
+              text: 'Retry queued',
+              color: AppColors.warning,
+              icon: Icons.schedule_rounded,
+            ),
+          );
+          break;
+        case 'sent':
+          chips.add(
+            ChatAppBarStatusChip(
+              text: 'Delivered',
+              color: colorScheme.primary,
+              icon: Icons.done_all_rounded,
+            ),
+          );
+          break;
+        case 'failed':
+          chips.add(
+            const ChatAppBarStatusChip(
+              text: 'Not delivered',
+              color: AppColors.error,
+              icon: Icons.error_outline_rounded,
+            ),
+          );
+          break;
+      }
+    }
+
+    if (_modelMode != ClaudeModel.defaultModel) {
+      chips.add(
+        ChatAppBarStatusChip(
+          text: _modelMode.label,
+          color: colorScheme.onSurfaceVariant,
+          icon: Icons.tune_rounded,
+        ),
+      );
+    }
+
+    return chips;
   }
 
   @override
   Widget build(BuildContext context) {
-    final isThinking = _session?.thinking ?? false;
     final availableModels = ClaudeModel.availableForProfile(
       flavor: _session?.metadata?.flavor,
       claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
@@ -724,14 +855,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         appBar: ChatAppBar(
           session: _session,
           sessionTitle: _getSessionTitle(),
-          statusText: _getStatusText(context),
-          statusColor: _getStatusColor(context),
-          isThinking: isThinking,
+          statusChips: _buildStatusChips(context),
           sessionId: widget.sessionId,
           avatarStyle: avatarStyle,
-          modelLabel: _modelMode == ClaudeModel.defaultModel
-              ? null
-              : _modelMode.label,
           onInfoTap: () {
             HapticFeedback.lightImpact();
             context.pushNamed(

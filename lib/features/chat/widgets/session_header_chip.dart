@@ -7,6 +7,9 @@ class SessionHeaderChip extends StatelessWidget {
   const SessionHeaderChip({
     required this.text,
     this.leading,
+    this.textColor,
+    this.backgroundColor,
+    this.borderColor,
     super.key,
   });
 
@@ -16,22 +19,29 @@ class SessionHeaderChip extends StatelessWidget {
   /// Optional leading widget (typically an icon or status dot)
   final Widget? leading;
 
+  /// Optional text color override.
+  final Color? textColor;
+
+  /// Optional background color override.
+  final Color? backgroundColor;
+
+  /// Optional border color override.
+  final Color? borderColor;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final resolvedTextColor = textColor ?? cs.onSurfaceVariant;
+    final resolvedBackgroundColor =
+        backgroundColor ?? cs.surfaceContainerHighest.withValues(alpha: 0.5);
+    final resolvedBorderColor =
+        borderColor ?? cs.outlineVariant.withValues(alpha: 0.3);
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 7,
-        vertical: 2.5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest
-            .withValues(alpha: 0.5),
+        color: resolvedBackgroundColor,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.3),
-          width: 0.5,
-        ),
+        border: Border.all(color: resolvedBorderColor, width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -41,7 +51,7 @@ class SessionHeaderChip extends StatelessWidget {
             child: Text(
               text,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
+                color: resolvedTextColor,
                 fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
