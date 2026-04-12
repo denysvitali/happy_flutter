@@ -3,6 +3,41 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
+/// Shared 1-second ticker that all [ElapsedTimeWidget] and [ElapsedTime]
+/// instances subscribe to.  Without this, each tool card creates its own
+/// [Timer.periodic], leading to 10+ timers (and 10+ setState calls)
+/// firing every second during tool execution.
+final _sharedTicker = _SharedTicker();
+
+class _SharedTicker {
+  Timer? _timer;
+  int _subscriberCount = 0;
+  final _notifier = ValueNotifier<int>(
+    DateTime.now().millisecondsSinceEpoch,
+  );
+
+  ValueNotifier<int> get notifier => _notifier;
+
+  void subscribe() {
+    _subscriberCount++;
+    if (_timer == null) {
+      _notifier.value = DateTime.now().millisecondsSinceEpoch;
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        _notifier.value = DateTime.now().millisecondsSinceEpoch;
+      });
+    }
+  }
+
+  void unsubscribe() {
+    _subscriberCount--;
+    if (_subscriberCount <= 0) {
+      _subscriberCount = 0;
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+}
+
 /// Timer widget that updates every second to show elapsed time.
 class ElapsedTimeWidget extends StatefulWidget {
 
@@ -18,68 +53,63 @@ class ElapsedTimeWidget extends StatefulWidget {
 }
 
 class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
-  int _elapsedSeconds = 0;
-  Timer? _timer;
-
   @override
   void initState() {
     super.initState();
-    _updateElapsed();
+    if (widget.startTime != null) _sharedTicker.subscribe();
   }
 
   @override
   void didUpdateWidget(ElapsedTimeWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.startTime != widget.startTime) {
-      _timer?.cancel();
-      _timer = null;
-      _updateElapsed();
+    if (oldWidget.startTime == null && widget.startTime != null) {
+      _sharedTicker.subscribe();
+    } else if (oldWidget.startTime != null && widget.startTime == null) {
+      _sharedTicker.unsubscribe();
     }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _timer = null;
+    if (widget.startTime != null) _sharedTicker.unsubscribe();
     super.dispose();
-  }
-
-  void _updateElapsed() {
-    if (widget.startTime == null) {
-      _timer?.cancel();
-      _timer = null;
-      if (mounted) setState(() => _elapsedSeconds = 0);
-      return;
-    }
-
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final elapsed = ((now - widget.startTime!) / 1000).floor();
-    if (mounted) {
-      setState(
-        () => _elapsedSeconds = elapsed.clamp(0, double.maxFinite).toInt(),
-      );
-    }
-
-    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      _updateElapsed();
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final effectiveStyle =
-        widget.style ??
-        TextStyle(
-          fontSize: AppFontSize.md,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontFamily: 'monospace',
-        );
+    final startTime = widget.startTime;
+    if (startTime == null) {
+      return Text(
+        '0s',
+        style: widget.style ??
+            TextStyle(
+              fontSize: AppFontSize.md,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontFamily: 'monospace',
+            ),
+      );
+    }
 
     return RepaintBoundary(
-      child: Text(
-        '${_elapsedSeconds.toStringAsFixed(1)}s',
-        style: effectiveStyle,
+      child: ValueListenableBuilder<int>(
+        valueListenable: _sharedTicker.notifier,
+        builder: (context, nowMs, _) {
+          final elapsed = ((nowMs - startTime) / 1000).floor().clamp(
+            0,
+            999999,
+          );
+          return Text(
+            '${elapsed}s',
+            style: widget.style ??
+                TextStyle(
+                  fontSize: AppFontSize.md,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurfaceVariant,
+                  fontFamily: 'monospace',
+                ),
+          );
+        },
       ),
     );
   }
@@ -108,7 +138,10 @@ class ElapsedTime extends StatelessWidget {
 
 class _ElapsedTimeBuilder extends StatefulWidget {
 
-  const _ElapsedTimeBuilder({required this.startTime, required this.builder});
+  const _ElapsedTimeBuilder({
+    required this.startTime,
+    required this.builder,
+  });
   final int? startTime;
   final Widget Function(BuildContext context, int elapsedSeconds) builder;
 
@@ -117,56 +150,43 @@ class _ElapsedTimeBuilder extends StatefulWidget {
 }
 
 class _ElapsedTimeBuilderState extends State<_ElapsedTimeBuilder> {
-  int _elapsedSeconds = 0;
-  Timer? _timer;
-
   @override
   void initState() {
     super.initState();
-    _updateElapsed();
+    if (widget.startTime != null) _sharedTicker.subscribe();
   }
 
   @override
   void didUpdateWidget(_ElapsedTimeBuilder oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.startTime != widget.startTime) {
-      _timer?.cancel();
-      _timer = null;
-      _updateElapsed();
+    if (oldWidget.startTime == null && widget.startTime != null) {
+      _sharedTicker.subscribe();
+    } else if (oldWidget.startTime != null && widget.startTime == null) {
+      _sharedTicker.unsubscribe();
     }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _timer = null;
+    if (widget.startTime != null) _sharedTicker.unsubscribe();
     super.dispose();
-  }
-
-  void _updateElapsed() {
-    if (widget.startTime == null) {
-      _timer?.cancel();
-      _timer = null;
-      if (mounted) setState(() => _elapsedSeconds = 0);
-      return;
-    }
-
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final elapsed = ((now - widget.startTime!) / 1000).floor();
-    if (mounted) {
-      setState(
-        () => _elapsedSeconds = elapsed.clamp(0, double.maxFinite).toInt(),
-      );
-    }
-
-    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      _updateElapsed();
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.builder(context, _elapsedSeconds);
+    final startTime = widget.startTime;
+    if (startTime == null) {
+      return widget.builder(context, 0);
+    }
+    return ValueListenableBuilder<int>(
+      valueListenable: _sharedTicker.notifier,
+      builder: (context, nowMs, _) {
+        final elapsed = ((nowMs - startTime) / 1000).floor().clamp(
+          0,
+          999999,
+        );
+        return widget.builder(context, elapsed);
+      },
+    );
   }
 }
