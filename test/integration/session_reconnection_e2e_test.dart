@@ -547,6 +547,83 @@ void main() {
         expect(seqs, contains(i), reason: 'msg seq=$i should be restored');
       }
     });
+
+    test(
+      'suspend then resume recovers non-visible session messages '
+      'from pending socket id-only events',
+      () async {
+        const sessionId = 'resume-non-visible-session';
+
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
+        sync.testSetSessionLastSeq(sessionId, 10);
+        sync.testSetSessionMessages(sessionId, [
+          for (var i = 1; i <= 10; i++) _makePlainMessage('msg-$i', seq: i),
+        ]);
+        sync.testVisibleSessionId = 'some-other-session';
+
+        // Regression target: if a non-visible session only receives the
+        // id-only new-message socket event, foreground recovery must still
+        // fetch the missing messages after resume.
+        sync.handleUpdate({'t': 'new-message', 'sid': sessionId});
+
+        expect(
+          sync.testHasPendingSocketMessage(sessionId),
+          isTrue,
+          reason:
+              'id-only socket events must mark the non-visible session '
+              'for foreground recovery',
+        );
+
+        final afterSeqs = <int>[];
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          if (sid == sessionId) {
+            afterSeqs.add(afterSeq);
+            return _buildMessagesResponse([
+              for (var i = 11; i <= 15; i++)
+                _makeEncryptedMessage('msg-$i', seq: i),
+            ]);
+          }
+          return _buildMessagesResponse(const <Map<String, dynamic>>[]);
+        };
+
+        sync.suspend();
+        sync.resume();
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        await sync.messagesSync[sessionId]?.awaitQueue();
+
+        expect(
+          afterSeqs,
+          isNotEmpty,
+          reason:
+              'resume must trigger a fetch for non-visible sessions that '
+              'only had pending socket markers',
+        );
+        expect(
+          afterSeqs.first,
+          0,
+          reason:
+              'resume currently forces a tail refresh for non-visible '
+              'pending-socket recovery so the server can fill any gap '
+              'that opened while the app was backgrounded',
+        );
+        expect(
+          sync.testHasPendingSocketMessage(sessionId),
+          isFalse,
+          reason: 'pending socket marker should be cleared after recovery',
+        );
+
+        final msgs = sync.testSessionMessages(sessionId);
+        expect(msgs, isNotNull);
+        final seqs = msgs!.map((m) => m['seq'] as int).toSet();
+        for (var i = 11; i <= 15; i++) {
+          expect(
+            seqs,
+            contains(i),
+            reason: 'msg seq=$i should be restored after resume',
+          );
+        }
+      },
+    );
   });
 }
 
