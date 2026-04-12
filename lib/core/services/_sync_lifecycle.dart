@@ -283,7 +283,9 @@ extension SyncLifecycle on Sync {
                 .toList();
           }
           for (final sessionId in pendingSessionIds) {
-            _sessionsNeedingTailRefresh.add(sessionId);
+            if (_shouldForceTailRefreshForPendingSession(sessionId)) {
+              _sessionsNeedingTailRefresh.add(sessionId);
+            }
             sessionsToRefresh.add(sessionId);
           }
           logger.info(

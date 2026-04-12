@@ -705,6 +705,19 @@ extension SyncMessagingRpc on Sync {
     _sessionsNeedingTailRefresh.add(sessionId);
   }
 
+  bool _shouldForceTailRefreshForPendingSession(String sessionId) {
+    final hasMessages =
+        _sessionMessages.containsKey(sessionId) &&
+        (_sessionMessages[sessionId]?.isNotEmpty ?? false);
+    if (!hasMessages) {
+      return true;
+    }
+
+    final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+    final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+    return cursorSeq <= 0 || serverLastSeq <= 0;
+  }
+
   int _tailAfterSeqForSession(String sessionId) {
     return _cursorManager.tailAfterSeq(
       sessionId,

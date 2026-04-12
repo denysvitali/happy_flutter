@@ -600,11 +600,11 @@ void main() {
         );
         expect(
           afterSeqs.first,
-          0,
+          10,
           reason:
-              'resume currently forces a tail refresh for non-visible '
-              'pending-socket recovery so the server can fill any gap '
-              'that opened while the app was backgrounded',
+              'resume should reuse the incremental cursor path when '
+              'the non-visible session already has messages in memory '
+              'and a valid cursor',
         );
         expect(
           sync.testHasPendingSocketMessage(sessionId),
@@ -622,6 +622,58 @@ void main() {
             reason: 'msg seq=$i should be restored after resume',
           );
         }
+      },
+    );
+
+    test(
+      'suspend then resume tail-refreshes pending non-visible sessions '
+      'when local state is missing',
+      () async {
+        const sessionId = 'resume-non-visible-first-load';
+
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
+        sync.testSetSessionLastSeq(sessionId, 0);
+        sync.testVisibleSessionId = 'some-other-session';
+
+        sync.handleUpdate({'t': 'new-message', 'sid': sessionId});
+
+        expect(
+          sync.testHasPendingSocketMessage(sessionId),
+          isTrue,
+          reason:
+              'id-only socket events must still mark first-load sessions '
+              'for foreground recovery',
+        );
+
+        final afterSeqs = <int>[];
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          if (sid == sessionId) {
+            afterSeqs.add(afterSeq);
+            return _buildMessagesResponse([
+              for (var i = 11; i <= 15; i++)
+                _makeEncryptedMessage('msg-$i', seq: i),
+            ]);
+          }
+          return _buildMessagesResponse(const <Map<String, dynamic>>[]);
+        };
+
+        sync.suspend();
+        sync.resume();
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        await sync.messagesSync[sessionId]?.awaitQueue();
+
+        expect(
+          afterSeqs,
+          isNotEmpty,
+          reason: 'resume should fetch messages for the pending session',
+        );
+        expect(
+          afterSeqs.first,
+          0,
+          reason:
+              'resume should still force a tail refresh when there is no '
+              'usable local message state to continue from',
+        );
       },
     );
   });

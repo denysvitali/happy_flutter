@@ -618,6 +618,84 @@ void main() {
     });
 
     test(
+      'resume() keeps pending non-visible sessions on delta path '
+      'when local state is usable',
+      () {
+        fakeAsync((async) {
+          const sessionId = 'resume-valid-local-state';
+
+          sync.testSessions[sessionId] = Session(
+            id: sessionId,
+            seq: 1,
+            createdAt: 1700000000000,
+            updatedAt: 1700000000000,
+            active: true,
+            activeAt: 1700000000000,
+            metadataVersion: 1,
+            agentStateVersion: 1,
+            thinking: false,
+            presence: 'offline',
+            lastSeq: 15,
+          );
+          sync.testSetSessionLastSeq(sessionId, 10);
+          sync.testSetSessionMessages(sessionId, [
+            {'id': 'msg-10', 'role': 'agent', 'seq': 10},
+          ]);
+          sync.testSetPendingSocketMessages({sessionId});
+          sync.sessionsSync = InvalidateSync(() async {});
+
+          sync.resume();
+          async.elapse(const Duration(milliseconds: 1600));
+
+          expect(
+            sync.testSessionsNeedingTailRefresh().contains(sessionId),
+            isFalse,
+            reason:
+                'resume should preserve the incremental cursor path when '
+                'messages are already in memory and the cursor is valid',
+          );
+        });
+      },
+    );
+
+    test(
+      'resume() still tail-refreshes pending non-visible sessions '
+      'without usable local state',
+      () {
+        fakeAsync((async) {
+          const sessionId = 'resume-missing-local-state';
+
+          sync.testSessions[sessionId] = Session(
+            id: sessionId,
+            seq: 1,
+            createdAt: 1700000000000,
+            updatedAt: 1700000000000,
+            active: true,
+            activeAt: 1700000000000,
+            metadataVersion: 1,
+            agentStateVersion: 1,
+            thinking: false,
+            presence: 'offline',
+            lastSeq: 15,
+          );
+          sync.testSetPendingSocketMessages({sessionId});
+          sync.sessionsSync = InvalidateSync(() async {});
+
+          sync.resume();
+          async.elapse(const Duration(milliseconds: 1600));
+
+          expect(
+            sync.testSessionsNeedingTailRefresh().contains(sessionId),
+            isTrue,
+            reason:
+                'resume must keep the tail-refresh fallback when no local '
+                'messages or cursor are available',
+          );
+        });
+      },
+    );
+
+    test(
       'resume() preserves the sessions delta cursor after a long suspend',
       () {
         fakeAsync((async) {
