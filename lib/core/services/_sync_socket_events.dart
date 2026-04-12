@@ -512,6 +512,7 @@ extension SyncSocketEvents on Sync {
       _postSendCatchUpTimers.remove(sessionId)?.cancel();
       _loadingOlderMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
+      _invalidatePreviewCache(sessionId);
       _sessionMessagesCache = null;
       _sessionMessagesViewCache.remove(sessionId);
       _todoLists.remove(sessionId);

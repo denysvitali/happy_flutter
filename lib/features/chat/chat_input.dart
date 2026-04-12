@@ -167,7 +167,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   String _previousText = '';
   bool _showAutocomplete = false;
-  bool _isFocused = false;
+  final ValueNotifier<bool> _isFocused = ValueNotifier<bool>(false);
 
   late final AnimationController _sendScaleController;
   late final Animation<double> _sendScale;
@@ -211,6 +211,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   void dispose() {
     _sendScaleController.dispose();
     _draftAutoSave.dispose();
+    _isFocused.dispose();
     widget.controller.removeListener(_onTextChanged);
     _focusNode
       ..removeListener(_onFocusChanged)
@@ -312,7 +313,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   void _onFocusChanged() {
-    setState(() => _isFocused = _focusNode.hasFocus);
+    _isFocused.value = _focusNode.hasFocus;
     if (!_focusNode.hasFocus) _draftAutoSave.saveNow();
   }
 
@@ -475,22 +476,30 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Widget _buildCardInputArea(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
-    final borderColor = _isFocused
-        ? cs.primary.withValues(alpha: 0.4)
-        : cs.outlineVariant.withValues(alpha: 0.4);
     final cardColor = cs.surfaceContainerLow;
 
-    return AnimatedContainer(
-      duration: kBorderAnimDuration,
-      curve: AppCurve.standard,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: _containerRadius,
-        border: Border.all(color: borderColor, width: 0.5),
-        boxShadow: _cardBoxShadow,
-      ),
+    // Only the border color depends on focus state — wrap in a
+    // ValueListenableBuilder so focus changes don't rebuild the
+    // entire ChatInput tree.
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isFocused,
+      builder: (context, isFocused, child) {
+        final borderColor = isFocused
+            ? cs.primary.withValues(alpha: 0.4)
+            : cs.outlineVariant.withValues(alpha: 0.4);
+        return AnimatedContainer(
+          duration: kBorderAnimDuration,
+          curve: AppCurve.standard,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: _containerRadius,
+            border: Border.all(color: borderColor, width: 0.5),
+            boxShadow: _cardBoxShadow,
+          ),
+          child: child,
+        );
+      },
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [

@@ -266,6 +266,14 @@ what you have, you must use the options mode.
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   final Map<String, Map<String, String?>> _sessionContentSignatures = {};
   Map<String, List<Map<String, dynamic>>>? _sessionMessagesCache;
+
+  /// Cached preview metadata per session — avoids rescanning
+  /// the full message list on every session-card build.
+  /// Invalidated when messages change via [_invalidatePreviewCache].
+  final Map<String, ({int? timestamp, String? preview, String? role})>
+      _previewCache = {};
+  /// Identity of the message list when the preview was computed.
+  final Map<String, int> _previewCacheVersion = {};
   final Map<String, List<Map<String, dynamic>>> _sessionMessagesViewCache = {};
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
   Settings _settingsSnapshot = Settings();
@@ -509,14 +517,8 @@ what you have, you must use the options mode.
 
   /// Returns the timestamp of the last message in a session, or null if
   /// there are no messages.
-  int? getLastMessageTimestamp(String sessionId) {
-    final messages = _sessionMessages[sessionId];
-    if (messages == null || messages.isEmpty) return null;
-    // Messages are stored in ascending seq order, so the last one has the
-    // highest seq (most recent).
-    final lastMessage = messages.last;
-    return lastMessage['createdAt'] as int?;
-  }
+  int? getLastMessageTimestamp(String sessionId) =>
+      _ensurePreviewCache(sessionId).timestamp;
 
   /// Returns a brief preview of the last message in a session.
   ///
@@ -524,56 +526,73 @@ what you have, you must use the options mode.
   /// with non-empty text content. Strips markdown, collapses
   /// whitespace, and truncates to [_kPreviewMaxLen] characters.
   /// Returns null when no suitable preview is available.
-  String? getLastMessagePreview(String sessionId) {
-    final messages = _sessionMessages[sessionId];
-    if (messages == null || messages.isEmpty) return null;
-    String? toolFallback;
-    for (var i = messages.length - 1; i >= 0; i--) {
-      final msg = messages[i];
-      // Skip sidechain messages — they appear inside the agent
-      // conversation screen, not in the main chat.
-      if (msg['isSidechain'] == true) continue;
-      final role = msg['role'] as String?;
-      if (role != MessageRole.agent && role != MessageRole.user) continue;
-      final kind = msg['kind'] as String?;
-      if (kind == 'tool-call') {
-        toolFallback ??= _toolPreview(msg);
-        continue;
-      }
-      if (kind == 'agent-event') continue;
-      // Skip thinking blocks — they are collapsed in the UI and
-      // don't represent the final assistant response.
-      if (msg['isThinking'] == true) continue;
-      final text = (msg['content'] ?? msg['text']) as String?;
-      if (text != null && text.trim().isNotEmpty) {
-        return _cleanPreviewText(text.trim());
-      }
-    }
-    return toolFallback;
-  }
+  String? getLastMessagePreview(String sessionId) =>
+      _ensurePreviewCache(sessionId).preview;
 
   /// Returns the role ([MessageRole.user] or [MessageRole.agent]) of
   /// the message used by [getLastMessagePreview], or null.
-  String? getLastMessageRole(String sessionId) {
+  String? getLastMessageRole(String sessionId) =>
+      _ensurePreviewCache(sessionId).role;
+
+  /// Invalidates the preview cache for a session so the next call
+  /// to [getLastMessagePreview] etc. will rescan.
+  void _invalidatePreviewCache(String sessionId) {
+    _previewCache.remove(sessionId);
+    _previewCacheVersion.remove(sessionId);
+  }
+
+  ({int? timestamp, String? preview, String? role}) _ensurePreviewCache(
+    String sessionId,
+  ) {
     final messages = _sessionMessages[sessionId];
-    if (messages == null || messages.isEmpty) return null;
+    if (messages == null || messages.isEmpty) {
+      return (timestamp: null, preview: null, role: null);
+    }
+    // Use list identity + length as a cheap version check.
+    final version = identityHashCode(messages) ^ messages.length;
+    if (_previewCacheVersion[sessionId] == version) {
+      return _previewCache[sessionId]!;
+    }
+
+    // Compute all three in a single backward scan.
+    final timestamp = messages.last['createdAt'] as int?;
+    String? preview;
+    String? role;
+    String? toolFallback;
+    String? toolFallbackRole;
     var sawToolCall = false;
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
       if (msg['isSidechain'] == true) continue;
-      final role = msg['role'] as String?;
-      if (role != MessageRole.agent && role != MessageRole.user) continue;
+      final msgRole = msg['role'] as String?;
+      if (msgRole != MessageRole.agent && msgRole != MessageRole.user) {
+        continue;
+      }
       final kind = msg['kind'] as String?;
       if (kind == 'tool-call') {
         sawToolCall = true;
+        if (toolFallback == null) {
+          toolFallback = _toolPreview(msg);
+          toolFallbackRole = msgRole;
+        }
         continue;
       }
       if (kind == 'agent-event') continue;
       if (msg['isThinking'] == true) continue;
       final text = (msg['content'] ?? msg['text']) as String?;
-      if (text != null && text.trim().isNotEmpty) return role;
+      if (text != null && text.trim().isNotEmpty) {
+        preview = _cleanPreviewText(text.trim());
+        role = msgRole;
+        break;
+      }
     }
-    return sawToolCall ? MessageRole.agent : null;
+    preview ??= toolFallback;
+    role ??= toolFallbackRole ?? (sawToolCall ? MessageRole.agent : null);
+
+    final result = (timestamp: timestamp, preview: preview, role: role);
+    _previewCache[sessionId] = result;
+    _previewCacheVersion[sessionId] = version;
+    return result;
   }
 
   static const _kPreviewMaxLen = 120;

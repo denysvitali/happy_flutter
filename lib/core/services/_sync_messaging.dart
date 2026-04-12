@@ -905,6 +905,7 @@ extension SyncMessaging on Sync {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     _loadingOlderMessages.remove(sessionId);
     _sessionMessages.remove(sessionId);
+    _invalidatePreviewCache(sessionId);
     _sessionContentSignatures.remove(sessionId);
     _sessionMessagesCache = null;
     _sessionMessagesViewCache.remove(sessionId);

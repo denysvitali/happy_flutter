@@ -516,6 +516,8 @@ extension SyncLifecycle on Sync {
     }
     _saveMsgsDebounceTimers.clear();
     _sessionMessages.clear();
+    _previewCache.clear();
+    _previewCacheVersion.clear();
     _sessionMessagesCache = null;
     _sessionMessagesViewCache.clear();
     _optimisticallyArchivedSessions.clear();
