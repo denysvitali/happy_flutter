@@ -104,30 +104,39 @@ extension SyncDataMachines on Sync {
     if (type == 'machine-activity' || type == 'machine_activity') {
       final machineId = sessionId; // parsed as 'id' above
       final machine = _machines[machineId];
-      if (machine != null) {
-        final eventActiveAt = payload['activeAt'] is int
-            ? payload['activeAt'] as int
-            : payload['activeAt'] is double
-            ? (payload['activeAt'] as double).toInt()
-            : null;
-        final active = payload['active'] as bool?;
-        // If the server says the machine is active but omits activeAt,
-        // use the current time so the client-side 120 s window stays
-        // fresh.
-        final now = DateTime.now().millisecondsSinceEpoch;
-        final activeAt = eventActiveAt ?? ((active ?? false) ? now : null);
-        logger.debug(
-          '[machine-activity] machineId=$machineId '
-          'active=$active activeAt=$activeAt '
-          '(eventActiveAt=$eventActiveAt)',
+      final eventActiveAt = payload['activeAt'] is int
+          ? payload['activeAt'] as int
+          : payload['activeAt'] is double
+          ? (payload['activeAt'] as double).toInt()
+          : null;
+      final active = payload['active'] as bool?;
+      // If the server says the machine is active but omits activeAt,
+      // use the current time so the client-side 120 s window stays
+      // fresh.
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final activeAt = eventActiveAt ?? ((active ?? false) ? now : null);
+      logger.debug(
+        '[machine-activity] machineId=$machineId '
+        'active=$active activeAt=$activeAt '
+        '(eventActiveAt=$eventActiveAt)',
+      );
+      if (machine == null) {
+        // A daemon can come online while the app is already running.
+        // The first signal is usually machine-activity, not update-machine,
+        // so refresh the catalog when we see activity for an unknown machine.
+        logger.info(
+          '[machine-activity] unknown machineId=$machineId '
+          '-- scheduling machines refresh',
         );
-        if (activeAt != null || active != null) {
-          _machines[machineId] = machine.copyWith(
-            active: active ?? machine.active,
-            activeAt: activeAt ?? machine.activeAt,
-          );
-          _notifyDataChanged({SyncDomain.machines});
-        }
+        _scheduleMachinesRefresh();
+        return;
+      }
+      if (activeAt != null || active != null) {
+        _machines[machineId] = machine.copyWith(
+          active: active ?? machine.active,
+          activeAt: activeAt ?? machine.activeAt,
+        );
+        _notifyDataChanged({SyncDomain.machines});
       }
       return;
     }

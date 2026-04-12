@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
@@ -382,6 +383,38 @@ void main() {
       expect(machine.active, isFalse);
       // activeAt unchanged — allows 120s window to expire naturally
       expect(machine.activeAt, originalActiveAt);
+    });
+
+    test('machine-activity for unknown machine schedules machines refresh', () {
+      fakeAsync((async) {
+        final instance = Sync();
+        var machinesRefreshes = 0;
+        instance.machinesSync = InvalidateSync(() async {
+          machinesRefreshes++;
+        });
+
+        instance.handleEphemeralUpdate({
+          'type': 'machine-activity',
+          'id': 'm-new',
+          'active': true,
+        });
+
+        expect(
+          machinesRefreshes,
+          0,
+          reason: 'unknown machine activity should debounce refresh first',
+        );
+
+        async.elapse(const Duration(milliseconds: 300));
+
+        expect(
+          machinesRefreshes,
+          1,
+          reason:
+              'unknown machine activity must trigger a machines fetch so '
+              'newly connected daemons appear without a manual refresh',
+        );
+      });
     });
   });
 
