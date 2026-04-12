@@ -676,8 +676,21 @@ class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
   static const double _fontSize = AppFontSize.xs;
   static const double _lineHeight = 1.5;
   bool _expanded = false;
+  late int _lineCount;
 
-  int get _lineCount => '\n'.allMatches(widget.content).length + 1;
+  @override
+  void initState() {
+    super.initState();
+    _lineCount = '\n'.allMatches(widget.content).length + 1;
+  }
+
+  @override
+  void didUpdateWidget(_ExpandableCodeBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.content != widget.content) {
+      _lineCount = '\n'.allMatches(widget.content).length + 1;
+    }
+  }
 
   double get _maxHeight =>
       _collapsedLines * _fontSize * _lineHeight + AppSpacing.sm * 2;

@@ -550,7 +550,11 @@ extension SyncMessagingRpc on Sync {
     final needsVisibleRegroup = _sessionsNeedingVisibleRegroup.remove(
       sessionId,
     );
-    if (needsVisibleRegroup) {
+    // Also run deferred sidechain grouping from cold-start cache restore.
+    final needsSidechainRegroup = _sessionsNeedingSidechainRegroup.remove(
+      sessionId,
+    );
+    if (needsVisibleRegroup || needsSidechainRegroup) {
       final messages = _sessionMessages[sessionId];
       if (messages != null &&
           messages.any((message) => message['isSidechain'] == true)) {

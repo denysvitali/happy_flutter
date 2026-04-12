@@ -130,7 +130,15 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
   @override
   Widget build(BuildContext context) {
     final machine = ref.watch(machineByIdProvider(widget.machineId));
-    final sessions = ref.watch(sessionsNotifierProvider);
+    final sessions = ref.watch(
+      sessionsNotifierProvider.select(
+        (all) => Map.fromEntries(
+          all.entries.where(
+            (e) => e.value.metadata?.machineId == widget.machineId,
+          ),
+        ),
+      ),
+    );
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 

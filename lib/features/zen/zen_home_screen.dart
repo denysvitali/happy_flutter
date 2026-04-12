@@ -177,26 +177,30 @@ class _TodoItemCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDone = item.status.isTerminal;
 
-    return Opacity(
-      opacity: isDone ? AppOpacity.medium + 0.3 : 1.0,
-      child: AppCard(
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        onTap: isDone ? null : onTap,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
+    // Apply opacity via color alpha instead of wrapping the entire
+    // card in an Opacity widget (which forces a separate layer).
+    final alpha = isDone ? AppOpacity.medium + 0.3 : 1.0;
+    return AppCard(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      onTap: isDone ? null : onTap,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      child: Opacity(
+        opacity: alpha,
         child: Row(
           children: [
             _StatusIcon(status: item.status),
-            const SizedBox(width: AppSpacing.md),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 item.content,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  decoration: isDone ? TextDecoration.lineThrough : null,
+                  decoration:
+                      isDone ? TextDecoration.lineThrough : null,
                   decorationColor: theme.colorScheme.onSurface,
                   color: isDone
                       ? theme.colorScheme.onSurfaceVariant

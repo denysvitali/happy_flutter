@@ -71,6 +71,8 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
 
   List<CommandCategory> _filteredCategories = [];
   List<CommandItem> _allCommands = [];
+  /// Pre-computed start index per category so itemBuilder is O(1).
+  List<int> _categoryStartIndex = [];
 
   @override
   void initState() {
@@ -141,6 +143,17 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
           ),
         )
         .toList();
+
+    // Pre-compute category start indices so itemBuilder is O(1).
+    var runningIndex = 0;
+    _categoryStartIndex = List<int>.generate(
+      _filteredCategories.length,
+      (i) {
+        final start = runningIndex;
+        runningIndex += _filteredCategories[i].commands.length;
+        return start;
+      },
+    );
 
     // Reset selection if out of bounds
     if (_selectedIndex >= _allCommands.length) {
@@ -378,12 +391,8 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               final commandIndex = entry.key;
               final command = entry.value;
 
-              // Calculate global index
-              var globalIndex = 0;
-              for (var i = 0; i < categoryIndex; i++) {
-                globalIndex += _filteredCategories[i].commands.length;
-              }
-              globalIndex += commandIndex;
+              final globalIndex =
+                  _categoryStartIndex[categoryIndex] + commandIndex;
 
               return _CommandPaletteItem(
                 command: command,

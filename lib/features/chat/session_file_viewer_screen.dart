@@ -57,6 +57,7 @@ class SessionFileViewerScreen extends StatefulWidget {
 
 class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
   String? _content;
+  int _lineCount = 0;
   String? _error;
   bool _loading = false;
   bool _copied = false;
@@ -69,6 +70,7 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
     super.initState();
     if (widget.content != null && widget.content!.isNotEmpty) {
       _content = widget.content;
+      _lineCount = '\n'.allMatches(widget.content!).length + 1;
     } else {
       _fetchFile();
     }
@@ -103,6 +105,7 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
         final decoded = _tryBase64Decode(response.content);
         setState(() {
           _content = decoded;
+          _lineCount = '\n'.allMatches(decoded).length + 1;
           _loading = false;
         });
       } else {
@@ -262,8 +265,6 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
     final isDark = theme.brightness == Brightness.dark;
     const fontSize = AppFontSize.md;
     const lineHeight = fontSize * 1.5;
-    final lineCount = '\n'.allMatches(_content!).length + 1;
-
     return Scrollbar(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -273,7 +274,7 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _LineNumbers(
-                lineCount: lineCount,
+                lineCount: _lineCount,
                 fontSize: fontSize,
                 lineHeight: lineHeight,
                 isDark: isDark,

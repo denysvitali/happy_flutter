@@ -159,9 +159,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     final sessionListCount = activeSessions.length + inactiveSessions.length;
 
     if (!_hasLoaded && (sessionListCount > 0 || sync.isInitialized)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _hasLoaded = true);
-      });
+      _hasLoaded = true;
     }
 
     if (sessionListCount == 0 && !_hasLoaded) {

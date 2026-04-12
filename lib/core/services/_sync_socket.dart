@@ -26,10 +26,14 @@ extension SyncSocket on Sync {
     serverID = parseToken(credentials.token);
     await _init();
 
-    // Await initial syncs
-    await settingsSync.awaitQueue();
-    await profileSync.awaitQueue();
-    await purchasesSync.awaitQueue();
+    // Await initial syncs in parallel — these are independent HTTP
+    // fetches that were previously sequential, adding latency to
+    // first-login initialization.
+    await Future.wait([
+      settingsSync.awaitQueue(),
+      profileSync.awaitQueue(),
+      purchasesSync.awaitQueue(),
+    ]);
 
     isInitialized = true;
   }
@@ -62,7 +66,13 @@ extension SyncSocket on Sync {
     _sessionFirstLoadedSeq
       ..clear()
       ..addAll(MMKVStorage().getSessionFirstLoadedSeq());
-    await _restoreSessionsCache();
+    // Restore sessions and settings in parallel — they are independent
+    // MMKV reads and running them sequentially adds ~200ms to cold start.
+    late final Settings restoredSettings;
+    await Future.wait([
+      _restoreSessionsCache(),
+      MMKVStorage().getSettings().then((s) => restoredSettings = s),
+    ]);
 
     // Restore cached settings so that loadFromSync() serves the user's
     // last-known settings instead of defaults before syncSettings()
@@ -70,7 +80,7 @@ extension SyncSocket on Sync {
     // (which calls loadFromSync → reads _settingsSnapshot) and
     // _initializeTheme() (which loads from MMKV).  If checkAuth wins,
     // the Riverpod state briefly reverts to Settings() defaults.
-    _settingsSnapshot = await MMKVStorage().getSettings();
+    _settingsSnapshot = restoredSettings;
 
     // Bulk-restore cached messages for all sessions so that
     // getLastMessagePreview() works immediately on cold start.
@@ -385,7 +395,7 @@ extension SyncSocket on Sync {
     // lifecycle transitions.
     _saveMsgsDebounceTimers[sessionId]?.cancel();
     _saveMsgsDebounceTimers[sessionId] = Timer(
-      const Duration(milliseconds: 500),
+      const Duration(milliseconds: 1000),
       () {
         _saveMsgsDebounceTimers.remove(sessionId);
         final msgs = _sessionMessages[sessionId];
@@ -571,10 +581,12 @@ extension SyncSocket on Sync {
         _rebuildSessionContentSignatures(sessionId);
         _sessionMessagesViewCache.remove(sessionId);
 
-        // Re-run the sidechain grouper so cached sidechain messages
-        // are correctly re-parented into their parent Task messages.
+        // Defer sidechain grouping to onSessionVisible() instead of
+        // running O(4N) grouper for every session on cold start.
+        // Mark session as needing regroup; onSessionVisible() checks
+        // this flag and runs the grouper only when the user opens it.
         if (cached.any((m) => m['isSidechain'] == true)) {
-          _groupSidechainMessages(sessionId);
+          _sessionsNeedingSidechainRegroup.add(sessionId);
         }
 
         // Recalculate the older-messages boundary from the lowest
