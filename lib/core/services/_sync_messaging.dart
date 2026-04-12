@@ -275,7 +275,7 @@ extension SyncMessaging on Sync {
         } else {
           response = await apiClient.get(
             '/v3/sessions/$sessionId/messages',
-            queryParameters: {'after_seq': afterSeq, 'limit': 100},
+            queryParameters: {'after_seq': afterSeq, 'limit': 500},
             options: Options(
               connectTimeout: Sync._messageFetchConnectTimeout,
               receiveTimeout: Sync._messageFetchReceiveTimeout,
