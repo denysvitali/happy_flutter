@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/models/machine.dart';
+import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 
 void main() {
@@ -45,6 +48,140 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('groupAllSessionsByFolder', () {
+    Session buildSession(
+      String id, {
+      required String path,
+      required String machineId,
+      required int updatedAt,
+      required int activeAt,
+      required bool active,
+      String presence = 'offline',
+    }) {
+      return Session(
+        id: id,
+        seq: 1,
+        createdAt: updatedAt,
+        updatedAt: updatedAt,
+        active: active,
+        activeAt: activeAt,
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        thinking: false,
+        presence: presence,
+        metadata: Metadata(
+          path: path,
+          machineId: machineId,
+          host: '$machineId-host',
+          homeDir: '/home/dev',
+        ),
+      );
+    }
+
+    final machines = <String, Machine>{
+      'm1': Machine(
+        id: 'm1',
+        seq: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        active: true,
+        activeAt: 1,
+        metadataVersion: 1,
+        daemonStateVersion: 1,
+        metadata: const MachineMetadata(
+          displayName: 'Work Mac',
+          host: 'work-mac',
+        ),
+      ),
+      'm2': Machine(
+        id: 'm2',
+        seq: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        active: true,
+        activeAt: 1,
+        metadataVersion: 1,
+        daemonStateVersion: 1,
+        metadata: const MachineMetadata(
+          displayName: 'Linux Box',
+          host: 'linux-box',
+        ),
+      ),
+    };
+
+    test('groups active and inactive sessions under one folder header', () {
+      final groups = groupAllSessionsByFolder(
+        [
+          buildSession(
+            'active-1',
+            path: '/home/dev/app',
+            machineId: 'm1',
+            updatedAt: 100,
+            activeAt: 100,
+            active: true,
+            presence: 'online',
+          ),
+        ],
+        [
+          buildSession(
+            'archived-1',
+            path: '/home/dev/app',
+            machineId: 'm1',
+            updatedAt: 90,
+            activeAt: 90,
+            active: false,
+          ),
+        ],
+        machines,
+        getLastMessageTimestamp: (sessionId) =>
+            sessionId == 'active-1' ? 110 : 95,
+        getUnreadCount: (sessionId) => sessionId == 'active-1' ? 2 : 0,
+      );
+
+      expect(groups, hasLength(1));
+      final group = groups.single;
+      expect(group.header.displayPath, '~/app');
+      expect(group.header.machineName, 'Work Mac');
+      expect(group.header.activeSessionCount, 1);
+      expect(group.header.inactiveSessionCount, 1);
+      expect(group.header.unreadCount, 2);
+      expect(group.activeSessions.single.id, 'active-1');
+      expect(group.inactiveSessions.single.id, 'archived-1');
+    });
+
+    test('sorts folders by most recent activity across all sessions', () {
+      final groups = groupAllSessionsByFolder(
+        [
+          buildSession(
+            'active-1',
+            path: '/home/dev/app',
+            machineId: 'm1',
+            updatedAt: 100,
+            activeAt: 100,
+            active: true,
+          ),
+        ],
+        [
+          buildSession(
+            'archived-1',
+            path: '/home/dev/older',
+            machineId: 'm2',
+            updatedAt: 200,
+            activeAt: 200,
+            active: false,
+          ),
+        ],
+        machines,
+        getLastMessageTimestamp: (sessionId) =>
+            sessionId == 'archived-1' ? 250 : 110,
+      );
+
+      expect(groups, hasLength(2));
+      expect(groups.first.header.displayPath, '~/older');
+      expect(groups.last.header.displayPath, '~/app');
     });
   });
 }

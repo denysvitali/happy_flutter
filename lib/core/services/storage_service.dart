@@ -318,6 +318,7 @@ class SettingsStorage {
       ..avatarStyle = settings.avatarStyle
       ..showFlavorIcons = settings.showFlavorIcons
       ..compactSessionView = settings.compactSessionView
+      ..sessionsViewStyle = settings.sessionsViewStyle
       ..hideInactiveSessions = settings.hideInactiveSessions
       ..reviewPromptAnswered = settings.reviewPromptAnswered
       ..reviewPromptLikedApp = settings.reviewPromptLikedApp

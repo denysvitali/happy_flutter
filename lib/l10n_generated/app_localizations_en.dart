@@ -683,6 +683,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSessions => 'Sessions';
 
   @override
+  String get settingsSessionsViewStyle => 'Session view style';
+
+  @override
+  String get settingsSessionsViewStyleSubtitle =>
+      'Choose how sessions are grouped in the sessions tab';
+
+  @override
   String get settingsFeatures => 'Features';
 
   @override
@@ -2399,6 +2406,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsActiveSessions => 'ACTIVE SESSIONS';
 
   @override
+  String get sessionsArchivedLabel => 'Archived';
+
+  @override
   String get sessionsArchive => 'Archive';
 
   @override
@@ -2457,6 +2467,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionsFoldersRename => 'Rename Folder';
+
+  @override
+  String sessionsFolderActiveCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count active',
+      one: '1 active',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String sessionsFolderArchivedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count archived',
+      one: '1 archived',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get sessionsViewStyleClassic => 'Current layout';
+
+  @override
+  String get sessionsViewStyleFolderCentric => 'Folder-centric';
 
   @override
   String get autoArchiveTitle => 'Auto-Archive';

@@ -33,6 +33,7 @@ void main() {
       expect(settings, isA<Settings>());
       expect(settings.themeMode, 'system');
       expect(settings.compactSessionView, isFalse);
+      expect(settings.sessionsViewStyle, 'classic');
       expect(settings.expandTodos, isTrue);
       expect(settings.showLineNumbers, isTrue);
       expect(settings.agentInputEnterToSend, isFalse);
@@ -65,6 +66,17 @@ void main() {
 
       final settings = c.read(settingsNotifierProvider);
       expect(settings.compactSessionView, isTrue);
+    });
+
+    test('updateSetting sessionsViewStyle changes state to folder', () async {
+      final c = makeContainer();
+      addTearDown(c.dispose);
+      final notifier = c.read(settingsNotifierProvider.notifier);
+
+      await notifier.updateSetting('sessionsViewStyle', 'folder');
+
+      final settings = c.read(settingsNotifierProvider);
+      expect(settings.sessionsViewStyle, 'folder');
     });
 
     test('updateSetting themeMode changes state to dark', () async {

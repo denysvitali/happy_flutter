@@ -51,6 +51,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final developerModeEnabled = ref.watch(
       settingsNotifierProvider.select((s) => s.developerModeEnabled),
     );
+    final sessionsViewStyle = ref.watch(
+      settingsNotifierProvider.select((s) => s.sessionsViewStyle),
+    );
     final profile = ref.watch(profileNotifierProvider);
     // Select only the machine count and first machine's display name/host to
     // avoid rebuilding this screen when unrelated machine fields change.
@@ -105,7 +108,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: AppSpacing.lg),
           _buildSocialSection(context),
           const SizedBox(height: AppSpacing.lg),
-          _buildSessionsSection(context),
+          _buildSessionsSection(context, sessionsViewStyle: sessionsViewStyle),
           const SizedBox(height: AppSpacing.lg),
           _buildMachinesSection(
             context,
@@ -413,11 +416,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildSessionsSection(BuildContext context) {
+  Widget _buildSessionsSection(
+    BuildContext context, {
+    required String sessionsViewStyle,
+  }) {
     final l10n = AppLocalizations.of(context);
     return SettingsSection(
       title: l10n.settingsSessions,
       children: [
+        SettingsNavRow(
+          icon: Icons.view_agenda_outlined,
+          title: l10n.settingsSessionsViewStyle,
+          subtitle: _sessionsViewStyleLabel(l10n, sessionsViewStyle),
+          onTap: () => _showSessionsViewStyleDialog(
+            context,
+            sessionsViewStyle: sessionsViewStyle,
+          ),
+        ),
         SettingsNavRow(
           icon: Icons.folder_outlined,
           title: l10n.sessionsFolders,
@@ -432,6 +447,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  String _sessionsViewStyleLabel(AppLocalizations l10n, String value) {
+    return switch (value) {
+      'folder' => l10n.sessionsViewStyleFolderCentric,
+      _ => l10n.sessionsViewStyleClassic,
+    };
+  }
+
+  Future<void> _showSessionsViewStyleDialog(
+    BuildContext context, {
+    required String sessionsViewStyle,
+  }) async {
+    final notifier = ref.read(settingsNotifierProvider.notifier);
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (dialogContext) {
+        final l10n = AppLocalizations.of(dialogContext);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(l10n.settingsSessionsViewStyle),
+                subtitle: Text(l10n.settingsSessionsViewStyleSubtitle),
+              ),
+              RadioGroup<String>(
+                groupValue: sessionsViewStyle,
+                onChanged: (value) => Navigator.of(dialogContext).pop(value),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    RadioListTile<String>(
+                      value: 'classic',
+                      title: Text(l10n.sessionsViewStyleClassic),
+                    ),
+                    RadioListTile<String>(
+                      value: 'folder',
+                      title: Text(l10n.sessionsViewStyleFolderCentric),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected == null || selected == sessionsViewStyle) {
+      return;
+    }
+    await notifier.updateSetting('sessionsViewStyle', selected);
   }
 
   Widget _buildMachinesSection(

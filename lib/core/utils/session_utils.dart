@@ -29,13 +29,7 @@ String formatDateHeader(DateTime date) {
 }
 
 /// Date grouping categories for session history.
-enum DateGroup {
-  today,
-  yesterday,
-  thisWeek,
-  thisMonth,
-  older,
-}
+enum DateGroup { today, yesterday, thisWeek, thisMonth, older }
 
 /// Groups sessions into date-based categories.
 ///
@@ -43,17 +37,13 @@ enum DateGroup {
 /// "This Month", "Older".
 Map<DateGroup, List<Session>> groupSessionsByDateCategory(
   List<Session> sessions, {
-  int? Function(String sessionId)?
-      getLastMessageTimestamp,
+  int? Function(String sessionId)? getLastMessageTimestamp,
 }) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
-  final yesterday =
-      today.subtract(const Duration(days: 1));
-  final weekAgo =
-      today.subtract(const Duration(days: 7));
-  final monthStart =
-      DateTime(now.year, now.month);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final weekAgo = today.subtract(const Duration(days: 7));
+  final monthStart = DateTime(now.year, now.month);
 
   final groups = <DateGroup, List<Session>>{
     DateGroup.today: [],
@@ -64,10 +54,7 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
   };
 
   for (final session in sessions) {
-    final sessionDate =
-        DateTime.fromMillisecondsSinceEpoch(
-      session.updatedAt,
-    );
+    final sessionDate = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
     final dateOnly = DateTime(
       sessionDate.year,
       sessionDate.month,
@@ -159,9 +146,7 @@ List<SessionHistoryItem> createSessionHistoryList(
       continue;
     }
 
-    items.add(
-      SessionHistoryDateHeader(localize(group)),
-    );
+    items.add(SessionHistoryDateHeader(localize(group)));
 
     for (final session in sessions) {
       items.add(SessionHistorySession(session));
@@ -243,8 +228,7 @@ List<SessionHistoryItem> groupSessionsByExactDate(List<Session> sessions) {
 List<SessionHistoryItem> groupSessionsByDate(
   List<Session> sessions, {
   String Function(DateGroup)? localize,
-  int? Function(String sessionId)?
-      getLastMessageTimestamp,
+  int? Function(String sessionId)? getLastMessageTimestamp,
 }) {
   if (sessions.isEmpty) {
     return [];
@@ -419,6 +403,9 @@ class SessionFolderHeader extends SessionFolderItem {
     required this.machineName,
     required this.sessionCount,
     required this.folderKey,
+    this.activeSessionCount = 0,
+    this.inactiveSessionCount = 0,
+    this.unreadCount = 0,
   });
 
   /// The path to display (with ~ substitution for home directory).
@@ -432,6 +419,17 @@ class SessionFolderHeader extends SessionFolderItem {
 
   /// The unique key for this folder group ('machineId:path').
   final String folderKey;
+
+  /// Number of active sessions in this folder group.
+  final int activeSessionCount;
+
+  /// Number of inactive sessions in this folder group.
+  final int inactiveSessionCount;
+
+  /// Aggregated unread count across all sessions in the folder group.
+  final int unreadCount;
+
+  bool get hasUpdates => unreadCount > 0;
 }
 
 /// An individual session entry within a folder group.
@@ -456,6 +454,18 @@ class SessionFolderEntry extends SessionFolderItem {
   final bool isSingle;
 }
 
+class SessionFolderGroup {
+  const SessionFolderGroup({
+    required this.header,
+    required this.activeSessions,
+    required this.inactiveSessions,
+  });
+
+  final SessionFolderHeader header;
+  final List<Session> activeSessions;
+  final List<Session> inactiveSessions;
+}
+
 /// Groups inactive sessions by their working directory path and machine.
 ///
 /// Returns a flat list of [SessionFolderItem] where each folder group starts
@@ -464,8 +474,7 @@ class SessionFolderEntry extends SessionFolderItem {
 List<SessionFolderItem> groupSessionsByFolder(
   List<Session> sessions,
   Map<String, Machine> machines, {
-  int? Function(String sessionId)?
-      getLastMessageTimestamp,
+  int? Function(String sessionId)? getLastMessageTimestamp,
 }) {
   if (sessions.isEmpty) return [];
 
@@ -484,10 +493,8 @@ List<SessionFolderItem> groupSessionsByFolder(
       int ts(Session s) => getLastMessageTimestamp != null
           ? getLastMessageTimestamp(s.id) ?? s.updatedAt
           : s.updatedAt;
-      final aLatest =
-          groups[a]!.map(ts).reduce(math.max);
-      final bLatest =
-          groups[b]!.map(ts).reduce(math.max);
+      final aLatest = groups[a]!.map(ts).reduce(math.max);
+      final bLatest = groups[b]!.map(ts).reduce(math.max);
       return bLatest.compareTo(aLatest);
     });
 
@@ -544,4 +551,108 @@ List<SessionFolderItem> groupSessionsByFolder(
     }
   }
   return items;
+}
+
+/// Groups all sessions by their working directory path and machine.
+///
+/// Sessions are split into active and inactive lists within each folder group.
+/// Groups are ordered by the most recent activity across either list.
+List<SessionFolderGroup> groupAllSessionsByFolder(
+  List<Session> activeSessions,
+  List<Session> inactiveSessions,
+  Map<String, Machine> machines, {
+  int? Function(String sessionId)? getLastMessageTimestamp,
+  int Function(String sessionId)? getUnreadCount,
+}) {
+  if (activeSessions.isEmpty && inactiveSessions.isEmpty) {
+    return const [];
+  }
+
+  final groupedActive = <String, List<Session>>{};
+  final groupedInactive = <String, List<Session>>{};
+
+  String keyFor(Session session) {
+    final machineId = session.metadata?.machineId ?? '';
+    final path = session.metadata?.path ?? '';
+    return '$machineId:$path';
+  }
+
+  for (final session in activeSessions) {
+    groupedActive.putIfAbsent(keyFor(session), () => []).add(session);
+  }
+  for (final session in inactiveSessions) {
+    groupedInactive.putIfAbsent(keyFor(session), () => []).add(session);
+  }
+
+  int activityTs(Session session) => getLastMessageTimestamp != null
+      ? getLastMessageTimestamp(session.id) ?? session.updatedAt
+      : session.updatedAt;
+
+  final keys = {...groupedActive.keys, ...groupedInactive.keys}.toList()
+    ..sort((a, b) {
+      final aSessions = [...?groupedActive[a], ...?groupedInactive[a]];
+      final bSessions = [...?groupedActive[b], ...?groupedInactive[b]];
+      final aLatest = aSessions.map(activityTs).reduce(math.max);
+      final bLatest = bSessions.map(activityTs).reduce(math.max);
+      return bLatest.compareTo(aLatest);
+    });
+
+  List<Session> sortActive(List<Session> sessions) {
+    final sorted = List<Session>.from(sessions)
+      ..sort((a, b) {
+        final aOnline = a.presence == 'online' ? 0 : 1;
+        final bOnline = b.presence == 'online' ? 0 : 1;
+        if (aOnline != bOnline) {
+          return aOnline.compareTo(bOnline);
+        }
+        return activityTs(b).compareTo(activityTs(a));
+      });
+    return sorted;
+  }
+
+  List<Session> sortInactive(List<Session> sessions) {
+    final sorted = List<Session>.from(sessions)
+      ..sort((a, b) => activityTs(b).compareTo(activityTs(a)));
+    return sorted;
+  }
+
+  return [
+    for (final key in keys)
+      () {
+        final active = sortActive(groupedActive[key] ?? const []);
+        final inactive = sortInactive(groupedInactive[key] ?? const []);
+        final first = [...active, ...inactive].first;
+        final machineId = first.metadata?.machineId ?? '';
+        final machine = machines[machineId];
+        final machineName =
+            machine?.metadata?.displayName ??
+            machine?.metadata?.host ??
+            first.metadata?.host ??
+            'Unknown';
+        final rawPath = first.metadata?.path ?? '';
+        final homeDir = first.metadata?.homeDir;
+        final displayPath = rawPath.isEmpty
+            ? 'Unknown'
+            : formatPathRelativeToHome(rawPath, homeDir: homeDir);
+        final unread = getUnreadCount == null
+            ? 0
+            : [...active, ...inactive]
+                  .map((session) => getUnreadCount(session.id))
+                  .fold<int>(0, (sum, count) => sum + count);
+
+        return SessionFolderGroup(
+          header: SessionFolderHeader(
+            displayPath: displayPath,
+            machineName: machineName,
+            sessionCount: active.length + inactive.length,
+            folderKey: key,
+            activeSessionCount: active.length,
+            inactiveSessionCount: inactive.length,
+            unreadCount: unread,
+          ),
+          activeSessions: active,
+          inactiveSessions: inactive,
+        );
+      }(),
+  ];
 }

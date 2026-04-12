@@ -1297,6 +1297,18 @@ abstract class AppLocalizations {
   /// **'Sessions'**
   String get settingsSessions;
 
+  /// No description provided for @settingsSessionsViewStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Session view style'**
+  String get settingsSessionsViewStyle;
+
+  /// No description provided for @settingsSessionsViewStyleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how sessions are grouped in the sessions tab'**
+  String get settingsSessionsViewStyleSubtitle;
+
   /// No description provided for @settingsFeatures.
   ///
   /// In en, this message translates to:
@@ -4375,6 +4387,12 @@ abstract class AppLocalizations {
   /// **'ACTIVE SESSIONS'**
   String get sessionsActiveSessions;
 
+  /// No description provided for @sessionsArchivedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get sessionsArchivedLabel;
+
   /// No description provided for @sessionsArchive.
   ///
   /// In en, this message translates to:
@@ -4488,6 +4506,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rename Folder'**
   String get sessionsFoldersRename;
+
+  /// No description provided for @sessionsFolderActiveCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 active} other {{count} active}}'**
+  String sessionsFolderActiveCount(int count);
+
+  /// No description provided for @sessionsFolderArchivedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 archived} other {{count} archived}}'**
+  String sessionsFolderArchivedCount(int count);
+
+  /// No description provided for @sessionsViewStyleClassic.
+  ///
+  /// In en, this message translates to:
+  /// **'Current layout'**
+  String get sessionsViewStyleClassic;
+
+  /// No description provided for @sessionsViewStyleFolderCentric.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder-centric'**
+  String get sessionsViewStyleFolderCentric;
 
   /// No description provided for @autoArchiveTitle.
   ///

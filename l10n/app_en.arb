@@ -249,6 +249,8 @@
   "settingsGithub": "GitHub",
   "settingsMachines": "Machines",
   "settingsSessions": "Sessions",
+  "settingsSessionsViewStyle": "Session view style",
+  "settingsSessionsViewStyleSubtitle": "Choose how sessions are grouped in the sessions tab",
   "settingsFeatures": "Features",
   "settingsSocial": "Social",
   "settingsAccount": "Account",
@@ -900,6 +902,7 @@
   "dateGroupThisMonth": "This Month",
   "dateGroupOlder": "Older",
   "sessionsActiveSessions": "ACTIVE SESSIONS",
+  "sessionsArchivedLabel": "Archived",
   "sessionsArchive": "Archive",
   "sessionsArchiveSession": "Archive Session",
   "sessionsSimple": "Simple",
@@ -924,6 +927,24 @@
     }
   },
   "sessionsFoldersRename": "Rename Folder",
+  "sessionsFolderActiveCount": "{count, plural, =1 {1 active} other {{count} active}}",
+  "@sessionsFolderActiveCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsFolderArchivedCount": "{count, plural, =1 {1 archived} other {{count} archived}}",
+  "@sessionsFolderArchivedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsViewStyleClassic": "Current layout",
+  "sessionsViewStyleFolderCentric": "Folder-centric",
   "autoArchiveTitle": "Auto-Archive",
   "autoArchiveSection": "Auto-Archive",
   "autoArchiveAfterDays": "Archive after days",

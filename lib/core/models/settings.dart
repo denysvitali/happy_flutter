@@ -38,6 +38,7 @@ class Settings {
   String avatarStyle = 'brutalist';
   bool showFlavorIcons = false;
   bool compactSessionView = false;
+  String sessionsViewStyle = 'classic';
   bool hideInactiveSessions = false;
   bool reviewPromptAnswered = false;
   bool? reviewPromptLikedApp;
@@ -88,6 +89,7 @@ class Settings {
           avatarStyle == other.avatarStyle &&
           showFlavorIcons == other.showFlavorIcons &&
           compactSessionView == other.compactSessionView &&
+          sessionsViewStyle == other.sessionsViewStyle &&
           hideInactiveSessions == other.hideInactiveSessions &&
           ttsEnabled == other.ttsEnabled &&
           voiceAssistantLanguage == other.voiceAssistantLanguage &&
@@ -114,6 +116,7 @@ class Settings {
     analyticsOptOut,
     avatarStyle,
     compactSessionView,
+    sessionsViewStyle,
     hideInactiveSessions,
     ttsEnabled,
     preferredLanguage,
@@ -152,6 +155,7 @@ class Settings {
     String? avatarStyle,
     bool? showFlavorIcons,
     bool? compactSessionView,
+    String? sessionsViewStyle,
     bool? hideInactiveSessions,
     bool? reviewPromptAnswered,
     Object? reviewPromptLikedApp = _unset,
@@ -196,6 +200,7 @@ class Settings {
       ..avatarStyle = avatarStyle ?? this.avatarStyle
       ..showFlavorIcons = showFlavorIcons ?? this.showFlavorIcons
       ..compactSessionView = compactSessionView ?? this.compactSessionView
+      ..sessionsViewStyle = sessionsViewStyle ?? this.sessionsViewStyle
       ..hideInactiveSessions = hideInactiveSessions ?? this.hideInactiveSessions
       ..reviewPromptAnswered = reviewPromptAnswered ?? this.reviewPromptAnswered
       ..reviewPromptLikedApp = identical(reviewPromptLikedApp, _unset)

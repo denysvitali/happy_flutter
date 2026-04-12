@@ -13,12 +13,9 @@ void main() {
     testWidgets('renders title text', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const Scaffold(
-            body: SectionHeader(title: 'Active Sessions'),
-          ),
+          home: const Scaffold(body: SectionHeader(title: 'Active Sessions')),
         ),
       );
 
@@ -28,12 +25,9 @@ void main() {
     testWidgets('applies uppercase label style', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const Scaffold(
-            body: SectionHeader(title: 'Archived'),
-          ),
+          home: const Scaffold(body: SectionHeader(title: 'Archived')),
         ),
       );
 
@@ -46,21 +40,17 @@ void main() {
   // ─── PathHeader ──────────────────────────────────────────
 
   group('PathHeader', () {
-    testWidgets('renders path basename uppercase',
-        (tester) async {
-      var toggled = false;
-
+    testWidgets('renders path basename uppercase', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: PathHeader(
               path: '/home/user/projects',
               sessionCount: 3,
               isCollapsed: false,
-              onToggle: () => toggled = true,
+              onToggle: () {},
             ),
           ),
         ),
@@ -75,8 +65,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: PathHeader(
@@ -93,12 +82,10 @@ void main() {
       expect(toggled, isTrue);
     });
 
-    testWidgets('shows rotation for collapsed state',
-        (tester) async {
+    testWidgets('shows rotation for collapsed state', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: PathHeader(
@@ -122,8 +109,7 @@ void main() {
     testWidgets('renders date and count', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: CollapsibleDateHeader(
@@ -145,8 +131,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: CollapsibleDateHeader(
@@ -173,12 +158,14 @@ void main() {
         machineName: 'dev-machine',
         sessionCount: 4,
         folderKey: 'machine-1:~/projects/app',
+        activeSessionCount: 2,
+        inactiveSessionCount: 2,
+        unreadCount: 3,
       );
 
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: CollapsibleFolderHeader(
@@ -193,6 +180,8 @@ void main() {
       expect(find.text('~/projects/app'), findsOneWidget);
       expect(find.text('dev-machine'), findsOneWidget);
       expect(find.text('4'), findsOneWidget);
+      expect(find.text('2 active • 2 archived'), findsOneWidget);
+      expect(find.text('3'), findsWidgets);
     });
 
     testWidgets('calls onToggle when tapped', (tester) async {
@@ -206,8 +195,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: CollapsibleFolderHeader(
@@ -227,12 +215,10 @@ void main() {
   // ─── ArchiveSectionHeader ────────────────────────────────
 
   group('ArchiveSectionHeader', () {
-    testWidgets('renders history title with count',
-        (tester) async {
+    testWidgets('renders history title with count', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              _localizationsDelegates,
+          localizationsDelegates: _localizationsDelegates,
           supportedLocales: _supportedLocales,
           home: const Scaffold(
             body: ArchiveSectionHeader(
@@ -247,12 +233,10 @@ void main() {
       expect(find.textContaining('History'), findsWidgets);
     });
 
-    testWidgets('renders grouping toggle icons',
-        (tester) async {
+    testWidgets('renders grouping toggle icons', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              _localizationsDelegates,
+          localizationsDelegates: _localizationsDelegates,
           supportedLocales: _supportedLocales,
           home: const Scaffold(
             body: ArchiveSectionHeader(
@@ -264,20 +248,16 @@ void main() {
         ),
       );
 
-      expect(find.byIcon(Icons.calendar_today_outlined),
-          findsOneWidget);
-      expect(find.byIcon(Icons.folder_outlined),
-          findsOneWidget);
+      expect(find.byIcon(Icons.calendar_today_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
     });
 
-    testWidgets('calls onGroupingChanged when folder tapped',
-        (tester) async {
+    testWidgets('calls onGroupingChanged when folder tapped', (tester) async {
       ArchivedGrouping? changed;
 
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              _localizationsDelegates,
+          localizationsDelegates: _localizationsDelegates,
           supportedLocales: _supportedLocales,
           home: Scaffold(
             body: ArchiveSectionHeader(
@@ -289,9 +269,7 @@ void main() {
         ),
       );
 
-      await tester.tap(
-        find.byIcon(Icons.folder_outlined),
-      );
+      await tester.tap(find.byIcon(Icons.folder_outlined));
       expect(changed, ArchivedGrouping.folder);
     });
   });
@@ -301,7 +279,6 @@ void main() {
 
 void _noopGrouping(ArchivedGrouping _) {}
 
-const _localizationsDelegates =
-    AppLocalizations.localizationsDelegates;
+const _localizationsDelegates = AppLocalizations.localizationsDelegates;
 
 const _supportedLocales = AppLocalizations.supportedLocales;

@@ -25,6 +25,7 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..avatarStyle = json['avatarStyle'] as String
   ..showFlavorIcons = json['showFlavorIcons'] as bool
   ..compactSessionView = json['compactSessionView'] as bool
+  ..sessionsViewStyle = json['sessionsViewStyle'] as String
   ..hideInactiveSessions = json['hideInactiveSessions'] as bool
   ..reviewPromptAnswered = json['reviewPromptAnswered'] as bool
   ..reviewPromptLikedApp = json['reviewPromptLikedApp'] as bool?
@@ -74,6 +75,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'avatarStyle': instance.avatarStyle,
   'showFlavorIcons': instance.showFlavorIcons,
   'compactSessionView': instance.compactSessionView,
+  'sessionsViewStyle': instance.sessionsViewStyle,
   'hideInactiveSessions': instance.hideInactiveSessions,
   'reviewPromptAnswered': instance.reviewPromptAnswered,
   'reviewPromptLikedApp': instance.reviewPromptLikedApp,

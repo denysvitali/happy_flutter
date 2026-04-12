@@ -75,10 +75,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     if (nowMs - _lastNavTapMs < _navDebounceMs) return;
     _lastNavTapMs = nowMs;
     unawaited(
-      context.pushNamed(
-        'chat',
-        pathParameters: {'sessionId': sessionId},
-      ),
+      context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
     );
   }
 
@@ -130,6 +127,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         : ref.read(machinesNotifierProvider);
     final hideInactive = ref.watch(
       settingsNotifierProvider.select((s) => s.hideInactiveSessions),
+    );
+    final sessionsViewStyle = ref.watch(
+      settingsNotifierProvider.select((s) => s.sessionsViewStyle),
     );
     final showFlavorIcons = ref.watch(
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
@@ -189,6 +189,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         activeSessions,
         inactiveSessions,
         machines,
+        sessionsViewStyle: sessionsViewStyle,
         triggerStagger: triggerStagger,
         hideInactive: hideInactive,
         showFlavorIcons: showFlavorIcons,
@@ -238,6 +239,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
       ListItemType.folderHeader => ValueKey(
         'f-${item.folderHeader?.folderKey}',
       ),
+      ListItemType.folderSectionHeader => ValueKey(
+        'fs-${item.title}-${item.staggerIndex}',
+      ),
       ListItemType.sectionHeader => ValueKey('sh-${item.title}'),
       ListItemType.archiveHeader => const ValueKey('archive-header'),
     };
@@ -248,6 +252,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     List<Session> activeSessions,
     List<Session> inactiveSessions,
     Map<String, Machine> machines, {
+    required String sessionsViewStyle,
     required bool triggerStagger,
     required bool hideInactive,
     required bool showFlavorIcons,
@@ -258,6 +263,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
       activeSessions,
       inactiveSessions,
       machines,
+      sessionsViewStyle: sessionsViewStyle,
       hideInactive: hideInactive,
     );
 
@@ -293,9 +299,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     List<Session> activeSessions,
     List<Session> inactiveSessions,
     Map<String, Machine> machines, {
+    required String sessionsViewStyle,
     required bool hideInactive,
   }) {
     final signature = Object.hashAll(<Object?>[
+      sessionsViewStyle,
       activeSessions.length,
       inactiveSessions.length,
       for (final session in activeSessions) session.id,
@@ -305,7 +313,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
       Object.hashAllUnordered(_collapsedActivePaths),
       Object.hashAllUnordered(_collapsedFolderKeys),
       Object.hashAllUnordered(_collapsedDateKeys),
-      if (_archivedGrouping == ArchivedGrouping.folder)
+      if (sessionsViewStyle == 'folder' ||
+          _archivedGrouping == ArchivedGrouping.folder)
         for (final entry in machines.entries)
           Object.hash(
             entry.key,
@@ -317,6 +326,18 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     final cachedItems = _listItemsCache;
     if (cachedItems != null && _listItemsCacheSignature == signature) {
       return cachedItems;
+    }
+
+    if (sessionsViewStyle == 'folder') {
+      final items = _buildFolderViewItems(
+        context,
+        activeSessions,
+        inactiveSessions,
+        machines,
+      );
+      _listItemsCacheSignature = signature;
+      _listItemsCache = List<ListItem>.unmodifiable(items);
+      return _listItemsCache!;
     }
 
     final activeByPath = <String, List<Session>>{};
@@ -384,6 +405,73 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     _listItemsCacheSignature = signature;
     _listItemsCache = List<ListItem>.unmodifiable(items);
     return _listItemsCache!;
+  }
+
+  List<ListItem> _buildFolderViewItems(
+    BuildContext context,
+    List<Session> activeSessions,
+    List<Session> inactiveSessions,
+    Map<String, Machine> machines,
+  ) {
+    final folders = groupAllSessionsByFolder(
+      activeSessions,
+      inactiveSessions,
+      machines,
+      getLastMessageTimestamp: sync.getLastMessageTimestamp,
+      getUnreadCount: sync.getUnreadCount,
+    );
+
+    var staggerIndex = 0;
+    final items = <ListItem>[];
+
+    for (final folder in folders) {
+      items.add(ListItem.folderHeader(folder.header, staggerIndex));
+      final isCollapsed = _collapsedFolderKeys.contains(
+        folder.header.folderKey,
+      );
+      if (isCollapsed) {
+        continue;
+      }
+
+      if (folder.activeSessions.isNotEmpty) {
+        items.add(
+          ListItem.folderSectionHeader(
+            context.l10n.sessionsActiveSessions,
+            folder.activeSessions.length,
+            staggerIndex,
+          ),
+        );
+        for (final session in folder.activeSessions) {
+          items.add(ListItem.activeSession(session, staggerIndex));
+          staggerIndex++;
+        }
+      }
+
+      if (folder.inactiveSessions.isNotEmpty) {
+        items.add(
+          ListItem.folderSectionHeader(
+            context.l10n.sessionsArchivedLabel,
+            folder.inactiveSessions.length,
+            staggerIndex,
+          ),
+        );
+        for (var i = 0; i < folder.inactiveSessions.length; i++) {
+          final session = folder.inactiveSessions[i];
+          items.add(
+            ListItem.archivedSession(
+              session,
+              staggerIndex,
+              isFirst: i == 0,
+              isLast: i == folder.inactiveSessions.length - 1,
+              isSingle: folder.inactiveSessions.length == 1,
+            ),
+          );
+          staggerIndex++;
+        }
+      }
+    }
+
+    return items;
   }
 
   /// Builds a card for archived or folder-grouped sessions.
@@ -491,6 +579,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
           count: item.sessionCount!,
           grouping: item.archivedGrouping!,
           onGroupingChanged: (g) => setState(() => _archivedGrouping = g),
+        );
+
+      case ListItemType.folderSectionHeader:
+        return FolderSectionHeader(
+          title: item.title!,
+          count: item.sessionCount!,
         );
 
       case ListItemType.dateHeader:

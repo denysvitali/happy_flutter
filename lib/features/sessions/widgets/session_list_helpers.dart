@@ -27,8 +27,7 @@ class SelectionState {
     return SelectionState(
       isActive: isActive ?? this.isActive,
       selectedIds: selectedIds ?? this.selectedIds,
-      isBatchDeleting:
-          isBatchDeleting ?? this.isBatchDeleting,
+      isBatchDeleting: isBatchDeleting ?? this.isBatchDeleting,
     );
   }
 }
@@ -64,8 +63,7 @@ SortedSessions computeSortedSessions(
   required Map<String, Session>? lastSessions,
   required String? lastSearchQuery,
   required Set<String> optimisticallyArchivedIds,
-  required int? Function(String sessionId)
-      getLastMessageTimestamp,
+  required int? Function(String sessionId) getLastMessageTimestamp,
   String searchQuery = '',
 }) {
   final stopwatch = Stopwatch()..start();
@@ -89,8 +87,7 @@ SortedSessions computeSortedSessions(
     sessionList = sessionList.where((s) {
       final name = (s.metadata?.name ?? '').toLowerCase();
       final path = (s.metadata?.path ?? '').toLowerCase();
-      final summary =
-          (s.metadata?.summary?.text ?? '').toLowerCase();
+      final summary = (s.metadata?.summary?.text ?? '').toLowerCase();
       return name.contains(query) ||
           path.contains(query) ||
           summary.contains(query);
@@ -100,8 +97,7 @@ SortedSessions computeSortedSessions(
   final active = <Session>[];
   final inactive = <Session>[];
   for (final s in sessionList) {
-    if (s.archived ||
-        optimisticallyArchivedIds.contains(s.id)) {
+    if (s.archived || optimisticallyArchivedIds.contains(s.id)) {
       continue;
     }
     if (isSessionActive(s)) {
@@ -114,17 +110,13 @@ SortedSessions computeSortedSessions(
     final aOnline = a.presence == 'online' ? 0 : 1;
     final bOnline = b.presence == 'online' ? 0 : 1;
     if (aOnline != bOnline) return aOnline.compareTo(bOnline);
-    final aTs =
-        getLastMessageTimestamp(a.id) ?? a.activeAt;
-    final bTs =
-        getLastMessageTimestamp(b.id) ?? b.activeAt;
+    final aTs = getLastMessageTimestamp(a.id) ?? a.activeAt;
+    final bTs = getLastMessageTimestamp(b.id) ?? b.activeAt;
     return bTs.compareTo(aTs);
   });
   inactive.sort((a, b) {
-    final aTs =
-        getLastMessageTimestamp(a.id) ?? a.updatedAt;
-    final bTs =
-        getLastMessageTimestamp(b.id) ?? b.updatedAt;
+    final aTs = getLastMessageTimestamp(a.id) ?? a.updatedAt;
+    final bTs = getLastMessageTimestamp(b.id) ?? b.updatedAt;
     return bTs.compareTo(aTs);
   });
   final result = SortedSessions(
@@ -195,6 +187,7 @@ enum ListItemType {
   dateHeader,
   archivedSession,
   folderHeader,
+  folderSectionHeader,
   folderEntry,
 }
 
@@ -218,11 +211,11 @@ class ListItem {
   });
 
   ListItem.sectionHeader(String title, int staggerIndex)
-      : this._raw(
-          type: ListItemType.sectionHeader,
-          staggerIndex: staggerIndex,
-          title: title,
-        );
+    : this._raw(
+        type: ListItemType.sectionHeader,
+        staggerIndex: staggerIndex,
+        title: title,
+      );
 
   ListItem.pathHeader(
     String pathKey,
@@ -230,29 +223,29 @@ class ListItem {
     bool _, // isCollapsed - unused at descriptor level
     int staggerIndex,
   ) : this._raw(
-          type: ListItemType.pathHeader,
-          staggerIndex: staggerIndex,
-          pathKey: pathKey,
-          sessionCount: sessionCount,
-        );
+        type: ListItemType.pathHeader,
+        staggerIndex: staggerIndex,
+        pathKey: pathKey,
+        sessionCount: sessionCount,
+      );
 
   ListItem.activeSession(Session session, int staggerIndex)
-      : this._raw(
-          type: ListItemType.activeSession,
-          staggerIndex: staggerIndex,
-          session: session,
-        );
+    : this._raw(
+        type: ListItemType.activeSession,
+        staggerIndex: staggerIndex,
+        session: session,
+      );
 
   ListItem.archiveHeader(
     int sessionCount,
     ArchivedGrouping grouping,
     int staggerIndex,
   ) : this._raw(
-          type: ListItemType.archiveHeader,
-          staggerIndex: staggerIndex,
-          sessionCount: sessionCount,
-          archivedGrouping: grouping,
-        );
+        type: ListItemType.archiveHeader,
+        staggerIndex: staggerIndex,
+        sessionCount: sessionCount,
+        archivedGrouping: grouping,
+      );
 
   ListItem.dateHeader(
     String dateKey,
@@ -260,12 +253,12 @@ class ListItem {
     int sessionCount,
     int staggerIndex,
   ) : this._raw(
-          type: ListItemType.dateHeader,
-          staggerIndex: staggerIndex,
-          dateKey: dateKey,
-          title: title,
-          sessionCount: sessionCount,
-        );
+        type: ListItemType.dateHeader,
+        staggerIndex: staggerIndex,
+        dateKey: dateKey,
+        title: title,
+        sessionCount: sessionCount,
+      );
 
   ListItem.archivedSession(
     Session session,
@@ -274,22 +267,20 @@ class ListItem {
     required bool isLast,
     required bool isSingle,
   }) : this._raw(
-          type: ListItemType.archivedSession,
-          staggerIndex: staggerIndex,
-          session: session,
-          isFirst: isFirst,
-          isLast: isLast,
-          isSingle: isSingle,
-        );
+         type: ListItemType.archivedSession,
+         staggerIndex: staggerIndex,
+         session: session,
+         isFirst: isFirst,
+         isLast: isLast,
+         isSingle: isSingle,
+       );
 
-  ListItem.folderHeader(
-    SessionFolderHeader header,
-    int staggerIndex,
-  ) : this._raw(
-          type: ListItemType.folderHeader,
-          staggerIndex: staggerIndex,
-          folderHeader: header,
-        );
+  ListItem.folderHeader(SessionFolderHeader header, int staggerIndex)
+    : this._raw(
+        type: ListItemType.folderHeader,
+        staggerIndex: staggerIndex,
+        folderHeader: header,
+      );
 
   ListItem.folderEntry(
     Session session,
@@ -298,13 +289,21 @@ class ListItem {
     required bool isLast,
     required bool isSingle,
   }) : this._raw(
-          type: ListItemType.folderEntry,
-          staggerIndex: staggerIndex,
-          session: session,
-          isFirst: isFirst,
-          isLast: isLast,
-          isSingle: isSingle,
-        );
+         type: ListItemType.folderEntry,
+         staggerIndex: staggerIndex,
+         session: session,
+         isFirst: isFirst,
+         isLast: isLast,
+         isSingle: isSingle,
+       );
+
+  ListItem.folderSectionHeader(String title, int sessionCount, int staggerIndex)
+    : this._raw(
+        type: ListItemType.folderSectionHeader,
+        staggerIndex: staggerIndex,
+        title: title,
+        sessionCount: sessionCount,
+      );
 
   final ListItemType type;
   final int staggerIndex;
