@@ -46,6 +46,7 @@ import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
 import '../utils/wire_parsers.dart';
+import '../utils/path_utils.dart' show resolveAbsolutePath;
 import 'inline_message_processor.dart';
 import 'logger_service.dart';
 import 'message_cursor_manager.dart';

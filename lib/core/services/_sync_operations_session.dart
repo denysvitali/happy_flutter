@@ -78,6 +78,13 @@ extension SyncSessionOperations on Sync {
       }
     }
 
+    // Resolve ~ in path to the machine's home directory.
+    // Users may enter ~/git/something in the UI, which must be expanded
+    // to an absolute path before being sent to the daemon.
+    final resolvedPath = (machine != null && machine.metadata?.homeDir != null)
+        ? resolveAbsolutePath(path, homeDir: machine.metadata!.homeDir)
+        : path;
+
     // Derive agent type and environment variables from the profile.
     // Use explicit profileId if provided, otherwise fall back to
     // [_settingsSnapshot.lastUsedProfile].
@@ -103,7 +110,7 @@ extension SyncSessionOperations on Sync {
     }
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
-      directory: path,
+      directory: resolvedPath,
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       permissionMode: permMode,
@@ -148,7 +155,7 @@ extension SyncSessionOperations on Sync {
       await _hydrateSpawnedSession(
         sessionId,
         machineId: machineId,
-        path: path,
+        path: resolvedPath,
       );
 
       // Optimistic insert: if the server's /v2/sessions endpoint hasn't
@@ -170,7 +177,7 @@ extension SyncSessionOperations on Sync {
           metadata: Metadata(
             host: '',
             machineId: machineId,
-            path: path,
+            path: resolvedPath,
             flavor: agent,
             lifecycleState: 'starting',
           ),
@@ -215,7 +222,7 @@ extension SyncSessionOperations on Sync {
     if (result.type == 'requestToApproveDirectoryCreation') {
       return createSession(
         machineId: machineId,
-        path: path,
+        path: resolvedPath,
         approvedNewDirectoryCreation: true,
       );
     }
@@ -230,7 +237,7 @@ extension SyncSessionOperations on Sync {
     if (errorMsg.contains('webhook timeout')) {
       logger.info(
         '[createSession] spawn webhook timeout for '
-        'machine=$machineId path=$path — waiting for late session',
+        'machine=$machineId path=$resolvedPath — waiting for late session',
       );
       await Future<void>.delayed(const Duration(seconds: 5));
       _forceFullFetchNext = true;
@@ -240,7 +247,7 @@ extension SyncSessionOperations on Sync {
       final candidates = _sessions.values.where((s) {
         final ageMs = now - s.createdAt;
         final matchesMachineId = s.metadata?.machineId == machineId;
-        final matchesPath = s.metadata?.path == path;
+        final matchesPath = s.metadata?.path == resolvedPath;
         final recent = ageMs < 90000;
         final isMatch = matchesMachineId && matchesPath && recent;
         if (matchesPath && ageMs < 120000) {
@@ -260,7 +267,7 @@ extension SyncSessionOperations on Sync {
 
       logger.info(
         '[createSession] found ${candidates.length} candidate sessions '
-        'matching machine=$machineId path=$path',
+        'matching machine=$machineId path=$resolvedPath',
       );
 
       if (candidates.isNotEmpty) {
@@ -277,7 +284,7 @@ extension SyncSessionOperations on Sync {
 
       logger.warning(
         '[createSession] session not found after webhook timeout '
-        'retry machine=$machineId path=$path',
+        'retry machine=$machineId path=$resolvedPath',
       );
     }
 
@@ -537,10 +544,16 @@ PY
     required String machineId,
     required String basePath,
   }) async {
+    // Resolve ~ in basePath to the machine's home directory.
+    final machine = _machines[machineId];
+    final resolvedBasePath = (machine?.metadata?.homeDir != null)
+        ? resolveAbsolutePath(basePath, homeDir: machine!.metadata!.homeDir)
+        : basePath;
+
     final gitCheck = await machineBash(
       machineId: machineId,
       command: 'git rev-parse --git-dir',
-      cwd: basePath,
+      cwd: resolvedBasePath,
     );
     if (!gitCheck.success) {
       throw StateError('Not a Git repository');
@@ -551,10 +564,10 @@ PY
     var result = await machineBash(
       machineId: machineId,
       command: 'git worktree add -b $name $worktreePath',
-      cwd: basePath,
+      cwd: resolvedBasePath,
     );
     if (result.success) {
-      return '$basePath/$worktreePath';
+      return '$resolvedBasePath/$worktreePath';
     }
 
     if (result.stderr.contains('already exists')) {
@@ -564,10 +577,10 @@ PY
         result = await machineBash(
           machineId: machineId,
           command: 'git worktree add -b $newName $newPath',
-          cwd: basePath,
+          cwd: resolvedBasePath,
         );
         if (result.success) {
-          return '$basePath/$newPath';
+          return '$resolvedBasePath/$newPath';
         }
       }
     }
