@@ -21,6 +21,13 @@ extension SyncMessagingMerge on Sync {
       final id = message['id'] as String?;
       if (id == null || id.isEmpty) continue;
       signatures[id] = _messageContentSignature(message);
+
+      // Also store base wire ID for output messages (see
+      // _updateSessionContentSignatures for rationale).
+      final baseId = _stripOutputSuffix(id);
+      if (baseId != null && baseId != id) {
+        signatures[baseId] = _messageContentSignature(message);
+      }
     }
     _sessionContentSignatures[sessionId] = signatures;
   }
@@ -38,8 +45,40 @@ extension SyncMessagingMerge on Sync {
       final id = message['id'] as String?;
       if (id == null || id.isEmpty) continue;
       signatures[id] = _messageContentSignature(message);
+
+      // Output content blocks get synthetic IDs (e.g. abc123_t0, abc123_k1).
+      // When the same message is re-fetched from the server, it arrives with
+      // the original wire ID (abc123) — not the synthetic one.  Without the
+      // wire ID in signatures, the pre-filter can never match and every
+      // re-fetch re-decrypts all output content blocks unnecessarily.
+      // Store the base (wire) ID alongside the synthetic one so lookups
+      // succeed on re-fetch.  Only strip known suffixes to avoid false
+      // positives on wire IDs that legitimately end with _t0 etc.
+      final baseId = _stripOutputSuffix(id);
+      if (baseId != null && baseId != id) {
+        signatures[baseId] = _messageContentSignature(message);
+      }
     }
   }
+
+  /// Strips known output content block suffixes from [id] and returns the
+  /// base wire ID, or `null` if [id] doesn't match any known suffix pattern.
+  ///
+  /// Known suffixes: _t{n}, _k{n}, _u{n}, _sc, _bridge (n = decimal digits)
+  String? _stripOutputSuffix(String id) {
+    // _t0, _t1, ... _t99 etc. — match _<digits> at end
+    if (id.length > 3 && _outputDigitsRegex.hasMatch(id)) {
+      final base = id.substring(0, id.lastIndexOf('_'));
+      if (base.isNotEmpty) return base;
+    }
+    if (id.endsWith('_sc') || id.endsWith('_bridge')) {
+      return id.substring(0, id.lastIndexOf('_'));
+    }
+    return null;
+  }
+
+  // Pre-compiled regex for _<digits> suffix (used by _stripOutputSuffix)
+  static final _outputDigitsRegex = RegExp(r'_\d+$');
 
   Map<String, dynamic>? _extractUsageMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;

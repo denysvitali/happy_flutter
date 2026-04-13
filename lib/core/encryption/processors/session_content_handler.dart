@@ -9,6 +9,7 @@ void _processSessionContent({
   required dynamic nestedContent,
   required List<Map<String, dynamic>> messages,
   required List<Map<String, dynamic>> toolResults,
+  List<String>? droppedReasons,
 }) {
   Map<String, dynamic>? envelope;
   final nestedMap = WireParsers.asMap(nestedContent);
@@ -206,5 +207,10 @@ void _processSessionContent({
       if (uuid.isNotEmpty) 'uuid': uuid,
       'parentUuid': ?parentUuid,
     });
+    return;
   }
+
+  // Catch-all for unrecognized session eventType values.
+  // eventType is low-cardinality (known set), so this won't spam GlitchTip.
+  droppedReasons?.add('unknown session eventType: $eventType');
 }

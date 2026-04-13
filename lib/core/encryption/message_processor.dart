@@ -288,6 +288,7 @@ ProcessedMessages processDecryptedMessages({
           nestedContent: nestedContent,
           messages: messages,
           toolResults: toolResults,
+          droppedReasons: droppedReasons,
         );
       } else {
         final fallback = _extractAgentFallbackText(nestedContent);
@@ -333,6 +334,7 @@ ProcessedMessages processDecryptedMessages({
         nestedContent: nestedContent ?? content,
         messages: messages,
         toolResults: toolResults,
+        droppedReasons: droppedReasons,
       );
       continue;
     }

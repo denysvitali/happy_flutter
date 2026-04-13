@@ -123,4 +123,13 @@ void _processAcpContent({
   }
 
   // Skip task lifecycle events
+
+  // Catch-all for any unrecognized ACP dataType values — these fall
+  // through silently without any droppedReasons entry, making it
+  // impossible to audit what was actually dropped vs. legitimately
+  // filtered.  Low-cardinality here (dataType is a known set) so
+  // this won't spam GlitchTip.
+  if (dataType != null) {
+    droppedReasons?.add('unknown acp dataType: $dataType');
+  }
 }
