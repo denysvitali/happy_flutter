@@ -30,12 +30,18 @@ import 'session_shimmer.dart';
 class SessionsListContent extends ConsumerStatefulWidget {
   const SessionsListContent({
     required this.selectionNotifier,
+    required this.folderNotifier,
     this.searchQuery = '',
     this.onClearSearch,
     super.key,
   });
 
   final ValueNotifier<SelectionState> selectionNotifier;
+
+  /// Notifies the parent when the user opens or closes a
+  /// folder detail view. `null` means no folder is selected.
+  final ValueNotifier<SessionFolderHeader?> folderNotifier;
+
   final String searchQuery;
 
   /// Called when the user taps "Clear search" in the
@@ -87,11 +93,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
   void initState() {
     super.initState();
     _sel.addListener(_onSelectionChanged);
+    widget.folderNotifier.addListener(_onFolderChanged);
   }
 
   @override
   void dispose() {
     _sel.removeListener(_onSelectionChanged);
+    widget.folderNotifier.removeListener(_onFolderChanged);
     super.dispose();
   }
 
@@ -99,18 +107,29 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     if (mounted) setState(() {});
   }
 
-  void _openFolder(String folderKey) {
+  void _onFolderChanged() {
+    if (!mounted) return;
+    final folder = widget.folderNotifier.value;
+    if (folder == null && _selectedFolderKey != null) {
+      _sel.value = const SelectionState();
+      setState(() => _selectedFolderKey = null);
+    }
+  }
+
+  void _openFolder(String folderKey, SessionFolderHeader header) {
     if (_sel.value.isActive) return;
     setState(() {
       _selectedFolderKey = folderKey;
       _expandedArchivedFolders.remove(folderKey);
       _expandedOlderArchivedFolders.remove(folderKey);
     });
+    widget.folderNotifier.value = header;
   }
 
   void _closeFolder() {
     _sel.value = const SelectionState();
     setState(() => _selectedFolderKey = null);
+    widget.folderNotifier.value = null;
   }
 
   void _toggleArchivedFolder(String folderKey) {
@@ -376,6 +395,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           setState(() => _selectedFolderKey = null);
+          widget.folderNotifier.value = null;
         }
       });
     }
@@ -393,7 +413,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
           final folder = folders[i];
           final child = FolderOverviewCard(
             header: folder.header,
-            onTap: () => _openFolder(folder.header.folderKey),
+            onTap: () => _openFolder(
+              folder.header.folderKey,
+              folder.header,
+            ),
           );
           return StaggeredSlideIn(
             key: ValueKey('folder-${folder.header.folderKey}'),
@@ -440,7 +463,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
           bottom: AppSpacing.lg,
         ),
         children: [
-          FolderDetailHeader(header: folder.header, onBack: _closeFolder),
           if (folder.activeSessions.isNotEmpty)
             FolderSectionHeader(
               title: context.l10n.sessionsActiveSessions,

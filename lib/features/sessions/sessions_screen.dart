@@ -38,6 +38,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   final _selectionNotifier = ValueNotifier<SelectionState>(
     const SelectionState(),
   );
+  final _folderNotifier = ValueNotifier<SessionFolderHeader?>(null);
   final _searchController = TextEditingController();
   bool _isSearching = false;
   Timer? _searchDebounce;
@@ -48,6 +49,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _activeTab = _parseTab(widget.initialTab);
     _builtTabs = <AppTab>{_activeTab};
     _selectionNotifier.addListener(_onSelectionChanged);
+    _folderNotifier.addListener(_onFolderChanged);
     Future<void>.microtask(() async {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
@@ -65,6 +67,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   }
 
   void _onSelectionChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onFolderChanged() {
     if (mounted) setState(() {});
   }
 
@@ -103,6 +109,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _selectionNotifier
       ..removeListener(_onSelectionChanged)
       ..dispose();
+    _folderNotifier
+      ..removeListener(_onFolderChanged)
+      ..dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -121,11 +130,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
 
     return PopScope(
-      canPop: _activeTab == AppTab.sessions,
+      canPop: _activeTab == AppTab.sessions &&
+          _folderNotifier.value == null,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _activeTab != AppTab.sessions) {
           setState(() => _activeTab = AppTab.sessions);
           _updateUrlTab(AppTab.sessions);
+        } else if (!didPop &&
+            _activeTab == AppTab.sessions &&
+            _folderNotifier.value != null) {
+          _folderNotifier.value = null;
         } else if (!didPop && _activeTab == AppTab.sessions) {
           final now = DateTime.now();
           if (_lastBackPressTime == null ||
@@ -177,7 +191,48 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (sel.isActive) {
       return _buildSelectionAppBar(context, l10n, sel);
     }
+    final folder = _folderNotifier.value;
+    if (folder != null) {
+      return _buildFolderAppBar(context, l10n, folder);
+    }
     return _buildNormalSessionsAppBar(context, l10n);
+  }
+
+  AppBar _buildFolderAppBar(
+    BuildContext context,
+    AppLocalizations l10n,
+    SessionFolderHeader folder,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        tooltip: l10n.commonBack,
+        onPressed: () => _folderNotifier.value = null,
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            folder.displayPath,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            '${folder.machineName}'
+            ' \u2022 ${folder.sessionCount}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
   }
 
   AppBar _buildNormalSessionsAppBar(
@@ -338,6 +393,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         _buildInboxTab(),
         SessionsListContent(
           selectionNotifier: _selectionNotifier,
+          folderNotifier: _folderNotifier,
           searchQuery: _searchController.text,
           onClearSearch: _clearSearch,
         ),
