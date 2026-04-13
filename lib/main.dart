@@ -17,8 +17,8 @@ import 'core/encryption/sodium_singleton.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
-import 'core/services/frame_metrics_service.dart';
 import 'core/services/app_visibility_coordinator.dart';
+import 'core/services/frame_metrics_service.dart';
 import 'core/services/logger_service.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
@@ -204,7 +204,11 @@ Future<void> _deferredInit() async {
   }
 
   // Firebase push notifications — not needed for first screen.
-  futures.add(() async {
+  // Use unawaited() so this never blocks _deferredInit from completing.
+  // Firebase can take 1-3s on first init; keeping it off the critical
+  // path saves ~2s on cold/warm start.  Errors are caught and logged
+  // inside _initializeOptionalFirebase so they never propagate.
+  unawaited(() async {
     final firebaseSpan = transaction.startChild(
       'app.deferredInit.firebase',
       description: 'Initialize optional Firebase services',
@@ -215,7 +219,6 @@ Future<void> _deferredInit() async {
       firebaseSpan
         ..status = const SpanStatus.internalError()
         ..setData('error', e.toString());
-      rethrow;
     } finally {
       await firebaseSpan.finish();
     }

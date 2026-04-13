@@ -205,7 +205,7 @@ extension SyncSocket on Sync {
     // shortly after first paint or on-demand when the user opens a tab.
     if (phase == null || phase == Sync._deferredSyncPhase) {
       _deferredSyncsTimer?.cancel();
-      _deferredSyncsTimer = Timer(const Duration(seconds: 3), () {
+      _deferredSyncsTimer = Timer(const Duration(seconds: 1), () {
         // Only invalidate if sync is still initialized to avoid
         // errors after logout/dispose
         if (!isInitialized) return;
