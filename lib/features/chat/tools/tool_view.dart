@@ -405,8 +405,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     if (knownTool != null) {
       minimal = knownTool.minimal;
     } else {
-      // Unknown/MCP tools: always minimal — details via tap/long-press only.
-      minimal = true;
+      // Dynamic tools (for example Codex MCP tools) need the generic fallback
+      // view so users can inspect the tool input and result payloads.
+      minimal = false;
     }
 
     final state = parseToolState(toolState);

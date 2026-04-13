@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 
 Widget _wrapToolView({
@@ -95,6 +96,41 @@ void main() {
 
       expect(actions, hasLength(1));
       expect(actions.single.kind, PermissionActionKind.deny);
+    });
+
+    testWidgets('unknown Codex MCP tool can expand to show input and output', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrapToolView(
+          tool: <String, dynamic>{
+            'name': 'list_mcp_resources',
+            'state': 'completed',
+            'toolUseId': 'mcp-1',
+            'input': <String, dynamic>{
+              'server': 'codex',
+              'arguments': <String, dynamic>{},
+            },
+            'result': <String, dynamic>{
+              'structuredContent': <String, dynamic>{
+                'resources': <dynamic>[],
+              },
+            },
+          },
+          metadata: <String, dynamic>{'flavor': 'codex'},
+        ),
+      );
+
+      expect(find.text('list_mcp_resources'), findsOneWidget);
+      expect(find.text('INPUT'), findsNothing);
+      expect(find.text('OUTPUT'), findsNothing);
+
+      await tester.tap(find.byType(ToolView));
+      await tester.pumpAndSettle();
+
+      expect(find.text('INPUT'), findsOneWidget);
+      expect(find.text('OUTPUT'), findsOneWidget);
+      expect(find.byType(SmartOutputContainer), findsNWidgets(2));
     });
 
     testWidgets('codex Yes emits codex-approve action', (tester) async {
