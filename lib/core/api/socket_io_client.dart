@@ -248,14 +248,17 @@ class SocketIoClient {
       final errorStr = error.toString();
       final isTransient = _isTransientSocketError(errorStr);
 
-      if (_shouldThrottleError(errorStr)) return;
-
-      // Downgrade transient network errors to info to avoid
-      // Sentry noise when the device briefly loses connectivity.
+      // Check transient BEFORE throttle so transient errors are logged at
+      // info level and do NOT consume throttle budget — this prevents a
+      // burst of timeout errors from silencing subsequent real errors.
       if (isTransient) {
+        // Throttle transient errors too so a burst doesn't spam the log.
+        if (_shouldThrottleError(errorStr)) return;
         logger.info('Socket.IO transient connect error: $error');
         return;
       }
+
+      if (_shouldThrottleError(errorStr)) return;
 
       logger.warning('Socket.IO connect error: $error');
 
@@ -292,12 +295,17 @@ class SocketIoClient {
       final errorStr = error.toString();
       final isTransient = _isTransientSocketError(errorStr);
 
-      if (_shouldThrottleError(errorStr)) return;
-
+      // Check transient BEFORE throttle so transient errors are logged at
+      // info level and do NOT consume throttle budget — this prevents a
+      // burst of timeout errors from silencing subsequent real errors.
       if (isTransient) {
+        // Throttle transient errors too so a burst doesn't spam the log.
+        if (_shouldThrottleError(errorStr)) return;
         logger.info('Socket.IO transient error: $error');
         return;
       }
+
+      if (_shouldThrottleError(errorStr)) return;
 
       logger.warning('Socket.IO error: $error');
 

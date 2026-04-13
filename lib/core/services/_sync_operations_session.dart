@@ -396,17 +396,22 @@ extension SyncSessionOperations on Sync {
         ClaudeUsageLimitsResponse.fromJson,
       );
     } catch (error, stackTrace) {
-      if (error is StateError &&
-          (error.message.contains('not connected') ||
-              error.message.contains('not available') ||
-              error.message.contains('RPC method'))) {
+      if (error is StateError && error.message.contains('not connected')) {
         logger.info(
-          'machineGetClaudeUsageLimits: machine offline or '
-          'RPC unavailable',
+          'machineGetClaudeUsageLimits: machine offline',
         );
         return const ClaudeUsageLimitsResponse(
           success: false,
           error: 'machine offline',
+        );
+      } else if (Sync._isRpcMethodNotAvailable(error)) {
+        logger.info(
+          'machineGetClaudeUsageLimits: RPC method not available '
+          '(daemon too old)',
+        );
+        return const ClaudeUsageLimitsResponse(
+          success: false,
+          error: 'RPC method not available',
         );
       } else {
         logger.error('machineGetClaudeUsageLimits error', error, stackTrace);
