@@ -5,7 +5,7 @@ import 'package:happy_flutter/features/sessions/widgets/folder_view_cards.dart';
 
 void main() {
   group('FolderOverviewCard', () {
-    testWidgets('renders folder name, preview, and unread badge', (
+    testWidgets('renders folder name, session count, and unread badge', (
       tester,
     ) async {
       const header = SessionFolderHeader(
@@ -26,8 +26,8 @@ void main() {
       );
 
       expect(find.text('happy'), findsOneWidget);
-      expect(find.textContaining('/'), findsOneWidget);
-      expect(find.text('Work Mac • 4 sessions'), findsOneWidget);
+      expect(find.text('4 sessions'), findsOneWidget);
+      expect(find.text('Work Mac • 4 sessions'), findsNothing);
       expect(find.text('3'), findsOneWidget);
     });
 

@@ -72,21 +72,9 @@ class FolderOverviewCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (latestActivity != null) ...[
-                        const SizedBox(height: AppSpacing.xxs),
-                        Text(
-                          latestActivity,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                            height: 1.2,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
-                        '${header.machineName} • ${header.sessionCount} sessions',
+                        _sessionCountLabel(header.sessionCount),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
@@ -99,15 +87,24 @@ class FolderOverviewCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    if (latestActivity != null)
+                      Text(
+                        latestActivity,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     if (header.unreadCount > 0)
-                      UnreadBadge(count: header.unreadCount),
-                    const SizedBox(height: AppSpacing.xs),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: cs.onSurfaceVariant,
-                    ),
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: latestActivity != null ? AppSpacing.xxs : 0,
+                        ),
+                        child: UnreadBadge(count: header.unreadCount),
+                      ),
                   ],
                 ),
               ],
@@ -125,6 +122,10 @@ class FolderOverviewCard extends StatelessWidget {
     final parts = displayPath.split('/');
     final last = parts.isNotEmpty ? parts.last : displayPath;
     return last.isEmpty ? displayPath : last;
+  }
+
+  String _sessionCountLabel(int count) {
+    return count == 1 ? '1 session' : '$count sessions';
   }
 }
 
