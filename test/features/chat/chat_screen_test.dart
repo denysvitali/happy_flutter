@@ -290,8 +290,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Connected'), findsOneWidget);
-      expect(find.text('Ready'), findsNothing);
+      expect(find.text('Connected'), findsNothing);
     });
 
     testWidgets('shows provider-specific working status', (tester) async {
@@ -318,8 +317,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Codex working'), findsOneWidget);
-      expect(find.text('Claude is thinking...'), findsNothing);
+      expect(find.text('Thinking'), findsOneWidget);
     });
 
     testWidgets('shows offline and last seen chips for offline session', (

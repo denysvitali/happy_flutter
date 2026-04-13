@@ -658,20 +658,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return l10n.chatLastSeenDays(diff.inDays);
   }
 
-  String _agentWorkingLabel() {
-    final flavor = _session?.metadata?.flavor?.toLowerCase();
-    switch (flavor) {
-      case 'codex':
-        return 'Codex working';
-      case 'gemini':
-        return 'Gemini working';
-      case 'claude':
-        return 'Claude working';
-      default:
-        return 'Agent working';
-    }
-  }
-
   Map<String, dynamic>? _latestUserMessageWithStatus() {
     for (var i = _messages.length - 1; i >= 0; i--) {
       final message = _messages[i];
@@ -704,7 +690,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (isReady) {
       chips.add(
         const ChatAppBarStatusChip(
-          text: 'Connected',
+          text: '',
           color: AppColors.success,
           showDot: true,
           pulse: true,
@@ -746,9 +732,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     } else if (session.thinking) {
       chips.add(
         ChatAppBarStatusChip(
-          text: _agentWorkingLabel(),
+          text: 'Thinking',
           color: colorScheme.primary,
-          icon: Icons.auto_awesome_rounded,
+          showDot: true,
         ),
       );
     }
