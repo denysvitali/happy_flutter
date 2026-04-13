@@ -15,6 +15,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
+import 'folder_view_cards.dart';
 import 'session_animations.dart';
 import 'session_cards.dart';
 import 'session_dismissible.dart';
@@ -51,6 +52,7 @@ class SessionsListContent extends ConsumerStatefulWidget {
 class _SessionsListContentState extends ConsumerState<SessionsListContent> {
   bool _hasLoaded = false;
   bool _animationTriggered = false;
+  String? _selectedFolderKey;
   final Set<String> _collapsedActivePaths = {};
   final Set<String> _collapsedFolderKeys = {};
   final Set<String> _collapsedDateKeys = {};
@@ -93,6 +95,16 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
 
   void _onSelectionChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _openFolder(String folderKey) {
+    if (_sel.value.isActive) return;
+    setState(() => _selectedFolderKey = folderKey);
+  }
+
+  void _closeFolder() {
+    _sel.value = const SelectionState();
+    setState(() => _selectedFolderKey = null);
   }
 
   void _onSessionLongPress(String sessionId) {
@@ -258,6 +270,18 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
+    if (sessionsViewStyle == 'folder') {
+      return _buildFolderModeView(
+        context,
+        activeSessions,
+        inactiveSessions,
+        machines,
+        triggerStagger: triggerStagger,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      );
+    }
+
     final items = _buildListItems(
       context,
       activeSessions,
@@ -294,6 +318,116 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     );
   }
 
+  Widget _buildFolderModeView(
+    BuildContext context,
+    List<Session> activeSessions,
+    List<Session> inactiveSessions,
+    Map<String, Machine> machines, {
+    required bool triggerStagger,
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+  }) {
+    final folders = groupAllSessionsByFolder(
+      activeSessions,
+      inactiveSessions,
+      machines,
+      getLastMessageTimestamp: sync.getLastMessageTimestamp,
+      getUnreadCount: sync.getUnreadCount,
+    );
+
+    SessionFolderGroup? selectedFolder;
+    if (_selectedFolderKey != null) {
+      for (final folder in folders) {
+        if (folder.header.folderKey == _selectedFolderKey) {
+          selectedFolder = folder;
+          break;
+        }
+      }
+    }
+
+    if (_selectedFolderKey != null && selectedFolder == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _selectedFolderKey = null);
+        }
+      });
+    }
+
+    if (selectedFolder == null) {
+      return ListView.builder(
+        padding: const EdgeInsets.only(
+          top: AppSpacing.xs,
+          bottom: AppSpacing.lg,
+        ),
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: false,
+        itemCount: folders.length,
+        itemBuilder: (ctx, i) {
+          final folder = folders[i];
+          final child = FolderOverviewCard(
+            header: folder.header,
+            sessionNames: [
+              ...folder.activeSessions.map(_sessionDisplayName),
+              ...folder.inactiveSessions.map(_sessionDisplayName),
+            ],
+            onTap: () => _openFolder(folder.header.folderKey),
+          );
+          return StaggeredSlideIn(
+            key: ValueKey('folder-${folder.header.folderKey}'),
+            index: i,
+            animate: triggerStagger,
+            child: child,
+          );
+        },
+      );
+    }
+
+    final folder = selectedFolder;
+    return ListView(
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
+      children: [
+        FolderDetailHeader(header: folder.header, onBack: _closeFolder),
+        if (folder.activeSessions.isNotEmpty)
+          FolderSectionHeader(
+            title: context.l10n.sessionsActiveSessions,
+            count: folder.activeSessions.length,
+          ),
+        ...folder.activeSessions.map(
+          (session) => _buildActiveSessionCard(
+            session,
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+          ),
+        ),
+        if (folder.inactiveSessions.isNotEmpty)
+          FolderSectionHeader(
+            title: context.l10n.sessionsArchivedLabel,
+            count: folder.inactiveSessions.length,
+          ),
+        ...folder.inactiveSessions.asMap().entries.map(
+          (entry) => _buildArchivedCard(
+            context,
+            ListItem.archivedSession(
+              entry.value,
+              entry.key,
+              isFirst: entry.key == 0,
+              isLast: entry.key == folder.inactiveSessions.length - 1,
+              isSingle: folder.inactiveSessions.length == 1,
+            ),
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _sessionDisplayName(Session session) {
+    return session.metadata?.name?.trim().isNotEmpty == true
+        ? session.metadata!.name!
+        : session.id;
+  }
+
   List<ListItem> _buildListItems(
     BuildContext context,
     List<Session> activeSessions,
@@ -326,18 +460,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     final cachedItems = _listItemsCache;
     if (cachedItems != null && _listItemsCacheSignature == signature) {
       return cachedItems;
-    }
-
-    if (sessionsViewStyle == 'folder') {
-      final items = _buildFolderViewItems(
-        context,
-        activeSessions,
-        inactiveSessions,
-        machines,
-      );
-      _listItemsCacheSignature = signature;
-      _listItemsCache = List<ListItem>.unmodifiable(items);
-      return _listItemsCache!;
     }
 
     final activeByPath = <String, List<Session>>{};
@@ -405,73 +527,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     _listItemsCacheSignature = signature;
     _listItemsCache = List<ListItem>.unmodifiable(items);
     return _listItemsCache!;
-  }
-
-  List<ListItem> _buildFolderViewItems(
-    BuildContext context,
-    List<Session> activeSessions,
-    List<Session> inactiveSessions,
-    Map<String, Machine> machines,
-  ) {
-    final folders = groupAllSessionsByFolder(
-      activeSessions,
-      inactiveSessions,
-      machines,
-      getLastMessageTimestamp: sync.getLastMessageTimestamp,
-      getUnreadCount: sync.getUnreadCount,
-    );
-
-    var staggerIndex = 0;
-    final items = <ListItem>[];
-
-    for (final folder in folders) {
-      items.add(ListItem.folderHeader(folder.header, staggerIndex));
-      final isCollapsed = _collapsedFolderKeys.contains(
-        folder.header.folderKey,
-      );
-      if (isCollapsed) {
-        continue;
-      }
-
-      if (folder.activeSessions.isNotEmpty) {
-        items.add(
-          ListItem.folderSectionHeader(
-            context.l10n.sessionsActiveSessions,
-            folder.activeSessions.length,
-            staggerIndex,
-          ),
-        );
-        for (final session in folder.activeSessions) {
-          items.add(ListItem.activeSession(session, staggerIndex));
-          staggerIndex++;
-        }
-      }
-
-      if (folder.inactiveSessions.isNotEmpty) {
-        items.add(
-          ListItem.folderSectionHeader(
-            context.l10n.sessionsArchivedLabel,
-            folder.inactiveSessions.length,
-            staggerIndex,
-          ),
-        );
-        for (var i = 0; i < folder.inactiveSessions.length; i++) {
-          final session = folder.inactiveSessions[i];
-          items.add(
-            ListItem.archivedSession(
-              session,
-              staggerIndex,
-              isFirst: i == 0,
-              isLast: i == folder.inactiveSessions.length - 1,
-              isSingle: folder.inactiveSessions.length == 1,
-            ),
-          );
-          staggerIndex++;
-        }
-      }
-    }
-
-    return items;
   }
 
   /// Builds a card for archived or folder-grouped sessions.
@@ -553,26 +608,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
 
       case ListItemType.activeSession:
         final session = item.session!;
-        final card = GestureDetector(
-          onLongPress: () => _onSessionLongPress(session.id),
-          child: CompactActiveSessionCard(
-            session: session,
-            onTap: sel.isActive
-                ? () => _onSessionTapInSelectionMode(session.id)
-                : () => _navigateToChat(session.id),
-            showFlavorIcon: showFlavorIcons,
-            avatarStyle: avatarStyle,
-            lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
-            lastMessagePreview: sync.getLastMessagePreview(session.id),
-            lastMessageRole: sync.getLastMessageRole(session.id),
-            isSelected: sel.selectedIds.contains(session.id),
-            selectionMode: sel.isActive,
-            unreadCount: sync.getUnreadCount(session.id),
-          ),
+        return _buildActiveSessionCard(
+          session,
+          showFlavorIcons: showFlavorIcons,
+          avatarStyle: avatarStyle,
         );
-        return sel.isActive
-            ? card
-            : DismissibleActiveSession(session: session, child: card);
 
       case ListItemType.archiveHeader:
         return ArchiveSectionHeader(
@@ -626,6 +666,34 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
           }),
         );
     }
+  }
+
+  Widget _buildActiveSessionCard(
+    Session session, {
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+  }) {
+    final sel = _sel.value;
+    final card = GestureDetector(
+      onLongPress: () => _onSessionLongPress(session.id),
+      child: CompactActiveSessionCard(
+        session: session,
+        onTap: sel.isActive
+            ? () => _onSessionTapInSelectionMode(session.id)
+            : () => _navigateToChat(session.id),
+        showFlavorIcon: showFlavorIcons,
+        avatarStyle: avatarStyle,
+        lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+        lastMessagePreview: sync.getLastMessagePreview(session.id),
+        lastMessageRole: sync.getLastMessageRole(session.id),
+        isSelected: sel.selectedIds.contains(session.id),
+        selectionMode: sel.isActive,
+        unreadCount: sync.getUnreadCount(session.id),
+      ),
+    );
+    return sel.isActive
+        ? card
+        : DismissibleActiveSession(session: session, child: card);
   }
 
   List<ListItem> _buildDateGroupedItems(

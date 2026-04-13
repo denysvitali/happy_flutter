@@ -1,0 +1,61 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/utils/session_utils.dart';
+import 'package:happy_flutter/features/sessions/widgets/folder_view_cards.dart';
+
+void main() {
+  group('FolderOverviewCard', () {
+    testWidgets('renders folder name, preview, and unread badge', (
+      tester,
+    ) async {
+      const header = SessionFolderHeader(
+        displayPath: '~/projects/happy',
+        machineName: 'Work Mac',
+        sessionCount: 4,
+        folderKey: 'm1:/projects/happy',
+        unreadCount: 3,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FolderOverviewCard(
+              header: header,
+              sessionNames: const ['alpha', 'beta', 'gamma', 'delta'],
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('happy'), findsOneWidget);
+      expect(find.textContaining('alpha • beta • gamma +1'), findsOneWidget);
+      expect(find.text('Work Mac • 4'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+    });
+
+    testWidgets('calls onTap', (tester) async {
+      var tapped = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FolderOverviewCard(
+              header: const SessionFolderHeader(
+                displayPath: '~/projects/happy',
+                machineName: 'Work Mac',
+                sessionCount: 1,
+                folderKey: 'm1:/projects/happy',
+              ),
+              sessionNames: const ['alpha'],
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(FolderOverviewCard));
+      expect(tapped, isTrue);
+    });
+  });
+}
