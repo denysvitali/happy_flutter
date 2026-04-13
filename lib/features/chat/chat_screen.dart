@@ -751,14 +751,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           icon: Icons.auto_awesome_rounded,
         ),
       );
-    } else if (isReady) {
-      chips.add(
-        ChatAppBarStatusChip(
-          text: 'Ready',
-          color: colorScheme.onSurfaceVariant,
-          icon: Icons.check_circle_outline_rounded,
-        ),
-      );
     }
 
     final latestUserMessage = _latestUserMessageWithStatus();
@@ -780,15 +772,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               text: 'Retry queued',
               color: AppColors.warning,
               icon: Icons.schedule_rounded,
-            ),
-          );
-          break;
-        case 'sent':
-          chips.add(
-            ChatAppBarStatusChip(
-              text: 'Delivered',
-              color: colorScheme.primary,
-              icon: Icons.done_all_rounded,
             ),
           );
           break;

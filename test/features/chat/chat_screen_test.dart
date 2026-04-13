@@ -272,7 +272,9 @@ void main() {
       expect(find.text('Test input'), findsOneWidget);
     });
 
-    testWidgets('shows status text for online session', (tester) async {
+    testWidgets('shows simplified status text for online session', (
+      tester,
+    ) async {
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', const []);
@@ -289,7 +291,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Connected'), findsOneWidget);
-      expect(find.text('Ready'), findsOneWidget);
+      expect(find.text('Ready'), findsNothing);
     });
 
     testWidgets('shows provider-specific working status', (tester) async {
@@ -347,34 +349,35 @@ void main() {
       expect(find.text('Last seen 5m ago'), findsOneWidget);
     });
 
-    testWidgets('shows delivery status chips for latest outgoing message', (
-      tester,
-    ) async {
-      sync.isInitialized = true;
-      sync.messagesSync['session_1'] = InvalidateSync(() async {});
-      sync.testSetSessionMessages('session_1', [
-        {
-          'id': 'local-1',
-          'localId': 'local-1',
-          'role': 'user',
-          'content': 'Hello',
-          'sendStatus': 'sent',
-        },
-      ]);
-      sync.testSessions['session_1'] = _makeSession(presence: 'online');
-      sync.testSetLastEphemeralAt(
-        'session_1',
-        DateTime.now().millisecondsSinceEpoch,
-      );
+    testWidgets(
+      'does not duplicate delivered state in the header for sent messages',
+      (tester) async {
+        sync.isInitialized = true;
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSetSessionMessages('session_1', [
+          {
+            'id': 'local-1',
+            'localId': 'local-1',
+            'role': 'user',
+            'content': 'Hello',
+            'sendStatus': 'sent',
+          },
+        ]);
+        sync.testSessions['session_1'] = _makeSession(presence: 'online');
+        sync.testSetLastEphemeralAt(
+          'session_1',
+          DateTime.now().millisecondsSinceEpoch,
+        );
 
-      await tester.pumpWidget(
-        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpWidget(
+          _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Delivered'), findsAtLeastNWidgets(1));
-    });
+        expect(find.text('Delivered'), findsOneWidget);
+      },
+    );
 
     testWidgets('renders multiple messages in correct order', (tester) async {
       sync.isInitialized = true;
