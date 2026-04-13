@@ -146,6 +146,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             },
             fieldViewBuilder:
                 (context, controller, focusNode, onFieldSubmitted) {
+                  // Pre-fill the path if provided via initialPath.
+                  if (_selectedPath != null && controller.text.isEmpty) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted && controller.text.isEmpty) {
+                        controller.text = _selectedPath!;
+                      }
+                    });
+                  }
                   return TextFormField(
                     controller: controller,
                     focusNode: focusNode,

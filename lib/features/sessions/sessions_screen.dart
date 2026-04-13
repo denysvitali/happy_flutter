@@ -204,6 +204,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     SessionFolderHeader folder,
   ) {
     final cs = Theme.of(context).colorScheme;
+    // Extract machineId from folderKey ('machineId:path').
+    final colonIndex = folder.folderKey.indexOf(':');
+    final machineId =
+        colonIndex > 0 ? folder.folderKey.substring(0, colonIndex) : null;
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
@@ -232,6 +236,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           ),
         ],
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.add),
+          tooltip: l10n.sessionsNew,
+          onPressed: () => _showNewSessionDialog(
+            context,
+            initialMachineId: machineId,
+            initialPath: folder.displayPath,
+          ),
+        ),
+      ],
     );
   }
 
@@ -591,10 +606,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     }
   }
 
-  static Future<void> _showNewSessionDialog(BuildContext context) async {
+  static Future<void> _showNewSessionDialog(
+    BuildContext context, {
+    String? initialMachineId,
+    String? initialPath,
+  }) async {
     final sessionId = await showDialog<String>(
       context: context,
-      builder: (context) => const NewSessionDialog(),
+      builder: (context) => NewSessionDialog(
+        initialMachineId: initialMachineId,
+        initialPath: initialPath,
+      ),
     );
     if (!context.mounted || sessionId == null || sessionId.isEmpty) {
       return;
