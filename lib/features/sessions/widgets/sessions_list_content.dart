@@ -366,10 +366,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
           final folder = folders[i];
           final child = FolderOverviewCard(
             header: folder.header,
-            sessionNames: [
-              ...folder.activeSessions.map(_sessionDisplayName),
-              ...folder.inactiveSessions.map(_sessionDisplayName),
-            ],
             onTap: () => _openFolder(folder.header.folderKey),
           );
           return StaggeredSlideIn(
@@ -420,12 +416,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         ),
       ],
     );
-  }
-
-  String _sessionDisplayName(Session session) {
-    return session.metadata?.name?.trim().isNotEmpty == true
-        ? session.metadata!.name!
-        : session.id;
   }
 
   List<ListItem> _buildListItems(

@@ -403,6 +403,7 @@ class SessionFolderHeader extends SessionFolderItem {
     required this.machineName,
     required this.sessionCount,
     required this.folderKey,
+    this.latestActivityAt = 0,
     this.activeSessionCount = 0,
     this.inactiveSessionCount = 0,
     this.unreadCount = 0,
@@ -419,6 +420,9 @@ class SessionFolderHeader extends SessionFolderItem {
 
   /// The unique key for this folder group ('machineId:path').
   final String folderKey;
+
+  /// Most recent activity timestamp across all sessions in the folder group.
+  final int latestActivityAt;
 
   /// Number of active sessions in this folder group.
   final int activeSessionCount;
@@ -529,6 +533,13 @@ List<SessionFolderItem> groupSessionsByFolder(
     final displayPath = rawPath.isEmpty
         ? 'Unknown'
         : formatPathRelativeToHome(rawPath, homeDir: homeDir);
+    final latestActivityAt = groupSessions
+        .map(
+          (session) => getLastMessageTimestamp != null
+              ? getLastMessageTimestamp(session.id) ?? session.updatedAt
+              : session.updatedAt,
+        )
+        .reduce(math.max);
 
     items.add(
       SessionFolderHeader(
@@ -536,6 +547,7 @@ List<SessionFolderItem> groupSessionsByFolder(
         machineName: machineName,
         sessionCount: groupSessions.length,
         folderKey: key,
+        latestActivityAt: latestActivityAt,
       ),
     );
 
@@ -646,6 +658,10 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
             machineName: machineName,
             sessionCount: active.length + inactive.length,
             folderKey: key,
+            latestActivityAt: [
+              ...active,
+              ...inactive,
+            ].map(activityTs).reduce(math.max),
             activeSessionCount: active.length,
             inactiveSessionCount: inactive.length,
             unreadCount: unread,

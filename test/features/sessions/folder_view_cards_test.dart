@@ -13,24 +13,21 @@ void main() {
         machineName: 'Work Mac',
         sessionCount: 4,
         folderKey: 'm1:/projects/happy',
+        latestActivityAt: 1,
         unreadCount: 3,
       );
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: FolderOverviewCard(
-              header: header,
-              sessionNames: const ['alpha', 'beta', 'gamma', 'delta'],
-              onTap: () {},
-            ),
+            body: FolderOverviewCard(header: header, onTap: () {}),
           ),
         ),
       );
 
       expect(find.text('happy'), findsOneWidget);
-      expect(find.textContaining('alpha • beta • gamma +1'), findsOneWidget);
-      expect(find.text('Work Mac • 4'), findsOneWidget);
+      expect(find.textContaining('/'), findsOneWidget);
+      expect(find.text('Work Mac • 4 sessions'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
     });
 
@@ -47,7 +44,6 @@ void main() {
                 sessionCount: 1,
                 folderKey: 'm1:/projects/happy',
               ),
-              sessionNames: const ['alpha'],
               onTap: () => tapped = true,
             ),
           ),

@@ -7,20 +7,20 @@ import 'session_badges.dart';
 class FolderOverviewCard extends StatelessWidget {
   const FolderOverviewCard({
     required this.header,
-    required this.sessionNames,
     required this.onTap,
     super.key,
   });
 
   final SessionFolderHeader header;
-  final List<String> sessionNames;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final preview = _sessionPreview(sessionNames);
+    final latestActivity = header.latestActivityAt > 0
+        ? formatTimestamp(header.latestActivityAt, relative: true)
+        : null;
 
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -72,21 +72,21 @@ class FolderOverviewCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (preview.isNotEmpty) ...[
+                      if (latestActivity != null) ...[
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
-                          preview,
+                          latestActivity,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: cs.onSurfaceVariant,
                             height: 1.2,
                           ),
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
-                        '${header.machineName} • ${header.sessionCount}',
+                        '${header.machineName} • ${header.sessionCount} sessions',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
@@ -125,19 +125,6 @@ class FolderOverviewCard extends StatelessWidget {
     final parts = displayPath.split('/');
     final last = parts.isNotEmpty ? parts.last : displayPath;
     return last.isEmpty ? displayPath : last;
-  }
-
-  String _sessionPreview(List<String> names) {
-    final visible = names
-        .where((name) => name.trim().isNotEmpty)
-        .take(3)
-        .toList(growable: false);
-    if (visible.isEmpty) {
-      return '';
-    }
-    final remaining = names.length - visible.length;
-    final suffix = remaining > 0 ? ' +$remaining' : '';
-    return '${visible.join(' • ')}$suffix';
   }
 }
 
