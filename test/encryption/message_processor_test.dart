@@ -425,6 +425,71 @@ void main() {
         expect(result.toolResults.first['toolUseId'], 'call1');
         expect(result.toolResults.first['result'], 'file list');
       });
+
+      test('processes real codex MCP tool-call and structured result', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'codex',
+                'data': {
+                  'type': 'tool-call',
+                  'name': 'list_mcp_resources',
+                  'input': {
+                    'server': 'codex',
+                    'arguments': <String, dynamic>{},
+                  },
+                  'callId': 'mcp1',
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'codex',
+                'data': {
+                  'type': 'tool-call-result',
+                  'callId': 'mcp1',
+                  'output': {
+                    'content': [
+                      {'type': 'text', 'text': '{"resources":[]}'},
+                    ],
+                    'structuredContent': {
+                      'resources': <dynamic>[],
+                    },
+                  },
+                  'isError': false,
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+            {'id': 'm2', 'seq': 2, 'createdAt': 1001},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'tool-call');
+        expect(result.messages.first['name'], 'list_mcp_resources');
+        expect(result.messages.first['toolUseId'], 'mcp1');
+
+        expect(result.toolResults, hasLength(1));
+        expect(result.toolResults.first['toolUseId'], 'mcp1');
+        expect(
+          result.toolResults.first['result'],
+          {
+            'content': [
+              {'type': 'text', 'text': '{"resources":[]}'},
+            ],
+            'structuredContent': {
+              'resources': <dynamic>[],
+            },
+          },
+        );
+      });
     });
 
     group('ACP content', () {
