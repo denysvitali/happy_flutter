@@ -150,12 +150,17 @@ extension SyncSocket on Sync {
     );
 
     // Wait for sessions and machines to load before marking as ready.
-    try {
-      await Future.wait([sessionsSync.awaitQueue(), machinesSync.awaitQueue()]);
-      _isReady = true;
-    } catch (error) {
-      logger.warning('Failed initial ready sync', error);
-    }
+    // NOTE: Previously this was awaited, blocking restore() on every warm
+    // start until the HTTP fetches completed (2-9s). Now runs fire-and-forget
+    // so AuthState.authenticated is set immediately after MMKV cache restore.
+    unawaited(
+      Future.wait([sessionsSync.awaitQueue(), machinesSync.awaitQueue()])
+          .then((_) => _isReady = true)
+          .catchError((Object error) {
+            logger.warning('Failed initial ready sync', error);
+            return true; // Error handled — do not propagate
+          }),
+    );
 
     // Configure and restore the message outbox after sync is ready so
     // the encryption context is available for re-sends.
