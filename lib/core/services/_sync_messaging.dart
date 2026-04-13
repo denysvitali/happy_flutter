@@ -149,6 +149,7 @@ extension SyncMessaging on Sync {
         // Notify UI so any pending loading state clears, but do NOT
         // trigger a message cache save — no messages changed.
         _notifySessionMessagesChangedUiOnly(sessionId);
+        _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
         return;
       }
 
