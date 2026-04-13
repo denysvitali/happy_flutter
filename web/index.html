@@ -14,8 +14,12 @@
   -->
   <base href="$FLUTTER_BASE_HREF">
 
+  <!-- Load sodium synchronously before Flutter starts — the sodium_web.dart
+       loader checks window.sodium.ready before appending another script tag,
+       so pre-loading here eliminates the race condition where libsodium
+       isn't available when the app first needs it for decryption. -->
+  <script src="sodium.js"></script>
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
 
   <!-- iOS meta tags & icons -->
@@ -29,7 +33,6 @@
 
   <title>Happy</title>
   <link rel="manifest" href="manifest.json">
-<script type="text/javascript" src="sodium.js" defer></script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async=""></script>
