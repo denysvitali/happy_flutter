@@ -511,10 +511,10 @@ extension SyncMessaging on Sync {
             processed.toolResults.isEmpty &&
             messages.isNotEmpty) {
           // All raw messages were silently dropped by the processor.
-          // Log the reasons so unrecognized formats are discoverable.
-          for (final reason in processed.droppedReasons) {
-            logger.warning('[fetchMessages] dropped: $reason');
-          }
+          // This case is already covered by the droppedReasons logging
+          // in the block above — do NOT log again to avoid duplicate
+          // GlitchTip events (each unique reason string creates a
+          // separate issue in GlitchTip, inflating event counts).
         }
 
         logger.debug(

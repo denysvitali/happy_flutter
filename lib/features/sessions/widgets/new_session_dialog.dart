@@ -11,7 +11,17 @@ import '../../../core/theme/app_tokens.dart';
 
 /// New session dialog.
 class NewSessionDialog extends ConsumerStatefulWidget {
-  const NewSessionDialog({super.key});
+  const NewSessionDialog({
+    super.key,
+    this.initialMachineId,
+    this.initialPath,
+  });
+
+  /// Optional pre-selected machine ID.
+  final String? initialMachineId;
+
+  /// Optional pre-selected path.
+  final String? initialPath;
 
   @override
   ConsumerState<NewSessionDialog> createState() => _NewSessionDialogState();
@@ -30,6 +40,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     super.initState();
     final settings = ref.read(settingsNotifierProvider);
     _selectedAgent = settings.lastUsedAgent ?? 'claude';
+    _selectedMachine = widget.initialMachineId;
+    _selectedPath = widget.initialPath;
     Future<void>.microtask(
       () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
     );

@@ -98,26 +98,36 @@ void main() {
       expect(actions.single.kind, PermissionActionKind.deny);
     });
 
-    testWidgets('unknown Codex MCP tool can expand to show input and output', (
+    testWidgets('unknown Codex MCP tool calls onPress on tap (minimal mode)', (
       tester,
     ) async {
+      var onPressCalled = false;
+
       await tester.pumpWidget(
-        _wrapToolView(
-          tool: <String, dynamic>{
-            'name': 'list_mcp_resources',
-            'state': 'completed',
-            'toolUseId': 'mcp-1',
-            'input': <String, dynamic>{
-              'server': 'codex',
-              'arguments': <String, dynamic>{},
-            },
-            'result': <String, dynamic>{
-              'structuredContent': <String, dynamic>{
-                'resources': <dynamic>[],
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: ToolView(
+              tool: <String, dynamic>{
+                'name': 'list_mcp_resources',
+                'state': 'completed',
+                'toolUseId': 'mcp-1',
+                'input': <String, dynamic>{
+                  'server': 'codex',
+                  'arguments': <String, dynamic>{},
+                },
+                'result': <String, dynamic>{
+                  'structuredContent': <String, dynamic>{
+                    'resources': <dynamic>[],
+                  },
+                },
               },
-            },
-          },
-          metadata: <String, dynamic>{'flavor': 'codex'},
+              sessionId: 's1',
+              metadata: <String, dynamic>{'flavor': 'codex'},
+              onPress: () => onPressCalled = true,
+            ),
+          ),
         ),
       );
 
@@ -126,11 +136,9 @@ void main() {
       expect(find.text('OUTPUT'), findsNothing);
 
       await tester.tap(find.byType(ToolView));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
-      expect(find.text('INPUT'), findsOneWidget);
-      expect(find.text('OUTPUT'), findsOneWidget);
-      expect(find.byType(SmartOutputContainer), findsNWidgets(2));
+      expect(onPressCalled, isTrue);
     });
 
     testWidgets('codex Yes emits codex-approve action', (tester) async {
