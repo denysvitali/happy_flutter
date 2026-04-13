@@ -4393,6 +4393,30 @@ abstract class AppLocalizations {
   /// **'Archived'**
   String get sessionsArchivedLabel;
 
+  /// No description provided for @sessionsShowArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Show archived ({count})'**
+  String sessionsShowArchived(int count);
+
+  /// No description provided for @sessionsHideArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide archived'**
+  String get sessionsHideArchived;
+
+  /// No description provided for @sessionsShowOlderArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Show older archived ({count})'**
+  String sessionsShowOlderArchived(int count);
+
+  /// No description provided for @sessionsHideOlderArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide older archived'**
+  String get sessionsHideOlderArchived;
+
   /// No description provided for @sessionsArchive.
   ///
   /// In en, this message translates to:

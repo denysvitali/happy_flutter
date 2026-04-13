@@ -53,6 +53,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
   bool _hasLoaded = false;
   bool _animationTriggered = false;
   String? _selectedFolderKey;
+  final Set<String> _expandedArchivedFolders = {};
+  final Set<String> _expandedOlderArchivedFolders = {};
   final Set<String> _collapsedActivePaths = {};
   final Set<String> _collapsedFolderKeys = {};
   final Set<String> _collapsedDateKeys = {};
@@ -99,12 +101,37 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
 
   void _openFolder(String folderKey) {
     if (_sel.value.isActive) return;
-    setState(() => _selectedFolderKey = folderKey);
+    setState(() {
+      _selectedFolderKey = folderKey;
+      _expandedArchivedFolders.remove(folderKey);
+      _expandedOlderArchivedFolders.remove(folderKey);
+    });
   }
 
   void _closeFolder() {
     _sel.value = const SelectionState();
     setState(() => _selectedFolderKey = null);
+  }
+
+  void _toggleArchivedFolder(String folderKey) {
+    setState(() {
+      if (_expandedArchivedFolders.contains(folderKey)) {
+        _expandedArchivedFolders.remove(folderKey);
+        _expandedOlderArchivedFolders.remove(folderKey);
+      } else {
+        _expandedArchivedFolders.add(folderKey);
+      }
+    });
+  }
+
+  void _toggleOlderArchivedFolder(String folderKey) {
+    setState(() {
+      if (_expandedOlderArchivedFolders.contains(folderKey)) {
+        _expandedOlderArchivedFolders.remove(folderKey);
+      } else {
+        _expandedOlderArchivedFolders.add(folderKey);
+      }
+    });
   }
 
   void _onSessionLongPress(String sessionId) {
@@ -379,42 +406,134 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     }
 
     final folder = selectedFolder;
-    return ListView(
-      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
-      children: [
-        FolderDetailHeader(header: folder.header, onBack: _closeFolder),
-        if (folder.activeSessions.isNotEmpty)
-          FolderSectionHeader(
-            title: context.l10n.sessionsActiveSessions,
-            count: folder.activeSessions.length,
-          ),
-        ...folder.activeSessions.map(
-          (session) => _buildActiveSessionCard(
-            session,
-            showFlavorIcons: showFlavorIcons,
-            avatarStyle: avatarStyle,
-          ),
+    final sevenDaysAgo = DateTime.now()
+        .subtract(const Duration(days: 7))
+        .millisecondsSinceEpoch;
+    final recentArchived = <Session>[];
+    final olderArchived = <Session>[];
+    for (final session in folder.inactiveSessions) {
+      final activityAt =
+          sync.getLastMessageTimestamp(session.id) ?? session.updatedAt;
+      if (activityAt >= sevenDaysAgo) {
+        recentArchived.add(session);
+      } else {
+        olderArchived.add(session);
+      }
+    }
+    final isArchivedExpanded = _expandedArchivedFolders.contains(
+      folder.header.folderKey,
+    );
+    final isOlderArchivedExpanded = _expandedOlderArchivedFolders.contains(
+      folder.header.folderKey,
+    );
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _closeFolder();
+        }
+      },
+      child: ListView(
+        padding: const EdgeInsets.only(
+          top: AppSpacing.xs,
+          bottom: AppSpacing.lg,
         ),
-        if (folder.inactiveSessions.isNotEmpty)
-          FolderSectionHeader(
-            title: context.l10n.sessionsArchivedLabel,
-            count: folder.inactiveSessions.length,
-          ),
-        ...folder.inactiveSessions.asMap().entries.map(
-          (entry) => _buildArchivedCard(
-            context,
-            ListItem.archivedSession(
-              entry.value,
-              entry.key,
-              isFirst: entry.key == 0,
-              isLast: entry.key == folder.inactiveSessions.length - 1,
-              isSingle: folder.inactiveSessions.length == 1,
+        children: [
+          FolderDetailHeader(header: folder.header, onBack: _closeFolder),
+          if (folder.activeSessions.isNotEmpty)
+            FolderSectionHeader(
+              title: context.l10n.sessionsActiveSessions,
+              count: folder.activeSessions.length,
             ),
-            showFlavorIcons: showFlavorIcons,
-            avatarStyle: avatarStyle,
+          ...folder.activeSessions.map(
+            (session) => _buildActiveSessionCard(
+              session,
+              showFlavorIcons: showFlavorIcons,
+              avatarStyle: avatarStyle,
+            ),
           ),
-        ),
-      ],
+          if (folder.inactiveSessions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xs,
+              ),
+              child: TextButton.icon(
+                onPressed: () => _toggleArchivedFolder(folder.header.folderKey),
+                icon: Icon(
+                  isArchivedExpanded ? Icons.expand_less : Icons.expand_more,
+                ),
+                label: Text(
+                  isArchivedExpanded
+                      ? context.l10n.sessionsHideArchived
+                      : context.l10n.sessionsShowArchived(
+                          folder.inactiveSessions.length,
+                        ),
+                ),
+              ),
+            ),
+          if (isArchivedExpanded) ...[
+            if (recentArchived.isNotEmpty)
+              FolderSectionHeader(
+                title: context.l10n.sessionsArchivedLabel,
+                count: recentArchived.length,
+              ),
+            ...recentArchived.asMap().entries.map(
+              (entry) => _buildArchivedCard(
+                context,
+                ListItem.archivedSession(
+                  entry.value,
+                  entry.key,
+                  isFirst: entry.key == 0,
+                  isLast: entry.key == recentArchived.length - 1,
+                  isSingle: recentArchived.length == 1,
+                ),
+                showFlavorIcons: showFlavorIcons,
+                avatarStyle: avatarStyle,
+              ),
+            ),
+            if (olderArchived.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
+                child: TextButton(
+                  onPressed: () =>
+                      _toggleOlderArchivedFolder(folder.header.folderKey),
+                  child: Text(
+                    isOlderArchivedExpanded
+                        ? context.l10n.sessionsHideOlderArchived
+                        : context.l10n.sessionsShowOlderArchived(
+                            olderArchived.length,
+                          ),
+                  ),
+                ),
+              ),
+            if (isOlderArchivedExpanded)
+              ...olderArchived.asMap().entries.map(
+                (entry) => _buildArchivedCard(
+                  context,
+                  ListItem.archivedSession(
+                    entry.value,
+                    recentArchived.length + entry.key,
+                    isFirst: recentArchived.isEmpty && entry.key == 0,
+                    isLast: entry.key == olderArchived.length - 1,
+                    isSingle:
+                        recentArchived.isEmpty && olderArchived.length == 1,
+                  ),
+                  showFlavorIcons: showFlavorIcons,
+                  avatarStyle: avatarStyle,
+                ),
+              ),
+          ],
+        ],
+      ),
     );
   }
 

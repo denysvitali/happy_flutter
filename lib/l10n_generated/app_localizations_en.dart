@@ -2409,6 +2409,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsArchivedLabel => 'Archived';
 
   @override
+  String sessionsShowArchived(int count) {
+    return 'Show archived ($count)';
+  }
+
+  @override
+  String get sessionsHideArchived => 'Hide archived';
+
+  @override
+  String sessionsShowOlderArchived(int count) {
+    return 'Show older archived ($count)';
+  }
+
+  @override
+  String get sessionsHideOlderArchived => 'Hide older archived';
+
+  @override
   String get sessionsArchive => 'Archive';
 
   @override

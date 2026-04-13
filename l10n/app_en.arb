@@ -903,6 +903,24 @@
   "dateGroupOlder": "Older",
   "sessionsActiveSessions": "ACTIVE SESSIONS",
   "sessionsArchivedLabel": "Archived",
+  "sessionsShowArchived": "Show archived ({count})",
+  "@sessionsShowArchived": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsHideArchived": "Hide archived",
+  "sessionsShowOlderArchived": "Show older archived ({count})",
+  "@sessionsShowOlderArchived": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sessionsHideOlderArchived": "Hide older archived",
   "sessionsArchive": "Archive",
   "sessionsArchiveSession": "Archive Session",
   "sessionsSimple": "Simple",
