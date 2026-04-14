@@ -178,7 +178,7 @@ jobs:
           echo "Merged coverage from $(ls coverage-shards/ | wc -l) shards"
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
