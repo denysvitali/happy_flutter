@@ -107,5 +107,5 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 
     // TFLite GPU delegate (required by tflite_flutter plugin for R8 resolution)
-    implementation("org.tensorflow:tensorflow-lite-gpu:2.11.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.17.0")
 }
