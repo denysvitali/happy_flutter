@@ -72,7 +72,7 @@ dependencies:
   # local_auth and geolocator removed — zero callers in lib/
   firebase_core: ^4.4.0
   firebase_messaging: ^16.1.1
-  flutter_local_notifications: ^19.0.0
+  flutter_local_notifications: ^21.0.0
   mobile_scanner: ^7.2.0
   cached_network_image: ^3.4.1
 
