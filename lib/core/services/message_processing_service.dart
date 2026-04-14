@@ -1,5 +1,7 @@
 import 'dart:isolate';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../encryption/message_processor.dart';
 
 Future<ProcessedMessages> processDecryptedMessagesWithIsolation({
@@ -9,7 +11,8 @@ Future<ProcessedMessages> processDecryptedMessagesWithIsolation({
   required List<bool> wasEncrypted,
   required bool useIsolate,
 }) async {
-  if (!useIsolate) {
+  // Isolates are not supported on web — use main-thread processing.
+  if (!useIsolate || kIsWeb) {
     return processDecryptedMessages(
       decryptedJsonList: decryptedJsonList,
       wireMessages: wireMessages,

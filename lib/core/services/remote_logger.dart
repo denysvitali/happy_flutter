@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart' show kDebugMode, FlutterError, debugPrint;
+import 'package:flutter/foundation.dart' show kDebugMode, FlutterError, debugPrint, kIsWeb;
 import 'logger_service.dart';
 
 /// Remote logger that monkey-patches console methods for AI
@@ -245,6 +245,12 @@ extension RemoteLoggerIsolate on RemoteLogger {
   Future<T> runInIsolate<T>(
     Future<T> Function(BackgroundIsolateLogger bgLogger) function,
   ) async {
+    // Isolates are not supported on web.
+    if (kIsWeb) {
+      throw UnsupportedError(
+        'runInIsolate is not supported on web',
+      );
+    }
     final receivePort = ReceivePort();
     final completer = Completer<T>();
 
