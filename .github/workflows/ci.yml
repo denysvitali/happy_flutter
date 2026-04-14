@@ -51,7 +51,7 @@ jobs:
           lfs: true
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v30
+        uses: cachix/install-nix-action@v31
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -93,7 +93,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v30
+        uses: cachix/install-nix-action@v31
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -197,7 +197,7 @@ jobs:
           lfs: true
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v30
+        uses: cachix/install-nix-action@v31
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -273,7 +273,7 @@ jobs:
           df -h
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v30
+        uses: cachix/install-nix-action@v31
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -407,7 +407,7 @@ jobs:
 
       - name: Install Nix
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: cachix/install-nix-action@v30
+        uses: cachix/install-nix-action@v31
 
       - name: Install devenv
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -545,7 +545,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v30
+        uses: cachix/install-nix-action@v31
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
