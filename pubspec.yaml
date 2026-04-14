@@ -54,6 +54,9 @@ dependencies:
   fuzzy: ^0.5.1
   tflite_flutter: ^0.12.0
 
+  # IndexedDB wrapper for web storage (sessions cache quota relief)
+  idb_shim: ^2.4.1
+
   # UI and navigation
   go_router: ^17.0.1
   google_fonts: ^8.0.2

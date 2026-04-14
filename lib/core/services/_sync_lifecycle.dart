@@ -525,7 +525,7 @@ extension SyncLifecycle on Sync {
     _optimisticallyArchivedSessions.clear();
     _sessions.clear();
     _lastSessionsFetchedAt = null;
-    MMKVStorage().clearSessionsCache();
+    SessionsCacheStorage.instance.clearSessionsCache();
     _machines.clear();
     _sessionGitStatus.clear();
     _sessionSpawnedAt.clear();

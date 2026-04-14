@@ -453,7 +453,8 @@ extension SyncSocket on Sync {
   }
 
   Future<void> _restoreSessionsCache() async {
-    final cache = MMKVStorage().getSessionsCache();
+    // SessionsCacheStorage abstracts IndexedDB on web / MMKV on native.
+    final cache = await SessionsCacheStorage.instance.getSessionsCacheAsync();
     if (cache == null) return;
 
     try {
@@ -535,9 +536,15 @@ extension SyncSocket on Sync {
       _sessionDataKeys.clear();
       _sessionEncryptedDataKeys.clear();
       _lastSessionsFetchedAt = null;
-      MMKVStorage().clearSessionsCache();
+      SessionsCacheStorage.instance.clearSessionsCache();
     }
   }
+
+  /// Maximum sessions to store in the on-disk sessions cache.
+  /// Cold-start performance is fine with 200 sessions; capping keeps the
+  /// cache small enough to avoid localStorage quota exhaustion on web
+  /// (~5–10 MB limit shared across all keys).
+  static const int _maxCachedSessions = 200;
 
   void _persistSessionsCache() {
     _saveSessionsCacheDebounceTimer?.cancel();
@@ -553,7 +560,21 @@ extension SyncSocket on Sync {
     // Remove stale entries for deleted sessions.
     _sessionJsonCache.removeWhere((id, _) => !_sessions.containsKey(id));
 
-    MMKVStorage().saveSessionsCache({
+    // LRU cap — drop oldest sessions beyond the limit to keep cache size
+    // bounded and avoid localStorage quota exhaustion on web.
+    if (_sessionJsonCache.length > _maxCachedSessions) {
+      final sorted = _sessionJsonCache.keys.toList()
+        ..sort((a, b) {
+          final aTime = _sessions[a]?.updatedAt ?? 0;
+          final bTime = _sessions[b]?.updatedAt ?? 0;
+          return bTime.compareTo(aTime);
+        });
+      for (final id in sorted.skip(_maxCachedSessions)) {
+        _sessionJsonCache.remove(id);
+      }
+    }
+
+    SessionsCacheStorage.instance.saveSessionsCache({
       'lastFetchedAt': _lastSessionsFetchedAt,
       'sessions': [for (final e in _sessionJsonCache.values) e.$2],
       'encryptedDataKeys': Map<String, String>.from(_sessionEncryptedDataKeys),
