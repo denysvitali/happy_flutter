@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Workflow Rules
 
 - **Always commit and push** after completing changes — do not wait for the user to ask
