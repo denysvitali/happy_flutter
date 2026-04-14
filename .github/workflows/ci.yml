@@ -40,50 +40,10 @@ permissions:
   id-token: write
 
 jobs:
+  # Run analyze and test in parallel — both need pub get but are independent after
   analyze:
     name: Analyze Code
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v30
-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
-
-      - name: Get dependencies
-        run: |
-          for attempt in 1 2 3; do
-            if devenv shell -- flutter pub get; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep 10
-          done
-
-      - name: Analyze code
-        run: devenv shell -- flutter analyze --no-fatal-infos --no-fatal-warnings
-
-  test:
-    name: Test (shard ${{ matrix.shard }}/8)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -116,13 +76,55 @@ jobs:
             sleep 10
           done
 
-      - name: Run tests (shard ${{ matrix.shard }}/8)
+      - name: Analyze code
+        run: devenv shell -- flutter analyze --no-fatal-infos --no-fatal-warnings
+
+  test:
+    name: Test (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        total_shards: [8]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+
+      - name: Install devenv
+        run: nix profile install nixpkgs#devenv
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Get dependencies
+        run: |
+          for attempt in 1 2 3; do
+            if devenv shell -- flutter pub get; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Run tests (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
         run: |
           mapfile -t all_tests < <(find test -name '*_test.dart' \
             ! -path 'test/golden/*' | sort)
           total=${#all_tests[@]}
           shard=$(( ${{ matrix.shard }} - 1 ))
-          num_shards=8
+          num_shards=${{ matrix.total_shards }}
           per_shard=$(( (total + num_shards - 1) / num_shards ))
           start=$(( shard * per_shard ))
           shard_tests=("${all_tests[@]:$start:$per_shard}")
@@ -130,7 +132,7 @@ jobs:
             echo "No tests in this shard, skipping."
             exit 0
           fi
-          echo "Running ${#shard_tests[@]} of $total test files"
+          echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
           devenv shell -- flutter test --coverage \
             --concurrency=4 "${shard_tests[@]}"
 
@@ -535,7 +537,6 @@ jobs:
 
   build-web:
     name: Build Web
-    needs: analyze
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
