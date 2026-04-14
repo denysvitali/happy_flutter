@@ -1,6 +1,6 @@
-# AGENTS.md
+# CLAUDE.md
 
-This file provides guidance to coding agents working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Workflow Rules
 
@@ -26,7 +26,7 @@ This file provides guidance to coding agents working with code in this repositor
 
 ## Documentation Notes
 
-- **`AGENTS.md` points to this file**
+- **`CLAUDE.md` is the authoritative agent guide**
 
 ## Project Overview
 
@@ -155,10 +155,12 @@ socketIoClient // SocketIoClient — lib/core/api/socket_io_client.dart
 **`Sync` is a true singleton** via `factory Sync() => _instance`. Calling `Sync()` always returns the same instance.
 
 **Provider bridge pattern:** Screens subscribe to `sync.onDataChanged` (debounced 100ms) and call:
-- `provider.notifier.loadFromSync()` — reads in-memory state (instant)
-- `provider.notifier.refreshFromSync()` — server fetch, then reads
+- `provider.notifier.loadFromSync()` — reads in-memory state (instant). Use on every `onDataChanged` callback.
+- `provider.notifier.refreshFromSync()` — server fetch, then reads. Use once in `initState` with `microtask` to bootstrap.
 
 Guard on `sync.isInitialized` — `loadFromSync()` is a no-op when `false`. Note: `sync.isReady` is separate (set after sessions+machines resolve).
+
+**ChatScreen exception:** ChatScreen subscribes to BOTH `sync.onDataChanged` AND `sync.onSessionMessagesChanged`, and uses a local `_refreshFromSync()` with `setState()` because it manages paginated message lists locally. Do not blindly apply the standard template here.
 
 **InvalidateSync fields (13 total):** `sessionsSync`, `settingsSync`, `profileSync`, `purchasesSync`, `machinesSync`, `pushTokenSync`, `nativeUpdateSync`, `artifactsSync`, `friendsSync`, `friendRequestsSync`, `feedSync`, `todosSync`, `sessionGitStatusSync`. Note: `messagesSync` is a `Map<String, InvalidateSync>` (per-session).
 
