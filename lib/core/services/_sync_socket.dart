@@ -518,17 +518,15 @@ extension SyncSocket on Sync {
         }
       }
 
-      // Intentionally NOT restoring _lastSessionsFetchedAt from cache.
-      // On cold start, we need a FULL session fetch (not delta) to get
-      // accurate lastSeq values. The server's changedSince filter may only
-      // track metadata changes, not new messages, so a delta fetch would
-      // miss sessions that only received messages while the app was closed.
-      // _lastSessionsFetchedAt = _asInt(lastFetchedAt);
-      _lastSessionsFetchedAt = null;
+      // Restore the session delta cursor so that subsequent connections
+      // (after this cold-start full fetch completes) use incremental sync
+      // instead of re-fetching everything.
+      _lastSessionsFetchedAt =
+          WireParsers.parseInt(cache['lastFetchedAt']);
       if (_sessions.isNotEmpty) {
         logger.info(
           'Restored ${_sessions.length} cached sessions '
-          '(forcing full fetch on startup)',
+          '(lastSessionsFetchedAt=$_lastSessionsFetchedAt)',
         );
       }
     } catch (error, stack) {
