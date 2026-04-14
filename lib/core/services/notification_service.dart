@@ -228,7 +228,7 @@ class NotificationService {
   Future<void> cancelPermissionNotification(
     String permissionId,
   ) async {
-    await _localNotifications.cancel(permissionId.hashCode);
+    await _localNotifications.cancel(id: permissionId.hashCode);
   }
 
   // -----------------------------------------------------------
@@ -242,10 +242,10 @@ class NotificationService {
     logger.info('Foreground notification: ${notification.title}');
 
     _localNotifications.show(
-      message.hashCode,
-      notification.title,
-      notification.body,
-      const NotificationDetails(
+      id: message.hashCode,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'happy_default',
           'Happy Notifications',
