@@ -1,8 +1,20 @@
-// Web-only storage implementation using SharedPreferences.
+// Web-only storage implementation using IndexedDB via idb_shim.
+//
+// localStorage (SharedPreferences on web) has a ~5–10 MB quota shared across
+// all keys. Session message caches, per-session maps, and settings can easily
+// exceed this limit. IndexedDB provides a much larger quota (50 MB+) and
+// avoids QuotaExceededError.
+//
+// On first run, data is migrated from SharedPreferences (localStorage) to
+// IndexedDB. After migration, SharedPreferences is cleared to free the
+// localStorage quota.
+//
 // This file must NOT import dart:io.
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:idb_shim/idb_browser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/profile.dart' as models;
@@ -18,14 +30,19 @@ class _Keys {
   static const String sessionProfiles = 'session-profiles';
   static const String profile = 'profile';
   static const String sessionLastSeq = 'session-last-seq';
-  static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
+  static const String sessionFirstLoadedSeq =
+      'session-first-loaded-seq';
   static const String sessionsCache = 'sessions-cache';
   static const String installedVersion = 'installed-version';
 
   // Server config keys moved to server_config_storage_web.dart.
 }
 
-/// SharedPreferences-backed storage for web.
+const String _dbName = 'happy_storage';
+const String _storeName = 'kv';
+const String _migratedKey = '_idb_migrated';
+
+/// IndexedDB-backed storage for web.
 ///
 /// Mirrors the public API of the native [MMKVStorage] so that callers
 /// remain source-compatible across platforms.
@@ -39,24 +56,115 @@ class MMKVStorage {
 
   static final MMKVStorage _instance = MMKVStorage._();
 
-  SharedPreferences? _prefs;
+  Database? _db;
+  final Map<String, String> _cache = {};
   bool _initialized = false;
 
   // In-memory caches for the synchronous seq methods.
   Map<String, int> _sessionLastSeq = {};
   Map<String, int> _sessionFirstLoadedSeq = {};
 
-  /// Initialise the SharedPreferences instance.
+  /// Initialise the IndexedDB instance and migrate from SharedPreferences.
   static Future<void> initialize() async {
     if (_instance._initialized) return;
     try {
-      _instance._prefs = await SharedPreferences.getInstance();
+      final idbFactory = getIdbFactory();
+      if (idbFactory == null) {
+        throw StateError('IndexedDB not supported in this browser');
+      }
+
+      _instance._db = await idbFactory.open(
+        _dbName,
+        version: 1,
+        onUpgradeNeeded: (VersionChangeEvent event) {
+          final db = event.database;
+          if (!db.objectStoreNames.contains(_storeName)) {
+            db.createObjectStore(_storeName);
+          }
+        },
+      );
+
+      // Migrate from SharedPreferences (localStorage) on first run.
+      await _instance._migrateFromLocalStorage();
+
+      // Load all data into memory for synchronous reads.
+      await _instance._loadAll();
+
       _instance._initialized = true;
-      // Eagerly populate synchronous caches.
       _instance._loadSeqCaches();
     } catch (e) {
       logger.warning('WebStorage(MMKVStorage): init failed: $e');
       rethrow;
+    }
+  }
+
+  /// Migrate data from SharedPreferences (localStorage) to IndexedDB.
+  ///
+  /// On first run after the code upgrade, all existing localStorage data is
+  /// copied into IndexedDB. SharedPreferences is then cleared to free the
+  /// 5–10 MB localStorage quota. A migration flag prevents re-running.
+  Future<void> _migrateFromLocalStorage() async {
+    try {
+      // Check if migration already done.
+      final txn = _db!.transaction(_storeName, idbModeReadOnly);
+      final store = txn.objectStore(_storeName);
+      final migrated = await store.getObject(_migratedKey);
+      await txn.completed;
+      if (migrated != null) return;
+
+      // Read all data from SharedPreferences.
+      final prefs = await SharedPreferences.getInstance();
+      final allKeys = prefs.getKeys().toList();
+
+      if (allKeys.isNotEmpty) {
+        final writeTxn = _db!.transaction(_storeName, idbModeReadWrite);
+        final writeStore = writeTxn.objectStore(_storeName);
+        for (final key in allKeys) {
+          final value = prefs.getString(key);
+          if (value != null) {
+            unawaited(writeStore.put(value, key));
+          }
+        }
+        unawaited(writeStore.put('true', _migratedKey));
+        await writeTxn.completed;
+
+        // Free localStorage quota.
+        await prefs.clear();
+
+        logger.info(
+          'WebStorage: migrated ${allKeys.length} keys '
+          'from localStorage to IndexedDB',
+        );
+      } else {
+        // No data to migrate — just mark as done.
+        final writeTxn = _db!.transaction(_storeName, idbModeReadWrite);
+        final writeStore = writeTxn.objectStore(_storeName);
+        unawaited(writeStore.put('true', _migratedKey));
+        await writeTxn.completed;
+      }
+    } catch (e) {
+      logger.warning('WebStorage: migration from localStorage failed: $e');
+      // Non-fatal — proceed with empty cache; data will be re-fetched
+      // from the server.
+    }
+  }
+
+  /// Load all IndexedDB entries into the in-memory cache.
+  Future<void> _loadAll() async {
+    try {
+      final txn = _db!.transaction(_storeName, idbModeReadOnly);
+      final store = txn.objectStore(_storeName);
+      final keys = await store.getAllKeys(null);
+      for (final key in keys) {
+        if (key == _migratedKey) continue;
+        final value = await store.getObject(key);
+        if (value is String) {
+          _cache[key as String] = value;
+        }
+      }
+      await txn.completed;
+    } catch (e) {
+      logger.warning('WebStorage: failed to load cache: $e');
     }
   }
 
@@ -67,7 +175,7 @@ class MMKVStorage {
 
   Map<String, int> _readIntMap(String key) {
     try {
-      final json = _prefs?.getString(key);
+      final json = _cache[key];
       if (json != null) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
         return decoded.map((k, v) => MapEntry(k, v as int));
@@ -78,17 +186,53 @@ class MMKVStorage {
     return {};
   }
 
-  Future<SharedPreferences> _getPrefs() async {
-    if (!_initialized) await initialize();
-    return _prefs!;
+  // ── Persistence helpers ──────────────────────────────────────────────────
+
+  /// Update in-memory cache and fire-and-forget persist to IndexedDB.
+  void _persist(String key, String value) {
+    _cache[key] = value;
+    _doPersist(key, value);
+  }
+
+  Future<void> _doPersist(String key, String value) async {
+    try {
+      final txn = _db!.transaction(_storeName, idbModeReadWrite);
+      final store = txn.objectStore(_storeName);
+      await store.put(value, key);
+      await txn.completed;
+    } catch (e) {
+      logger.warning('IndexedDB: failed to persist "$key": $e');
+    }
+  }
+
+  /// Update in-memory cache and await IndexedDB write.
+  Future<void> _persistAsync(String key, String value) async {
+    _cache[key] = value;
+    await _doPersist(key, value);
+  }
+
+  /// Remove from in-memory cache and fire-and-forget delete from IndexedDB.
+  void _remove(String key) {
+    _cache.remove(key);
+    _doRemove(key);
+  }
+
+  Future<void> _doRemove(String key) async {
+    try {
+      final txn = _db!.transaction(_storeName, idbModeReadWrite);
+      final store = txn.objectStore(_storeName);
+      await store.delete(key);
+      await txn.completed;
+    } catch (e) {
+      logger.warning('IndexedDB: failed to delete "$key": $e');
+    }
   }
 
   // ── Settings ──────────────────────────────────────────────────────────────
 
   Future<Settings> getSettings() async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.settings);
+      final json = _cache[_Keys.settings];
       if (json != null) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
         return Settings.fromJson(decoded);
@@ -101,34 +245,27 @@ class MMKVStorage {
 
   Future<void> saveSettings(Settings settings) async {
     try {
-      final prefs = await _getPrefs();
-      await prefs.setString(_Keys.settings, jsonEncode(settings.toJson()));
+      await _persistAsync(
+        _Keys.settings,
+        jsonEncode(settings.toJson()),
+      );
     } catch (e) {
-      // QuotaExceededError means localStorage is full. Log the error
-      // but don't rethrow — failing to save settings is better than
-      // crashing the app. Settings will be re-fetched from the server
-      // on next app start.
+      // IndexedDB is much larger than localStorage, but log and continue
+      // on any failure — settings will be re-fetched from server on
+      // next app start.
       logger.warning('WebStorage: failed to save settings: $e');
-      // Don't rethrow — the app should continue functioning even if
-      // settings can't be persisted locally.
     }
   }
 
   Future<void> clearSettings() async {
-    try {
-      final prefs = await _getPrefs();
-      await prefs.remove(_Keys.settings);
-    } catch (e) {
-      logger.warning('WebStorage: failed to clear settings: $e');
-    }
+    _remove(_Keys.settings);
   }
 
   // ── Session drafts ────────────────────────────────────────────────────────
 
   Future<String?> getSessionDraft(String sessionId) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionDrafts);
+      final json = _cache[_Keys.sessionDrafts];
       if (json != null) {
         final map = jsonDecode(json) as Map<String, dynamic>;
         return map[sessionId] as String?;
@@ -141,27 +278,24 @@ class MMKVStorage {
 
   Future<void> saveSessionDraft(String sessionId, String draft) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionDrafts);
+      final json = _cache[_Keys.sessionDrafts];
       final map = json != null
           ? jsonDecode(json) as Map<String, dynamic>
           : <String, dynamic>{};
       map[sessionId] = draft;
-      await prefs.setString(_Keys.sessionDrafts, jsonEncode(map));
+      await _persistAsync(_Keys.sessionDrafts, jsonEncode(map));
     } catch (e) {
       logger.warning('WebStorage: failed to save session draft: $e');
-      rethrow;
     }
   }
 
   Future<void> removeSessionDraft(String sessionId) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionDrafts);
+      final json = _cache[_Keys.sessionDrafts];
       if (json != null) {
         final map = (jsonDecode(json) as Map<String, dynamic>)
           ..remove(sessionId);
-        await prefs.setString(_Keys.sessionDrafts, jsonEncode(map));
+        await _persistAsync(_Keys.sessionDrafts, jsonEncode(map));
       }
     } catch (e) {
       logger.warning('WebStorage: failed to remove session draft: $e');
@@ -170,8 +304,7 @@ class MMKVStorage {
 
   Future<Map<String, String>> getSessionDrafts() async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionDrafts);
+      final json = _cache[_Keys.sessionDrafts];
       if (json != null) {
         final map = jsonDecode(json) as Map<String, dynamic>;
         return map.map((k, v) => MapEntry(k, v as String));
@@ -183,26 +316,22 @@ class MMKVStorage {
   }
 
   Future<void> clearSessionDrafts() async {
-    try {
-      final prefs = await _getPrefs();
-      await prefs.remove(_Keys.sessionDrafts);
-    } catch (e) {
-      logger.warning('WebStorage: failed to clear session drafts: $e');
-    }
+    _remove(_Keys.sessionDrafts);
   }
 
-  // ── Session permission modes ───────────────────────────────────────────────
+  // ── Session permission modes ───────────────────────────────────────────
 
   Future<String?> getSessionPermissionMode(String sessionId) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionPermissionModes);
+      final json = _cache[_Keys.sessionPermissionModes];
       if (json != null) {
         final map = jsonDecode(json) as Map<String, dynamic>;
         return map[sessionId] as String?;
       }
     } catch (e) {
-      logger.warning('WebStorage: failed to get session permission mode: $e');
+      logger.warning(
+        'WebStorage: failed to get session permission mode: $e',
+      );
     }
     return null;
   }
@@ -212,67 +341,64 @@ class MMKVStorage {
     String mode,
   ) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionPermissionModes);
+      final json = _cache[_Keys.sessionPermissionModes];
       final map = json != null
           ? jsonDecode(json) as Map<String, dynamic>
           : <String, dynamic>{};
       map[sessionId] = mode;
-      await prefs.setString(_Keys.sessionPermissionModes, jsonEncode(map));
+      await _persistAsync(
+        _Keys.sessionPermissionModes,
+        jsonEncode(map),
+      );
     } catch (e) {
-      logger.warning('WebStorage: failed to save session permission mode: $e');
-      rethrow;
+      logger.warning(
+        'WebStorage: failed to save session permission mode: $e',
+      );
     }
   }
 
   Future<void> removeSessionPermissionMode(String sessionId) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionPermissionModes);
+      final json = _cache[_Keys.sessionPermissionModes];
       if (json != null) {
         final map = (jsonDecode(json) as Map<String, dynamic>)
           ..remove(sessionId);
-        await prefs.setString(
+        await _persistAsync(
           _Keys.sessionPermissionModes,
           jsonEncode(map),
         );
       }
     } catch (e) {
       logger.warning(
-        'WebStorage: failed to remove session permission mode', e,
+        'WebStorage: failed to remove session permission mode: $e',
       );
     }
   }
 
   Future<Map<String, String>> getSessionPermissionModes() async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionPermissionModes);
+      final json = _cache[_Keys.sessionPermissionModes];
       if (json != null) {
         final map = jsonDecode(json) as Map<String, dynamic>;
         return map.map((k, v) => MapEntry(k, v as String));
       }
     } catch (e) {
-      logger.warning('WebStorage: failed to get session permission modes: $e');
+      logger.warning(
+        'WebStorage: failed to get session permission modes: $e',
+      );
     }
     return {};
   }
 
   Future<void> clearSessionPermissionModes() async {
-    try {
-      final prefs = await _getPrefs();
-      await prefs.remove(_Keys.sessionPermissionModes);
-    } catch (e) {
-      logger.warning(
-        'WebStorage: failed to clear session permission modes', e,
-      );
-    }
+    _remove(_Keys.sessionPermissionModes);
   }
+
+  // ── Session profiles ───────────────────────────────────────────────────
 
   Future<String?> getSessionProfile(String sessionId) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionProfiles);
+      final json = _cache[_Keys.sessionProfiles];
       if (json != null) {
         final map = jsonDecode(json) as Map<String, dynamic>;
         return map[sessionId] as String?;
@@ -283,10 +409,11 @@ class MMKVStorage {
     return null;
   }
 
+  // ── Session model modes ────────────────────────────────────────────────
+
   Future<String?> getSessionModelMode(String sessionId) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionModelModes);
+      final json = _cache[_Keys.sessionModelModes];
       if (json != null) {
         final map = jsonDecode(json) as Map<String, dynamic>;
         return map[sessionId] as String?;
@@ -302,16 +429,14 @@ class MMKVStorage {
     String mode,
   ) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionModelModes);
+      final json = _cache[_Keys.sessionModelModes];
       final map = json != null
           ? jsonDecode(json) as Map<String, dynamic>
           : <String, dynamic>{};
       map[sessionId] = mode;
-      await prefs.setString(_Keys.sessionModelModes, jsonEncode(map));
+      await _persistAsync(_Keys.sessionModelModes, jsonEncode(map));
     } catch (e) {
       logger.warning('WebStorage: failed to save session model mode: $e');
-      rethrow;
     }
   }
 
@@ -320,34 +445,31 @@ class MMKVStorage {
     String profileId,
   ) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionProfiles);
+      final json = _cache[_Keys.sessionProfiles];
       final map = json != null
           ? jsonDecode(json) as Map<String, dynamic>
           : <String, dynamic>{};
       map[sessionId] = profileId;
-      await prefs.setString(_Keys.sessionProfiles, jsonEncode(map));
+      await _persistAsync(_Keys.sessionProfiles, jsonEncode(map));
     } catch (e) {
       logger.warning('WebStorage: failed to save session profile: $e');
-      rethrow;
     }
   }
 
   Future<void> removeSessionProfile(String sessionId) async {
     try {
-      final prefs = await _getPrefs();
-      final json = prefs.getString(_Keys.sessionProfiles);
+      final json = _cache[_Keys.sessionProfiles];
       if (json != null) {
         final map = (jsonDecode(json) as Map<String, dynamic>)
           ..remove(sessionId);
-        await prefs.setString(_Keys.sessionProfiles, jsonEncode(map));
+        await _persistAsync(_Keys.sessionProfiles, jsonEncode(map));
       }
     } catch (e) {
       logger.warning('WebStorage: failed to remove session profile: $e');
     }
   }
 
-  // ── Synchronous seq cursors (backed by in-memory cache) ───────────────────
+  // ── Synchronous seq cursors (backed by in-memory cache) ───────────────
 
   /// Returns the in-memory last-seq map.
   /// The map is populated during [initialize].
@@ -379,15 +501,11 @@ class MMKVStorage {
   Map<String, dynamic>? getSessionsCache() {
     if (!_initialized) return null;
     try {
-      final json = _prefs?.getString(_Keys.sessionsCache);
+      final json = _cache[_Keys.sessionsCache];
       if (json == null || json.isEmpty) return null;
       final decoded = jsonDecode(json);
-      if (decoded is Map<String, dynamic>) {
-        return decoded;
-      }
-      if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded);
-      }
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
     } catch (e) {
       logger.warning('WebStorage: failed to load sessions cache: $e');
     }
@@ -396,48 +514,54 @@ class MMKVStorage {
 
   void saveSessionsCache(Map<String, dynamic> cache) {
     if (!_initialized) return;
-    _getPrefs().then((prefs) {
-      prefs.setString(_Keys.sessionsCache, jsonEncode(cache));
-    }).catchError((Object e) {
-      logger.warning('WebStorage: failed to persist sessions cache: $e');
-    });
+    _persist(_Keys.sessionsCache, jsonEncode(cache));
   }
 
   void clearSessionsCache() {
     if (!_initialized) return;
-    _getPrefs().then((prefs) {
-      prefs.remove(_Keys.sessionsCache);
-    }).catchError((Object e) {
-      logger.warning('WebStorage: failed to clear sessions cache: $e');
-    });
+    _remove(_Keys.sessionsCache);
   }
 
   void _persistIntMap(String key, Map<String, int> map) {
     // Fire-and-forget; errors are logged but not thrown.
-    _getPrefs().then((prefs) {
-      prefs.setString(key, jsonEncode(map));
-    }).catchError((Object e) {
-      logger.warning('WebStorage: failed to persist "$key": $e');
-    });
+    _persist(key, jsonEncode(map));
   }
 
   // ── Clear all ─────────────────────────────────────────────────────────────
 
   Future<void> clearAll() async {
     try {
-      final prefs = await _getPrefs();
       // Remove all user-data keys (leave server_config.* keys intact).
       final userKeys = [
         _Keys.settings,
         _Keys.sessionDrafts,
         _Keys.sessionPermissionModes,
+        _Keys.sessionModelModes,
+        _Keys.sessionProfiles,
         _Keys.profile,
         _Keys.sessionLastSeq,
         _Keys.sessionFirstLoadedSeq,
+        _Keys.sessionsCache,
       ];
       for (final k in userKeys) {
-        await prefs.remove(k);
+        _cache.remove(k);
       }
+      // Remove session message keys.
+      _cache.removeWhere((k, _) => k.startsWith('session-messages-'));
+      // Persist deletions to IndexedDB.
+      final txn = _db!.transaction(_storeName, idbModeReadWrite);
+      final store = txn.objectStore(_storeName);
+      for (final k in userKeys) {
+        unawaited(store.delete(k));
+      }
+      // Clear all session message keys from IndexedDB.
+      final allKeys = await store.getAllKeys(null);
+      for (final k in allKeys) {
+        if ((k as String).startsWith('session-messages-')) {
+          unawaited(store.delete(k));
+        }
+      }
+      await txn.completed;
       _sessionLastSeq = {};
       _sessionFirstLoadedSeq = {};
     } catch (e) {
@@ -447,16 +571,14 @@ class MMKVStorage {
 
   /// Test helper: write a raw string (for testing error handling).
   Future<void> writeRawString(String key, String value) async {
-    final prefs = await _getPrefs();
-    await prefs.setString(key, value);
+    await _persistAsync(key, value);
   }
 
   // ─── Session message cache ──────────────────────────────────────────
 
   List<Map<String, dynamic>> getSessionMessages(String sessionId) {
     try {
-      if (_prefs == null) return [];
-      final raw = _prefs!.getString('session-messages-$sessionId');
+      final raw = _cache['session-messages-$sessionId'];
       if (raw == null) return [];
       final list = jsonDecode(raw) as List<dynamic>;
       return list.cast<Map<String, dynamic>>();
@@ -469,61 +591,38 @@ class MMKVStorage {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
-    _getPrefs().then((prefs) {
-      prefs.setString(
-        'session-messages-$sessionId',
-        jsonEncode(messages),
-      );
-    }).catchError((Object e) {
-      logger.warning(
-        'WebStorage: failed to save session messages: $e',
-      );
-    });
+    _persist('session-messages-$sessionId', jsonEncode(messages));
   }
 
   void clearSessionMessages(String sessionId) {
-    _getPrefs().then((prefs) {
-      prefs.remove('session-messages-$sessionId');
-    }).catchError((Object e) {
-      logger.warning(
-        'WebStorage: failed to clear session messages: $e',
-      );
-    });
+    _remove('session-messages-$sessionId');
   }
 
   // ─── Generic key-value access ────────────────────────────────────────
 
   /// Read a raw string for an arbitrary key.
-  String? getString(String key) => _prefs?.getString(key);
+  String? getString(String key) => _cache[key];
 
   /// Write a raw string for an arbitrary key.
   void setString(String key, String value) {
-    _getPrefs().then((prefs) {
-      prefs.setString(key, value);
-    }).catchError((Object e) {
-      logger.warning('WebStorage: failed to set "$key": $e');
-    });
+    _persist(key, value);
   }
 
   /// Read a raw bool for an arbitrary key.
-  bool? getBool(String key) => _prefs?.getBool(key);
+  bool? getBool(String key) {
+    final value = _cache[key];
+    if (value == null) return null;
+    return value == 'true';
+  }
 
   /// Write a raw bool for an arbitrary key.
   void setBool(String key, bool value) {
-    _getPrefs().then((prefs) {
-      prefs.setBool(key, value);
-    }).catchError((Object e) {
-      logger.warning('WebStorage: failed to set bool "$key": $e');
-    });
+    _persist(key, value.toString());
   }
 
   /// Remove a single key.
   void removeKey(String key) {
-    _getPrefs().then((prefs) {
-      prefs.remove(key);
-    }).catchError((Object e) {
-      logger.warning('WebStorage: failed to remove "$key": $e');
-    });
+    _remove(key);
   }
 
   // ─── Version tracking ─────────────────────────────────────────────
@@ -531,29 +630,23 @@ class MMKVStorage {
   /// Get the installed version (null if first install)
   String? getInstalledVersion() {
     if (!_initialized) return null;
-    return _prefs?.getString(_Keys.installedVersion);
+    return _cache[_Keys.installedVersion];
   }
 
   /// Save the installed version
   void setInstalledVersion(String version) {
     if (!_initialized) return;
-    _getPrefs().then((prefs) {
-      prefs.setString(_Keys.installedVersion, version);
-    }).catchError((Object e) {
-      logger.warning('WebStorage: failed to persist installed version: $e');
-    });
+    _persist(_Keys.installedVersion, version);
   }
 
   // ─── Outbox persistence ─────────────────────────────────────────────
 
   Future<String?> getOutboxEntries() async {
-    final prefs = await _getPrefs();
-    return prefs.getString('outbox-entries');
+    return _cache['outbox-entries'];
   }
 
   Future<void> saveOutboxEntries(String jsonStr) async {
-    final prefs = await _getPrefs();
-    await prefs.setString('outbox-entries', jsonStr);
+    await _persistAsync('outbox-entries', jsonStr);
   }
 }
 
@@ -563,16 +656,15 @@ class MMKVStorage {
 /// Web implementation of ProfileStorage.
 class ProfileStorage {
   factory ProfileStorage() => _instance;
-  ProfileStorage._();
   static final ProfileStorage _instance = ProfileStorage._();
+  ProfileStorage._();
 
   static const String _profileKey = 'profile';
   final _storage = MMKVStorage();
 
   Future<models.Profile> loadProfile() async {
     try {
-      final prefs = await _storage._getPrefs();
-      final json = prefs.getString(_profileKey);
+      final json = _storage._cache[_profileKey];
       if (json != null) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
         return models.Profile(
@@ -595,8 +687,7 @@ class ProfileStorage {
 
   Future<void> saveProfile(models.Profile profile) async {
     try {
-      final prefs = await _storage._getPrefs();
-      await prefs.setString(
+      await _storage._persistAsync(
         _profileKey,
         jsonEncode({
           'id': profile.id,
@@ -608,18 +699,10 @@ class ProfileStorage {
       );
     } catch (e) {
       logger.warning('WebStorage(ProfileStorage): failed to save profile: $e');
-      rethrow;
     }
   }
 
   Future<void> clearProfile() async {
-    try {
-      final prefs = await _storage._getPrefs();
-      await prefs.remove(_profileKey);
-    } catch (e) {
-      logger.warning(
-        'WebStorage(ProfileStorage): failed to clear profile', e,
-      );
-    }
+    _storage._remove(_profileKey);
   }
 }
