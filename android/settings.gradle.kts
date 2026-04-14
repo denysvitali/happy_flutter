@@ -8,7 +8,11 @@ pluginManagement {
             flutterSdkPath
         }
 
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+    // Only include Flutter's gradle build if the path exists (works around nixpkgs Flutter SDK issues)
+    val flutterGradlePath = "$flutterSdkPath/packages/flutter_tools/gradle"
+    if (file(flutterGradlePath).exists()) {
+        includeBuild(flutterGradlePath)
+    }
 
     repositories {
         google()
