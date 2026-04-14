@@ -88,7 +88,7 @@ class NotificationService {
       );
 
       await _localNotifications.initialize(
-        initSettings,
+        settings: initSettings,
         onDidReceiveNotificationResponse: _onNotificationResponse,
       );
 
@@ -216,10 +216,10 @@ class NotificationService {
     );
 
     await _localNotifications.show(
-      permissionId.hashCode,
-      title,
-      body,
-      details,
+      id: permissionId.hashCode,
+      title: title,
+      body: body,
+      notificationDetails: details,
       payload: payload,
     );
   }
