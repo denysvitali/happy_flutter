@@ -104,8 +104,13 @@ class MMKVStorage {
       final prefs = await _getPrefs();
       await prefs.setString(_Keys.settings, jsonEncode(settings.toJson()));
     } catch (e) {
+      // QuotaExceededError means localStorage is full. Log the error
+      // but don't rethrow — failing to save settings is better than
+      // crashing the app. Settings will be re-fetched from the server
+      // on next app start.
       logger.warning('WebStorage: failed to save settings: $e');
-      rethrow;
+      // Don't rethrow — the app should continue functioning even if
+      // settings can't be persisted locally.
     }
   }
 

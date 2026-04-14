@@ -59,7 +59,8 @@ class _ArtifactIsolateResult {
 }
 
 /// Decrypt machine metadata and daemonState.
-/// AES-256-GCM items run in a background isolate; NaCl stays on main thread.
+/// AES-256-GCM items run in a background isolate on native; on web they
+/// decrypt on the main thread. NaCl always stays on main thread.
 /// (isAes=false, legacy machines).
 Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
   List<_MachineIsolateItem> items,
@@ -90,8 +91,9 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
   }
 
   // Run AES batch in a background isolate (pure Dart — no FFI).
+  // Skip isolate on web since it's not supported.
   Map<(int, int), dynamic>? aesResultMap;
-  if (aesPayloads.isNotEmpty) {
+  if (aesPayloads.isNotEmpty && !kIsWeb) {
     try {
       final aesResults = await Isolate.run(
         () => AesGcmEncryption.decryptMultiKeyBatch(
@@ -124,7 +126,7 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
       }
       daemonState = aesResultMap[(i, 1)];
     } else {
-      // NaCl (legacy) or AES isolate fallback.
+      // NaCl (legacy) or AES isolate fallback or web.
       final encMeta = item.encryptedMetadata;
       if (encMeta != null) {
         try {
@@ -187,6 +189,7 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
 
 /// Decrypt artifact headers and bodies in a background isolate.
 /// Artifacts always use AES-256-GCM (pure Dart — fully isolate-safe).
+/// On web, decryption runs on the main thread.
 Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
   List<_ArtifactIsolateItem> items,
 ) async {
@@ -214,9 +217,9 @@ Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
     }
   }
 
-  // Run batch in background isolate.
+  // Run batch in background isolate on native platforms only.
   Map<(int, int), dynamic>? resultMap;
-  if (payloads.isNotEmpty) {
+  if (payloads.isNotEmpty && !kIsWeb) {
     try {
       final batchResults = await Isolate.run(
         () => AesGcmEncryption.decryptMultiKeyBatch(
@@ -234,7 +237,7 @@ Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
     }
   }
 
-  // Build results — fall back to main-thread decrypt on failure.
+  // Build results — fall back to main-thread decrypt on failure or web.
   final results = <_ArtifactIsolateResult>[];
   for (var i = 0; i < items.length; i++) {
     final item = items[i];
@@ -249,7 +252,7 @@ Future<List<_ArtifactIsolateResult>> _decryptArtifactsInIsolate(
         body = {'body': bResult['body'] as String?};
       }
     } else {
-      // Isolate fallback — main thread.
+      // Isolate fallback or web — main thread.
       final hRaw = item.encryptedHeader;
       if (hRaw.isNotEmpty && hRaw[0] == 0) {
         try {

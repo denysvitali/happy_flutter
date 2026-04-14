@@ -1,6 +1,8 @@
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../services/logger_service.dart' show logger;
 
 import 'aes_gcm.dart';
@@ -36,6 +38,19 @@ class SecretBoxEncryption implements Encryptor {
 
   @override
   Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    // Isolates are not supported on web — use per-item decryption.
+    if (kIsWeb) {
+      final results = <dynamic>[];
+      for (var i = 0; i < data.length; i++) {
+        final decrypted =
+            await CryptoSecretBox.decrypt(data[i], _secretKey);
+        results.add(decrypted);
+        if (i > 0 && i % 10 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+      return results;
+    }
     // Use isolate-based batch decryption to avoid blocking the main
     // isolate on NaCl FFI calls (crypto_secretbox_open_easy).
     // Fall back to per-item decryption with yields if isolate spawn fails.
@@ -116,8 +131,8 @@ class AES256Encryption implements Encryptor {
   /// Decrypt a batch of items in a background isolate.
   ///
   /// AES-256-GCM uses pure-Dart crypto (`DartAesGcm`) — no platform
-  /// channels or FFI — so it is fully isolate-safe. Falls back to
-  /// main-thread decryption if the isolate spawn fails (e.g. web).
+  /// channels or FFI — so it is fully isolate-safe. On web, falls back to
+  /// main-thread decryption since isolates are not supported.
   Future<List<dynamic>> decryptInIsolate(
     List<Uint8List> data,
   ) async {
@@ -133,6 +148,10 @@ class AES256Encryption implements Encryptor {
     if (stripped.isEmpty) {
       return List<dynamic>.filled(data.length, null);
     }
+    // Isolates are not supported on web — use main-thread decryption.
+    if (kIsWeb) {
+      return decrypt(data);
+    }
     List<dynamic> isolateResults;
     try {
       isolateResults = await Isolate.run(
@@ -142,9 +161,8 @@ class AES256Encryption implements Encryptor {
         ),
       );
     } catch (e, stack) {
-      // Isolate spawn failed (e.g. web platform).  Fall back to
-      // main-thread decryption and log so we know when this happens
-      // on non-web platforms.
+      // Isolate spawn failed (e.g. certain test environments).
+      // Fall back to main-thread decryption.
       logger.warning('AES256Encryption: isolate spawn failed, '
           'falling back to main-thread decrypt', e, stack);
       return decrypt(data);
