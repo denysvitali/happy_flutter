@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/ui/shimmer/shimmer.dart';
+import '../../../core/ui/shimmer/skeleton_list.dart';
 
 /// Skeleton placeholder shown while sessions are loading.
 ///
@@ -34,81 +35,6 @@ class SessionListShimmer extends StatelessWidget {
       );
     }
 
-    Widget row({
-      double avatarSize = 32,
-      double height = 56,
-    }) {
-      return Shimmer(
-        child: SizedBox(
-          height: height,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: avatarSize,
-                  height: avatarSize,
-                  decoration: BoxDecoration(
-                    color: base,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        height: 14,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: base,
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.xs,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(
-                        height: AppSpacing.xs,
-                      ),
-                      Container(
-                        height: 12,
-                        width: 160,
-                        decoration: BoxDecoration(
-                          color: base,
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.xs,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Container(
-                  height: 12,
-                  width: 36,
-                  decoration: BoxDecoration(
-                    color: base,
-                    borderRadius: BorderRadius.circular(
-                      AppRadius.xs,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     return ShimmerScope(
       child: ListView(
         padding: const EdgeInsets.symmetric(
@@ -117,12 +43,42 @@ class SessionListShimmer extends StatelessWidget {
         ),
         children: [
           sectionHeader(80),
-          row(),
-          row(),
-          row(),
+          const SkeletonListTile(
+            avatarSize: 32,
+            height: 56,
+            titleWidth: 1.0,
+            subtitleWidth: 0.4,
+            trailingWidth: 36,
+          ),
+          const SkeletonListTile(
+            avatarSize: 32,
+            height: 56,
+            titleWidth: 1.0,
+            subtitleWidth: 0.4,
+            trailingWidth: 36,
+          ),
+          const SkeletonListTile(
+            avatarSize: 32,
+            height: 56,
+            titleWidth: 1.0,
+            subtitleWidth: 0.4,
+            trailingWidth: 36,
+          ),
           sectionHeader(100),
-          row(avatarSize: 40, height: 68),
-          row(avatarSize: 40, height: 68),
+          const SkeletonListTile(
+            avatarSize: 40,
+            height: 68,
+            titleWidth: 1.0,
+            subtitleWidth: 0.4,
+            trailingWidth: 36,
+          ),
+          const SkeletonListTile(
+            avatarSize: 40,
+            height: 68,
+            titleWidth: 1.0,
+            subtitleWidth: 0.4,
+            trailingWidth: 36,
+          ),
         ],
       ),
     );
