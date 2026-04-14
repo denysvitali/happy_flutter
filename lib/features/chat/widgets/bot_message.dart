@@ -43,8 +43,7 @@ class BotMessage extends StatelessWidget {
     );
 
     return GestureDetector(
-      onTap: () =>
-          showMessageDetailSheet(context, messageData),
+      onTap: () => showMessageDetailSheet(context, messageData),
       onLongPress: () {
         HapticFeedback.mediumImpact();
         showRawMarkdownSheet(context, text);
@@ -54,43 +53,32 @@ class BotMessage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(
             left: AppSpacing.sm,
-            right: AppSpacing.xxl,
+            right: AppSpacing.sm,
             top: AppSpacing.xxs,
             bottom: AppSpacing.xxs,
           ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth:
-                  MediaQuery.sizeOf(context).width * 0.85,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.md,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: radius,
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
+                width: 0.5,
               ),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerLow,
-                borderRadius: radius,
-                border: Border.all(
-                  color: cs.outlineVariant.withValues(
-                    alpha: AppOpacity.subtle,
-                  ),
-                  width: 0.5,
-                ),
-              ),
-              child: DefaultTextStyle.merge(
-                style: TextStyle(color: cs.onSurface),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    MarkdownView(
-                      markdown: text,
-                      onOptionPress: onOptionPress,
-                    ),
-                    if (isStreaming) const StreamingCursor(),
-                  ],
-                ),
+            ),
+            child: DefaultTextStyle.merge(
+              style: TextStyle(color: cs.onSurface),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MarkdownView(markdown: text, onOptionPress: onOptionPress),
+                  if (isStreaming) const StreamingCursor(),
+                ],
               ),
             ),
           ),
