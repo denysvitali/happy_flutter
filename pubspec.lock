@@ -661,6 +661,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.1.0"
+  idb_shim:
+    dependency: "direct main"
+    description:
+      name: idb_shim
+      sha256: "6cd94b71a33f1223b01ea2b359c3a6fde5980872b23b31d176a64c74d4dede57"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.8.5+2"
   image:
     dependency: transitive
     description:
@@ -1101,6 +1109,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.28.0"
+  sembast:
+    dependency: transitive
+    description:
+      name: sembast
+      sha256: "139cf71496105de32e7a08a4e3a1ead0f81c4a616ec9703ed07e8f0d10cdd505"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.8.6"
   sentry:
     dependency: transitive
     description:
@@ -1246,18 +1262,18 @@ packages:
     dependency: "direct main"
     description:
       name: sodium
-      sha256: "515b86c186f4caca49051caf858d878ca7cc4ff4542411e9febb50654eac8a62"
+      sha256: "19e3153ef4d1d10087d78d551d78e56909d159047a578ec692814c65ca450dfc"
       url: "https://pub.dev"
     source: hosted
-    version: "3.4.6"
+    version: "4.0.2+1"
   sodium_libs:
     dependency: "direct main"
     description:
       name: sodium_libs
-      sha256: "76f1124348b9b40e2a43dbe314fbc7ac0edad4a9c6ff75841c7690b8f6ec95dc"
+      sha256: "0f0373b0aa35a8096893e088027f69886f234b9be7283ae817cea775d936c9ad"
       url: "https://pub.dev"
     source: hosted
-    version: "3.4.6+3"
+    version: "4.0.0"
   source_gen:
     dependency: transitive
     description:
@@ -1619,5 +1635,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.10.3 <4.0.0"
-  flutter: ">=3.38.4"
+  dart: ">=3.11.0 <4.0.0"
+  flutter: ">3.41.0"
