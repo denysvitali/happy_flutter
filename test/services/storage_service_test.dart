@@ -674,7 +674,6 @@ void main() {
     test('should initialize all storage components', () async {
       expect(storage.tokenStorage, isNotNull);
       expect(storage.settingsStorage, isNotNull);
-      expect(storage.sessionDraftsStorage, isNotNull);
       expect(storage.sessionPermissionModesStorage, isNotNull);
       expect(storage.profileStorage, isNotNull);
     });
@@ -718,9 +717,10 @@ void main() {
       }
 
       // Concurrent draft writes
+      final mmkvStorage = MMKVStorage();
       for (int i = 0; i < 10; i++) {
         futures.add(
-          storage.sessionDraftsStorage.saveDraft('session-$i', 'Draft $i'),
+          mmkvStorage.saveSessionDraft('session-$i', 'Draft $i'),
         );
       }
 
@@ -737,7 +737,7 @@ void main() {
       await Future.wait(futures);
 
       // Verify data integrity
-      final drafts = await storage.sessionDraftsStorage.getAllDrafts();
+      final drafts = await mmkvStorage.getSessionDrafts();
       expect(drafts.length, equals(10));
 
       final modes = await storage.sessionPermissionModesStorage.getAllPermissionModes();
