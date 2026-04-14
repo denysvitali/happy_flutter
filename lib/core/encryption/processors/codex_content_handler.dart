@@ -38,7 +38,11 @@ void _processCodexContent({
   final dataType = data['type'] as String?;
   final meta = _sidechainMeta(data);
 
-  if (dataType == 'message' || dataType == 'reasoning') {
+  if (dataType == 'message' ||
+      dataType == 'reasoning' ||
+      dataType == 'model-output') {
+    // Handle both old (message) and new (model-output) happy-cli-go formats.
+    final content = data['fullText'] ?? data['message'];
     messages.add({
       'id': id,
       'localId': localId,
@@ -46,7 +50,7 @@ void _processCodexContent({
       'createdAt': createdAt,
       'role': 'agent',
       'kind': 'text',
-      'content': data['message']?.toString() ?? '',
+      'content': content?.toString() ?? '',
       'raw': outerContent,
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
@@ -56,6 +60,9 @@ void _processCodexContent({
   }
 
   if (dataType == 'tool-call') {
+    // Handle both old format (name/input) and new format (toolName/args) from happy-cli-go.
+    final toolName = data['toolName'] ?? data['name'] ?? 'unknown';
+    final toolInput = data['args'] ?? data['input'] ?? <String, dynamic>{};
     messages.add({
       'id': id,
       'localId': localId,
@@ -63,8 +70,8 @@ void _processCodexContent({
       'createdAt': createdAt,
       'role': 'agent',
       'kind': 'tool-call',
-      'name': data['name'],
-      'input': data['input'],
+      'name': toolName,
+      'input': toolInput,
       'toolUseId': data['callId'],
       'state': 'running',
       'content': data,
@@ -80,7 +87,8 @@ void _processCodexContent({
       dataType == 'tool-call-result' ||
       data['dataType'] == 'tool-result' ||
       data['dataType'] == 'tool-call-result') {
-    final result = data['output'] ?? data['content'];
+    // Handle old format (output) and new format (result) from happy-cli-go.
+    final result = data['result'] ?? data['output'] ?? data['content'];
     toolResults.add({
       'toolUseId': data['callId'],
       'result': result,
