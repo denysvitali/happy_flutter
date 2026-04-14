@@ -92,7 +92,7 @@ dev_dependencies:
   build_runner: ^2.4.15
   freezed: ^3.0.6
   json_serializable: ^6.9.5
-  sentry_dart_plugin: ^2.3.0
+  sentry_dart_plugin: ^3.0.0
   flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
