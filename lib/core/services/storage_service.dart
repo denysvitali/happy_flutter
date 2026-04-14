@@ -431,40 +431,6 @@ class SettingsStorage {
   }
 }
 
-/// Session drafts storage with MMKV
-class SessionDraftsStorage {
-  factory SessionDraftsStorage() => _instance;
-  SessionDraftsStorage._();
-  static final SessionDraftsStorage _instance = SessionDraftsStorage._();
-
-  final _storage = MMKVStorage();
-
-  /// Get draft for a specific session
-  Future<String?> getDraft(String sessionId) async {
-    return _storage.getSessionDraft(sessionId);
-  }
-
-  /// Save draft for a specific session
-  Future<void> saveDraft(String sessionId, String draft) async {
-    await _storage.saveSessionDraft(sessionId, draft);
-  }
-
-  /// Remove draft for a specific session
-  Future<void> removeDraft(String sessionId) async {
-    await _storage.removeSessionDraft(sessionId);
-  }
-
-  /// Get all session drafts
-  Future<Map<String, String>> getAllDrafts() async {
-    return _storage.getSessionDrafts();
-  }
-
-  /// Clear all session drafts
-  Future<void> clearAllDrafts() async {
-    await _storage.clearSessionDrafts();
-  }
-}
-
 /// Session permission modes storage with MMKV
 class SessionPermissionModesStorage {
   factory SessionPermissionModesStorage() => _instance;
@@ -697,7 +663,6 @@ class Storage {
   final tokenStorage = TokenStorage();
   final apiKeyStorage = APIKeyStorage();
   final settingsStorage = SettingsStorage();
-  final sessionDraftsStorage = SessionDraftsStorage();
   final sessionPermissionModesStorage = SessionPermissionModesStorage();
   final profileStorage = ProfileStorage();
 
@@ -711,7 +676,7 @@ class Storage {
   Future<void> clearAll() async {
     await tokenStorage.removeCredentials();
     await settingsStorage.clearSettings();
-    await sessionDraftsStorage.clearAllDrafts();
+    await MMKVStorage().clearSessionDrafts();
     await sessionPermissionModesStorage.clearAllPermissionModes();
     await profileStorage.clearProfile();
     unawaited(MMKVStorage().clearAll());
