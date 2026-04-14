@@ -3,7 +3,7 @@
 {
   packages = [
     pkgs.git
-    pkgs.flutter338
+    pkgs.flutter342
     pkgs.jdk21
   ];
 
