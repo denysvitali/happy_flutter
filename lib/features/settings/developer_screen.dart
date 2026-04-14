@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +8,8 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../dart_version_native.dart'
+    if (dart.library.js_interop) '../../dart_version_web.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
 class DeveloperScreen extends ConsumerStatefulWidget {
@@ -38,14 +38,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
   /// Flutter SDK version — no runtime API available.
   static const String _flutterVersion = '3.38.7';
 
-  String get _dartVersion {
-    // Platform.version format:
-    // '3.10.0 (stable) (...) on "linux_x64"'
-    final match = RegExp(
-      r'^(\d+\.\d+\.\d+)',
-    ).firstMatch(Platform.version);
-    return match?.group(1) ?? Platform.version;
-  }
+  String get _dartVersion => getDartVersion();
 
   @override
   Widget build(BuildContext context) {
