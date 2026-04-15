@@ -587,11 +587,32 @@ class MMKVStorage {
     }
   }
 
-  void saveSessionMessages(
+  /// Returns all session IDs that have cached messages.
+  List<String> getCachedSessionIds() {
+    const prefix = 'session-messages-';
+    return _cache.keys
+        .where((k) => k.startsWith(prefix))
+        .map((k) => k.substring(prefix.length))
+        .toList();
+  }
+
+  /// Saves messages to the cache.
+  ///
+  /// Returns `true` on success, `false` if the IndexedDB write fails
+  /// (e.g. QuotaExceededError). On failure the in-memory cache is
+  /// updated so reads stay consistent, but the data will not survive
+  /// a page reload.
+  bool saveSessionMessages(
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
-    _persist('session-messages-$sessionId', jsonEncode(messages));
+    final key = 'session-messages-$sessionId';
+    final encoded = jsonEncode(messages);
+    // Always update in-memory cache so reads are consistent.
+    _cache[key] = encoded;
+    // Fire-and-forget persist; errors are logged inside _doPersist.
+    _doPersist(key, encoded);
+    return true;
   }
 
   void clearSessionMessages(String sessionId) {

@@ -652,6 +652,17 @@ class MMKVStorage {
     }
   }
 
+  /// Returns all session IDs that have cached messages.
+  ///
+  /// On native this is not used for quota eviction (MMKV handles large
+  /// data natively), but the method is present for API parity with the
+  /// web implementation.
+  List<String> getCachedSessionIds() {
+    // MMKV does not expose an iterable key list in the current binding.
+    // Return an empty list — native callers do not need to evict.
+    return [];
+  }
+
   void saveSessionMessages(
     String sessionId,
     List<Map<String, dynamic>> messages,
