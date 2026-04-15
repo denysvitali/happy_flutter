@@ -297,6 +297,13 @@ what you have, you must use the options mode.
   int? _lastResumeAtMs;
   int? _lastSuspendedAtMs;
 
+  /// Snapshot of _sessionLastSeq for the visible session captured at the
+  /// moment of socket reconnection.  Used by fetchMessages to start the
+  /// reconnection fetch from the pre-reconnect cursor position, avoiding
+  /// a race where inline socket events advance the cursor past the
+  /// disconnect gap and cause messages to be permanently skipped.
+  int? _reconnectCursorSnapshot;
+
   /// Minimum interval between resume() calls — prevents socket reconnect
   /// loops
   /// when the app cycles between paused and resumed states repeatedly.
@@ -312,6 +319,7 @@ what you have, you must use the options mode.
   /// wasted HTTP requests that the OS aborts mid-flight.
   Timer? _deferredResumeInvalidationTimer;
   Timer? _reconnectWatchdogTimer;
+  Timer? _resumeBatchTimer;
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _socialSyncsDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;

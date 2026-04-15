@@ -34,6 +34,8 @@ extension SyncLifecycle on Sync {
     _deferredResumeInvalidationTimer = null;
     _reconnectWatchdogTimer?.cancel();
     _reconnectWatchdogTimer = null;
+    _resumeBatchTimer?.cancel();
+    _resumeBatchTimer = null;
 
     // Set backgrounded flag FIRST — this prevents any in-flight
     // InvalidateSync operations from performing network I/O while
@@ -262,38 +264,34 @@ extension SyncLifecycle on Sync {
         final sessionsToRefresh = <String>{};
 
         // Invalidate sessions that had pending socket messages before
-        // suspend.  Cap the number of non-visible sessions to avoid
-        // launching dozens of parallel HTTP requests on resume — each
-        // failed fetch retries 3× with a 15 s timeout, so 20 sessions
-        // could mean 20 × 54 s of combined network time.  The visible
-        // session is always included separately below.
+        // suspend.  Process in staggered batches to avoid launching
+        // dozens of parallel HTTP requests on resume — each failed fetch
+        // retries 3× with a 15 s timeout, so uncapped sessions could
+        // mean N × 54 s of combined network time.  The first batch runs
+        // immediately (chained after sessions fetch); remaining sessions
+        // are processed every 2 seconds until all are fetched.
         if (_sessionsWithPendingSocketMessages.isNotEmpty) {
-          var pendingSessionIds = _sessionsWithPendingSocketMessages.toList();
           // Remove the visible session — it's added unconditionally
-          // below, so it doesn't count against the cap.
-          pendingSessionIds.remove(_visibleSessionId);
-          if (pendingSessionIds.length > Sync._maxResumeMessageSyncs) {
-            logger.info(
-              '[Sync] resume: capping pending message syncs '
-              'from ${pendingSessionIds.length} to '
-              '${Sync._maxResumeMessageSyncs}',
-            );
-            pendingSessionIds = pendingSessionIds
-                .take(Sync._maxResumeMessageSyncs)
-                .toList();
-          }
-          for (final sessionId in pendingSessionIds) {
+          // below, so it doesn't count against the batch.
+          _sessionsWithPendingSocketMessages.remove(_visibleSessionId);
+          final batch = _sessionsWithPendingSocketMessages
+              .take(Sync._maxResumeMessageSyncs)
+              .toList();
+          for (final sessionId in batch) {
+            _sessionsWithPendingSocketMessages.remove(sessionId);
             if (_shouldForceTailRefreshForPendingSession(sessionId)) {
               _sessionsNeedingTailRefresh.add(sessionId);
             }
             sessionsToRefresh.add(sessionId);
           }
           logger.info(
-            '[Sync] resuming — invalidating '
-            '${sessionsToRefresh.length} sessions with '
-            'pending socket messages',
+            '[Sync] resume: processing ${batch.length} pending sessions '
+            '(${_sessionsWithPendingSocketMessages.length} remaining in queue)',
           );
-          _sessionsWithPendingSocketMessages.clear();
+          // Schedule staggered processing for remaining sessions.
+          if (_sessionsWithPendingSocketMessages.isNotEmpty) {
+            _scheduleResumeMessageBatch();
+          }
         }
 
         // Always invalidate the visible session.
@@ -334,6 +332,54 @@ extension SyncLifecycle on Sync {
           );
         } else if (shouldRefreshSessions) {
           sessionsSync.invalidate();
+        }
+      },
+    );
+  }
+
+  /// Process the next batch of sessions from
+  /// [_sessionsWithPendingSocketMessages] that were deferred during resume.
+  ///
+  /// Called by a repeating timer (every 2 s) until the set is empty.
+  /// Each batch fetches at most [_maxResumeMessageSyncs] sessions, limiting
+  /// parallel HTTP requests while ensuring every session is eventually
+  /// refreshed — unlike the previous hard-cap that silently dropped
+  /// sessions beyond the cap.
+  void _scheduleResumeMessageBatch() {
+    _resumeBatchTimer?.cancel();
+    _resumeBatchTimer = Timer(
+      const Duration(seconds: 2),
+      () {
+        _resumeBatchTimer = null;
+        if (!isInitialized || InvalidateSync.isBackgrounded) return;
+        if (_sessionsWithPendingSocketMessages.isEmpty) return;
+
+        final batch = _sessionsWithPendingSocketMessages
+            .take(Sync._maxResumeMessageSyncs)
+            .toList();
+        for (final sessionId in batch) {
+          _sessionsWithPendingSocketMessages.remove(sessionId);
+          if (_shouldForceTailRefreshForPendingSession(sessionId)) {
+            _sessionsNeedingTailRefresh.add(sessionId);
+          }
+          if (!messagesSync.containsKey(sessionId)) {
+            messagesSync[sessionId] = InvalidateSync(
+              () => fetchMessages(sessionId),
+              minInterval: Sync._messagesSyncMinInterval,
+              name: 'fetchMessages',
+            );
+          }
+          _sessionsNeedingFetchProbe.add(sessionId);
+          messagesSync[sessionId]?.invalidate();
+        }
+
+        logger.info(
+          '[Sync] resume batch: fetched ${batch.length} sessions, '
+          '${_sessionsWithPendingSocketMessages.length} remaining',
+        );
+
+        if (_sessionsWithPendingSocketMessages.isNotEmpty) {
+          _scheduleResumeMessageBatch();
         }
       },
     );
@@ -410,6 +456,9 @@ extension SyncLifecycle on Sync {
   Future<void> shutdown() async {
     _reconnectWatchdogTimer?.cancel();
     _reconnectWatchdogTimer = null;
+    _resumeBatchTimer?.cancel();
+    _resumeBatchTimer = null;
+    _reconnectCursorSnapshot = null;
     _sessionsRefreshDebounceTimer?.cancel();
     _socialSyncsDebounceTimer?.cancel();
     _artifactsSyncDebounceTimer?.cancel();

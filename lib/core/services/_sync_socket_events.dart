@@ -23,6 +23,15 @@ extension SyncSocketEvents on Sync {
       // Cancel reconnect watchdog — connection succeeded.
       _reconnectWatchdogTimer?.cancel();
       _reconnectWatchdogTimer = null;
+      // Snapshot the visible session's cursor BEFORE any new socket
+      // events are processed.  Inline processing of post-reconnect
+      // events can advance the cursor past the disconnect gap,
+      // causing the reconnection fetch to skip messages that arrived
+      // while the socket was down.
+      if (_visibleSessionId != null) {
+        _reconnectCursorSnapshot =
+            _sessionLastSeq[_visibleSessionId] ?? 0;
+      }
       // Force-bypass the 10s cooldown gate — a reconnect means the
       // socket was down and the local session catalog (especially
       // lastSeq) is potentially stale.  Without force, rapid

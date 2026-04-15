@@ -104,7 +104,28 @@ extension SyncMessaging on Sync {
       // current lastSeq, forward-crawling page by page is extremely slow
       // (100 msgs/page × decrypt × O(n) grouping per page).  Fall back
       // to a tail-load so we only fetch the most recent messages.
-      final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+      //
+      // On reconnect, use the pre-reconnect cursor snapshot for the
+      // visible session to avoid skipping the disconnect gap.  Inline
+      // socket events arriving after reconnect can advance the cursor
+      // past messages that arrived while the socket was down — using
+      // the snapshot ensures the fetch starts from the correct position.
+      final rawCursorSeq = _sessionLastSeq[sessionId] ?? 0;
+      final cursorSeq = (forceProbe &&
+              sessionId == _visibleSessionId &&
+              _reconnectCursorSnapshot != null &&
+              _reconnectCursorSnapshot! < rawCursorSeq)
+          ? _reconnectCursorSnapshot!
+          : rawCursorSeq;
+      if (forceProbe &&
+          _reconnectCursorSnapshot != null &&
+          sessionId == _visibleSessionId) {
+        logger.debug(
+          '[fetchMessages] $sessionId using reconnect cursor snapshot '
+          '(snapshot=$_reconnectCursorSnapshot, live=$rawCursorSeq)',
+        );
+        _reconnectCursorSnapshot = null;
+      }
       final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
       final gapTooLarge =
           !isFirstLoad &&
