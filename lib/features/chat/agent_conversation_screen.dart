@@ -14,6 +14,7 @@ import '../../core/utils/wire_parsers.dart';
 import 'markdown/markdown.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart';
+import 'widgets/agent_event_widget.dart';
 
 /// Full-screen view for a Task (sub-agent) tool call's
 /// conversation.
@@ -264,6 +265,13 @@ class _AgentConversationScreenState
 
     if (kind == 'error') {
       return _ErrorRow(key: key, theme: theme, msg: msg);
+    }
+
+    if (kind == 'agent-event') {
+      return AgentEventWidget(
+        key: key,
+        event: msg['event'],
+      );
     }
 
     return const SizedBox.shrink();

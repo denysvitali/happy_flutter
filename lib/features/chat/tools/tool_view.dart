@@ -485,7 +485,13 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            if (hasContent) {
+            // Task/Agent tools navigate directly on tap — the full
+            // conversation is the primary action. Toggle is available
+            // via long-press.
+            if ((toolName == 'Task' || toolName == 'Agent') &&
+                widget.onPress != null) {
+              widget.onPress!.call();
+            } else if (hasContent) {
               _toggleExpanded();
             } else {
               widget.onPress?.call();
