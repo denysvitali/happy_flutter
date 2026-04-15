@@ -495,6 +495,52 @@ what you have, you must use the options mode.
   )?
   testGetSpawnEnvVarsOverride;
 
+  // ── @visibleForTesting mutable maps for test helpers ─────────────────
+
+  /// Mutable sessions map — use in tests that need to seed session state.
+  @visibleForTesting
+  Map<String, Session> get testSessions => _sessions;
+
+  /// Mutable machines map — use in tests that need to seed machine state.
+  @visibleForTesting
+  Map<String, Machine> get testMachines => _machines;
+
+  /// Mutable spawn timestamp map — use in model/profile change tests.
+  @visibleForTesting
+  Map<String, int> get testSessionSpawnedAt => _sessionSpawnedAt;
+
+  /// Mutable spawn profile map — use in profile change tests.
+  @visibleForTesting
+  Map<String, String?> get testSessionSpawnedProfile => _sessionSpawnedProfile;
+
+  /// Mutable spawn model map — use in model change tests.
+  @visibleForTesting
+  Map<String, String?> get testSessionSpawnedModel => _sessionSpawnedModel;
+
+  /// Mutable pending-updates set.
+  @visibleForTesting
+  Set<String> get testSessionsWithPendingUpdates =>
+      _sessionsWithPendingUpdates;
+
+  /// Mutable tail-refresh set.
+  @visibleForTesting
+  Set<String> get testSessionsNeedingTailRefresh =>
+      _sessionsNeedingTailRefresh;
+
+  /// Clears all spawn-tracking maps.
+  @visibleForTesting
+  void testClearSessionSpawnedAt() {
+    _sessionSpawnedAt.clear();
+    _sessionSpawnedProfile.clear();
+    _sessionSpawnedModel.clear();
+  }
+
+  /// Clears pending socket-message session set.
+  @visibleForTesting
+  void testClearSessionsWithPendingSocketMessages() {
+    _sessionsWithPendingSocketMessages.clear();
+  }
+
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
   bool get isReady => _isReady;

@@ -740,17 +740,11 @@ PY
 
     final recentlySpawned = health.wasRecentlySpawned;
 
-    // Detect profile mismatch: if the user switched profiles since the
-    // session was spawned, kill the running daemon so it gets respawned
-    // with the correct env vars below.
     final profileChanged =
         profileId != null &&
         _sessionSpawnedProfile.containsKey(sessionId) &&
         _sessionSpawnedProfile[sessionId] != profileId;
 
-    // Detect model mismatch: if the user switched models since the
-    // session was spawned, kill the running daemon so it gets respawned
-    // with the correct model below.
     final modelChanged =
         modelMode != null &&
         modelMode != 'default' &&
