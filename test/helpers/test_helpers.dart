@@ -79,5 +79,6 @@ void resetTestSync(Sync sync) {
   sync.messagesSync.clear();
   sync.testSessionsWithPendingUpdates.clear();
   sync.testClearSessionsWithPendingSocketMessages();
-  sync.testSessionsNeedingTailRefresh().clear();
+  // testSessionsNeedingTailRefresh() returns a copy, so we can't clear it
+  // here — tests should use testAddSessionsNeedingTailRefresh() to manage it.
 }
