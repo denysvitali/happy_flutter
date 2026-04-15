@@ -143,6 +143,15 @@ class InvalidateSync {
   }
 
   Future<void> _run() async {
+    // Skip if disposed — the instance was torn down while we were waiting for
+    // the microtask/timer queue.  Complete any pending operation so callers
+    // are not left hanging, then bail out silently.
+    if (_disposed) {
+      _running = false;
+      _completeOperation();
+      return;
+    }
+
     // Skip if backgrounded — don't perform any network I/O while the app is
     // not visible.  This guards against the case where resume() triggers a sync
     // but the OS immediately backgrounds the app again before the action runs.
@@ -235,6 +244,11 @@ class InvalidateSync {
   static final Random _jitterRng = Random();
 
   void _scheduleRetry() {
+    // Don't schedule retries if disposed — the instance has been torn down
+    // and any pending completer was already completed by dispose().  Creating
+    // a timer here would leak a stale _run() call into the next login cycle.
+    if (_disposed) return;
+
     // Don't schedule retries if backgrounded — they will be re-triggered on
     // resume via invalidate() if still needed.
     if (isBackgrounded) return;

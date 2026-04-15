@@ -126,6 +126,44 @@ void main() {
       });
 
       test(
+        'dispose during failing in-flight action does not leak retry timer',
+        () async {
+          // Regression: when dispose() is called while _action() is awaiting,
+          // and the action then throws, _scheduleRetry() was previously called
+          // without checking _disposed, creating a new Timer that escapes the
+          // dispose() cancel and fires _run() on a torn-down instance.
+          var callCount = 0;
+          final errorBlocker = Completer<void>();
+          final sync = InvalidateSync(() async {
+            callCount++;
+            await errorBlocker.future;
+            throw StateError('transient failure');
+          });
+
+          final future = sync.invalidateAndAwait();
+          // Yield so _run() starts and awaits the blocker.
+          await Future<void>.delayed(Duration.zero);
+
+          // Dispose while the action is in-flight.
+          // The future is completed normally by dispose().
+          sync.dispose();
+
+          // Unblock the action so it throws AFTER dispose has run.
+          // This is the race that previously leaked a retry Timer.
+          errorBlocker.complete();
+
+          // Pump the microtask queue so the error path in _run() executes.
+          await Future<void>.delayed(Duration.zero);
+
+          // The awaiter must complete without throwing.
+          await future;
+
+          // Exactly one call was made; the post-dispose retry must not run.
+          expect(callCount, 1);
+        },
+      );
+
+      test(
         'rapid suspend/resume cycle does not crash',
         () async {
           var callCount = 0;
