@@ -522,11 +522,6 @@ what you have, you must use the options mode.
   Set<String> get testSessionsWithPendingUpdates =>
       _sessionsWithPendingUpdates;
 
-  /// Mutable tail-refresh set.
-  @visibleForTesting
-  Set<String> get testSessionsNeedingTailRefresh =>
-      _sessionsNeedingTailRefresh;
-
   /// Mutable ephemeral timestamps map.
   @visibleForTesting
   Map<String, int> get testLastEphemeralAt => _lastEphemeralAt;
