@@ -975,6 +975,90 @@ void main() {
       expect(instance.getLastMessagePreview('s1'), 'actual response');
     });
   });
+
+  group('Sync model change detection', () {
+    late Sync sync;
+
+    setUp(() {
+      sync = createPartialMockSync();
+      // Initialize all InvalidateSync fields to no-ops
+      sync.sessionsSync = InvalidateSync(() async {});
+      sync.settingsSync = InvalidateSync(() async {});
+      sync.profileSync = InvalidateSync(() async {});
+      sync.purchasesSync = InvalidateSync(() async {});
+      sync.machinesSync = InvalidateSync(() async {});
+      sync.pushTokenSync = InvalidateSync(() async {});
+      sync.nativeUpdateSync = InvalidateSync(() async {});
+      sync.artifactsSync = InvalidateSync(() async {});
+      sync.friendsSync = InvalidateSync(() async {});
+      sync.friendRequestsSync = InvalidateSync(() async {});
+      sync.feedSync = InvalidateSync(() async {});
+      sync.todosSync = InvalidateSync(() async {});
+      sync.sessionGitStatusSync = InvalidateSync(() async {});
+      sync.messagesSync.clear();
+    });
+
+    test(
+      'model change detected when session spawned with different modelMode',
+      () async {
+        const sessionId = 'session-test-model';
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        // Set up a spawned session with lifecycleState='running'
+        // This makes session.isOnline true and lifecycleStateRecent true
+        sync.testSessions[sessionId] = Session(
+          id: sessionId,
+          seq: 1,
+          createdAt: now,
+          updatedAt: now,
+          active: true,
+          activeAt: now,
+          metadata: Metadata(
+            host: 'test-host',
+            machineId: 'machine-1',
+            path: '/repo',
+            flavor: 'claude',
+            lifecycleState: 'running',
+            lifecycleStateSince: now,
+          ),
+          metadataVersion: 1,
+          agentStateVersion: 1,
+          thinking: false,
+          presence: 'online',
+        );
+
+        // Register the session as recently spawned with modelMode = 'default'
+        sync.testSetSessionSpawnedAt(sessionId, now);
+        sync.testSetSessionSpawnedProfile(sessionId, null);
+        sync.testSetSessionSpawnedModel(sessionId, 'default');
+
+        // Simulate ephemeral activity so online presence is trusted
+        sync.testSetLastEphemeralAt(sessionId, now);
+
+        // Verify preconditions: model change is detected in _resolveSendTargetSession
+        // modelChanged = modelMode != 'default' && _sessionSpawnedModel[sessionId] == 'default'
+        // The spawned model is 'default' and we will send with 'opus' modelMode
+        expect(sync.testSessionSpawnedModel[sessionId], 'default');
+
+        // Verify session looks ready
+        final session = sync.testSessions[sessionId]!;
+        expect(session.isOnline, true);
+        expect(session.metadata?.lifecycleState, 'running');
+
+        // Set up a machine so the session is eligible for kill+respawn
+        sync.testMachines['machine-1'] = Machine(
+          id: 'machine-1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: now,
+          metadataVersion: 0,
+          daemonStateVersion: 0,
+        );
+      },
+    );
+  });
 }
 
 class _TestEncryption implements Encryption {

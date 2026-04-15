@@ -64,6 +64,7 @@ part '_sync_data_artifacts.dart';
 part '_sync_data_social.dart';
 part '_sync_operations.dart';
 part '_sync_operations_session.dart';
+part '_sync_health.dart';
 part '_sync_messaging.dart';
 part '_sync_messaging_send.dart';
 part '_sync_messaging_rpc.dart';

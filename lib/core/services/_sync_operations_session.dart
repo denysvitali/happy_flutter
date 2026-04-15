@@ -83,9 +83,6 @@ extension SyncSessionOperations on Sync {
       }
     }
 
-    // Resolve ~ in path to the machine's home directory.
-    // Users may enter ~/git/something in the UI, which must be expanded
-    // to an absolute path before being sent to the daemon.
     final resolvedPath = (machine != null && machine.metadata?.homeDir != null)
         ? resolveAbsolutePath(path, homeDir: machine.metadata!.homeDir)
         : path;
@@ -155,22 +152,12 @@ extension SyncSessionOperations on Sync {
         'in _sessionSpawnedAt (profile=$effectiveProfileId, model=$modelMode)',
       );
 
-      // Hydrate the spawned session directly instead of forcing a full
-      // sessions refresh. A full fetch decrypts the entire catalog and makes
-      // session creation scale with total session count.
       await _hydrateSpawnedSession(
         sessionId,
         machineId: machineId,
         path: resolvedPath,
       );
 
-      // Optimistic insert: if the server's /v2/sessions endpoint hasn't
-      // propagated the new session yet (replication lag between the RPC
-      // endpoint that created it and the REST endpoint that lists it),
-      // add a placeholder directly to _sessions. This prevents
-      // "Session X not loaded" errors in sendMessage(). The placeholder
-      // will be replaced with full server data on the next successful
-      // fetch that includes this session.
       if (!_sessions.containsKey(sessionId)) {
         final now = DateTime.now().millisecondsSinceEpoch;
         _sessions[sessionId] = Session(
@@ -193,20 +180,12 @@ extension SyncSessionOperations on Sync {
           presence: 'offline',
         );
       }
-      // Flush data change notification immediately so the counter is
-      // incremented before loadFromSync() is called. This ensures the
-      // sessions list updates without requiring a pull-to-refresh.
       _flushDataChanged();
 
-      // Pre-initialise messagesSync so the chat screen doesn't need to
-      // wait for onSessionVisible() — prevents a window where the user
-      // navigates to the chat screen before the sync entry exists.
       if (!messagesSync.containsKey(sessionId)) {
         onSessionVisible(sessionId);
       }
 
-      // Optimistic insert: show the initial message immediately in the
-      // chat screen while the daemon child pipes it to Claude via stdin.
       if (message != null && message.isNotEmpty) {
         _upsertSessionMessages(sessionId, [
           <String, dynamic>{
@@ -555,7 +534,6 @@ PY
     required String machineId,
     required String basePath,
   }) async {
-    // Resolve ~ in basePath to the machine's home directory.
     final machine = _machines[machineId];
     final resolvedBasePath = (machine?.metadata?.homeDir != null)
         ? resolveAbsolutePath(basePath, homeDir: machine!.metadata!.homeDir)
@@ -754,38 +732,13 @@ PY
     String? profileId,
     String? modelMode,
   }) async {
-    final lifecycleState = session.metadata?.lifecycleState;
-    final agentIsStartingOrRunning =
-        lifecycleState == 'starting' || lifecycleState == 'running';
-    // Guard against stale lifecycleState: if the agent process crashed
-    // without updating metadata to "archived", lifecycleState stays
-    // "running" even though the session is offline.  Only trust
-    // lifecycleState if the timestamp is recent (< 2 minutes).
-    final lifecycleStateSince = session.metadata?.lifecycleStateSince;
-    final lifecycleRecent =
-        lifecycleStateSince != null &&
-        DateTime.now().millisecondsSinceEpoch - lifecycleStateSince < 120000;
-    final spawnedAt = _sessionSpawnedAt[sessionId];
-    final recentlySpawned =
-        spawnedAt != null &&
-        DateTime.now().millisecondsSinceEpoch - spawnedAt < 120000;
-    // When lifecycleState is explicitly 'archived', the agent process is
-    // gone.  Don't trust a stale presence='online' — fall through to
-    // auto-restore instead.
-    final isArchived = lifecycleState == 'archived';
-    // Don't trust presence='online' by itself — after a daemon restart a
-    // full session fetch resets all presence-expiry timers, leaving dead
-    // sessions with stale 'online' presence for up to 60 s.  Cross-check
-    // with the last ephemeral event (keep-alive / activity) timestamp so
-    // we only trust presence that is backed by a recent real-time signal.
-    final lastEphemeral = _lastEphemeralAt[sessionId];
-    final recentEphemeral =
-        lastEphemeral != null &&
-        DateTime.now().millisecondsSinceEpoch - lastEphemeral < 90000;
-    final isOnlineTrusted = session.isOnline && recentEphemeral;
-    final looksReady =
-        !isArchived &&
-        (isOnlineTrusted || (agentIsStartingOrRunning && lifecycleRecent));
+    final health = SyncHealth(
+      session: session,
+      sessionSpawnedAt: _sessionSpawnedAt,
+      lastEphemeralAt: _lastEphemeralAt,
+    );
+
+    final recentlySpawned = health.wasRecentlySpawned;
 
     // Detect profile mismatch: if the user switched profiles since the
     // session was spawned, kill the running daemon so it gets respawned
@@ -804,17 +757,15 @@ PY
         _sessionSpawnedModel.containsKey(sessionId) &&
         _sessionSpawnedModel[sessionId] != modelMode;
 
+    final looksReady = health.looksReady;
+    final onlineTrusted = health.isOnlineTrusted;
+
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
-      'profileChanged=$profileChanged '
-      'modelChanged=$modelChanged '
-      '(isOnline=${session.isOnline}, '
-      'isOnlineTrusted=$isOnlineTrusted, '
-      'lifecycleState=$lifecycleState, '
-      'lifecycleRecent=$lifecycleRecent, '
-      'recentlySpawned=$recentlySpawned, '
-      'agentStateVersion=${session.agentStateVersion})',
+      'profileChanged=$profileChanged modelChanged=$modelChanged '
+      '(isOnline=${session.isOnline} onlineTrusted=$onlineTrusted '
+      'lifecycleState=${session.metadata?.lifecycleState} lcRecent=${health.lcRecent})',
     );
 
     if (looksReady && (profileChanged || modelChanged)) {
@@ -882,7 +833,7 @@ PY
     logger.info(
       '[sendMessage] session=$sessionId appears offline '
       '(presence=${session.presence}, '
-      'lifecycleState=$lifecycleState); '
+      'lifecycleState=${session.metadata?.lifecycleState}); '
       'attempting auto-restore',
     );
 

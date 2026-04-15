@@ -219,6 +219,16 @@ extension SyncTestHelpers on Sync {
     _sessionSpawnedProfile[sessionId] = profileId;
   }
 
+  /// Test helper: get _sessionSpawnedModel map.
+  @visibleForTesting
+  Map<String, String?> get testSessionSpawnedModel => _sessionSpawnedModel;
+
+  /// Test helper: set the modelMode used when spawning a session.
+  @visibleForTesting
+  void testSetSessionSpawnedModel(String sessionId, String? modelMode) {
+    _sessionSpawnedModel[sessionId] = modelMode;
+  }
+
   /// Test helper: record a recent ephemeral event for a session so
   /// that [_isSessionReady] trusts its 'online' presence.
   @visibleForTesting

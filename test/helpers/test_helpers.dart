@@ -36,3 +36,48 @@ Sync createTestSync() {
     ..messagesSync.clear();
   return testSync;
 }
+
+/// Creates a [Sync] for testing with realistic in-memory maps.
+///
+/// Unlike [createTestSync], the session-related maps are real:
+/// - [_sessions] map is real so `sync.sessions[id] = session` works
+/// - [_sessionSpawnedAt] map is real so spawn timestamps can be set
+/// - [_sessionSpawnedProfile] map is real so profile tracking works
+/// - [_sessionSpawnedModel] map is real so model change detection works
+///
+/// All [InvalidateSync] fields remain no-ops for basic tests.
+Sync createPartialMockSync() {
+  final testSync = Sync()
+    ..sessionsSync = InvalidateSync(() async {})
+    ..settingsSync = InvalidateSync(() async {})
+    ..profileSync = InvalidateSync(() async {})
+    ..purchasesSync = InvalidateSync(() async {})
+    ..machinesSync = InvalidateSync(() async {})
+    ..pushTokenSync = InvalidateSync(() async {})
+    ..nativeUpdateSync = InvalidateSync(() async {})
+    ..artifactsSync = InvalidateSync(() async {})
+    ..friendsSync = InvalidateSync(() async {})
+    ..friendRequestsSync = InvalidateSync(() async {})
+    ..feedSync = InvalidateSync(() async {})
+    ..todosSync = InvalidateSync(() async {})
+    ..sessionGitStatusSync = InvalidateSync(() async {})
+    ..messagesSync.clear();
+  // The test helper getters (testSessions, testSessionSpawnedAt, etc.)
+  // expose the real maps, so callers can mutate them directly.
+  return testSync;
+}
+
+/// Resets a test [Sync] instance back to a clean state.
+///
+/// Clears all in-memory maps and registered spawn metadata so the instance
+/// can be reused across multiple test cases without cross-talk.
+void resetTestSync(Sync sync) {
+  sync.testSessions.clear();
+  sync.testMachines.clear();
+  sync.testSessionSpawnedAt.clear();
+  sync.testClearSessionSpawnedAt();
+  sync.messagesSync.clear();
+  sync.testSessionsWithPendingUpdates.clear();
+  sync.testClearSessionsWithPendingSocketMessages();
+  sync.testSessionsNeedingTailRefresh().clear();
+}
