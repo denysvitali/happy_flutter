@@ -121,25 +121,6 @@ class RemoteLogger {
     };
   }
 
-  /// Capture logs from an Isolate
-  ///
-  /// Returns a ReceivePort that should be passed to the Isolate
-  ReceivePort createIsolateCapture(String isolateName) {
-    final port = ReceivePort()..listen((message) {
-      if (message is LogMessage) {
-        logger.log(
-          '[${message.level}] ${message.message}',
-          level: message.logLevel,
-          error: message.error,
-          stackTrace: message.stackTrace,
-        );
-      }
-    });
-
-    logger.info('Created log capture for isolate: $isolateName');
-    return port;
-  }
-
   /// Send a log message to the main isolate
   static void sendToMain(LogMessage message) {
     // This would need a SendPort from the main isolate

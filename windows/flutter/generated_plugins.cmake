@@ -9,7 +9,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_tts
   mmkv_win32
   sentry_flutter
-  sodium_libs
   url_launcher_windows
 )
 
