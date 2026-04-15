@@ -14,7 +14,6 @@ extension _ChatScreenActions on _ChatScreenState {
     final storage = DraftStorage();
     final sessionId = widget.sessionId;
 
-    // Fire all three reads in parallel.
     final results = await Future.wait([
       storage.getPermissionMode(sessionId),
       storage.getModelMode(sessionId),
@@ -29,7 +28,6 @@ extension _ChatScreenActions on _ChatScreenState {
 
     final session = sync.sessions[sessionId];
 
-    // Permission mode.
     var permissionMode = PermissionMode.defaultMode;
     if (savedPermMode != null) {
       permissionMode =
@@ -142,7 +140,6 @@ extension _ChatScreenActions on _ChatScreenState {
     final stopwatch = Stopwatch()..start();
     var success = true;
 
-    // Start a Sentry transaction for the entire chat loading flow
     final transaction = Sentry.startTransaction(
       'chat.screen.load',
       'ui.load',

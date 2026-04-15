@@ -172,7 +172,6 @@ extension SyncMessagingSend on Sync {
       'textLen=${text.length}',
     );
 
-    // Start a Sentry transaction covering the entire send flow.
     final sendTransaction =
         Sentry.startTransaction('chat.sendMessage', 'task', bindToScope: false)
           ..setData('sessionId', targetSessionId)
@@ -203,8 +202,6 @@ extension SyncMessagingSend on Sync {
       _notifyDataChanged({SyncDomain.sessions});
     }
 
-    // ── Optimistic insert — UI sees the message immediately ──
-    // This runs BEFORE encryption so the user gets instant feedback on tap.
     _upsertSessionMessages(targetSessionId, [
       {
         'id': localId,
@@ -218,7 +215,6 @@ extension SyncMessagingSend on Sync {
         'sendStatus': 'sending',
       },
     ]);
-    // Notify listeners so the chat screen renders it NOW.
     if (!_sessionMessageChangeController.isClosed) {
       _sessionMessageChangeController.add(targetSessionId);
     }
@@ -234,8 +230,6 @@ extension SyncMessagingSend on Sync {
     );
     unawaited(encryptSpan.finish());
 
-    // ── Background: REST POST + socket emit ──
-    // Fire-and-forget — the caller returns targetSessionId immediately.
     // lastCompleteSendFuture is exposed for tests to synchronise on.
     final completeSendFuture = _completeSend(
       targetSessionId: targetSessionId,
@@ -662,7 +656,6 @@ extension SyncMessagingSend on Sync {
       return;
     }
 
-    // Find the failed message
     Map<String, dynamic>? failedMessage;
     for (final m in msgs) {
       if (m['localId'] == localId || m['id'] == localId) {
@@ -679,7 +672,6 @@ extension SyncMessagingSend on Sync {
       return;
     }
 
-    // Get the raw record from the message
     final raw = failedMessage['raw'];
     if (raw == null || raw is! Map<String, dynamic>) {
       logger.warning(
@@ -693,7 +685,6 @@ extension SyncMessagingSend on Sync {
         failedMessage['content'] as String? ??
         '';
 
-    // Get session encryption
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
       logger.info(
@@ -710,10 +701,8 @@ extension SyncMessagingSend on Sync {
       return;
     }
 
-    // Re-encrypt the raw record
     final encryptedRawRecord = await sessionEncryption.encryptRawRecord(raw);
 
-    // Create and queue the outbox entry
     final entry = OutboxEntry(
       localId: localId,
       sessionId: sessionId,
@@ -724,10 +713,8 @@ extension SyncMessagingSend on Sync {
       retryCount: 0, // Reset retry count
     );
 
-    // Update status to 'sending' before queuing
     _updateMessageSendStatus(sessionId, localId, 'sending');
 
-    // Add to outbox
     await messageOutbox.add(entry);
 
     logger.info(
@@ -735,7 +722,6 @@ extension SyncMessagingSend on Sync {
       'sessionId=$sessionId localId=$localId',
     );
 
-    // Notify listeners
     _notifySessionMessagesChanged(sessionId);
   }
 

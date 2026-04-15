@@ -36,11 +36,8 @@ extension SyncData on Sync {
         return;
       }
 
-      // Initialize session encryptions -- decrypt all keys in parallel
-      // for better performance, then assign results back.
       final sessionKeys = <String, Uint8List?>{};
 
-      // Collect valid sessions with their encryption keys.
       final sessionDecryptTasks =
           <({String sessionId, String dataEncryptionKey})>[];
       for (final session in allSessions) {
@@ -77,7 +74,6 @@ extension SyncData on Sync {
         }
       }
 
-      // Decrypt all session keys in parallel.
       if (sessionDecryptTasks.isNotEmpty) {
         final decryptedKeys = await Future.wait(
           sessionDecryptTasks.map(
@@ -114,12 +110,8 @@ extension SyncData on Sync {
 
       await encryption.initializeSessions(sessionKeys);
 
-      // Decrypt sessions -- yield between each so the looper stays
-      // responsive even when processing many sessions.
       final decryptedSessions = <Session>[];
       for (var i = 0; i < allSessions.length; i++) {
-        // Yield to event queue every 10 sessions (instead of every
-        // session) to reduce event queue contention during warm start.
         if (i > 0 && i % 10 == 0) {
           await Future<void>.delayed(Duration.zero);
         }
@@ -178,7 +170,6 @@ extension SyncData on Sync {
           Map<String, dynamic>? agentState;
 
           if (sessionEncryption != null) {
-            // Decrypt metadata
             try {
               metadata = await sessionEncryption.decryptMetadata(
                 metadataVersion,
@@ -188,7 +179,6 @@ extension SyncData on Sync {
               logger.warning('Failed to decrypt session metadata', e);
             }
 
-            // Decrypt agent state
             try {
               agentState = await sessionEncryption.decryptAgentState(
                 agentStateVersion,
@@ -223,7 +213,6 @@ extension SyncData on Sync {
             }
           }
 
-          // Create session object
           final processedSession = Session(
             id: sessionId,
             seq: seq,
@@ -395,7 +384,6 @@ extension SyncData on Sync {
       ).fetchSessionById(sessionId);
       if (raw == null) return null;
 
-      // Initialize encryption for this session.
       final dataEncryptionKey = WireParsers.parseString(
         raw['dataEncryptionKey'],
       );
@@ -420,7 +408,6 @@ extension SyncData on Sync {
 
       final sessionEncryption = encryption.getSessionEncryption(sessionId);
 
-      // Decrypt metadata and agent state.
       final metadataVersion = _asSessionInt(raw['metadataVersion']) ?? 0;
       final agentStateVersion = _asSessionInt(raw['agentStateVersion']) ?? 0;
 

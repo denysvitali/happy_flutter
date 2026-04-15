@@ -376,7 +376,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (!mounted) return;
 
-    // Invalidate neighbor cache when messages actually change
     if (messagesChanged && !identical(latestMessages, _lastMessagesList)) {
       _invalidateNeighborCache();
       _lastMessagesList = latestMessages;
@@ -389,7 +388,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final needsScreenRebuild = sessionChanged;
     void applyUpdates() {
-      // Update session and metadata
       if (sessionChanged) {
         _session = latestSession;
         _metadataJson = latestSession?.metadata?.toJson();
@@ -423,7 +421,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
       }
 
-      // Update messages and visible count
       if (messagesChanged) {
         if (latestMessages.length > _prevMessagesLength) {
           final prepended = latestMessages.length - _prevMessagesLength;
@@ -439,7 +436,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _lastMessageFingerprint = latestMessageFingerprint;
         _prevMessagesLength = latestMessages.length;
 
-        // Handle message visibility and seen tracking
         if (markLoaded) {
           _markMessagesAsSeen(latestMessages, 0, latestMessages.length);
         } else if (latestMessages.isNotEmpty) {
@@ -452,7 +448,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             // they don't animate. Only genuinely new messages should animate.
             _markMessagesAsSeen(latestMessages, 0, latestMessages.length);
           } else {
-            // Mark only new messages as seen
             final oldLen = _prevSeenLength;
             final newLen = latestMessages.length;
             if (newLen > oldLen) {
