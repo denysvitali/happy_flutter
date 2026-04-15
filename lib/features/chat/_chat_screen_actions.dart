@@ -117,12 +117,12 @@ extension _ChatScreenActions on _ChatScreenState {
       _permissionMode = permissionMode;
       // Guard: only apply model/profile if the user hasn't already interacted
       // with the model or profile pickers before this async load completed.
-      // _rawModelModeString starts null; once the user picks a model via
+      // _effectiveModelModeString starts null; once the user picks a model via
       // _onModelModeChanged or a profile via _onProfileChanged, it becomes
       // non-null. We must not overwrite their choice here.
-      if (_rawModelModeString == null) {
+      if (_effectiveModelModeString == null) {
         _modelMode = modelMode;
-        _rawModelModeString = rawModelModeString;
+        _profileModelOverride = rawModelModeString;
       }
       _availableProfiles = deduped;
       _selectedProfile ??= selectedProfile;
@@ -327,7 +327,6 @@ extension _ChatScreenActions on _ChatScreenState {
     );
     setState(() {
       _modelMode = normalized;
-      _rawModelModeString = normalized.modeString;
     });
     ref
         .read(chatActionNotifierProvider.notifier)
@@ -373,7 +372,7 @@ extension _ChatScreenActions on _ChatScreenState {
     setState(() {
       _selectedProfile = profile;
       _modelMode = newModel;
-      _rawModelModeString = rawModelString;
+      _profileModelOverride = rawModelString;
       _permissionMode = newPermissionMode;
     });
     if (profilePermMode != null) {
@@ -460,7 +459,7 @@ extension _ChatScreenActions on _ChatScreenState {
             option,
             displayText: option,
             permissionMode: _permissionMode.toModeString(),
-            modelMode: _rawModelModeString ?? _modelMode.modeString,
+            modelMode: _effectiveModelModeString ?? _modelMode.modeString,
             profileId: _selectedProfile?.id,
           );
       if (_followRedirectedSession(sentSessionId)) {
@@ -525,7 +524,7 @@ extension _ChatScreenActions on _ChatScreenState {
               widget.sessionId,
               text,
               permissionMode: _permissionMode.toModeString(),
-              modelMode: _rawModelModeString ?? _modelMode.modeString,
+              modelMode: _effectiveModelModeString ?? _modelMode.modeString,
               profileId: _selectedProfile?.id,
             );
         if (_followRedirectedSession(sentSessionId)) {
@@ -592,7 +591,7 @@ extension _ChatScreenActions on _ChatScreenState {
             clientLocalId: localId,
             displayText: text,
             permissionMode: _permissionMode.toModeString(),
-            modelMode: _rawModelModeString ?? _modelMode.modeString,
+            modelMode: _effectiveModelModeString ?? _modelMode.modeString,
             profileId: _selectedProfile?.id,
           );
       if (_followRedirectedSession(sentSessionId)) {
@@ -653,7 +652,7 @@ extension _ChatScreenActions on _ChatScreenState {
     unawaited(
       storage.savePermissionMode(sentSessionId, _permissionMode.toModeString()),
     );
-    final modelStr = _rawModelModeString ?? _modelMode.modeString;
+    final modelStr = _effectiveModelModeString ?? _modelMode.modeString;
     unawaited(storage.saveModelMode(sentSessionId, modelStr));
 
     context.goNamed('chat', pathParameters: {'sessionId': sentSessionId});

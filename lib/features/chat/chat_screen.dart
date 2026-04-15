@@ -72,12 +72,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   PermissionMode _permissionMode = PermissionMode.defaultMode;
   ClaudeModel _modelMode = ClaudeModel.defaultModel;
 
+  /// The effective model mode string sent to the server.
+  /// For non-Claude profiles (GLM, Codex, etc.) this is the raw
+  /// provider-specific string stored in [_profileModelOverride].
+  /// For Claude profiles this is just [_modelMode.modeString].
+  String? get _effectiveModelModeString =>
+      _profileModelOverride ?? _modelMode.modeString;
+
   /// Raw model mode string from storage, used for non-Claude profiles.
   /// For Claude profiles, this matches _modelMode.modeString.
   /// For other profiles (GLM, MiniMax, etc.), this contains the actual
   /// model string (e.g., 'GLM-5', 'MiniMax-Text-01') while _modelMode
   /// remains ClaudeModel.defaultModel for UI purposes.
-  String? _rawModelModeString;
+  String? _profileModelOverride;
   AIBackendProfile? _selectedProfile;
   List<AIBackendProfile> _availableProfiles = const [];
   Session? _session;
@@ -242,7 +249,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _controller.clear();
       _permissionMode = PermissionMode.defaultMode;
       _modelMode = ClaudeModel.defaultModel;
-      _rawModelModeString = null;
+      _profileModelOverride = null;
       _selectedProfile = null;
       _metadataJson = null;
     }
