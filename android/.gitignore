@@ -12,4 +12,4 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
-.flutter-gradle/
+.flutter-sdk/
