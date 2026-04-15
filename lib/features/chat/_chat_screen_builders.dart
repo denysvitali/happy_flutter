@@ -1,3 +1,9 @@
+// NOTE: _chat_screen_builders.dart is a `part` file because Dart's
+// library-private (`_`) visibility is required for _ChatScreenState's
+// private member access. Converting to a regular import would require
+// making those members public, which violates the project's preference
+// for minimal public APIs. LSP tools may not resolve definitions across
+// part boundaries.
 part of 'chat_screen.dart';
 
 extension _ChatScreenBuilders on _ChatScreenState {

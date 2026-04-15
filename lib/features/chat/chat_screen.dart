@@ -33,6 +33,13 @@ import 'widgets/permission_mode_selector.dart';
 import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
 
+// NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
+// because Dart's library-private (`_`) visibility is required for
+// _ChatScreenState's private member access across files. Converting to
+// regular imports would require making those members public, which
+// violates the project's preference for minimal public APIs.
+// LSP tools may not resolve definitions across part boundaries.
+
 part '_chat_screen_actions.dart';
 part '_chat_screen_builders.dart';
 
