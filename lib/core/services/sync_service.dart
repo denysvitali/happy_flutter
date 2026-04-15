@@ -381,6 +381,9 @@ what you have, you must use the options mode.
   // sessionId → profileId used when spawning. Lets _resolveSendTargetSession
   // detect profile changes and kill+respawn the session automatically.
   final Map<String, String?> _sessionSpawnedProfile = {};
+  // sessionId → modelMode used when spawning. Lets _resolveSendTargetSession
+  // detect model changes and kill+respawn the session automatically.
+  final Map<String, String?> _sessionSpawnedModel = {};
   // machineId → epoch-ms of last offline warning. Deduplicates the
   // "Machine appears offline" warning that fires on every createSession().
   final Map<String, int> _machineOfflineWarnedAtMs = {};

@@ -106,12 +106,26 @@ extension SyncMessagingSend on Sync {
         ? storedPermissionMode
         : (sandboxEnabled ? 'bypassPermissions' : 'default');
 
+    // Compute effective model mode before _resolveSendTargetSession so we can
+    // pass it for model-change detection. Use the current session's flavor —
+    // if auto-restore spawns a new session the flavor will be correct there.
+    final flavor = session.metadata?.flavor;
+    final isGemini = flavor == 'gemini';
+    final requestedModelMode = modelMode;
+    final effectiveModelMode =
+        requestedModelMode != null && requestedModelMode != 'default'
+        ? requestedModelMode
+        : isGemini
+        ? 'gemini-2.5-pro'
+        : 'default';
+
     final sendTarget = await _resolveSendTargetSession(
       sessionId: sessionId,
       session: session,
       sessionEncryption: sessionEncryption,
       effectivePermissionMode: effectivePermissionMode,
       profileId: profileId,
+      modelMode: effectiveModelMode,
     );
     final targetSessionId = sendTarget.sessionId;
     session = sendTarget.session;
@@ -128,15 +142,6 @@ extension SyncMessagingSend on Sync {
         'falling back to "$wirePermissionMode"',
       );
     }
-    final flavor = session.metadata?.flavor;
-    final isGemini = flavor == 'gemini';
-    final requestedModelMode = modelMode;
-    final effectiveModelMode =
-        requestedModelMode != null && requestedModelMode != 'default'
-        ? requestedModelMode
-        : isGemini
-        ? 'gemini-2.5-pro'
-        : 'default';
     final localId = clientLocalId ?? createLocalMessageId();
     final sentFrom = switch (defaultTargetPlatform) {
       TargetPlatform.android => 'android',

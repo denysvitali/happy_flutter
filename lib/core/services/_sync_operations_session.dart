@@ -26,6 +26,11 @@ extension SyncSessionOperations on Sync {
     /// WebSocket message chain which is unreliable for the very first
     /// message on freshly-spawned sessions.
     String? message,
+
+    /// Explicit model mode for this session. When not 'default', passed to
+    /// the daemon via --model so it writes the model into session metadata.
+    /// Used to detect model changes and kill+respawn the session automatically.
+    String? modelMode,
   }) async {
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
@@ -114,7 +119,7 @@ extension SyncSessionOperations on Sync {
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       permissionMode: permMode,
-      model: _getModelOverride(profile: profile),
+      model: _getModelOverride(profile: profile, modelMode: modelMode),
       environmentVariables: envVars,
     );
 
@@ -144,9 +149,10 @@ extension SyncSessionOperations on Sync {
       }
       _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
       _sessionSpawnedProfile[sessionId] = effectiveProfileId;
+      _sessionSpawnedModel[sessionId] = modelMode;
       logger.info(
         '[createSession] Registered session $sessionId '
-        'in _sessionSpawnedAt (profile=$effectiveProfileId)',
+        'in _sessionSpawnedAt (profile=$effectiveProfileId, model=$modelMode)',
       );
 
       // Hydrate the spawned session directly instead of forcing a full
@@ -693,11 +699,16 @@ PY
     return <String, String>{...?base};
   }
 
-  /// Never pass --model when spawning sessions. The model is always
-  /// determined by profile env vars (ANTHROPIC_MODEL, OPENAI_MODEL, etc.)
-  /// or the CLI's own defaults. Passing --model causes stale model names
-  /// (e.g. GLM-5) to leak across profile switches.
-  String? _getModelOverride({AIBackendProfile? profile}) => null;
+  /// Return the model override string to pass to --model when spawning
+  /// sessions, or null to let the daemon/profile default apply.
+  /// When [modelMode] is explicitly set (not null and not 'default'),
+  /// pass it so the daemon writes it into session metadata for tracking.
+  String? _getModelOverride({AIBackendProfile? profile, String? modelMode}) {
+    if (modelMode != null && modelMode != 'default') {
+      return modelMode;
+    }
+    return null;
+  }
 
   /// Get environment variables and profile for spawning a session, using
   /// the profile associated with the session if available. Does NOT fall
@@ -741,6 +752,7 @@ PY
     required SessionEncryption sessionEncryption,
     required String effectivePermissionMode,
     String? profileId,
+    String? modelMode,
   }) async {
     final lifecycleState = session.metadata?.lifecycleState;
     final agentIsStartingOrRunning =
@@ -783,10 +795,20 @@ PY
         _sessionSpawnedProfile.containsKey(sessionId) &&
         _sessionSpawnedProfile[sessionId] != profileId;
 
+    // Detect model mismatch: if the user switched models since the
+    // session was spawned, kill the running daemon so it gets respawned
+    // with the correct model below.
+    final modelChanged =
+        modelMode != null &&
+        modelMode != 'default' &&
+        _sessionSpawnedModel.containsKey(sessionId) &&
+        _sessionSpawnedModel[sessionId] != modelMode;
+
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
       'profileChanged=$profileChanged '
+      'modelChanged=$modelChanged '
       '(isOnline=${session.isOnline}, '
       'isOnlineTrusted=$isOnlineTrusted, '
       'lifecycleState=$lifecycleState, '
@@ -795,25 +817,27 @@ PY
       'agentStateVersion=${session.agentStateVersion})',
     );
 
-    if (looksReady && profileChanged) {
+    if (looksReady && (profileChanged || modelChanged)) {
       final machineId = session.metadata?.machineId;
       if (machineId != null && machineId.isNotEmpty) {
         logger.info(
-          '[sendMessage] profile changed for session=$sessionId '
-          '(${_sessionSpawnedProfile[sessionId]} -> $profileId); '
+          '[sendMessage] ${profileChanged ? "profile" : "model"} changed '
+          'for session=$sessionId '
+          '${profileChanged ? "(${_sessionSpawnedProfile[sessionId]} -> $profileId)" : "(${_sessionSpawnedModel[sessionId]} -> $modelMode)"}; '
           'killing session for respawn',
         );
         // Clear spawned data BEFORE killSession so that if kill fails,
         // looksReady becomes false on the next sendMessage call and
-        // auto-restore picks up the new profile instead of re-using the
-        // old one.
+        // auto-restore picks up the new profile/model instead of re-using
+        // the old one.
         _sessionSpawnedAt.remove(sessionId);
         _sessionSpawnedProfile.remove(sessionId);
+        _sessionSpawnedModel.remove(sessionId);
         try {
           await killSession(sessionId);
         } catch (e, st) {
           logger.warning(
-            '[sendMessage] killSession failed during profile '
+            '[sendMessage] killSession failed during profile/model '
             'switch for session=$sessionId: $e',
             e,
             st,
@@ -911,7 +935,7 @@ PY
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: effectivePermissionMode,
-        model: _getModelOverride(profile: spawnResult.profile),
+        model: _getModelOverride(profile: spawnResult.profile, modelMode: modelMode),
         environmentVariables: spawnResult.envVars,
       );
       final result = await _typedMachineRPC(
@@ -963,6 +987,7 @@ PY
         result: result,
       );
       _sessionSpawnedProfile[restoredSessionId] = spawnResult.profile?.id;
+      _sessionSpawnedModel[restoredSessionId] = modelMode;
       if (restoredSessionId != sessionId) {
         logger.info(
           '[sendMessage] auto-restore redirected session '

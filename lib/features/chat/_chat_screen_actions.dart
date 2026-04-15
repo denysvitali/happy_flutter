@@ -332,6 +332,22 @@ extension _ChatScreenActions on _ChatScreenState {
     ref
         .read(chatActionNotifierProvider.notifier)
         .saveModelMode(widget.sessionId, normalized.modeString);
+
+    // The next sendMessage call will automatically detect the model
+    // change and kill+respawn the session with the new model.
+    // No manual restart required.
+    final isRunning = _session?.isPresenceOnline ?? false;
+    if (isRunning && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Model changed. The session will restart '
+            'automatically on the next message.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _onProfileChanged(AIBackendProfile? profile) {
