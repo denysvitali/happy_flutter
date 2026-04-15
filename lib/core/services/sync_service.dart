@@ -527,6 +527,34 @@ what you have, you must use the options mode.
   Set<String> get testSessionsNeedingTailRefresh =>
       _sessionsNeedingTailRefresh;
 
+  /// Mutable ephemeral timestamps map.
+  @visibleForTesting
+  Map<String, int> get testLastEphemeralAt => _lastEphemeralAt;
+
+  /// Convenience setter for spawn timestamp.
+  @visibleForTesting
+  void testSetSessionSpawnedAt(String sessionId, int timestamp) {
+    _sessionSpawnedAt[sessionId] = timestamp;
+  }
+
+  /// Convenience setter for spawn profile.
+  @visibleForTesting
+  void testSetSessionSpawnedProfile(String sessionId, String? profileId) {
+    _sessionSpawnedProfile[sessionId] = profileId;
+  }
+
+  /// Convenience setter for spawn model.
+  @visibleForTesting
+  void testSetSessionSpawnedModel(String sessionId, String? modelMode) {
+    _sessionSpawnedModel[sessionId] = modelMode;
+  }
+
+  /// Convenience setter for last ephemeral timestamp.
+  @visibleForTesting
+  void testSetLastEphemeralAt(String sessionId, int timestamp) {
+    _lastEphemeralAt[sessionId] = timestamp;
+  }
+
   /// Clears all spawn-tracking maps.
   @visibleForTesting
   void testClearSessionSpawnedAt() {
