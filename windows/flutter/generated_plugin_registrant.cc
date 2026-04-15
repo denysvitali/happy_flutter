@@ -12,7 +12,6 @@
 #include <flutter_tts/flutter_tts_plugin.h>
 #include <mmkv_win32/mmkv_win32_plugin.h>
 #include <sentry_flutter/sentry_flutter_plugin.h>
-#include <sodium_libs/sodium_libs_plugin_c_api.h>
 #include <url_launcher_windows/url_launcher_windows.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
@@ -28,8 +27,6 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("MmkvWin32Plugin"));
   SentryFlutterPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("SentryFlutterPlugin"));
-  SodiumLibsPluginCApiRegisterWithRegistrar(
-      registry->GetRegistrarForPlugin("SodiumLibsPluginCApi"));
   UrlLauncherWindowsRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("UrlLauncherWindows"));
 }
