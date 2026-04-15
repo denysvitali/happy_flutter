@@ -78,6 +78,13 @@ extension _ChatScreenActions on _ChatScreenState {
         // Clear the stale reference so it doesn't fire again.
         if (savedProfileId != null) {
           unawaited(DraftStorage().removeProfileId(sessionId));
+        } else {
+          // Stale reference came from settings.lastUsedProfile — clear it.
+          unawaited(
+            ref
+                .read(settingsNotifierProvider.notifier)
+                .updateSetting('lastUsedProfile', null),
+          );
         }
       }
     }
