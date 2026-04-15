@@ -30,11 +30,11 @@ The current test count is not enough if this contract can break without failing 
 | Issue | Severity | Count | Status | Description |
 |-------|----------|-------|--------|-------------|
 | InvalidateSync disposed crash | Fatal | 55 | Fix on main (1ba4ebc), **needs release** | App suspend races with in-flight `invalidateAndAwait()`; `dispose()` now completes normally instead of throwing `StateError`. Production build 113001 predates fix. |
-| Null check operator (chat load) | Fatal | 9 | Open | `TypeError: Null check operator used on a null value` during `chat.screen.load`. Obfuscated stack — needs debug build repro. |
-| Null check operator (general) | Error | 12 | Open | Same TypeError, different call site. Active since Apr 2, last seen Apr 9. |
+| Null check operator (chat load) | Fatal | 9 | Fix on main (51f1189), **needs release** | `session!.permissionMode!` and `selectedProfile!.defaultModelMode` force-unwraps in `_loadInitialSettings` when async gap allowed session/profile to become null. Fixed with safe pattern-matching (`case final x?`). |
+| Null check operator (general) | Error | 12 | Fix on main (51f1189), **needs release** | Same root cause as above — same `_loadInitialSettings` async-gap null-unwraps. |
 | Back button error rate | Error | 3/8 (37.5%) | Open | `StandardComponentType.backButton` click action failing intermittently. |
 | CryptoSecretBox.decrypt failed | Warning | 27 | Open | Decryption failures — possible key mismatch on legacy NaCl messages or corrupt ciphertext. |
-| Stale profile in ChatScreen | Warning | 9 | Open | Saved profile ID no longer exists in settings after profile deletion; should clear stale reference. |
+| Stale profile in ChatScreen | Warning | 9 | Fix on main (51f1189), **needs release** | `_loadInitialSettings` now catches `StateError` from `firstWhere` and falls back to no profile, clearing the stale `savedProfileId` from `DraftStorage`. |
 | Machine offline on session create | Warning | 33 | Open | No pre-check guard — user can tap "create session" on an offline machine. UX should disable or warn. |
 | fetchMessages dropped (output filter) | Warning | ~180 | Open | Large batches of messages dropped during fetch for output data/filter reasons. Needs investigation. |
 
