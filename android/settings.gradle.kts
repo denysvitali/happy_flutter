@@ -8,10 +8,24 @@ pluginManagement {
             flutterSdkPath
         }
 
-    // Only include Flutter's gradle build if the path exists (works around nixpkgs Flutter SDK issues)
+    // Include Flutter's gradle build, copying to a writable location if needed
+    // (Nix store is read-only which Gradle 9.x rejects for included builds)
     val flutterGradlePath = "$flutterSdkPath/packages/flutter_tools/gradle"
-    if (file(flutterGradlePath).exists()) {
-        includeBuild(flutterGradlePath)
+    val flutterGradleDir = file(flutterGradlePath)
+    if (flutterGradleDir.exists()) {
+        val effectivePath = if (flutterGradleDir.canWrite()) {
+            flutterGradlePath
+        } else {
+            val writableCopy = file("${rootDir}/.flutter-gradle")
+            if (!writableCopy.exists()
+                || writableCopy.lastModified() < flutterGradleDir.lastModified()
+            ) {
+                writableCopy.deleteRecursively()
+                flutterGradleDir.copyRecursively(writableCopy, overwrite = true)
+            }
+            writableCopy.absolutePath
+        }
+        includeBuild(effectivePath)
     }
 
     repositories {
