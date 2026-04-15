@@ -53,11 +53,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final connectionStatus = ref.watch(connectionNotifierProvider);
     final now = DateTime.now().millisecondsSinceEpoch;
     const onlineThresholdMs = 120 * 1000;
-    final machines = ref
-        .watch(machinesNotifierProvider)
-        .values
+    final allMachines = ref.watch(machinesNotifierProvider);
+    final machines = allMachines.values
         .where((m) => m.active && now - m.activeAt < onlineThresholdMs)
         .toList();
+
+    // Check whether the currently selected machine is still online.
+    final selectedMachineObj = _selectedMachine != null
+        ? allMachines[_selectedMachine]
+        : null;
+    final selectedMachineOffline = selectedMachineObj != null &&
+        (now - selectedMachineObj.activeAt >= onlineThresholdMs ||
+            !selectedMachineObj.active);
 
     return AlertDialog(
       title: Text(l10n.newSessionTitle),
@@ -201,6 +208,16 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               setState(() => _selectedAgent = selection.first);
             },
           ),
+          if (selectedMachineOffline) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              // TODO(i18n): add to ARB files when l10n pipeline is updated
+              'Selected machine is offline',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+          ],
           if (_createError != null) ...[
             const SizedBox(height: AppSpacing.md),
             Text(
@@ -222,6 +239,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               !_isCreating &&
                   (_selectedPath?.isNotEmpty ?? false) &&
                   _selectedMachine != null &&
+                  !selectedMachineOffline &&
                   connectionStatus == ConnectionStatus.connected &&
                   sync.isInitialized
               ? () => _createSession(context)
