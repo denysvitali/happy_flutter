@@ -337,6 +337,7 @@ extension _ChatScreenActions on _ChatScreenState {
     );
     setState(() {
       _modelMode = normalized;
+      _profileModelOverride = normalized.modeString;
     });
     ref
         .read(chatActionNotifierProvider.notifier)
