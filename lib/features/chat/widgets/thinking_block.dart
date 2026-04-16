@@ -104,6 +104,14 @@ class _ThinkingBlockState extends State<ThinkingBlock>
 
   @override
   Widget build(BuildContext context) {
+    // Hide the block entirely when there is no real reasoning to show.
+    // Opus 4.7 redacts thinking traces, producing an empty `thinking`
+    // field that the parser wraps into `*Thinking...*\n\n**`; after
+    // cleaning this reduces to the literal `**` (or empty string).
+    if (_cleanedContent.isEmpty || _cleanedContent == '**') {
+      return const SizedBox.shrink();
+    }
+
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 

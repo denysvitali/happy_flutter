@@ -143,6 +143,26 @@ void main() {
       expect(find.text('Thinking'), findsNothing);
     });
 
+    testWidgets('hides block when content is literally **', (tester) async {
+      // Simulates Opus 4.7 redacted thinking: the parser wraps an empty
+      // `thinking` field into `*Thinking...*\n\n**`, which cleans to `**`.
+      await tester.pumpWidget(
+        _thinkingMessage(content: '*Thinking...*\n\n**'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Thinking'), findsNothing);
+      expect(find.byIcon(Icons.psychology_outlined), findsNothing);
+    });
+
+    testWidgets('hides block when content is empty', (tester) async {
+      await tester.pumpWidget(_thinkingMessage(content: ''));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Thinking'), findsNothing);
+      expect(find.byIcon(Icons.psychology_outlined), findsNothing);
+    });
+
     testWidgets('no background fill color on container', (tester) async {
       await tester.pumpWidget(_thinkingMessage());
       await tester.pumpAndSettle();
