@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sodium/sodium.dart';
 
 import '../services/logger_service.dart' show logger;
@@ -15,6 +17,34 @@ class CryptoSecretBox {
   /// Cached SecureKey per raw key bytes to avoid per-message allocation
   /// and native memory churn. Key: base64-encoded raw key.
   static final _secureKeyCache = <String, SecureKey>{};
+
+  /// Rate-limits Sentry captures so a key-rotation that fails on 100
+  /// historical messages does not produce 100 events. Keyed by
+  /// `<keyFingerprint>:<stage>`.
+  static final _sentryCaptureCooldown = <String, DateTime>{};
+  static const _sentryCooldown = Duration(minutes: 5);
+
+  /// Short fingerprint of a key — first 8 base64 chars of SHA-256 — used
+  /// as a grouping tag. Does NOT expose the key itself.
+  static String _keyFingerprint(Uint8List secretKey) {
+    // Avoid hashing: the base64 prefix is already collision-resistant
+    // enough for aggregation, and keeping it cheap matters on the hot
+    // decrypt path.
+    final prefix = base64.encode(
+      secretKey.length >= 6 ? secretKey.sublist(0, 6) : secretKey,
+    );
+    return prefix.substring(0, prefix.length.clamp(0, 8));
+  }
+
+  static bool _shouldCapture(String throttleKey) {
+    final now = DateTime.now();
+    final last = _sentryCaptureCooldown[throttleKey];
+    if (last != null && now.difference(last) < _sentryCooldown) {
+      return false;
+    }
+    _sentryCaptureCooldown[throttleKey] = now;
+    return true;
+  }
 
   /// Get or create a cached SecureKey for the given raw key bytes.
   static Future<SecureKey> _cachedSecureKey(Uint8List secretKey) async {
@@ -70,8 +100,18 @@ class CryptoSecretBox {
     Uint8List encryptedData,
     Uint8List secretKey,
   ) async {
+    // Track the stage for forensics — auth failures (expected on key
+    // rotation) vs decode failures (indicate corrupt ciphertext or
+    // double-encoding bugs) should be grouped differently.
+    var stage = 'format-check';
     try {
       if (encryptedData.length < _nonceSize + 16) {
+        _captureDecryptFailure(
+          stage: 'too-short',
+          reason: 'payload_below_nonce_plus_mac',
+          secretKey: secretKey,
+          cipherLen: encryptedData.length,
+        );
         return null;
       }
 
@@ -81,6 +121,7 @@ class CryptoSecretBox {
       final sodium = await sodiumSingleton;
       final secureKey = await _cachedSecureKey(secretKey);
 
+      stage = 'sodium';
       // Decrypt using libsodium crypto_secretbox.openEasy
       final decrypted = sodium.crypto.secretBox.openEasy(
         cipherText: encrypted,
@@ -88,15 +129,71 @@ class CryptoSecretBox {
         key: secureKey,
       );
 
+      stage = 'utf8';
       final jsonString = utf8.decode(decrypted);
+      stage = 'json';
       return jsonDecode(jsonString);
     } catch (e, stack) {
-      // Warning, not error: decryption failures are expected during
-      // key rotation or device re-link and are handled gracefully
-      // (returns null → caller skips the item).
-      logger.warning('CryptoSecretBox.decrypt failed\n$e');
+      _captureDecryptFailure(
+        stage: stage,
+        reason: e.runtimeType.toString(),
+        secretKey: secretKey,
+        cipherLen: encryptedData.length,
+        error: e,
+        stack: stack,
+      );
       return null;
     }
+  }
+
+  /// Emit a structured log and (rate-limited) Sentry event for a
+  /// decryption failure. Expected auth failures during key rotation
+  /// (stage == 'sodium') are only sent to Sentry at most once per
+  /// fingerprint per cooldown window to avoid flooding.
+  static void _captureDecryptFailure({
+    required String stage,
+    required String reason,
+    required Uint8List secretKey,
+    required int cipherLen,
+    Object? error,
+    StackTrace? stack,
+  }) {
+    final fingerprint = _keyFingerprint(secretKey);
+    logger.warning(
+      'CryptoSecretBox.decrypt failed '
+      'stage=$stage reason=$reason '
+      'cipherLen=$cipherLen keyFp=$fingerprint${error == null ? '' : '\n$error'}',
+    );
+    // Post-sodium stages (utf8/json) indicate that the MAC check passed
+    // but the plaintext was unexpected — that is always worth capturing.
+    // Pre-sodium format checks and sodium auth failures are rate-limited.
+    final critical = stage == 'utf8' || stage == 'json';
+    final throttleKey = '$fingerprint:$stage';
+    if (!critical && !_shouldCapture(throttleKey)) return;
+
+    unawaited(
+      Sentry.captureException(
+        error ??
+            StateError(
+              'CryptoSecretBox.decrypt failed: stage=$stage reason=$reason',
+            ),
+        stackTrace: stack ?? StackTrace.current,
+        withScope: (scope) {
+          scope
+            ..setTag('decrypt_stage', stage)
+            ..setTag('decrypt_reason', reason)
+            ..setTag('key_fp', fingerprint)
+            ..setContexts('decrypt', {
+              'stage': stage,
+              'reason': reason,
+              'cipher_len': cipherLen,
+              'key_fp': fingerprint,
+              'nonce_size': _nonceSize,
+              'critical': critical,
+            });
+        },
+      ),
+    );
   }
 
   /// Decrypt a batch of items, yielding to the event loop between items.

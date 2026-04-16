@@ -63,8 +63,22 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     super.dispose();
   }
 
-  bool _canCreate(ConnectionStatus connectionStatus) =>
-      _selectedMachine != null &&
+  /// Online threshold shared with `new_session_dialog.dart`.
+  static const int _onlineThresholdMs = 120 * 1000;
+
+  bool _isMachineOnline(Machine? machine) {
+    if (machine == null) return false;
+    if (!machine.active) return false;
+    final age = DateTime.now().millisecondsSinceEpoch - machine.activeAt;
+    return age < _onlineThresholdMs;
+  }
+
+  bool _canCreate(
+    ConnectionStatus connectionStatus,
+    Machine? resolvedMachine,
+  ) =>
+      resolvedMachine != null &&
+      _isMachineOnline(resolvedMachine) &&
       _pathController.text.trim().isNotEmpty &&
       !_isCreating &&
       connectionStatus == ConnectionStatus.connected &&
@@ -235,13 +249,20 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final machines = sortMachinesForSessionCreation(
-      ref.watch(machinesNotifierProvider).values,
-    );
+    final allMachines = ref.watch(machinesNotifierProvider);
+    final machines = sortMachinesForSessionCreation(allMachines.values);
     final connectionStatus = ref.watch(connectionNotifierProvider);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final compat = _currentProfileCompatibility();
+    // Re-resolve the selected machine from the provider so the offline
+    // banner and Create button react to presence updates without requiring
+    // the user to re-pick the machine.
+    final resolvedSelectedMachine = _selectedMachine != null
+        ? (allMachines[_selectedMachine!.id] ?? _selectedMachine)
+        : null;
+    final selectedMachineOffline = resolvedSelectedMachine != null &&
+        !_isMachineOnline(resolvedSelectedMachine);
 
     return Scaffold(
       appBar: AppBar(
@@ -488,6 +509,31 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           ),
           const SizedBox(height: AppSpacing.xxxl),
 
+          // ── Offline machine warning ───────────────────────────────
+          if (selectedMachineOffline)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 16,
+                    color: cs.error,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      // TODO(i18n): add to ARB when l10n pipeline is updated
+                      'Selected machine is offline',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // ── Connection status hint ────────────────────────────────
           if (connectionStatus != ConnectionStatus.connected &&
               connectionStatus != ConnectionStatus.error)
@@ -522,7 +568,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
             width: double.infinity,
             height: AppTouchTarget.comfortable,
             child: FilledButton.icon(
-              onPressed: _canCreate(connectionStatus) ? _createSession : null,
+              onPressed:
+                  _canCreate(connectionStatus, resolvedSelectedMachine)
+                      ? _createSession
+                      : null,
               icon: _isCreating
                   ? SizedBox(
                       width: 18,

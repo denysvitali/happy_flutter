@@ -69,6 +69,7 @@ part '_sync_messaging.dart';
 part '_sync_messaging_send.dart';
 part '_sync_messaging_rpc.dart';
 part '_sync_messaging_parse.dart';
+part '_sync_messaging_parse_output.dart';
 part '_sync_messaging_merge.dart';
 part '_sync_lifecycle.dart';
 part '_sync_isolate_helpers.dart';
