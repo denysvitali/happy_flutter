@@ -78,10 +78,14 @@ extension SyncSessionOperations on Sync {
         final lastWarnedAt = _machineOfflineWarnedAtMs[machineId] ?? 0;
         if (now - lastWarnedAt > 60000) {
           _machineOfflineWarnedAtMs[machineId] = now;
+          // Keep absolute timestamps out of the primary message so
+          // GlitchTip groups all offline machines under one issue
+          // rather than minting a new issue for every (activeAt, now)
+          // pair.
+          final deltaSec = ((now - machine.activeAt) / 1000).round();
           logger.warning(
-            'Machine $machineId appears offline: '
-            'activeAt=${machine.activeAt}, now=$now, '
-            'delta=${now - machine.activeAt}ms',
+            'Machine appears offline '
+            '(machineId=$machineId, delta=${deltaSec}s)',
           );
         }
         throw StateError('Machine is offline');

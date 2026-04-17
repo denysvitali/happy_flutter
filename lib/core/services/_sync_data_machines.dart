@@ -223,7 +223,7 @@ extension SyncDataMachines on Sync {
               machineKeys[machineId] = decryptedKey;
               _machineDataKeys[machineId] = decryptedKey;
             } else {
-              logger.warning(
+              logger.info(
                 '[Encryption] DEK decryption failed for machine '
                 '$machineId (returned null) -- falling back to legacy '
                 'encryption. Run `happy auth debug` to diagnose key '
