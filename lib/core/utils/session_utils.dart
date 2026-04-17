@@ -391,6 +391,17 @@ String formatLastSeen(int activeAt, {bool isActive = false}) {
 
 // ─── Folder grouping ─────────────────────────────────────────────────────────
 
+/// Canonical folder key for a session: `'${machineId}:${path}'`.
+///
+/// Must stay in sync with the inline key logic used when building
+/// [SessionFolderGroup] and [SessionFolderHeader], so that selection scope
+/// (in folder view) matches the sessions rendered in the list.
+String sessionFolderKey(Session session) {
+  final machineId = session.metadata?.machineId ?? '';
+  final path = session.metadata?.path ?? '';
+  return '$machineId:$path';
+}
+
 /// A discriminated union of items in a folder-grouped inactive session list.
 sealed class SessionFolderItem {
   const SessionFolderItem();
@@ -485,10 +496,7 @@ List<SessionFolderItem> groupSessionsByFolder(
   // Group by (machineId:path) key, preserving insertion order.
   final groups = <String, List<Session>>{};
   for (final s in sessions) {
-    final machineId = s.metadata?.machineId ?? '';
-    final path = s.metadata?.path ?? '';
-    final key = '$machineId:$path';
-    groups.putIfAbsent(key, () => []).add(s);
+    groups.putIfAbsent(sessionFolderKey(s), () => []).add(s);
   }
 
   // Sort groups by most recently active session descending.
@@ -583,17 +591,13 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
   final groupedActive = <String, List<Session>>{};
   final groupedInactive = <String, List<Session>>{};
 
-  String keyFor(Session session) {
-    final machineId = session.metadata?.machineId ?? '';
-    final path = session.metadata?.path ?? '';
-    return '$machineId:$path';
-  }
-
   for (final session in activeSessions) {
-    groupedActive.putIfAbsent(keyFor(session), () => []).add(session);
+    groupedActive.putIfAbsent(sessionFolderKey(session), () => []).add(session);
   }
   for (final session in inactiveSessions) {
-    groupedInactive.putIfAbsent(keyFor(session), () => []).add(session);
+    groupedInactive
+        .putIfAbsent(sessionFolderKey(session), () => [])
+        .add(session);
   }
 
   int activityTs(Session session) => getLastMessageTimestamp != null

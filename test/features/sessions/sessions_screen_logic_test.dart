@@ -184,4 +184,67 @@ void main() {
       expect(groups.last.header.displayPath, '~/app');
     });
   });
+
+  group('sessionFolderKey', () {
+    Session make({String? machineId, String? path}) => Session(
+      id: 's',
+      seq: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      active: true,
+      activeAt: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+      thinking: false,
+      presence: 'online',
+      metadata: Metadata(path: path, machineId: machineId, host: 'h'),
+    );
+
+    test('combines machineId and path with a colon', () {
+      expect(
+        sessionFolderKey(make(machineId: 'm1', path: '/home/dev/app')),
+        'm1:/home/dev/app',
+      );
+    });
+
+    test('treats missing metadata fields as empty strings', () {
+      expect(sessionFolderKey(make()), ':');
+      expect(sessionFolderKey(make(machineId: 'm1')), 'm1:');
+      expect(sessionFolderKey(make(path: '/x')), ':/x');
+    });
+
+    test('matches the folderKey produced by groupAllSessionsByFolder', () {
+      // This invariant is what makes select-all in folder view scope correctly
+      // to the folder — the selection scope derived from sessionFolderKey must
+      // equal the header.folderKey used by the list.
+      final groups = groupAllSessionsByFolder(
+        [
+          Session(
+            id: 'a',
+            seq: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            active: true,
+            activeAt: 1,
+            metadataVersion: 1,
+            agentStateVersion: 1,
+            thinking: false,
+            presence: 'online',
+            metadata: const Metadata(
+              path: '/home/dev/app',
+              machineId: 'm1',
+              host: 'h',
+            ),
+          ),
+        ],
+        const [],
+        const {},
+      );
+      expect(groups, hasLength(1));
+      expect(
+        groups.single.header.folderKey,
+        sessionFolderKey(groups.single.activeSessions.single),
+      );
+    });
+  });
 }

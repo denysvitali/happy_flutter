@@ -448,7 +448,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
 
   Set<String> _allSelectableSessionIds() {
     final sessions = ref.read(sessionsNotifierProvider);
-    return sessions.values.map((s) => s.id).toSet();
+    final folder = _folderNotifier.value;
+    if (folder == null) {
+      return sessions.values.map((s) => s.id).toSet();
+    }
+    // Select-all in folder view must match what the list actually displays —
+    // only sessions in this folder's `'${machineId}:${path}'` group.
+    return sessions.values
+        .where((s) => sessionFolderKey(s) == folder.folderKey)
+        .map((s) => s.id)
+        .toSet();
   }
 
   bool _hasActiveSessionsInSelection(SelectionState sel) {
