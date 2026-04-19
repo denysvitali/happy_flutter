@@ -78,17 +78,27 @@ class _AgentConversationScreenState
       if (msg['id'] == widget.messageId) {
         final children = WireParsers.asList(msg['children']);
         final count = children?.length ?? 0;
-        final fingerprint = _computeChildrenFingerprint(children);
+        // Preserve children from widget.taskData when sync has fewer —
+        // the sidechain grouper may not have run yet, so the message
+        // in sync.sessionMessages can be stale with empty children.
+        final currentChildren =
+            WireParsers.asList(_taskMsg?['children']);
+        final currentCount = currentChildren?.length ?? 0;
+        final merged = Map<String, dynamic>.from(msg);
+        if (count < currentCount && currentChildren != null) {
+          merged['children'] = List<dynamic>.from(currentChildren);
+        }
+        final mergedChildren = WireParsers.asList(merged['children']);
+        final mergedCount = mergedChildren?.length ?? 0;
+        final fingerprint =
+            _computeChildrenFingerprint(mergedChildren);
         final childrenChanged = fingerprint != _prevChildFingerprint;
-        // Always update _taskMsg when found, even if fingerprint unchanged.
-        // This fixes infinite spinner when both old and new fingerprint are 0
-        // (empty children) — we still need to pick up state changes from sync.
-        if (childrenChanged && count > _prevChildCount) {
-          _speakNewMessages(children);
+        if (childrenChanged && mergedCount > _prevChildCount) {
+          _speakNewMessages(mergedChildren);
         }
         setState(() {
-          _taskMsg = Map<String, dynamic>.from(msg);
-          _prevChildCount = count;
+          _taskMsg = merged;
+          _prevChildCount = mergedCount;
           _prevChildFingerprint = fingerprint;
         });
         if (childrenChanged) {
