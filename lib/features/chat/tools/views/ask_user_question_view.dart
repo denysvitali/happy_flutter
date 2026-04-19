@@ -118,12 +118,16 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
       return const SizedBox.shrink();
     }
 
-    // Only treat as completed if the user actually submitted locally.
-    // In Yolo mode the server auto-approves the permission, which
-    // moves the tool to 'completed' before the user can interact.
-    // Keep showing the interactive view until the user explicitly
-    // submits.
-    if (_isSubmitted) {
+    // Show submitted view if the user submitted locally OR if the
+    // server already resolved the permission (e.g. loaded from sync,
+    // widget rebuild after submit, or auto-approve).
+    final existingPerm =
+        WireParsers.asMap(widget.tool['permission']);
+    final permStatus =
+        existingPerm?['status'] as String?;
+    final alreadyResolved = permStatus != null &&
+        permStatus != 'pending';
+    if (_isSubmitted || alreadyResolved) {
       return _buildSubmittedView(context, parsedQuestions);
     }
 
