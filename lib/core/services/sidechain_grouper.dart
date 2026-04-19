@@ -68,82 +68,97 @@ class SidechainGrouper {
       }
     }
 
-    // Pass 1: Find Task tool calls → map stable identifiers to
-    // task message ID. We index by uuid, toolUseId, AND prompt
-    // so that sidechain messages can be matched even when
-    // multiple Agent/Task calls share the same assistant message
-    // uuid (common when Claude batches tool calls).
+    // Pass 1: Walk the entire tree (top-level + every nested
+    // children subtree) and index:
+    //   • taskIdToTask — every Task's id → its map reference,
+    //     so Pass 3 can attach children to a nested Task
+    //     directly without having to find it in the flat list.
+    //   • uuidToTaskId / promptToTaskId — every Task's
+    //     identifiers, so a sidechain-root whose parentUuid
+    //     points to a *nested* Task can still be matched.
+    //   • uuidToSidechainId — every descendant's uuid and
+    //     parentUuid → the nearest-ancestor Task's id, so
+    //     new sidechain messages arriving later in the flat
+    //     list can be routed to the correct Task regardless
+    //     of nesting depth.
+    //
+    // This fixes the bug where a sub-agent-of-a-sub-agent only
+    // ever shows its first few children: the old code indexed
+    // only top-level Tasks, so new sidechain messages whose
+    // parent chain terminated at a nested Task stayed
+    // orphaned forever.
+    final taskIdToTask = <String, Map<String, dynamic>>{};
     final uuidToTaskId = <String, String>{};
     final promptToTaskId = <String, String>{};
-    for (final msg in messages) {
-      if (msg['kind'] == 'tool-call' &&
-          (msg['name'] == 'Task' || msg['name'] == 'Agent')) {
-        final taskId = msg['id'] as String;
-        final uuid = msg['uuid'] as String?;
-        if (uuid != null && uuid.isNotEmpty) {
-          uuidToTaskId[uuid] = taskId;
-        }
-        final toolUseId = msg['toolUseId'] as String?;
-        if (toolUseId != null && toolUseId.isNotEmpty) {
-          uuidToTaskId[toolUseId] = taskId;
-        }
-        final input = WireParsers.asMap(msg['input']);
-        final prompt = input?['prompt'] as String?;
-        if (prompt != null && prompt.isNotEmpty) {
-          promptToTaskId[prompt] = taskId;
-        }
-      }
-    }
-    if (uuidToTaskId.isEmpty && promptToTaskId.isEmpty) return null;
-
-    // Pre-seed uuidToSidechainId from Task uuids, persisted
-    // sidechain-root uuids, and already-grouped children so
-    // that new sidechain messages arriving after the
-    // sidechain-root was removed can still be matched.
     final uuidToSidechainId = <String, String>{};
-    for (final msg in messages) {
-      if (msg['kind'] == 'tool-call' &&
-          (msg['name'] == 'Task' || msg['name'] == 'Agent')) {
-        final taskId = msg['id'] as String;
-        final taskUuid = msg['uuid'] as String?;
-        if (taskUuid != null && taskUuid.isNotEmpty) {
-          uuidToSidechainId[taskUuid] = taskId;
-        }
-        final toolUseId = msg['toolUseId'] as String?;
-        if (toolUseId != null && toolUseId.isNotEmpty) {
-          uuidToSidechainId[toolUseId] = taskId;
-        }
-        final rootUuids =
-            msg['_sidechainRootUuids'] as List<dynamic>?;
-        if (rootUuids != null) {
-          for (final ru in rootUuids) {
-            if (ru is String && ru.isNotEmpty) {
-              uuidToSidechainId[ru] = taskId;
-            }
+
+    void walkAndIndex(
+      List<dynamic> msgs,
+      String? ancestorTaskId,
+    ) {
+      for (final m in msgs) {
+        if (m is! Map<String, dynamic>) continue;
+        final isTask = m['kind'] == 'tool-call' &&
+            (m['name'] == 'Task' || m['name'] == 'Agent');
+        var nextAncestorId = ancestorTaskId;
+        if (isTask) {
+          final taskId = m['id'] as String;
+          taskIdToTask[taskId] = m;
+          nextAncestorId = taskId;
+          final uuid = m['uuid'] as String?;
+          if (uuid != null && uuid.isNotEmpty) {
+            uuidToTaskId[uuid] = taskId;
+            uuidToSidechainId[uuid] = taskId;
           }
-        }
-        final existing = msg['children'] as List<dynamic>?;
-        if (existing != null) {
-          for (final child in existing) {
-            if (child is Map<String, dynamic>) {
-              final childUuid = child['uuid'] as String?;
-              if (childUuid != null && childUuid.isNotEmpty) {
-                uuidToSidechainId[childUuid] = taskId;
-              }
-              final childParentUuid =
-                  child['parentUuid'] as String?;
-              if (childParentUuid != null &&
-                  childParentUuid.isNotEmpty) {
-                uuidToSidechainId[childParentUuid] = taskId;
+          final toolUseId = m['toolUseId'] as String?;
+          if (toolUseId != null && toolUseId.isNotEmpty) {
+            uuidToTaskId[toolUseId] = taskId;
+            uuidToSidechainId[toolUseId] = taskId;
+          }
+          final rootUuids =
+              m['_sidechainRootUuids'] as List<dynamic>?;
+          if (rootUuids != null) {
+            for (final ru in rootUuids) {
+              if (ru is String && ru.isNotEmpty) {
+                uuidToSidechainId[ru] = taskId;
               }
             }
           }
+          final input = WireParsers.asMap(m['input']);
+          final prompt = input?['prompt'] as String?;
+          if (prompt != null && prompt.isNotEmpty) {
+            promptToTaskId[prompt] = taskId;
+          }
+        } else if (ancestorTaskId != null) {
+          // Non-Task descendant: link its uuid and parentUuid
+          // to its nearest Task ancestor.  Use putIfAbsent so
+          // an earlier (more specific) mapping wins over a
+          // later ancestor-level one.
+          final uuid = m['uuid'] as String?;
+          if (uuid != null && uuid.isNotEmpty) {
+            uuidToSidechainId.putIfAbsent(uuid, () => ancestorTaskId);
+          }
+          final parentUuid = m['parentUuid'] as String?;
+          if (parentUuid != null && parentUuid.isNotEmpty) {
+            uuidToSidechainId.putIfAbsent(
+              parentUuid,
+              () => ancestorTaskId,
+            );
+          }
         }
+        final children = m['children'] as List<dynamic>?;
+        if (children != null) walkAndIndex(children, nextAncestorId);
       }
     }
+
+    walkAndIndex(messages, null);
+
+    if (taskIdToTask.isEmpty) return null;
 
     // Pass 2: Combined pass to find sidechain roots and group
-    // child messages in a single iteration
+    // child messages in a single iteration.  Operates on the
+    // flat top-level list only — sidechain messages for
+    // nested Tasks still arrive here before being grouped.
     final sidechainChildren =
         <String, List<Map<String, dynamic>>>{};
     final sidechainMsgIds = <String>{};
@@ -162,16 +177,16 @@ class SidechainGrouper {
             uuidToSidechainId[uuid] = sidechainId;
             // Persist the root's uuid on the Task so the
             // pre-seed can recover the chain after this root
-            // is removed from the message list.
-            for (final m in messages) {
-              if (m['id'] == sidechainId) {
-                final roots = (m['_sidechainRootUuids']
-                        as List<dynamic>?) ??
-                    <String>[];
-                if (!roots.contains(uuid)) {
-                  m['_sidechainRootUuids'] = [...roots, uuid];
-                }
-                break;
+            // is removed from the message list.  Uses
+            // taskIdToTask so the Task is found even if it's
+            // nested inside another Task's children.
+            final task = taskIdToTask[sidechainId];
+            if (task != null) {
+              final roots =
+                  (task['_sidechainRootUuids'] as List<dynamic>?) ??
+                      <String>[];
+              if (!roots.contains(uuid)) {
+                task['_sidechainRootUuids'] = [...roots, uuid];
               }
             }
           }
@@ -196,45 +211,61 @@ class SidechainGrouper {
       }
     }
 
-    if (sidechainMsgIds.isEmpty) return null;
+    if (sidechainMsgIds.isEmpty) {
+      final hasOrphans = messages.any((m) => m['isSidechain'] == true);
+      return hasOrphans
+          ? (messages: messages, hasOrphans: true)
+          : null;
+    }
 
-    // Pass 3: Remove sidechain messages from main list, attach
-    // children to Task tool-call messages
+    // Pass 3: Attach sidechain children directly to their
+    // target Task via taskIdToTask (works for top-level AND
+    // nested Tasks — the Task map is mutated in place, so the
+    // parent structure picks up the new children via
+    // reference).
+    sidechainChildren.forEach((taskId, newChildren) {
+      final task = taskIdToTask[taskId];
+      if (task == null) return;
+      final existing = task['children'] as List<dynamic>?;
+      if (existing != null && existing.isNotEmpty) {
+        final existingIds = <String>{};
+        for (final c in existing) {
+          if (c is Map<String, dynamic>) {
+            final id = c['id'] as String?;
+            if (id != null) existingIds.add(id);
+          }
+        }
+        for (final newChild in newChildren) {
+          final newId = newChild['id'] as String?;
+          if (newId == null || !existingIds.contains(newId)) {
+            existing.add(newChild);
+          }
+        }
+      } else {
+        task['children'] = newChildren;
+      }
+    });
+
+    // Build filtered flat list (sidechain messages are now
+    // owned by their Task's children array, so remove from
+    // the top-level stream).
     final filtered = <Map<String, dynamic>>[];
     for (final msg in messages) {
-      final msgId = msg['id'] as String;
-      if (sidechainMsgIds.contains(msgId)) continue;
-
-      if (sidechainChildren.containsKey(msgId)) {
-        final existing = msg['children'] as List<dynamic>?;
-        if (existing != null && existing.isNotEmpty) {
-          // Merge: append new children, skip duplicates.
-          final existingIds = <String>{};
-          for (final c in existing) {
-            if (c is Map<String, dynamic>) {
-              final id = c['id'] as String?;
-              if (id != null) existingIds.add(id);
-            }
-          }
-          for (final newChild in sidechainChildren[msgId]!) {
-            final newId = newChild['id'] as String?;
-            if (newId == null || !existingIds.contains(newId)) {
-              existing.add(newChild);
-            }
-          }
-        } else {
-          msg['children'] = sidechainChildren[msgId];
-        }
-      }
+      if (sidechainMsgIds.contains(msg['id'])) continue;
       filtered.add(msg);
     }
 
-    // Pass 4: Recursively group nested Task children.
-    for (final msg in filtered) {
-      final children = msg['children'] as List<dynamic>?;
+    // Pass 4: Defence-in-depth — recursively regroup within
+    // every Task's children (not just top-level).  Pass 3
+    // should have placed messages correctly via the recursive
+    // uuidToSidechainId, but this catches any residual cases
+    // (e.g. inner Task uuid wasn't yet in the map when its
+    // children arrived in the same batch).
+    for (final task in taskIdToTask.values) {
+      final children = task['children'] as List<dynamic>?;
       if (children != null && children.isNotEmpty) {
         regroupNestedTasks(
-          children.cast<Map<String, dynamic>>(),
+          children.whereType<Map<String, dynamic>>().toList(),
         );
       }
     }

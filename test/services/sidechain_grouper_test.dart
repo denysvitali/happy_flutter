@@ -297,7 +297,9 @@ void main() {
     test('reports hasOrphans for unmatched sidechain messages',
         () {
       // Sidechain child with parentUuid that doesn't match
-      // any Task — should remain in list as orphan.
+      // any Task — stays as orphan in the list.  The grouper
+      // reports hasOrphans=true so the caller can schedule a
+      // deferred regroup (more context may arrive later).
       final messages = [
         _taskMsg(id: 'task-1', uuid: 'task-uuid'),
         <String, dynamic>{
@@ -309,19 +311,112 @@ void main() {
 
       final result = grouper.groupMessages(messages);
 
-      // No sidechain messages were actually grouped (the
-      // orphan's parentUuid doesn't match any known chain),
-      // so result is null since sidechainMsgIds is empty.
-      // But if we skip fast-path, orphans stay in list.
-      // The orphan is not matched because 'unknown-uuid' is
-      // not in uuidToSidechainId — so it stays in the list
-      // and hasOrphans should be detected by the caller.
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isTrue);
+      // Messages unchanged (same reference — nothing attached)
+      expect(identical(result.messages, messages), isTrue);
+    });
+
+    test('attaches new children to a nested sub-agent Task', () {
+      // Regression: sub-agent-of-a-sub-agent.  Outer Task A
+      // has been grouped previously and its children include
+      // an inner Task B (nested) which has its own children.
+      // A new sidechain message arrives in the flat list
+      // whose parentUuid chains back to B's subtree — it must
+      // be attached to B's children, not A's.
       //
-      // The grouper returns null here because
-      // sidechainMsgIds is empty (no matches found).
-      // The caller (_groupSidechainMessages in Sync) is
-      // responsible for checking orphans separately.
-      expect(result, isNull);
+      // Before the fix, Pass 1 only indexed top-level Tasks
+      // so B's uuid chain was never mapped and new children
+      // for B stayed orphaned forever (`sync=3` symptom).
+      final innerTask = _taskMsg(
+        id: 'task-inner',
+        uuid: 'inner-uuid',
+        children: [
+          _sidechainChild(
+            id: 'inner-child-1',
+            uuid: 'ic1-uuid',
+            parentUuid: 'inner-uuid',
+          ),
+        ],
+        sidechainRootUuids: ['inner-root-uuid'],
+      );
+      final messages = [
+        _taskMsg(
+          id: 'task-outer',
+          uuid: 'outer-uuid',
+          children: [innerTask],
+          sidechainRootUuids: ['outer-root-uuid'],
+        ),
+        // New sidechain message chaining off inner-child-1.
+        _sidechainChild(
+          id: 'inner-child-2',
+          uuid: 'ic2-uuid',
+          parentUuid: 'ic1-uuid',
+        ),
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      // Only the outer Task remains top-level — the new
+      // sidechain child was removed from the flat list.
+      expect(result!.messages, hasLength(1));
+      expect(result.messages[0]['id'], 'task-outer');
+
+      // The inner Task now has TWO children (ic1 + ic2),
+      // attached directly to the nested Task map.
+      final outerChildren =
+          result.messages[0]['children'] as List<dynamic>;
+      expect(outerChildren, hasLength(1));
+      final nested =
+          outerChildren[0] as Map<String, dynamic>;
+      expect(nested['id'], 'task-inner');
+      final nestedChildren = nested['children'] as List<dynamic>;
+      expect(nestedChildren, hasLength(2));
+      expect(
+        nestedChildren.map((c) => (c as Map)['id']),
+        ['inner-child-1', 'inner-child-2'],
+      );
+    });
+
+    test('routes new children to the inner Task when a '
+        'message chains off its uuid directly', () {
+      // Regression: a sidechain message with parentUuid
+      // pointing straight at a nested Task's uuid must land
+      // inside that nested Task, not on the outer Task.
+      final innerTask = _taskMsg(
+        id: 'task-inner',
+        uuid: 'inner-uuid',
+      );
+      final messages = [
+        _taskMsg(
+          id: 'task-outer',
+          uuid: 'outer-uuid',
+          children: [innerTask],
+        ),
+        _sidechainChild(
+          id: 'new-inner-child',
+          uuid: 'nic-uuid',
+          parentUuid: 'inner-uuid',
+        ),
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      expect(result!.messages, hasLength(1));
+      final outerChildren =
+          result.messages[0]['children'] as List<dynamic>;
+      // Inner Task still the only outer child.
+      expect(outerChildren, hasLength(1));
+      final nested =
+          outerChildren[0] as Map<String, dynamic>;
+      final nestedChildren = nested['children'] as List<dynamic>;
+      expect(nestedChildren, hasLength(1));
+      expect(
+        (nestedChildren[0] as Map)['id'],
+        'new-inner-child',
+      );
     });
   });
 
