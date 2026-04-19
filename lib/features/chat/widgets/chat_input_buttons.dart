@@ -87,11 +87,11 @@ class AbortButton extends StatelessWidget {
                             Text(
                               'Stop',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: AppFontSize.sm,
                                 fontWeight:
                                     FontWeight.w500,
                                 color: cs.error,
-                                height: 1,
+                                height: AppLineHeight.tight,
                               ),
                             ),
                           ],

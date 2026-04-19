@@ -22,6 +22,7 @@ class DismissibleActiveSession extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     return Dismissible(
       key: ValueKey('active-${session.id}'),
       direction: DismissDirection.endToStart,
@@ -29,23 +30,23 @@ class DismissibleActiveSession extends ConsumerWidget {
       onDismissed: (_) {},
       background: Container(
         alignment: Alignment.centerRight,
-        color: Colors.orange,
+        color: cs.tertiary,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xl,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.archive_outlined,
-              color: Colors.white,
+              color: cs.onTertiary,
               size: 22,
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               context.l10n.sessionsArchive,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: cs.onTertiary,
                 fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w600,
               ),

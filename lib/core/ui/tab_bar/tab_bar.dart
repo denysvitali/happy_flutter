@@ -66,6 +66,7 @@ class _TabBadge extends StatelessWidget {
           color: cs.onError,
           fontWeight: FontWeight.w600,
           height: AppLineHeight.tight,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
         textAlign: TextAlign.center,
       ),

@@ -16,6 +16,7 @@ class SendStatusIndicator extends StatelessWidget {
     final style = theme.textTheme.labelSmall?.copyWith(
       fontSize: AppFontSize.xxs,
       height: 1.2,
+      fontFeatures: const [FontFeature.tabularFigures()],
     );
 
     switch (status) {
@@ -108,6 +109,7 @@ class _StatusLabel extends StatelessWidget {
       fontSize: AppFontSize.xxs,
       height: 1.2,
       color: color,
+      fontFeatures: const [FontFeature.tabularFigures()],
     );
 
     return Padding(
