@@ -229,11 +229,20 @@ extension SyncData on Sync {
             thinkingAt: null,
             // REST fetches cannot tell us whether the CLI process is
             // actually running -- the server's `active` flag is
-            // persistent (true until archived) and stale. Default
-            // to 'offline'; only real-time WebSocket activity events
-            // should promote a session to 'online'. For delta
+            // persistent (true until archived) and stale. For delta
             // fetches, preserve the existing presence if known.
-            presence: _sessions[sessionId]?.presence ?? 'offline',
+            // On first-load of a session (e.g. cross-device), fall
+            // back to inferring presence from activeAt freshness:
+            // if the server reports active=true within the same 60 s
+            // window used by _presenceTimers, treat as 'online' so
+            // the user doesn't see their live session as inactive
+            // until the first WebSocket activity event arrives.
+            presence: _sessions[sessionId]?.presence ??
+                (active &&
+                        DateTime.now().millisecondsSinceEpoch - activeAt <
+                            60000
+                    ? 'online'
+                    : 'offline'),
             lastSeq: lastSeq,
           );
 

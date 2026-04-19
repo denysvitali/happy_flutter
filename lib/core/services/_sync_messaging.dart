@@ -604,6 +604,19 @@ extension SyncMessaging on Sync {
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
         await finalizeSpan.finish();
+
+        // Cross-device backfill: when a session is opened for the
+        // first time on this device and the tail-load only covered
+        // a small seq window (because the server's `lastSeq` counts
+        // non-message events like metadata/agent-state updates),
+        // the user can land on a screen with very few messages even
+        // though the session has a long history.  Proactively pull
+        // a couple of older pages so the initial view has a useful
+        // amount of context without waiting for the user to scroll
+        // to the oldest message.
+        if (isFirstLoad) {
+          unawaited(_backfillInitialHistory(sessionId));
+        }
       } else if (didMutateMessages) {
         final finalizeSpan = fetchSpan.startChild(
           'sync.fetchMessages.finalize',
@@ -711,6 +724,38 @@ extension SyncMessaging on Sync {
     // to avoid redundant decryption of plaintext messages.
     if (existingSig == null && incomingSig == null) return false;
     return incomingSig != existingSig;
+  }
+
+  /// Target number of messages to have loaded after a fresh first-open
+  /// so the user doesn't land on a nearly-empty chat when the server's
+  /// [Session.lastSeq] counts non-message events.
+  static const int _initialBackfillTargetMessages = 40;
+
+  /// Maximum number of extra older pages to fetch during the initial
+  /// cross-device backfill. Bounded to avoid unbounded scroll-back on
+  /// very sparse sessions.
+  static const int _initialBackfillMaxPages = 3;
+
+  /// After a first-load tail fetch, pull additional older pages if the
+  /// visible message count is below [_initialBackfillTargetMessages]
+  /// and older history is available. Best-effort and fire-and-forget.
+  Future<void> _backfillInitialHistory(String sessionId) async {
+    for (var i = 0; i < _initialBackfillMaxPages; i++) {
+      final loaded = _sessionMessages[sessionId]?.length ?? 0;
+      if (loaded >= _initialBackfillTargetMessages) return;
+      if (!hasOlderMessages(sessionId)) return;
+      if (isLoadingOlderMessages(sessionId)) return;
+      try {
+        await fetchOlderMessages(sessionId);
+      } catch (error, stack) {
+        logger.warning(
+          '[backfillInitialHistory] $sessionId page=$i failed',
+          error,
+          stack,
+        );
+        return;
+      }
+    }
   }
 
   /// Fetch the page of messages that precedes what has already been loaded
