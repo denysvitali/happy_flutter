@@ -735,6 +735,68 @@ void main() {
         expect(find.text('No messages yet'), findsNothing);
       },
     );
+
+    testWidgets(
+      'updates children as more stream in via sync',
+      (tester) async {
+        const sessionId = 'sess_1';
+        const taskId = 'task_stream';
+
+        // Start with 1 child
+        final taskData = <String, dynamic>{
+          'id': taskId,
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'running',
+          'input': <String, dynamic>{'description': 'Streaming'},
+          'children': [
+            {'id': 'c1', 'kind': 'text', 'content': 'First'},
+          ],
+        };
+
+        sync.testSetSessionMessages(sessionId, [
+          <String, dynamic>{
+            ...taskData,
+          },
+        ]);
+
+        await tester.pumpWidget(
+          _buildApp(
+            sessionId: sessionId,
+            messageId: taskId,
+            taskData: taskData,
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('First'), findsOneWidget);
+
+        // Simulate more children arriving (grouper attached them)
+        sync.testSetSessionMessages(sessionId, [
+          <String, dynamic>{
+            'id': taskId,
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'input': <String, dynamic>{'description': 'Streaming'},
+            'children': [
+              {'id': 'c1', 'kind': 'text', 'content': 'First'},
+              {'id': 'c2', 'kind': 'tool-call', 'name': 'Read', 'state': 'completed', 'input': <String, dynamic>{'file_path': '/a.txt'}, 'result': 'ok'},
+              {'id': 'c3', 'kind': 'text', 'content': 'Done reading'},
+            ],
+          },
+        ]);
+        sync.testNotifySessionMessagesChanged(sessionId);
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        expect(find.text('First'), findsOneWidget);
+        expect(find.text('Done reading'), findsOneWidget);
+        // ToolView should render for the Read tool call
+        expect(find.byType(ToolView), findsOneWidget);
+      },
+    );
   });
 
   group('TaskView - text message preview', () {

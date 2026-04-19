@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -75,7 +76,17 @@ class _AgentConversationScreenState
     if (!mounted) return;
     final messages = sync.sessionMessages[widget.sessionId] ?? [];
     final found = _findMessageById(messages, widget.messageId);
-    if (found == null) return;
+    if (found == null) {
+      final taskDataChildren =
+          WireParsers.asList(widget.taskData?['children'])?.length ?? 0;
+      logger.debug(
+        '[AgentConversation] _refresh: NOT FOUND in ${messages.length} msgs '
+        'id=${widget.messageId} '
+        'taskDataChildren=$taskDataChildren '
+        'topLevelIds=${messages.take(5).map((m) => m['id']).toList()}',
+      );
+      return;
+    }
     _applyUpdate(found);
   }
 
@@ -107,6 +118,17 @@ class _AgentConversationScreenState
     if (count < currentCount && currentChildren != null) {
       merged['children'] = List<dynamic>.from(currentChildren);
     }
+    final mergedChildKinds = WireParsers.asList(merged['children'])
+        ?.whereType<Map<String, dynamic>>()
+        .map((c) => c['kind'])
+        .toList();
+    logger.debug(
+      '[AgentConversation] _applyUpdate '
+      'id=${widget.messageId} '
+      'sync=$count prev=$currentCount '
+      'merged=${WireParsers.asList(merged['children'])?.length ?? 0} '
+      'kinds=$mergedChildKinds',
+    );
     final mergedChildren = WireParsers.asList(merged['children']);
     final mergedCount = mergedChildren?.length ?? 0;
     final fingerprint = _computeChildrenFingerprint(mergedChildren);
