@@ -642,6 +642,101 @@ void main() {
     });
   });
 
+  group('AgentConversationScreen - child preservation', () {
+    testWidgets(
+      'preserves children from taskData when sync has stale message',
+      (tester) async {
+        const sessionId = 'sess_1';
+        const taskId = 'task_preserve';
+
+        // This is the data the user saw when they tapped — has children.
+        final taskData = <String, dynamic>{
+          'id': taskId,
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'completed',
+          'input': <String, dynamic>{'description': 'My task'},
+          'children': [
+            {'id': 'c1', 'kind': 'text', 'content': 'Hello from agent'},
+          ],
+        };
+
+        // Sync has a "stale" version — a fresh copy from a merge
+        // that replaced the original and doesn't carry children.
+        sync.testSetSessionMessages(sessionId, [
+          <String, dynamic>{
+            'id': taskId,
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'completed',
+            'input': <String, dynamic>{'description': 'My task'},
+            // No children key at all
+          },
+        ]);
+
+        await tester.pumpWidget(
+          _buildApp(
+            sessionId: sessionId,
+            messageId: taskId,
+            taskData: taskData,
+          ),
+        );
+        await tester.pump();
+
+        // The child message from taskData should still be visible
+        expect(find.text('Hello from agent'), findsOneWidget);
+        expect(find.text('No messages yet'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'finds nested task inside parent children for live updates',
+      (tester) async {
+        const sessionId = 'sess_1';
+        const nestedTaskId = 'nested_task_1';
+
+        // A nested Task lives inside a parent Task's children
+        final parentTask = <String, dynamic>{
+          'id': 'parent_task',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'running',
+          'input': <String, dynamic>{'description': 'Parent'},
+          'children': [
+            <String, dynamic>{
+              'id': nestedTaskId,
+              'kind': 'tool-call',
+              'name': 'Task',
+              'state': 'completed',
+              'input': <String, dynamic>{'description': 'Nested'},
+              'children': [
+                {'id': 'nc1', 'kind': 'text', 'content': 'Nested reply'},
+              ],
+            },
+          ],
+        };
+
+        // taskData is the nested task extracted from the parent's children
+        final nestedTaskData =
+            (parentTask['children'] as List).first as Map<String, dynamic>;
+
+        sync.testSetSessionMessages(sessionId, [parentTask]);
+
+        await tester.pumpWidget(
+          _buildApp(
+            sessionId: sessionId,
+            messageId: nestedTaskId,
+            taskData: nestedTaskData,
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('Nested reply'), findsOneWidget);
+        expect(find.text('No messages yet'), findsNothing);
+      },
+    );
+  });
+
   group('TaskView - text message preview', () {
     testWidgets('shows most recent text message from children', (
       tester,

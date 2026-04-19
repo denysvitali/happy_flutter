@@ -74,47 +74,62 @@ class _AgentConversationScreenState
   void _refresh() {
     if (!mounted) return;
     final messages = sync.sessionMessages[widget.sessionId] ?? [];
+    final found = _findMessageById(messages, widget.messageId);
+    if (found == null) return;
+    _applyUpdate(found);
+  }
+
+  /// Recursively search messages and their children for [messageId].
+  Map<String, dynamic>? _findMessageById(
+    List<Map<String, dynamic>> messages,
+    String messageId,
+  ) {
     for (final msg in messages) {
-      if (msg['id'] == widget.messageId) {
-        final children = WireParsers.asList(msg['children']);
-        final count = children?.length ?? 0;
-        // Preserve children from widget.taskData when sync has fewer —
-        // the sidechain grouper may not have run yet, so the message
-        // in sync.sessionMessages can be stale with empty children.
-        final currentChildren =
-            WireParsers.asList(_taskMsg?['children']);
-        final currentCount = currentChildren?.length ?? 0;
-        final merged = Map<String, dynamic>.from(msg);
-        if (count < currentCount && currentChildren != null) {
-          merged['children'] = List<dynamic>.from(currentChildren);
+      if (msg['id'] == messageId) return msg;
+      final children = WireParsers.asList(msg['children']);
+      if (children == null || children.isEmpty) continue;
+      final nested = _findMessageById(
+        children.whereType<Map<String, dynamic>>().toList(),
+        messageId,
+      );
+      if (nested != null) return nested;
+    }
+    return null;
+  }
+
+  void _applyUpdate(Map<String, dynamic> msg) {
+    final children = WireParsers.asList(msg['children']);
+    final count = children?.length ?? 0;
+    // Never downgrade: keep the richer children set.
+    final currentChildren = WireParsers.asList(_taskMsg?['children']);
+    final currentCount = currentChildren?.length ?? 0;
+    final merged = Map<String, dynamic>.from(msg);
+    if (count < currentCount && currentChildren != null) {
+      merged['children'] = List<dynamic>.from(currentChildren);
+    }
+    final mergedChildren = WireParsers.asList(merged['children']);
+    final mergedCount = mergedChildren?.length ?? 0;
+    final fingerprint = _computeChildrenFingerprint(mergedChildren);
+    final childrenChanged = fingerprint != _prevChildFingerprint;
+    if (childrenChanged && mergedCount > _prevChildCount) {
+      _speakNewMessages(mergedChildren);
+    }
+    setState(() {
+      _taskMsg = merged;
+      _prevChildCount = mergedCount;
+      _prevChildFingerprint = fingerprint;
+    });
+    if (childrenChanged) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_scroll.hasClients) {
+          _scroll.animateTo(
+            _scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
         }
-        final mergedChildren = WireParsers.asList(merged['children']);
-        final mergedCount = mergedChildren?.length ?? 0;
-        final fingerprint =
-            _computeChildrenFingerprint(mergedChildren);
-        final childrenChanged = fingerprint != _prevChildFingerprint;
-        if (childrenChanged && mergedCount > _prevChildCount) {
-          _speakNewMessages(mergedChildren);
-        }
-        setState(() {
-          _taskMsg = merged;
-          _prevChildCount = mergedCount;
-          _prevChildFingerprint = fingerprint;
-        });
-        if (childrenChanged) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            if (_scroll.hasClients) {
-              _scroll.animateTo(
-                _scroll.position.maxScrollExtent,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-              );
-            }
-          });
-        }
-        return;
-      }
+      });
     }
   }
 
