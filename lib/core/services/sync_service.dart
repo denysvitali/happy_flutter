@@ -336,6 +336,8 @@ what you have, you must use the options mode.
   final _domainChangeController = StreamController<SyncDomain>.broadcast();
   final _sessionMessageChangeController = StreamController<String>.broadcast();
   final _paginationErrorController = StreamController<String>.broadcast();
+  final _syncStateController = StreamController<void>.broadcast();
+  int _activeSyncCount = 0;
   Timer? _dataChangeDebounceTimer;
   final Map<SyncDomain, Timer> _domainChangeDebounceTimers = {};
   final Map<String, Timer> _sessionMessageDebounceTimers = {};
@@ -759,6 +761,23 @@ what you have, you must use the options mode.
   /// Stream that emits the sessionId when older-message pagination fails.
   /// ChatScreen listens to this to show an inline error or snackbar.
   Stream<String> get onPaginationError => _paginationErrorController.stream;
+
+  /// Stream that emits whenever sync state changes (any sync starts or stops).
+  Stream<void> get onSyncStateChanged => _syncStateController.stream;
+
+  /// Whether any sync operation is currently running.
+  bool get isSyncing => _activeSyncCount > 0;
+
+  void _onSyncRunningChanged(bool isRunning) {
+    if (isRunning) {
+      _activeSyncCount++;
+    } else {
+      _activeSyncCount--;
+      if (_activeSyncCount < 0) _activeSyncCount = 0;
+    }
+    _syncStateController.add(null);
+  }
+
 
   /// Returns true for transient network errors that are not actionable
   /// (e.g. DNS failure, timeout, Cronet aborting a connection because the

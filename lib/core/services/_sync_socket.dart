@@ -94,34 +94,68 @@ extension SyncSocket on Sync {
       fetchSessions,
       minInterval: Sync._sessionsSyncMinInterval,
       name: 'fetchSessions',
+      onRunningChanged: _onSyncRunningChanged,
     );
-    settingsSync = InvalidateSync(syncSettings, name: 'syncSettings');
-    profileSync = InvalidateSync(fetchProfile, name: 'fetchProfile');
-    purchasesSync = InvalidateSync(syncPurchases, name: 'syncPurchases');
+    settingsSync = InvalidateSync(
+      syncSettings,
+      name: 'syncSettings',
+      onRunningChanged: _onSyncRunningChanged,
+    );
+    profileSync = InvalidateSync(
+      fetchProfile,
+      name: 'fetchProfile',
+      onRunningChanged: _onSyncRunningChanged,
+    );
+    purchasesSync = InvalidateSync(
+      syncPurchases,
+      name: 'syncPurchases',
+      onRunningChanged: _onSyncRunningChanged,
+    );
     machinesSync = InvalidateSync(
       fetchMachines,
       minInterval: Sync._machinesSyncMinInterval,
       name: 'fetchMachines',
+      onRunningChanged: _onSyncRunningChanged,
     );
-    pushTokenSync = InvalidateSync(syncPushToken, name: 'syncPushToken');
+    pushTokenSync = InvalidateSync(
+      syncPushToken,
+      name: 'syncPushToken',
+      onRunningChanged: _onSyncRunningChanged,
+    );
     nativeUpdateSync = InvalidateSync(
       fetchNativeUpdate,
       name: 'fetchNativeUpdate',
+      onRunningChanged: _onSyncRunningChanged,
     );
     artifactsSync = InvalidateSync(
       fetchArtifactsList,
       name: 'fetchArtifactsList',
+      onRunningChanged: _onSyncRunningChanged,
     );
-    friendsSync = InvalidateSync(fetchFriends, name: 'fetchFriends');
+    friendsSync = InvalidateSync(
+      fetchFriends,
+      name: 'fetchFriends',
+      onRunningChanged: _onSyncRunningChanged,
+    );
     friendRequestsSync = InvalidateSync(
       fetchFriendRequests,
       name: 'fetchFriendRequests',
+      onRunningChanged: _onSyncRunningChanged,
     );
-    feedSync = InvalidateSync(fetchFeed, name: 'fetchFeed');
-    todosSync = InvalidateSync(fetchTodos, name: 'fetchTodos');
+    feedSync = InvalidateSync(
+      fetchFeed,
+      name: 'fetchFeed',
+      onRunningChanged: _onSyncRunningChanged,
+    );
+    todosSync = InvalidateSync(
+      fetchTodos,
+      name: 'fetchTodos',
+      onRunningChanged: _onSyncRunningChanged,
+    );
     sessionGitStatusSync = InvalidateSync(
       _fetchSessionGitStatus,
       name: 'fetchSessionGitStatus',
+      onRunningChanged: _onSyncRunningChanged,
     );
 
     // Mark initialized early so that provider loadFromSync() can serve

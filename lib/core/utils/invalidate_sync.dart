@@ -12,11 +12,14 @@ class InvalidateSync {
     this._action, {
     Duration? minInterval,
     String? name,
+    void Function(bool isRunning)? onRunningChanged,
   })  : _minInterval = minInterval,
-        _name = name;
+        _name = name,
+        _onRunningChanged = onRunningChanged;
   final Future<void> Function() _action;
   final Duration? _minInterval;
   final String? _name;
+  final void Function(bool isRunning)? _onRunningChanged;
   Completer<void>? _currentOperation;
   bool _invalidated = false;
   bool _running = false;
@@ -45,6 +48,16 @@ class InvalidateSync {
   /// needing a reference to the Sync singleton.
   static bool isBackgrounded = false;
 
+  /// Whether a sync action is currently executing.
+  bool get isRunning => _running;
+
+  /// Whether a sync is pending (either in-flight or awaiting cooldown).
+  bool get isPending =>
+      _currentOperation != null ||
+      _invalidated ||
+      _retryTimer != null ||
+      _cooldownTimer != null;
+
   /// Diagnostic counter — incremented every time an operation is skipped in
   /// _run() because isBackgrounded is true.  If this grows quickly, it means
   /// the app is cycling between foreground and background repeatedly, which is
@@ -68,7 +81,7 @@ class InvalidateSync {
     // an in-flight _run() that races with the revived one.
     if (_disposed) {
       _disposed = false;
-      _running = false;
+      _setRunning(false);
       _retryCount = 0;
       _lastRunEnd = null;
       // Complete any orphaned completer from the disposed run normally so
@@ -117,8 +130,15 @@ class InvalidateSync {
     unawaited(_run());
   }
 
+  void _setRunning(bool value) {
+    if (_running != value) {
+      _running = value;
+      _onRunningChanged?.call(value);
+    }
+  }
+
   void _completeOperation() {
-    _running = false;
+    _setRunning(false);
     _retryCount = 0;
     final operation = _currentOperation;
     _currentOperation = null;
@@ -147,7 +167,6 @@ class InvalidateSync {
     // the microtask/timer queue.  Complete any pending operation so callers
     // are not left hanging, then bail out silently.
     if (_disposed) {
-      _running = false;
       _completeOperation();
       return;
     }
@@ -159,12 +178,11 @@ class InvalidateSync {
     // unblocked rather than hanging forever.
     if (isBackgrounded) {
       backgroundedSkipCount++;
-      _running = false;
       _completeOperation();
       return;
     }
 
-    _running = true;
+    _setRunning(true);
     _retryTimer?.cancel();
     _retryTimer = null;
     _invalidated = false;
@@ -208,7 +226,7 @@ class InvalidateSync {
       } else {
         final operation = _currentOperation;
         _currentOperation = null;
-        _running = false;
+        _setRunning(false);
         if (operation != null && !operation.isCompleted) {
           // logger.error already forwards to Sentry via
           // _forwardToSentry — no need for a separate captureException.

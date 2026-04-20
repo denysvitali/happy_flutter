@@ -695,6 +695,7 @@ extension SyncMessagingRpc on Sync {
         () => fetchMessages(sessionId),
         minInterval: Sync._messagesSyncMinInterval,
         name: 'fetchMessages',
+        onRunningChanged: _onSyncRunningChanged,
       );
     }
     messagesSync[sessionId]?.invalidate();

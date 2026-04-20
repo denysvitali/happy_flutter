@@ -306,6 +306,7 @@ extension SyncLifecycle on Sync {
                 () => fetchMessages(sessionId),
                 minInterval: Sync._messagesSyncMinInterval,
                 name: 'fetchMessages',
+                onRunningChanged: _onSyncRunningChanged,
               );
             }
           }
@@ -367,6 +368,7 @@ extension SyncLifecycle on Sync {
               () => fetchMessages(sessionId),
               minInterval: Sync._messagesSyncMinInterval,
               name: 'fetchMessages',
+              onRunningChanged: _onSyncRunningChanged,
             );
           }
           _sessionsNeedingFetchProbe.add(sessionId);
