@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/models/built_in_profiles.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart';
@@ -272,6 +273,17 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     try {
       final settings = ref.read(settingsNotifierProvider);
       final profileId = settings.lastUsedProfile;
+      // Resolve defaultModelMode so the daemon always receives a model hint,
+      // preventing profile env vars from being used incorrectly when
+      // lastUsedProfile changes between profile switch and session creation.
+      String? modelMode;
+      if (profileId != null) {
+        final profile = settings.profiles
+            .where((p) => p.id == profileId)
+            .firstOrNull;
+        modelMode ??= profile?.defaultModelMode;
+        modelMode ??= getBuiltInProfile(profileId)?.defaultModelMode;
+      }
       await sync.applySettings({
         'lastUsedAgent': _selectedAgent,
         'lastUsedProfile': profileId,
@@ -289,6 +301,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         machineId: machineId,
         path: sessionPath,
         profileId: profileId,
+        modelMode: modelMode,
       );
       // Persist the profile so auto-restore reads correct env vars.
       if (profileId != null) {
