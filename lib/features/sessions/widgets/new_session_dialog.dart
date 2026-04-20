@@ -276,18 +276,25 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       // Resolve defaultModelMode so the daemon always receives a model hint,
       // preventing profile env vars from being used incorrectly when
       // lastUsedProfile changes between profile switch and session creation.
+      // Re-read settings after applySettings so we use the current
+      // lastUsedModelMode (the user's last explicit selection), not a stale
+      // snapshot from initState.
+      await sync.applySettings({
+        'lastUsedAgent': _selectedAgent,
+        'lastUsedProfile': profileId,
+      });
+      final updatedSettings = ref.read(settingsNotifierProvider);
       String? modelMode;
       if (profileId != null) {
-        final profile = settings.profiles
+        final profile = updatedSettings.profiles
             .where((p) => p.id == profileId)
             .firstOrNull;
         modelMode ??= profile?.defaultModelMode;
         modelMode ??= getBuiltInProfile(profileId)?.defaultModelMode;
       }
-      await sync.applySettings({
-        'lastUsedAgent': _selectedAgent,
-        'lastUsedProfile': profileId,
-      });
+      // Fall back to the user's last explicit model selection so profile
+      // switches don't regress the model choice.
+      modelMode ??= updatedSettings.lastUsedModelMode;
       final String sessionPath;
       if (_sessionType == 'worktree') {
         sessionPath = await sync.createWorktree(

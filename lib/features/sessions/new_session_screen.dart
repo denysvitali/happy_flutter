@@ -130,7 +130,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       if (permissionMode != null) {
         unawaited(DraftStorage().savePermissionMode(sessionId, permissionMode));
       }
-      final modelMode = profile?.defaultModelMode;
+      // Use profile default, but fall back to the user's last explicit
+      // selection so profile switches don't regress the model choice.
+      final modelMode =
+          profile?.defaultModelMode ?? settings.lastUsedModelMode;
       if (modelMode != null) {
         unawaited(DraftStorage().saveModelMode(sessionId, modelMode));
       }
