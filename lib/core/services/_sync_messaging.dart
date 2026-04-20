@@ -501,10 +501,19 @@ extension SyncMessaging on Sync {
         if (processed.toolResults.isNotEmpty) {
           _applyToolResults(sessionId, processed.toolResults);
         }
-        // Apply any pending tool results that arrived before these messages.
-        final pending = _pendingToolResults.remove(sessionId);
+        // Apply any pending tool results that arrived before these
+        // messages. Only drain matched results so cross-path ordering
+        // can't lose results.
+        final pending = _pendingToolResults[sessionId];
         if (pending != null && pending.isNotEmpty) {
-          _applyToolResults(sessionId, pending);
+          final matched = _applyToolResults(sessionId, pending);
+          if (matched.isNotEmpty) {
+            pending.removeWhere(
+                (r) => matched.contains(r['toolUseId']));
+            if (pending.isEmpty) {
+              _pendingToolResults.remove(sessionId);
+            }
+          }
         }
         for (final u in processed.usageUpdates) {
           final usageMap = WireParsers.asMap(u['usage']);
@@ -881,10 +890,18 @@ extension SyncMessaging on Sync {
       if (processed.toolResults.isNotEmpty) {
         _applyToolResults(sessionId, processed.toolResults);
       }
-      // Apply any pending tool results that arrived before these messages.
-      final pending = _pendingToolResults.remove(sessionId);
+      // Apply any pending tool results that arrived before these
+      // messages. Only drain matched results.
+      final pending = _pendingToolResults[sessionId];
       if (pending != null && pending.isNotEmpty) {
-        _applyToolResults(sessionId, pending);
+        final matched = _applyToolResults(sessionId, pending);
+        if (matched.isNotEmpty) {
+          pending.removeWhere(
+              (r) => matched.contains(r['toolUseId']));
+          if (pending.isEmpty) {
+            _pendingToolResults.remove(sessionId);
+          }
+        }
       }
       for (final u in processed.usageUpdates) {
         final usageMap = WireParsers.asMap(u['usage']);

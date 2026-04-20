@@ -56,10 +56,10 @@ void main() {
   group('applyToolResults', () {
     test('returns unchanged when no tool results', () {
       final messages = [_toolCallMsg(id: 'm1')];
-      final (result, changed) =
-          processor.applyToolResults(messages, []);
-      expect(changed, isFalse);
-      expect(identical(result, messages), isTrue);
+      final r = processor.applyToolResults(messages, []);
+      expect(r.changed, isFalse);
+      expect(identical(r.messages, messages), isTrue);
+      expect(r.matchedIds, isEmpty);
     });
 
     test('matches tool result by toolUseId', () {
@@ -71,8 +71,7 @@ void main() {
         ),
       ];
 
-      final (result, changed) =
-          processor.applyToolResults(messages, [
+      final r = processor.applyToolResults(messages, [
         _toolResult(
           toolUseId: 'tu-1',
           result: 'done',
@@ -80,10 +79,11 @@ void main() {
         ),
       ]);
 
-      expect(changed, isTrue);
-      expect(result[0]['state'], 'completed');
-      expect(result[0]['result'], 'done');
-      expect(result[0]['completedAt'], 1000);
+      expect(r.changed, isTrue);
+      expect(r.messages[0]['state'], 'completed');
+      expect(r.messages[0]['result'], 'done');
+      expect(r.messages[0]['completedAt'], 1000);
+      expect(r.matchedIds, contains('tu-1'));
     });
 
     test('sets state to error when isError is true', () {
@@ -91,8 +91,7 @@ void main() {
         _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
       ];
 
-      final (result, changed) =
-          processor.applyToolResults(messages, [
+      final r = processor.applyToolResults(messages, [
         _toolResult(
           toolUseId: 'tu-1',
           result: 'failed',
@@ -100,8 +99,8 @@ void main() {
         ),
       ]);
 
-      expect(changed, isTrue);
-      expect(result[0]['state'], 'error');
+      expect(r.changed, isTrue);
+      expect(r.messages[0]['state'], 'error');
     });
 
     test('applies permission from tool result', () {
@@ -109,8 +108,7 @@ void main() {
         _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
       ];
 
-      final (result, changed) =
-          processor.applyToolResults(messages, [
+      final r = processor.applyToolResults(messages, [
         _toolResult(
           toolUseId: 'tu-1',
           permissions: <String, dynamic>{
@@ -120,9 +118,9 @@ void main() {
         ),
       ]);
 
-      expect(changed, isTrue);
+      expect(r.changed, isTrue);
       final perm =
-          result[0]['permission'] as Map<String, dynamic>;
+          r.messages[0]['permission'] as Map<String, dynamic>;
       expect(perm['status'], 'approved');
       expect(perm['mode'], 'yolo');
     });
@@ -132,8 +130,7 @@ void main() {
         _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
       ];
 
-      final (result, _) =
-          processor.applyToolResults(messages, [
+      final r = processor.applyToolResults(messages, [
         _toolResult(
           toolUseId: 'tu-1',
           permissions: <String, dynamic>{
@@ -143,7 +140,7 @@ void main() {
       ]);
 
       final perm =
-          result[0]['permission'] as Map<String, dynamic>;
+          r.messages[0]['permission'] as Map<String, dynamic>;
       expect(perm['status'], 'denied');
     });
 
@@ -161,19 +158,19 @@ void main() {
         ),
       ];
 
-      final (result, changed) =
-          processor.applyToolResults(messages, [
+      final r = processor.applyToolResults(messages, [
         _toolResult(
           toolUseId: 'tu-child',
           result: 'child-done',
         ),
       ]);
 
-      expect(changed, isTrue);
-      final children = result[0]['children']
+      expect(r.changed, isTrue);
+      final children = r.messages[0]['children']
           as List<Map<String, dynamic>>;
       expect(children[0]['state'], 'completed');
       expect(children[0]['result'], 'child-done');
+      expect(r.matchedIds, contains('tu-child'));
     });
 
     test('ignores results with unknown toolUseId', () {
@@ -181,16 +178,16 @@ void main() {
         _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
       ];
 
-      final (result, changed) =
-          processor.applyToolResults(messages, [
+      final r = processor.applyToolResults(messages, [
         _toolResult(
           toolUseId: 'tu-unknown',
           result: 'nope',
         ),
       ]);
 
-      expect(changed, isFalse);
-      expect(result[0]['state'], isNull);
+      expect(r.changed, isFalse);
+      expect(r.messages[0]['state'], isNull);
+      expect(r.matchedIds, isEmpty);
     });
 
     test('ignores results with empty toolUseId', () {
@@ -198,15 +195,14 @@ void main() {
         _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
       ];
 
-      final (_, changed) =
-          processor.applyToolResults(messages, [
+      final r = processor.applyToolResults(messages, [
         <String, dynamic>{
           'toolUseId': '',
           'result': 'nope',
         },
       ]);
 
-      expect(changed, isFalse);
+      expect(r.changed, isFalse);
     });
 
     test('skips non-tool-call messages', () {
@@ -215,14 +211,13 @@ void main() {
         _toolCallMsg(id: 'm2', toolUseId: 'tu-2'),
       ];
 
-      final (result, changed) =
-          processor.applyToolResults(messages, [
+      final r = processor.applyToolResults(messages, [
         _toolResult(toolUseId: 'tu-2', result: 'ok'),
       ]);
 
-      expect(changed, isTrue);
-      expect(result[0]['kind'], 'text');
-      expect(result[1]['state'], 'completed');
+      expect(r.changed, isTrue);
+      expect(r.messages[0]['kind'], 'text');
+      expect(r.messages[1]['state'], 'completed');
     });
   });
 

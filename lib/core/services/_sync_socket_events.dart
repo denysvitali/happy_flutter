@@ -420,10 +420,18 @@ extension SyncSocketEvents on Sync {
       }
       // Apply any pending tool results that arrived before these
       // messages. This handles the case where a tool-call-result arrives
-      // via socket before the tool-call message itself.
-      final pending = _pendingToolResults.remove(sessionId);
+      // via socket before the tool-call message itself. Only drain
+      // matched results so cross-path ordering can't lose results.
+      final pending = _pendingToolResults[sessionId];
       if (pending != null && pending.isNotEmpty) {
-        _applyToolResults(sessionId, pending);
+        final matched = _applyToolResults(sessionId, pending);
+        if (matched.isNotEmpty) {
+          pending.removeWhere(
+              (r) => matched.contains(r['toolUseId']));
+          if (pending.isEmpty) {
+            _pendingToolResults.remove(sessionId);
+          }
+        }
       }
       for (final u in processed.usageUpdates) {
         final usageMap = WireParsers.asMap(u['usage']);

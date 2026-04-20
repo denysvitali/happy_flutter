@@ -476,30 +476,36 @@ extension SyncMessagingMerge on Sync {
   }
 
   /// Apply tool results to existing tool-call messages in a session.
-  void _applyToolResults(
+  /// Returns the set of toolUseIds that were matched, so callers can
+  /// drain only those from the pending queue.
+  Set<String> _applyToolResults(
     String sessionId,
     List<Map<String, dynamic>> toolResults,
   ) {
-    if (toolResults.isEmpty) return;
+    if (toolResults.isEmpty) return const {};
 
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
     if (existing.isEmpty) {
       // Queue tool results that arrived before their tool-call message.
       // They will be applied when the tool-call message arrives.
-      _pendingToolResults.putIfAbsent(sessionId, () => []).addAll(toolResults);
-      return;
+      _pendingToolResults
+          .putIfAbsent(sessionId, () => [])
+          .addAll(toolResults);
+      return const {};
     }
 
-    final (updated, changed) = _toolResultProcessor.applyToolResults(
+    final result = _toolResultProcessor.applyToolResults(
       existing,
       toolResults,
     );
 
-    if (changed) {
-      _sessionMessages[sessionId] = updated;
+    if (result.changed) {
+      _sessionMessages[sessionId] = result.messages;
       _sessionMessagesCache = null;
       _sessionMessagesViewCache.remove(sessionId);
     }
+
+    return result.matchedIds;
   }
 
   /// Enrich tool-call messages with permission data from

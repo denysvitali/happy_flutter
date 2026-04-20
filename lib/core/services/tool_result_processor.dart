@@ -12,8 +12,9 @@ class ToolResultProcessor {
   /// Apply tool results to tool-call messages by matching
   /// `toolUseId`. Recurses into `children` arrays.
   ///
-  /// Returns `(updatedMessages, changed)`.
-  (List<Map<String, dynamic>>, bool) applyToolResults(
+  /// Returns `(updatedMessages, changed, matchedToolUseIds)`.
+  ({List<Map<String, dynamic>> messages, bool changed, Set<String> matchedIds})
+      applyToolResults(
     List<Map<String, dynamic>> messages,
     List<Map<String, dynamic>> toolResults,
   ) {
@@ -23,16 +24,29 @@ class ToolResultProcessor {
       if (toolUseId == null || toolUseId.isEmpty) continue;
       toolResultsById[toolUseId] = result;
     }
-    if (toolResultsById.isEmpty) return (messages, false);
+    if (toolResultsById.isEmpty) {
+      return (
+        messages: messages,
+        changed: false,
+        matchedIds: <String>{},
+      );
+    }
 
-    return _applyRecursive(messages, toolResultsById);
+    final (updated, changed, matched) =
+        _applyRecursive(messages, toolResultsById);
+    return (
+      messages: updated,
+      changed: changed,
+      matchedIds: matched,
+    );
   }
 
-  (List<Map<String, dynamic>>, bool) _applyRecursive(
+  (List<Map<String, dynamic>>, bool, Set<String>) _applyRecursive(
     List<Map<String, dynamic>> messages,
     Map<String, Map<String, dynamic>> toolResultsById,
   ) {
     var changed = false;
+    final matchedIds = <String>{};
     final updated = <Map<String, dynamic>>[];
 
     for (final msg in messages) {
@@ -43,12 +57,13 @@ class ToolResultProcessor {
         final typedChildren = children
             .whereType<Map<String, dynamic>>()
             .toList();
-        final (updatedChildren, childChanged) =
+        final (updatedChildren, childChanged, childMatched) =
             _applyRecursive(typedChildren, toolResultsById);
         if (childChanged) {
           next = {...next, 'children': updatedChildren};
           changed = true;
         }
+        matchedIds.addAll(childMatched);
       }
 
       if (msg['kind'] == 'tool-call') {
@@ -89,13 +104,14 @@ class ToolResultProcessor {
             'permission': ?permissionUpdate,
           };
           changed = true;
+          matchedIds.add(toolUseId!);
         }
       }
 
       updated.add(next);
     }
 
-    return (updated, changed);
+    return (updated, changed, matchedIds);
   }
 
   /// Stamp permission data from [AgentState] onto tool-call
