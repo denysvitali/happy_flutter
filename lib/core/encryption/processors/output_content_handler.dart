@@ -24,37 +24,13 @@ void _processOutputContent({
   }
 
   if (data['isMeta'] == true || data['isCompactSummary'] == true) {
-    // Expected server behaviour: compact summaries and meta messages are
-    // intentionally filtered. Do not add to droppedReasons — these are not
-    // errors and would spam GlitchTip with unique per-message entries.
-    //
-    // However, isMeta sidechain messages (task_started, task_progress,
-    // task_notification) carry UUID chain links that subsequent real
-    // sidechain messages reference via parentUuid.  Without a bridge
-    // record, the sidechain grouper cannot follow the chain from the
-    // real message back to the Task tool-call.  Emit a hidden bridge
-    // so the grouper can resolve the chain.
-    final metaSidechain =
-        data['isSidechain'] == true ||
-        data['is_sidechain'] == true;
-    if (metaSidechain) {
-      final metaUuid =
-          (data['uuid'] ?? data['id']) as String?;
-      final metaParentUuid = (data['subagent'] ??
-          data['parentUuid'] ??
-          data['parent_uuid']) as String?;
-      if (metaUuid != null && metaUuid.isNotEmpty) {
-        messages.add({
-          'id': '${id}_bridge',
-          'seq': seq,
-          'createdAt': createdAt,
-          'isSidechain': true,
-          'isBridge': true,
-          'uuid': metaUuid,
-          'parentUuid': metaParentUuid,
-        });
-      }
-    }
+    _processMetaOutput(
+      id: id,
+      seq: seq,
+      createdAt: createdAt,
+      data: data,
+      messages: messages,
+    );
     return;
   }
 
@@ -413,3 +389,120 @@ void _processOutputContent({
     '(keys=${data.keys.toList()})',
   );
 }
+
+/// Handles `isMeta` / `isCompactSummary` output messages.
+///
+/// Some meta subtypes are UI-relevant: compact boundaries, task
+/// lifecycle events, API retries, tool progress ticks. Render them
+/// as `agent-event` messages (with the sidechain uuid chain when
+/// applicable, so they also serve as bridge records for the grouper).
+/// Unrecognized meta subtypes fall back to an invisible bridge
+/// record when they carry a sidechain uuid, or a no-op otherwise.
+void _processMetaOutput({
+  required String id,
+  required int seq,
+  required int createdAt,
+  required Map<String, dynamic> data,
+  required List<Map<String, dynamic>> messages,
+}) {
+  final meta = _sidechainMeta(data);
+  final dataType = data['type'] as String?;
+  final subtype = data['subtype'] as String?;
+
+  void addEvent(String suffix, String eventType, String label) {
+    messages.add({
+      'id': '${id}_$suffix',
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'agent-event',
+      'event': {'type': eventType, 'message': label},
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
+    });
+  }
+
+  if (dataType == 'system') {
+    if (subtype == 'task_started' ||
+        subtype == 'task_progress' ||
+        subtype == 'task_notification') {
+      final description = data['description'] as String?;
+      final summary = data['summary'] as String?;
+      final status = data['status'] as String?;
+
+      if (subtype == 'task_notification' &&
+          (status == 'completed' || status == 'failed')) {
+        messages.add({
+          'id': '${id}_tn',
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'content': summary ?? 'Task $status',
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': ?meta.uuid,
+          'parentUuid': ?meta.parentUuid,
+        });
+        return;
+      }
+
+      final label = description ?? summary ?? 'Task $subtype';
+      addEvent('te', 'message', label);
+      return;
+    }
+
+    if (subtype == 'compact_boundary') {
+      addEvent('cb', 'message', 'Context compacted');
+      return;
+    }
+
+    if (subtype == 'api_retry') {
+      final attempt = data['attempt'];
+      final maxRetries = data['max_retries'];
+      addEvent('ar', 'message',
+          'Retrying API request ($attempt/$maxRetries)...');
+      return;
+    }
+  }
+
+  if (dataType == 'tool_progress') {
+    final toolName = data['tool_name'] as String? ?? 'tool';
+    final elapsed = data['elapsed_time_seconds'];
+    final elapsedStr =
+        elapsed is num ? '${elapsed.toStringAsFixed(0)}s' : '';
+    final label =
+        '$toolName running${elapsedStr.isNotEmpty ? ' ($elapsedStr)' : ''}...';
+    addEvent('tp', 'message', label);
+    return;
+  }
+
+  if (dataType == 'rate_limit_event') {
+    final info = WireParsers.asMap(data['rate_limit_info']);
+    final status = info?['status'] as String?;
+    if (status == 'allowed_warning' || status == 'rejected') {
+      final label = status == 'rejected'
+          ? 'Rate limit reached — waiting for reset'
+          : 'Approaching rate limit';
+      addEvent('rl', 'limit-reached', label);
+    }
+    return;
+  }
+
+  // No actionable subtype. If the message is part of a sidechain
+  // UUID chain, emit an invisible bridge record so the grouper can
+  // still resolve subsequent real sidechain messages back to the
+  // parent Task tool-call.
+  if (meta.isSidechain && meta.uuid != null && meta.uuid!.isNotEmpty) {
+    messages.add({
+      'id': '${id}_bridge',
+      'seq': seq,
+      'createdAt': createdAt,
+      'isSidechain': true,
+      'isBridge': true,
+      'uuid': meta.uuid,
+      'parentUuid': ?meta.parentUuid,
+    });
+  }
+}
+
