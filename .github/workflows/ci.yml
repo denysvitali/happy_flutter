@@ -163,26 +163,32 @@ jobs:
       - name: Merge coverage reports
         run: |
           mkdir -p coverage
-          # Concatenate all shard lcov files, removing duplicate
-          # headers so Codecov merges them correctly.
-          first=true
+          # Concatenate all shard lcov files. Multiple SF (source file) entries
+          # for the same file with different line counts get summed by Codecov.
+          found=0
           for f in coverage-shards/*/lcov.info; do
             [ -f "$f" ] || continue
-            if $first; then
-              cat "$f" >> coverage/lcov.info
-              first=false
+            echo "Shard file: $f ($(wc -l < "$f") lines)"
+            if [ $found -eq 0 ]; then
+              cp "$f" coverage/lcov.info
             else
-              cat "$f" >> coverage/lcov.info
+              # Skip TN: (test name) lines, keep all other lcov records.
+              # Codecov sums SF/DA/FN/... lines by source file path.
+              grep -v "^TN:" "$f" >> coverage/lcov.info || true
             fi
+            found=$((found + 1))
           done
-          echo "Merged coverage from $(ls coverage-shards/ | wc -l) shards"
+          echo "Merged $found shard coverage files"
+          echo "Total lines: $(wc -l < coverage/lcov.info)"
+          echo "Source files: $(grep -c '^SF:' coverage/lcov.info)"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
-          fail_ci_if_error: false
+          fail_ci_if_error: true
+          verbose: true
 
   golden:
     name: Golden Screenshots
