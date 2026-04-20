@@ -129,6 +129,54 @@ void main() {
         expect(result.messages.first['content'], 'Response');
       });
 
+      test('processes plain-text agent message dataType', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'message',
+                  'message': 'Hello from the agent',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['role'], 'agent');
+        expect(result.messages.first['kind'], 'text');
+        expect(result.messages.first['content'], 'Hello from the agent');
+        expect(result.droppedReasons, isEmpty);
+      });
+
+      test('processes plain-text agent message via `text` field alias', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {'type': 'message', 'text': 'alt field'},
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['content'], 'alt field');
+      });
+
       test('processes agent output with tool_use', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [

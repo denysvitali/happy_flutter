@@ -61,6 +61,30 @@ void _processOutputContent({
   final meta = _sidechainMeta(data);
   final dataType = data['type'] as String?;
 
+  // Plain text agent message — some server paths emit this shape instead
+  // of the full `assistant` envelope. Before this branch existed these
+  // messages were dropped by the unrecognized-dataType fallback at the
+  // bottom, which accounts for the majority of "fetchMessages dropped
+  // (output filter)" warnings.
+  if (dataType == 'message') {
+    final text = (data['message'] ?? data['text']) as String?;
+    if (text == null || text.isEmpty) return;
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'text',
+      'content': text,
+      'raw': outerContent,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
+    });
+    return;
+  }
+
   if (dataType == 'assistant') {
     final effectiveUuid = (meta.uuid != null && meta.uuid!.isNotEmpty)
         ? meta.uuid!
