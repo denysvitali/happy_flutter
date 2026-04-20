@@ -138,7 +138,7 @@ class CollapsibleDateHeader extends StatelessWidget {
                 date,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   letterSpacing: 0.5,
                 ),
               ),

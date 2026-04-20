@@ -31,11 +31,13 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            title.toUpperCase(),
+            title,
             style: theme.textTheme.labelSmall?.copyWith(
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
               color: cs.onSurfaceVariant,
+            ).apply(
+              fontFeatures: [const FontFeature.enable('smcp')],
             ),
           ),
           const SizedBox(width: AppSpacing.sm),

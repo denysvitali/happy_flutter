@@ -57,6 +57,9 @@ abstract final class AppSpacing {
 ///
 /// Usage: `BorderRadius.circular(AppRadius.md)`
 abstract final class AppRadius {
+  /// 1 px – barely visible rounding, hairline corners.
+  static const double hairline = 1;
+
   /// 2 px – minimal rounding, hairline corners.
   static const double xxs = 2;
 

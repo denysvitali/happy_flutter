@@ -135,11 +135,22 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       ),
       body: user == null
           ? Center(
-              child: Text(
-                context.l10n.userNotFound,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.person_off_outlined,
+                    size: 64,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    context.l10n.userNotFound,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             )
           : ListView(
@@ -147,7 +158,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               children: [
                 // Profile header card
                 Card(
-                  elevation: 0,
+                  elevation: 1,
                   color: theme.colorScheme.surfaceContainer,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
@@ -187,6 +198,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                 color:
                                     theme.colorScheme.onSurfaceVariant,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
 

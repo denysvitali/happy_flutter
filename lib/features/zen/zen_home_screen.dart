@@ -108,7 +108,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
           ? const _ZenLoadingShimmer()
           : allTodos.isEmpty
           ? AppEmptyState(
-              icon: Icons.check_circle_outline,
+              icon: Icons.spa,
               title: context.l10n.zenEmptyTitle,
               subtitle: context.l10n.zenEmptySubtitle,
               action: FilledButton.icon(

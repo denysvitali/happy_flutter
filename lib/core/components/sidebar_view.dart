@@ -309,13 +309,13 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     required IconData icon,
     required VoidCallback onTap,
     required Color tintColor,
-    double size = AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+    double size = AppSpacing.xxl,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xs + AppSpacing.xs),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Icon(icon, size: size, color: tintColor),
       ),
     );
@@ -335,10 +335,10 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
           onTap: () => context.push('/inbox'),
           borderRadius: BorderRadius.circular(AppRadius.sm),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xs + AppSpacing.xs),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             child: Icon(
               Icons.inbox_outlined,
-              size: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+              size: AppSpacing.xxl,
               color: tintColor,
             ),
           ),

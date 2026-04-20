@@ -185,6 +185,14 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         children: [
           if (isSelected)
             Icon(Icons.check_circle, color: cs.primary, size: AppSpacing.xl),
+          if (isSelected && (onDuplicate != null || onEdit != null || onDelete != null))
+            const SizedBox(width: AppSpacing.xs),
+          if (onDuplicate != null || onEdit != null || onDelete != null)
+            Container(
+              height: 20,
+              width: 1,
+              color: cs.outlineVariant,
+            ),
           if (onDuplicate != null)
             IconButton(
               icon: Icon(

@@ -252,8 +252,34 @@ class _RestoreKeyDialogState
                 ),
               ),
             ),
-            maxLines: 2,
+            maxLines: 1,
             minLines: 1,
+            suffixIcon: IconButton(
+              onPressed: _isSubmitting
+                  ? null
+                  : () async {
+                      final clip =
+                          await Clipboard.getData(
+                        Clipboard.kTextPlain,
+                      );
+                      final text =
+                          clip?.text?.trim();
+                      if (text == null ||
+                          text.isEmpty) {
+                        return;
+                      }
+                      _controller.text = text;
+                      setState(
+                        () => _errorText = null,
+                      );
+                    },
+              icon: Icon(
+                Icons.content_paste_rounded,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
+              tooltip: l10n.authPaste,
+            ),
             onChanged: (_) {
               if (_errorText != null) {
                 setState(

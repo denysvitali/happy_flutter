@@ -509,7 +509,7 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                     Text(
                       widget.command.title,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: AppFontSize.base,
                         fontWeight: FontWeight.w500,
                         color: colorScheme.onSurface,
                         letterSpacing: -0.2,

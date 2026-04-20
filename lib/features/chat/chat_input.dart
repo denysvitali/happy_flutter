@@ -534,7 +534,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   Widget _buildTextField(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final hintColor = cs.onSurface.withValues(alpha: AppOpacity.medium);
+    final hintColor = cs.onSurfaceVariant.withValues(alpha: 0.7);
     final l10n = AppLocalizations.of(context);
 
     return TextField(

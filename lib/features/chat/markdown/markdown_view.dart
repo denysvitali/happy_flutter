@@ -117,9 +117,9 @@ class _MarkdownViewState extends State<MarkdownView> {
       ),
       codeblockDecoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
-      codeblockPadding: const EdgeInsets.all(12),
+      codeblockPadding: const EdgeInsets.all(16),
       code: TextStyle(
         fontFamily: 'monospace',
         fontSize: AppFontSize.base,
@@ -218,9 +218,9 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       ),
       codeblockDecoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
-      codeblockPadding: const EdgeInsets.all(12),
+      codeblockPadding: const EdgeInsets.all(16),
       code: TextStyle(
         fontFamily: 'monospace',
         fontSize: AppFontSize.base,

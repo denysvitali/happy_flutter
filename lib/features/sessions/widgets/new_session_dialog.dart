@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
+import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/built_in_profiles.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/services/sync_service.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// New session dialog.
@@ -104,10 +106,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.computer,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        AppStatusDot(
+                          color: machine.active
+                              ? AppColors.success
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: 8,
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Flexible(

@@ -71,12 +71,27 @@ class InlineThemePicker extends StatelessWidget {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  m.$2,
-                                  size: 20,
-                                  color: selected
-                                      ? cs.onPrimaryContainer
-                                      : cs.onSurfaceVariant,
+                                Stack(
+                                  alignment: Alignment.topRight,
+                                  children: [
+                                    Icon(
+                                      m.$2,
+                                      size: 20,
+                                      color: selected
+                                          ? cs.onPrimaryContainer
+                                          : cs.onSurfaceVariant,
+                                    ),
+                                    if (selected)
+                                      Positioned(
+                                        right: -4,
+                                        top: -4,
+                                        child: Icon(
+                                          Icons.check_circle,
+                                          size: 12,
+                                          color: cs.primary,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 const SizedBox(
                                   height: AppSpacing.xs,

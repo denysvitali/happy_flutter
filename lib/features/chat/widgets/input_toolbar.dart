@@ -178,7 +178,7 @@ class ContextSizeIndicator extends StatelessWidget {
           height: 2,
           child: ClipRRect(
             clipBehavior: Clip.hardEdge,
-            borderRadius: BorderRadius.circular(1),
+            borderRadius: BorderRadius.circular(AppRadius.hairline),
             child: LinearProgressIndicator(
               value: pctUsed / 100,
               backgroundColor: cs.onSurface.withValues(alpha: 0.06),

@@ -435,7 +435,7 @@ class LogEntryWidget extends StatelessWidget {
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.md,
                   ),
-                  maxLines: 3,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

@@ -209,7 +209,7 @@ class _StatusBannerState extends State<StatusBanner>
                         bottom: AppSpacing.xxs,
                       ),
                       child: Text(
-                        'Error',
+                        context.l10n.commonError,
                         style: TextStyle(
                           fontWeight:
                               FontWeight.w600,

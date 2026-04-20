@@ -29,6 +29,12 @@ class BotMessage extends StatelessWidget {
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
 
+  String _truncateForLabel(String text) {
+    const maxLength = 100;
+    if (text.length <= maxLength) return text;
+    return '${text.substring(0, maxLength)}...';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -51,34 +57,37 @@ class BotMessage extends StatelessWidget {
       child: Align(
         alignment: Alignment.centerLeft,
         child: Padding(
-          padding: const EdgeInsets.only(
+          padding: EdgeInsets.only(
             left: AppSpacing.sm,
             right: AppSpacing.sm,
-            top: AppSpacing.xxs,
-            bottom: AppSpacing.xxs,
+            top: isFirstInGroup ? AppSpacing.xs : 1,
+            bottom: isLastInGroup ? AppSpacing.xs : 1,
           ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.md,
-            ),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerLow,
-              borderRadius: radius,
-              border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
-                width: 0.5,
+          child: Semantics(
+            label: isStreaming ? 'AI response streaming' : 'AI message: ${_truncateForLabel(text)}',
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
               ),
-            ),
-            child: DefaultTextStyle.merge(
-              style: TextStyle(color: cs.onSurface),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  MarkdownView(markdown: text, onOptionPress: onOptionPress),
-                  if (isStreaming) const StreamingCursor(),
-                ],
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: radius,
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
+                  width: 0.5,
+                ),
+              ),
+              child: DefaultTextStyle.merge(
+                style: TextStyle(color: cs.onSurface),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MarkdownView(markdown: text, onOptionPress: onOptionPress),
+                    if (isStreaming) const StreamingCursor(),
+                  ],
+                ),
               ),
             ),
           ),
