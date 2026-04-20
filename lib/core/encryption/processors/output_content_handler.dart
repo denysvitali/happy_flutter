@@ -257,9 +257,48 @@ void _processOutputContent({
     }
 
     final msgContent = data['message']?['content'];
+    if (msgContent is String && msgContent.isNotEmpty) {
+      messages.add({
+        'id': id,
+        'localId': localId,
+        'seq': seq,
+        'createdAt': createdAt,
+        'role': 'user',
+        'kind': 'text',
+        'content': msgContent,
+        'raw': outerContent,
+        if (meta.isSidechain) 'isSidechain': true,
+        'uuid': ?meta.uuid,
+        'parentUuid': ?meta.parentUuid,
+      });
+      return;
+    }
     if (msgContent is List) {
+      var i = 0;
       for (final c in msgContent) {
-        if (c is Map<String, dynamic> && c['type'] == 'tool_result') {
+        if (c is! Map<String, dynamic>) {
+          i++;
+          continue;
+        }
+        final type = c['type'] as String?;
+        if (type == 'text') {
+          final text = c['text']?.toString() ?? '';
+          if (text.isNotEmpty) {
+            messages.add({
+              'id': '${id}_t$i',
+              'localId': localId,
+              'seq': seq,
+              'createdAt': createdAt,
+              'role': 'user',
+              'kind': 'text',
+              'content': text,
+              'raw': outerContent,
+              if (meta.isSidechain) 'isSidechain': true,
+              'uuid': ?meta.uuid,
+              'parentUuid': ?meta.parentUuid,
+            });
+          }
+        } else if (type == 'tool_result') {
           toolResults.add({
             'toolUseId': c['tool_use_id'],
             'result': c['content'],
@@ -270,7 +309,47 @@ void _processOutputContent({
             'uuid': ?meta.uuid,
             'parentUuid': ?meta.parentUuid,
           });
+        } else if (type == 'tool-result') {
+          // Interrupted-tool variant emitted by the CLI when a user
+          // aborts a tool call mid-run. Different field names from the
+          // standard tool_result block, but the downstream consumer
+          // only needs toolUseId + result + isError.
+          final callId =
+              (c['callId'] ?? c['tool_use_id']) as String?;
+          if (callId != null && callId.isNotEmpty) {
+            toolResults.add({
+              'toolUseId': callId,
+              'result': c['output'] ?? c['content'],
+              'isError': c['isError'] == true || c['is_error'] == true,
+              'createdAt': createdAt,
+              'permissions': c['permissions'],
+              if (meta.isSidechain) 'isSidechain': true,
+              'uuid': ?meta.uuid,
+              'parentUuid': ?meta.parentUuid,
+            });
+          }
+        } else if (type == 'image') {
+          // Render a placeholder so the message does not vanish; the
+          // rich image pipeline is out of scope for this fix.
+          messages.add({
+            'id': '${id}_i$i',
+            'localId': localId,
+            'seq': seq,
+            'createdAt': createdAt,
+            'role': 'user',
+            'kind': 'text',
+            'content': '[image]',
+            'raw': outerContent,
+            if (meta.isSidechain) 'isSidechain': true,
+            'uuid': ?meta.uuid,
+            'parentUuid': ?meta.parentUuid,
+          });
+        } else if (type != null) {
+          droppedReasons?.add(
+            'user content block type=$type not handled',
+          );
         }
+        i++;
       }
     }
     return;
