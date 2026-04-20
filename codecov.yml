@@ -2,11 +2,16 @@ coverage:
   status:
     project:
       default:
-        # Don't block PRs on coverage changes
-        informational: true
+        # Start with 40% project coverage, increase as tests grow
+        target: 40%
+        threshold: 2%
+        if_ci_failed: error
     patch:
       default:
-        informational: true
+        # Require 50% coverage on changed lines in PRs
+        target: 50%
+        threshold: 5%
+        if_ci_failed: error
 
 ignore:
   - "test/**"
