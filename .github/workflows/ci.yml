@@ -182,13 +182,15 @@ jobs:
           echo "Total lines: $(wc -l < coverage/lcov.info)"
           echo "Source files: $(grep -c '^SF:' coverage/lcov.info)"
 
+      - name: Install curl
+        run: sudo apt-get update && sudo apt-get install -y curl
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
           fail_ci_if_error: true
-          verbose: true
 
   golden:
     name: Golden Screenshots
