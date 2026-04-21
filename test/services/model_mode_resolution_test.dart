@@ -12,10 +12,9 @@ void main() {
   });
 
   group('_getModelOverride', () {
-    // --model is never passed when spawning sessions. The model is
-    // determined by profile env vars (ANTHROPIC_MODEL, OPENAI_MODEL,
-    // etc.) or the CLI's own defaults. This prevents stale model
-    // names (e.g. GLM-5) from leaking across profile switches.
+    // --model is only passed when the caller supplies a valid explicit
+    // model for the target agent. Claude aliases must not leak into Codex
+    // sessions because Codex with a ChatGPT account rejects them.
 
     test('returns null for sonnet', () {
       sync.testSettingsSnapshot = Settings()
@@ -59,28 +58,83 @@ void main() {
       expect(sync.testGetModelOverride(), isNull);
     });
 
-    test('returns null regardless of profile', () {
-      sync.testSettingsSnapshot = Settings()
-        ..lastUsedModelMode = 'sonnet';
-
-      final profile = AIBackendProfile(
-        id: 'p1',
-        name: 'Test',
-        anthropicConfig: AnthropicConfig(
-          model: 'claude-3-sonnet',
-        ),
-      );
-
-      expect(
-        sync.testGetModelOverride(profile: profile),
-        isNull,
-      );
-    });
-
     test('returns null with fresh Settings', () {
       sync.testSettingsSnapshot = Settings();
 
       expect(sync.testGetModelOverride(), isNull);
+    });
+
+    test('passes explicit Claude alias for Claude sessions', () {
+      expect(
+        sync.testGetModelOverride(agent: 'claude', modelMode: 'opus'),
+        'opus',
+      );
+    });
+
+    test('drops explicit Claude alias for Codex sessions', () {
+      expect(
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'opus'),
+        isNull,
+      );
+      expect(
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet'),
+        isNull,
+      );
+    });
+
+    test('drops explicit Claude alias for Codex-only profiles', () {
+      final profile = AIBackendProfile(
+        id: 'openai',
+        name: 'OpenAI',
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+        ),
+      );
+
+      expect(
+        sync.testGetModelOverride(profile: profile, modelMode: 'opus'),
+        isNull,
+      );
+    });
+
+    test('passes explicit Codex model for Codex sessions', () {
+      expect(
+        sync.testGetModelOverride(
+          agent: 'codex',
+          modelMode: 'gpt-5-codex-high',
+        ),
+        'gpt-5-codex-high',
+      );
+    });
+  });
+
+  group('_normalizeModelModeForAgent', () {
+    test('preserves null and default', () {
+      expect(sync.testNormalizeModelModeForAgent(null, 'codex'), isNull);
+      expect(
+        sync.testNormalizeModelModeForAgent('default', 'codex'),
+        'default',
+      );
+    });
+
+    test('normalizes stale Claude aliases away from Codex', () {
+      expect(
+        sync.testNormalizeModelModeForAgent('opus', 'codex'),
+        'default',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent('sonnet', 'codex'),
+        'default',
+      );
+    });
+
+    test('preserves non-Claude model names for Codex profiles', () {
+      expect(
+        sync.testNormalizeModelModeForAgent('gpt-5-codex-high', 'codex'),
+        'gpt-5-codex-high',
+      );
     });
   });
 }

@@ -110,11 +110,11 @@ extension SyncSessionOperations on Sync {
     final permMode =
         profile?.defaultPermissionMode ??
         _settingsSnapshot.lastUsedPermissionMode;
-    // Pass the user's last-used model so the daemon writes it into session
-    // metadata.  Profile env vars are always forwarded as-is — the profile
-    // defines the backend (API keys, base URLs, model names) and stripping
-    // model env vars would break profiles that configure a specific model
-    // (e.g. Z.AI's GLM-4.6 via ANTHROPIC_MODEL).
+    // Pass only model modes that are valid for the target agent so stale
+    // Claude aliases do not leak into Codex/Gemini sessions. Profile env
+    // vars are always forwarded as-is because the profile defines the
+    // backend (API keys, base URLs, model names).
+    final normalizedModelMode = _normalizeModelModeForAgent(modelMode, agent);
     final envVars = _spawnEnvironmentVariables(profileEnvVars);
     if (message != null && message.isNotEmpty) {
       envVars['HAPPY_INITIAL_PROMPT'] = message;
@@ -125,7 +125,11 @@ extension SyncSessionOperations on Sync {
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       permissionMode: permMode,
-      model: _getModelOverride(profile: profile, modelMode: modelMode),
+      model: _getModelOverride(
+        agent: agent,
+        profile: profile,
+        modelMode: normalizedModelMode,
+      ),
       environmentVariables: envVars,
     );
 
@@ -155,10 +159,11 @@ extension SyncSessionOperations on Sync {
       }
       _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
       _sessionSpawnedProfile[sessionId] = effectiveProfileId;
-      _sessionSpawnedModel[sessionId] = modelMode;
+      _sessionSpawnedModel[sessionId] = normalizedModelMode;
       logger.info(
         '[createSession] Registered session $sessionId '
-        'in _sessionSpawnedAt (profile=$effectiveProfileId, model=$modelMode)',
+        'in _sessionSpawnedAt '
+        '(profile=$effectiveProfileId, model=$normalizedModelMode)',
       );
 
       await _hydrateSpawnedSession(
@@ -686,13 +691,41 @@ PY
     return <String, String>{...?base};
   }
 
+  String? _normalizeModelModeForAgent(String? modelMode, String? agent) {
+    if (modelMode == null || modelMode == 'default') {
+      return modelMode;
+    }
+    if (agent != 'claude' && _isClaudeModelAlias(modelMode)) {
+      return 'default';
+    }
+    return modelMode;
+  }
+
+  bool _isClaudeModelAlias(String modelMode) {
+    return modelMode == 'opus' || modelMode == 'sonnet';
+  }
+
+  String? _agentForProfile(AIBackendProfile? profile) {
+    if (profile == null) return null;
+    final compatibility = profile.compatibility;
+    if (compatibility.codex && !compatibility.claude) return 'codex';
+    if (compatibility.gemini && !compatibility.claude) return 'gemini';
+    return 'claude';
+  }
+
   /// Return the model override string to pass to --model when spawning
   /// sessions, or null to let the daemon/profile default apply.
   /// When [modelMode] is explicitly set (not null and not 'default'),
   /// pass it so the daemon writes it into session metadata for tracking.
-  String? _getModelOverride({AIBackendProfile? profile, String? modelMode}) {
-    if (modelMode != null && modelMode != 'default') {
-      return modelMode;
+  String? _getModelOverride({
+    String? agent,
+    AIBackendProfile? profile,
+    String? modelMode,
+  }) {
+    final effectiveAgent = agent ?? _agentForProfile(profile);
+    final normalized = _normalizeModelModeForAgent(modelMode, effectiveAgent);
+    if (normalized != null && normalized != 'default') {
+      return normalized;
     }
     return null;
   }
@@ -889,7 +922,11 @@ PY
         sessionId: sessionId,
         agent: session.metadata?.flavor ?? 'claude',
         permissionMode: effectivePermissionMode,
-        model: _getModelOverride(profile: spawnResult.profile, modelMode: modelMode),
+        model: _getModelOverride(
+          agent: session.metadata?.flavor ?? 'claude',
+          profile: spawnResult.profile,
+          modelMode: modelMode,
+        ),
         environmentVariables: spawnResult.envVars,
       );
       final result = await _typedMachineRPC(

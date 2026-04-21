@@ -109,9 +109,9 @@ extension SyncMessagingSend on Sync {
     // Compute effective model mode before _resolveSendTargetSession so we can
     // pass it for model-change detection. Use the current session's flavor —
     // if auto-restore spawns a new session the flavor will be correct there.
-    final flavor = session.metadata?.flavor;
+    final flavor = session.metadata?.flavor ?? _settingsSnapshot.lastUsedAgent;
     final isGemini = flavor == 'gemini';
-    final requestedModelMode = modelMode;
+    final requestedModelMode = _normalizeModelModeForAgent(modelMode, flavor);
     final effectiveModelMode =
         requestedModelMode != null && requestedModelMode != 'default'
         ? requestedModelMode

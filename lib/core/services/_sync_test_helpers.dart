@@ -255,8 +255,20 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: invoke [_getModelOverride] which is private.
   @visibleForTesting
-  String? testGetModelOverride({AIBackendProfile? profile}) =>
-      _getModelOverride(profile: profile);
+  String? testGetModelOverride({
+    String? agent,
+    AIBackendProfile? profile,
+    String? modelMode,
+  }) => _getModelOverride(
+    agent: agent,
+    profile: profile,
+    modelMode: modelMode,
+  );
+
+  /// Test helper: invoke [_normalizeModelModeForAgent] which is private.
+  @visibleForTesting
+  String? testNormalizeModelModeForAgent(String? modelMode, String? agent) =>
+      _normalizeModelModeForAgent(modelMode, agent);
 
   /// Test helper: set [_settingsSnapshot] for model override tests.
   @visibleForTesting
