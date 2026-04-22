@@ -52,17 +52,17 @@ extension SyncSocketEvents on Sync {
           _lastEphemeralAt[entry.key] = DateTime.now().millisecondsSinceEpoch;
         }
       }
-      // Re-fetch messages for non-visible sessions where the server has
-      // advanced past our local cursor.  Sessions whose server lastSeq
-      // equals our cursor have been caught up already (either no messages
-      // arrived during disconnect, or fetchMessages updated the cursor).
-      // Adding only gapped sessions avoids the infinite loop caused by
-      // unconditionally re-adding ALL sessions on every reconnect.
+      // Re-fetch messages for non-visible sessions where the server may have
+      // advanced past our local cursor.  Sessions where serverLastSeq
+      // equals cursorSeq are caught up (no gap); sessions where both are
+      // 0 are empty/new and don't need fetching.  This avoids both the
+      // infinite reconnect-loop caused by unconditionally re-adding ALL
+      // sessions, and the message-loss from not re-adding at all.
       for (final sessionId in _sessionMessages.keys) {
         if (sessionId == _visibleSessionId) continue;
         final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
         final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
-        if (serverLastSeq > cursorSeq) {
+        if (serverLastSeq > cursorSeq && serverLastSeq > 0) {
           _sessionsWithPendingSocketMessages.add(sessionId);
         }
       }
