@@ -9,8 +9,13 @@ enum ArchivedGrouping { date, folder }
 
 /// Section header for active / archived sessions.
 class SectionHeader extends StatelessWidget {
-  const SectionHeader({required this.title, super.key});
+  const SectionHeader({
+    required this.title,
+    super.key,
+    this.trailing,
+  });
   final String title;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -23,13 +28,20 @@ class SectionHeader extends StatelessWidget {
         AppSpacing.lg,
         AppSpacing.xs,
       ),
-      child: Text(
-        title,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: cs.onSurfaceVariant,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
       ),
     );
   }

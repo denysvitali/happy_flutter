@@ -4387,6 +4387,18 @@ abstract class AppLocalizations {
   /// **'ACTIVE SESSIONS'**
   String get sessionsActiveSessions;
 
+  /// No description provided for @sessionsNeedsAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'NEEDS ATTENTION'**
+  String get sessionsNeedsAttention;
+
+  /// No description provided for @sessionsAllSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'ALL SESSIONS'**
+  String get sessionsAllSessions;
+
   /// No description provided for @sessionsArchivedLabel.
   ///
   /// In en, this message translates to:
@@ -4554,6 +4566,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Folder-centric'**
   String get sessionsViewStyleFolderCentric;
+
+  /// No description provided for @sessionsViewStyleUnreadFocus.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread Focus'**
+  String get sessionsViewStyleUnreadFocus;
+
+  /// No description provided for @sessionsViewStyleBeaconGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Beacon Grid'**
+  String get sessionsViewStyleBeaconGrid;
+
+  /// No description provided for @sessionsViewStyleCommandPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'Command Palette'**
+  String get sessionsViewStyleCommandPalette;
+
+  /// No description provided for @sessionsViewStyleSwipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe Actions'**
+  String get sessionsViewStyleSwipe;
 
   /// No description provided for @autoArchiveTitle.
   ///

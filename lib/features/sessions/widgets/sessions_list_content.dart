@@ -12,6 +12,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
 import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
@@ -328,6 +329,17 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
       );
     }
 
+    if (sessionsViewStyle == 'unread_focus') {
+      return _buildUnreadFocusView(
+        context,
+        activeSessions,
+        inactiveSessions,
+        triggerStagger: triggerStagger,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      );
+    }
+
     final items = _buildListItems(
       context,
       activeSessions,
@@ -362,6 +374,142 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         );
       },
     );
+  }
+
+  bool _sessionNeedsAttention(String sessionId, Session session) {
+    if (sync.getUnreadCount(sessionId) > 0) return true;
+    final status = getSessionStatus(session);
+    return status.isPulsing;
+  }
+
+  Widget _buildUnreadFocusView(
+    BuildContext context,
+    List<Session> activeSessions,
+    List<Session> inactiveSessions, {
+    required bool triggerStagger,
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+  }) {
+    // Partition active sessions into Needs Attention vs All Others.
+    final needsAttention = <Session>[];
+    final allOthers = <Session>[];
+    for (final session in activeSessions) {
+      if (_sessionNeedsAttention(session.id, session)) {
+        needsAttention.add(session);
+      } else {
+        allOthers.add(session);
+      }
+    }
+
+    // Build the item list: Needs Attention header + cards, then All header + cards.
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    final primaryColor = cs.primary.toARGB32();
+    final items = <Widget>[];
+
+    if (needsAttention.isNotEmpty) {
+      items.add(
+        SectionHeader(
+          title: l10n.sessionsNeedsAttention,
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xxs,
+            ),
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+            ),
+            child: Text(
+              '${needsAttention.length}',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: cs.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      for (var i = 0; i < needsAttention.length; i++) {
+        final session = needsAttention[i];
+        items.add(
+          _buildUnreadFocusCard(
+            context,
+            session,
+            accentBarColor: primaryColor,
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+            needsAttention: true,
+            triggerStagger: triggerStagger,
+            staggerIndex: i,
+          ),
+        );
+      }
+
+      items.add(const SizedBox(height: AppSpacing.sm));
+    }
+
+    // All Sessions section.
+    final allStartIndex = needsAttention.length;
+    items.add(SectionHeader(title: l10n.sessionsAllSessions));
+
+    for (var i = 0; i < allOthers.length; i++) {
+      final session = allOthers[i];
+      items.add(
+        _buildUnreadFocusCard(
+          context,
+          session,
+          showFlavorIcons: showFlavorIcons,
+          avatarStyle: avatarStyle,
+          needsAttention: false,
+          triggerStagger: triggerStagger,
+          staggerIndex: allStartIndex + i,
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
+      addAutomaticKeepAlives: false,
+      addRepaintBoundaries: false,
+      itemCount: items.length,
+      itemBuilder: (ctx, i) => items[i],
+    );
+  }
+
+  Widget _buildUnreadFocusCard(
+    BuildContext context,
+    Session session, {
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+    required bool needsAttention,
+    required bool triggerStagger,
+    required int staggerIndex,
+    int? accentBarColor,
+  }) {
+    final sel = _sel.value;
+    final card = GestureDetector(
+      onLongPress: () => _onSessionLongPress(session.id),
+      child: CompactActiveSessionCard(
+        session: session,
+        onTap: sel.isActive
+            ? () => _onSessionTapInSelectionMode(session.id)
+            : () => _navigateToChat(session.id),
+        showFlavorIcon: showFlavorIcons,
+        avatarStyle: avatarStyle,
+        lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+        lastMessagePreview: sync.getLastMessagePreview(session.id),
+        lastMessageRole: sync.getLastMessageRole(session.id),
+        isSelected: sel.selectedIds.contains(session.id),
+        selectionMode: sel.isActive,
+        unreadCount: sync.getUnreadCount(session.id),
+        accentBarColor: accentBarColor,
+      ),
+    );
+    return sel.isActive
+        ? card
+        : DismissibleActiveSession(session: session, child: card);
   }
 
   Widget _buildFolderModeView(

@@ -2406,6 +2406,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsActiveSessions => 'ACTIVE SESSIONS';
 
   @override
+  String get sessionsNeedsAttention => 'NEEDS ATTENTION';
+
+  @override
+  String get sessionsAllSessions => 'ALL SESSIONS';
+
+  @override
   String get sessionsArchivedLabel => 'Archived';
 
   @override
@@ -2507,10 +2513,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get sessionsViewStyleClassic => 'Current layout';
+  String get sessionsViewStyleClassic => 'Classic list';
 
   @override
   String get sessionsViewStyleFolderCentric => 'Folder-centric';
+
+  @override
+  String get sessionsViewStyleUnreadFocus => 'Unread Focus';
+
+  @override
+  String get sessionsViewStyleBeaconGrid => 'Beacon Grid';
+
+  @override
+  String get sessionsViewStyleCommandPalette => 'Command Palette';
+
+  @override
+  String get sessionsViewStyleSwipe => 'Swipe Actions';
 
   @override
   String get autoArchiveTitle => 'Auto-Archive';

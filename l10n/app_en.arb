@@ -902,6 +902,8 @@
   "dateGroupThisMonth": "This Month",
   "dateGroupOlder": "Older",
   "sessionsActiveSessions": "ACTIVE SESSIONS",
+  "sessionsNeedsAttention": "NEEDS ATTENTION",
+  "sessionsAllSessions": "ALL SESSIONS",
   "sessionsArchivedLabel": "Archived",
   "sessionsShowArchived": "Show archived ({count})",
   "@sessionsShowArchived": {
@@ -961,8 +963,12 @@
       }
     }
   },
-  "sessionsViewStyleClassic": "Current layout",
+  "sessionsViewStyleClassic": "Classic list",
   "sessionsViewStyleFolderCentric": "Folder-centric",
+  "sessionsViewStyleUnreadFocus": "Unread Focus",
+  "sessionsViewStyleBeaconGrid": "Beacon Grid",
+  "sessionsViewStyleCommandPalette": "Command Palette",
+  "sessionsViewStyleSwipe": "Swipe Actions",
   "autoArchiveTitle": "Auto-Archive",
   "autoArchiveSection": "Auto-Archive",
   "autoArchiveAfterDays": "Archive after days",

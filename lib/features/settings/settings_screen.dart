@@ -452,6 +452,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String _sessionsViewStyleLabel(AppLocalizations l10n, String value) {
     return switch (value) {
       'folder' => l10n.sessionsViewStyleFolderCentric,
+      'unread_focus' => l10n.sessionsViewStyleUnreadFocus,
+      'beacon_grid' => l10n.sessionsViewStyleBeaconGrid,
+      'command_palette' => l10n.sessionsViewStyleCommandPalette,
+      'swipe' => l10n.sessionsViewStyleSwipe,
       _ => l10n.sessionsViewStyleClassic,
     };
   }
@@ -487,6 +491,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     RadioListTile<String>(
                       value: 'folder',
                       title: Text(l10n.sessionsViewStyleFolderCentric),
+                    ),
+                    RadioListTile<String>(
+                      value: 'unread_focus',
+                      title: Text(l10n.sessionsViewStyleUnreadFocus),
+                    ),
+                    RadioListTile<String>(
+                      value: 'beacon_grid',
+                      title: Text(l10n.sessionsViewStyleBeaconGrid),
+                    ),
+                    RadioListTile<String>(
+                      value: 'command_palette',
+                      title: Text(l10n.sessionsViewStyleCommandPalette),
+                    ),
+                    RadioListTile<String>(
+                      value: 'swipe',
+                      title: Text(l10n.sessionsViewStyleSwipe),
                     ),
                   ],
                 ),
