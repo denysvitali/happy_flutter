@@ -345,10 +345,28 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   KeyEventResult _handleFocusKeyEvent(FocusNode node, KeyEvent event) {
-    if (!_showAutocomplete) {
+    if (event is! KeyDownEvent) {
       return KeyEventResult.ignored;
     }
-    if (event is! KeyDownEvent) {
+
+    // Handle Shift+Enter to insert newline when enterToSend is enabled.
+    // This allows Shift+Enter to add a new line while plain Enter sends.
+    if (widget.enterToSend &&
+        event.logicalKey == LogicalKeyboardKey.enter &&
+        HardwareKeyboard.instance.isShiftPressed) {
+      final cursorPosition = widget.controller.selection.base.offset;
+      if (cursorPosition >= 0) {
+        final text = widget.controller.text;
+        final newText = text.replaceRange(cursorPosition, cursorPosition, '\n');
+        widget.controller.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: cursorPosition + 1),
+        );
+      }
+      return KeyEventResult.handled;
+    }
+
+    if (!_showAutocomplete) {
       return KeyEventResult.ignored;
     }
 
@@ -564,10 +582,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
       autocorrect: true,
       maxLines: 6,
       minLines: 1,
-      // Always request a newline IME action so mobile keyboards show a
-      // return key instead of replacing it with a send action.
-      textInputAction: TextInputAction.newline,
-      onSubmitted: null,
+      // When enterToSend is enabled, use send action so Enter triggers
+      // onSubmitted. When disabled, use newline so mobile keyboards show
+      // a return key.
+      textInputAction:
+          widget.enterToSend ? TextInputAction.send : TextInputAction.newline,
+      onSubmitted: widget.enterToSend ? (_) => _onSendTap() : null,
     );
   }
 
