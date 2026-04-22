@@ -121,9 +121,11 @@ jobs:
       - name: Fix Flutter binary permissions
         run: |
           # flutter_tester and font-subset may lack execute permission on GitHub Actions.
-          # Run find/chmod inside devenv shell so nix store paths are accessible.
-          devenv shell -- find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
+          # Run chmod inside devenv shell and also fix ~/.cache/flutter.
+          devenv shell -- bash -c '
+            find /nix/store ~/.cache/flutter -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+              | xargs chmod +x 2>/dev/null || true
+          '
 
       - name: Run tests (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
         run: |
