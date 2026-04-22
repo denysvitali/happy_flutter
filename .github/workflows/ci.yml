@@ -56,6 +56,13 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
+      - name: Fix Nix binary permissions
+        run: |
+          # Nix store binaries may lack execute permission on GitHub Actions runners.
+          # chmod -R +x is unsafe but the nix store is immutable anyway.
+          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
+
       - name: Cache pub dependencies
         uses: actions/cache@v5
         with:
@@ -97,6 +104,13 @@ jobs:
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
+
+      - name: Fix Nix binary permissions
+        run: |
+          # Nix store binaries may lack execute permission on GitHub Actions runners.
+          # chmod -R +x is unsafe but the nix store is immutable anyway.
+          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
 
       - name: Cache pub dependencies
         uses: actions/cache@v5
@@ -210,6 +224,13 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
+      - name: Fix Nix binary permissions
+        run: |
+          # Nix store binaries may lack execute permission on GitHub Actions runners.
+          # chmod -R +x is unsafe but the nix store is immutable anyway.
+          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
+
       - name: Cache pub dependencies
         uses: actions/cache@v5
         with:
@@ -285,6 +306,12 @@ jobs:
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
+
+      - name: Fix Nix binary permissions
+        run: |
+          # Nix store binaries may lack execute permission on GitHub Actions runners.
+          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
 
       - name: Setup Android NDK
         run: |
@@ -420,6 +447,13 @@ jobs:
       - name: Install devenv
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: nix profile install nixpkgs#devenv
+
+      - name: Fix Nix binary permissions
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        run: |
+          # Nix store binaries may lack execute permission on GitHub Actions runners.
+          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
 
       - name: Setup Android NDK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -557,6 +591,13 @@ jobs:
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
+
+      - name: Fix Nix binary permissions
+        run: |
+          # Nix store binaries may lack execute permission on GitHub Actions runners.
+          # chmod -R +x is unsafe but the nix store is immutable anyway.
+          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
 
       - name: Cache pub dependencies
         uses: actions/cache@v5
