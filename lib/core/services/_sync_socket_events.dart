@@ -52,18 +52,6 @@ extension SyncSocketEvents on Sync {
           _lastEphemeralAt[entry.key] = DateTime.now().millisecondsSinceEpoch;
         }
       }
-      // Re-fetch messages for the visible session immediately.
-      // For non-visible sessions that have messages in memory,
-      // mark them as having pending socket messages so
-      // onSessionVisible() triggers a server fetch when the user
-      // navigates to them.  Without this, messages received
-      // during the disconnect gap are permanently lost because
-      // no socket events were delivered.
-      for (final sessionId in _sessionMessages.keys) {
-        if (sessionId != _visibleSessionId) {
-          _sessionsWithPendingSocketMessages.add(sessionId);
-        }
-      }
       // Chain messages fetch after the sessions fetch that
       // _invalidateAllSyncs() already kicked off.  We await the
       // existing queue instead of calling invalidateAndAwait()
