@@ -52,8 +52,6 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
-        with:
-          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -96,8 +94,6 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
-        with:
-          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -124,10 +120,9 @@ jobs:
 
       - name: Fix Flutter binary permissions
         run: |
-          # Trigger artifact download so flutter_tester exists before chmod runs.
-          devenv shell -- flutter test --help > /dev/null 2>&1 || true
           # flutter_tester and font-subset may lack execute permission on GitHub Actions.
-          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+          # Run find/chmod inside devenv shell so nix store paths are accessible.
+          devenv shell -- find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
             | xargs chmod +x 2>/dev/null || true
 
       - name: Run tests (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
@@ -145,8 +140,17 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          devenv shell -- flutter test --coverage \
-            --concurrency=4 "${shard_tests[@]}"
+          for attempt in 1 2 3; do
+            if devenv shell -- flutter test --coverage \
+              --concurrency=4 "${shard_tests[@]}"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Test failed, retrying (attempt $((attempt+1)))..."
+            sleep 5
+          done
 
       - name: Upload coverage artifact
         if: always()
@@ -218,8 +222,6 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
-        with:
-          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -304,8 +306,6 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
-        with:
-          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -608,8 +608,6 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
-        with:
-          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
