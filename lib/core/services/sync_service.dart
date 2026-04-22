@@ -808,7 +808,9 @@ what you have, you must use the options mode.
   static bool _isRpcMethodNotAvailable(Object error) {
     if (error is! StateError) return false;
     final msg = error.message;
-    return msg.contains('not available') || msg.contains('RPC method');
+    return msg.contains('not available') ||
+        msg.contains('RPC method') ||
+        msg.contains('RPC handler');
   }
 
   /// Whether [error] is an infra-side RPC forwarding failure during spawn or

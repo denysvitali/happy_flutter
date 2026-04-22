@@ -307,9 +307,13 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
     final box =
         _contentKey.currentContext?.findRenderObject() as RenderBox?;
     if (box != null && mounted) {
-      setState(() {
-        _contentHeight = box.size.height;
-      });
+      try {
+        setState(() {
+          _contentHeight = box.size.height;
+        });
+      } catch (_) {
+        // RenderBox not yet laid out — skip; will retry on next frame.
+      }
     }
   }
 
