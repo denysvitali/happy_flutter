@@ -56,13 +56,6 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
-      - name: Fix Nix binary permissions
-        run: |
-          # Nix store binaries may lack execute permission on GitHub Actions runners.
-          # chmod -R +x is unsafe but the nix store is immutable anyway.
-          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
-
       - name: Cache pub dependencies
         uses: actions/cache@v5
         with:
@@ -105,13 +98,6 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
-      - name: Fix Nix binary permissions
-        run: |
-          # Nix store binaries may lack execute permission on GitHub Actions runners.
-          # chmod -R +x is unsafe but the nix store is immutable anyway.
-          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
-
       - name: Cache pub dependencies
         uses: actions/cache@v5
         with:
@@ -131,6 +117,14 @@ jobs:
             fi
             sleep 10
           done
+
+      - name: Fix Flutter binary permissions
+        run: |
+          # Trigger artifact download so flutter_tester exists before chmod runs.
+          devenv shell -- flutter test --help > /dev/null 2>&1 || true
+          # flutter_tester and font-subset may lack execute permission on GitHub Actions.
+          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
 
       - name: Run tests (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
         run: |
@@ -224,13 +218,6 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
-      - name: Fix Nix binary permissions
-        run: |
-          # Nix store binaries may lack execute permission on GitHub Actions runners.
-          # chmod -R +x is unsafe but the nix store is immutable anyway.
-          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
-
       - name: Cache pub dependencies
         uses: actions/cache@v5
         with:
@@ -250,6 +237,14 @@ jobs:
             fi
             sleep 10
           done
+
+      - name: Fix Flutter binary permissions
+        run: |
+          # Trigger artifact download so flutter_tester exists before chmod runs.
+          devenv shell -- flutter test --help > /dev/null 2>&1 || true
+          # flutter_tester and font-subset may lack execute permission on GitHub Actions.
+          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
 
       - name: Run golden tests
         run: devenv shell -- flutter test test/golden/golden_test.dart
@@ -364,6 +359,14 @@ jobs:
             FLAVOR="production"
           fi
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
+
+      - name: Fix Flutter binary permissions
+        run: |
+          # Trigger artifact download so font-subset exists before chmod runs.
+          devenv shell -- flutter precache > /dev/null 2>&1 || true
+          # font-subset may lack execute permission on GitHub Actions.
+          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
 
       - name: Build Debug APK
         run: |
@@ -512,6 +515,15 @@ jobs:
           fi
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
+      - name: Fix Flutter binary permissions
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        run: |
+          # Trigger artifact download so font-subset exists before chmod runs.
+          devenv shell -- flutter precache > /dev/null 2>&1 || true
+          # font-subset may lack execute permission on GitHub Actions.
+          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
+
       - name: Build Release APK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         env:
@@ -592,13 +604,6 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
-      - name: Fix Nix binary permissions
-        run: |
-          # Nix store binaries may lack execute permission on GitHub Actions runners.
-          # chmod -R +x is unsafe but the nix store is immutable anyway.
-          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
-
       - name: Cache pub dependencies
         uses: actions/cache@v5
         with:
@@ -618,6 +623,14 @@ jobs:
             fi
             sleep 10
           done
+
+      - name: Fix Flutter binary permissions
+        run: |
+          # Trigger artifact download so font-subset exists before chmod runs.
+          devenv shell -- flutter precache > /dev/null 2>&1 || true
+          # font-subset may lack execute permission on GitHub Actions.
+          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
+            | xargs chmod +x 2>/dev/null || true
 
       - name: Build Web
         run: |
