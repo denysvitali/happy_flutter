@@ -105,6 +105,8 @@ class SidechainGrouper {
           final taskId = m['id'] as String;
           taskIdToTask[taskId] = m;
           nextAncestorId = taskId;
+          uuidToTaskId[taskId] = taskId;
+          uuidToSidechainId[taskId] = taskId;
           final uuid = m['uuid'] as String?;
           if (uuid != null && uuid.isNotEmpty) {
             uuidToTaskId[uuid] = taskId;
@@ -134,9 +136,20 @@ class SidechainGrouper {
           // to its nearest Task ancestor.  Use putIfAbsent so
           // an earlier (more specific) mapping wins over a
           // later ancestor-level one.
+          final id = m['id'] as String?;
+          if (id != null && id.isNotEmpty) {
+            uuidToSidechainId.putIfAbsent(id, () => ancestorTaskId);
+          }
           final uuid = m['uuid'] as String?;
           if (uuid != null && uuid.isNotEmpty) {
             uuidToSidechainId.putIfAbsent(uuid, () => ancestorTaskId);
+          }
+          final toolUseId = m['toolUseId'] as String?;
+          if (toolUseId != null && toolUseId.isNotEmpty) {
+            uuidToSidechainId.putIfAbsent(
+              toolUseId,
+              () => ancestorTaskId,
+            );
           }
           final parentUuid = m['parentUuid'] as String?;
           if (parentUuid != null && parentUuid.isNotEmpty) {
@@ -200,8 +213,16 @@ class SidechainGrouper {
         if (parentUuid != null &&
             uuidToSidechainId.containsKey(parentUuid)) {
           final sidechainId = uuidToSidechainId[parentUuid]!;
+          final id = msg['id'] as String?;
+          if (id != null && id.isNotEmpty) {
+            uuidToSidechainId[id] = sidechainId;
+          }
           if (uuid != null) {
             uuidToSidechainId[uuid] = sidechainId;
+          }
+          final toolUseId = msg['toolUseId'] as String?;
+          if (toolUseId != null && toolUseId.isNotEmpty) {
+            uuidToSidechainId[toolUseId] = sidechainId;
           }
           sidechainChildren
               .putIfAbsent(sidechainId, () => [])
@@ -287,6 +308,10 @@ class SidechainGrouper {
       if (child['kind'] == 'tool-call' &&
           (child['name'] == 'Task' ||
               child['name'] == 'Agent')) {
+        final taskId = child['id'] as String?;
+        if (taskId != null && taskId.isNotEmpty) {
+          uuidToTask[taskId] = child;
+        }
         final uuid = child['uuid'] as String?;
         if (uuid != null && uuid.isNotEmpty) {
           uuidToTask[uuid] = child;
@@ -312,6 +337,10 @@ class SidechainGrouper {
       if (child['kind'] == 'tool-call' &&
           (child['name'] == 'Task' ||
               child['name'] == 'Agent')) {
+        final id = child['id'] as String?;
+        if (id != null && id.isNotEmpty) {
+          uuidToGroupedTask[id] = child;
+        }
         final taskUuid = child['uuid'] as String?;
         if (taskUuid != null && taskUuid.isNotEmpty) {
           uuidToGroupedTask[taskUuid] = child;
@@ -334,9 +363,17 @@ class SidechainGrouper {
         if (existingChildren != null) {
           for (final ec in existingChildren) {
             if (ec is Map<String, dynamic>) {
+              final ecId = ec['id'] as String?;
+              if (ecId != null && ecId.isNotEmpty) {
+                uuidToGroupedTask[ecId] = child;
+              }
               final ecUuid = ec['uuid'] as String?;
               if (ecUuid != null && ecUuid.isNotEmpty) {
                 uuidToGroupedTask[ecUuid] = child;
+              }
+              final ecToolUseId = ec['toolUseId'] as String?;
+              if (ecToolUseId != null && ecToolUseId.isNotEmpty) {
+                uuidToGroupedTask[ecToolUseId] = child;
               }
               final ecParentUuid =
                   ec['parentUuid'] as String?;
@@ -392,8 +429,16 @@ class SidechainGrouper {
           taskChildren
               .putIfAbsent(taskId, () => [])
               .add(child);
+          final id = child['id'] as String?;
+          if (id != null && id.isNotEmpty) {
+            uuidToGroupedTask[id] = task;
+          }
           if (uuid != null) {
             uuidToGroupedTask[uuid] = task;
+          }
+          final toolUseId = child['toolUseId'] as String?;
+          if (toolUseId != null && toolUseId.isNotEmpty) {
+            uuidToGroupedTask[toolUseId] = task;
           }
           toRemove.add(i);
         }

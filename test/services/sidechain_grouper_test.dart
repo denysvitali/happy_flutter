@@ -176,6 +176,56 @@ void main() {
       );
     });
 
+    test('matches direct children via Task message id', () {
+      const taskId = 'dc41b5f7-4561-4d7e-a978-113873a47d61';
+      const firstEventUuid = 'f2d38d3a-88ed-40b5-89c4-b0876b191205';
+      const secondEventUuid = 'a7427d7e-819a-44ae-995a-58a508191bc8';
+      const callId = 'call_function_ja15yjondy30_1';
+      final messages = [
+        _taskMsg(
+          id: taskId,
+          uuid: 'task-uuid',
+        ),
+        {
+          ..._sidechainChild(
+            id: 'agent-event-1',
+            uuid: firstEventUuid,
+            parentUuid: taskId,
+          ),
+          'kind': 'agent-event',
+        },
+        {
+          ..._sidechainChild(
+            id: 'tool-call-1',
+            uuid: callId,
+            parentUuid: taskId,
+          ),
+          'kind': 'tool-call',
+          'name': 'Read',
+        },
+        {
+          ..._sidechainChild(
+            id: 'agent-event-2',
+            uuid: secondEventUuid,
+            parentUuid: callId,
+          ),
+          'kind': 'agent-event',
+        },
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isFalse);
+      expect(result.messages, hasLength(1));
+      final children =
+          result.messages.first['children'] as List<dynamic>;
+      expect(
+        children.map((c) => (c as Map<String, dynamic>)['id']),
+        ['agent-event-1', 'tool-call-1', 'agent-event-2'],
+      );
+    });
+
     test('chains children via uuid propagation', () {
       final messages = [
         _taskMsg(id: 'task-1', uuid: 'task-uuid'),
