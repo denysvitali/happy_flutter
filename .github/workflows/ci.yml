@@ -106,6 +106,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      - name: Cache Flutter artifacts
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/flutter
+          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-artifacts-
+
       - name: Get dependencies
         run: |
           for attempt in 1 2 3; do
@@ -118,14 +126,11 @@ jobs:
             sleep 10
           done
 
-      - name: Fix Flutter binary permissions
+      - name: Precache Flutter artifacts
         run: |
-          # flutter_tester and font-subset may lack execute permission on GitHub Actions.
-          # Run chmod inside devenv shell and also fix ~/.cache/flutter.
-          devenv shell -- bash -c '
-            find /nix/store ~/.cache/flutter -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-              | xargs chmod +x 2>/dev/null || true
-          '
+          # Ensure flutter_tester and font-subset are downloaded before running tests.
+          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
+          devenv shell -- flutter test --help > /dev/null 2>&1 || true
 
       - name: Run tests (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
         run: |
@@ -236,6 +241,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      - name: Cache Flutter artifacts
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/flutter
+          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-artifacts-
+
       - name: Get dependencies
         run: |
           for attempt in 1 2 3; do
@@ -248,13 +261,11 @@ jobs:
             sleep 10
           done
 
-      - name: Fix Flutter binary permissions
+      - name: Precache Flutter artifacts
         run: |
-          # Trigger artifact download so flutter_tester exists before chmod runs.
+          # Ensure flutter_tester and font-subset are downloaded before running tests.
+          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
           devenv shell -- flutter test --help > /dev/null 2>&1 || true
-          # flutter_tester and font-subset may lack execute permission on GitHub Actions.
-          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
 
       - name: Run golden tests
         run: devenv shell -- flutter test test/golden/golden_test.dart
@@ -312,12 +323,6 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
-      - name: Fix Nix binary permissions
-        run: |
-          # Nix store binaries may lack execute permission on GitHub Actions runners.
-          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
-
       - name: Setup Android NDK
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -331,6 +336,14 @@ jobs:
           key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-pub-
+
+      - name: Cache Flutter artifacts
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/flutter
+          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-artifacts-
 
       - name: Cache Gradle
         uses: actions/cache@v5
@@ -370,13 +383,10 @@ jobs:
           fi
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
-      - name: Fix Flutter binary permissions
+      - name: Precache Flutter artifacts
         run: |
-          # Trigger artifact download so font-subset exists before chmod runs.
-          devenv shell -- flutter precache > /dev/null 2>&1 || true
-          # font-subset may lack execute permission on GitHub Actions.
-          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
+          # Ensure all needed artifacts are downloaded.
+          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
 
       - name: Build Debug APK
         run: |
@@ -461,13 +471,6 @@ jobs:
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: nix profile install nixpkgs#devenv
 
-      - name: Fix Nix binary permissions
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: |
-          # Nix store binaries may lack execute permission on GitHub Actions runners.
-          find /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
-
       - name: Setup Android NDK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
@@ -494,6 +497,15 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
+
+      - name: Cache Flutter artifacts
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/flutter
+          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-artifacts-
 
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -525,14 +537,11 @@ jobs:
           fi
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
-      - name: Fix Flutter binary permissions
+      - name: Precache Flutter artifacts
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
-          # Trigger artifact download so font-subset exists before chmod runs.
-          devenv shell -- flutter precache > /dev/null 2>&1 || true
-          # font-subset may lack execute permission on GitHub Actions.
-          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
+          # Ensure all needed artifacts are downloaded.
+          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
 
       - name: Build Release APK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -622,6 +631,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      - name: Cache Flutter artifacts
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/flutter
+          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-artifacts-
+
       - name: Get dependencies
         run: |
           for attempt in 1 2 3; do
@@ -634,13 +651,10 @@ jobs:
             sleep 10
           done
 
-      - name: Fix Flutter binary permissions
+      - name: Precache Flutter artifacts
         run: |
-          # Trigger artifact download so font-subset exists before chmod runs.
-          devenv shell -- flutter precache > /dev/null 2>&1 || true
-          # font-subset may lack execute permission on GitHub Actions.
-          find ~/.cache/flutter /nix/store -name "flutter_tester" -o -name "font-subset" 2>/dev/null \
-            | xargs chmod +x 2>/dev/null || true
+          # Ensure all needed artifacts are downloaded.
+          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
 
       - name: Build Web
         run: |
