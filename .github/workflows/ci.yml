@@ -52,6 +52,8 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
+        with:
+          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -94,6 +96,8 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
+        with:
+          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -214,6 +218,8 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
+        with:
+          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -298,6 +304,8 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
+        with:
+          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -600,6 +608,8 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
+        with:
+          sandbox: false
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
