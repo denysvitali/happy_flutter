@@ -50,11 +50,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          version: 3.38.7
 
       - name: Cache pub dependencies
         uses: actions/cache@v5
@@ -65,19 +65,10 @@ jobs:
             ${{ runner.os }}-pub-
 
       - name: Get dependencies
-        run: |
-          for attempt in 1 2 3; do
-            if devenv shell -- flutter pub get; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep 10
-          done
+        run: flutter pub get
 
       - name: Analyze code
-        run: devenv shell -- flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
   test:
     name: Test (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
@@ -92,11 +83,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          version: 3.38.7
 
       - name: Cache pub dependencies
         uses: actions/cache@v5
@@ -106,31 +97,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache Flutter artifacts
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/flutter
-          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-artifacts-
-
       - name: Get dependencies
-        run: |
-          for attempt in 1 2 3; do
-            if devenv shell -- flutter pub get; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep 10
-          done
-
-      - name: Precache Flutter artifacts
-        run: |
-          # Ensure flutter_tester and font-subset are downloaded before running tests.
-          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
-          devenv shell -- flutter test --help > /dev/null 2>&1 || true
+        run: flutter pub get
 
       - name: Run tests (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
         run: |
@@ -147,17 +115,7 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          for attempt in 1 2 3; do
-            if devenv shell -- flutter test --coverage \
-              --concurrency=4 "${shard_tests[@]}"; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            echo "Test failed, retrying (attempt $((attempt+1)))..."
-            sleep 5
-          done
+          flutter test --coverage --concurrency=4 "${shard_tests[@]}"
 
       - name: Upload coverage artifact
         if: always()
@@ -227,11 +185,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          version: 3.38.7
 
       - name: Cache pub dependencies
         uses: actions/cache@v5
@@ -241,34 +199,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache Flutter artifacts
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/flutter
-          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-artifacts-
-
       - name: Get dependencies
-        run: |
-          for attempt in 1 2 3; do
-            if devenv shell -- flutter pub get; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep 10
-          done
-
-      - name: Precache Flutter artifacts
-        run: |
-          # Ensure flutter_tester and font-subset are downloaded before running tests.
-          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
-          devenv shell -- flutter test --help > /dev/null 2>&1 || true
+        run: flutter pub get
 
       - name: Run golden tests
-        run: devenv shell -- flutter test test/golden/golden_test.dart
+        run: flutter test test/golden/golden_test.dart
 
   build-debug:
     name: Build Debug APK
@@ -317,11 +252,11 @@ jobs:
           sudo rm -rf /usr/share/swift
           df -h
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          version: 3.38.7
 
       - name: Setup Android NDK
         run: |
@@ -337,14 +272,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache Flutter artifacts
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/flutter
-          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-artifacts-
-
       - name: Cache Gradle
         uses: actions/cache@v5
         with:
@@ -356,16 +283,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Get dependencies
-        run: |
-          for attempt in 1 2 3; do
-            if devenv shell -- flutter pub get; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep 10
-          done
+        run: flutter pub get
 
       - name: Stabilize Kotlin compiler
         run: |
@@ -383,14 +301,9 @@ jobs:
           fi
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
-      - name: Precache Flutter artifacts
-        run: |
-          # Ensure all needed artifacts are downloaded.
-          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
-
       - name: Build Debug APK
         run: |
-          devenv shell -- flutter build apk --debug --no-pub \
+          flutter build apk --debug --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -463,13 +376,12 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      - name: Install Nix
+      - name: Setup Flutter
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: cachix/install-nix-action@v31
-
-      - name: Install devenv
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: nix profile install nixpkgs#devenv
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          version: 3.38.7
 
       - name: Setup Android NDK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -498,27 +410,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Cache Flutter artifacts
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/flutter
-          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-artifacts-
-
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: |
-          for attempt in 1 2 3; do
-            if devenv shell -- flutter pub get; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep 10
-          done
+        run: flutter pub get
 
       - name: Stabilize Kotlin compiler
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -537,12 +431,6 @@ jobs:
           fi
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
-      - name: Precache Flutter artifacts
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: |
-          # Ensure all needed artifacts are downloaded.
-          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
-
       - name: Build Release APK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         env:
@@ -553,7 +441,7 @@ jobs:
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g'
         run: |
-          devenv shell -- flutter build apk --release --no-pub \
+          flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -564,7 +452,7 @@ jobs:
       - name: Upload debug symbols to Sentry
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' && env.SENTRY_AUTH_TOKEN != '' }}
         run: |
-          devenv shell -- flutter pub run sentry_dart_plugin
+          flutter pub run sentry_dart_plugin
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
@@ -617,11 +505,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-
-      - name: Install devenv
-        run: nix profile install nixpkgs#devenv
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          version: 3.38.7
 
       - name: Cache pub dependencies
         uses: actions/cache@v5
@@ -631,34 +519,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache Flutter artifacts
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/flutter
-          key: ${{ runner.os }}-flutter-artifacts-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-artifacts-
-
       - name: Get dependencies
-        run: |
-          for attempt in 1 2 3; do
-            if devenv shell -- flutter pub get; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep 10
-          done
-
-      - name: Precache Flutter artifacts
-        run: |
-          # Ensure all needed artifacts are downloaded.
-          devenv shell -- flutter precache --no-android --no-ios --no-web --no-macos --no-linux --no-windows || true
+        run: flutter pub get
 
       - name: Build Web
         run: |
-          devenv shell -- flutter build web --release \
+          flutter build web --release \
             --base-href '/' \
             --dart-define=COMMIT_SHA=${{ github.sha }}
 
