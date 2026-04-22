@@ -52,6 +52,20 @@ extension SyncSocketEvents on Sync {
           _lastEphemeralAt[entry.key] = DateTime.now().millisecondsSinceEpoch;
         }
       }
+      // Re-fetch messages for non-visible sessions where the server has
+      // advanced past our local cursor.  Sessions whose server lastSeq
+      // equals our cursor have been caught up already (either no messages
+      // arrived during disconnect, or fetchMessages updated the cursor).
+      // Adding only gapped sessions avoids the infinite loop caused by
+      // unconditionally re-adding ALL sessions on every reconnect.
+      for (final sessionId in _sessionMessages.keys) {
+        if (sessionId == _visibleSessionId) continue;
+        final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+        final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+        if (serverLastSeq > cursorSeq) {
+          _sessionsWithPendingSocketMessages.add(sessionId);
+        }
+      }
       // Chain messages fetch after the sessions fetch that
       // _invalidateAllSyncs() already kicked off.  We await the
       // existing queue instead of calling invalidateAndAwait()
