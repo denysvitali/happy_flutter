@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/clipboard_utils.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -310,7 +312,7 @@ class _ContentBlockState extends State<_ContentBlock> {
   bool _copied = false;
 
   Future<void> _copyToClipboard(String text) async {
-    await Clipboard.setData(ClipboardData(text: text));
+    await setClipboardTextSafely(text);
     if (!mounted) return;
     setState(() => _copied = true);
     await Future<void>.delayed(const Duration(seconds: 2));

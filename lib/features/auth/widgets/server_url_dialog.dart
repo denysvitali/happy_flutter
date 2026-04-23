@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/api/socket_io_client.dart';
 import '../../../core/components/app_loading_indicator.dart';
 import '../../../core/i18n/app_localizations.dart';
@@ -429,10 +430,8 @@ class _ErrorDetailBox extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton.icon(
-                onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: errorMessage),
-                  );
+                onPressed: () async {
+                  await setClipboardTextSafely(errorMessage);
                   ScaffoldMessenger.of(context)
                       .showSnackBar(
                     SnackBar(

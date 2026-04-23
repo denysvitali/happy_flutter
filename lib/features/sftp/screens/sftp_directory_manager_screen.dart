@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/utils/clipboard_utils.dart';
 
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
@@ -164,7 +165,7 @@ class _SftpDirectoryManagerScreenState
     // Generate a connection reference string
     final ref =
         'sftp://<host>:${_dir.port}/${_dir.remotePath ?? _dir.name}';
-    await Clipboard.setData(ClipboardData(text: ref));
+    await setClipboardTextSafely(ref);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

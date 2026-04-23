@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -59,8 +59,9 @@ Future<void> showBackupKeyDialog(BuildContext context) async {
                 child: Text(l10n.commonClose),
               ),
               ElevatedButton.icon(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: key));
+                onPressed: () async {
+                  await setClipboardTextSafely(key);
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(l10n.accountBackupKeyCopied),
@@ -89,7 +90,7 @@ Future<void> copyBackupKeyToClipboard(BuildContext context) async {
   final errorPrefix = context.l10n.commonError;
   try {
     final key = await AuthService().generateBackupKey();
-    await Clipboard.setData(ClipboardData(text: key));
+    await setClipboardTextSafely(key);
     scaffoldMessenger.showSnackBar(
       SnackBar(content: Text(copiedMsg)),
     );

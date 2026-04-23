@@ -343,6 +343,11 @@ extension SyncSessionOperations on Sync {
     } catch (error, stackTrace) {
       if (error is StateError && error.message.contains('not connected')) {
         logger.info('machineBash: socket not connected');
+      } else if (Sync._isTransientConnectionError(error) ||
+          Sync._isRpcReplicaTimeout(error)) {
+        logger.info(
+          'machineBash: transient RPC failure — $error',
+        );
       } else {
         logger.error('machineBash error', error, stackTrace);
       }
@@ -373,6 +378,11 @@ extension SyncSessionOperations on Sync {
         return const ReadFileResponse(
           success: false,
           error: 'File viewing requires a newer machine agent',
+        );
+      } else if (Sync._isTransientConnectionError(error) ||
+          Sync._isRpcReplicaTimeout(error)) {
+        logger.info(
+          'machineReadFile: transient RPC failure — $error',
         );
       } else {
         logger.error('machineReadFile error', error, stackTrace);
@@ -411,6 +421,11 @@ extension SyncSessionOperations on Sync {
         return const ClaudeUsageLimitsResponse(
           success: false,
           error: 'RPC method not available',
+        );
+      } else if (Sync._isTransientConnectionError(error) ||
+          Sync._isRpcReplicaTimeout(error)) {
+        logger.info(
+          'machineGetClaudeUsageLimits: transient RPC failure — $error',
         );
       } else {
         logger.error('machineGetClaudeUsageLimits error', error, stackTrace);

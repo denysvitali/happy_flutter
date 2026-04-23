@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
+import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
@@ -159,7 +159,7 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
 
   Future<void> _copyToClipboard() async {
     if (_content == null) return;
-    await Clipboard.setData(ClipboardData(text: _content!));
+    await setClipboardTextSafely(_content!);
     if (!mounted) return;
     setState(() => _copied = true);
     Future.delayed(const Duration(seconds: 2), () {

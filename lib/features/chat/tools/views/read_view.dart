@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
@@ -669,7 +670,7 @@ class _CopyButtonState extends State<_CopyButton> {
   bool _copied = false;
 
   Future<void> _handleCopy() async {
-    await Clipboard.setData(ClipboardData(text: widget.text));
+    await setClipboardTextSafely(widget.text);
     if (!mounted) return;
     setState(() => _copied = true);
     await Future<void>.delayed(const Duration(seconds: 2));

@@ -142,6 +142,43 @@ const _transientNetworkPatterns = [
   'Software caused connection abort',
 ];
 
+/// Patterns that indicate a non-actionable error on native.
+/// These are expected transient infra issues or framework quirks
+/// that do not represent app bugs.
+const _nonActionableNativePatterns = [
+  // Android clipboard overflow when copying large text.
+  'TransactionTooLargeException',
+  'data parcel size',
+  // Expected RPC failures when machine/session is transiently
+  // unavailable (daemon reconnecting, handler not yet registered).
+  'Machine encryption not found',
+  'Session encryption not found',
+  'RPC handler',
+  'is not registered',
+  'operation has timed out',
+  'RPC call',
+  'forwarded via Redis',
+  'no replica responded',
+  'Machine RPC',
+  'Session RPC',
+  // Session was restarted while user was acting on a permission.
+  'Session was restarted',
+  // Machine offline warnings (already logged at warning level).
+  'Machine is offline',
+  'Machine appears offline',
+  // Server-side errors not actionable in the client.
+  'SessionsApiException: Failed to fetch sessions: 500',
+  'SessionsApiException: Failed to archive session: 500',
+  'Failed to send message: 500',
+  '[sendMessage] FAILED: status=500',
+  // Riverpod lifecycle: widget unmounted while async work in flight.
+  'Using "ref" when a widget is about to or has been unmounted',
+  // Legacy NaCl decryption failures — expected on key rotation or
+  // corrupt historical ciphertext; rate-limited in code but still
+  // leaks through when many distinct keys are involved.
+  'CryptoSecretBox.decrypt failed',
+];
+
 bool _isTransientNetworkEvent(SentryEvent event) {
   for (final exception in event.exceptions ?? <SentryException>[]) {
     final value = exception.value ?? '';
@@ -151,6 +188,20 @@ bool _isTransientNetworkEvent(SentryEvent event) {
   }
   final message = event.message?.formatted ?? '';
   for (final pattern in _transientNetworkPatterns) {
+    if (message.contains(pattern)) return true;
+  }
+  return false;
+}
+
+bool _isNonActionableNativeEvent(SentryEvent event) {
+  for (final exception in event.exceptions ?? <SentryException>[]) {
+    final value = exception.value ?? '';
+    for (final pattern in _nonActionableNativePatterns) {
+      if (value.contains(pattern)) return true;
+    }
+  }
+  final message = event.message?.formatted ?? '';
+  for (final pattern in _nonActionableNativePatterns) {
     if (message.contains(pattern)) return true;
   }
   return false;
@@ -169,6 +220,12 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   // Drop transient network errors (DNS, timeout, etc.) — these
   // are expected when the device briefly loses connectivity.
   if (_isTransientNetworkEvent(event)) {
+    return null;
+  }
+
+  // Drop non-actionable native errors (clipboard overflow, expected
+  // RPC failures, server 500s, machine offline, etc.).
+  if (_isNonActionableNativeEvent(event)) {
     return null;
   }
 

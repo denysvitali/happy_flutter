@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/theme/app_tokens.dart';
 import 'syntax_highlighter.dart';
 
@@ -172,7 +173,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   }
 
   Future<void> _copyToClipboard() async {
-    await Clipboard.setData(ClipboardData(text: widget.code));
+    await setClipboardTextSafely(widget.code);
     if (!mounted) return;
     setState(() => _copied = true);
     Future.delayed(const Duration(seconds: 2), () {

@@ -1,8 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/clipboard_utils.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
@@ -101,8 +102,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     return flavor;
   }
 
-  void _copyToClipboard(String text, {String? message}) {
-    Clipboard.setData(ClipboardData(text: text));
+  Future<void> _copyToClipboard(String text, {String? message}) async {
+    await setClipboardTextSafely(text);
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(

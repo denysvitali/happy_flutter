@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/components/app_empty_state.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../models/connection_event.dart';
@@ -82,7 +82,7 @@ class _SftpConnectionHistoryScreenState
     final jsonStr = jsonEncode(
       _events.map((e) => e.toJson()).toList(),
     );
-    await Clipboard.setData(ClipboardData(text: jsonStr));
+    await setClipboardTextSafely(jsonStr);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

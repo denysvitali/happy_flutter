@@ -503,7 +503,16 @@ extension SyncData on Sync {
       _scheduleSaveSessionsCache();
       return session;
     } catch (error, stack) {
-      logger.error('fetchSingleSession failed for $sessionId', error, stack);
+      if (error is SessionsApiException ||
+          Sync._isTransientConnectionError(error)) {
+        logger.warning(
+          'fetchSingleSession failed for $sessionId',
+          error,
+          stack,
+        );
+      } else {
+        logger.error('fetchSingleSession failed for $sessionId', error, stack);
+      }
       return null;
     }
   }

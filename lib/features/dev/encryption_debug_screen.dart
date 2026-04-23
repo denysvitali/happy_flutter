@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/clipboard_utils.dart';
 
 import '../../core/components/settings_section.dart';
 import '../../core/services/logger_service.dart' show logger;
@@ -251,7 +252,7 @@ class EncryptionDebugScreen extends ConsumerWidget {
     );
   }
 
-  void _copyDebugInfo(BuildContext context) {
+  Future<void> _copyDebugInfo(BuildContext context) async {
     final syncInitialized = sync.isInitialized;
     final cacheStats = syncInitialized
         ? sync.encryption.getCacheStats()
@@ -288,7 +289,7 @@ class EncryptionDebugScreen extends ConsumerWidget {
       ..writeln('  Daemon states: ${cacheStats['daemonStates'] ?? 0}')
       ..writeln('  Total: ${cacheStats['totalEntries'] ?? 0}');
 
-    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    await setClipboardTextSafely(buffer.toString());
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Encryption debug info copied')),
     );

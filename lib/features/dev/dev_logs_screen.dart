@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -361,8 +360,8 @@ class LogEntryWidget extends StatelessWidget {
     return Material(
       child: InkWell(
         onTap: () => _showEntryDetails(context),
-        onLongPress: () {
-          Clipboard.setData(ClipboardData(text: entry.toFormattedString()));
+        onLongPress: () async {
+          await setClipboardTextSafely(entry.toFormattedString());
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(AppLocalizations.of(context).devLogsLogEntryCopied),
@@ -559,7 +558,7 @@ class LogEntryWidget extends StatelessWidget {
                       if (hasError)
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () {
+                            onPressed: () async {
                               final buffer = StringBuffer();
                               if (entry.error != null) {
                                 buffer.writeln(entry.error.toString());
@@ -568,8 +567,8 @@ class LogEntryWidget extends StatelessWidget {
                                 if (buffer.isNotEmpty) buffer.writeln();
                                 buffer.write(entry.stackTrace.toString());
                               }
-                              Clipboard.setData(
-                                ClipboardData(text: buffer.toString()),
+                              await setClipboardTextSafely(
+                                buffer.toString(),
                               );
                               Navigator.of(ctx).pop();
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -589,9 +588,9 @@ class LogEntryWidget extends StatelessWidget {
                       if (hasError) const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(text: entry.toFormattedString()),
+                          onPressed: () async {
+                            await setClipboardTextSafely(
+                              entry.toFormattedString(),
                             );
                             Navigator.of(ctx).pop();
                             ScaffoldMessenger.of(context).showSnackBar(
