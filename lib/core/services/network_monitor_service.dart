@@ -17,10 +17,9 @@ class NetworkMonitorService {
   factory NetworkMonitorService() => _instance;
 
   NetworkMonitorService._({Connectivity? connectivity})
-      : _connectivity = connectivity ?? Connectivity();
+    : _connectivity = connectivity ?? Connectivity();
 
-  static NetworkMonitorService _instance =
-      NetworkMonitorService._();
+  static NetworkMonitorService _instance = NetworkMonitorService._();
 
   final Connectivity _connectivity;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -43,28 +42,34 @@ class NetworkMonitorService {
     if (_initialized) return;
     _initialized = true;
 
+    await _refreshConnectivity();
+    if (!_isSuspended) {
+      _startListening();
+    }
+  }
+
+  Future<void> _refreshConnectivity({bool notify = false}) async {
     try {
       final results = await _connectivity.checkConnectivity();
-      _isOnline = _hasConnectivity(results);
+      _setOnline(_hasConnectivity(results), notify: notify);
     } catch (e) {
       // Assume online if the check fails (e.g. on desktop
       // where the plugin may not be fully supported).
-      logger.warning(
-        '[Network] initial connectivity check failed: $e',
-      );
-      _isOnline = true;
+      logger.warning('[Network] initial connectivity check failed: $e');
+      _setOnline(true, notify: notify);
     }
+  }
 
-    _subscription = _connectivity.onConnectivityChanged
-        .listen(_onConnectivityChanged);
+  void _startListening() {
+    if (_subscription != null) return;
+    _subscription = _connectivity.onConnectivityChanged.listen(
+      _onConnectivityChanged,
+    );
   }
 
   void _onConnectivityChanged(List<ConnectivityResult> results) {
     final online = _hasConnectivity(results);
-    if (online == _isOnline) return; // deduplicate
-
-    _isOnline = online;
-    _controller.add(online);
+    if (!_setOnline(online, notify: true)) return;
 
     if (online) {
       logger.info('[Network] connectivity restored');
@@ -95,6 +100,8 @@ class NetworkMonitorService {
   /// Pause reconnection triggers while the app is backgrounded.
   void suspend() {
     _isSuspended = true;
+    _subscription?.cancel();
+    _subscription = null;
   }
 
   /// Resume reconnection triggers. If the network came back
@@ -102,6 +109,10 @@ class NetworkMonitorService {
   /// the lifecycle observer) handles the catch-up.
   void resume() {
     _isSuspended = false;
+    if (_initialized) {
+      unawaited(_refreshConnectivity(notify: true));
+      _startListening();
+    }
   }
 
   /// Dispose resources.
@@ -125,23 +136,30 @@ class NetworkMonitorService {
 
   /// Create a test instance with a custom [Connectivity].
   @visibleForTesting
-  static NetworkMonitorService testCreate({
-    Connectivity? connectivity,
-  }) {
+  static NetworkMonitorService testCreate({Connectivity? connectivity}) {
     return NetworkMonitorService._(connectivity: connectivity);
   }
 
   /// Override the online state for testing.
   @visibleForTesting
   void testSetOnline(bool online) {
-    if (online == _isOnline) return;
+    _setOnline(online, notify: true);
+  }
+
+  @visibleForTesting
+  bool get testHasActiveSubscription => _subscription != null;
+
+  bool _setOnline(bool online, {required bool notify}) {
+    if (online == _isOnline) return false;
     _isOnline = online;
-    _controller.add(online);
+    if (notify && !_controller.isClosed) {
+      _controller.add(online);
+    }
+    return true;
   }
 
   static bool _hasConnectivity(List<ConnectivityResult> results) {
     if (results.isEmpty) return false;
-    return results
-        .any((r) => r != ConnectivityResult.none);
+    return results.any((r) => r != ConnectivityResult.none);
   }
 }
