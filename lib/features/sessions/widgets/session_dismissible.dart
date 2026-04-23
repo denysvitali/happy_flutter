@@ -31,17 +31,11 @@ class DismissibleActiveSession extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         color: cs.tertiary,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xl,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.archive_outlined,
-              color: cs.onTertiary,
-              size: 22,
-            ),
+            Icon(Icons.archive_outlined, color: cs.onTertiary, size: 22),
             const SizedBox(height: AppSpacing.xs),
             Text(
               context.l10n.sessionsArchive,
@@ -58,10 +52,7 @@ class DismissibleActiveSession extends ConsumerWidget {
     );
   }
 
-  Future<bool> _confirmArchive(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<bool> _confirmArchive(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -77,8 +68,7 @@ class DismissibleActiveSession extends ConsumerWidget {
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: TextButton.styleFrom(
-                foregroundColor:
-                    Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.error,
               ),
               child: Text(l10n.sessionsArchive),
             ),
@@ -89,27 +79,18 @@ class DismissibleActiveSession extends ConsumerWidget {
 
     if (confirmed != true) return false;
 
+    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
     try {
       await SessionsApi().setSessionArchived(session.id, true);
       // Mark optimistically archived to prevent reappear during server lag.
       sync.markSessionArchived(session.id);
-      await ref
-          .read(sessionsNotifierProvider.notifier)
-          .refreshFromSync();
+      sessionsNotifier.loadFromSync();
       return true;
     } catch (e, st) {
-      logger.error(
-        'Failed to archive session: sessionId=${session.id}',
-        e,
-        st,
-      );
+      logger.error('Failed to archive session: sessionId=${session.id}', e, st);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.l10n.sessionsFailedToArchive,
-            ),
-          ),
+          SnackBar(content: Text(context.l10n.sessionsFailedToArchive)),
         );
       }
       return false;
@@ -140,17 +121,11 @@ class DismissibleInactiveSession extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         color: cs.error,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xl,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.delete_outline,
-              color: cs.onError,
-              size: 22,
-            ),
+            Icon(Icons.delete_outline, color: cs.onError, size: 22),
             const SizedBox(height: AppSpacing.xs),
             Text(
               context.l10n.commonDelete,
@@ -167,10 +142,7 @@ class DismissibleInactiveSession extends ConsumerWidget {
     );
   }
 
-  Future<bool> _confirmDelete(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<bool> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -186,8 +158,7 @@ class DismissibleInactiveSession extends ConsumerWidget {
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: TextButton.styleFrom(
-                foregroundColor:
-                    Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.error,
               ),
               child: Text(l10n.commonDelete),
             ),
@@ -205,9 +176,7 @@ class DismissibleInactiveSession extends ConsumerWidget {
 
     if (!success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.sessionsFailedToDelete),
-        ),
+        SnackBar(content: Text(context.l10n.sessionsFailedToDelete)),
       );
     }
     return success;

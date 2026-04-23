@@ -342,7 +342,11 @@ extension SyncDataMachines on Sync {
         logger.warning('Failed to fetch machines: ${response.statusCode}');
       }
     } catch (error, stack) {
-      logger.error('Error fetching machines', error, stack);
+      if (Sync._isTransientConnectionError(error)) {
+        logger.warning('Error fetching machines', error, stack);
+      } else {
+        logger.error('Error fetching machines', error, stack);
+      }
     }
   }
 }

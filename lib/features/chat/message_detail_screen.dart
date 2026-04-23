@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/clipboard_utils.dart';
+
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -728,8 +730,8 @@ class _CopyButton extends StatelessWidget {
     return IconButton(
       icon: const Icon(Icons.copy, size: 16),
       tooltip: context.l10n.commonCopy,
-      onPressed: () {
-        Clipboard.setData(ClipboardData(text: content));
+      onPressed: () async {
+        await setClipboardTextSafely(content);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(context.l10n.commonCopiedToClipboard),

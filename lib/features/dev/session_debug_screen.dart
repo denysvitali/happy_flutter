@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/clipboard_utils.dart';
 
 import '../../core/api/socket_io_client.dart';
 import '../../core/components/settings_section.dart';
@@ -344,7 +345,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
     }
   }
 
-  void _copyDebugInfo(BuildContext context) {
+  Future<void> _copyDebugInfo(BuildContext context) async {
     final sessions = sync.sessions;
     final connectionStatus = ref.read(connectionNotifierProvider);
     final onlineCount = sessions.values
@@ -385,7 +386,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
       ..writeln('  Artifacts: ${sync.artifacts.length}')
       ..writeln('  Machines: ${sync.machines.length}');
 
-    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    await setClipboardTextSafely(buffer.toString());
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Session debug info copied')));

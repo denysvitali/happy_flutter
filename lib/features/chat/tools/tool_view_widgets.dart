@@ -92,10 +92,7 @@ class ToolHeader extends StatelessWidget {
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           fontFamily: 'monospace',
-                          fontFamilyFallback: const [
-                            'Courier New',
-                            'Courier',
-                          ],
+                          fontFamilyFallback: const ['Courier New', 'Courier'],
                           fontSize: AppFontSize.md,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -304,9 +301,8 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
   }
 
   void _measureContent() {
-    final box =
-        _contentKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box != null && mounted) {
+    final box = _contentKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize && mounted) {
       try {
         setState(() {
           _contentHeight = box.size.height;
@@ -327,10 +323,7 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
     // If the content fits within the threshold, render it
     // directly without any collapse mechanism.
     if (!_needsCollapsing) {
-      return KeyedSubtree(
-        key: _contentKey,
-        child: widget.child,
-      );
+      return KeyedSubtree(key: _contentKey, child: widget.child);
     }
 
     return Column(

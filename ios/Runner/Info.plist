@@ -54,12 +54,6 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone access is required to record audio messages.</string>
 
-	<!-- Location permissions -->
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Location access is used to provide location-based features.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Location access is used to provide location-based features even when the app is in the background.</string>
-
 	<!-- Biometric authentication -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>Face ID/Touch ID is used for secure authentication.</string>

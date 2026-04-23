@@ -237,10 +237,10 @@ extension SyncData on Sync {
             // window used by _presenceTimers, treat as 'online' so
             // the user doesn't see their live session as inactive
             // until the first WebSocket activity event arrives.
-            presence: _sessions[sessionId]?.presence ??
+            presence:
+                _sessions[sessionId]?.presence ??
                 (active &&
-                        DateTime.now().millisecondsSinceEpoch - activeAt <
-                            60000
+                        DateTime.now().millisecondsSinceEpoch - activeAt < 60000
                     ? 'online'
                     : 'offline'),
             lastSeq: lastSeq,
@@ -374,7 +374,12 @@ extension SyncData on Sync {
     } on DioException {
       rethrow;
     } catch (error, stack) {
-      logger.error('Error fetching sessions', error, stack);
+      if (error is SessionsApiException ||
+          Sync._isTransientConnectionError(error)) {
+        logger.warning('Error fetching sessions', error, stack);
+      } else {
+        logger.error('Error fetching sessions', error, stack);
+      }
     }
   }
 
@@ -498,7 +503,16 @@ extension SyncData on Sync {
       _scheduleSaveSessionsCache();
       return session;
     } catch (error, stack) {
-      logger.error('fetchSingleSession failed for $sessionId', error, stack);
+      if (error is SessionsApiException ||
+          Sync._isTransientConnectionError(error)) {
+        logger.warning(
+          'fetchSingleSession failed for $sessionId',
+          error,
+          stack,
+        );
+      } else {
+        logger.error('fetchSingleSession failed for $sessionId', error, stack);
+      }
       return null;
     }
   }

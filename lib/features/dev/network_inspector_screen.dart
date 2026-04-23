@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/http_request_logger.dart';
 import '../../core/theme/app_colors.dart';
@@ -89,7 +89,7 @@ class _NetworkInspectorScreenState
 
   Future<void> _copyAll() async {
     if (_entries.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: _buildCopyText()));
+    await setClipboardTextSafely(_buildCopyText());
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -519,10 +519,8 @@ class _RequestRow extends StatelessWidget {
                   AppLocalizations.of(context).devLogsCopyEntry,
                 ),
                 onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(
-                      text: e.toFormattedString(),
-                    ),
+                  await setClipboardTextSafely(
+                    e.toFormattedString(),
                   );
                   if (ctx.mounted) {
                     Navigator.pop(ctx);

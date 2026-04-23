@@ -458,7 +458,7 @@ extension SyncMessagingSend on Sync {
           );
         }
       } else {
-        logger.error(
+        logger.warning(
           '[sendMessage] FAILED: status=${response.statusCode} '
           'session=$targetSessionId '
           'body=${response.data}',
@@ -467,7 +467,11 @@ extension SyncMessagingSend on Sync {
       }
       await transaction.finish(status: const SpanStatus.ok());
     } catch (e, stack) {
-      logger.error('[sendMessage] error sending', e, stack);
+      if (_isRetryableSendFailure(e) || Sync._isTransientConnectionError(e)) {
+        logger.warning('[sendMessage] error sending', e, stack);
+      } else {
+        logger.error('[sendMessage] error sending', e, stack);
+      }
       transaction.setData('error', e.toString());
       await transaction.finish(status: const SpanStatus.internalError());
       if (!sent && _isPermanentSendFailure(e)) {
@@ -503,6 +507,13 @@ extension SyncMessagingSend on Sync {
       return true;
     }
     return false;
+  }
+
+  static bool _isRetryableSendFailure(Object error) {
+    if (error is! StateError) return false;
+    final message = error.message;
+    return message.contains('Failed to send message: 5') ||
+        message.contains('server did not acknowledge message');
   }
 
   /// Outbox delivery callback: re-attempt a single queued message.

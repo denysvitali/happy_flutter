@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -23,6 +24,12 @@ class FrameMetricsService {
   /// Ring buffer of recent janky frame durations (ms).
   final _recentJank = <int>[];
   static const int _maxJankBuffer = 50;
+
+  @visibleForTesting
+  bool get debugIsAttached => _attached;
+
+  @visibleForTesting
+  bool get debugHasFlushTimer => _flushTimer?.isActive ?? false;
 
   /// Attach to [SchedulerBinding] frame timing callbacks.
   void attach() {

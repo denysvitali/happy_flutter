@@ -8,8 +8,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../dart_version_native.dart'
-    if (dart.library.js_interop) '../../dart_version_web.dart';
+import '../../dart_version.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
 class DeveloperScreen extends ConsumerStatefulWidget {

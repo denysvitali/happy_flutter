@@ -62,6 +62,57 @@ const _transientNetworkPatterns = [
   'Software caused connection abort',
 ];
 
+/// Patterns that indicate a non-actionable error on web.
+/// These are expected framework quirks, storage limits, or transient
+/// infra issues that do not represent app bugs.
+const _nonActionableWebPatterns = [
+  // Flutter web: accessing a RenderBox before layout completes.
+  // Non-actionable — the framework recovers on the next frame.
+  'RenderBox was not laid out',
+  // Web localStorage / IndexedDB quota exceeded. The app already
+  // falls back to in-memory storage and logs a warning.
+  'QuotaExceededError',
+  // Platform._version is unavailable on web. Already guarded by
+  // conditional exports, but some build configs may still hit it.
+  'Unsupported operation: Platform',
+  'Platform._version',
+  // Web crypto: corrupted or legacy ciphertext.
+  'IllegalBlockSizeException',
+  // Riverpod lifecycle: widget unmounted while async work in flight.
+  'Using "ref" when a widget is about to or has been unmounted',
+  // Server-side 503 / WebSocket not upgraded.
+  'was not upgraded to websocket',
+  'HTTP status code: 503',
+  // Socket.IO transport errors on web (expected during reconnect).
+  'TransportError',
+  // Server 500 errors — not actionable in the client.
+  'SessionsApiException: Failed to fetch sessions: 500',
+  'SessionsApiException: Failed to archive session: 500',
+  'Failed to send message: 500',
+  '[sendMessage] FAILED: status=500',
+  // Expected RPC failures when machine/session is transiently
+  // unavailable (daemon reconnecting, handler not yet registered).
+  'Machine encryption not found',
+  'Session encryption not found',
+  'RPC handler',
+  'is not registered',
+  'operation has timed out',
+  'RPC call',
+  'forwarded via Redis',
+  'no replica responded',
+  'Machine RPC',
+  'Session RPC',
+  // Session was restarted while user was acting on a permission.
+  'Session was restarted',
+  // Machine offline warnings (already logged at warning level).
+  'Machine is offline',
+  'Machine appears offline',
+  // Legacy NaCl decryption failures — expected on key rotation or
+  // corrupt historical ciphertext; rate-limited in code but still
+  // leaks through when many distinct keys are involved.
+  'CryptoSecretBox.decrypt failed',
+];
+
 bool _isTransientNetworkEvent(SentryEvent event) {
   for (final exception in event.exceptions ?? <SentryException>[]) {
     final value = exception.value ?? '';
@@ -76,10 +127,30 @@ bool _isTransientNetworkEvent(SentryEvent event) {
   return false;
 }
 
+bool _isNonActionableWebEvent(SentryEvent event) {
+  for (final exception in event.exceptions ?? <SentryException>[]) {
+    final value = exception.value ?? '';
+    for (final pattern in _nonActionableWebPatterns) {
+      if (value.contains(pattern)) return true;
+    }
+  }
+  final message = event.message?.formatted ?? '';
+  for (final pattern in _nonActionableWebPatterns) {
+    if (message.contains(pattern)) return true;
+  }
+  return false;
+}
+
 FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   // Drop transient network errors (DNS, timeout, etc.) — these
   // are expected when the device briefly loses connectivity.
   if (_isTransientNetworkEvent(event)) {
+    return null;
+  }
+
+  // Drop non-actionable web errors (framework quirks, storage
+  // limits, expected RPC failures, server 500s, etc.).
+  if (_isNonActionableWebEvent(event)) {
     return null;
   }
 

@@ -1,8 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/clipboard_utils.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
@@ -11,6 +12,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/session_utils.dart';
 import 'widgets/session_info_widgets.dart';
@@ -59,9 +61,7 @@ class SessionInfoScreen extends ConsumerWidget {
 
     if (session == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: Text(context.l10n.sessionInfoTitle),
-        ),
+        appBar: AppBar(title: Text(context.l10n.sessionInfoTitle)),
         body: Center(child: Text(context.l10n.sessionInfoNotFound)),
       );
     }
@@ -102,8 +102,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     return flavor;
   }
 
-  void _copyToClipboard(String text, {String? message}) {
-    Clipboard.setData(ClipboardData(text: text));
+  Future<void> _copyToClipboard(String text, {String? message}) async {
+    await setClipboardTextSafely(text);
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -158,12 +158,13 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     setState(() => _isArchiving = true);
     try {
       await SessionsApi().setSessionArchived(widget.session.id, true);
+      sync.markSessionArchived(widget.session.id);
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e, st) {
       logger.error(
         'Failed to archive session from info screen: '
-            'sessionId=${widget.session.id}',
+        'sessionId=${widget.session.id}',
         e,
         st,
       );
@@ -224,8 +225,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final meta = session.metadata;
 
     final isOnline = session.presence == 'online';
-    final isCliOutdated = meta?.version != null &&
-        !_isVersionSupported(meta!.version!);
+    final isCliOutdated =
+        meta?.version != null && !_isVersionSupported(meta!.version!);
 
     return ListView(
       padding: AppScreenPadding.standard,
@@ -235,9 +236,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color: theme.colorScheme.outlineVariant,
-            ),
+            side: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),
@@ -279,10 +278,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             color: theme.colorScheme.tertiaryContainer,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color: theme.colorScheme.tertiary,
-                width: 1,
-              ),
+              side: BorderSide(color: theme.colorScheme.tertiary, width: 1),
             ),
             child: InkWell(
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -307,8 +303,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                           Text(
                             l10n.sessionInfoCliOutdated,
                             style: theme.textTheme.titleSmall?.copyWith(
-                              color: theme.colorScheme
-                                  .onTertiaryContainer,
+                              color: theme.colorScheme.onTertiaryContainer,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -316,8 +311,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                           Text(
                             'Run: npm install -g happy-coder@latest',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme
-                                  .onTertiaryContainer,
+                              color: theme.colorScheme.onTertiaryContainer,
                             ),
                           ),
                         ],
@@ -346,9 +340,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color: theme.colorScheme.outlineVariant,
-            ),
+            side: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
           child: Column(
             children: [
@@ -357,7 +349,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 label: l10n.sessionInfoLabelSessionId,
                 value: session.id.length > 16
                     ? '${session.id.substring(0, 8)}...'
-                        '${session.id.substring(session.id.length - 8)}'
+                          '${session.id.substring(session.id.length - 8)}'
                     : session.id,
                 onTap: () => _copyToClipboard(session.id),
               ),
@@ -406,9 +398,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color: theme.colorScheme.outlineVariant,
-            ),
+            side: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
           child: Column(
             children: [
@@ -417,8 +407,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   icon: Icons.dns_outlined,
                   label: l10n.sessionInfoActionViewMachine,
                   color: theme.colorScheme.primary,
-                  onTap: () =>
-                      context.push('/machine/${meta!.machineId}'),
+                  onTap: () => context.push('/machine/${meta!.machineId}'),
                 ),
               ],
               if (meta?.machineId != null && (isOnline || !session.active))
@@ -465,9 +454,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color: theme.colorScheme.outlineVariant,
-              ),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
             ),
             child: Column(
               children: [
@@ -501,8 +488,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     icon: Icons.dns_outlined,
                     label: l10n.sessionInfoLabelMachineId,
                     value: meta.machineId!,
-                    onTap: () =>
-                        _copyToClipboard(meta.machineId!),
+                    onTap: () => _copyToClipboard(meta.machineId!),
                   ),
                 ],
                 if (meta.os != null) ...[
@@ -560,8 +546,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                       return '${id.substring(0, 8)}...'
                           '${id.substring(id.length - 8)}';
                     }(),
-                    onTap: () =>
-                        _copyToClipboard(meta.claudeSessionId!),
+                    onTap: () => _copyToClipboard(meta.claudeSessionId!),
                   ),
                 ],
                 if (meta.hostPid != null) ...[
@@ -624,9 +609,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color: theme.colorScheme.outlineVariant,
-              ),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
             ),
             child: Column(
               children: [
@@ -647,8 +630,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   InfoRow(
                     icon: Icons.hourglass_empty_outlined,
                     label: l10n.sessionInfoLabelPendingRequests,
-                    value:
-                        session.agentState!.requests!.length.toString(),
+                    value: session.agentState!.requests!.length.toString(),
                   ),
                 ],
               ],
@@ -667,9 +649,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color: theme.colorScheme.outlineVariant,
-            ),
+            side: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
           child: Column(
             children: [
@@ -681,8 +661,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     ? theme.colorScheme.tertiary
                     : theme.colorScheme.onSurfaceVariant,
               ),
-              if (session.thinking &&
-                  session.thinkingAt != null) ...[
+              if (session.thinking && session.thinkingAt != null) ...[
                 const Divider(
                   height: 1,
                   thickness: AppBorder.hairline,
@@ -711,9 +690,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color: theme.colorScheme.outlineVariant,
-              ),
+              side: BorderSide(color: theme.colorScheme.outlineVariant),
             ),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -724,16 +701,13 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   return Chip(
                     label: Text(
                       tool,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontSize: AppFontSize.sm,
                       ),
                     ),
-                    backgroundColor:
-                        theme.colorScheme.surfaceContainerHighest,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     padding: EdgeInsets.zero,
-                    materialTapTargetSize:
-                        MaterialTapTargetSize.shrinkWrap,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   );
                 }).toList(),
               ),

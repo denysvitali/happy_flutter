@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,6 +9,7 @@ import '../../core/providers/logger_provider.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/datetime_extensions.dart';
 
 /// Debug logs screen - available when developer mode is enabled
@@ -52,8 +52,9 @@ class DevLogsScreen extends ConsumerWidget {
             tooltip: l10n.devLogsAddTestLog,
             onPressed: () {
               final timestamp = DateTime.now().toIsoTimeString();
-              ref.read(loggerNotifierProvider.notifier).debug(
-                  'Test log entry at $timestamp');
+              ref
+                  .read(loggerNotifierProvider.notifier)
+                  .debug('Test log entry at $timestamp');
             },
           ),
           // Copy all logs
@@ -77,9 +78,9 @@ class DevLogsScreen extends ConsumerWidget {
             icon: const Icon(Icons.filter_list),
             tooltip: l10n.devLogsFilterByLevel,
             onSelected: (value) {
-              ref.read(
-                loggerNotifierProvider.notifier,
-              ).setFilterLevel(value?.index);
+              ref
+                  .read(loggerNotifierProvider.notifier)
+                  .setFilterLevel(value?.index);
             },
             itemBuilder: (context) => [
               PopupMenuItem<LogLevel?>(
@@ -119,17 +120,13 @@ class DevLogsScreen extends ConsumerWidget {
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.sm,
             ),
-            color: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   loggerState.filterLevel != null
-                      ? l10n.devLogsCountFiltered(
-                          filteredLogs.length,
-                        )
+                      ? l10n.devLogsCountFiltered(filteredLogs.length)
                       : l10n.devLogsCount(filteredLogs.length),
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
@@ -166,27 +163,30 @@ class DevLogsScreen extends ConsumerWidget {
     final logs = ref.read(loggerNotifierProvider).filteredLogs;
     if (logs.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(noLogsMsg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(noLogsMsg)));
       }
       return;
     }
 
-    final copiedMsg = l10n.devLogsCopied(logs.length);
-    final allLogs =
-        logs.map((entry) => entry.toFormattedString()).join('\n');
-    await Clipboard.setData(ClipboardData(text: allLogs));
+    final allLogs = logs.map((entry) => entry.toFormattedString()).join('\n');
+    final result = await setClipboardTextSafely(allLogs);
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(copiedMsg)),
-      );
+      final message = result.success
+          ? l10n.devLogsCopied(logs.length)
+          : l10n.textSelectionFailedToCopy;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   Future<void> _showClearConfirmDialog(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -244,9 +244,9 @@ class DevLogsScreen extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () {
-                ref.read(
-                  loggerNotifierProvider.notifier,
-                ).setSearchQuery(controller.text);
+                ref
+                    .read(loggerNotifierProvider.notifier)
+                    .setSearchQuery(controller.text);
                 controller.dispose();
                 Navigator.pop(context);
               },
@@ -261,7 +261,6 @@ class DevLogsScreen extends ConsumerWidget {
 
 /// Scrollable list of log entries
 class LogListView extends StatefulWidget {
-
   const LogListView({required this.logs, super.key});
   final List<LogEntry> logs;
 
@@ -291,9 +290,7 @@ class _LogListViewState extends State<LogListView> {
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.jumpTo(
-        _scrollController.position.maxScrollExtent,
-      );
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     }
   }
 
@@ -323,7 +320,6 @@ class _LogListViewState extends State<LogListView> {
 
 /// Individual log entry widget with color coding by level
 class LogEntryWidget extends StatelessWidget {
-
   const LogEntryWidget({required this.entry, super.key});
   final LogEntry entry;
 
@@ -364,8 +360,8 @@ class LogEntryWidget extends StatelessWidget {
     return Material(
       child: InkWell(
         onTap: () => _showEntryDetails(context),
-        onLongPress: () {
-          Clipboard.setData(ClipboardData(text: entry.toFormattedString()));
+        onLongPress: () async {
+          await setClipboardTextSafely(entry.toFormattedString());
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(AppLocalizations.of(context).devLogsLogEntryCopied),
@@ -381,8 +377,7 @@ class LogEntryWidget extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: cs.outlineVariant
-                    .withValues(alpha: AppOpacity.medium),
+                color: cs.outlineVariant.withValues(alpha: AppOpacity.medium),
               ),
             ),
           ),
@@ -407,15 +402,10 @@ class LogEntryWidget extends StatelessWidget {
                   vertical: AppSpacing.xxs,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withValues(
-                    alpha: AppOpacity.subtle,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.xs),
+                  color: color.withValues(alpha: AppOpacity.subtle),
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
                   border: Border.all(
-                    color: color.withValues(
-                      alpha: AppOpacity.medium,
-                    ),
+                    color: color.withValues(alpha: AppOpacity.medium),
                   ),
                 ),
                 child: Text(
@@ -439,13 +429,8 @@ class LogEntryWidget extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (entry.error != null ||
-                  entry.stackTrace != null)
-                Icon(
-                  _getLevelIcon(),
-                  size: AppSpacing.lg,
-                  color: color,
-                ),
+              if (entry.error != null || entry.stackTrace != null)
+                Icon(_getLevelIcon(), size: AppSpacing.lg, color: color),
             ],
           ),
         ),
@@ -482,8 +467,7 @@ class LogEntryWidget extends StatelessWidget {
                       const SizedBox(width: AppSpacing.sm),
                       Text(
                         entry.level.name.toUpperCase(),
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(
+                        style: theme.textTheme.titleMedium?.copyWith(
                           color: color,
                           fontWeight: FontWeight.w600,
                         ),
@@ -491,8 +475,9 @@ class LogEntryWidget extends StatelessWidget {
                       const Spacer(),
                       Text(
                         entry.timestamp.toIso8601String(),
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: cs.outline),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.outline,
+                        ),
                       ),
                     ],
                   ),
@@ -513,18 +498,19 @@ class LogEntryWidget extends StatelessWidget {
                           const SizedBox(height: AppSpacing.lg),
                           Text(
                             'Error:',
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(AppSpacing.sm),
                             decoration: BoxDecoration(
-                              color: cs.errorContainer
-                                  .withValues(alpha: AppOpacity.medium),
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.sm),
+                              color: cs.errorContainer.withValues(
+                                alpha: AppOpacity.medium,
+                              ),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
                             child: SelectableText(
                               entry.error.toString(),
@@ -540,8 +526,9 @@ class LogEntryWidget extends StatelessWidget {
                           const SizedBox(height: AppSpacing.lg),
                           Text(
                             'Stack Trace:',
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Container(
@@ -549,8 +536,7 @@ class LogEntryWidget extends StatelessWidget {
                             padding: const EdgeInsets.all(AppSpacing.sm),
                             decoration: BoxDecoration(
                               color: cs.surfaceContainerHighest,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.sm),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
                             child: SelectableText(
                               entry.stackTrace.toString(),
@@ -572,7 +558,7 @@ class LogEntryWidget extends StatelessWidget {
                       if (hasError)
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () {
+                            onPressed: () async {
                               final buffer = StringBuffer();
                               if (entry.error != null) {
                                 buffer.writeln(entry.error.toString());
@@ -581,15 +567,16 @@ class LogEntryWidget extends StatelessWidget {
                                 if (buffer.isNotEmpty) buffer.writeln();
                                 buffer.write(entry.stackTrace.toString());
                               }
-                              Clipboard.setData(
-                                ClipboardData(text: buffer.toString()),
+                              await setClipboardTextSafely(
+                                buffer.toString(),
                               );
                               Navigator.of(ctx).pop();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    AppLocalizations.of(context)
-                                        .devLogsLogEntryCopied,
+                                    AppLocalizations.of(
+                                      context,
+                                    ).devLogsLogEntryCopied,
                                   ),
                                 ),
                               );
@@ -601,18 +588,17 @@ class LogEntryWidget extends StatelessWidget {
                       if (hasError) const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(
-                                text: entry.toFormattedString(),
-                              ),
+                          onPressed: () async {
+                            await setClipboardTextSafely(
+                              entry.toFormattedString(),
                             );
                             Navigator.of(ctx).pop();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  AppLocalizations.of(context)
-                                      .devLogsLogEntryCopied,
+                                  AppLocalizations.of(
+                                    context,
+                                  ).devLogsLogEntryCopied,
                                 ),
                               ),
                             );

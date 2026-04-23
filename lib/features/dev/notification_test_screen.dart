@@ -1,7 +1,8 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/utils/clipboard_utils.dart';
 
 import '../../core/components/settings_section.dart';
 import '../../core/services/logger_service.dart' show logger;
@@ -129,9 +130,9 @@ class _NotificationTestScreenState
     }
   }
 
-  void _copyToken(String? token) {
+  Future<void> _copyToken(String? token) async {
     if (token == null) return;
-    Clipboard.setData(ClipboardData(text: token));
+    await setClipboardTextSafely(token);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Token copied')),
     );
@@ -335,7 +336,7 @@ class _NotificationTestScreenState
                 icon: Icons.copy_all,
                 title: 'Copy all info',
                 subtitle: 'Copy notification debug info',
-                onTap: () {
+                onTap: () async {
                   final buffer = StringBuffer()
                     ..writeln('=== Notification Debug Info ===')
                     ..writeln('Auth status: ${_authStatus?.name}')
@@ -346,8 +347,8 @@ class _NotificationTestScreenState
                       '${sync.isInitialized ? 'Yes' : 'No'}',
                     );
 
-                  Clipboard.setData(
-                    ClipboardData(text: buffer.toString()),
+                  await setClipboardTextSafely(
+                    buffer.toString(),
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/wire_parsers.dart';
 
@@ -162,10 +162,8 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(
-                      ClipboardData(text: markdown),
-                    );
+                  onPressed: () async {
+                    await setClipboardTextSafely(markdown);
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(

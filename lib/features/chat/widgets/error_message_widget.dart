@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/wire_parsers.dart';
 import 'message_detail_sheet.dart';
@@ -142,10 +142,8 @@ class ErrorMessageWidget extends StatelessWidget {
                     ),
                   ),
                   TextButton.icon(
-                    onPressed: () {
-                      Clipboard.setData(
-                        ClipboardData(text: jsonString),
-                      );
+                    onPressed: () async {
+                      await setClipboardTextSafely(jsonString);
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
