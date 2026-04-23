@@ -419,6 +419,9 @@ extension SyncMessagingMerge on Sync {
       '[sidechain] running deferred re-group sweep '
       'for session=$sessionId',
     );
+
+    // Capture reference before _groupSidechainMessages may replace it.
+    final beforeMessages = messages;
     _groupSidechainMessages(sessionId);
 
     // Surface persistent orphans. If sidechain messages remain after
@@ -444,8 +447,16 @@ extension SyncMessagingMerge on Sync {
       }
     }
 
-    _notifySessionMessagesChanged(sessionId);
-    _notifyDataChanged({SyncDomain.messages});
+    // Only notify if _sessionMessages was actually updated. When the
+    // grouper returns the same list object (nothing to filter), the
+    // ChatScreen would see no meaningful change and refreshFromSync
+    // would return early anyway, but avoiding the notification cuts
+    // CPU overhead from repeated setState + full tree rebuilds.
+    final messagesUpdated = !identical(beforeMessages, after);
+    if (messagesUpdated) {
+      _notifySessionMessagesChanged(sessionId);
+      _notifyDataChanged({SyncDomain.messages});
+    }
   }
 
   /// Delegates to [SidechainGrouper] and updates session message
