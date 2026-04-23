@@ -275,7 +275,8 @@ what you have, you must use the options mode.
   /// the full message list on every session-card build.
   /// Invalidated when messages change via [_invalidatePreviewCache].
   final Map<String, ({int? timestamp, String? preview, String? role})>
-      _previewCache = {};
+  _previewCache = {};
+
   /// Identity of the message list when the preview was computed.
   final Map<String, int> _previewCacheVersion = {};
   final Map<String, List<Map<String, dynamic>>> _sessionMessagesViewCache = {};
@@ -530,8 +531,7 @@ what you have, you must use the options mode.
 
   /// Mutable pending-updates set.
   @visibleForTesting
-  Set<String> get testSessionsWithPendingUpdates =>
-      _sessionsWithPendingUpdates;
+  Set<String> get testSessionsWithPendingUpdates => _sessionsWithPendingUpdates;
 
   /// Mutable ephemeral timestamps map.
   @visibleForTesting
@@ -778,7 +778,6 @@ what you have, you must use the options mode.
     _syncStateController.add(null);
   }
 
-
   /// Returns true for transient network errors that are not actionable
   /// (e.g. DNS failure, timeout, Cronet aborting a connection because the
   /// app was backgrounded, or Socket.IO connection issues).
@@ -799,7 +798,9 @@ what you have, you must use the options mode.
         msg.contains('Failed host lookup') ||
         msg.contains('No address associated') ||
         msg.contains('Connection closed') ||
-        msg.contains('Software caused connection abort');
+        msg.contains('Software caused connection abort') ||
+        msg.contains('Machine encryption not found') ||
+        msg.contains('operation has timed out');
   }
 
   /// Whether [error] indicates a machine/session RPC method that

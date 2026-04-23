@@ -29,6 +29,8 @@ bool _isTransientSocketError(String error) {
       lower.contains('handshakeexception') ||
       lower.contains('connection terminated during handshake') ||
       lower.contains('bad certificate') ||
+      lower.contains('not upgraded to websocket') ||
+      lower.contains('http status code: 503') ||
       // Socket.IO internal timeout (ACK timeout or ping timeout)
       lower.contains('timeout') ||
       lower.contains('socket.io error: timeout');
@@ -337,9 +339,7 @@ class SocketIoClient {
     });
 
     _socket!.onReconnectFailed((_) {
-      logger.warning(
-        'Socket.IO reconnection attempts exhausted',
-      );
+      logger.warning('Socket.IO reconnection attempts exhausted');
       unawaited(
         Sentry.addBreadcrumb(
           Breadcrumb(

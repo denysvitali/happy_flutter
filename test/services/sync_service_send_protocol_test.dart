@@ -5,6 +5,8 @@ import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/services/message_outbox.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 
@@ -88,6 +90,8 @@ void main() {
     dynamic capturedRequestData;
     String? capturedSocketEvent;
     dynamic capturedSocketData;
+    var responseStatus = 200;
+    Map<String, dynamic>? responseData;
 
     setUp(() async {
       instance = Sync();
@@ -119,6 +123,8 @@ void main() {
       capturedRequestData = null;
       capturedSocketEvent = null;
       capturedSocketData = null;
+      responseStatus = 200;
+      responseData = null;
       await ApiClient().initialize(serverUrl: 'http://localhost');
       ApiClient().testDio!.interceptors.add(
         InterceptorsWrapper(
@@ -130,6 +136,16 @@ void main() {
               final requestMessage =
                   requestMessages.first as Map<String, dynamic>;
               final requestLocalId = requestMessage['localId'] as String?;
+              if (responseStatus != 200) {
+                handler.resolve(
+                  Response<dynamic>(
+                    requestOptions: options,
+                    statusCode: responseStatus,
+                    data: responseData ?? <String, dynamic>{},
+                  ),
+                );
+                return;
+              }
               handler.resolve(
                 Response<dynamic>(
                   requestOptions: options,
@@ -159,10 +175,30 @@ void main() {
           },
         ),
       );
+      messageOutbox.dispose();
+      messageOutbox.testStorage = _FakeMMKVStorage();
+      messageOutbox.configure(
+        deliver: (_) async => false,
+        onStatusChanged: (sid, lid, status) {
+          final msgs = instance.testSessionMessages(sid);
+          if (msgs == null) return;
+          instance.testSetSessionMessages(
+            sid,
+            msgs.map((m) {
+              if (m['localId'] == lid || m['id'] == lid) {
+                return <String, dynamic>{...m, 'sendStatus': status};
+              }
+              return m;
+            }).toList(),
+          );
+        },
+      );
     });
 
     tearDown(() {
       ApiClient().dispose();
+      messageOutbox.dispose();
+      messageOutbox.testStorage = MMKVStorage.testConstructor();
       instance.testSessions.clear();
       instance.testIsInitialized = false;
       instance.testSocketConnectedOverride = null;
@@ -215,6 +251,27 @@ void main() {
         (m) => m['localId'] == 'client-local-42',
       );
       expect(optimistic, isNotEmpty);
+    });
+
+    test('HTTP 500 queues retry with the same localId and one row', () async {
+      responseStatus = 500;
+      responseData = <String, dynamic>{'error': 'failed to send messages'};
+
+      await instance.sendMessage(
+        'sess-1',
+        'retry me',
+        clientLocalId: 'client-local-500',
+      );
+      await instance.lastCompleteSendFuture;
+
+      expect(messageOutbox.contains('client-local-500'), isTrue);
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final matching = localMessages.where(
+        (m) => m['localId'] == 'client-local-500',
+      );
+      expect(matching, hasLength(1));
+      expect(matching.single['sendStatus'], 'pending');
     });
 
     test('uses REST as primary path even when socket is connected', () async {
@@ -312,4 +369,18 @@ void main() {
       );
     });
   });
+}
+
+class _FakeMMKVStorage extends MMKVStorage {
+  _FakeMMKVStorage() : super.testConstructor();
+
+  String? _outboxData;
+
+  @override
+  Future<String?> getOutboxEntries() async => _outboxData;
+
+  @override
+  Future<void> saveOutboxEntries(String json) async {
+    _outboxData = json;
+  }
 }
