@@ -386,7 +386,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         latestSession?.agentState?.requests?.isNotEmpty ?? false;
     final newPermission = !hadRequests && hasRequests;
 
-    final needsScreenRebuild = sessionChanged;
+    final needsScreenRebuild = sessionChanged || messagesChanged;
     void applyUpdates() {
       if (sessionChanged) {
         _session = latestSession;

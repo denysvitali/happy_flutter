@@ -260,6 +260,53 @@ void main() {
       expect(find.text('Response message'), findsOneWidget);
     });
 
+    testWidgets('rebuilds header status when only message status changes', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSessions['session_1'] = _makeSession(presence: 'online');
+      sync.testSetLastEphemeralAt(
+        'session_1',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'local-1',
+          'localId': 'local-1',
+          'role': 'user',
+          'content': 'Hello',
+        },
+      ]);
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Retry queued'), findsNothing);
+
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'local-1',
+          'localId': 'local-1',
+          'role': 'user',
+          'content': 'Hello',
+          'sendStatus': 'pending',
+        },
+      ]);
+      sync.testNotifySessionMessagesChanged('session_1');
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text('Retry queued'),
+        findsNWidgets(2),
+        reason: 'The app bar chip and user bubble should both update.',
+      );
+    });
+
     testWidgets('text field accepts user input', (tester) async {
       sync.testSetSessionMessages('session_1', const []);
 
