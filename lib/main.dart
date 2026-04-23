@@ -438,11 +438,15 @@ class _HappyAppState extends ConsumerState<HappyApp>
           onSuspend: () {
             // App is no longer visible — disconnect the socket and cancel
             // all timers to ensure zero network traffic and battery drain.
+            FrameMetricsService.instance.detach();
             sync.suspend();
             storage.SettingsStorage().suspend();
           },
           onResume: () {
             // App is foregrounded — reconnect and catch up on missed events.
+            if (sentryEnableFrameMetrics && sentryTracesSampleRate > 0) {
+              FrameMetricsService.instance.attach();
+            }
             sync.resume();
             // Re-apply theme in case system dark/light mode changed.
             _applyThemeFromSettings();
