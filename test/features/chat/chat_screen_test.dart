@@ -282,7 +282,10 @@ void main() {
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
       );
-      await tester.pumpAndSettle();
+      // Avoid pumpAndSettle: the online status chip uses an infinite
+      // pulse animation so settling never completes.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Retry queued'), findsNothing);
 
