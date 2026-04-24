@@ -209,10 +209,26 @@ class SidechainGrouper {
           ((msg['parentUuid'] as String?)?.isNotEmpty ?? false)) {
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
+        // Try prompt fallback for isSidechain children: if the parent
+        // couldn't be found by uuid, the message's prompt field (from
+        // WireParsers.asMap(input)['prompt']) might match a Task.
+        final prompt = WireParsers.asMap(msg['input'])['prompt'] as String?;
 
-        if (parentUuid != null &&
-            uuidToSidechainId.containsKey(parentUuid)) {
-          final sidechainId = uuidToSidechainId[parentUuid]!;
+        // First try uuidToSidechainId (nearest-ancestor index),
+        // then fall back to promptToTaskId like sidechain-root does.
+        String? sidechainId;
+        if (parentUuid != null) {
+          final p = parentUuid;
+          if (uuidToSidechainId.containsKey(p)) {
+            sidechainId = uuidToSidechainId[p];
+          } else if (prompt != null && promptToTaskId.containsKey(prompt)) {
+            sidechainId = promptToTaskId[prompt];
+          }
+        } else if (prompt != null && promptToTaskId.containsKey(prompt)) {
+          sidechainId = promptToTaskId[prompt];
+        }
+
+        if (sidechainId != null) {
           final id = msg['id'] as String?;
           if (id != null && id.isNotEmpty) {
             uuidToSidechainId[id] = sidechainId;

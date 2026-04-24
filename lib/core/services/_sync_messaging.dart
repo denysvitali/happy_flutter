@@ -167,10 +167,35 @@ extension SyncMessaging on Sync {
           '(cursor=$cursorSeq server=$serverLastSeq) '
           '— skipping',
         );
-        // Notify UI so any pending loading state clears, but do NOT
-        // trigger a message cache save — no messages changed.
-        _notifySessionMessagesChangedUiOnly(sessionId);
-        _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        // Even when skipping the HTTP fetch, run the sidechain grouper
+        // if there are pending orphans — they arrived via socket inline
+        // processing but grouping may not have run yet (e.g. the last
+        // inline batch had no top-level sidechain content but orphans
+        // from a prior batch are still in the list).  Also run if the
+        // session was marked as needing regroup when visible.
+        final messages = _sessionMessages[sessionId];
+        final hasOrphans = messages != null &&
+            messages.any((m) => m['isSidechain'] == true);
+        if (hasOrphans ||
+            _sessionsNeedingVisibleRegroup.contains(sessionId)) {
+          // Log orphan count for telemetry — helps quantify how often
+          // this catch-up path fixes sidechain orphans.
+          if (hasOrphans) {
+            // hasOrphans is only true when messages != null
+            final orphanCount = messages.where((m) => m['isSidechain'] == true).length;
+            logger.info(
+              '[fetchMessages] $sessionId: caught-up skip with '
+              '$orphanCount orphan(s) — running grouper in catch-up path',
+            );
+          }
+          _groupSidechainMessages(sessionId);
+          _sessionsNeedingVisibleRegroup.remove(sessionId);
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        } else {
+          _notifySessionMessagesChangedUiOnly(sessionId);
+          _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        }
         return;
       }
 
