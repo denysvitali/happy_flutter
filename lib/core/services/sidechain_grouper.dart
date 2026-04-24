@@ -92,12 +92,18 @@ class SidechainGrouper {
     final promptToTaskId = <String, String>{};
     final uuidToSidechainId = <String, String>{};
 
+    // Identity-based visited set guards against cycles in the
+    // children graph (e.g. msg['children'] contains msg itself).
+    // Map has no == override so default equality is by identity.
+    final visitedWalk = <Map<String, dynamic>>{};
+
     void walkAndIndex(
       List<dynamic> msgs,
       String? ancestorTaskId,
     ) {
       for (final m in msgs) {
         if (m is! Map<String, dynamic>) continue;
+        if (!visitedWalk.add(m)) continue;
         final isTask = m['kind'] == 'tool-call' &&
             (m['name'] == 'Task' || m['name'] == 'Agent');
         var nextAncestorId = ancestorTaskId;
@@ -233,6 +239,14 @@ class SidechainGrouper {
 
         if (sidechainId != null) {
           final id = msg['id'] as String?;
+          // Refuse to make a message a child of itself.  Without this
+          // guard, a Task whose parentUuid resolves to its own id/uuid/
+          // toolUseId would be attached to its own children array,
+          // producing a cycle that blows the stack in walkAndIndex and
+          // regroupNestedTasks on the next grouping pass.
+          if (id != null && id == sidechainId) {
+            continue;
+          }
           if (id != null && id.isNotEmpty) {
             uuidToSidechainId[id] = sidechainId;
           }
@@ -319,11 +333,26 @@ class SidechainGrouper {
   /// Recursively regroup sidechain children so nested
   /// Task tool-calls within a children array get their
   /// own children sub-arrays.
-  void regroupNestedTasks(List<Map<String, dynamic>> children) {
+  ///
+  /// [visited] tracks message identities across the recursion so a
+  /// cyclic children graph (e.g. a prior bug or malformed payload
+  /// that left `msg['children']` containing `msg`) cannot blow the
+  /// stack.  Callers at the top level can omit it; internal
+  /// recursion threads the same set through each descent.
+  void regroupNestedTasks(
+    List<Map<String, dynamic>> children, {
+    Set<Map<String, dynamic>>? visited,
+  }) {
+    visited ??= <Map<String, dynamic>>{};
+    // Filter to unvisited maps to prevent infinite recursion when
+    // a cycle exists in the tree.  We mutate `children` below
+    // (indices and removals), so we don't rebuild the list — we
+    // just skip already-visited entries at the decision points.
     // Find inner Task tool-calls and their stable identifiers.
     final uuidToTask = <String, Map<String, dynamic>>{};
     final promptToTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
+      if (!visited.add(child)) continue;
       if (child['kind'] == 'tool-call' &&
           (child['name'] == 'Task' ||
               child['name'] == 'Agent')) {
@@ -445,6 +474,13 @@ class SidechainGrouper {
             uuidToGroupedTask.containsKey(parentUuid)) {
           final task = uuidToGroupedTask[parentUuid]!;
           final taskId = task['id'] as String;
+          // Refuse to attach a message to itself.  A Task whose
+          // parentUuid resolves to its own id/uuid/toolUseId would
+          // otherwise end up in its own children array, creating a
+          // cycle that crashes subsequent grouping passes.
+          if (identical(child, task)) continue;
+          final childId = child['id'] as String?;
+          if (childId != null && childId == taskId) continue;
           taskChildren
               .putIfAbsent(taskId, () => [])
               .add(child);
@@ -487,10 +523,11 @@ class SidechainGrouper {
             }
             regroupNestedTasks(
               existing.cast<Map<String, dynamic>>(),
+              visited: visited,
             );
           } else {
             child['children'] = entry.value;
-            regroupNestedTasks(entry.value);
+            regroupNestedTasks(entry.value, visited: visited);
           }
           break;
         }

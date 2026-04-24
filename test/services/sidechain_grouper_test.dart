@@ -803,4 +803,127 @@ void main() {
       expect(bChildren[0]['id'], 'child-b');
     });
   });
+
+  // ── Cycle prevention ─────────────────────────────────────
+  //
+  // Production incident: a session with many running agents could
+  // blow the stack (57k+ identical frames) and freeze the app when
+  // a Task message's parentUuid resolved to its own identifier, or
+  // when a prior corruption left `msg['children']` containing
+  // `msg`.  These tests lock down both the creation guard and the
+  // defence-in-depth visited-set recursion limit.
+  group('cycle prevention', () {
+    test(
+        'Task whose parentUuid matches its own uuid is not '
+        'attached to itself', () {
+      final task = <String, dynamic>{
+        'id': 'task-1',
+        'kind': 'tool-call',
+        'name': 'Task',
+        'uuid': 'task-uuid',
+        // Malformed: parent points back to self.
+        'parentUuid': 'task-uuid',
+        'isSidechain': true,
+      };
+      final result = grouper.groupMessages([task]);
+      // Either no grouping (null) or a result where the task has
+      // no children (and is not its own child).
+      if (result != null) {
+        final children =
+            task['children'] as List<dynamic>?;
+        if (children != null) {
+          expect(
+            children.any((c) => identical(c, task)),
+            isFalse,
+            reason: 'Task must not be its own child',
+          );
+        }
+      }
+    });
+
+    test(
+        'Task whose parentUuid matches its own id is not '
+        'attached to itself', () {
+      const taskId = 'task-1';
+      final task = <String, dynamic>{
+        'id': taskId,
+        'kind': 'tool-call',
+        'name': 'Task',
+        'uuid': 'task-uuid',
+        'parentUuid': taskId,
+        'isSidechain': true,
+      };
+      final result = grouper.groupMessages([task]);
+      if (result != null) {
+        final children = task['children'] as List<dynamic>?;
+        if (children != null) {
+          expect(
+            children.any((c) => identical(c, task)),
+            isFalse,
+          );
+        }
+      }
+    });
+
+    test(
+        'pre-existing cyclic children graph does not blow the '
+        'stack (walkAndIndex guard)', () {
+      // Simulate a cycle that might have leaked in from a prior
+      // bug or corrupted payload: task.children contains task.
+      final task = <String, dynamic>{
+        'id': 'task-1',
+        'kind': 'tool-call',
+        'name': 'Task',
+        'uuid': 'task-uuid',
+      };
+      task['children'] = <Map<String, dynamic>>[task];
+
+      // Must terminate instead of recursing forever.
+      // Any return value is acceptable — the assertion is that
+      // the call completes without a stack overflow.
+      expect(() => grouper.groupMessages([task]), returnsNormally);
+    });
+
+    test(
+        'pre-existing cyclic children graph does not blow the '
+        'stack (regroupNestedTasks guard)', () {
+      final task = <String, dynamic>{
+        'id': 'task-1',
+        'kind': 'tool-call',
+        'name': 'Task',
+        'uuid': 'task-uuid',
+      };
+      final cyclicChildren = <Map<String, dynamic>>[task];
+      task['children'] = cyclicChildren;
+
+      expect(
+        () => grouper.regroupNestedTasks(cyclicChildren),
+        returnsNormally,
+      );
+    });
+
+    test(
+        'two-node cycle (A↔B via children) does not blow the '
+        'stack', () {
+      final taskA = <String, dynamic>{
+        'id': 'task-a',
+        'kind': 'tool-call',
+        'name': 'Task',
+        'uuid': 'a-uuid',
+      };
+      final taskB = <String, dynamic>{
+        'id': 'task-b',
+        'kind': 'tool-call',
+        'name': 'Task',
+        'uuid': 'b-uuid',
+      };
+      taskA['children'] = <Map<String, dynamic>>[taskB];
+      taskB['children'] = <Map<String, dynamic>>[taskA];
+
+      expect(
+        () => grouper.groupMessages([taskA, taskB]),
+        returnsNormally,
+      );
+    });
+  });
 }
