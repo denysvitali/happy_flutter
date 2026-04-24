@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/components/app_card.dart';
@@ -134,6 +133,7 @@ class VoiceLanguageSettingsScreen
 class _VoiceLanguageSettingsScreenState
     extends ConsumerState<VoiceLanguageSettingsScreen> {
   String _searchQuery = '';
+  bool _isPopping = false;
 
   List<_VoiceLanguageOption> get _filtered {
     if (_searchQuery.isEmpty) {
@@ -152,14 +152,21 @@ class _VoiceLanguageSettingsScreenState
   Future<void> _selectLanguage(
     _VoiceLanguageOption lang,
   ) async {
-    await ref
-        .read(settingsNotifierProvider.notifier)
-        .updateSetting(
-          'voiceAssistantLanguage',
-          lang.code.isEmpty ? null : lang.code,
-        );
-    if (mounted) {
-      unawaited(Navigator.of(context).maybePop());
+    if (_isPopping) return;
+    _isPopping = true;
+    try {
+      await ref
+          .read(settingsNotifierProvider.notifier)
+          .updateSetting(
+            'voiceAssistantLanguage',
+            lang.code.isEmpty ? null : lang.code,
+          );
+      if (mounted) {
+        await Navigator.of(context).maybePop();
+        if (mounted) _isPopping = false;
+      }
+    } catch (_) {
+      if (mounted) _isPopping = false;
     }
   }
 

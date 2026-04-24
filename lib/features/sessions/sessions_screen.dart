@@ -21,6 +21,8 @@ import 'widgets/new_session_dialog.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
 
+enum _NavigationAction { switchToSessions, closeFolder, exitConfirm }
+
 /// Sessions list screen with date grouping and enhanced
 /// status display.
 class SessionsScreen extends ConsumerStatefulWidget {
@@ -43,6 +45,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   final _searchController = TextEditingController();
   bool _isSearching = false;
   Timer? _searchDebounce;
+  /// Tracks a pending navigation action so that canPop remains false
+  /// for the duration of the async setState, preventing rapid back
+  /// presses from racing with state updates.
+  _NavigationAction? _pendingNav;
 
   @override
   void initState() {
@@ -131,28 +137,45 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
 
     return PopScope(
-      canPop: _activeTab == AppTab.sessions &&
+      // Always block if a navigation action is already pending —
+      // read current state at callback time rather than relying on
+      // the build-time value to avoid races with async setState.
+      canPop: _pendingNav == null &&
+          _activeTab == AppTab.sessions &&
           _folderNotifier.value == null,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _activeTab != AppTab.sessions) {
-          setState(() => _activeTab = AppTab.sessions);
+        if (_pendingNav != null) return;
+        final currentTab = _activeTab;
+        final folder = _folderNotifier.value;
+        if (!didPop && currentTab != AppTab.sessions) {
+          _pendingNav = _NavigationAction.switchToSessions;
+          setState(() {
+            _activeTab = AppTab.sessions;
+            _pendingNav = null;
+          });
           _updateUrlTab(AppTab.sessions);
         } else if (!didPop &&
-            _activeTab == AppTab.sessions &&
-            _folderNotifier.value != null) {
-          _folderNotifier.value = null;
-        } else if (!didPop && _activeTab == AppTab.sessions) {
+            currentTab == AppTab.sessions &&
+            folder != null) {
+          _pendingNav = _NavigationAction.closeFolder;
+          setState(() {
+            _folderNotifier.value = null;
+            _pendingNav = null;
+          });
+        } else if (!didPop && currentTab == AppTab.sessions) {
           final now = DateTime.now();
           if (_lastBackPressTime == null ||
               now.difference(_lastBackPressTime!) >
                   const Duration(seconds: 2)) {
             _lastBackPressTime = now;
+            _pendingNav = _NavigationAction.exitConfirm;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(context.l10n.sessionsPressBackToExit),
                 duration: const Duration(seconds: 2),
               ),
             );
+            _pendingNav = null;
           }
         }
       },

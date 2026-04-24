@@ -108,18 +108,16 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     // Populate fields once on first build after artifact loads.
     _initFromArtifact(artifact);
 
-    // Check for unsaved changes
-    final originalTitle = artifact.title ?? '';
-    final originalContent = artifact.body ?? '';
-    final currentTitle = _titleController.text.trim();
-    final currentContent = _contentController.text.trim();
-    final hasUnsavedChanges =
-        currentTitle != originalTitle || currentContent != originalContent;
-
     return PopScope(
-      canPop: !hasUnsavedChanges,
+      // Read current text at pop-gesture time, not build time,
+      // to avoid stale state when text changes between canPop
+      // evaluation and the callback being invoked.
+      canPop: _titleController.text.trim() == (artifact.title ?? '') &&
+          _contentController.text.trim() == (artifact.body ?? ''),
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && hasUnsavedChanges) {
+        if (!didPop &&
+            (_titleController.text.trim() != (artifact.title ?? '') ||
+                _contentController.text.trim() != (artifact.body ?? ''))) {
           _showUnsavedChangesDialog(context);
         }
       },
@@ -252,25 +250,25 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     );
   }
 
-  void _showUnsavedChangesDialog(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+  void _showUnsavedChangesDialog(BuildContext screenContext) {
+    final cs = Theme.of(screenContext).colorScheme;
     showDialog(
-      context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context);
+      context: screenContext,
+      builder: (dialogContext) {
+        final l10n = AppLocalizations.of(dialogContext);
         return AlertDialog(
           title: Text(l10n.commonUnsavedChangesTitle),
           content: Text(l10n.commonUnsavedChangesContent),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: Text(l10n.chatStay),
             ),
             TextButton(
               style: TextButton.styleFrom(foregroundColor: cs.error),
               onPressed: () {
-                Navigator.pop(context);
-                Navigator.of(this.context).pop();
+                Navigator.pop(dialogContext);
+                Navigator.of(screenContext).pop();
               },
               child: Text(l10n.chatLeave),
             ),

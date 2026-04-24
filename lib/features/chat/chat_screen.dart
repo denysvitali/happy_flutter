@@ -819,11 +819,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: _controller,
       builder: (context, value, child) {
-        final hasUnsentMessage = value.text.trim().isNotEmpty;
+        // Always evaluate canPop at pop-gesture time via the callback.
+        // Using !didPop guards on the actual current text, not the
+        // build-time value that may have changed between keystrokes.
         return PopScope(
-          canPop: !hasUnsentMessage,
+          canPop: value.text.trim().isEmpty,
           onPopInvokedWithResult: (didPop, _) {
-            if (!didPop && hasUnsentMessage) {
+            if (!didPop && _controller.text.trim().isNotEmpty) {
               showUnsentMessageDialog(
                 context,
                 sessionId: widget.sessionId,
