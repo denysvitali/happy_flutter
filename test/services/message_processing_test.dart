@@ -73,6 +73,9 @@ void main() {
       expect(result.$1.first['kind'], 'text');
       expect(result.$1.first['role'], 'agent');
       expect(result.$1.first['content'], 'Hello! How can I help?');
+      // Per-message inference model from Claude Code must be surfaced so
+      // the chat UI shows the real model instead of session metadata.
+      expect(result.$1.first['model'], 'claude-opus-4-6');
     });
 
     test('maps agent output with tool_use content', () {
@@ -107,10 +110,39 @@ void main() {
 
       expect(result.$1, hasLength(2));
       expect(result.$1[0]['kind'], 'text');
+      expect(result.$1[0]['model'], 'claude-opus-4-6');
       expect(result.$1[1]['kind'], 'tool-call');
       expect(result.$1[1]['name'], 'Read');
       expect(result.$1[1]['state'], 'running');
       expect(result.$1[1]['toolUseId'], 'tu_1');
+      expect(result.$1[1]['model'], 'claude-opus-4-6');
+    });
+
+    test('omits model on assistant output when absent from payload', () {
+      final result = instance.testProcessDecryptedMessage(
+        id: 'msg_no_model',
+        seq: 99,
+        sessionId: 'session_1',
+        content: {
+          'role': 'agent',
+          'content': {
+            'type': 'output',
+            'data': {
+              'type': 'assistant',
+              'uuid': 'abc-no-model',
+              'message': {
+                'role': 'assistant',
+                'content': [
+                  {'type': 'text', 'text': 'No model field here.'},
+                ],
+              },
+            },
+          },
+        },
+      );
+
+      expect(result.$1, hasLength(1));
+      expect(result.$1.first.containsKey('model'), isFalse);
     });
 
     test('maps agent output tool_result to tool results', () {

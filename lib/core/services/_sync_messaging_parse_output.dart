@@ -239,6 +239,10 @@ extension SyncMessagingParseOutput on Sync {
         _updateSessionUsage(sessionId, usageData, createdAt);
       }
 
+      // Authoritative per-message inference model (e.g. "claude-opus-4-7").
+      // Session metadata may carry a stale/user-supplied label — prefer this.
+      final agentModel = agentMsg['model'] as String?;
+
       final agentContentList = agentMsg['content'];
       if (agentContentList is! List) return ([], []);
 
@@ -262,6 +266,7 @@ extension SyncMessagingParseOutput on Sync {
             'kind': 'text',
             'content': c['text']?.toString() ?? '',
             'raw': outerContent,
+            'model': ?agentModel,
             if (isSidechain) 'isSidechain': true,
             'uuid': dataUuid,
             'parentUuid': ?dataParentUuid,
@@ -277,6 +282,7 @@ extension SyncMessagingParseOutput on Sync {
             'isThinking': true,
             'content': '*Thinking...*\n\n*${c['thinking']}*',
             'raw': outerContent,
+            'model': ?agentModel,
             if (isSidechain) 'isSidechain': true,
             'uuid': dataUuid,
             'parentUuid': ?dataParentUuid,
@@ -298,6 +304,7 @@ extension SyncMessagingParseOutput on Sync {
             'state': 'running',
             'content': c,
             'raw': outerContent,
+            'model': ?agentModel,
             if (isSidechain) 'isSidechain': true,
             'uuid': dataUuid,
             'parentUuid': ?dataParentUuid,

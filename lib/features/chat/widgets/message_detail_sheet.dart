@@ -23,8 +23,12 @@ void showMessageDetailSheet(
   final raw = WireParsers.asMap(messageData['raw']);
   final meta = WireParsers.asMap(messageData['meta'])
       ?? WireParsers.asMap(raw?['meta']);
-  final model = meta?['model'] as String?
-      ?? messageData['model'] as String?;
+  // Prefer the per-message model reported by Claude Code
+  // (messageData['model'], parsed from the assistant payload) over the
+  // session-level meta.model, which is a user-supplied label and can be
+  // stale or unrelated to the actual inference model.
+  final model = messageData['model'] as String?
+      ?? meta?['model'] as String?;
   final permissionMode = meta?['permissionMode'] as String?;
   final createdAt = messageData['createdAt'] as int?;
 
