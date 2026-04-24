@@ -569,6 +569,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       message['kind'],
       message['state'],
       message['isThinking'],
+      message['sendStatus'],
       contentHash,
     );
   }
