@@ -190,8 +190,9 @@ extension SyncSocket on Sync {
     unawaited(
       Future.wait([sessionsSync.awaitQueue(), machinesSync.awaitQueue()])
           .then((_) => _isReady = true)
-          .catchError((Object error) {
-            logger.warning('Failed initial ready sync', error);
+          .catchError((Object error, StackTrace stack) {
+            logger.error('Failed initial ready sync', error, stack);
+            Sentry.captureException(error, stackTrace: stack);
             return true; // Error handled — do not propagate
           }),
     );

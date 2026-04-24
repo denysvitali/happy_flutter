@@ -344,6 +344,7 @@ extension SyncDataMachines on Sync {
     } catch (error, stack) {
       if (Sync._isTransientConnectionError(error)) {
         logger.warning('Error fetching machines', error, stack);
+        Sentry.captureException(error, stackTrace: stack);
       } else {
         logger.error('Error fetching machines', error, stack);
       }

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../models/auth.dart';
 import '../services/logger_service.dart' show logger;
@@ -191,12 +192,13 @@ class RetryInterceptor extends Interceptor {
       return handler.next(e);
     } catch (e, s) {
       // Non-Dio errors should not be retried; log since this is unexpected
-      logger.warning(
+      logger.error(
         'RetryInterceptor: unexpected non-Dio error during retry for '
         '${err.requestOptions.method} ${err.requestOptions.path}: $e',
         e,
         s,
       );
+      Sentry.captureException(e, stackTrace: s);
       return handler.next(
         DioException(
           requestOptions: err.requestOptions,

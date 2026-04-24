@@ -4,6 +4,7 @@ import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../services/logger_service.dart' show logger;
@@ -44,7 +45,8 @@ class GemmaService {
       _initialized = true;
       logger.info('GemmaService: model loaded successfully');
     } catch (e, stack) {
-      logger.warning('GemmaService: failed to load model', e, stack);
+      logger.error('GemmaService: failed to load model', e, stack);
+      Sentry.captureException(e, stackTrace: stack);
       _initialized = true;
       _interpreter = null;
     }
@@ -60,8 +62,9 @@ class GemmaService {
     try {
       _interpreter!.run([input], [output]);
       return output;
-    } catch (e) {
-      logger.warning('GemmaService: inference failed', e);
+    } catch (e, stack) {
+      logger.error('GemmaService: inference failed', e, stack);
+      Sentry.captureException(e, stackTrace: stack);
       return [];
     }
   }
@@ -94,8 +97,9 @@ class GemmaService {
           (b['gemmaScore'] as double).compareTo(a['gemmaScore'] as double));
 
       return sessionScores;
-    } catch (e) {
-      logger.warning('GemmaService: rankSessions failed', e);
+    } catch (e, stack) {
+      logger.error('GemmaService: rankSessions failed', e, stack);
+      Sentry.captureException(e, stackTrace: stack);
       return sessions;
     }
   }
@@ -129,8 +133,9 @@ class GemmaService {
       }
 
       return tags;
-    } catch (e) {
-      logger.warning('GemmaService: classifySession failed', e);
+    } catch (e, stack) {
+      logger.error('GemmaService: classifySession failed', e, stack);
+      Sentry.captureException(e, stackTrace: stack);
       return [];
     }
   }

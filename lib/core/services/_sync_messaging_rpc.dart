@@ -45,7 +45,11 @@ extension SyncMessagingRpc on Sync {
       }
       final decrypted = await machineEncryption.decryptRaw(encryptedResult);
       if (decrypted == null) {
-        logger.warning('machineRPC $method: decryption returned null');
+        logger.error('machineRPC $method: decryption returned null');
+        Sentry.captureMessage(
+          'machineRPC $method: decryption returned null',
+          level: SentryLevel.error,
+        );
       }
       return decrypted;
     }

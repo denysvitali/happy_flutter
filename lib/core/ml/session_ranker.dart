@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../models/session.dart';
 import '../services/logger_service.dart' show logger;
@@ -57,8 +58,9 @@ class SessionRanker {
         };
 
         return _blendWithHeuristics(sessions, gemmaScores);
-      } catch (e) {
-        logger.warning('SessionRanker: Gemma ranking failed, using heuristics', e);
+      } catch (e, stack) {
+        logger.error('SessionRanker: Gemma ranking failed, using heuristics', e, stack);
+        Sentry.captureException(e, stackTrace: stack);
         return _heuristicRank(query, sessions);
       }
     }
@@ -76,8 +78,9 @@ class SessionRanker {
         'path': session.metadata?.path ?? '',
       };
       return await _gemma.classifySession(sessionMap);
-    } catch (e) {
-      logger.warning('SessionRanker: classifySession failed', e);
+    } catch (e, stack) {
+      logger.error('SessionRanker: classifySession failed', e, stack);
+      Sentry.captureException(e, stackTrace: stack);
       return [];
     }
   }
