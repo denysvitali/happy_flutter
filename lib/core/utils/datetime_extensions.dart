@@ -19,21 +19,26 @@ extension DateTimeExtensions on DateTime {
     return date;
   }
 
-  /// Format as "Today at HH:mm", "Yesterday at HH:mm", or "MMM d, yyyy HH:mm"
-  String toRelativeTimeString() {
+  /// Format as "Today at HH:mm", "Yesterday at HH:mm", or a
+  /// locale-aware full date+time string.
+  ///
+  /// Uses [locale] (e.g. 'en', 'de', 'fr') for date formatting.
+  /// Falls back to English strings for "Today"/"Yesterday" when no
+  /// matching ARB keys are defined.
+  String toRelativeTimeString({String locale = 'en'}) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final thisDate = DateTime(year, month, day);
 
-    final time = DateFormat('HH:mm').format(this);
+    final time = DateFormat.Hm(locale).format(this);
 
     if (thisDate == today) {
       return 'Today at $time';
     } else if (thisDate == yesterday) {
       return 'Yesterday at $time';
     } else {
-      return DateFormat('MMM d, yyyy HH:mm').format(this);
+      return DateFormat.yMMMd(locale).add_Hm(locale).format(this);
     }
   }
 }

@@ -361,7 +361,11 @@ String formatOSPlatform(String? platform) {
 }
 
 /// Formats the last seen time of a session into a human-readable relative time.
-String formatLastSeen(int activeAt, {bool isActive = false}) {
+String formatLastSeen(
+  int activeAt, {
+  bool isActive = false,
+  String locale = 'en',
+}) {
   if (isActive) {
     return 'Active now';
   }
@@ -384,7 +388,7 @@ String formatLastSeen(int activeAt, {bool isActive = false}) {
   } else {
     // Format as date using intl
     final date = DateTime.fromMillisecondsSinceEpoch(activeAt);
-    final formatter = DateFormat.yMMMd();
+    final formatter = DateFormat.yMMMd(locale);
     return formatter.format(date);
   }
 }
