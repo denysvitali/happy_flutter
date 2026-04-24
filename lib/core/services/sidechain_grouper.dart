@@ -212,7 +212,10 @@ class SidechainGrouper {
         // Try prompt fallback for isSidechain children: if the parent
         // couldn't be found by uuid, the message's prompt field (from
         // WireParsers.asMap(input)['prompt']) might match a Task.
-        final prompt = WireParsers.asMap(msg['input'])['prompt'] as String?;
+        final promptInput = WireParsers.asMap(msg['input']);
+        final prompt = promptInput != null
+            ? promptInput['prompt'] as String?
+            : null;
 
         // First try uuidToSidechainId (nearest-ancestor index),
         // then fall back to promptToTaskId like sidechain-root does.
