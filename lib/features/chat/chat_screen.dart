@@ -329,17 +329,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final sessionChanged = latestSession != _session;
     var messagesChanged = !identical(latestMessages, _messages);
-    final latestMessageFingerprint =
-        messagesChanged ||
-            latestMessages.length != _messages.length ||
-            _lastMessageFingerprint == 0
-        ? _computeMessageFingerprint(latestMessages)
-        : _lastMessageFingerprint;
 
-    if (messagesChanged &&
+    // Always compute fingerprint for same-length lists.  Unmodifiable
+    // view caches can be mutated in place (e.g. when the underlying
+    // _sessionMessages list is replaced but the view wrapper is reused),
+    // so identical() alone is not sufficient.
+    final latestMessageFingerprint =
         latestMessages.length == _messages.length &&
-        latestMessageFingerprint == _lastMessageFingerprint) {
-      messagesChanged = false;
+                _lastMessageFingerprint != 0
+            ? _computeMessageFingerprint(latestMessages)
+            : _computeMessageFingerprint(latestMessages);
+
+    if (latestMessages.length == _messages.length &&
+        _lastMessageFingerprint != 0) {
+      messagesChanged =
+          latestMessageFingerprint != _lastMessageFingerprint;
     }
 
     // When the session changes, always refresh messages — the session
