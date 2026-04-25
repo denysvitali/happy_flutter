@@ -98,6 +98,7 @@ extension SyncSocket on Sync {
     );
     settingsSync = InvalidateSync(
       syncSettings,
+      minInterval: Sync._settingsSyncMinInterval,
       name: 'syncSettings',
       onRunningChanged: _onSyncRunningChanged,
     );

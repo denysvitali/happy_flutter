@@ -129,7 +129,24 @@ extension SyncLifecycle on Sync {
     _flushSessionMessageNotifications();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     _persistSessionsCache();
-    socketIoClient.disconnect(preserveConnectionHistory: true);
+
+    // Don't disconnect the socket during rapid lifecycle cycling — the
+    // previous resume just established the connection and tearing it down
+    // forces a full reconnect on the next resume, which amplifies the
+    // cycle into a cascade of reconnects, session re-fetches, and message
+    // cache churn for 100+ sessions.  Just leave the socket connected and
+    // let the OS manage the network lifecycle.
+    final isRapidSuspend = _lastResumeAtMs != null &&
+        DateTime.now().millisecondsSinceEpoch - _lastResumeAtMs! <
+            Sync._resumeDebounceWindowMs;
+    if (isRapidSuspend) {
+      logger.debug(
+        '[Sync] rapid suspend — keeping socket connected '
+        '(last resume ${DateTime.now().millisecondsSinceEpoch - _lastResumeAtMs!}ms ago)',
+      );
+    } else {
+      socketIoClient.disconnect(preserveConnectionHistory: true);
+    }
   }
 
   /// Resume the sync engine when the app returns to the foreground.
@@ -178,7 +195,20 @@ extension SyncLifecycle on Sync {
         ),
       ),
     );
-    socketIoClient.reconnect();
+
+    // During rapid lifecycle cycling, the socket was intentionally left
+    // connected by suspend().  Don't tear it down — just resume lightweight
+    // services, keep the watchdog, and defer heavyweight work.  The socket
+    // reconnect path (disconnect + connect) on every rapid cycle amplifies
+    // into a cascade of 100+ session re-fetches and message cache saves.
+    if (!isRapidResume) {
+      socketIoClient.reconnect();
+    } else {
+      logger.debug(
+        '[Sync] rapid resume — skipping socket reconnect, '
+        'connection will self-heal',
+      );
+    }
 
     // Resume lightweight services immediately.
     messageOutbox.resume();
@@ -191,6 +221,22 @@ extension SyncLifecycle on Sync {
     // to trigger a fresh reconnect. The watchdog is cancelled on
     // suspend() and on successful socket connect.
     _scheduleReconnectWatchdog();
+
+    // Rapid resumes skip the full deferred invalidation cascade. Only
+    // process pending socket messages that arrived while backgrounded.
+    // The socket reconnected handler already covers the non-rapid case.
+    if (isRapidResume) {
+      _deferredResumeInvalidationTimer?.cancel();
+      _deferredResumeInvalidationTimer = Timer(
+        const Duration(milliseconds: 2000),
+        () {
+          _deferredResumeInvalidationTimer = null;
+          if (!isInitialized || InvalidateSync.isBackgrounded) return;
+          _processPendingResumeWork();
+        },
+      );
+      return;
+    }
 
     // Defer network-heavy invalidations so that foreground/background
     // cycling (e.g. Android 16 aggressive background management) does not
@@ -385,6 +431,66 @@ extension SyncLifecycle on Sync {
         }
       },
     );
+  }
+
+  /// Process pending socket messages that arrived while backgrounded.
+  ///
+  /// Called on rapid resume (where we intentionally skip the full
+  /// deferred invalidation cascade to avoid amplifying lifecycle cycling
+  /// into 100+ session re-fetches).  Only processes sessions that had
+  /// socket events while the app was suspended — does NOT trigger a
+  /// global _invalidateAllSyncs().
+  void _processPendingResumeWork() {
+    if (!isInitialized || InvalidateSync.isBackgrounded) return;
+
+    final sessionsToRefresh = <String>{};
+
+    if (_sessionsWithPendingSocketMessages.isNotEmpty) {
+      _sessionsWithPendingSocketMessages.remove(_visibleSessionId);
+      final batch = _sessionsWithPendingSocketMessages
+          .take(Sync._maxResumeMessageSyncs)
+          .toList();
+      for (final sessionId in batch) {
+        _sessionsWithPendingSocketMessages.remove(sessionId);
+        if (_shouldForceTailRefreshForPendingSession(sessionId)) {
+          _sessionsNeedingTailRefresh.add(sessionId);
+        }
+        sessionsToRefresh.add(sessionId);
+      }
+      logger.info(
+        '[Sync] rapid resume: processing ${batch.length} pending sessions '
+        '(${_sessionsWithPendingSocketMessages.length} remaining in queue)',
+      );
+      if (_sessionsWithPendingSocketMessages.isNotEmpty) {
+        _scheduleResumeMessageBatch();
+      }
+    }
+
+    if (_visibleSessionId != null) {
+      sessionsToRefresh.add(_visibleSessionId!);
+    }
+
+    if (sessionsToRefresh.isNotEmpty) {
+      for (final sessionId in sessionsToRefresh) {
+        if (!messagesSync.containsKey(sessionId)) {
+          messagesSync[sessionId] = InvalidateSync(
+            () => fetchMessages(sessionId),
+            minInterval: Sync._messagesSyncMinInterval,
+            name: 'fetchMessages',
+            onRunningChanged: _onSyncRunningChanged,
+          );
+        }
+      }
+      sessionsSync.invalidate();
+      unawaited(
+        sessionsSync.awaitQueue().then((_) {
+          for (final sessionId in sessionsToRefresh) {
+            _sessionsNeedingFetchProbe.add(sessionId);
+            messagesSync[sessionId]?.invalidate();
+          }
+        }),
+      );
+    }
   }
 
   /// Schedule (or reschedule) a reconnection watchdog timer.
@@ -593,6 +699,7 @@ extension SyncLifecycle on Sync {
     _settingsVersion = 0;
     _purchases = Purchases.defaults;
     pendingSettings.clear();
+    _lastSettingsPostAtMs = null;
     _registeredPushToken = null;
     _nativeUpdateUrl = null;
     _isReady = false;

@@ -51,36 +51,26 @@ class ChatActionNotifier extends Notifier<void> {
     return sync.deleteSession(sessionId);
   }
 
-  /// Apply settings through sync.
-  void applySettings(Map<String, dynamic> settings) {
-    if (!sync.isInitialized) return;
-    try {
-      sync.applySettings(settings);
-    } catch (e, stack) {
-      logger.warning('Failed to apply settings', e, stack);
-    }
-  }
-
   /// Save the permission mode for a session and update settings.
   void savePermissionMode(String sessionId, String modeString) {
     DraftStorage().savePermissionMode(sessionId, modeString);
+    // updateSetting() calls sync.applySettings() internally.
     unawaited(
       ref
           .read(settingsNotifierProvider.notifier)
           .updateSetting('lastUsedPermissionMode', modeString),
     );
-    applySettings({'lastUsedPermissionMode': modeString});
   }
 
   /// Save the model mode for a session and update settings.
   void saveModelMode(String sessionId, String modeString) {
     DraftStorage().saveModelMode(sessionId, modeString);
+    // updateSetting() calls sync.applySettings() internally.
     unawaited(
       ref
           .read(settingsNotifierProvider.notifier)
           .updateSetting('lastUsedModelMode', modeString),
     );
-    applySettings({'lastUsedModelMode': modeString});
   }
 
   /// Save the profile selection and update settings.
@@ -95,12 +85,13 @@ class ChatActionNotifier extends Notifier<void> {
     }
     // Update the Settings notifier state so PickProfileScreen
     // and other screens see the new selection immediately.
+    // updateSetting() calls sync.applySettings() internally —
+    // no separate applySettings() needed here.
     unawaited(
       ref
           .read(settingsNotifierProvider.notifier)
           .updateSetting('lastUsedProfile', profileId),
     );
-    applySettings({'lastUsedProfile': profileId});
   }
 }
 

@@ -38,6 +38,7 @@ extension SyncOperations on Sync {
             _settingsVersion = newVersion;
           }
           postedSuccessfully = true;
+          _lastSettingsPostAtMs = DateTime.now().millisecondsSinceEpoch;
           _notifyDataChanged({SyncDomain.settings});
           unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
         } else if (updateData?['error'] == 'version-mismatch') {

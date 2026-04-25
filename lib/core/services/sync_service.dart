@@ -299,6 +299,13 @@ what you have, you must use the options mode.
   int? _lastResumeAtMs;
   int? _lastSuspendedAtMs;
 
+  /// Timestamp of the last successful settings POST.  Used to suppress
+  /// the socket echo that follows immediately after a local write —
+  /// without this, every local settings change triggers a redundant
+  /// server round-trip (the echo fires settingsSync.invalidate() which
+  /// does a GET, doubling the HTTP load for every profile/model switch).
+  int? _lastSettingsPostAtMs;
+
   /// Snapshot of _sessionLastSeq for the visible session captured at the
   /// moment of socket reconnection.  Used by fetchMessages to start the
   /// reconnection fetch from the pre-reconnect cursor position, avoiding
@@ -863,6 +870,17 @@ what you have, you must use the options mode.
   /// back-to-back /v2/sessions HTTP requests — the debounce timer only
   /// throttles the *scheduling*, not the InvalidateSync itself.
   static const Duration _sessionsSyncMinInterval = Duration(seconds: 2);
+
+  /// Minimum interval between consecutive settings syncs.  Without this,
+  /// profile switching and socket-echo cascades can cause rapid-fire POST
+  /// and GET cycles that amplify into settings sync storms.
+  static const Duration _settingsSyncMinInterval = Duration(seconds: 2);
+
+  /// Window after a successful settings POST during which the socket
+  /// echo is suppressed.  The server broadcasts an update-account event
+  /// immediately after committing the POST — without this filter, the
+  /// client receives its own write as an update and does a redundant GET.
+  static const int _settingsEchoFilterWindowMs = 5000;
 
   /// Minimum interval between consecutive message fetches for a session.
   /// Prevents rapid-fire HTTP refetches when many socket events arrive

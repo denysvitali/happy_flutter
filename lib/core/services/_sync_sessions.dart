@@ -49,6 +49,24 @@ extension SyncSessions on Sync {
   /// cooldown/debounce mechanism provides adequate protection against
   /// duplicate-event storms at the sync layer.
   void _handleUpdateAccount(Map<String, dynamic> data) {
+    // Suppress the socket echo when we just POSTed settings — the
+    // server broadcasts an update-account event immediately after
+    // committing the POST.  Without this filter, every local profile
+    // or model switch triggers a redundant GET that can return stale
+    // data during replication lag, causing "profile no longer exists"
+    // fallout that triggers another POST (null), creating a feedback
+    // loop.
+    if (_lastSettingsPostAtMs != null) {
+      final msSincePost =
+          DateTime.now().millisecondsSinceEpoch - _lastSettingsPostAtMs!;
+      if (msSincePost < Sync._settingsEchoFilterWindowMs) {
+        logger.debug(
+          '[Sync] suppressing account-update echo '
+          '(settings POSTed ${msSincePost}ms ago)',
+        );
+        return;
+      }
+    }
     logger.info('Account update received');
     profileSync.invalidate();
     settingsSync.invalidate();
