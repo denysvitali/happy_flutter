@@ -472,15 +472,18 @@ extension SyncMessagingMerge on Sync {
 
     if (result == null) return;
 
-    if (result.hasOrphans && !identical(result.messages, messages)) {
+    if (result.hasOrphans) {
       _scheduleSidechainRegroup(sessionId);
-    } else if (result.hasOrphans) {
-      _scheduleSidechainRegroup(sessionId);
-      return;
     }
 
+    // Always update _sessionMessages when the grouper ran and returned a
+    // result, even if the list reference is the same (hasOrphans case).
+    // Without this, _sessionMessages is never updated for the hasOrphans &&
+    // identical(result.messages, messages) path, causing orphans to remain
+    // and trigger the warning again on every subsequent _runDeferredRegroupSweep
+    // call — creating an infinite warning loop.
+    _sessionMessages[sessionId] = result.messages;
     if (!identical(result.messages, messages)) {
-      _sessionMessages[sessionId] = result.messages;
       _sessionMessagesCache = null;
       _sessionMessagesViewCache.remove(sessionId);
     }
