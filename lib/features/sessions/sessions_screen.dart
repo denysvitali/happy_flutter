@@ -229,10 +229,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     SessionFolderHeader folder,
   ) {
     final cs = Theme.of(context).colorScheme;
-    // Extract machineId from folderKey ('machineId:path').
+    // Extract machineId and raw path from folderKey ('machineId:path').
     final colonIndex = folder.folderKey.indexOf(':');
     final machineId =
         colonIndex > 0 ? folder.folderKey.substring(0, colonIndex) : null;
+    final rawPath = colonIndex > 0 && colonIndex < folder.folderKey.length - 1
+        ? folder.folderKey.substring(colonIndex + 1)
+        : null;
     return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
@@ -268,7 +271,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           onPressed: () => _showNewSessionDialog(
             context,
             initialMachineId: machineId,
-            initialPath: folder.displayPath,
+            initialPath: rawPath,
           ),
         ),
       ],
