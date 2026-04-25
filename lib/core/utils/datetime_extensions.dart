@@ -38,7 +38,9 @@ extension DateTimeExtensions on DateTime {
     } else if (thisDate == yesterday) {
       return 'Yesterday at $time';
     } else {
-      return DateFormat.yMMMd(locale).add_Hm(locale).format(this);
+      final date = DateFormat.yMMMd().format(this);
+      final time = DateFormat.Hm(locale).format(this);
+      return '$date $time';
     }
   }
 }
