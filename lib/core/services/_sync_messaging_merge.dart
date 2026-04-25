@@ -412,8 +412,12 @@ extension SyncMessagingMerge on Sync {
     // Only run if there are still ungrouped sidechain messages
     // sitting in the main list (a normal message list has no
     // isSidechain entries after successful grouping).
-    final hasOrphans = messages.any((m) => m['isSidechain'] == true);
-    if (!hasOrphans) return;
+    final beforeOrphans = messages
+        .where((m) => m['isSidechain'] == true)
+        .map((m) => m['id'] as String?)
+        .whereType<String>()
+        .toSet();
+    if (beforeOrphans.isEmpty) return;
 
     logger.debug(
       '[sidechain] running deferred re-group sweep '
@@ -424,27 +428,43 @@ extension SyncMessagingMerge on Sync {
     final beforeMessages = messages;
     _groupSidechainMessages(sessionId);
 
+    final after = _sessionMessages[sessionId];
+    final afterOrphans = after
+            ?.where((m) => m['isSidechain'] == true)
+            .map((m) => m['id'] as String?)
+            .whereType<String>()
+            .toSet() ??
+        const <String>{};
+
+    // If the exact same orphans persist, the sweep made no progress.
+    // Cancel any pending regroup timer to prevent an infinite loop of
+    // sweeps that would log the same warning every ~300 ms.
+    if (afterOrphans.isNotEmpty &&
+        afterOrphans.length == beforeOrphans.length &&
+        afterOrphans.containsAll(beforeOrphans)) {
+      _sidechainRegroupTimers[sessionId]?.cancel();
+      _sidechainRegroupTimers.remove(sessionId);
+      _sidechainRegroupFirstRequestMs.remove(sessionId);
+      return;
+    }
+
     // Surface persistent orphans. If sidechain messages remain after
     // the sweep, the grouper could not find a matching Task tool-call.
     // These messages are invisible in the chat UI (ChatScreen filters
     // all isSidechain entries), so silent loss is the default. Log a
     // warning so we learn about the gap and can fix linkage.
-    final after = _sessionMessages[sessionId];
-    if (after != null) {
-      final orphans =
-          after.where((m) => m['isSidechain'] == true).toList();
-      if (orphans.isNotEmpty) {
-        final sample = orphans.take(3).map((m) {
-          return '${m['kind'] ?? m['role'] ?? 'unknown'}'
-              ' uuid=${m['uuid']}'
-              ' parentUuid=${m['parentUuid']}';
-        }).join(' | ');
-        logger.warning(
-          '[sidechain] ${orphans.length} orphan message(s) '
-          'remain in session=$sessionId after deferred sweep — '
-          'they are hidden by the chat list filter. Sample: $sample',
-        );
-      }
+    if (afterOrphans.isNotEmpty) {
+      final orphans = after!.where((m) => m['isSidechain'] == true).toList();
+      final sample = orphans.take(3).map((m) {
+        return '${m['kind'] ?? m['role'] ?? 'unknown'}'
+            ' uuid=${m['uuid']}'
+            ' parentUuid=${m['parentUuid']}';
+      }).join(' | ');
+      logger.warning(
+        '[sidechain] ${orphans.length} orphan message(s) '
+        'remain in session=$sessionId after deferred sweep — '
+        'they are hidden by the chat list filter. Sample: $sample',
+      );
     }
 
     // Only notify if _sessionMessages was actually updated. When the
