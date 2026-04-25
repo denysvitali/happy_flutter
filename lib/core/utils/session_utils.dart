@@ -388,7 +388,7 @@ String formatLastSeen(
   } else {
     // Format as date using intl
     final date = DateTime.fromMillisecondsSinceEpoch(activeAt);
-    final formatter = DateFormat('yMMMd', locale);
+    final formatter = DateFormat.yMMMd(locale);
     return formatter.format(date);
   }
 }
