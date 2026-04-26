@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/clipboard_utils.dart';
 
 import '../../core/i18n/app_localizations.dart';
-import '../../core/services/logger_service.dart';
+
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/wire_parsers.dart';
 import 'tools/json_viewer.dart';
@@ -324,8 +324,8 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
         return jsonDecode(t);
-      } catch (e) {
-        logger.info('Failed to parse JSON: $e');
+      } catch (_) {
+        // Text starts with { or [ but isn't JSON — render as plain text.
       }
     }
     return null;

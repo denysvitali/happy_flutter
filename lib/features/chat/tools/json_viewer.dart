@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../../core/services/logger_service.dart';
+
 import '../../../core/theme/app_tokens.dart';
 
 // ---------------------------------------------------------------------------
@@ -162,10 +162,8 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
             return (true, inner, null);
           }
           return (true, decoded, null);
-        } catch (e) {
-          logger.info(
-            'Failed to parse JSON in viewer: $e',
-          );
+        } catch (_) {
+          // Text starts with { or [ but isn't JSON — show as plain text.
         }
       }
       return (false, null, unwrapped);
