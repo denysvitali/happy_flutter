@@ -7,6 +7,7 @@ import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/storage_service.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../dart_version.dart';
 
@@ -200,6 +201,18 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
             SettingsSection(
+              title: l10n.developerSectionSync,
+              children: [
+                SettingsNavRow(
+                  icon: Icons.sync,
+                  title: l10n.developerForceSyncSettings,
+                  subtitle: l10n.developerForceSyncSettingsDesc,
+                  onTap: () => _forceSyncSettings(context, ref),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            SettingsSection(
               title: l10n.developerSectionBuildInfo,
               children: [
                 SettingsRow(
@@ -303,6 +316,58 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 }
               },
               child: Text(l10nDialog.developerResetAction),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _forceSyncSettings(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final l10nDialog = AppLocalizations.of(context);
+        return AlertDialog(
+          title: Text(l10nDialog.developerForceSyncSettings),
+          content: Text(l10nDialog.developerForceSyncSettingsConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10nDialog.commonCancel),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  await sync.settingsSync.invalidateAndAwait();
+                  if (context.mounted) {
+                    ref
+                        .read(settingsNotifierProvider.notifier)
+                        .loadFromSync();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(context)
+                              .developerForceSyncSettingsSuccess,
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          AppLocalizations.of(context)
+                              .developerForceSyncSettingsError,
+                        ),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Text(l10nDialog.developerForceSyncSettingsAction),
             ),
           ],
         );
