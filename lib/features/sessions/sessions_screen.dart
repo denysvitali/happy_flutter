@@ -205,6 +205,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (_activeTab == AppTab.sessions) {
       return _buildSessionsAppBar(context, l10n);
     }
+    if (_activeTab == AppTab.settings) {
+      return AppBar(); // SettingsScreen has its own Scaffold/AppBar
+    }
     return AppBar(title: Text(_getTabTitle(l10n)));
   }
 
