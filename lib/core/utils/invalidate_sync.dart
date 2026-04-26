@@ -227,6 +227,12 @@ class InvalidateSync {
         final operation = _currentOperation;
         _currentOperation = null;
         _setRunning(false);
+        // IMPORTANT: Check _invalidated AFTER completing the error path.
+        // If a new invalidation arrived during the retry storm, we must
+        // start a fresh cycle rather than dropping it silently.
+        // Previously this was the root cause of 2+ minute dead zones
+        // where settings/profile syncs went dormant after timeout cascades.
+        final needsReinvalidate = _invalidated;
         if (operation != null && !operation.isCompleted) {
           // logger.error already forwards to Sentry via
           // _forwardToSentry — no need for a separate captureException.
@@ -241,6 +247,13 @@ class InvalidateSync {
             },
           )));
           operation.completeError(error);
+        }
+        // Start a fresh cycle if a new invalidation arrived during retry.
+        // Reset retry count since this is a new attempt with a clean slate.
+        if (needsReinvalidate) {
+          _retryCount = 0;
+          _invalidated = false;
+          unawaited(_run());
         }
       }
       return;

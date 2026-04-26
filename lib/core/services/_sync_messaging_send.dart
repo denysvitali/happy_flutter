@@ -793,7 +793,7 @@ extension SyncMessagingSend on Sync {
       }
 
       final currentSeq = _sessionLastSeq[sessionId] ?? 0;
-      if (currentSeq > stopAfterSeq) {
+      if (currentSeq >= stopAfterSeq) {
         _postSendCatchUpTimers.remove(sessionId)?.cancel();
         _sessionsNeedingFetchProbe.remove(sessionId);
         logger.info(

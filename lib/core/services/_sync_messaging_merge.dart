@@ -439,12 +439,16 @@ extension SyncMessagingMerge on Sync {
     // If the exact same orphans persist, the sweep made no progress.
     // Cancel any pending regroup timer to prevent an infinite loop of
     // sweeps that would log the same warning every ~300 ms.
+    // Also suppress the fetchMessages catch-up path for 30 seconds so
+    // it stops re-running the O(4n) grouper for stuck orphans.
     if (afterOrphans.isNotEmpty &&
         afterOrphans.length == beforeOrphans.length &&
         afterOrphans.containsAll(beforeOrphans)) {
       _sidechainRegroupTimers[sessionId]?.cancel();
       _sidechainRegroupTimers.remove(sessionId);
       _sidechainRegroupFirstRequestMs.remove(sessionId);
+      _orphanSuppressedUntilMs[sessionId] =
+          DateTime.now().millisecondsSinceEpoch + 30000;
       return;
     }
 
@@ -494,6 +498,10 @@ extension SyncMessagingMerge on Sync {
 
     if (result.hasOrphans) {
       _scheduleSidechainRegroup(sessionId);
+    } else {
+      // Grouping succeeded — clear any suppression so future orphans
+      // (from new streaming content) trigger the grouper naturally.
+      _orphanSuppressedUntilMs.remove(sessionId);
     }
 
     // Always update _sessionMessages when the grouper ran and returned a

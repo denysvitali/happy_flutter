@@ -40,7 +40,16 @@ extension SyncSocketEvents on Sync {
       // sees cursorSeq == serverLastSeq (both stale) and skips the
       // HTTP round-trip, permanently losing messages that arrived
       // during the disconnect gap.
-      _invalidateAllSyncs(force: true);
+      //
+      // Debounce forced invalidation: on cold start, _init() already
+      // called _invalidateAllSyncs(force: true) moments before the
+      // socket connects.  Without this guard, every cold start pays
+      // for two full sync cycles (18 HTTP requests instead of 9).
+      final _reconnectNowMs = DateTime.now().millisecondsSinceEpoch;
+      if (_lastInvalidateAllSyncsAtMs == null ||
+          _reconnectNowMs - _lastInvalidateAllSyncsAtMs! >= 2000) {
+        _invalidateAllSyncs(force: true);
+      }
       // Refresh _lastEphemeralAt for all sessions that show as online.
       // Without this, stale timestamps from before the disconnect cause
       // looksReady to return false and trigger unnecessary auto-restore.
@@ -58,13 +67,25 @@ extension SyncSocketEvents on Sync {
       // 0 are empty/new and don't need fetching.  This avoids both the
       // infinite reconnect-loop caused by unconditionally re-adding ALL
       // sessions, and the message-loss from not re-adding at all.
-      for (final sessionId in _sessionMessages.keys) {
-        if (sessionId == _visibleSessionId) continue;
-        final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
-        final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
-        if (serverLastSeq > cursorSeq && serverLastSeq > 0) {
-          _sessionsWithPendingSocketMessages.add(sessionId);
+      //
+      // Debounce the enumeration to prevent re-adding all sessions on
+      // rapid reconnect cycling — each reconnect can re-queue dozens of
+      // pending message fetches that cascade into HTTP storms.
+      if (_lastReconnectSessionEnumerationMs == null ||
+          _reconnectNowMs - _lastReconnectSessionEnumerationMs! >= 5000) {
+        _lastReconnectSessionEnumerationMs = _reconnectNowMs;
+        for (final sessionId in _sessionMessages.keys) {
+          if (sessionId == _visibleSessionId) continue;
+          final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+          final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+          if (serverLastSeq > cursorSeq && serverLastSeq > 0) {
+            _sessionsWithPendingSocketMessages.add(sessionId);
+          }
         }
+      } else {
+        logger.debug(
+          '[Sync] skipping reconnect session enumeration (5s debounce)',
+        );
       }
       // Chain messages fetch after the sessions fetch that
       // _invalidateAllSyncs() already kicked off.  We await the

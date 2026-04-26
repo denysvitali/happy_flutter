@@ -288,6 +288,10 @@ what you have, you must use the options mode.
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
+
+  /// Timestamp of the last reconnect session enumeration.  Used to debounce
+  /// the per-session pending-message queue during rapid reconnect cycling.
+  int? _lastReconnectSessionEnumerationMs;
   void Function()? _unsubscribeSocketUpdate;
   void Function()? _unsubscribeSocketEphemeral;
   void Function()? _unsubscribeSocketError;
@@ -366,6 +370,13 @@ what you have, you must use the options mode.
   final Set<String> _sessionsNeedingTailRefresh = <String>{};
   final Set<String> _sessionsNeedingVisibleRegroup = <String>{};
   final Set<String> _sessionsNeedingSidechainRegroup = <String>{};
+
+  /// Per-session epoch-ms until which orphan sidechain re-grouping is
+  /// suppressed.  Set when the deferred sweep detects stuck orphans that
+  /// cannot be resolved (parent Task never arrived).  Prevents the
+  /// fetchMessages catch-up path from re-running the O(4n) grouper on
+  /// every invocation for sessions where orphans are known-stuck.
+  final Map<String, int> _orphanSuppressedUntilMs = {};
 
   /// Sessions that received `new-message` socket events while they were
   /// not visible. When the user navigates to one of these sessions,

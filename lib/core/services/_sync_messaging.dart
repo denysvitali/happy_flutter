@@ -178,6 +178,20 @@ extension SyncMessaging on Sync {
             messages.any((m) => m['isSidechain'] == true);
         if (hasOrphans ||
             _sessionsNeedingVisibleRegroup.contains(sessionId)) {
+          // Skip the grouper if orphan processing is suppressed — the
+          // deferred sweep determined these orphans are stuck (parent
+          // Task never arrived) and 30s haven't elapsed yet.  Without
+          // this guard, every fetchMessages call re-runs the O(4n)
+          // grouper for sessions with persistent orphans.
+          if (hasOrphans) {
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+            final suppressedUntil = _orphanSuppressedUntilMs[sessionId];
+            if (suppressedUntil != null && nowMs < suppressedUntil) {
+              _notifySessionMessagesChangedUiOnly(sessionId);
+              _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+              return;
+            }
+          }
           // Log orphan count for telemetry — helps quantify how often
           // this catch-up path fixes sidechain orphans.
           if (hasOrphans) {
