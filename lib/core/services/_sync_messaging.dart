@@ -187,6 +187,9 @@ extension SyncMessaging on Sync {
             final nowMs = DateTime.now().millisecondsSinceEpoch;
             final suppressedUntil = _orphanSuppressedUntilMs[sessionId];
             if (suppressedUntil != null && nowMs < suppressedUntil) {
+              // Clear the flag so onSessionVisible doesn't retry grouping
+              // for these stuck orphans during the suppression window.
+              _sessionsNeedingVisibleRegroup.remove(sessionId);
               _notifySessionMessagesChangedUiOnly(sessionId);
               _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
               return;

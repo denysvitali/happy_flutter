@@ -449,6 +449,9 @@ extension SyncMessagingMerge on Sync {
       _sidechainRegroupFirstRequestMs.remove(sessionId);
       _orphanSuppressedUntilMs[sessionId] =
           DateTime.now().millisecondsSinceEpoch + 30000;
+      // Clear the flag so onSessionVisible doesn't retry grouping
+      // for these stuck orphans during the suppression window.
+      _sessionsNeedingVisibleRegroup.remove(sessionId);
       return;
     }
 
