@@ -101,7 +101,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Disabled - Tap 10 times to enable'),
+        find.text('Disabled'),
         findsOneWidget,
       );
     });
