@@ -81,6 +81,10 @@ final class SettingsUpdate {
         profiles: (value as List<dynamic>?)?.cast<AIBackendProfile>() ?? [],
       ),
       'lastUsedProfile' => settings.copyWith(lastUsedProfile: value as String?),
+      'lastUsedProfilesByAgent' => settings.copyWith(
+        lastUsedProfilesByAgent:
+            (value as Map<dynamic, dynamic>?)?.cast<String, String>() ?? {},
+      ),
       'favoriteDirectories' => settings.copyWith(
         favoriteDirectories: (value as List<dynamic>?)?.cast<String>() ?? [],
       ),
@@ -133,6 +137,7 @@ final class SettingsUpdate {
       ..lastUsedModelMode = updated.lastUsedModelMode
       ..profiles = updated.profiles
       ..lastUsedProfile = updated.lastUsedProfile
+      ..lastUsedProfilesByAgent = updated.lastUsedProfilesByAgent
       ..favoriteDirectories = updated.favoriteDirectories
       ..favoriteMachines = updated.favoriteMachines
       ..folders = updated.folders

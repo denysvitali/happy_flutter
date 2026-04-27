@@ -44,6 +44,9 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
       .map((e) => AIBackendProfile.fromJson(e as Map<String, dynamic>))
       .toList()
   ..lastUsedProfile = json['lastUsedProfile'] as String?
+  ..lastUsedProfilesByAgent = Map<String, String>.from(
+    json['lastUsedProfilesByAgent'] as Map,
+  )
   ..favoriteDirectories = (json['favoriteDirectories'] as List<dynamic>)
       .map((e) => e as String)
       .toList()
@@ -92,6 +95,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'lastUsedModelMode': instance.lastUsedModelMode,
   'profiles': instance.profiles.map((e) => e.toJson()).toList(),
   'lastUsedProfile': instance.lastUsedProfile,
+  'lastUsedProfilesByAgent': instance.lastUsedProfilesByAgent,
   'favoriteDirectories': instance.favoriteDirectories,
   'favoriteMachines': instance.favoriteMachines,
   'folders': instance.folders,

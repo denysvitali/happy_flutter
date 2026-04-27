@@ -3,7 +3,6 @@ import 'dart:async' show unawaited;
 import 'package:riverpod/riverpod.dart';
 
 import '../services/draft_storage.dart';
-import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
 import 'settings_notifier.dart';
 
@@ -87,10 +86,15 @@ class ChatActionNotifier extends Notifier<void> {
     // and other screens see the new selection immediately.
     // updateSetting() calls sync.applySettings() internally —
     // no separate applySettings() needed here.
+    final settings = ref.read(settingsNotifierProvider);
+    final agent = sync.sessions[sessionId]?.metadata?.flavor;
     unawaited(
       ref
           .read(settingsNotifierProvider.notifier)
-          .updateSetting('lastUsedProfile', profileId),
+          .updateSetting(
+            'lastUsedProfilesByAgent',
+            settings.lastUsedProfilesWithAgent(agent, profileId),
+          ),
     );
   }
 }

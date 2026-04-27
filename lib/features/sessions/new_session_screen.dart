@@ -49,7 +49,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     super.initState();
     final settings = ref.read(settingsNotifierProvider);
     _selectedAgent = settings.lastUsedAgent ?? 'claude';
-    _selectedProfileId = settings.lastUsedProfile;
+    _selectedProfileId = settings.lastUsedProfileForAgent(_selectedAgent);
     // Refresh machines so encryption keys are up-to-date before spawn.
     Future<void>.microtask(
       () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
@@ -104,6 +104,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       await sync.applySettings({
         'lastUsedAgent': _selectedAgent,
         'lastUsedProfile': _selectedProfileId,
+        'lastUsedProfilesByAgent': settings.lastUsedProfilesWithAgent(
+          _selectedAgent,
+          _selectedProfileId,
+        ),
       });
       final String sessionPath;
       if (_sessionType == 'worktree') {
@@ -132,8 +136,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       }
       // Use profile default, but fall back to the user's last explicit
       // selection so profile switches don't regress the model choice.
-      final modelMode =
-          profile?.defaultModelMode ?? settings.lastUsedModelMode;
+      final modelMode = profile?.defaultModelMode ?? settings.lastUsedModelMode;
       if (modelMode != null) {
         unawaited(DraftStorage().saveModelMode(sessionId, modelMode));
       }
@@ -264,7 +267,8 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     final resolvedSelectedMachine = _selectedMachine != null
         ? (allMachines[_selectedMachine!.id] ?? _selectedMachine)
         : null;
-    final selectedMachineOffline = resolvedSelectedMachine != null &&
+    final selectedMachineOffline =
+        resolvedSelectedMachine != null &&
         !_isMachineOnline(resolvedSelectedMachine);
 
     return Scaffold(
@@ -482,7 +486,12 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               ],
               selected: {_selectedAgent},
               onSelectionChanged: (selection) {
-                setState(() => _selectedAgent = selection.first);
+                final agent = selection.first;
+                final settings = ref.read(settingsNotifierProvider);
+                setState(() {
+                  _selectedAgent = agent;
+                  _selectedProfileId = settings.lastUsedProfileForAgent(agent);
+                });
               },
             ),
           ),
@@ -518,11 +527,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               padding: const EdgeInsets.only(bottom: AppSpacing.md),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.cloud_off_rounded,
-                    size: 16,
-                    color: cs.error,
-                  ),
+                  Icon(Icons.cloud_off_rounded, size: 16, color: cs.error),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
@@ -571,10 +576,9 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
             width: double.infinity,
             height: AppTouchTarget.comfortable,
             child: FilledButton.icon(
-              onPressed:
-                  _canCreate(connectionStatus, resolvedSelectedMachine)
-                      ? _createSession
-                      : null,
+              onPressed: _canCreate(connectionStatus, resolvedSelectedMachine)
+                  ? _createSession
+                  : null,
               icon: _isCreating
                   ? SizedBox(
                       width: 18,

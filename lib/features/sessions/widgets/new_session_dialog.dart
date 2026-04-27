@@ -14,11 +14,7 @@ import '../../../core/theme/app_tokens.dart';
 
 /// New session dialog.
 class NewSessionDialog extends ConsumerStatefulWidget {
-  const NewSessionDialog({
-    super.key,
-    this.initialMachineId,
-    this.initialPath,
-  });
+  const NewSessionDialog({super.key, this.initialMachineId, this.initialPath});
 
   /// Optional pre-selected machine ID.
   final String? initialMachineId;
@@ -65,7 +61,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final selectedMachineObj = _selectedMachine != null
         ? allMachines[_selectedMachine]
         : null;
-    final selectedMachineOffline = selectedMachineObj != null &&
+    final selectedMachineOffline =
+        selectedMachineObj != null &&
         (now - selectedMachineObj.activeAt >= onlineThresholdMs ||
             !selectedMachineObj.active);
 
@@ -275,7 +272,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
 
     try {
       final settings = ref.read(settingsNotifierProvider);
-      final profileId = settings.lastUsedProfile;
+      final profileId = settings.lastUsedProfileForAgent(_selectedAgent);
       // Resolve defaultModelMode so the daemon always receives a model hint,
       // preventing profile env vars from being used incorrectly when
       // lastUsedProfile changes between profile switch and session creation.
@@ -285,6 +282,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       await sync.applySettings({
         'lastUsedAgent': _selectedAgent,
         'lastUsedProfile': profileId,
+        'lastUsedProfilesByAgent': settings.lastUsedProfilesWithAgent(
+          _selectedAgent,
+          profileId,
+        ),
       });
       final updatedSettings = ref.read(settingsNotifierProvider);
       String? modelMode;

@@ -378,6 +378,7 @@ class SettingsStorage {
           .map((p) => _createProfileWithoutApiKeys(p))
           .toList()
       ..lastUsedProfile = settings.lastUsedProfile
+      ..lastUsedProfilesByAgent = settings.lastUsedProfilesByAgent
       ..favoriteDirectories = settings.favoriteDirectories
       ..favoriteMachines = settings.favoriteMachines
       ..dismissedCLIWarnings = settings.dismissedCLIWarnings;

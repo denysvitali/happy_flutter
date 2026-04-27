@@ -25,9 +25,15 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final customProfiles = ref.watch(
       settingsNotifierProvider.select((s) => s.profiles),
     );
-    final selectedProfileId = ref.watch(
-      settingsNotifierProvider.select((s) => s.lastUsedProfile),
+    final settings = ref.watch(
+      settingsNotifierProvider.select(
+        (s) => (s.lastUsedAgent, s.lastUsedProfilesByAgent, s.lastUsedProfile),
+      ),
     );
+    final selectedAgent = settings.$1 ?? 'claude';
+    final selectedProfileId = ref
+        .read(settingsNotifierProvider)
+        .lastUsedProfileForAgent(selectedAgent);
     final effectiveProfiles = _effectiveProfiles(customProfiles);
     final claudeProfiles = effectiveProfiles
         .where((profile) => profile.compatibility.supportsAgent('claude'))
@@ -67,9 +73,13 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                 profile: null,
                 isSelected: selectedProfileId == null,
                 onTap: () {
+                  final current = ref.read(settingsNotifierProvider);
                   ref
                       .read(settingsNotifierProvider.notifier)
-                      .updateSetting('lastUsedProfile', null);
+                      .updateSetting(
+                        'lastUsedProfilesByAgent',
+                        current.lastUsedProfilesWithAgent(selectedAgent, null),
+                      );
                 },
               ),
             ],
@@ -78,19 +88,19 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
             context: context,
             title: l10n.settingsClaudeCode,
             profiles: claudeProfiles,
-            selectedProfileId: selectedProfileId,
+            agent: 'claude',
           ),
           _buildAgentSection(
             context: context,
             title: l10n.sessionsCodex,
             profiles: codexProfiles,
-            selectedProfileId: selectedProfileId,
+            agent: 'codex',
           ),
           _buildAgentSection(
             context: context,
             title: l10n.sessionsGemini,
             profiles: geminiProfiles,
-            selectedProfileId: selectedProfileId,
+            agent: 'gemini',
           ),
         ],
       ),
@@ -114,7 +124,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     required BuildContext context,
     required String title,
     required List<AIBackendProfile> profiles,
-    required String? selectedProfileId,
+    required String agent,
   }) {
     if (profiles.isEmpty) {
       return const SizedBox.shrink();
@@ -126,6 +136,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         title: title,
         children: [
           ...profiles.map((profile) {
+            final selectedProfileId = ref
+                .read(settingsNotifierProvider)
+                .lastUsedProfileForAgent(agent);
             final isSelected = selectedProfileId == profile.id;
             final isCustom = !profile.isBuiltIn;
             return _buildProfileRow(
@@ -133,9 +146,13 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               profile: profile,
               isSelected: isSelected,
               onTap: () {
+                final settings = ref.read(settingsNotifierProvider);
                 ref
                     .read(settingsNotifierProvider.notifier)
-                    .updateSetting('lastUsedProfile', profile.id);
+                    .updateSetting(
+                      'lastUsedProfilesByAgent',
+                      settings.lastUsedProfilesWithAgent(agent, profile.id),
+                    );
               },
               onEdit: () => context.pushNamed('profile-editor', extra: profile),
               onDuplicate: isCustom
@@ -185,14 +202,11 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         children: [
           if (isSelected)
             Icon(Icons.check_circle, color: cs.primary, size: AppSpacing.xl),
-          if (isSelected && (onDuplicate != null || onEdit != null || onDelete != null))
+          if (isSelected &&
+              (onDuplicate != null || onEdit != null || onDelete != null))
             const SizedBox(width: AppSpacing.xs),
           if (onDuplicate != null || onEdit != null || onDelete != null)
-            Container(
-              height: 20,
-              width: 1,
-              color: cs.outlineVariant,
-            ),
+            Container(height: 20, width: 1, color: cs.outlineVariant),
           if (onDuplicate != null)
             IconButton(
               icon: Icon(
@@ -314,7 +328,13 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
 
       await ref
           .read(settingsNotifierProvider.notifier)
-          .updateSetting('lastUsedProfile', profile.id);
+          .updateSetting(
+            'lastUsedProfilesByAgent',
+            settings.lastUsedProfilesWithAgent(
+              _primaryAgentForProfile(profile),
+              profile.id,
+            ),
+          );
 
       if (mounted) {
         messenger.showSnackBar(
@@ -381,11 +401,13 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                     .where((p) => p.id != profile.id)
                     .toList();
                 notifier.updateSetting('profiles', updatedProfiles);
-                // Clear global lastUsedProfile if it pointed to
-                // the deleted profile so it doesn't become stale.
-                if (settings.lastUsedProfile == profile.id) {
-                  notifier.updateSetting('lastUsedProfile', null);
-                }
+                final updatedLastUsedProfiles = Map<String, String>.from(
+                  settings.lastUsedProfilesByAgent,
+                )..removeWhere((_, value) => value == profile.id);
+                notifier.updateSetting(
+                  'lastUsedProfilesByAgent',
+                  updatedLastUsedProfiles,
+                );
                 Navigator.pop(context);
               },
               child: Text(l10n.commonDelete),
@@ -486,6 +508,14 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       ),
     );
   }
+}
+
+String _primaryAgentForProfile(AIBackendProfile profile) {
+  final compatibility = profile.compatibility;
+  if (compatibility.claude) return 'claude';
+  if (compatibility.codex) return 'codex';
+  if (compatibility.gemini) return 'gemini';
+  return 'claude';
 }
 
 IconData _iconForProfile(String id) {

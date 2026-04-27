@@ -216,6 +216,42 @@ void main() {
       expect(find.text('Claude Only'), findsNothing);
     });
 
+    testWidgets('uses selected profile for the requested agent', (
+      tester,
+    ) async {
+      final settings = Settings()
+        ..lastUsedProfilesByAgent = {'claude': 'anthropic', 'codex': 'openai'};
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsNotifierProvider.overrideWith(
+              () => _StubSettingsNotifier(settings),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const PickProfileScreen(agent: 'codex'),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final openAiTile = find.ancestor(
+        of: find.text('OpenAI (GPT-5)'),
+        matching: find.byType(ListTile),
+      );
+      expect(
+        find.descendant(
+          of: openAiTile,
+          matching: find.byIcon(Icons.check_circle_rounded),
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('does not show custom profile when none '
         'exist', (tester) async {
       await tester.pumpWidget(

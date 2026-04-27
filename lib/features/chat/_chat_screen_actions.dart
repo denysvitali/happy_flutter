@@ -62,7 +62,8 @@ extension _ChatScreenActions on _ChatScreenState {
     }
 
     AIBackendProfile? selectedProfile;
-    final effectiveProfileId = savedProfileId ?? settings.lastUsedProfile;
+    final effectiveProfileId =
+        savedProfileId ?? settings.lastUsedProfileForAgent(flavor);
     if (effectiveProfileId != null) {
       try {
         selectedProfile = deduped.firstWhere((p) => p.id == effectiveProfileId);
@@ -76,11 +77,15 @@ extension _ChatScreenActions on _ChatScreenState {
         if (savedProfileId != null) {
           unawaited(DraftStorage().removeProfileId(sessionId));
         } else {
-          // Stale reference came from settings.lastUsedProfile — clear it.
+          // Stale reference came from the agent-scoped last profile.
+          final updatedProfiles = settings.lastUsedProfilesWithAgent(
+            flavor,
+            null,
+          );
           unawaited(
             ref
                 .read(settingsNotifierProvider.notifier)
-                .updateSetting('lastUsedProfile', null),
+                .updateSetting('lastUsedProfilesByAgent', updatedProfiles),
           );
         }
       }

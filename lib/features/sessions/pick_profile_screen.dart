@@ -25,7 +25,7 @@ class PickProfileScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final selectedId = ref.watch(
-      settingsNotifierProvider.select((s) => s.lastUsedProfile),
+      settingsNotifierProvider.select((s) => s.lastUsedProfileForAgent(agent)),
     );
     final customProfiles = ref.watch(
       settingsNotifierProvider.select((s) => s.profiles),

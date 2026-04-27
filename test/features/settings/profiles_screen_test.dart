@@ -192,7 +192,12 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(ProfilesScreen)),
       );
-      expect(container.read(settingsNotifierProvider).lastUsedProfile, isNull);
+      expect(
+        container
+            .read(settingsNotifierProvider)
+            .lastUsedProfileForAgent('claude'),
+        isNull,
+      );
     });
 
     testWidgets('tapping built-in profile selects it', (tester) async {
@@ -219,7 +224,9 @@ void main() {
         tester.element(find.byType(ProfilesScreen)),
       );
       expect(
-        container.read(settingsNotifierProvider).lastUsedProfile,
+        container
+            .read(settingsNotifierProvider)
+            .lastUsedProfileForAgent('claude'),
         equals('deepseek'),
       );
     });

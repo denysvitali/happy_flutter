@@ -346,7 +346,13 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           .updateSetting('profiles', updatedProfiles);
       await ref
           .read(settingsNotifierProvider.notifier)
-          .updateSetting('lastUsedProfile', profile.id);
+          .updateSetting(
+            'lastUsedProfilesByAgent',
+            settings.lastUsedProfilesWithAgent(
+              _primaryAgentForProfile(profile),
+              profile.id,
+            ),
+          );
       if (mounted) context.pop();
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(failedToSaveMsg)));
@@ -702,6 +708,14 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
   String _getApiKeyLabel(String provider) {
     return profileSetupOption(provider)?.apiKeyLabel ?? 'API Key';
   }
+}
+
+String _primaryAgentForProfile(AIBackendProfile profile) {
+  final compatibility = profile.compatibility;
+  if (compatibility.claude) return 'claude';
+  if (compatibility.codex) return 'codex';
+  if (compatibility.gemini) return 'gemini';
+  return 'claude';
 }
 
 class _ProviderCard extends StatelessWidget {

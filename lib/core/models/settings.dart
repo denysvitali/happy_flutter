@@ -62,6 +62,7 @@ class Settings {
   // Profile API keys excluded from serialization via toJsonWithoutApiKeys()
   List<AIBackendProfile> profiles = [];
   String? lastUsedProfile;
+  Map<String, String> lastUsedProfilesByAgent = {};
   List<String> favoriteDirectories = ['~/src', '~/Desktop', '~/Documents'];
   List<String> favoriteMachines = [];
   List<String> folders = [];
@@ -100,6 +101,10 @@ class Settings {
           lastUsedPermissionMode == other.lastUsedPermissionMode &&
           lastUsedModelMode == other.lastUsedModelMode &&
           lastUsedProfile == other.lastUsedProfile &&
+          _stringMapsEqual(
+            lastUsedProfilesByAgent,
+            other.lastUsedProfilesByAgent,
+          ) &&
           folders == other.folders &&
           profiles.length == other.profiles.length &&
           profiles.asMap().entries.every(
@@ -122,9 +127,39 @@ class Settings {
     preferredLanguage,
     usagePeriod,
     lastUsedProfile,
+    Object.hashAll(
+      lastUsedProfilesByAgent.entries.map(
+        (entry) => Object.hash(entry.key, entry.value),
+      ),
+    ),
     Object.hashAll(folders),
     Object.hashAll(profiles),
   );
+
+  String? lastUsedProfileForAgent(String? agent) {
+    final key = normalizeAgentKey(agent);
+    final scopedProfile = lastUsedProfilesByAgent[key];
+    if (scopedProfile != null) return scopedProfile;
+
+    // Migration fallback for settings saved before profiles were scoped.
+    final legacyAgent = normalizeAgentKey(lastUsedAgent);
+    if (legacyAgent == key) return lastUsedProfile;
+    return null;
+  }
+
+  Map<String, String> lastUsedProfilesWithAgent(
+    String? agent,
+    String? profileId,
+  ) {
+    final key = normalizeAgentKey(agent);
+    final next = Map<String, String>.from(lastUsedProfilesByAgent);
+    if (profileId == null) {
+      next.remove(key);
+    } else {
+      next[key] = profileId;
+    }
+    return next;
+  }
 
   /// Custom toJson that excludes API keys from profiles
   Map<String, dynamic> toJson() {
@@ -170,6 +205,7 @@ class Settings {
     Object? lastUsedModelMode = _unset,
     List<AIBackendProfile>? profiles,
     Object? lastUsedProfile = _unset,
+    Map<String, String>? lastUsedProfilesByAgent,
     List<String>? favoriteDirectories,
     List<String>? favoriteMachines,
     List<String>? folders,
@@ -235,6 +271,9 @@ class Settings {
       ..lastUsedProfile = identical(lastUsedProfile, _unset)
           ? this.lastUsedProfile
           : lastUsedProfile as String?
+      ..lastUsedProfilesByAgent = lastUsedProfilesByAgent != null
+          ? Map<String, String>.from(lastUsedProfilesByAgent)
+          : this.lastUsedProfilesByAgent
       ..favoriteDirectories = favoriteDirectories != null
           ? List<String>.from(favoriteDirectories)
           : this.favoriteDirectories
@@ -245,6 +284,22 @@ class Settings {
       ..dismissedCLIWarnings =
           dismissedCLIWarnings ?? this.dismissedCLIWarnings;
   }
+}
+
+String normalizeAgentKey(String? agent) {
+  return switch (agent) {
+    'codex' => 'codex',
+    'gemini' => 'gemini',
+    _ => 'claude',
+  };
+}
+
+bool _stringMapsEqual(Map<String, String> a, Map<String, String> b) {
+  if (a.length != b.length) return false;
+  for (final entry in a.entries) {
+    if (b[entry.key] != entry.value) return false;
+  }
+  return true;
 }
 
 Map<String, dynamic> _normalizeSettingsJson(Map<String, dynamic> json) {
@@ -268,6 +323,16 @@ Map<String, dynamic> _normalizeSettingsJson(Map<String, dynamic> json) {
   normalizeListField('favoriteDirectories');
   normalizeListField('favoriteMachines');
   normalizeListField('folders');
+
+  final lastUsedProfilesByAgent = normalized['lastUsedProfilesByAgent'];
+  if (lastUsedProfilesByAgent is Map) {
+    normalized['lastUsedProfilesByAgent'] = {
+      for (final entry in lastUsedProfilesByAgent.entries)
+        if (entry.value != null) entry.key.toString(): entry.value.toString(),
+    };
+  } else {
+    normalized['lastUsedProfilesByAgent'] = defaults['lastUsedProfilesByAgent'];
+  }
 
   final dismissed = normalized['dismissedCLIWarnings'];
   if (dismissed is! Map) {

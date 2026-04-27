@@ -98,16 +98,17 @@ extension SyncSessionOperations on Sync {
         : path;
 
     // Derive agent type and environment variables from the profile.
-    // Use explicit profileId if provided, otherwise fall back to
-    // [_settingsSnapshot.lastUsedProfile].
-    final effectiveProfileId = profileId ?? _settingsSnapshot.lastUsedProfile;
+    final agent = _settingsSnapshot.lastUsedAgent;
+    // Use explicit profileId if provided, otherwise fall back to the
+    // profile last used for this agent.
+    final effectiveProfileId =
+        profileId ?? _settingsSnapshot.lastUsedProfileForAgent(agent);
     final profile = effectiveProfileId != null
         ? _resolveProfile(effectiveProfileId)
         : null;
     final profileEnvVars = profile != null
         ? _profileEnvironmentVariables(profile)
         : null;
-    final agent = _settingsSnapshot.lastUsedAgent;
     final permMode =
         profile?.defaultPermissionMode ??
         _settingsSnapshot.lastUsedPermissionMode;
