@@ -66,6 +66,7 @@ import '../../sentry_widget.dart'
 import '../models/auth.dart';
 import '../models/settings.dart';
 import '../providers/app_providers.dart';
+import '../services/opentelemetry_service.dart';
 import '../services/performance_context_service.dart';
 import '../widgets/auth_gate.dart';
 
@@ -171,7 +172,11 @@ class _SwipeBackRoute extends PageRoute<void> {
 GoRouter createRouter(String? initialDeepLink) {
   return GoRouter(
     initialLocation: '/',
-    observers: [SentryNavigatorObserver(), PerformanceRouteObserver()],
+    observers: [
+      SentryNavigatorObserver(),
+      PerformanceRouteObserver(),
+      ?OpenTelemetryService().routeObserver,
+    ],
     routes: [
       GoRoute(
         path: '/',

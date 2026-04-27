@@ -22,6 +22,7 @@ import 'core/services/frame_metrics_service.dart';
 import 'core/services/logger_service.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/opentelemetry_service.dart';
 import 'core/services/performance_context_service.dart';
 import 'core/services/power_diagnostics_service.dart';
 import 'core/services/remote_logger.dart';
@@ -87,6 +88,14 @@ Future<void> _runApp() async {
   // All fonts are bundled in google_fonts/ — disable network fetching so
   // the package never attempts HTTP requests for font files at runtime.
   GoogleFonts.config.allowRuntimeFetching = false;
+
+  final otelSpan = startupTransaction.startChild(
+    'app.startup.opentelemetry',
+    description: 'Initialize OpenTelemetry',
+  );
+  await OpenTelemetryService().initialize().whenComplete(() {
+    unawaited(otelSpan.finish());
+  });
 
   // Register background FCM handler before any Firebase calls.
   if (!kIsWeb) {
