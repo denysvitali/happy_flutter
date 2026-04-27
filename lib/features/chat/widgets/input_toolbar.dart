@@ -43,7 +43,9 @@ class ModelChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              model == ChatModelMode.opus
+              model.isCodex
+                  ? Icons.psychology_alt_outlined
+                  : model == ChatModelMode.opus
                   ? Icons.diamond_outlined
                   : model == ChatModelMode.sonnet
                   ? Icons.auto_awesome_outlined

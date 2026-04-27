@@ -17,15 +17,13 @@ void main() {
     // sessions because Codex with a ChatGPT account rejects them.
 
     test('returns null for sonnet', () {
-      sync.testSettingsSnapshot = Settings()
-        ..lastUsedModelMode = 'sonnet';
+      sync.testSettingsSnapshot = Settings()..lastUsedModelMode = 'sonnet';
 
       expect(sync.testGetModelOverride(), isNull);
     });
 
     test('returns null for opus', () {
-      sync.testSettingsSnapshot = Settings()
-        ..lastUsedModelMode = 'opus';
+      sync.testSettingsSnapshot = Settings()..lastUsedModelMode = 'opus';
 
       expect(sync.testGetModelOverride(), isNull);
     });
@@ -38,22 +36,19 @@ void main() {
     });
 
     test('returns null for non-standard model names', () {
-      sync.testSettingsSnapshot = Settings()
-        ..lastUsedModelMode = 'GLM-5';
+      sync.testSettingsSnapshot = Settings()..lastUsedModelMode = 'GLM-5';
 
       expect(sync.testGetModelOverride(), isNull);
     });
 
     test('returns null for default', () {
-      sync.testSettingsSnapshot = Settings()
-        ..lastUsedModelMode = 'default';
+      sync.testSettingsSnapshot = Settings()..lastUsedModelMode = 'default';
 
       expect(sync.testGetModelOverride(), isNull);
     });
 
     test('returns null when lastUsedModelMode is null', () {
-      sync.testSettingsSnapshot = Settings()
-        ..lastUsedModelMode = null;
+      sync.testSettingsSnapshot = Settings()..lastUsedModelMode = null;
 
       expect(sync.testGetModelOverride(), isNull);
     });
@@ -101,11 +96,8 @@ void main() {
 
     test('passes explicit Codex model for Codex sessions', () {
       expect(
-        sync.testGetModelOverride(
-          agent: 'codex',
-          modelMode: 'gpt-5-codex-high',
-        ),
-        'gpt-5-codex-high',
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'gpt-5.5:high'),
+        'gpt-5.5:high',
       );
     });
   });
@@ -120,20 +112,14 @@ void main() {
     });
 
     test('normalizes stale Claude aliases away from Codex', () {
-      expect(
-        sync.testNormalizeModelModeForAgent('opus', 'codex'),
-        'default',
-      );
-      expect(
-        sync.testNormalizeModelModeForAgent('sonnet', 'codex'),
-        'default',
-      );
+      expect(sync.testNormalizeModelModeForAgent('opus', 'codex'), 'default');
+      expect(sync.testNormalizeModelModeForAgent('sonnet', 'codex'), 'default');
     });
 
     test('preserves non-Claude model names for Codex profiles', () {
       expect(
-        sync.testNormalizeModelModeForAgent('gpt-5-codex-high', 'codex'),
-        'gpt-5-codex-high',
+        sync.testNormalizeModelModeForAgent('gpt-5.5:high', 'codex'),
+        'gpt-5.5:high',
       );
     });
   });

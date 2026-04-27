@@ -76,4 +76,26 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('codex model sessions use the reasoning icon', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          modelMode: ChatModelMode.gpt55High,
+          availableModels: ChatModelMode.availableForFlavor('codex'),
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+
+    final modelChip = find.byType(ModelChip);
+    expect(
+      find.descendant(
+        of: modelChip,
+        matching: find.byIcon(Icons.psychology_alt_outlined),
+      ),
+      findsOneWidget,
+    );
+  });
 }

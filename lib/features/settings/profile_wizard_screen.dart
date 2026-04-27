@@ -96,8 +96,8 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         break;
       case 'openai':
         _baseUrlCtrl.text = 'https://api.openai.com/v1';
-        _modelCtrl.text = 'gpt-5-codex-high';
-        _smallFastModelCtrl.text = 'gpt-5-codex-low';
+        _modelCtrl.text = 'gpt-5.5';
+        _smallFastModelCtrl.text = 'gpt-5.4-mini';
         _timeoutCtrl.text = '600000';
         break;
       case 'azure-openai':

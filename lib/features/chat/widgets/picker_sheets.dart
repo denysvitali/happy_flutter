@@ -43,7 +43,9 @@ Widget _buildModelTile(
               shape: BoxShape.circle,
             ),
             child: Icon(
-              model == ChatModelMode.opus
+              model.isCodex
+                  ? Icons.psychology_alt_outlined
+                  : model == ChatModelMode.opus
                   ? Icons.diamond_outlined
                   : model == ChatModelMode.sonnet
                   ? Icons.auto_awesome_outlined
@@ -83,36 +85,49 @@ void showModelPickerSheet(
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: cs.surface,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     builder: (ctx) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(
-          top: AppSpacing.sm,
-          bottom: AppSpacing.xs,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(ctx).height * 0.8,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Text(
-                'Model',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+        child: Padding(
+          padding: const EdgeInsets.only(
+            top: AppSpacing.sm,
+            bottom: AppSpacing.xs,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                ),
+                child: Text(
+                  'Model',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            for (final model in models)
-              _buildModelTile(ctx, model, current, theme, onChanged),
-          ],
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final model in models)
+                      _buildModelTile(ctx, model, current, theme, onChanged),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),

@@ -94,7 +94,7 @@ void main() {
 
       expect(find.text('Anthropic (Default)'), findsOneWidget);
       expect(find.text('DeepSeek (Chat)'), findsOneWidget);
-      expect(find.text('OpenAI (GPT-5)'), findsOneWidget);
+      expect(find.text('OpenAI (GPT-5.5)'), findsOneWidget);
       expect(find.text('Azure OpenAI'), findsOneWidget);
     });
 
@@ -249,7 +249,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Official Anthropic Claude API'), findsOneWidget);
-      expect(find.text('OpenAI GPT-5 Codex API'), findsOneWidget);
+      expect(find.text('OpenAI GPT-5.5 Codex API'), findsOneWidget);
     });
 
     testWidgets('shows custom profiles only in compatible agent sections', (
