@@ -359,8 +359,10 @@ extension SyncData on Sync {
       // fetch.
       for (final session in decryptedSessions) {
         if (_sessionMessages.containsKey(session.id)) {
-          _applyPermissionRequests(session.id);
-          _notifySessionMessagesChanged(session.id);
+          final messagesChanged = _applyPermissionRequests(session.id);
+          if (messagesChanged) {
+            _notifySessionMessagesChanged(session.id);
+          }
         }
       }
 

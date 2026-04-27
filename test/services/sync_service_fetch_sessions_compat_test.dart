@@ -142,5 +142,74 @@ void main() {
         expect(session?.metadata?.tools, <String>['bash']);
       },
     );
+
+    test(
+      'does not emit message changes when permission enrichment is unchanged',
+      () async {
+        var messageChanges = 0;
+        final sub = instance.onSessionMessagesChanged.listen((_) {
+          messageChanges++;
+        });
+        addTearDown(sub.cancel);
+
+        instance.testSetSessionMessages('existing-session', [
+          <String, dynamic>{
+            'id': 'message-1',
+            'seq': 1,
+            'role': 'user',
+            'kind': 'text',
+            'content': 'hello',
+          },
+        ]);
+
+        ApiClient().testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              if (options.path == '/v2/sessions') {
+                handler.resolve(
+                  Response<dynamic>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'sessions': <Map<String, dynamic>>[
+                        <String, dynamic>{
+                          'id': 'existing-session',
+                          'seq': 1,
+                          'createdAt': 1700000000000,
+                          'updatedAt': 1700000000001,
+                          'active': false,
+                          'activeAt': 1700000000001,
+                          'metadata': 'opaque-payload',
+                          'metadataVersion': 1,
+                          'agentState': null,
+                          'agentStateVersion': 1,
+                          'dataEncryptionKey': null,
+                          'lastSeq': 1,
+                        },
+                      ],
+                      'hasNext': false,
+                      'nextCursor': null,
+                    },
+                  ),
+                );
+                return;
+              }
+
+              handler.resolve(
+                Response<dynamic>(
+                  requestOptions: options,
+                  statusCode: 404,
+                  data: <String, dynamic>{},
+                ),
+              );
+            },
+          ),
+        );
+
+        await instance.fetchSessions();
+
+        expect(messageChanges, 0);
+      },
+    );
   });
 }

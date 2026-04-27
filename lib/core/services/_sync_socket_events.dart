@@ -29,8 +29,7 @@ extension SyncSocketEvents on Sync {
       // causing the reconnection fetch to skip messages that arrived
       // while the socket was down.
       if (_visibleSessionId != null) {
-        _reconnectCursorSnapshot =
-            _sessionLastSeq[_visibleSessionId] ?? 0;
+        _reconnectCursorSnapshot = _sessionLastSeq[_visibleSessionId] ?? 0;
       }
       // Force-bypass the 10s cooldown gate — a reconnect means the
       // socket was down and the local session catalog (especially
@@ -113,15 +112,16 @@ extension SyncSocketEvents on Sync {
       }
     });
     _unsubscribeSocketReconnectExhausted?.call();
-    _unsubscribeSocketReconnectExhausted =
-        socketIoClient.onReconnectExhausted(() {
-      logger.warning(
-        '[Sync] socket reconnection attempts exhausted — '
-        'scheduling fresh reconnect in '
-        '${Sync._reconnectWatchdogDelayMs}ms',
-      );
-      _scheduleReconnectWatchdog();
-    });
+    _unsubscribeSocketReconnectExhausted = socketIoClient.onReconnectExhausted(
+      () {
+        logger.warning(
+          '[Sync] socket reconnection attempts exhausted — '
+          'scheduling fresh reconnect in '
+          '${Sync._reconnectWatchdogDelayMs}ms',
+        );
+        _scheduleReconnectWatchdog();
+      },
+    );
     _unsubscribeSocketStatus = socketIoClient.onStatusChange((status) {
       _connectionStatus = status;
     });
@@ -450,8 +450,7 @@ extension SyncSocketEvents on Sync {
       if (pending != null && pending.isNotEmpty) {
         final matched = _applyToolResults(sessionId, pending);
         if (matched.isNotEmpty) {
-          pending.removeWhere(
-              (r) => matched.contains(r['toolUseId']));
+          pending.removeWhere((r) => matched.contains(r['toolUseId']));
           if (pending.isEmpty) {
             _pendingToolResults.remove(sessionId);
           }
@@ -670,6 +669,7 @@ extension SyncSocketEvents on Sync {
     // presence/typing directly -- the update-session event carries the
     // same data plus metadata.
     final session = _sessions[sessionId];
+    var needsEncryptedRefresh = session == null;
     if (session != null) {
       final presence = data['presence'] as String?;
       final active = data['active'] as bool?;
@@ -685,6 +685,13 @@ extension SyncSocketEvents on Sync {
           ? (data['thinkingAt'] as double).toInt()
           : null;
       final archived = data['archived'] as bool?;
+      final lastSeq = data['lastSeq'] is int
+          ? data['lastSeq'] as int
+          : data['lastSeq'] is double
+          ? (data['lastSeq'] as double).toInt()
+          : null;
+      final metadataVersion = WireParsers.parseInt(data['metadataVersion']);
+      final agentStateVersion = WireParsers.parseInt(data['agentStateVersion']);
 
       // Only update if at least one unencrypted field is present AND
       // has actually changed.  Without the value check, copyWith still
@@ -697,7 +704,8 @@ extension SyncSocketEvents on Sync {
           (activeAt != null && activeAt != session.activeAt) ||
           (thinking != null && thinking != session.thinking) ||
           (thinkingAt != null && thinkingAt != session.thinkingAt) ||
-          (archived != null && archived != session.archived);
+          (archived != null && archived != session.archived) ||
+          (lastSeq != null && (session.lastSeq ?? 0) < lastSeq);
       if (hasChanged) {
         _sessions[sessionId] = session.copyWith(
           presence: presence ?? session.presence,
@@ -706,16 +714,28 @@ extension SyncSocketEvents on Sync {
           thinking: thinking ?? session.thinking,
           thinkingAt: thinkingAt,
           archived: archived ?? session.archived,
+          lastSeq: lastSeq != null && (session.lastSeq ?? 0) < lastSeq
+              ? lastSeq
+              : session.lastSeq,
         );
         _notifyDataChanged({SyncDomain.sessions});
       }
+      needsEncryptedRefresh =
+          data.containsKey('metadata') ||
+          data.containsKey('agentState') ||
+          (metadataVersion != null &&
+              metadataVersion > session.metadataVersion) ||
+          (agentStateVersion != null &&
+              agentStateVersion > session.agentStateVersion);
     }
 
     // Schedule a debounced refresh as a safety net for encrypted
     // fields (metadata, agentState) that we can't decrypt inline here.
     // The refresh is also needed for new sessions that aren't in
     // _sessions yet.
-    _scheduleSessionsRefresh();
+    if (needsEncryptedRefresh) {
+      _scheduleSessionsRefresh();
+    }
 
     // Only log the first occurrence per session within a debounce
     // window. The server broadcasts dozens of identical update-session

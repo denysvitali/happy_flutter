@@ -149,6 +149,41 @@ void main() {
     });
 
     test(
+      'known update-session with simple fields does not fetch sessions',
+      () async {
+        instance.testSessions['session_1'] = Session(
+          id: 'session_1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: 0,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'offline',
+        );
+
+        instance.handleUpdate({
+          't': 'update-session',
+          'id': 'session_1',
+          'presence': 'online',
+          'thinking': true,
+          'lastSeq': 7,
+        });
+
+        await Future<void>.delayed(const Duration(milliseconds: 2500));
+        await instance.sessionsSync.awaitQueue();
+
+        final session = instance.testSessions['session_1']!;
+        expect(session.presence, 'online');
+        expect(session.thinking, true);
+        expect(session.lastSeq, 7);
+        expect(sessionsInvalidations, 0);
+      },
+    );
+
+    test(
       'new-message marks non-visible session dirty when only id is present',
       () {
         instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
@@ -183,9 +218,9 @@ void main() {
     test(
       'update-session bursts are debounced into one sessions refresh',
       () async {
-        instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
-        instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
-        instance.handleUpdate({'t': 'update-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
+        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
+        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
 
         // _sessionsRefreshDebounce is 2s; wait long enough for it to fire.
         await Future<void>.delayed(const Duration(milliseconds: 2500));

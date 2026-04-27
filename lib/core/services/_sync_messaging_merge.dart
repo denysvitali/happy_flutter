@@ -566,15 +566,15 @@ extension SyncMessagingMerge on Sync {
 
   /// Enrich tool-call messages with permission data from
   /// [AgentState]. Delegates to [ToolResultProcessor].
-  void _applyPermissionRequests(String sessionId) {
+  bool _applyPermissionRequests(String sessionId) {
     final session = _sessions[sessionId];
-    if (session == null) return;
+    if (session == null) return false;
 
     final agentState = session.agentState;
-    if (agentState == null) return;
+    if (agentState == null) return false;
 
     final existing = _sessionMessages[sessionId];
-    if (existing == null || existing.isEmpty) return;
+    if (existing == null || existing.isEmpty) return false;
 
     final result = _toolResultProcessor.applyPermissionRequests(
       existing,
@@ -595,6 +595,7 @@ extension SyncMessagingMerge on Sync {
       _sessionMessagesCache = null;
       _sessionMessagesViewCache.remove(sessionId);
     }
+    return result.changed;
   }
 
   void _updateSessionUsage(
