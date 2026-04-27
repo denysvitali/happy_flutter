@@ -7,18 +7,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/services/draft_storage.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_input_buttons.dart';
-import 'widgets/claude_model.dart';
 import 'widgets/file_autocomplete.dart';
 import 'widgets/input_toolbar.dart';
+import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
 import 'widgets/picker_sheets.dart';
 import 'widgets/slash_commands.dart';
 
-export 'widgets/claude_model.dart' show ClaudeModel;
+export 'widgets/model_mode.dart' show ChatModelMode;
 
 /// Enhanced chat input with autocomplete, draft
 /// persistence, and polished animations.
@@ -34,7 +33,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.onPermissionModeChanged,
     this.modelMode,
     this.onModelModeChanged,
-    this.availableModels = ClaudeModel.values,
+    this.availableModels = ChatModelMode.values,
     this.fileSuggestions = const [],
     this.machineName,
     this.currentPath,
@@ -75,13 +74,13 @@ class ChatInput extends ConsumerStatefulWidget {
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
 
   /// Active model selection, or null for server default.
-  final ClaudeModel? modelMode;
+  final ChatModelMode? modelMode;
 
   /// Callback invoked when the user changes the model.
-  final ValueChanged<ClaudeModel>? onModelModeChanged;
+  final ValueChanged<ChatModelMode>? onModelModeChanged;
 
   /// Model options available for the current session flavor.
-  final List<ClaudeModel> availableModels;
+  final List<ChatModelMode> availableModels;
 
   /// File path suggestions for `@`-autocomplete.
   final List<AutocompleteSuggestion> fileSuggestions;
@@ -585,14 +584,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
       // When enterToSend is enabled, use send action so Enter triggers
       // onSubmitted. When disabled, use newline so mobile keyboards show
       // a return key.
-      textInputAction:
-          widget.enterToSend ? TextInputAction.send : TextInputAction.newline,
+      textInputAction: widget.enterToSend
+          ? TextInputAction.send
+          : TextInputAction.newline,
       onSubmitted: widget.enterToSend ? (_) => _onSendTap() : null,
     );
   }
 
   void _showModelPicker(BuildContext context) {
-    final current = widget.modelMode ?? ClaudeModel.defaultModel;
+    final current = widget.modelMode ?? ChatModelMode.defaultModel;
     showModelPickerSheet(
       context,
       current,

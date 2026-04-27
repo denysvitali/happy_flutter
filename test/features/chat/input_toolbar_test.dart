@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/features/chat/widgets/claude_model.dart';
+import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart';
 
 void main() {
@@ -21,8 +21,8 @@ void main() {
     await tester.pumpWidget(
       wrap(
         InputToolbar(
-          modelMode: ClaudeModel.defaultModel,
-          availableModels: const [ClaudeModel.defaultModel],
+          modelMode: ChatModelMode.defaultModel,
+          availableModels: const [ChatModelMode.defaultModel],
           onShowModelPicker: () {},
           onShowProfilePicker: () {},
         ),
@@ -52,8 +52,8 @@ void main() {
     await tester.pumpWidget(
       wrap(
         InputToolbar(
-          modelMode: ClaudeModel.sonnet,
-          availableModels: ClaudeModel.availableForFlavor('claude'),
+          modelMode: ChatModelMode.sonnet,
+          availableModels: ChatModelMode.availableForFlavor('claude'),
           onShowModelPicker: () {},
           onShowProfilePicker: () {},
         ),

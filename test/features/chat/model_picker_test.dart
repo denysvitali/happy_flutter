@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/features/chat/widgets/claude_model.dart';
+import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/picker_sheets.dart';
 
 void main() {
@@ -9,12 +9,12 @@ void main() {
 
   Future<void> pumpPickerHost(
     WidgetTester tester, {
-    required List<ClaudeModel> models,
+    required List<ChatModelMode> models,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Builder(
           builder: (context) {
             return Scaffold(
@@ -22,7 +22,7 @@ void main() {
                 onPressed: () {
                   showModelPickerSheet(
                     context,
-                    ClaudeModel.defaultModel,
+                    ChatModelMode.defaultModel,
                     models,
                     (_) {},
                   );
@@ -42,7 +42,7 @@ void main() {
   testWidgets('codex sessions only show the default model', (tester) async {
     await pumpPickerHost(
       tester,
-      models: ClaudeModel.availableForFlavor('codex'),
+      models: ChatModelMode.availableForFlavor('codex'),
     );
 
     expect(find.text('Default'), findsOneWidget);
@@ -53,7 +53,7 @@ void main() {
   testWidgets('claude sessions still show sonnet and opus', (tester) async {
     await pumpPickerHost(
       tester,
-      models: ClaudeModel.availableForFlavor('claude'),
+      models: ChatModelMode.availableForFlavor('claude'),
     );
 
     expect(find.text('Default'), findsOneWidget);

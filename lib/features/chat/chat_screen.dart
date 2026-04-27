@@ -77,20 +77,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   static const double _autoScrollThreshold = 100;
 
   PermissionMode _permissionMode = PermissionMode.defaultMode;
-  ClaudeModel _modelMode = ClaudeModel.defaultModel;
+  ChatModelMode _modelMode = ChatModelMode.defaultModel;
 
   /// The effective model mode string sent to the server.
-  /// For non-Claude profiles (GLM, Codex, etc.) this is the raw
+  /// For provider-owned model modes (GLM, Codex, etc.) this is the raw
   /// provider-specific string stored in [_profileModelOverride].
   /// For Claude profiles this is just [_modelMode.modeString].
   String? get _effectiveModelModeString =>
       _profileModelOverride ?? _modelMode.modeString;
 
-  /// Raw model mode string from storage, used for non-Claude profiles.
+  /// Raw model mode string from storage, used for provider-owned modes.
   /// For Claude profiles, this matches _modelMode.modeString.
-  /// For other profiles (GLM, MiniMax, etc.), this contains the actual
+  /// For profiles with their own model names, this contains the actual
   /// model string (e.g., 'GLM-5', 'MiniMax-Text-01') while _modelMode
-  /// remains ClaudeModel.defaultModel for UI purposes.
+  /// remains ChatModelMode.defaultModel for UI purposes.
   String? _profileModelOverride;
   AIBackendProfile? _selectedProfile;
   List<AIBackendProfile> _availableProfiles = const [];
@@ -255,7 +255,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _neighborCacheSourceHash = 0;
       _controller.clear();
       _permissionMode = PermissionMode.defaultMode;
-      _modelMode = ClaudeModel.defaultModel;
+      _modelMode = ChatModelMode.defaultModel;
       _profileModelOverride = null;
       _selectedProfile = null;
       _metadataJson = null;
@@ -336,14 +336,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // so identical() alone is not sufficient.
     final latestMessageFingerprint =
         latestMessages.length == _messages.length &&
-                _lastMessageFingerprint != 0
-            ? _computeMessageFingerprint(latestMessages)
-            : _computeMessageFingerprint(latestMessages);
+            _lastMessageFingerprint != 0
+        ? _computeMessageFingerprint(latestMessages)
+        : _computeMessageFingerprint(latestMessages);
 
     if (latestMessages.length == _messages.length &&
         _lastMessageFingerprint != 0) {
-      messagesChanged =
-          latestMessageFingerprint != _lastMessageFingerprint;
+      messagesChanged = latestMessageFingerprint != _lastMessageFingerprint;
     }
 
     // When the session changes, always refresh messages — the session
@@ -400,7 +399,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // Re-normalize model only when the session's flavor actually changed
       // to avoid overwriting the user's model selection on every sync event.
       if (sessionChanged) {
-        _modelMode = ClaudeModel.normalizeForFlavor(
+        _modelMode = ChatModelMode.normalizeForFlavor(
           _modelMode,
           latestSession?.metadata?.flavor,
         );
@@ -787,7 +786,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
 
-    if (_modelMode != ClaudeModel.defaultModel) {
+    if (_modelMode != ChatModelMode.defaultModel) {
       chips.add(
         ChatAppBarStatusChip(
           text: _modelMode.label,
@@ -802,7 +801,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final availableModels = ClaudeModel.availableForProfile(
+    final availableModels = ChatModelMode.availableForProfile(
       flavor: _session?.metadata?.flavor,
       claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
     );

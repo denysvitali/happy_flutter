@@ -40,10 +40,7 @@ extension _ChatScreenActions on _ChatScreenState {
             PermissionModeExtension.fromString(sessionPermMode) ??
             PermissionMode.defaultMode;
         unawaited(
-          storage.savePermissionMode(
-            sessionId,
-            permissionMode.toModeString(),
-          ),
+          storage.savePermissionMode(sessionId, permissionMode.toModeString()),
         );
       }
     }
@@ -91,35 +88,34 @@ extension _ChatScreenActions on _ChatScreenState {
 
     // Model mode.
     String? rawModelModeString;
-    var modelMode = ClaudeModel.defaultModel;
+    var modelMode = ChatModelMode.defaultModel;
 
     // Priority: saved draft > session model > profile default
     // > settings default
     if (savedModelMode != null) {
       rawModelModeString = savedModelMode;
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(savedModelMode),
+      modelMode = ChatModelMode.normalizeForFlavor(
+        ChatModelMode.fromString(savedModelMode),
         flavor,
       );
     } else if (session?.modelMode case final sessionModelMode?) {
       rawModelModeString = sessionModelMode;
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(sessionModelMode),
+      modelMode = ChatModelMode.normalizeForFlavor(
+        ChatModelMode.fromString(sessionModelMode),
         flavor,
       );
-    } else if (selectedProfile?.defaultModelMode
-        case final profileModelMode?) {
+    } else if (selectedProfile?.defaultModelMode case final profileModelMode?) {
       rawModelModeString = profileModelMode;
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(profileModelMode),
+      modelMode = ChatModelMode.normalizeForFlavor(
+        ChatModelMode.fromString(profileModelMode),
         flavor,
       );
     } else if (settings.lastUsedModelMode != null) {
       // Fall back to the user's last-used model preference so new sessions
       // inherit the model the user most recently picked.
       rawModelModeString = settings.lastUsedModelMode;
-      modelMode = ClaudeModel.normalizeForFlavor(
-        ClaudeModel.fromString(settings.lastUsedModelMode),
+      modelMode = ChatModelMode.normalizeForFlavor(
+        ChatModelMode.fromString(settings.lastUsedModelMode),
         flavor,
       );
     }
@@ -330,8 +326,8 @@ extension _ChatScreenActions on _ChatScreenState {
         .savePermissionMode(widget.sessionId, mode.toModeString());
   }
 
-  void _onModelModeChanged(ClaudeModel model) {
-    final normalized = ClaudeModel.normalizeForFlavor(
+  void _onModelModeChanged(ChatModelMode model) {
+    final normalized = ChatModelMode.normalizeForFlavor(
       model,
       _session?.metadata?.flavor,
     );
@@ -362,14 +358,14 @@ extension _ChatScreenActions on _ChatScreenState {
 
   void _onProfileChanged(AIBackendProfile? profile) {
     // Use the profile's default model mode when switching providers.
-    // If no profile is selected, fall back to ClaudeModel.defaultModel.
+    // If no profile is selected, fall back to the server default mode.
     final profileDefaultModelMode = profile?.defaultModelMode;
     final newModel = profileDefaultModelMode != null
-        ? ClaudeModel.normalizeForFlavor(
-            ClaudeModel.fromString(profileDefaultModelMode),
+        ? ChatModelMode.normalizeForFlavor(
+            ChatModelMode.fromString(profileDefaultModelMode),
             _session?.metadata?.flavor,
           )
-        : ClaudeModel.defaultModel;
+        : ChatModelMode.defaultModel;
     final rawModelString = profileDefaultModelMode ?? newModel.modeString;
 
     // Apply the profile's default permission mode (consistent with

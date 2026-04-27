@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
-import 'claude_model.dart';
+import 'model_mode.dart';
 
 // ---------------------------------------------------------------------------
 // Model picker bottom sheet
@@ -12,10 +12,10 @@ import 'claude_model.dart';
 
 Widget _buildModelTile(
   BuildContext ctx,
-  ClaudeModel model,
-  ClaudeModel current,
+  ChatModelMode model,
+  ChatModelMode current,
   ThemeData theme,
-  ValueChanged<ClaudeModel> onChanged,
+  ValueChanged<ChatModelMode> onChanged,
 ) {
   final cs = theme.colorScheme;
   final isSelected = model == current;
@@ -43,9 +43,9 @@ Widget _buildModelTile(
               shape: BoxShape.circle,
             ),
             child: Icon(
-              model == ClaudeModel.opus
+              model == ChatModelMode.opus
                   ? Icons.diamond_outlined
-                  : model == ClaudeModel.sonnet
+                  : model == ChatModelMode.sonnet
                   ? Icons.auto_awesome_outlined
                   : Icons.smart_toy_outlined,
               size: 16,
@@ -70,12 +70,12 @@ Widget _buildModelTile(
   );
 }
 
-/// Shows a bottom sheet for selecting a [ClaudeModel].
+/// Shows a bottom sheet for selecting a [ChatModelMode].
 void showModelPickerSheet(
   BuildContext context,
-  ClaudeModel current,
-  List<ClaudeModel> models,
-  ValueChanged<ClaudeModel> onChanged,
+  ChatModelMode current,
+  List<ChatModelMode> models,
+  ValueChanged<ChatModelMode> onChanged,
 ) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;

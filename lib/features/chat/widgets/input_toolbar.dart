@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
-import 'claude_model.dart';
+import 'model_mode.dart';
 import 'permission_mode_selector.dart' as perm;
 
 /// Inline chip for model selection — subtle, tappable.
@@ -15,7 +15,7 @@ class ModelChip extends StatelessWidget {
     super.key,
   });
 
-  final ClaudeModel model;
+  final ChatModelMode model;
   final VoidCallback onTap;
   final bool enabled;
 
@@ -23,7 +23,7 @@ class ModelChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isDefault = model == ClaudeModel.defaultModel;
+    final isDefault = model == ChatModelMode.defaultModel;
     final iconColor = isDefault ? cs.onSurfaceVariant : cs.primary;
     final chevronColor = isDefault
         ? cs.onSurfaceVariant.withValues(alpha: 0.5)
@@ -43,9 +43,9 @@ class ModelChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              model == ClaudeModel.opus
+              model == ChatModelMode.opus
                   ? Icons.diamond_outlined
-                  : model == ClaudeModel.sonnet
+                  : model == ChatModelMode.sonnet
                   ? Icons.auto_awesome_outlined
                   : Icons.smart_toy_outlined,
               size: 11,
@@ -209,15 +209,15 @@ class InputToolbar extends StatelessWidget {
     this.permissionMode,
     this.onPermissionModeChanged,
     this.modelMode,
-    this.availableModels = ClaudeModel.values,
+    this.availableModels = ChatModelMode.values,
     this.selectedProfile,
     this.contextSize,
   });
 
   final perm.PermissionMode? permissionMode;
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
-  final ClaudeModel? modelMode;
-  final List<ClaudeModel> availableModels;
+  final ChatModelMode? modelMode;
+  final List<ChatModelMode> availableModels;
   final VoidCallback onShowModelPicker;
   final AIBackendProfile? selectedProfile;
   final VoidCallback onShowProfilePicker;
@@ -225,7 +225,7 @@ class InputToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final model = modelMode ?? ClaudeModel.defaultModel;
+    final model = modelMode ?? ChatModelMode.defaultModel;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
