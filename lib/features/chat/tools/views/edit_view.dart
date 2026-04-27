@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/components/diff_view_widget.dart'
-    as dw show DiffView;
+    as dw
+    show DiffView;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
@@ -13,13 +14,13 @@ import 'bash_view.dart' show FilePillChip;
 /// highlighting for removed/added lines, collapsed by default for
 /// large diffs.
 class EditView extends StatefulWidget {
-
   const EditView({
     required this.tool,
     super.key,
     this.metadata,
     this.sessionId,
   });
+
   /// The tool call data.
   final Map<String, dynamic> tool;
 
@@ -36,24 +37,56 @@ class EditView extends StatefulWidget {
 class _EditViewState extends State<EditView> {
   bool _expanded = false;
 
+  ({String oldText, String newText}) _textsFromDiff(String diff) {
+    final oldLines = <String>[];
+    final newLines = <String>[];
+    for (final line in diff.split('\n')) {
+      if (line.startsWith('+++') ||
+          line.startsWith('---') ||
+          line.startsWith('@@') ||
+          line.startsWith('diff --git') ||
+          line.startsWith('index ')) {
+        continue;
+      }
+      if (line.startsWith('+')) {
+        newLines.add(line.substring(1));
+      } else if (line.startsWith('-')) {
+        oldLines.add(line.substring(1));
+      } else if (line.startsWith(' ')) {
+        final content = line.substring(1);
+        oldLines.add(content);
+        newLines.add(content);
+      }
+    }
+    return (oldText: oldLines.join('\n'), newText: newLines.join('\n'));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
-    final filePath = input['path'] as String? ??
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
+    final filePath =
+        input['filePath'] as String? ??
+        input['path'] as String? ??
         input['file_path'] as String? ??
         '';
-    final oldString = input['old_string'] as String? ?? '';
-    final newString = input['new_string'] as String? ?? '';
+    final diff = input['diff'] as String? ?? '';
+    var oldString =
+        input['old_string'] as String? ?? input['oldContent'] as String? ?? '';
+    var newString =
+        input['new_string'] as String? ?? input['newContent'] as String? ?? '';
+
+    if (oldString.isEmpty && newString.isEmpty && diff.isNotEmpty) {
+      final parsed = _textsFromDiff(diff);
+      oldString = parsed.oldText;
+      newString = parsed.newText;
+    }
 
     // Estimate line count to decide whether to collapse.
-    final removedLines =
-        oldString.isEmpty ? 0 : oldString.split('\n').length;
-    final addedLines =
-        newString.isEmpty ? 0 : newString.split('\n').length;
+    final removedLines = oldString.isEmpty ? 0 : oldString.split('\n').length;
+    final addedLines = newString.isEmpty ? 0 : newString.split('\n').length;
     final totalLines = removedLines + addedLines;
     final isShort = totalLines <= 16;
     final show = isShort || _expanded;
@@ -74,9 +107,7 @@ class _EditViewState extends State<EditView> {
                     onTap: widget.sessionId != null
                         ? () => context.pushNamed(
                             'session-file',
-                            pathParameters: {
-                              'sessionId': widget.sessionId!,
-                            },
+                            pathParameters: {'sessionId': widget.sessionId!},
                             extra: {'path': filePath},
                           )
                         : null,
@@ -84,17 +115,11 @@ class _EditViewState extends State<EditView> {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 if (removedLines > 0)
-                  _LineDeltaBadge(
-                    count: removedLines,
-                    isAddition: false,
-                  ),
+                  _LineDeltaBadge(count: removedLines, isAddition: false),
                 if (removedLines > 0 && addedLines > 0)
                   const SizedBox(width: AppSpacing.xs),
                 if (addedLines > 0)
-                  _LineDeltaBadge(
-                    count: addedLines,
-                    isAddition: true,
-                  ),
+                  _LineDeltaBadge(count: addedLines, isAddition: true),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -107,28 +132,20 @@ class _EditViewState extends State<EditView> {
           // ── Expand/collapse toggle for large diffs ──────
           if (!isShort)
             GestureDetector(
-              onTap: () =>
-                  setState(() => _expanded = !_expanded),
+              onTap: () => setState(() => _expanded = !_expanded),
               child: Padding(
-                padding: const EdgeInsets.only(
-                  bottom: AppSpacing.xs,
-                  left: 2,
-                ),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs, left: 2),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _expanded
-                          ? Icons.expand_less
-                          : Icons.expand_more,
+                      _expanded ? Icons.expand_less : Icons.expand_more,
                       size: 16,
                       color: cs.onSurfaceVariant,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      _expanded
-                          ? 'Hide diff'
-                          : 'Show diff ($totalLines lines)',
+                      _expanded ? 'Hide diff' : 'Show diff ($totalLines lines)',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: cs.primary,
                       ),
@@ -164,10 +181,7 @@ class _EditViewState extends State<EditView> {
 
 /// Small badge showing +N or -N line delta in green or red.
 class _LineDeltaBadge extends StatelessWidget {
-  const _LineDeltaBadge({
-    required this.count,
-    required this.isAddition,
-  });
+  const _LineDeltaBadge({required this.count, required this.isAddition});
 
   final int count;
   final bool isAddition;
@@ -234,12 +248,14 @@ class _EditSectionLabel extends StatelessWidget {
 /// Wraps [dw.DiffView] with the legacy parameter names used by
 /// earlier views in this package.
 class DiffView extends StatelessWidget {
-
   const DiffView({
-    required this.oldText, required this.newText, super.key,
+    required this.oldText,
+    required this.newText,
+    super.key,
     this.showLineNumbers = true,
     this.showPlusMinus = true,
   });
+
   /// Old text content.
   final String oldText;
 

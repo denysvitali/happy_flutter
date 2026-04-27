@@ -280,6 +280,22 @@ class KnownTools {
         return null;
       },
     ),
+    'file-edit': ToolDefinition(
+      icon: editIcon,
+      title: 'Edit File',
+      isMutable: true,
+      extractSubtitle: (tool, metadata) {
+        final input = WireParsers.asMap(tool['input']);
+        final filePath =
+            input?['filePath'] as String? ??
+            input?['file_path'] as String? ??
+            input?['path'] as String?;
+        if (filePath != null) {
+          return resolvePath(filePath, metadata);
+        }
+        return null;
+      },
+    ),
     'MultiEdit': ToolDefinition(
       icon: editIcon,
       title: 'Multi-Edit File',
