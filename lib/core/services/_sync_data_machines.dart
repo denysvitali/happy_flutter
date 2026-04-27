@@ -88,7 +88,26 @@ extension SyncDataMachines on Sync {
     }
 
     if (type == 'session-alive' || type == 'session_alive') {
-      markOnline(keepThinking: true);
+      final session = _sessions[sessionId];
+      if (session != null) {
+        _lastEphemeralAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
+        if (session.presence != 'online') {
+          _sessions[sessionId] = session.copyWith(presence: 'online');
+          _notifyDataChanged({SyncDomain.sessions});
+        }
+        _presenceTimers[sessionId]?.cancel();
+        _presenceTimers[sessionId] = Timer(const Duration(seconds: 60), () {
+          _presenceTimers.remove(sessionId);
+          final current = _sessions[sessionId];
+          if (current != null && current.presence == 'online') {
+            _sessions[sessionId] = current.copyWith(
+              presence: 'offline',
+              thinking: false,
+            );
+            _notifyDataChanged({SyncDomain.sessions});
+          }
+        });
+      }
       return;
     }
 
