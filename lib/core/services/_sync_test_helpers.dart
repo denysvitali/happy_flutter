@@ -55,6 +55,25 @@ extension SyncTestHelpers on Sync {
   }
 
   @visibleForTesting
+  void testClearSessionMessageState(String sessionId) {
+    _postSendCatchUpTimers.remove(sessionId)?.cancel();
+    messagesSync.remove(sessionId)?.dispose();
+    _sessionMessages.remove(sessionId);
+    _sessionLastSeq.remove(sessionId);
+    _sessionFirstLoadedSeq.remove(sessionId);
+    _sessionContentSignatures.remove(sessionId);
+    _sessionsNeedingFetchProbe.remove(sessionId);
+    _sessionsNeedingTailRefresh.remove(sessionId);
+    _sessionsNeedingVisibleRegroup.remove(sessionId);
+    _sessionsWithPendingUpdates.remove(sessionId);
+    _sessionsWithPendingSocketMessages.remove(sessionId);
+    _sessionMessagesCache = null;
+    _sessionMessagesViewCache.remove(sessionId);
+    _previewCache.remove(sessionId);
+    _previewCacheVersion.remove(sessionId);
+  }
+
+  @visibleForTesting
   Future<void> testPrimeSessionFromSpawnResult({
     required String requestedSessionId,
     required String restoredSessionId,
@@ -259,11 +278,7 @@ extension SyncTestHelpers on Sync {
     String? agent,
     AIBackendProfile? profile,
     String? modelMode,
-  }) => _getModelOverride(
-    agent: agent,
-    profile: profile,
-    modelMode: modelMode,
-  );
+  }) => _getModelOverride(agent: agent, profile: profile, modelMode: modelMode);
 
   /// Test helper: invoke [_normalizeModelModeForAgent] which is private.
   @visibleForTesting

@@ -6,7 +6,19 @@ extension SyncMessagingMerge on Sync {
     if (content is Map) {
       return content['c'] as String?;
     }
-    return null;
+    if (content is String) {
+      return _stableContentSignature(content);
+    }
+    return 'raw:${content?.hashCode ?? 0}';
+  }
+
+  String _stableContentSignature(String content) {
+    final length = content.length;
+    if (length <= 64) {
+      return '$length:$content';
+    }
+    return '$length:${content.substring(0, 32)}:'
+        '${content.substring(length - 32)}';
   }
 
   void _rebuildSessionContentSignatures(String sessionId) {
@@ -429,7 +441,8 @@ extension SyncMessagingMerge on Sync {
     _groupSidechainMessages(sessionId);
 
     final after = _sessionMessages[sessionId];
-    final afterOrphans = after
+    final afterOrphans =
+        after
             ?.where((m) => m['isSidechain'] == true)
             .map((m) => m['id'] as String?)
             .whereType<String>()
@@ -462,11 +475,14 @@ extension SyncMessagingMerge on Sync {
     // warning so we learn about the gap and can fix linkage.
     if (afterOrphans.isNotEmpty) {
       final orphans = after!.where((m) => m['isSidechain'] == true).toList();
-      final sample = orphans.take(3).map((m) {
-        return '${m['kind'] ?? m['role'] ?? 'unknown'}'
-            ' uuid=${m['uuid']}'
-            ' parentUuid=${m['parentUuid']}';
-      }).join(' | ');
+      final sample = orphans
+          .take(3)
+          .map((m) {
+            return '${m['kind'] ?? m['role'] ?? 'unknown'}'
+                ' uuid=${m['uuid']}'
+                ' parentUuid=${m['parentUuid']}';
+          })
+          .join(' | ');
       logger.warning(
         '[sidechain] ${orphans.length} orphan message(s) '
         'remain in session=$sessionId after deferred sweep — '
@@ -533,16 +549,11 @@ extension SyncMessagingMerge on Sync {
     if (existing.isEmpty) {
       // Queue tool results that arrived before their tool-call message.
       // They will be applied when the tool-call message arrives.
-      _pendingToolResults
-          .putIfAbsent(sessionId, () => [])
-          .addAll(toolResults);
+      _pendingToolResults.putIfAbsent(sessionId, () => []).addAll(toolResults);
       return const {};
     }
 
-    final result = _toolResultProcessor.applyToolResults(
-      existing,
-      toolResults,
-    );
+    final result = _toolResultProcessor.applyToolResults(existing, toolResults);
 
     if (result.changed) {
       _sessionMessages[sessionId] = result.messages;

@@ -355,6 +355,7 @@ extension SyncMessagingSend on Sync {
           final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
           if (serverSeq != null) {
             catchUpStopAfterSeq = serverSeq;
+            _advanceSeqCursor(targetSessionId, serverSeq);
           }
           logger.info(
             '[sendMessage] ACK localId=$localId '
@@ -559,6 +560,9 @@ extension SyncMessagingSend on Sync {
         final serverId = ackedMsg['id'] as String?;
         final serverSeq = _asInt(ackedMsg['seq']);
         final serverCreatedAt = _asInt(ackedMsg['createdAt']);
+        if (serverSeq != null) {
+          _advanceSeqCursor(entry.sessionId, serverSeq);
+        }
         if (serverId != null && serverSeq != null && serverCreatedAt != null) {
           _upsertSessionMessages(entry.sessionId, [
             {

@@ -111,7 +111,8 @@ extension SyncMessaging on Sync {
       // past messages that arrived while the socket was down — using
       // the snapshot ensures the fetch starts from the correct position.
       final rawCursorSeq = _sessionLastSeq[sessionId] ?? 0;
-      final cursorSeq = (forceProbe &&
+      final cursorSeq =
+          (forceProbe &&
               sessionId == _visibleSessionId &&
               _reconnectCursorSnapshot != null &&
               _reconnectCursorSnapshot! < rawCursorSeq)
@@ -174,10 +175,9 @@ extension SyncMessaging on Sync {
         // from a prior batch are still in the list).  Also run if the
         // session was marked as needing regroup when visible.
         final messages = _sessionMessages[sessionId];
-        final hasOrphans = messages != null &&
-            messages.any((m) => m['isSidechain'] == true);
-        if (hasOrphans ||
-            _sessionsNeedingVisibleRegroup.contains(sessionId)) {
+        final hasOrphans =
+            messages != null && messages.any((m) => m['isSidechain'] == true);
+        if (hasOrphans || _sessionsNeedingVisibleRegroup.contains(sessionId)) {
           // Skip the grouper if orphan processing is suppressed — the
           // deferred sweep determined these orphans are stuck (parent
           // Task never arrived) and 30s haven't elapsed yet.  Without
@@ -199,7 +199,9 @@ extension SyncMessaging on Sync {
           // this catch-up path fixes sidechain orphans.
           if (hasOrphans) {
             // hasOrphans is only true when messages != null
-            final orphanCount = messages.where((m) => m['isSidechain'] == true).length;
+            final orphanCount = messages
+                .where((m) => m['isSidechain'] == true)
+                .length;
             logger.info(
               '[fetchMessages] $sessionId: caught-up skip with '
               '$orphanCount orphan(s) — running grouper in catch-up path',
@@ -550,8 +552,7 @@ extension SyncMessaging on Sync {
         if (pending != null && pending.isNotEmpty) {
           final matched = _applyToolResults(sessionId, pending);
           if (matched.isNotEmpty) {
-            pending.removeWhere(
-                (r) => matched.contains(r['toolUseId']));
+            pending.removeWhere((r) => matched.contains(r['toolUseId']));
             if (pending.isEmpty) {
               _pendingToolResults.remove(sessionId);
             }
@@ -770,11 +771,26 @@ extension SyncMessaging on Sync {
     if (id == null || !existingSignatures.containsKey(id)) return false;
     final existingSig = existingSignatures[id];
     final content = m['content'];
-    final incomingSig = content is Map ? content['c'] as String? : null;
+    final incomingSig = _wireContentSignature(content);
     // If neither version has an encrypted blob, treat as unchanged
     // to avoid redundant decryption of plaintext messages.
     if (existingSig == null && incomingSig == null) return false;
     return incomingSig != existingSig;
+  }
+
+  static String? _wireContentSignature(dynamic content) {
+    if (content is Map) {
+      return content['c'] as String?;
+    }
+    if (content is String) {
+      final length = content.length;
+      if (length <= 64) {
+        return '$length:$content';
+      }
+      return '$length:${content.substring(0, 32)}:'
+          '${content.substring(length - 32)}';
+    }
+    return null;
   }
 
   /// Target number of messages to have loaded after a fresh first-open
@@ -938,8 +954,7 @@ extension SyncMessaging on Sync {
       if (pending != null && pending.isNotEmpty) {
         final matched = _applyToolResults(sessionId, pending);
         if (matched.isNotEmpty) {
-          pending.removeWhere(
-              (r) => matched.contains(r['toolUseId']));
+          pending.removeWhere((r) => matched.contains(r['toolUseId']));
           if (pending.isEmpty) {
             _pendingToolResults.remove(sessionId);
           }
