@@ -129,7 +129,7 @@ void main() {
       );
       expect(
         envVars['OPENAI_MODEL'],
-        'gpt-5.5',
+        '',
         reason: 'OpenAI profile must set OPENAI_MODEL',
       );
       expect(

@@ -220,26 +220,20 @@ AIBackendProfile? getBuiltInProfile(String id) {
     case 'openai':
       return AIBackendProfile(
         id: 'openai',
-        name: 'OpenAI (GPT-5.5)',
-        description: 'OpenAI GPT-5.5 Codex API',
+        name: 'OpenAI (Codex)',
+        description: 'OpenAI Codex API',
         isBuiltIn: true,
-        defaultModelMode: 'gpt-5.5:medium',
+        defaultModelMode: 'default',
         environmentVariables: [
           EnvironmentVariable(
             name: 'OPENAI_BASE_URL',
             value: 'https://api.openai.com/v1',
           ),
-          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'gpt-5.5'),
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: ''),
           EnvironmentVariable(name: 'OPENAI_API_TIMEOUT_MS', value: '600000'),
-          EnvironmentVariable(
-            name: 'OPENAI_SMALL_FAST_MODEL',
-            value: 'gpt-5.4-mini',
-          ),
+          EnvironmentVariable(name: 'OPENAI_SMALL_FAST_MODEL', value: ''),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '600000'),
-          EnvironmentVariable(
-            name: 'CODEX_SMALL_FAST_MODEL',
-            value: 'gpt-5.4-mini',
-          ),
+          EnvironmentVariable(name: 'CODEX_SMALL_FAST_MODEL', value: ''),
         ],
         compatibility: const ProfileCompatibility(
           claude: false,

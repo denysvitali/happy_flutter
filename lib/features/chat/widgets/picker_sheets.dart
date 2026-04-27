@@ -81,6 +81,7 @@ void showModelPickerSheet(
 ) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
+  final codexModels = models.where((model) => model.isCodex).toList();
 
   showModalBottomSheet<void>(
     context: context,
@@ -99,39 +100,204 @@ void showModelPickerSheet(
             top: AppSpacing.sm,
             bottom: AppSpacing.xs,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                ),
-                child: Text(
-                  'Model',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
+          child: codexModels.isEmpty
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final model in models)
-                      _buildModelTile(ctx, model, current, theme, onChanged),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        0,
+                        AppSpacing.lg,
+                        AppSpacing.sm,
+                      ),
+                      child: Text(
+                        'Model',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final model in models)
+                            _buildModelTile(
+                              ctx,
+                              model,
+                              current,
+                              theme,
+                              onChanged,
+                            ),
+                        ],
+                      ),
+                    ),
                   ],
+                )
+              : _CodexModelPickerContent(
+                  current: current,
+                  models: models,
+                  onChanged: onChanged,
                 ),
-              ),
-            ],
-          ),
         ),
       ),
     ),
   );
+}
+
+class _CodexModelPickerContent extends StatefulWidget {
+  const _CodexModelPickerContent({
+    required this.current,
+    required this.models,
+    required this.onChanged,
+  });
+
+  final ChatModelMode current;
+  final List<ChatModelMode> models;
+  final ValueChanged<ChatModelMode> onChanged;
+
+  @override
+  State<_CodexModelPickerContent> createState() =>
+      _CodexModelPickerContentState();
+}
+
+class _CodexModelPickerContentState extends State<_CodexModelPickerContent> {
+  late String? _selectedSlug = widget.current.modelSlug ?? _firstSlug;
+
+  String? get _firstSlug {
+    for (final model in widget.models) {
+      if (model.modelSlug != null) return model.modelSlug;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final defaultModel = widget.models
+        .where((model) => model == ChatModelMode.defaultModel)
+        .toList();
+    final grouped = <String, List<ChatModelMode>>{};
+    for (final model in widget.models.where((model) => model.isCodex)) {
+      grouped.putIfAbsent(model.modelSlug!, () => []).add(model);
+    }
+    final selectedModels = grouped[_selectedSlug] ?? const [];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: Text(
+            'Model',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (defaultModel.isNotEmpty)
+          _buildModelTile(
+            context,
+            defaultModel.first,
+            widget.current,
+            theme,
+            widget.onChanged,
+          ),
+        Flexible(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final entry in grouped.entries)
+                _buildCodexModelRow(
+                  context,
+                  entry.value.first,
+                  selected: entry.key == _selectedSlug,
+                ),
+            ],
+          ),
+        ),
+        if (selectedModels.isNotEmpty) ...[
+          Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.xs,
+            ),
+            child: Text(
+              'Effort',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          for (final model in selectedModels)
+            _buildModelTile(
+              context,
+              model,
+              widget.current,
+              theme,
+              widget.onChanged,
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCodexModelRow(
+    BuildContext context,
+    ChatModelMode model, {
+    required bool selected,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedSlug = model.modelSlug);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.psychology_alt_outlined,
+              size: 18,
+              color: selected ? cs.primary : cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                model.label.replaceFirst(
+                  RegExp(' ${model.reasoningEffortLabel}\$'),
+                  '',
+                ),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected ? cs.primary : cs.onSurface,
+                ),
+              ),
+            ),
+            if (selected)
+              Icon(Icons.chevron_right_rounded, size: 18, color: cs.primary),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

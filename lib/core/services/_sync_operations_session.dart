@@ -459,6 +459,49 @@ extension SyncSessionOperations on Sync {
     );
   }
 
+  /// Fetch the Codex model catalog from the machine's installed Codex CLI.
+  Future<CodexModelsResponse> machineGetCodexModels({
+    required String machineId,
+  }) async {
+    try {
+      return await _typedMachineRPC(
+        machineId,
+        'get-codex-models',
+        <String, dynamic>{},
+        CodexModelsResponse.fromJson,
+      );
+    } catch (error, stackTrace) {
+      if (error is StateError && error.message.contains('not connected')) {
+        logger.info('machineGetCodexModels: machine offline');
+        return const CodexModelsResponse(
+          success: false,
+          models: [],
+          error: 'machine offline',
+        );
+      } else if (Sync._isRpcMethodNotAvailable(error)) {
+        logger.info(
+          'machineGetCodexModels: RPC method not available '
+          '(daemon too old)',
+        );
+        return const CodexModelsResponse(
+          success: false,
+          models: [],
+          error: 'RPC method not available',
+        );
+      } else if (Sync._isTransientConnectionError(error) ||
+          Sync._isRpcReplicaTimeout(error)) {
+        logger.info('machineGetCodexModels: transient RPC failure — $error');
+      } else {
+        logger.error('machineGetCodexModels error', error, stackTrace);
+      }
+    }
+    return const CodexModelsResponse(
+      success: false,
+      models: [],
+      error: 'RPC call failed',
+    );
+  }
+
   /// Fetch Codex usage data from the machine's local Codex auth state.
   Future<CodexUsageSummaryResponse> machineGetCodexUsage({
     required String machineId,

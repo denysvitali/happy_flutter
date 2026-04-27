@@ -94,6 +94,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _profileModelOverride;
   AIBackendProfile? _selectedProfile;
   List<AIBackendProfile> _availableProfiles = const [];
+  List<ChatModelMode> _codexModelModes = const [ChatModelMode.defaultModel];
+  String? _codexModelModesMachineId;
+  bool _isLoadingCodexModelModes = false;
   Session? _session;
   List<Map<String, dynamic>> _messages = const [];
   Map<String, dynamic>? _metadataJson;
@@ -258,6 +261,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _modelMode = ChatModelMode.defaultModel;
       _profileModelOverride = null;
       _selectedProfile = null;
+      _codexModelModes = const [ChatModelMode.defaultModel];
+      _codexModelModesMachineId = null;
+      _isLoadingCodexModelModes = false;
       _metadataJson = null;
     }
   }
@@ -403,6 +409,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _modelMode,
           latestSession?.metadata?.flavor,
         );
+        unawaited(_refreshCodexModelModes(latestSession));
       }
 
       // Handle markLoaded unconditionally — the HTTP fetch completed even if
@@ -804,6 +811,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final availableModels = ChatModelMode.availableForProfile(
       flavor: _session?.metadata?.flavor,
       claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
+      codexModels: _codexModelModes,
     );
 
     // Use select() so this build only re-runs when the specific settings

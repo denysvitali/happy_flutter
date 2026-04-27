@@ -79,6 +79,82 @@ class SpawnSessionResponse {
 }
 
 // ---------------------------------------------------------------------------
+// get-codex-models
+// ---------------------------------------------------------------------------
+
+class CodexModelsResponse {
+  const CodexModelsResponse({
+    required this.success,
+    required this.models,
+    this.error,
+  });
+
+  factory CodexModelsResponse.fromJson(Map<String, dynamic> json) {
+    final rawModels = json['models'];
+    return CodexModelsResponse(
+      success: json['success'] as bool? ?? false,
+      error: json['error'] as String?,
+      models: rawModels is List
+          ? rawModels
+                .whereType<Map>()
+                .map((model) => CodexModelInfo.fromJson(model))
+                .toList()
+          : const [],
+    );
+  }
+
+  final bool success;
+  final List<CodexModelInfo> models;
+  final String? error;
+}
+
+class CodexModelInfo {
+  const CodexModelInfo({
+    required this.slug,
+    required this.displayName,
+    required this.supportedReasoningEfforts,
+    this.defaultReasoningEffort,
+  });
+
+  factory CodexModelInfo.fromJson(Map<dynamic, dynamic> json) {
+    final supportedRaw =
+        json['supportedReasoningEfforts'] ?? json['supported_reasoning_levels'];
+    return CodexModelInfo(
+      slug: json['slug'] as String? ?? '',
+      displayName:
+          (json['displayName'] ?? json['display_name'] ?? json['slug'])
+              as String? ??
+          '',
+      defaultReasoningEffort:
+          (json['defaultReasoningEffort'] ?? json['default_reasoning_level'])
+              as String?,
+      supportedReasoningEfforts: _parseReasoningEfforts(supportedRaw),
+    );
+  }
+
+  final String slug;
+  final String displayName;
+  final List<String> supportedReasoningEfforts;
+  final String? defaultReasoningEffort;
+}
+
+List<String> _parseReasoningEfforts(dynamic value) {
+  if (value is! List) return const [];
+  final efforts = <String>[];
+  for (final item in value) {
+    if (item is String && item.isNotEmpty) {
+      efforts.add(item);
+    } else if (item is Map) {
+      final effort = item['effort'] as String?;
+      if (effort != null && effort.isNotEmpty) {
+        efforts.add(effort);
+      }
+    }
+  }
+  return efforts;
+}
+
+// ---------------------------------------------------------------------------
 // bash
 // ---------------------------------------------------------------------------
 

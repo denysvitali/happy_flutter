@@ -81,8 +81,11 @@ void main() {
     await tester.pumpWidget(
       wrap(
         InputToolbar(
-          modelMode: ChatModelMode.gpt55High,
-          availableModels: ChatModelMode.availableForFlavor('codex'),
+          modelMode: ChatModelMode.fromString('gpt-5.5:high'),
+          availableModels: [
+            ChatModelMode.defaultModel,
+            ChatModelMode.fromString('gpt-5.5:high'),
+          ],
           onShowModelPicker: () {},
           onShowProfilePicker: () {},
         ),

@@ -361,6 +361,29 @@ extension _ChatScreenActions on _ChatScreenState {
     }
   }
 
+  Future<void> _refreshCodexModelModes(Session? session) async {
+    if (session?.metadata?.flavor != 'codex') return;
+    final machineId = session?.metadata?.machineId;
+    if (machineId == null || machineId.isEmpty) return;
+    if (_codexModelModesMachineId == machineId && _codexModelModes.length > 1) {
+      return;
+    }
+    if (_isLoadingCodexModelModes) return;
+
+    _isLoadingCodexModelModes = true;
+    try {
+      final response = await sync.machineGetCodexModels(machineId: machineId);
+      if (!mounted || !response.success || response.models.isEmpty) return;
+      final modes = ChatModelMode.fromCodexCatalog(response.models);
+      setState(() {
+        _codexModelModes = modes;
+        _codexModelModesMachineId = machineId;
+      });
+    } finally {
+      _isLoadingCodexModelModes = false;
+    }
+  }
+
   void _onProfileChanged(AIBackendProfile? profile) {
     // Use the profile's default model mode when switching providers.
     // If no profile is selected, fall back to the server default mode.

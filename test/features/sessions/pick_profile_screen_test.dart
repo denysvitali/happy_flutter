@@ -210,7 +210,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('OpenAI (GPT-5.5)'), findsOneWidget);
+      expect(find.text('OpenAI (Codex)'), findsOneWidget);
       expect(find.text('Azure OpenAI'), findsOneWidget);
       expect(find.text('Codex Only'), findsOneWidget);
       expect(find.text('Anthropic (Default)'), findsNothing);
@@ -241,7 +241,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final openAiTile = find.ancestor(
-        of: find.text('OpenAI (GPT-5.5)'),
+        of: find.text('OpenAI (Codex)'),
         matching: find.byType(AppTappable),
       );
       expect(
