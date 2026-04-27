@@ -829,7 +829,13 @@ what you have, you must use the options mode.
     final msg = error.message;
     return msg.contains('not available') ||
         msg.contains('RPC method') ||
-        msg.contains('RPC handler');
+        msg.contains('RPC handler') ||
+        // Session agent disconnected or died mid-request
+        msg.contains('handler disconnected') ||
+        msg.contains('no handler') ||
+        // Handler registration failures
+        msg.contains('handler not found') ||
+        msg.contains('not registered');
   }
 
   /// Whether [error] is an infra-side RPC forwarding failure during spawn or
