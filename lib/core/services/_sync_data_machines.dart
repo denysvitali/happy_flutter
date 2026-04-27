@@ -55,6 +55,47 @@ extension SyncDataMachines on Sync {
       });
     }
 
+    if (type == 'alive-batch') {
+      final sessions = payload['sessions'] as List?;
+      if (sessions == null) return;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      bool anyChanged = false;
+      for (final s in sessions) {
+        if (s is! Map) continue;
+        final sid = s['id'] as String?;
+        if (sid == null) continue;
+        final session = _sessions[sid];
+        if (session == null) continue;
+
+        _lastEphemeralAt[sid] = now;
+        final activeAt = s['activeAt'] as int?;
+        final thinking = s['thinking'] as bool? ?? false;
+        _sessions[sid] = session.copyWith(
+          thinking: thinking,
+          thinkingAt: thinking ? (activeAt ?? now) : null,
+          presence: 'online',
+        );
+        anyChanged = true;
+
+        _presenceTimers[sid]?.cancel();
+        _presenceTimers[sid] = Timer(const Duration(seconds: 60), () {
+          _presenceTimers.remove(sid);
+          final current = _sessions[sid];
+          if (current != null && current.presence == 'online') {
+            _sessions[sid] = current.copyWith(
+              presence: 'offline',
+              thinking: false,
+            );
+            _notifyDataChanged({SyncDomain.sessions});
+          }
+        });
+      }
+      if (anyChanged) {
+        _notifyDataChanged({SyncDomain.sessions});
+      }
+      return;
+    }
+
     if (type == 'activity') {
       final session = _sessions[sessionId];
       if (session != null) {
