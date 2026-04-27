@@ -3644,6 +3644,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get developerSectionCacheStorage => 'Cache & Storage';
 
   @override
+  String get developerSectionSync => 'Sync';
+
+  @override
   String get developerSectionBuildInfo => 'Build Info';
 
   @override
@@ -3675,6 +3678,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get developerResetSettingsDesc => 'Reset all settings to defaults';
+
+  @override
+  String get developerForceSyncSettings => 'Re-sync Settings';
+
+  @override
+  String get developerForceSyncSettingsDesc =>
+      'Re-fetch settings from the server';
+
+  @override
+  String get developerForceSyncSettingsConfirm =>
+      'Are you sure you want to re-sync settings from the server?';
+
+  @override
+  String get developerForceSyncSettingsAction => 'Re-sync';
+
+  @override
+  String get developerForceSyncSettingsSuccess => 'Settings re-synced';
+
+  @override
+  String get developerForceSyncSettingsError => 'Failed to re-sync settings';
 
   @override
   String get developerAppVersion => 'App Version';
@@ -4522,7 +4545,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'View encryption keys and certificates';
 
   @override
-  String get developerModeDisabledDesc => 'Disabled - Tap 10 times to enable';
+  String get developerModeDisabledDesc => 'Disabled';
 
   @override
   String get developerNetworkInspectorDesc => 'View API requests and responses';
@@ -4713,7 +4736,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDeveloperOptions => 'Developer Options';
 
   @override
-  String get settingsDeveloperTapToEnable => 'Tap 10 times to enable';
+  String get settingsDeveloperTapToEnable => 'Open developer options';
 
   @override
   String get settingsFindFriendsSubtitle => 'Search and send friend requests';

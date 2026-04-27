@@ -94,14 +94,22 @@ class _AgentConversationScreenState
   Map<String, dynamic>? _findMessageById(
     List<Map<String, dynamic>> messages,
     String messageId,
+  ) => _findMessageByIdVisited(messages, messageId, <Map<String, dynamic>>{});
+
+  Map<String, dynamic>? _findMessageByIdVisited(
+    List<Map<String, dynamic>> messages,
+    String messageId,
+    Set<Map<String, dynamic>> visited,
   ) {
     for (final msg in messages) {
+      if (!visited.add(msg)) continue;
       if (msg['id'] == messageId) return msg;
       final children = WireParsers.asList(msg['children']);
       if (children == null || children.isEmpty) continue;
-      final nested = _findMessageById(
+      final nested = _findMessageByIdVisited(
         children.whereType<Map<String, dynamic>>().toList(),
         messageId,
+        visited,
       );
       if (nested != null) return nested;
     }
@@ -118,10 +126,9 @@ class _AgentConversationScreenState
     if (count < currentCount && currentChildren != null) {
       merged['children'] = List<dynamic>.from(currentChildren);
     }
-    final mergedChildKinds = WireParsers.asList(merged['children'])
-        ?.whereType<Map<String, dynamic>>()
-        .map((c) => c['kind'])
-        .toList();
+    final mergedChildKinds = WireParsers.asList(
+      merged['children'],
+    )?.whereType<Map<String, dynamic>>().map((c) => c['kind']).toList();
     logger.debug(
       '[AgentConversation] _applyUpdate '
       'id=${widget.messageId} '
@@ -220,9 +227,9 @@ class _AgentConversationScreenState
     final state = _taskMsg?['state'] as String? ?? 'pending';
     final isRunning = state == 'running';
     final children =
-        WireParsers.asList(_taskMsg?['children'])
-            ?.whereType<Map<String, dynamic>>()
-            .toList() ??
+        WireParsers.asList(
+          _taskMsg?['children'],
+        )?.whereType<Map<String, dynamic>>().toList() ??
         [];
 
     return Scaffold(
@@ -248,9 +255,7 @@ class _AgentConversationScreenState
         actions: [
           if (isRunning)
             Padding(
-              padding: const EdgeInsets.only(
-                right: AppSpacing.lg,
-              ),
+              padding: const EdgeInsets.only(right: AppSpacing.lg),
               child: SizedBox(
                 width: 16,
                 height: 16,
@@ -315,10 +320,7 @@ class _AgentConversationScreenState
     }
 
     if (kind == 'agent-event') {
-      return AgentEventWidget(
-        key: key,
-        event: msg['event'],
-      );
+      return AgentEventWidget(key: key, event: msg['event']);
     }
 
     return const SizedBox.shrink();
@@ -365,10 +367,7 @@ class _AgentConversationScreenState
         onPress: () {
           final msgId = msg['id'] as String?;
           if (msgId == null) return;
-          context.push(
-            '/chat/${widget.sessionId}/message/$msgId',
-            extra: msg,
-          );
+          context.push('/chat/${widget.sessionId}/message/$msgId', extra: msg);
         },
       ),
     );
@@ -514,15 +513,17 @@ class _ThinkingRow extends StatelessWidget {
           Icon(
             Icons.auto_awesome_rounded,
             size: 12,
-            color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: AppOpacity.high),
+            color: theme.colorScheme.onSurfaceVariant.withValues(
+              alpha: AppOpacity.high,
+            ),
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
             AppLocalizations.of(context).chatThinking,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant
-                  .withValues(alpha: AppOpacity.high),
+              color: theme.colorScheme.onSurfaceVariant.withValues(
+                alpha: AppOpacity.high,
+              ),
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -559,9 +560,7 @@ class _ErrorRow extends StatelessWidget {
             vertical: AppSpacing.xsm,
           ),
           decoration: BoxDecoration(
-            color: cs.errorContainer.withValues(
-              alpha: AppOpacity.half,
-            ),
+            color: cs.errorContainer.withValues(alpha: AppOpacity.half),
             borderRadius: BorderRadius.circular(AppRadius.xsm),
           ),
           child: Row(
@@ -602,14 +601,14 @@ class _ErrorRow extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   'Debug data:',
-                  style: Theme.of(ctx).textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   debugData.toString(),
-                  style: Theme.of(ctx).textTheme.bodySmall
-                      ?.copyWith(
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.sm,
                   ),

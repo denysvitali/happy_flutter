@@ -4558,7 +4558,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsViewStyleClassic.
   ///
   /// In en, this message translates to:
-  /// **'Current layout'**
+  /// **'Classic list'**
   String get sessionsViewStyleClassic;
 
   /// No description provided for @sessionsViewStyleFolderCentric.
@@ -6787,6 +6787,12 @@ abstract class AppLocalizations {
   /// **'Cache & Storage'**
   String get developerSectionCacheStorage;
 
+  /// No description provided for @developerSectionSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get developerSectionSync;
+
   /// No description provided for @developerSectionBuildInfo.
   ///
   /// In en, this message translates to:
@@ -6852,6 +6858,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset all settings to defaults'**
   String get developerResetSettingsDesc;
+
+  /// No description provided for @developerForceSyncSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-sync Settings'**
+  String get developerForceSyncSettings;
+
+  /// No description provided for @developerForceSyncSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-fetch settings from the server'**
+  String get developerForceSyncSettingsDesc;
+
+  /// No description provided for @developerForceSyncSettingsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to re-sync settings from the server?'**
+  String get developerForceSyncSettingsConfirm;
+
+  /// No description provided for @developerForceSyncSettingsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-sync'**
+  String get developerForceSyncSettingsAction;
+
+  /// No description provided for @developerForceSyncSettingsSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings re-synced'**
+  String get developerForceSyncSettingsSuccess;
+
+  /// No description provided for @developerForceSyncSettingsError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to re-sync settings'**
+  String get developerForceSyncSettingsError;
 
   /// No description provided for @developerAppVersion.
   ///
@@ -8452,7 +8494,7 @@ abstract class AppLocalizations {
   /// No description provided for @developerModeDisabledDesc.
   ///
   /// In en, this message translates to:
-  /// **'Disabled - Tap 10 times to enable'**
+  /// **'Disabled'**
   String get developerModeDisabledDesc;
 
   /// No description provided for @developerNetworkInspectorDesc.
@@ -8776,7 +8818,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDeveloperTapToEnable.
   ///
   /// In en, this message translates to:
-  /// **'Tap 10 times to enable'**
+  /// **'Open developer options'**
   String get settingsDeveloperTapToEnable;
 
   /// No description provided for @settingsFindFriendsSubtitle.
