@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/auth.dart';
@@ -37,6 +38,17 @@ class TokenStorage {
       _cachedCredentials = credentials;
       return credentials;
     } catch (e, stack) {
+      if (_isSecureStorageReadCorruption(e)) {
+        await _deleteCorruptSecureValue(
+          storage: _secureStorage,
+          key: _authKey,
+          label: 'credentials',
+          error: e,
+          stack: stack,
+        );
+        _cachedCredentials = null;
+        return null;
+      }
       logger.error('Error getting credentials', e, stack);
       return null;
     }
@@ -71,6 +83,39 @@ class TokenStorage {
   Future<bool> isAuthenticated() async {
     final credentials = await getCredentials();
     return credentials != null;
+  }
+}
+
+bool _isSecureStorageReadCorruption(Object error) {
+  final text = error.toString();
+  return error is PlatformException &&
+      error.message == 'read' &&
+      (text.contains('IllegalBlockSizeException') ||
+          text.contains('BadPaddingException') ||
+          text.contains('WRONG_FINAL_BLOCK_LENGTH') ||
+          text.contains('AEADBadTagException'));
+}
+
+Future<void> _deleteCorruptSecureValue({
+  required FlutterSecureStorage storage,
+  required String key,
+  required String label,
+  required Object error,
+  required StackTrace stack,
+}) async {
+  logger.warning(
+    'Secure storage value for $label is unreadable; clearing it',
+    error,
+    stack,
+  );
+  try {
+    await storage.delete(key: key);
+  } catch (deleteError, deleteStack) {
+    logger.error(
+      'Failed to clear unreadable secure storage value for $label',
+      deleteError,
+      deleteStack,
+    );
   }
 }
 
@@ -510,6 +555,16 @@ class APIKeyStorage {
     try {
       return await _secureStorage.read(key: _inferenceOpenAIKey);
     } catch (e, stack) {
+      if (_isSecureStorageReadCorruption(e)) {
+        await _deleteCorruptSecureValue(
+          storage: _secureStorage,
+          key: _inferenceOpenAIKey,
+          label: 'inference OpenAI key',
+          error: e,
+          stack: stack,
+        );
+        return null;
+      }
       logger.error('Error getting inference OpenAI key', e, stack);
       return null;
     }
@@ -533,10 +588,20 @@ class APIKeyStorage {
 
   /// Get OpenAI config API key for a profile
   Future<String?> getOpenAIConfigKey(String profileId) async {
+    final key = '$_openAIConfigKeyPrefix$profileId';
     try {
-      final key = '$_openAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
     } catch (e, stack) {
+      if (_isSecureStorageReadCorruption(e)) {
+        await _deleteCorruptSecureValue(
+          storage: _secureStorage,
+          key: key,
+          label: 'OpenAI config key',
+          error: e,
+          stack: stack,
+        );
+        return null;
+      }
       logger.error('Error getting OpenAI config key', e, stack);
       return null;
     }
@@ -560,10 +625,20 @@ class APIKeyStorage {
 
   /// Get Azure OpenAI config API key for a profile
   Future<String?> getAzureOpenAIConfigKey(String profileId) async {
+    final key = '$_azureOpenAIConfigKeyPrefix$profileId';
     try {
-      final key = '$_azureOpenAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
     } catch (e, stack) {
+      if (_isSecureStorageReadCorruption(e)) {
+        await _deleteCorruptSecureValue(
+          storage: _secureStorage,
+          key: key,
+          label: 'Azure OpenAI config key',
+          error: e,
+          stack: stack,
+        );
+        return null;
+      }
       logger.error('Error getting Azure OpenAI config key', e, stack);
       return null;
     }
@@ -587,10 +662,20 @@ class APIKeyStorage {
 
   /// Get TogetherAI config API key for a profile
   Future<String?> getTogetherAIConfigKey(String profileId) async {
+    final key = '$_togetherAIConfigKeyPrefix$profileId';
     try {
-      final key = '$_togetherAIConfigKeyPrefix$profileId';
       return await _secureStorage.read(key: key);
     } catch (e, stack) {
+      if (_isSecureStorageReadCorruption(e)) {
+        await _deleteCorruptSecureValue(
+          storage: _secureStorage,
+          key: key,
+          label: 'TogetherAI config key',
+          error: e,
+          stack: stack,
+        );
+        return null;
+      }
       logger.error('Error getting TogetherAI config key', e, stack);
       return null;
     }

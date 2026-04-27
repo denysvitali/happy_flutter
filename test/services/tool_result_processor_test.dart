@@ -17,15 +17,14 @@ void main() {
     String? state,
     Map<String, dynamic>? permission,
     List<Map<String, dynamic>>? children,
-  }) =>
-      <String, dynamic>{
-        'id': id,
-        'kind': 'tool-call',
-        if (toolUseId != null) 'toolUseId': toolUseId,
-        if (state != null) 'state': state,
-        if (permission != null) 'permission': permission,
-        if (children != null) 'children': children,
-      };
+  }) => <String, dynamic>{
+    'id': id,
+    'kind': 'tool-call',
+    if (toolUseId != null) 'toolUseId': toolUseId,
+    if (state != null) 'state': state,
+    if (permission != null) 'permission': permission,
+    if (children != null) 'children': children,
+  };
 
   Map<String, dynamic> _toolResult({
     required String toolUseId,
@@ -33,23 +32,20 @@ void main() {
     bool isError = false,
     int? createdAt,
     Map<String, dynamic>? permissions,
-  }) =>
-      <String, dynamic>{
-        'toolUseId': toolUseId,
-        if (result != null) 'result': result,
-        'isError': isError,
-        if (createdAt != null) 'createdAt': createdAt,
-        if (permissions != null)
-          'permissions': permissions,
-      };
+  }) => <String, dynamic>{
+    'toolUseId': toolUseId,
+    if (result != null) 'result': result,
+    'isError': isError,
+    if (createdAt != null) 'createdAt': createdAt,
+    if (permissions != null) 'permissions': permissions,
+  };
 
-  Map<String, dynamic> _textMsg({required String id}) =>
-      <String, dynamic>{
-        'id': id,
-        'kind': 'text',
-        'role': 'assistant',
-        'content': 'hello',
-      };
+  Map<String, dynamic> _textMsg({required String id}) => <String, dynamic>{
+    'id': id,
+    'kind': 'text',
+    'role': 'assistant',
+    'content': 'hello',
+  };
 
   // ── applyToolResults ──────────────────────────────────
 
@@ -64,19 +60,11 @@ void main() {
 
     test('matches tool result by toolUseId', () {
       final messages = [
-        _toolCallMsg(
-          id: 'm1',
-          toolUseId: 'tu-1',
-          state: 'running',
-        ),
+        _toolCallMsg(id: 'm1', toolUseId: 'tu-1', state: 'running'),
       ];
 
       final r = processor.applyToolResults(messages, [
-        _toolResult(
-          toolUseId: 'tu-1',
-          result: 'done',
-          createdAt: 1000,
-        ),
+        _toolResult(toolUseId: 'tu-1', result: 'done', createdAt: 1000),
       ]);
 
       expect(r.changed, isTrue);
@@ -87,16 +75,10 @@ void main() {
     });
 
     test('sets state to error when isError is true', () {
-      final messages = [
-        _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
-      ];
+      final messages = [_toolCallMsg(id: 'm1', toolUseId: 'tu-1')];
 
       final r = processor.applyToolResults(messages, [
-        _toolResult(
-          toolUseId: 'tu-1',
-          result: 'failed',
-          isError: true,
-        ),
+        _toolResult(toolUseId: 'tu-1', result: 'failed', isError: true),
       ]);
 
       expect(r.changed, isTrue);
@@ -104,43 +86,32 @@ void main() {
     });
 
     test('applies permission from tool result', () {
-      final messages = [
-        _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
-      ];
+      final messages = [_toolCallMsg(id: 'm1', toolUseId: 'tu-1')];
 
       final r = processor.applyToolResults(messages, [
         _toolResult(
           toolUseId: 'tu-1',
-          permissions: <String, dynamic>{
-            'result': 'approved',
-            'mode': 'yolo',
-          },
+          permissions: <String, dynamic>{'result': 'approved', 'mode': 'yolo'},
         ),
       ]);
 
       expect(r.changed, isTrue);
-      final perm =
-          r.messages[0]['permission'] as Map<String, dynamic>;
+      final perm = r.messages[0]['permission'] as Map<String, dynamic>;
       expect(perm['status'], 'approved');
       expect(perm['mode'], 'yolo');
     });
 
     test('applies denied permission', () {
-      final messages = [
-        _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
-      ];
+      final messages = [_toolCallMsg(id: 'm1', toolUseId: 'tu-1')];
 
       final r = processor.applyToolResults(messages, [
         _toolResult(
           toolUseId: 'tu-1',
-          permissions: <String, dynamic>{
-            'result': 'denied',
-          },
+          permissions: <String, dynamic>{'result': 'denied'},
         ),
       ]);
 
-      final perm =
-          r.messages[0]['permission'] as Map<String, dynamic>;
+      final perm = r.messages[0]['permission'] as Map<String, dynamic>;
       expect(perm['status'], 'denied');
     });
 
@@ -149,40 +120,43 @@ void main() {
         _toolCallMsg(
           id: 'parent',
           toolUseId: 'tu-parent',
-          children: [
-            _toolCallMsg(
-              id: 'child',
-              toolUseId: 'tu-child',
-            ),
-          ],
+          children: [_toolCallMsg(id: 'child', toolUseId: 'tu-child')],
         ),
       ];
 
       final r = processor.applyToolResults(messages, [
-        _toolResult(
-          toolUseId: 'tu-child',
-          result: 'child-done',
-        ),
+        _toolResult(toolUseId: 'tu-child', result: 'child-done'),
       ]);
 
       expect(r.changed, isTrue);
-      final children = r.messages[0]['children']
-          as List<Map<String, dynamic>>;
+      final children = r.messages[0]['children'] as List<Map<String, dynamic>>;
       expect(children[0]['state'], 'completed');
       expect(children[0]['result'], 'child-done');
       expect(r.matchedIds, contains('tu-child'));
     });
 
+    test('does not recurse forever on cyclic children', () {
+      final parent = _toolCallMsg(id: 'parent', toolUseId: 'tu-parent');
+      final child = _toolCallMsg(id: 'child', toolUseId: 'tu-child');
+      parent['children'] = <Map<String, dynamic>>[child];
+      child['children'] = <Map<String, dynamic>>[parent];
+
+      final r = processor.applyToolResults(
+        [parent],
+        [_toolResult(toolUseId: 'tu-child', result: 'child-done')],
+      );
+
+      expect(r.changed, isTrue);
+      expect(r.matchedIds, contains('tu-child'));
+      final children = r.messages[0]['children'] as List<dynamic>;
+      expect(children[0]['state'], 'completed');
+    });
+
     test('ignores results with unknown toolUseId', () {
-      final messages = [
-        _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
-      ];
+      final messages = [_toolCallMsg(id: 'm1', toolUseId: 'tu-1')];
 
       final r = processor.applyToolResults(messages, [
-        _toolResult(
-          toolUseId: 'tu-unknown',
-          result: 'nope',
-        ),
+        _toolResult(toolUseId: 'tu-unknown', result: 'nope'),
       ]);
 
       expect(r.changed, isFalse);
@@ -191,15 +165,10 @@ void main() {
     });
 
     test('ignores results with empty toolUseId', () {
-      final messages = [
-        _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
-      ];
+      final messages = [_toolCallMsg(id: 'm1', toolUseId: 'tu-1')];
 
       final r = processor.applyToolResults(messages, [
-        <String, dynamic>{
-          'toolUseId': '',
-          'result': 'nope',
-        },
+        <String, dynamic>{'toolUseId': '', 'result': 'nope'},
       ]);
 
       expect(r.changed, isFalse);
@@ -225,17 +194,13 @@ void main() {
 
   group('applyPermissionRequests', () {
     test('stamps pending permission on tool-call', () {
-      final messages = [
-        _toolCallMsg(id: 'm1', toolUseId: 'perm-1'),
-      ];
+      final messages = [_toolCallMsg(id: 'm1', toolUseId: 'perm-1')];
 
       final agentState = AgentState(
         requests: {
           'perm-1': RequestInfo.fromJson(<String, dynamic>{
             'tool': 'bash',
-            'arguments': <String, dynamic>{
-              'command': 'rm -rf /',
-            },
+            'arguments': <String, dynamic>{'command': 'rm -rf /'},
           }),
         },
       );
@@ -247,8 +212,7 @@ void main() {
       );
 
       expect(result.changed, isTrue);
-      final perm = result.messages[0]['permission']
-          as Map<String, dynamic>;
+      final perm = result.messages[0]['permission'] as Map<String, dynamic>;
       expect(perm['id'], 'perm-1');
       expect(perm['status'], 'pending');
     });
@@ -258,10 +222,7 @@ void main() {
         _toolCallMsg(
           id: 'm1',
           toolUseId: 'perm-1',
-          permission: <String, dynamic>{
-            'id': 'perm-1',
-            'status': 'pending',
-          },
+          permission: <String, dynamic>{'id': 'perm-1', 'status': 'pending'},
         ),
       ];
 
@@ -282,25 +243,18 @@ void main() {
       );
 
       expect(result.changed, isTrue);
-      final perm = result.messages[0]['permission']
-          as Map<String, dynamic>;
+      final perm = result.messages[0]['permission'] as Map<String, dynamic>;
       expect(perm['status'], 'approved');
       expect(perm['mode'], 'yolo');
     });
 
-    test('reports resolvedPermIds for notified permissions',
-        () {
-      final messages = [
-        _toolCallMsg(id: 'm1', toolUseId: 'perm-1'),
-      ];
+    test('reports resolvedPermIds for notified permissions', () {
+      final messages = [_toolCallMsg(id: 'm1', toolUseId: 'perm-1')];
 
       final notified = <String>{'perm-1'};
       final agentState = AgentState(
         completedRequests: {
-          'perm-1': CompletedRequestInfo(
-            tool: 'bash',
-            status: 'denied',
-          ),
+          'perm-1': CompletedRequestInfo(tool: 'bash', status: 'denied'),
         },
       );
 
@@ -318,19 +272,13 @@ void main() {
         _toolCallMsg(
           id: 'm1',
           toolUseId: 'perm-1',
-          permission: <String, dynamic>{
-            'id': 'perm-1',
-            'status': 'approved',
-          },
+          permission: <String, dynamic>{'id': 'perm-1', 'status': 'approved'},
         ),
       ];
 
       final agentState = AgentState(
         completedRequests: {
-          'perm-1': CompletedRequestInfo(
-            tool: 'bash',
-            status: 'denied',
-          ),
+          'perm-1': CompletedRequestInfo(tool: 'bash', status: 'denied'),
         },
       );
 
@@ -349,10 +297,7 @@ void main() {
         _toolCallMsg(
           id: 'm1',
           toolUseId: 'perm-1',
-          permission: <String, dynamic>{
-            'id': 'perm-1',
-            'status': 'pending',
-          },
+          permission: <String, dynamic>{'id': 'perm-1', 'status': 'pending'},
         ),
         _toolCallMsg(id: 'm2', toolUseId: 'perm-2'),
       ];
@@ -374,15 +319,12 @@ void main() {
       );
 
       expect(result.changed, isTrue);
-      final perm = result.messages[0]['permission']
-          as Map<String, dynamic>;
+      final perm = result.messages[0]['permission'] as Map<String, dynamic>;
       expect(perm['status'], 'canceled');
     });
 
     test('returns unchanged when no requests', () {
-      final messages = [
-        _toolCallMsg(id: 'm1', toolUseId: 'tu-1'),
-      ];
+      final messages = [_toolCallMsg(id: 'm1', toolUseId: 'tu-1')];
 
       final agentState = AgentState();
 
@@ -423,8 +365,7 @@ void main() {
       );
 
       expect(result.changed, isTrue);
-      final perm = result.messages[0]['permission']
-          as Map<String, dynamic>;
+      final perm = result.messages[0]['permission'] as Map<String, dynamic>;
       expect(perm['id'], 'perm-1');
     });
   });

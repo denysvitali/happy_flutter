@@ -326,6 +326,8 @@ jobs:
     name: Build Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     # Run on main pushes, workflow_dispatch (release/both), and version tags.
     if: |
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
@@ -499,6 +501,8 @@ jobs:
   build-web:
     name: Build Web
     runs-on: ubuntu-latest
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
@@ -522,11 +526,28 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Compute build metadata
+        id: build_meta
+        run: |
+          BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+
       - name: Build Web
         run: |
           flutter build web --release \
             --base-href '/' \
-            --dart-define=COMMIT_SHA=${{ github.sha }}
+            --source-maps \
+            --dart-define=COMMIT_SHA=${{ github.sha }} \
+            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
+
+      - name: Upload web source maps to Sentry
+        if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
+        run: |
+          flutter pub run sentry_dart_plugin
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          SENTRY_RELEASE: happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Cache-bust assets
         run: |

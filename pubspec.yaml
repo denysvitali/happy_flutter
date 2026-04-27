@@ -117,7 +117,7 @@ flutter:
 
 sentry:
   upload_debug_symbols: true
-  upload_source_maps: false
+  upload_source_maps: true
   upload_sources: false
   project: happy_flutter
   org: denvit-hv

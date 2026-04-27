@@ -14,7 +14,7 @@ class ToolResultProcessor {
   ///
   /// Returns `(updatedMessages, changed, matchedToolUseIds)`.
   ({List<Map<String, dynamic>> messages, bool changed, Set<String> matchedIds})
-      applyToolResults(
+  applyToolResults(
     List<Map<String, dynamic>> messages,
     List<Map<String, dynamic>> toolResults,
   ) {
@@ -25,31 +25,32 @@ class ToolResultProcessor {
       toolResultsById[toolUseId] = result;
     }
     if (toolResultsById.isEmpty) {
-      return (
-        messages: messages,
-        changed: false,
-        matchedIds: <String>{},
-      );
+      return (messages: messages, changed: false, matchedIds: <String>{});
     }
 
-    final (updated, changed, matched) =
-        _applyRecursive(messages, toolResultsById);
-    return (
-      messages: updated,
-      changed: changed,
-      matchedIds: matched,
+    final (updated, changed, matched) = _applyRecursive(
+      messages,
+      toolResultsById,
+      visited: <Map<String, dynamic>>{},
     );
+    return (messages: updated, changed: changed, matchedIds: matched);
   }
 
   (List<Map<String, dynamic>>, bool, Set<String>) _applyRecursive(
     List<Map<String, dynamic>> messages,
-    Map<String, Map<String, dynamic>> toolResultsById,
-  ) {
+    Map<String, Map<String, dynamic>> toolResultsById, {
+    required Set<Map<String, dynamic>> visited,
+  }) {
     var changed = false;
     final matchedIds = <String>{};
     final updated = <Map<String, dynamic>>[];
 
     for (final msg in messages) {
+      if (!visited.add(msg)) {
+        updated.add(msg);
+        continue;
+      }
+
       var next = msg;
 
       final children = msg['children'];
@@ -57,8 +58,11 @@ class ToolResultProcessor {
         final typedChildren = children
             .whereType<Map<String, dynamic>>()
             .toList();
-        final (updatedChildren, childChanged, childMatched) =
-            _applyRecursive(typedChildren, toolResultsById);
+        final (updatedChildren, childChanged, childMatched) = _applyRecursive(
+          typedChildren,
+          toolResultsById,
+          visited: visited,
+        );
         if (childChanged) {
           next = {...next, 'children': updatedChildren};
           changed = true;
@@ -68,31 +72,23 @@ class ToolResultProcessor {
 
       if (msg['kind'] == 'tool-call') {
         final toolUseId = msg['toolUseId'] as String?;
-        final result = toolUseId != null
-            ? toolResultsById[toolUseId]
-            : null;
+        final result = toolUseId != null ? toolResultsById[toolUseId] : null;
         if (result != null) {
           final isError = result['isError'] == true;
 
           Map<String, dynamic>? permissionUpdate;
           final perms = result['permissions'];
           if (perms is Map<String, dynamic>) {
-            final permResult =
-                perms['result'] as String?;
-            final status = permResult == 'approved'
-                ? 'approved'
-                : 'denied';
+            final permResult = perms['result'] as String?;
+            final status = permResult == 'approved' ? 'approved' : 'denied';
             permissionUpdate = {
               'id': toolUseId,
               'status': status,
-              if (perms['date'] != null)
-                'date': perms['date'],
-              if (perms['mode'] != null)
-                'mode': perms['mode'],
+              if (perms['date'] != null) 'date': perms['date'],
+              if (perms['mode'] != null) 'mode': perms['mode'],
               if (perms['allowedTools'] != null)
                 'allowedTools': perms['allowedTools'],
-              if (perms['decision'] != null)
-                'decision': perms['decision'],
+              if (perms['decision'] != null) 'decision': perms['decision'],
             };
           }
 
@@ -125,7 +121,8 @@ class ToolResultProcessor {
     List<Map<String, dynamic>> messages,
     bool changed,
     Set<String> resolvedPermIds,
-  }) applyPermissionRequests(
+  })
+  applyPermissionRequests(
     List<Map<String, dynamic>> messages,
     AgentState agentState,
     Set<String> notifiedPermissionIds,
@@ -135,8 +132,7 @@ class ToolResultProcessor {
     final resolvedPermIds = <String>{};
 
     if ((requests == null || requests.isEmpty) &&
-        (completedRequests == null ||
-            completedRequests.isEmpty)) {
+        (completedRequests == null || completedRequests.isEmpty)) {
       return (
         messages: messages,
         changed: false,
@@ -159,8 +155,7 @@ class ToolResultProcessor {
 
     void ensureCopied() {
       if (!copied) {
-        result =
-            List<Map<String, dynamic>>.from(messages);
+        result = List<Map<String, dynamic>>.from(messages);
         copied = true;
       }
     }
@@ -173,25 +168,18 @@ class ToolResultProcessor {
         if (idx == null) continue;
 
         final msg = result[idx];
-        final existingPerm =
-            WireParsers.asMap(msg['permission']);
+        final existingPerm = WireParsers.asMap(msg['permission']);
         if (existingPerm == null) {
           ensureCopied();
           result[idx] = {
             ...msg,
-            'permission': {
-              'id': permId,
-              'status': 'pending',
-            },
+            'permission': {'id': permId, 'status': 'pending'},
           };
         } else if (existingPerm['id'] == null) {
           ensureCopied();
           result[idx] = {
             ...msg,
-            'permission': {
-              ...existingPerm,
-              'id': permId,
-            },
+            'permission': {...existingPerm, 'id': permId},
           };
         }
       }
@@ -211,8 +199,7 @@ class ToolResultProcessor {
         if (idx == null) continue;
 
         final msg = result[idx];
-        final existingPerm =
-            WireParsers.asMap(msg['permission']);
+        final existingPerm = WireParsers.asMap(msg['permission']);
         if (existingPerm != null &&
             existingPerm['status'] != 'pending' &&
             existingPerm['id'] != null) {
@@ -226,38 +213,29 @@ class ToolResultProcessor {
             'id': permId,
             'status': info.status,
             if (info.mode != null) 'mode': info.mode,
-            if (info.allowedTools != null)
-              'allowedTools': info.allowedTools,
-            if (info.decision != null)
-              'decision': info.decision,
-            if (info.reason != null)
-              'reason': info.reason,
+            if (info.allowedTools != null) 'allowedTools': info.allowedTools,
+            if (info.decision != null) 'decision': info.decision,
+            if (info.reason != null) 'reason': info.reason,
           },
         };
       }
     }
 
     // Clear stale pending permissions.
-    final pendingIds =
-        requests?.keys.toSet() ?? <String>{};
+    final pendingIds = requests?.keys.toSet() ?? <String>{};
     for (var i = 0; i < result.length; i++) {
       final msg = result[i];
       if (msg['kind'] != 'tool-call') continue;
-      final perm =
-          WireParsers.asMap(msg['permission']);
+      final perm = WireParsers.asMap(msg['permission']);
       if (perm == null) continue;
       final status = perm['status'] as String?;
       if (status != 'pending') continue;
       final permId = perm['id'] as String?;
-      if (permId != null &&
-          !pendingIds.contains(permId)) {
+      if (permId != null && !pendingIds.contains(permId)) {
         ensureCopied();
         result[i] = {
           ...msg,
-          'permission': {
-            ...perm,
-            'status': 'canceled',
-          },
+          'permission': {...perm, 'status': 'canceled'},
         };
       }
     }
