@@ -977,6 +977,36 @@ void main() {
     });
   });
 
+  group('Sync cold-start message cache warmup', () {
+    test('selects only the 20 most recently updated sessions', () {
+      final instance = Sync();
+      instance.testSessions.clear();
+
+      for (var i = 0; i < 25; i++) {
+        final id = 'session-$i';
+        instance.testSessions[id] = Session(
+          id: id,
+          seq: 0,
+          createdAt: i,
+          updatedAt: i,
+          active: true,
+          activeAt: i,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'offline',
+        );
+      }
+
+      final selected = instance.testRecentSessionIdsForCacheWarmup();
+
+      expect(selected, hasLength(20));
+      expect(selected.first, 'session-24');
+      expect(selected.last, 'session-5');
+      expect(selected, isNot(contains('session-4')));
+    });
+  });
+
   group('Sync model change detection', () {
     late Sync sync;
 

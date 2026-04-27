@@ -7,6 +7,7 @@ extension SyncMessagingRpc on Sync {
     Map<String, dynamic> params, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
+    final stopwatch = Stopwatch()..start();
     var machineEncryption = encryption.getMachineEncryption(machineId);
     if (machineEncryption == null) {
       unawaited(
@@ -29,14 +30,26 @@ extension SyncMessagingRpc on Sync {
     }
 
     final encrypted = await machineEncryption.encryptRaw(params);
+    final rpcElapsedBeforeSend = stopwatch.elapsedMilliseconds;
     // emitWithAck now throws SocketNotConnectedException (socket not connected)
     // or SocketAckTimeoutException (ACK timeout) instead of returning null.
     // These propagate as-is so callers can distinguish connection failures from
     // application-level errors.
-    final result = await socketIoClient.emitWithAck('rpc-call', {
-      'method': '$machineId:$method',
-      'params': encrypted,
-    }, timeout: timeout);
+    final Object? result;
+    try {
+      result = await socketIoClient.emitWithAck('rpc-call', {
+        'method': '$machineId:$method',
+        'params': encrypted,
+      }, timeout: timeout);
+    } catch (error, stack) {
+      logger.warning(
+        '[machineRPC] FAILED method=$method machine=$machineId '
+        'elapsedMs=${stopwatch.elapsedMilliseconds}: $error',
+        error,
+        stack,
+      );
+      rethrow;
+    }
 
     if (result is Map && result['ok'] == true) {
       final encryptedResult = result['result'] as String?;
@@ -44,11 +57,20 @@ extension SyncMessagingRpc on Sync {
         throw StateError('Machine RPC $method returned null result');
       }
       final decrypted = await machineEncryption.decryptRaw(encryptedResult);
+      final elapsedMs = stopwatch.elapsedMilliseconds;
+      if (elapsedMs >= 2000) {
+        logger.info(
+          '[machineRPC] SLOW method=$method machine=$machineId '
+          'elapsedMs=$elapsedMs preSendMs=$rpcElapsedBeforeSend',
+        );
+      }
       if (decrypted == null) {
         logger.error('machineRPC $method: decryption returned null');
-        Sentry.captureMessage(
-          'machineRPC $method: decryption returned null',
-          level: SentryLevel.error,
+        unawaited(
+          Sentry.captureMessage(
+            'machineRPC $method: decryption returned null',
+            level: SentryLevel.error,
+          ),
         );
       }
       return decrypted;

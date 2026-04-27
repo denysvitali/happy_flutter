@@ -82,12 +82,11 @@ extension SyncSocket on Sync {
     // the Riverpod state briefly reverts to Settings() defaults.
     _settingsSnapshot = restoredSettings;
 
-    // Bulk-restore cached messages for all sessions so that
-    // getLastMessagePreview() works immediately on cold start.
-    // Deferred off the synchronous _init() critical path — sessions can
-    // render from the session cache before per-session message caches are
-    // warm.  Messages are loaded lazily when the user opens a chat.
-    unawaited(_restoreAllCachedMessagesAsync());
+    // Warm cached messages only for the most recent sessions.  Restoring all
+    // 200 cached sessions does synchronous MMKV reads/jsonDecode work on the
+    // UI isolate and can block startup for seconds.  Older sessions load
+    // lazily when opened.
+    unawaited(_restoreRecentCachedMessagesAsync());
 
     // Initialize sync managers
     sessionsSync = InvalidateSync(
@@ -236,9 +235,7 @@ extension SyncSocket on Sync {
     if (phase == null || phase == Sync._criticalSyncPhase) {
       sessionsSync.invalidate();
 
-      logger.info(
-        'Invalidated critical syncs (sessions)',
-      );
+      logger.info('Invalidated critical syncs (sessions)');
     }
 
     // Phase 1: Deferred syncs.
@@ -558,8 +555,7 @@ extension SyncSocket on Sync {
       // Restore the session delta cursor so that subsequent connections
       // (after this cold-start full fetch completes) use incremental sync
       // instead of re-fetching everything.
-      _lastSessionsFetchedAt =
-          WireParsers.parseInt(cache['lastFetchedAt']);
+      _lastSessionsFetchedAt = WireParsers.parseInt(cache['lastFetchedAt']);
       if (_sessions.isNotEmpty) {
         logger.info(
           'Restored ${_sessions.length} cached sessions '
@@ -617,26 +613,34 @@ extension SyncSocket on Sync {
     });
   }
 
-  /// Restores cached messages for all sessions from MMKV into
-  /// [_sessionMessages].  Called once during [_init] so that
-  /// [getLastMessagePreview] and [messagesForSession] return data
-  /// immediately on cold start, without waiting for any HTTP fetch.
-  /// Async wrapper that defers [_restoreAllCachedMessages] off the
-  /// synchronous [_init] critical path.  Sessions can render from the
-  /// session cache before per-session message caches are warm.  Messages
-  /// are loaded lazily when the user opens a chat.
-  Future<void> _restoreAllCachedMessagesAsync() async {
+  /// Maximum session message caches to warm on cold start.
+  ///
+  /// This keeps previews available for the first screenful while avoiding a
+  /// 200-session MMKV/jsonDecode sweep on the UI isolate.
+  static const int _maxColdStartMessageCacheRestores = 20;
+
+  /// Restores cached messages for recent sessions from MMKV into
+  /// [_sessionMessages].  Deferred off the synchronous [_init] critical path.
+  /// Older sessions are restored lazily by [onSessionVisible].
+  Future<void> _restoreRecentCachedMessagesAsync() async {
     await Future<void>.delayed(Duration.zero);
     if (!isInitialized) return;
-    _restoreAllCachedMessages();
+    _restoreRecentCachedMessages();
   }
 
-  void _restoreAllCachedMessages() {
+  void _restoreRecentCachedMessages() {
+    final stopwatch = Stopwatch()..start();
     var firstLoadedChanged = false;
-    for (final sessionId in _sessions.keys) {
+    var restored = 0;
+    var attempted = 0;
+    final sessionIds = _recentSessionIdsForCacheWarmup();
+
+    for (final sessionId in sessionIds) {
+      attempted++;
       if (_sessionMessages.containsKey(sessionId)) continue;
       final cached = MessageCacheService().getMessages(sessionId);
       if (cached.isNotEmpty) {
+        restored++;
         _sessionMessages[sessionId] = cached;
         _rebuildSessionContentSignatures(sessionId);
         _sessionMessagesViewCache.remove(sessionId);
@@ -670,6 +674,20 @@ extension SyncSocket on Sync {
         Map.unmodifiable(_sessionFirstLoadedSeq),
       );
     }
+    logger.debug(
+      '[MessageCache] Warmed $restored/$attempted recent session caches '
+      'in ${stopwatch.elapsedMilliseconds}ms '
+      '(totalSessions=${_sessions.length})',
+    );
+  }
+
+  List<String> _recentSessionIdsForCacheWarmup() {
+    final entries = _sessions.entries.toList()
+      ..sort((a, b) => b.value.updatedAt.compareTo(a.value.updatedAt));
+    return [
+      for (final entry in entries.take(_maxColdStartMessageCacheRestores))
+        entry.key,
+    ];
   }
 
   Future<void> _primeSessionFromSpawnResult({

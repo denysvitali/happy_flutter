@@ -11,6 +11,10 @@ extension SyncTestHelpers on Sync {
   void testNotifyDataChanged() => _notifyDataChanged();
 
   @visibleForTesting
+  List<String> testRecentSessionIdsForCacheWarmup() =>
+      _recentSessionIdsForCacheWarmup();
+
+  @visibleForTesting
   int? get testLastSessionsFetchedAt => _lastSessionsFetchedAt;
 
   @visibleForTesting

@@ -37,6 +37,7 @@ extension SyncSessionOperations on Sync {
     /// Used to detect model changes and kill+respawn the session automatically.
     String? modelMode,
   }) async {
+    final createStopwatch = Stopwatch()..start();
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
     }
@@ -133,13 +134,35 @@ extension SyncSessionOperations on Sync {
       environmentVariables: envVars,
     );
 
-    final result = await _typedMachineRPC(
-      machineId,
-      'spawn-happy-session',
-      req.toJson(),
-      SpawnSessionResponse.fromJson,
-      timeout: const Duration(seconds: 60),
+    logger.info(
+      '[createSession] START machine=$machineId '
+      'agent=$agent model=$normalizedModelMode '
+      'path=$resolvedPath hasInitialMessage=${message?.isNotEmpty ?? false}',
     );
+
+    late final SpawnSessionResponse result;
+    final rpcStopwatch = Stopwatch()..start();
+    try {
+      result = await _typedMachineRPC(
+        machineId,
+        'spawn-happy-session',
+        req.toJson(),
+        SpawnSessionResponse.fromJson,
+        timeout: const Duration(seconds: 60),
+      );
+      logger.info(
+        '[createSession] RPC END type=${result.type} '
+        'elapsedMs=${rpcStopwatch.elapsedMilliseconds}',
+      );
+    } catch (error, stack) {
+      logger.warning(
+        '[createSession] RPC FAILED '
+        'elapsedMs=${rpcStopwatch.elapsedMilliseconds}: $error',
+        error,
+        stack,
+      );
+      rethrow;
+    }
 
     if (result.type == 'success') {
       final sessionId = result.sessionId;
@@ -215,6 +238,10 @@ extension SyncSessionOperations on Sync {
         _notifySessionMessagesChanged(sessionId);
       }
 
+      logger.info(
+        '[createSession] END session=$sessionId '
+        'elapsedMs=${createStopwatch.elapsedMilliseconds}',
+      );
       return sessionId;
     }
 
@@ -345,9 +372,7 @@ extension SyncSessionOperations on Sync {
         logger.info('machineBash: socket not connected');
       } else if (Sync._isTransientConnectionError(error) ||
           Sync._isRpcReplicaTimeout(error)) {
-        logger.info(
-          'machineBash: transient RPC failure — $error',
-        );
+        logger.info('machineBash: transient RPC failure — $error');
       } else {
         logger.error('machineBash error', error, stackTrace);
       }
@@ -381,9 +406,7 @@ extension SyncSessionOperations on Sync {
         );
       } else if (Sync._isTransientConnectionError(error) ||
           Sync._isRpcReplicaTimeout(error)) {
-        logger.info(
-          'machineReadFile: transient RPC failure — $error',
-        );
+        logger.info('machineReadFile: transient RPC failure — $error');
       } else {
         logger.error('machineReadFile error', error, stackTrace);
       }
@@ -406,9 +429,7 @@ extension SyncSessionOperations on Sync {
       );
     } catch (error, stackTrace) {
       if (error is StateError && error.message.contains('not connected')) {
-        logger.info(
-          'machineGetClaudeUsageLimits: machine offline',
-        );
+        logger.info('machineGetClaudeUsageLimits: machine offline');
         return const ClaudeUsageLimitsResponse(
           success: false,
           error: 'machine offline',
@@ -956,7 +977,8 @@ PY
         // If the error indicates the session/machine doesn't exist, treat it
         // as permanent — don't return fallback which would cause _completeSend
         // to POST to a non-existent session and lose the message.
-        final isPermanent = errorMsg.contains('not found') ||
+        final isPermanent =
+            errorMsg.contains('not found') ||
             errorMsg.contains('does not exist') ||
             errorMsg.contains('not exist');
         logger.warning(
@@ -1045,9 +1067,7 @@ PY
         // Encryption is permanently unavailable for this session — throw so
         // the message goes to outbox for retry, rather than sending to a
         // session we can't encrypt messages for.
-        throw StateError(
-          'Session encryption not found: $restoredSessionId',
-        );
+        throw StateError('Session encryption not found: $restoredSessionId');
       }
 
       final restored = (
