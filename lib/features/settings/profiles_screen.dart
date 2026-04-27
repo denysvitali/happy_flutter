@@ -74,12 +74,15 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                 isSelected: selectedProfileId == null,
                 onTap: () {
                   final current = ref.read(settingsNotifierProvider);
-                  ref
-                      .read(settingsNotifierProvider.notifier)
-                      .updateSetting(
-                        'lastUsedProfilesByAgent',
-                        current.lastUsedProfilesWithAgent(selectedAgent, null),
-                      );
+                  final notifier = ref.read(settingsNotifierProvider.notifier);
+                  notifier.updateSetting(
+                    'lastUsedProfilesByAgent',
+                    current.lastUsedProfilesWithAgent(selectedAgent, null),
+                  );
+                  if (normalizeAgentKey(current.lastUsedAgent) ==
+                      normalizeAgentKey(selectedAgent)) {
+                    notifier.updateSetting('lastUsedProfile', null);
+                  }
                 },
               ),
             ],
