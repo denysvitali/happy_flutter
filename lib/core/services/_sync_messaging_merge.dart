@@ -549,7 +549,10 @@ extension SyncMessagingMerge on Sync {
     if (existing.isEmpty) {
       // Queue tool results that arrived before their tool-call message.
       // They will be applied when the tool-call message arrives.
-      _pendingToolResults.putIfAbsent(sessionId, () => []).addAll(toolResults);
+      final pending = _pendingToolResults.putIfAbsent(sessionId, () => []);
+      if (!identical(pending, toolResults)) {
+        pending.addAll(toolResults);
+      }
       return const {};
     }
 

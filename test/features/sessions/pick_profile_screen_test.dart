@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/app_tappable.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
@@ -241,7 +242,7 @@ void main() {
 
       final openAiTile = find.ancestor(
         of: find.text('OpenAI (GPT-5)'),
-        matching: find.byType(ListTile),
+        matching: find.byType(AppTappable),
       );
       expect(
         find.descendant(

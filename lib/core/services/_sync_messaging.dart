@@ -807,6 +807,8 @@ extension SyncMessaging on Sync {
   /// visible message count is below [_initialBackfillTargetMessages]
   /// and older history is available. Best-effort and fire-and-forget.
   Future<void> _backfillInitialHistory(String sessionId) async {
+    if (testFetchMessagesOverride != null) return;
+
     for (var i = 0; i < _initialBackfillMaxPages; i++) {
       final loaded = _sessionMessages[sessionId]?.length ?? 0;
       if (loaded >= _initialBackfillTargetMessages) return;

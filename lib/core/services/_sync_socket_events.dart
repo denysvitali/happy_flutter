@@ -742,6 +742,11 @@ extension SyncSocketEvents on Sync {
     // events per second during streaming (typing/tool state changes).
     if (_pendingUpdateSessionIds.add(sessionId)) {
       logger.debug('Session update received: $sessionId');
+      if (!needsEncryptedRefresh) {
+        Timer(Sync._sessionsRefreshDebounce, () {
+          _pendingUpdateSessionIds.remove(sessionId);
+        });
+      }
     }
   }
 }
