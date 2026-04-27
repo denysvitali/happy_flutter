@@ -12,6 +12,7 @@ extension SyncLifecycle on Sync {
   /// drain while the app is backgrounded.
   void suspend() {
     if (!isInitialized) return;
+    powerDiagnostics.recordLifecycle('sync.suspend');
     logger.info('[Sync] suspending — disconnecting socket');
     unawaited(
       Sentry.addBreadcrumb(
@@ -156,6 +157,7 @@ extension SyncLifecycle on Sync {
   /// changes that happened while the app was backgrounded are fetched.
   void resume() {
     if (!isInitialized) return;
+    powerDiagnostics.recordLifecycle('sync.resume');
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final lastResumeGapMs = _lastResumeAtMs != null

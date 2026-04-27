@@ -43,6 +43,7 @@ import '../services/mmkv_storage.dart';
 import '../services/network_monitor_service.dart';
 import '../services/sessions_cache_storage.dart';
 import '../services/performance_context_service.dart';
+import '../services/power_diagnostics_service.dart';
 import '../services/server_config.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';

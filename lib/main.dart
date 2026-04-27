@@ -23,6 +23,7 @@ import 'core/services/logger_service.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/performance_context_service.dart';
+import 'core/services/power_diagnostics_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
@@ -410,10 +411,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
         state == AppLifecycleState.resumed) {
       _lifecycleCycleCount++;
       final now = DateTime.now();
+      var isRapidLifecycleCycle = false;
       if (_lastLifecycleCycleAt != null) {
         final elapsed = now.difference(_lastLifecycleCycleAt!).inSeconds;
         if (elapsed < 60) {
           if (_lifecycleCycleCount > _lifecycleCyclingWarningThreshold) {
+            isRapidLifecycleCycle = true;
             // Log locally for dev logs — not worth a Sentry event
             // since Android routinely cycles the lifecycle on low
             // battery or when the OS manages background apps.
@@ -427,6 +430,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
         }
       }
       _lastLifecycleCycleAt = now;
+      powerDiagnostics.recordLifecycle(
+        state.name,
+        rapidCycle: isRapidLifecycleCycle,
+      );
     }
 
     switch (state) {

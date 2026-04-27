@@ -8,6 +8,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../sentry_config.dart';
 import '../services/http_request_logger.dart';
 import '../services/logger_service.dart' show logger;
+import '../services/power_diagnostics_service.dart';
 import '../services/server_config.dart';
 import 'http_cache.dart';
 import 'native_adapter_helper.dart'
@@ -240,18 +241,18 @@ class ApiClient {
     final timestamp = startMs != null
         ? DateTime.fromMillisecondsSinceEpoch(startMs)
         : now;
-    httpRequestLogger.record(
-      HttpRequestEntry(
-        id: id ?? httpRequestLogger.takeNextId(),
-        timestamp: timestamp,
-        method: options.method,
-        path: options.path,
-        statusCode: statusCode,
-        requestBytes: requestBytes,
-        responseBytes: responseBytes,
-        durationMs: durationMs,
-      ),
+    final entry = HttpRequestEntry(
+      id: id ?? httpRequestLogger.takeNextId(),
+      timestamp: timestamp,
+      method: options.method,
+      path: options.path,
+      statusCode: statusCode,
+      requestBytes: requestBytes,
+      responseBytes: responseBytes,
+      durationMs: durationMs,
     );
+    httpRequestLogger.record(entry);
+    powerDiagnostics.recordHttpRequest(entry);
 
     final isSlow = (durationMs ?? 0) >= 1000;
     final isFailure = statusCode != null && statusCode >= 400;

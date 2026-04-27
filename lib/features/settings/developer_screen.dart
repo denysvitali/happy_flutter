@@ -92,6 +92,15 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                   ),
                 ),
                 SettingsNavRow(
+                  icon: Icons.battery_charging_full,
+                  title: 'Power Diagnostics',
+                  subtitle:
+                      'Track lifecycle, socket, HTTP, sync, and retry activity',
+                  onTap: () => context.push(
+                    '/settings/developer/power',
+                  ),
+                ),
+                SettingsNavRow(
                   icon: Icons.terminal,
                   title: l10n.settingsLogs,
                   subtitle: l10n.developerLogsDesc,

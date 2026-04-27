@@ -225,6 +225,10 @@ extension SyncSocket on Sync {
       return;
     }
     _lastInvalidateAllSyncsAtMs = nowMs;
+    powerDiagnostics.recordSyncInvalidation(
+      phase == null ? 'all' : 'phase-$phase',
+      global: true,
+    );
 
     if (resetSessionDeltaCursor) {
       _lastSessionsFetchedAt = null;
@@ -234,6 +238,7 @@ extension SyncSocket on Sync {
     // Keep launch limited to the data needed for the default sessions tab.
     if (phase == null || phase == Sync._criticalSyncPhase) {
       sessionsSync.invalidate();
+      powerDiagnostics.recordSyncInvalidation('fetchSessions');
 
       logger.info('Invalidated critical syncs (sessions)');
     }
@@ -258,6 +263,7 @@ extension SyncSocket on Sync {
         purchasesSync.invalidate();
         pushTokenSync.invalidate();
         nativeUpdateSync.invalidate();
+        powerDiagnostics.recordSyncInvalidation('deferredSyncs');
         friendRequestsSync.invalidate();
         sessionGitStatusSync.invalidate();
       });

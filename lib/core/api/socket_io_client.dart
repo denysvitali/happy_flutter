@@ -6,6 +6,7 @@ import 'package:socket_io_client/socket_io_client.dart' as sio;
 
 import '../services/logger_service.dart' show logger;
 import '../services/performance_context_service.dart';
+import '../services/power_diagnostics_service.dart';
 
 /// Returns true for transient network errors (DNS failure,
 /// connection timeout, TLS handshake interruption, etc.) that are
@@ -185,6 +186,7 @@ class SocketIoClient {
   void _setupEventHandlers() {
     _socket!.onConnect((_) async {
       logger.info('Socket.IO connected');
+      powerDiagnostics.recordSocketStatus(ConnectionStatus.connected);
       _resetErrorThrottle();
       _updateStatus(ConnectionStatus.connected);
 
@@ -228,6 +230,7 @@ class SocketIoClient {
 
     _socket!.onDisconnect((_) async {
       logger.info('Socket.IO disconnected');
+      powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
       _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
       _updateStatus(ConnectionStatus.disconnected);
 
@@ -256,12 +259,14 @@ class SocketIoClient {
       if (isTransient) {
         // Throttle transient errors too so a burst doesn't spam the log.
         if (_shouldThrottleError(errorStr)) return;
+        powerDiagnostics.recordSocketError(errorStr);
         logger.info('Socket.IO transient connect error: $error');
         return;
       }
 
       if (_shouldThrottleError(errorStr)) return;
 
+      powerDiagnostics.recordSocketError(errorStr);
       logger.warning('Socket.IO connect error: $error');
 
       final transaction =
@@ -303,12 +308,14 @@ class SocketIoClient {
       if (isTransient) {
         // Throttle transient errors too so a burst doesn't spam the log.
         if (_shouldThrottleError(errorStr)) return;
+        powerDiagnostics.recordSocketError(errorStr);
         logger.info('Socket.IO transient error: $error');
         return;
       }
 
       if (_shouldThrottleError(errorStr)) return;
 
+      powerDiagnostics.recordSocketError(errorStr);
       logger.warning('Socket.IO error: $error');
 
       final transaction =
@@ -339,6 +346,7 @@ class SocketIoClient {
     });
 
     _socket!.onReconnectFailed((_) {
+      powerDiagnostics.recordSocketError('reconnect_failed');
       logger.warning('Socket.IO reconnection attempts exhausted');
       unawaited(
         Sentry.addBreadcrumb(
@@ -356,6 +364,12 @@ class SocketIoClient {
     });
 
     _socket!.onAny((event, data) {
+      String? updateType;
+      if (data is Map<String, dynamic>) {
+        updateType = data['t'] as String?;
+      }
+      powerDiagnostics.recordSocketEvent(event, updateType: updateType);
+
       // Only record non-streaming events as Sentry breadcrumbs.
       // During AI streaming, 'update' events with new-message arrive
       // at 10-50/sec — recording each one floods Sentry's ring buffer
@@ -435,6 +449,7 @@ class SocketIoClient {
     if (_socket == null || _status != ConnectionStatus.connected) {
       throw StateError('WebSocket not connected');
     }
+    powerDiagnostics.recordSocketSend(event);
     _socket!.emit(event, data);
   }
 
@@ -474,6 +489,7 @@ class SocketIoClient {
       // hard to distinguish from other failures.
       throw SocketNotConnectedException(event);
     }
+    powerDiagnostics.recordSocketSend(event, ack: true);
     final completer = Completer<dynamic>();
     _socket!.emitWithAck(
       event,

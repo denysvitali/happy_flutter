@@ -149,6 +149,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Network Inspector'), findsOneWidget);
+      expect(find.text('Power Diagnostics'), findsOneWidget);
       expect(find.text('Logs'), findsOneWidget);
       expect(find.text('Encryption Debug'), findsOneWidget);
       expect(find.text('Session Debug'), findsOneWidget);
@@ -321,6 +322,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.network_check), findsOneWidget);
+      expect(find.byIcon(Icons.battery_charging_full), findsOneWidget);
       expect(find.byIcon(Icons.terminal), findsOneWidget);
       expect(find.byIcon(Icons.security), findsOneWidget);
       expect(find.byIcon(Icons.history), findsOneWidget);

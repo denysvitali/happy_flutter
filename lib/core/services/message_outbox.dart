@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/wire_parsers.dart';
 import 'logger_service.dart';
 import 'mmkv_storage.dart';
+import 'power_diagnostics_service.dart';
 
 /// A single queued message awaiting delivery.
 class OutboxEntry {
@@ -255,6 +256,10 @@ class MessageOutbox {
       'localId=${entry.localId} in ${delay.inMilliseconds}ms '
       '(attempt ${entry.retryCount + 1})',
     );
+    powerDiagnostics.recordOutboxSchedule(
+      localId: entry.localId,
+      delayMs: delay.inMilliseconds,
+    );
     _retryTimers[entry.localId] = Timer(delay, () {
       _retryTimers.remove(entry.localId);
       unawaited(_attempt(entry.localId));
@@ -279,6 +284,7 @@ class MessageOutbox {
       'localId=$localId '
       'retryCount=${entry.retryCount}',
     );
+    powerDiagnostics.recordOutboxAttempt(localId);
 
     bool success;
     try {
@@ -323,6 +329,7 @@ class MessageOutbox {
       'localId=$localId, will retry '
       '(attempt ${updated.retryCount + 1} of $_maxRetries)',
     );
+    powerDiagnostics.recordOutboxFailure(localId);
     _onStatusChanged?.call(entry.sessionId, localId, 'pending');
     _scheduleRetry(updated);
   }

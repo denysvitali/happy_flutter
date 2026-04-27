@@ -19,6 +19,7 @@ import '../../features/dev/dev_logs_screen.dart';
 import '../../features/dev/encryption_debug_screen.dart';
 import '../../features/dev/network_inspector_screen.dart';
 import '../../features/dev/notification_test_screen.dart';
+import '../../features/dev/power_diagnostics_screen.dart';
 import '../../features/dev/session_debug_screen.dart';
 import '../../features/inbox/friends_screen.dart';
 import '../../features/inbox/friends_search_screen.dart';
@@ -356,6 +357,14 @@ GoRouter createRouter(String? initialDeepLink) {
             name: 'dev-network',
             pageBuilder: (context, state) => _slidePage(
               const AuthGate(child: NetworkInspectorScreen()),
+              state,
+            ),
+          ),
+          GoRoute(
+            path: 'power',
+            name: 'dev-power',
+            pageBuilder: (context, state) => _slidePage(
+              const AuthGate(child: PowerDiagnosticsScreen()),
               state,
             ),
           ),
