@@ -104,10 +104,6 @@ class KnownTools {
   static Widget webFetchIcon(double size, Color color) =>
       Icon(Icons.public, size: size, color: color);
 
-  /// Icon factory for web search tools.
-  static Widget webSearchIcon(double size, Color color) =>
-      Icon(Icons.search, size: size, color: color);
-
   /// Icon factory for exit/plan tools.
   static Widget exitIcon(double size, Color color) =>
       Icon(Icons.exit_to_app, size: size, color: color);
@@ -349,19 +345,6 @@ class KnownTools {
         } catch (_) {
           return 'Fetch URL';
         }
-      },
-    ),
-    'WebSearch': ToolDefinition(
-      icon: webSearchIcon,
-      title: 'Web Search',
-      minimal: true,
-      extractDescription: (tool, _) {
-        final query = tool['input']?['query'] as String?;
-        if (query == null) return null;
-        final truncated = query.length > 30
-            ? '${query.substring(0, 30)}...'
-            : query;
-        return 'Search: $truncated';
       },
     ),
     'ToolSearch': ToolDefinition(

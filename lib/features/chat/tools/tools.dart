@@ -26,5 +26,4 @@ export 'views/read_view.dart';
 export 'views/task_view.dart';
 export 'views/todo_view.dart';
 export 'views/web_fetch_view.dart';
-export 'views/web_search_view.dart';
 export 'views/write_view.dart';
