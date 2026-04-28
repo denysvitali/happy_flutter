@@ -25,45 +25,78 @@ void showSessionMenu(
       borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     backgroundColor: cs.surface,
-    builder: (sheetContext) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: Icon(Icons.settings_outlined, color: cs.onSurfaceVariant),
-            title: Text(l10n.chatSessionSettings),
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.pop(sheetContext);
-              outerContext.pushNamed(
-                'session-info',
-                pathParameters: {'sessionId': sessionId},
-              );
-            },
+    builder: (sheetContext) => Consumer(
+      builder: (context, ref, _) {
+        final hideToolCalls = ref.watch(
+          settingsNotifierProvider.select((s) => s.hideToolCalls),
+        );
+
+        void updateHideToolCalls(bool value) {
+          HapticFeedback.selectionClick();
+          unawaited(
+            ref
+                .read(settingsNotifierProvider.notifier)
+                .updateSetting('hideToolCalls', value),
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  Icons.settings_outlined,
+                  color: cs.onSurfaceVariant,
+                ),
+                title: Text(l10n.chatSessionSettings),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(sheetContext);
+                  outerContext.pushNamed(
+                    'session-info',
+                    pathParameters: {'sessionId': sessionId},
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.visibility_off_outlined,
+                  color: cs.onSurfaceVariant,
+                ),
+                title: Text(l10n.settingsHideToolCalls),
+                subtitle: Text(l10n.settingsHideToolCallsSubtitle),
+                trailing: Switch.adaptive(
+                  value: hideToolCalls,
+                  onChanged: updateHideToolCalls,
+                ),
+                onTap: () => updateHideToolCalls(!hideToolCalls),
+              ),
+              ListTile(
+                leading: Icon(Icons.stop_rounded, color: cs.error),
+                title: Text('Stop', style: TextStyle(color: cs.error)),
+                onTap: () {
+                  HapticFeedback.heavyImpact();
+                  Navigator.pop(sheetContext);
+                  onAbort();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: cs.error),
+                title: Text(
+                  l10n.chatDeleteSession,
+                  style: TextStyle(color: cs.error),
+                ),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(sheetContext);
+                  showConfirmDeleteDialog(outerContext, sessionId: sessionId);
+                },
+              ),
+            ],
           ),
-          ListTile(
-            leading: Icon(Icons.stop_rounded, color: cs.error),
-            title: Text('Stop', style: TextStyle(color: cs.error)),
-            onTap: () {
-              HapticFeedback.heavyImpact();
-              Navigator.pop(sheetContext);
-              onAbort();
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.delete_outline, color: cs.error),
-            title: Text(
-              l10n.chatDeleteSession,
-              style: TextStyle(color: cs.error),
-            ),
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.pop(sheetContext);
-              showConfirmDeleteDialog(outerContext, sessionId: sessionId);
-            },
-          ),
-        ],
-      ),
+        );
+      },
     ),
   );
 }

@@ -547,6 +547,45 @@ void main() {
       expect(find.text('Terminal'), findsOneWidget);
     });
 
+    testWidgets('session menu toggles hidden tool calls', (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'msg_1',
+          'role': 'assistant',
+          'kind': 'tool-call',
+          'name': 'Read',
+          'toolUseId': 'tool_1',
+          'state': 'completed',
+          'input': {'file_path': '/test.dart'},
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Read File'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('More options'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hide Tool Calls'), findsOneWidget);
+
+      await tester.tap(find.text('Hide Tool Calls'));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ChatScreen)),
+      );
+      expect(container.read(settingsNotifierProvider).hideToolCalls, isTrue);
+      expect(find.text('Read File'), findsNothing);
+    });
+
     testWidgets('displays session title from summary when available', (
       tester,
     ) async {

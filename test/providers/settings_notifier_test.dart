@@ -46,6 +46,7 @@ void main() {
       final settings = c.read(settingsNotifierProvider);
 
       expect(settings.viewInline, isFalse);
+      expect(settings.hideToolCalls, isFalse);
       expect(settings.analyticsOptOut, isFalse);
       expect(settings.experiments, isFalse);
       expect(settings.markdownCopyV2, isFalse);
@@ -110,6 +111,17 @@ void main() {
 
       final settings = c.read(settingsNotifierProvider);
       expect(settings.viewInline, isTrue);
+    });
+
+    test('updateSetting hideToolCalls changes state to true', () async {
+      final c = makeContainer();
+      addTearDown(c.dispose);
+      final notifier = c.read(settingsNotifierProvider.notifier);
+
+      await notifier.updateSetting('hideToolCalls', true);
+
+      final settings = c.read(settingsNotifierProvider);
+      expect(settings.hideToolCalls, isTrue);
     });
 
     test('updateSetting expandTodos changes state to false', () async {

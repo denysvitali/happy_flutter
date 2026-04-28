@@ -16,6 +16,7 @@ final class SettingsUpdate {
       'schemaVersion' => settings.copyWith(schemaVersion: value as int),
       'themeMode' => settings.copyWith(themeMode: value as String),
       'viewInline' => settings.copyWith(viewInline: value as bool),
+      'hideToolCalls' => settings.copyWith(hideToolCalls: value as bool),
       'inferenceOpenAIKey' => settings.copyWith(
         inferenceOpenAIKey: value as String?,
       ),
@@ -107,6 +108,7 @@ final class SettingsUpdate {
       ..schemaVersion = updated.schemaVersion
       ..themeMode = updated.themeMode
       ..viewInline = updated.viewInline
+      ..hideToolCalls = updated.hideToolCalls
       ..inferenceOpenAIKey = updated.inferenceOpenAIKey
       ..expandTodos = updated.expandTodos
       ..showLineNumbers = updated.showLineNumbers
