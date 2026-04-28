@@ -337,6 +337,34 @@ void main() {
       expect(session.presence, 'online');
     });
 
+    test('alive-batch marks sessions online without top-level sid', () {
+      final instance = Sync();
+      instance.testSessions['s1'] = Session(
+        id: 's1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+      );
+
+      instance.handleEphemeralUpdate({
+        'type': 'alive-batch',
+        'sessions': [
+          {'id': 's1', 'activeAt': 1234, 'thinking': true},
+        ],
+      });
+
+      final session = instance.testSessions['s1']!;
+      expect(session.presence, 'online');
+      expect(session.thinking, isTrue);
+      expect(session.thinkingAt, 1234);
+    });
+
     test('machine-activity without activeAt synthesises activeAt=now '
         'so createSession 120s check stays fresh', () {
       final instance = Sync();
