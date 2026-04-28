@@ -2,10 +2,18 @@
 
 - **Always commit and push** after completing changes — do not wait for the user to ask
 - **Use conventional commits** — prefix messages with `feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`, etc.
+- **Check CI status** after pushing using GitHub Actions MCP tools — aim for green CI
 - **Always use `rg` (ripgrep)** when searching for code, symbols, or strings
 - **Never create documentation files** (*.md, README updates) unless explicitly requested
 - **Treat chat send reliability as a P0 surface** — preserve one canonical `localId` across optimistic UI, REST send, retry, socket forwarding, and merge
 - **When touching core messaging code, add or update contract tests first** — repeated identical sends, optimistic replacement, retry identity, and out-of-order delivery are mandatory coverage
+
+## Current Priorities
+
+See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key items as of Apr 2026:
+- **P0**: Core messaging invariants (contract tests for `localId` identity, out-of-order delivery)
+- **Fixes needed**: InvalidateSync disposed crash (55 fatal/day), Null check operators (chat load + general), back button error rate (37.5%)
+- **Quick wins**: Guard offline machine in session creation, clear stale profile references
 
 ## Core Invariants
 
@@ -140,25 +148,21 @@ lib/
 
 ### The Sync Singleton
 
-Three top-level globals (each in their own file):
+Three top-level globals: `sync` (Sync singleton), `logger` (LoggerService), `socketIoClient` (SocketIoClient).
 
-```dart
-sync           // Sync singleton — lib/core/services/sync_service.dart
-logger         // LoggerService — lib/core/services/logger_service.dart
-socketIoClient // SocketIoClient — lib/core/api/socket_io_client.dart
-```
+**`Sync` is a true singleton** (`factory Sync() => _instance`). It is a large class (~3,700 lines) — see `lib/core/services/sync_service.dart` and its `_sync_*.dart` part files.
 
-**`Sync` is a true singleton** via `factory Sync() => _instance`. Calling `Sync()` always returns the same instance.
-
-**Provider bridge pattern:** Screens subscribe to `sync.onDataChanged` (debounced 100ms) and call:
+**Provider bridge pattern:** Screens subscribe to `sync.onDataChanged` (debounced 100ms):
 - `provider.notifier.loadFromSync()` — reads in-memory state (instant). Use on every `onDataChanged` callback.
-- `provider.notifier.refreshFromSync()` — server fetch, then reads. Use once in `initState` with `microtask` to bootstrap.
+- `provider.notifier.refreshFromSync()` — server fetch + read. Use once in `initState` with `microtask`.
 
-Guard on `sync.isInitialized` — `loadFromSync()` is a no-op when `false`. Note: `sync.isReady` is separate (set after sessions+machines resolve).
+Guard on `sync.isInitialized` — `loadFromSync()` is a no-op when `false`. `sync.isReady` is separate (set after sessions+machines resolve).
 
-**ChatScreen exception:** ChatScreen subscribes to BOTH `sync.onDataChanged` AND `sync.onSessionMessagesChanged`, and uses a local `_refreshFromSync()` with `setState()` because it manages paginated message lists locally. Do not blindly apply the standard template here.
+**ChatScreen exception:** Subscribes to BOTH `sync.onDataChanged` AND `sync.onSessionMessagesChanged`, uses `setState()` with local `_refreshFromSync()` for paginated message lists. Do not apply the standard template here.
 
-**InvalidateSync fields (13 total):** `sessionsSync`, `settingsSync`, `profileSync`, `purchasesSync`, `machinesSync`, `pushTokenSync`, `nativeUpdateSync`, `artifactsSync`, `friendsSync`, `friendRequestsSync`, `feedSync`, `todosSync`, `sessionGitStatusSync`. Note: `messagesSync` is a `Map<String, InvalidateSync>` (per-session).
+**InvalidateSync fields (13):** `sessionsSync`, `settingsSync`, `profileSync`, `purchasesSync`, `machinesSync`, `pushTokenSync`, `nativeUpdateSync`, `artifactsSync`, `friendsSync`, `friendRequestsSync`, `feedSync`, `todosSync`, `sessionGitStatusSync`. `messagesSync` is `Map<String, InvalidateSync>` (per-session).
+
+**Lifecycle handling:** `Sync.suspend()` disconnects socket (unless rapid cycling detected), cancels all timers, flushes MMKV. `Sync.resume()` reconnects socket and invalidates syncs. Rapid lifecycle cycling (resume→suspend within 2s) keeps socket connected to avoid reconnect cascades.
 
 See @docs/SYNC_PATTERNS.md for subscription template and details.
 
@@ -183,30 +187,26 @@ For non-URL data (e.g., `message-detail`), pass `Map<String, dynamic>` via `stat
 
 ### Key Services
 
-| Service | Pattern | Purpose |
-|---------|---------|---------|
-| `ApiClient` | Singleton | Dio + NativeAdapter; `validateStatus: (_) => true` — check status manually. Timeouts: connect 30s, receive 60s, send 30s |
-| `SocketIoClient` | Singleton | Socket.IO on `/v1/updates`, `['websocket']` only, reconnect 1–5s |
-| `AuthService` | Singleton | QR auth, Ed25519 signatures, NaCl box encryption. No separate `AuthApi` |
-| `LoggerService` | Singleton | 5000-entry circular `Queue`, ANSI color output in debug, Sentry forwarding |
-| `MessageCacheService` | Singleton | Caches last 200 messages per session in MMKV, debounced writes (500ms) |
-| `MessageOutbox` | Singleton | Persists failed sends to MMKV, exponential backoff retry (1s→30s, max 3 retries) |
+| Service | Purpose |
+|---------|---------|
+| `ApiClient` | Dio + NativeAdapter (Cronet/cupertino_http). Timeouts: connect 30s, receive 60s, send 30s |
+| `SocketIoClient` | Socket.IO on `/v1/updates`, websocket only, 2–10s reconnect delays |
+| `LoggerService` | 5000-entry circular buffer, ANSI color debug output, Sentry forwarding |
+| `MessageCacheService` | Last 200 messages per session in MMKV, 500ms debounced writes |
+| `MessageOutbox` | Failed sends in MMKV, exponential backoff 1s→30s, max 3 retries |
 
-**Service/API duality is partial:** Some domains have both `XxxService` (production) and `XxxApi` (injectable for tests) — e.g., `KvService`/`KvApi`, `UsageService`/`UsageApi`. Others have only one or the other. `XxxApi` classes accept optional `ApiClient? client` for test injection.
+Some domains have both `XxxService` (production) and `XxxApi` (injectable for tests). `XxxApi` classes accept optional `ApiClient? client` for test injection.
 
 ### Storage
 
-Multiple storage singletons, each backed by different engines:
-
 | Class | Backend | Purpose |
 |-------|---------|---------|
-| `MMKVStorage` | MMKV (native) / SharedPreferences (web) | Settings, drafts, permission modes, sessions cache |
-| `ServerConfigStorage` | MMKV `'server-config'` instance | Custom server URL (persists across logouts) |
+| `MMKVStorage` | MMKV / SharedPreferences (web) | Settings, drafts, sessions cache |
+| `ServerConfigStorage` | MMKV `'server-config'` | Custom server URL (persists across logouts) |
 | `TokenStorage` | FlutterSecureStorage | JWT and auth keys |
-| `APIKeyStorage` | FlutterSecureStorage | Per-profile API keys (OpenAI, Azure, etc.) |
-| `Storage` | Composes all above | Top-level singleton; `Storage().initialize()` inits all |
+| `APIKeyStorage` | FlutterSecureStorage | Per-profile API keys |
 
-**Migrations:** SharedPreferences → MMKV migration runs once on first init. API keys migration from MMKV settings blob → FlutterSecureStorage runs once on first `getSettings()`.
+`Storage().initialize()` inits all. SharedPreferences → MMKV migration runs once on first init.
 
 ## Models
 
@@ -220,19 +220,7 @@ Multiple storage singletons, each backed by different engines:
 
 ## UI Conventions
 
-**Design tokens** from `lib/core/theme/app_tokens.dart`:
-
-| Token Class | Values |
-|-------------|--------|
-| `AppSpacing` | `xxs`=2, `xs`=4, `sm`=8, `smd`=10, `md`=12, `lg`=16, `xl`=20, `xxl`=24, `xxxl`=32 |
-| `AppRadius` | `xs`=4, `sm`=8, `md`=12, `lg`=16, `xl`=20, `pill`=100 |
-| `AppFontSize` | `xxs`=10, `xs`=11, `sm`=12, `md`=13, `base`=14, `lg`=16 |
-| `AppDuration` | `fast`=150ms, `normal`=250ms, `slow`=350ms, `slower`=500ms |
-| `AppTouchTarget` | `min`=44, `comfortable`=48 |
-| `AppBreakpoint` | `tablet`=600, `desktop`=960 |
-| `AppScreenPadding` | `standard`, `compact`, `settings`, `listItem` (pre-composed `EdgeInsets`) |
-
-Also: `AppLineHeight`, `AppCurve`, `AppElevation`, `AppShadow`, `AppBorder`.
+**Design tokens** in `lib/core/theme/app_tokens.dart`: `AppSpacing` (xxs=2 to xxxl=32), `AppRadius` (xs=4 to pill=100), `AppFontSize` (xxs=10 to lg=16), `AppDuration` (fast=150ms to slower=500ms), `AppTouchTarget` (min=44, comfortable=48), `AppBreakpoint` (tablet=600, desktop=960), `AppScreenPadding` (standard, compact, settings, listItem).
 
 **Widget layers:**
 - `lib/core/components/` — higher-level (AppCard, AppEmptyState, sidebar, settings sections)
@@ -296,20 +284,16 @@ Then commit the updated PNGs. Do not leave stale goldens — they will cause fal
 ## Coding Standards
 
 - **Strict typing:** `implicit-casts: false`, `implicit-dynamic: false`
-- **Line length:** 80 characters max
-- **File size limit:** 800 lines max per `.dart` file (exclude `*.g.dart` generated files). Extract widgets, helpers, or sub-services when approaching the limit.
+- **Line length:** 80 chars max; file size: 800 lines max (exclude `*.g.dart`)
 - **CI-blocking errors:** `missing_required_param`, `missing_return`, `must_be_immutable`
-- **Linter:** extends `package:flutter_lints/flutter.yaml` with ~90 additional rules
 - **Prefer:** const constructors, final fields, single quotes, spread collections
-- **Avoid:** `print` — use `logger.info/warning/error()`; `unawaited()` for fire-and-forget
-- **Platform code:** Conditional exports for native vs web: `platform_io.dart`/`platform_stub.dart`, `mmkv_storage_native.dart`/`mmkv_storage_web.dart`, `sodium_loader_native.dart`/`sodium_loader_web.dart`, `sentry_*.dart`, `security_context_*.dart`, `user_certs_*.dart`
-- **Part files for Sync:** The `Sync` class uses `part` files in `lib/core/services/` prefixed with `_sync_` (`_sync_messaging.dart`, `_sync_data.dart`, `_sync_socket.dart`, `_sync_operations.dart`, `_sync_sessions.dart`). These are internal groupings of one large class — adding new methods goes in the appropriate part file.
-- **JSON convention:** Server JSON flows as `Map<String, dynamic>` into the `Sync` singleton. Convert to typed models at domain boundaries (services, providers). New models should follow the manual `fromJson`/`toJson`/`copyWith` pattern.
-- **Error handling:** Catch blocks should log via `logger.warning`/`logger.error`. For errors that could indicate data loss or corruption, also call `Sentry.captureException`.
+- **Avoid:** `print` — use `logger.info/warning/error()`; use `unawaited()` for fire-and-forget
+- **Platform code:** Conditional exports: `platform_io.dart`/`platform_stub.dart`, `mmkv_storage_native.dart`/`mmkv_storage_web.dart`, `sodium_loader_native.dart`/`sodium_loader_web.dart`, `sentry_*.dart`
+- **Sync part files:** `lib/core/services/_sync_*.dart` — add new methods to the appropriate part file
+- **Models:** Manual `fromJson`/`toJson`/`copyWith` — no `json_serializable` or `freezed`. Timestamps are integers (milliseconds), not `DateTime`
+- **Error handling:** Log via `logger.warning`/`logger.error`. For data loss/corruption risks, also call `Sentry.captureException`
 
-**Analysis:** `test/**/*.dart` excluded from analysis. CI runs `flutter analyze --no-fatal-infos --no-fatal-warnings` (only errors block build).
-
-**CI pipeline** (`ci.yml`): 7 jobs — `analyze`, `test` (with `--coverage` → Codecov), `golden` (PRs only), `build-debug`, `build-release` (signed, obfuscated, GitHub Release on `v*` tags), `build-web` (main only), `deploy-web` (GitHub Pages). Flutter 3.38.7, Java 17, NDK 28.2.13676358. Caches pub-cache and Gradle.
+**Analysis:** `test/**/*.dart` excluded. CI runs `flutter analyze --no-fatal-infos --no-fatal-warnings` (errors only block build).
 
 ## Dependency Overrides
 
@@ -319,6 +303,9 @@ Then commit the updated PNGs. Do not leave stale goldens — they will cause fal
 
 ## Additional Documentation
 
-- Sync patterns: @docs/SYNC_PATTERNS.md
-- Feature parity: @ROADMAP.md
-- Architecture docs: `docs/` directory (15+ internal docs)
+| Doc | Purpose |
+|-----|---------|
+| @docs/SYNC_PATTERNS.md | Sync subscription templates and InvalidateSync usage |
+| @ROADMAP.md | Production bugs, sprint priorities, feature status |
+| @docs/ARCHITECTURE.md | Architecture review (Sync god object, known issues) |
+| `docs/` | 15+ internal docs on security, protocol, UI/UX, etc. |
