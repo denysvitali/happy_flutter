@@ -507,7 +507,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         selectionMode: sel.isActive,
         unreadCount: sync.getUnreadCount(session.id),
         accentBarColor: accentBarColor,
-        archiveCountdownLabel: _archiveCountdownLabel(session),
+        archiveCountdownLabel: null,
       ),
     );
     return sel.isActive
@@ -967,7 +967,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         isSelected: sel.selectedIds.contains(session.id),
         selectionMode: sel.isActive,
         unreadCount: sync.getUnreadCount(session.id),
-        archiveCountdownLabel: _archiveCountdownLabel(session),
+        archiveCountdownLabel: null,
       ),
     );
     return sel.isActive
