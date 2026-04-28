@@ -1211,6 +1211,8 @@
   "settingsBehavior": "Behavior",
   "settingsViewInline": "View Inline",
   "settingsViewInlineSubtitle": "Show tool calls inline in chat",
+  "settingsHideToolCalls": "Hide Tool Calls",
+  "settingsHideToolCallsSubtitle": "Hide tool call rows in chat while keeping permission prompts visible",
   "settingsExpandTodos": "Expand Todos",
   "settingsShowLineNumbers": "Show Line Numbers",
   "settingsCompactSessionView": "Compact Session View",

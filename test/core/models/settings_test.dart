@@ -3,6 +3,14 @@ import 'package:happy_flutter/core/models/settings.dart';
 
 void main() {
   group('Settings last-used profiles', () {
+    test('serializes and restores hide tool calls preference', () {
+      final settings = Settings()..hideToolCalls = true;
+
+      final restored = Settings.fromJson(settings.toJson());
+
+      expect(restored.hideToolCalls, isTrue);
+    });
+
     test('scopes selected profiles by agent', () {
       final settings = Settings()
         ..lastUsedProfilesByAgent = {'codex': 'openai', 'claude': 'anthropic'};

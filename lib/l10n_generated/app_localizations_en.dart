@@ -3222,6 +3222,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsViewInlineSubtitle => 'Show tool calls inline in chat';
 
   @override
+  String get settingsHideToolCalls => 'Hide Tool Calls';
+
+  @override
+  String get settingsHideToolCallsSubtitle =>
+      'Hide tool call rows in chat while keeping permission prompts visible';
+
+  @override
   String get settingsExpandTodos => 'Expand Todos';
 
   @override

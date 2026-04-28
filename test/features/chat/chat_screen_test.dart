@@ -85,6 +85,13 @@ class _FakeMMKVPlatform extends MMKVPluginPlatform {
 }
 
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
+  _StorageFreeSettingsNotifier([this._initial]);
+
+  final Settings? _initial;
+
+  @override
+  Settings build() => _initial ?? Settings();
+
   @override
   Future<void> updateSetting<T>(String key, T value) async {
     final json = state.toJson();
@@ -114,11 +121,11 @@ Session _makeSession({
   );
 }
 
-Widget _buildApp({required Widget child}) {
+Widget _buildApp({required Widget child, Settings? settings}) {
   return ProviderScope(
     overrides: [
       settingsNotifierProvider.overrideWith(
-        () => _StorageFreeSettingsNotifier(),
+        () => _StorageFreeSettingsNotifier(settings),
       ),
     ],
     child: MaterialApp(
@@ -475,6 +482,69 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Read File'), findsOneWidget);
+    });
+
+    testWidgets('hides tool-call messages when enabled', (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {'id': 'msg_1', 'role': 'assistant', 'content': 'Before'},
+        {
+          'id': 'msg_2',
+          'role': 'assistant',
+          'kind': 'tool-call',
+          'name': 'Read',
+          'toolUseId': 'tool_1',
+          'state': 'completed',
+          'input': {'file_path': '/test.dart'},
+        },
+        {'id': 'msg_3', 'role': 'assistant', 'content': 'After'},
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(
+          settings: Settings()..hideToolCalls = true,
+          child: const ChatScreen(sessionId: 'session_1'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Before'), findsOneWidget);
+      expect(find.text('After'), findsOneWidget);
+      expect(find.text('Read File'), findsNothing);
+    });
+
+    testWidgets('shows hidden tool calls when permission is pending', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'msg_1',
+          'role': 'assistant',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'toolUseId': 'tool_1',
+          'state': 'pending',
+          'input': {'command': 'pwd'},
+          'permission': {'status': 'pending'},
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(
+          settings: Settings()..hideToolCalls = true,
+          child: const ChatScreen(sessionId: 'session_1'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Terminal'), findsOneWidget);
     });
 
     testWidgets('displays session title from summary when available', (

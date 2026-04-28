@@ -5959,6 +5959,18 @@ abstract class AppLocalizations {
   /// **'Show tool calls inline in chat'**
   String get settingsViewInlineSubtitle;
 
+  /// No description provided for @settingsHideToolCalls.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Tool Calls'**
+  String get settingsHideToolCalls;
+
+  /// No description provided for @settingsHideToolCallsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide tool call rows in chat while keeping permission prompts visible'**
+  String get settingsHideToolCallsSubtitle;
+
   /// No description provided for @settingsExpandTodos.
   ///
   /// In en, this message translates to:

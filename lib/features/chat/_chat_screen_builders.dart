@@ -7,7 +7,7 @@
 part of 'chat_screen.dart';
 
 extension _ChatScreenBuilders on _ChatScreenState {
-  Widget _buildMessageList() {
+  Widget _buildMessageList({required bool hideToolCalls}) {
     final stopwatch = Stopwatch()..start();
     final totalCount = _messages.length;
     final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
@@ -40,18 +40,21 @@ extension _ChatScreenBuilders on _ChatScreenState {
     if (!identical(visibleMessages, _cachedListItemsSource) ||
         _visibleCount != _cachedListItemsVisibleCount ||
         _cachedListItems == null ||
-        _cachedKeyToListIndex == null) {
+        _cachedKeyToListIndex == null ||
+        _cachedListItemsHideToolCalls != hideToolCalls) {
       final items = <Map<String, dynamic>?>[];
       for (final msg in visibleMessages) {
         try {
           // Sidechain (agent) messages should only appear inside
           // the AgentConversationScreen, never in the main chat.
           if (msg['isSidechain'] == true) continue;
+          if (_shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
+            continue;
+          }
           items.add(msg);
           final role = msg['role'] as String?;
           final content = msg['content'] ?? msg['text'];
-          final text =
-              content is String ? content : content?.toString() ?? '';
+          final text = content is String ? content : content?.toString() ?? '';
           if (role == 'user' && text.trim() == '/clear') {
             items.add(null);
           }
@@ -80,6 +83,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
 
       _cachedListItemsSource = visibleMessages;
       _cachedListItemsVisibleCount = _visibleCount;
+      _cachedListItemsHideToolCalls = hideToolCalls;
       _cachedListItems = items;
       _cachedKeyToListIndex = keyToListIndex;
     }
@@ -122,11 +126,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
         } catch (e, st) {
           // A single bad message must not blank the whole list. Return a
           // lightweight placeholder so the next item still renders.
-          logger.error(
-            '[chat] itemBuilder threw for index=$index',
-            e,
-            st,
-          );
+          logger.error('[chat] itemBuilder threw for index=$index', e, st);
           return const SizedBox.shrink();
         }
       },
@@ -167,9 +167,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 1.5,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
+                color: Theme.of(context).colorScheme.onSurfaceVariant
                     .withValues(alpha: AppOpacity.medium),
               ),
             ),
@@ -206,7 +204,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final isFirstInGroup = nextRole != currentRole;
     final isLastInGroup = prevRole != currentRole;
 
-    final messageKey = message['id'] as String? ??
+    final messageKey =
+        message['id'] as String? ??
         message['toolUseId'] as String? ??
         'msg-$reversedIndex';
     // Only pass the full messages list to tool-call items that need it
@@ -218,7 +217,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
         isToolCall && (toolName == 'Task' || toolName == 'Agent');
     // Show streaming cursor on the last agent text message while thinking.
     final isNewest = reversedIndex == items.length - 1;
-    final isStreaming = isNewest &&
+    final isStreaming =
+        isNewest &&
         (_session?.thinking ?? false) &&
         message['role'] == 'agent' &&
         !isToolCall;
@@ -232,12 +232,13 @@ extension _ChatScreenBuilders on _ChatScreenState {
           metadata: metadataJson,
           messages: needsMessages ? _messages : null,
           sessionId: widget.sessionId,
-          isSessionOnline: (_session?.isOnline ?? false) ||
+          isSessionOnline:
+              (_session?.isOnline ?? false) ||
               ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
                   (_session?.metadata?.path?.isNotEmpty ?? false)),
           onOptionPress: _onOptionPress,
-          onRetry: message['role'] == 'user' &&
-                  message['sendStatus'] == 'failed'
+          onRetry:
+              message['role'] == 'user' && message['sendStatus'] == 'failed'
               ? () => _retryMessage(message)
               : null,
           animate:
@@ -248,5 +249,18 @@ extension _ChatScreenBuilders on _ChatScreenState {
         ),
       ),
     );
+  }
+
+  bool _shouldHideToolCall(
+    Map<String, dynamic> message, {
+    required bool hideToolCalls,
+  }) {
+    if (!hideToolCalls || message['kind'] != 'tool-call') return false;
+
+    final permission = WireParsers.asMap(message['permission']);
+    if (permission == null) return true;
+
+    final status = permission['status'];
+    return status == 'approved' || status == 'denied' || status == 'canceled';
   }
 }

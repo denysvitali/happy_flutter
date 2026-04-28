@@ -22,6 +22,7 @@ class Settings {
   int schemaVersion = 2;
   String themeMode = 'system';
   bool viewInline = false;
+  bool hideToolCalls = false;
   @JsonKey(includeToJson: false)
   String? inferenceOpenAIKey;
   bool expandTodos = true;
@@ -75,6 +76,7 @@ class Settings {
           schemaVersion == other.schemaVersion &&
           themeMode == other.themeMode &&
           viewInline == other.viewInline &&
+          hideToolCalls == other.hideToolCalls &&
           inferenceOpenAIKey == other.inferenceOpenAIKey &&
           expandTodos == other.expandTodos &&
           showLineNumbers == other.showLineNumbers &&
@@ -116,6 +118,7 @@ class Settings {
     schemaVersion,
     themeMode,
     viewInline,
+    hideToolCalls,
     expandTodos,
     showLineNumbers,
     analyticsOptOut,
@@ -173,6 +176,7 @@ class Settings {
     int? schemaVersion,
     String? themeMode,
     bool? viewInline,
+    bool? hideToolCalls,
     // Nullable fields use Object? + _unset sentinel so that passing null
     // explicitly clears the field instead of keeping the previous value.
     Object? inferenceOpenAIKey = _unset,
@@ -215,6 +219,7 @@ class Settings {
       ..schemaVersion = schemaVersion ?? this.schemaVersion
       ..themeMode = themeMode ?? this.themeMode
       ..viewInline = viewInline ?? this.viewInline
+      ..hideToolCalls = hideToolCalls ?? this.hideToolCalls
       ..inferenceOpenAIKey = identical(inferenceOpenAIKey, _unset)
           ? this.inferenceOpenAIKey
           : inferenceOpenAIKey as String?

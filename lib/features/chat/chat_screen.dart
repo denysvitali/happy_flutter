@@ -19,6 +19,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/wire_parsers.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'chat_input.dart';
@@ -113,6 +114,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<Map<String, dynamic>?>? _cachedListItems;
   List<Map<String, dynamic>>? _cachedListItemsSource;
   int _cachedListItemsVisibleCount = -1;
+  bool? _cachedListItemsHideToolCalls;
   Map<String, int>? _cachedKeyToListIndex;
 
   bool _initialLoadComplete = false;
@@ -534,6 +536,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _cachedListItems = null;
     _cachedListItemsSource = null;
     _cachedListItemsVisibleCount = -1;
+    _cachedListItemsHideToolCalls = null;
     _cachedKeyToListIndex = null;
   }
 
@@ -822,6 +825,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final enterToSend = ref.watch(
       settingsNotifierProvider.select((s) => s.agentInputEnterToSend),
     );
+    final hideToolCalls = ref.watch(
+      settingsNotifierProvider.select((s) => s.hideToolCalls),
+    );
 
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: _controller,
@@ -883,7 +889,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       key: const ValueKey('empty'),
                                       onSuggestionTap: _onSuggestionTap,
                                     ))
-                            : _buildMessageList(),
+                            : _buildMessageList(hideToolCalls: hideToolCalls),
                       ),
                       // The scroll-to-bottom pill listens to
                       // _autoScrollNotifier directly so scroll events do NOT

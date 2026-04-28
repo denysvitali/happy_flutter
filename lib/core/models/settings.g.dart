@@ -10,6 +10,7 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..schemaVersion = (json['schemaVersion'] as num).toInt()
   ..themeMode = json['themeMode'] as String
   ..viewInline = json['viewInline'] as bool
+  ..hideToolCalls = json['hideToolCalls'] as bool
   ..inferenceOpenAIKey = json['inferenceOpenAIKey'] as String?
   ..expandTodos = json['expandTodos'] as bool
   ..showLineNumbers = json['showLineNumbers'] as bool
@@ -64,6 +65,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'schemaVersion': instance.schemaVersion,
   'themeMode': instance.themeMode,
   'viewInline': instance.viewInline,
+  'hideToolCalls': instance.hideToolCalls,
   'expandTodos': instance.expandTodos,
   'showLineNumbers': instance.showLineNumbers,
   'showLineNumbersInToolViews': instance.showLineNumbersInToolViews,

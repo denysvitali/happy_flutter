@@ -348,6 +348,7 @@ class SettingsStorage {
       ..schemaVersion = settings.schemaVersion
       ..themeMode = settings.themeMode
       ..viewInline = settings.viewInline
+      ..hideToolCalls = settings.hideToolCalls
       // Don't copy inferenceOpenAIKey - it's in secure storage
       ..expandTodos = settings.expandTodos
       ..showLineNumbers = settings.showLineNumbers

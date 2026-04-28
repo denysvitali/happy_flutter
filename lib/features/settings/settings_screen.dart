@@ -42,6 +42,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final viewInline = ref.watch(
       settingsNotifierProvider.select((s) => s.viewInline),
     );
+    final hideToolCalls = ref.watch(
+      settingsNotifierProvider.select((s) => s.hideToolCalls),
+    );
     final expandTodos = ref.watch(
       settingsNotifierProvider.select((s) => s.expandTodos),
     );
@@ -90,6 +93,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildBehaviorSection(
             context,
             viewInline: viewInline,
+            hideToolCalls: hideToolCalls,
             expandTodos: expandTodos,
             ref: ref,
           ),
@@ -267,6 +271,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildBehaviorSection(
     BuildContext context, {
     required bool viewInline,
+    required bool hideToolCalls,
     required bool expandTodos,
     required WidgetRef ref,
   }) {
@@ -282,6 +287,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onChanged: (value) => ref
               .read(settingsNotifierProvider.notifier)
               .updateSetting('viewInline', value),
+        ),
+        SettingsToggleRow(
+          icon: Icons.visibility_off_outlined,
+          title: l10n.settingsHideToolCalls,
+          subtitle: l10n.settingsHideToolCallsSubtitle,
+          value: hideToolCalls,
+          onChanged: (value) => ref
+              .read(settingsNotifierProvider.notifier)
+              .updateSetting('hideToolCalls', value),
         ),
         SettingsToggleRow(
           icon: Icons.check_box_outlined,
