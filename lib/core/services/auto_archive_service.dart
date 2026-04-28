@@ -1,6 +1,5 @@
 import 'dart:async';
-
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
 
 import '../api/api_client.dart';
 import '../api/sessions_api.dart';
@@ -9,7 +8,6 @@ import '../models/session.dart';
 import '../services/sync_service.dart';
 import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
-import 'session_folders_storage.dart';
 import 'pinned_sessions_storage.dart';
 
 /// Service that auto-archives sessions based on configured criteria.
@@ -28,41 +26,46 @@ class AutoArchiveService {
 
   static const _settingsKey = 'auto-archive-settings';
 
+  static const defaultIdleArchive = Duration(hours: 2);
+
+  static const defaultSettings = AutoArchiveSettings(
+    autoArchiveIdleAfterDays: -120,
+  );
+
   final _storage = MMKVStorage();
 
   /// Returns the current auto-archive settings from storage.
   AutoArchiveSettings _loadSettings() {
     try {
-      final json = _storage.getString(_settingsKey);
-      if (json != null && json.isNotEmpty) {
-        return AutoArchiveSettings.fromJson(
-          Map<String, dynamic>.from(
-            _parseJson(json) as Map,
-          ),
-        );
+      final raw = _storage.getString(_settingsKey);
+      if (raw != null && raw.isNotEmpty) {
+        return AutoArchiveSettings.fromJson(_parseSettings(raw));
       }
     } catch (e) {
       logger.warning('AutoArchiveService: Failed to load settings: $e');
     }
-    return const AutoArchiveSettings();
+    return defaultSettings;
   }
 
-  Map<String, dynamic> _parseJson(String json) {
+  Map<String, dynamic> _parseSettings(String raw) {
     try {
-      return _parseJsonManual(json);
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
     } catch (_) {
-      return {};
+      return _parseLegacyMapString(raw);
     }
+    return {};
   }
 
-  Map<String, dynamic> _parseJsonManual(String json) {
+  Map<String, dynamic> _parseLegacyMapString(String raw) {
     final result = <String, dynamic>{};
-    if (json.isEmpty || json == '{}') return result;
+    if (raw.isEmpty || raw == '{}') return result;
 
-    final content = json.trim();
+    final content = raw.trim();
     if (content.isEmpty || content == '{}') return result;
 
-    final regex = RegExp(r'"([^"]+)":\s*([^,}]+)');
+    final regex = RegExp(r'''['"]?([^'",{}:\s]+)['"]?:\s*([^,}]+)''');
     for (final match in regex.allMatches(content)) {
       final key = match.group(1)!;
       final valueStr = match.group(2)!.trim();
@@ -89,10 +92,65 @@ class AutoArchiveService {
           'autoArchiveIdleAfterDays': settings.autoArchiveIdleAfterDays,
         'autoArchiveOnAppClose': settings.autoArchiveOnAppClose,
       };
-      _storage.setString(_settingsKey, map.toString());
+      _storage.setString(_settingsKey, jsonEncode(map));
     } catch (e) {
       logger.warning('AutoArchiveService: Failed to save settings: $e');
     }
+  }
+
+  static Duration? idleArchiveDuration(AutoArchiveSettings settings) {
+    final encoded = settings.autoArchiveIdleAfterDays;
+    if (encoded == null) return null;
+    if (encoded < 0) return Duration(minutes: -encoded);
+    if (encoded == 0) return Duration.zero;
+    return Duration(days: encoded);
+  }
+
+  static int encodeIdleDuration(Duration duration) {
+    if (duration.inMinutes < Duration.minutesPerDay) {
+      return -duration.inMinutes;
+    }
+    return duration.inDays;
+  }
+
+  static bool hasPendingPermission(Session session) {
+    final requests = session.agentState?.requests;
+    return requests != null && requests.isNotEmpty;
+  }
+
+  static bool hasUnsettledSend(List<Map<String, dynamic>> messages) {
+    return messages.any((message) {
+      final status = message['sendStatus'];
+      return status == 'sending' || status == 'pending' || status == 'failed';
+    });
+  }
+
+  static bool shouldArchiveSession({
+    required Session session,
+    required AutoArchiveSettings settings,
+    required int nowMs,
+    required bool isPinned,
+    required bool hasUnsettledSend,
+  }) {
+    if (session.archived || isPinned) return false;
+    if (session.presence == 'online' || session.thinking) return false;
+    if (hasPendingPermission(session)) return false;
+    if (hasUnsettledSend) return false;
+    if (session.draft != null && session.draft!.isNotEmpty) return false;
+
+    final ageDays = settings.autoArchiveAfterDays;
+    if (ageDays != null) {
+      final age = Duration(milliseconds: nowMs - session.createdAt);
+      if (age >= Duration(days: ageDays)) return true;
+    }
+
+    final idleDuration = idleArchiveDuration(settings);
+    if (idleDuration != null) {
+      final idle = Duration(milliseconds: nowMs - session.updatedAt);
+      if (idle >= idleDuration) return true;
+    }
+
+    return false;
   }
 
   /// Checks all sessions and archives ones matching the criteria.
@@ -108,7 +166,7 @@ class AutoArchiveService {
   Future<void> _doCheckAndArchive() async {
     final settings = _loadSettings();
     if (settings.autoArchiveAfterDays == null &&
-        settings.autoArchiveIdleAfterDays == null &&
+        idleArchiveDuration(settings) == null &&
         !settings.autoArchiveOnAppClose) {
       return;
     }
@@ -128,41 +186,24 @@ class AutoArchiveService {
       final id = entry.key;
       final session = entry.value;
 
-      // Skip already archived or pinned sessions
-      if (session.archived || pinned.contains(id)) continue;
-
-      // Check age-based archive
-      if (settings.autoArchiveAfterDays != null) {
-        final ageDays =
-            (nowMs - session.createdAt) ~/ (24 * 60 * 60 * 1000);
-        if (ageDays >= settings.autoArchiveAfterDays!) {
-          toArchive.add(id);
-          continue;
-        }
-      }
-
-      // Check idle-based archive (no messages for N days)
-      if (settings.autoArchiveIdleAfterDays != null) {
-        final idleDays =
-            (nowMs - session.updatedAt) ~/ (24 * 60 * 60 * 1000);
-        if (idleDays >= settings.autoArchiveIdleAfterDays!) {
-          toArchive.add(id);
-        }
+      if (shouldArchiveSession(
+        session: session,
+        settings: settings,
+        nowMs: nowMs,
+        isPinned: pinned.contains(id),
+        hasUnsettledSend: hasUnsettledSend(sync.messagesForSession(id)),
+      )) {
+        toArchive.add(id);
       }
     }
 
     if (toArchive.isEmpty) return;
 
-    logger.info(
-      'AutoArchiveService: archiving ${toArchive.length} sessions',
-    );
+    logger.info('AutoArchiveService: archiving ${toArchive.length} sessions');
 
     for (final id in toArchive) {
       try {
-        await SessionsApi(client: ApiClient()).setSessionArchived(
-          id,
-          true,
-        );
+        await SessionsApi(client: ApiClient()).setSessionArchived(id, true);
       } catch (e) {
         logger.warning('AutoArchiveService: failed to archive $id', e);
       }

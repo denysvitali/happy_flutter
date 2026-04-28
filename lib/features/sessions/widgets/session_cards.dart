@@ -31,13 +31,10 @@ AvatarStyle? parseAvatarStyle(String? style) {
 
 /// Computes todo progress, returning (completed, total) or
 /// null if todos are empty or all completed.
-({int completed, int total})? getTodoProgress(
-  List<TodoItem>? todos,
-) {
+({int completed, int total})? getTodoProgress(List<TodoItem>? todos) {
   if (todos == null || todos.isEmpty) return null;
   final total = todos.length;
-  final completed =
-      todos.where((t) => t.status == TodoState.completed).length;
+  final completed = todos.where((t) => t.status == TodoState.completed).length;
   if (completed >= total) return null;
   return (completed: completed, total: total);
 }
@@ -73,10 +70,7 @@ class SessionDerived {
 /// Builds the status text widget shown beneath the session
 /// name when the session is connected and has a meaningful
 /// status (thinking, permission required, etc.).
-Widget? buildStatusText(
-  SessionStatus status,
-  TextTheme textTheme,
-) {
+Widget? buildStatusText(SessionStatus status, TextTheme textTheme) {
   if (!status.shouldShowStatus || !status.isConnected) {
     return null;
   }
@@ -128,10 +122,7 @@ Widget buildPreviewText({
             color: cs.onSurfaceVariant,
           ),
         ),
-        TextSpan(
-          text: preview,
-          style: baseStyle,
-        ),
+        TextSpan(text: preview, style: baseStyle),
       ],
     ),
   );
@@ -172,6 +163,7 @@ Widget buildTimestampBadges({
   required ColorScheme cs,
   int unreadCount = 0,
   ({int completed, int total})? todoProgress,
+  String? archiveCountdownLabel,
   double badgeGap = AppSpacing.xxs,
 }) {
   return Column(
@@ -196,8 +188,56 @@ Widget buildTimestampBadges({
           total: todoProgress.total,
         ),
       ],
+      if (archiveCountdownLabel != null) ...[
+        SizedBox(height: badgeGap),
+        _ArchiveCountdownBadge(label: archiveCountdownLabel),
+      ],
     ],
   );
+}
+
+class _ArchiveCountdownBadge extends StatelessWidget {
+  const _ArchiveCountdownBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
+          width: AppBorder.hairline,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.hourglass_bottom_outlined,
+            size: 10,
+            color: cs.onSurfaceVariant,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: AppFontSize.xxs,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Shared avatar with Hero, optional draft badge.

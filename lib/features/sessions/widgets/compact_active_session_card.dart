@@ -21,6 +21,8 @@ class CompactActiveSessionCard extends StatefulWidget {
     this.selectionMode = false,
     this.isSelected = false,
     this.unreadCount = 0,
+    this.archiveCountdownLabel,
+
     /// Override color for the left accent bar. Defaults to the session's
     /// status dot color. Use [ThemeData.colorScheme.primary] for the
     /// Unread Focus view's Needs Attention section.
@@ -37,6 +39,7 @@ class CompactActiveSessionCard extends StatefulWidget {
   final bool selectionMode;
   final bool isSelected;
   final int unreadCount;
+  final String? archiveCountdownLabel;
   final int? accentBarColor;
 
   @override
@@ -44,8 +47,7 @@ class CompactActiveSessionCard extends StatefulWidget {
       _CompactActiveSessionCardState();
 }
 
-class _CompactActiveSessionCardState
-    extends State<CompactActiveSessionCard> {
+class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
   bool _pressed = false;
   late SessionDerived _d;
 
@@ -69,11 +71,11 @@ class _CompactActiveSessionCardState
     final cs = theme.colorScheme;
     final session = widget.session;
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget = buildStatusText(_d.status, theme.textTheme);
-    final hasPreview = widget.lastMessagePreview != null &&
+    final hasPreview =
+        widget.lastMessagePreview != null &&
         widget.lastMessagePreview!.isNotEmpty;
 
     final cardColor = widget.isSelected
@@ -95,10 +97,7 @@ class _CompactActiveSessionCardState
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
           color: cardColor,
-          border: Border.all(
-            color: borderColor,
-            width: AppBorder.hairline,
-          ),
+          border: Border.all(color: borderColor, width: AppBorder.hairline),
         ),
         child: Material(
           color: Colors.transparent,
@@ -123,8 +122,7 @@ class _CompactActiveSessionCardState
                   if (widget.selectionMode)
                     SelectionCheckbox(
                       isSelected: widget.isSelected,
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.md),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     )
                   else
                     Container(
@@ -134,10 +132,8 @@ class _CompactActiveSessionCardState
                             ? Color(widget.accentBarColor!)
                             : Color(_d.status.statusDotColor),
                         borderRadius: const BorderRadius.only(
-                          topLeft:
-                              Radius.circular(AppRadius.md),
-                          bottomLeft:
-                              Radius.circular(AppRadius.md),
+                          topLeft: Radius.circular(AppRadius.md),
+                          bottomLeft: Radius.circular(AppRadius.md),
                         ),
                       ),
                     ),
@@ -160,39 +156,28 @@ class _CompactActiveSessionCardState
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Column(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 buildNameRow(
                                   name: _d.name,
                                   sessionStatus: _d.status,
-                                  style: theme.textTheme
-                                      .titleSmall
-                                      ?.copyWith(
+                                  style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: cs.onSurface,
                                   ),
                                 ),
                                 if (statusWidget != null) ...[
-                                  const SizedBox(
-                                    height: AppSpacing.xxs,
-                                  ),
+                                  const SizedBox(height: AppSpacing.xxs),
                                   statusWidget,
                                 ],
                                 if (hasPreview) ...[
-                                  const SizedBox(
-                                    height: AppSpacing.sm,
-                                  ),
+                                  const SizedBox(height: AppSpacing.sm),
                                   buildPreviewText(
                                     context: context,
-                                    preview:
-                                        widget.lastMessagePreview!,
+                                    preview: widget.lastMessagePreview!,
                                     role: widget.lastMessageRole,
-                                    style: theme.textTheme
-                                        .bodySmall
-                                        ?.copyWith(
+                                    style: theme.textTheme.bodySmall?.copyWith(
                                       fontSize: AppFontSize.xs,
                                       height: 1.2,
                                     ),
@@ -206,11 +191,12 @@ class _CompactActiveSessionCardState
                           buildTimestampBadges(
                             timestamp:
                                 widget.lastMessageTimestamp ??
-                                    session.updatedAt,
+                                session.updatedAt,
                             theme: theme,
                             cs: cs,
                             unreadCount: widget.unreadCount,
                             todoProgress: todoProgress,
+                            archiveCountdownLabel: widget.archiveCountdownLabel,
                           ),
                           if (session.pinned) ...[
                             const SizedBox(width: AppSpacing.sm),

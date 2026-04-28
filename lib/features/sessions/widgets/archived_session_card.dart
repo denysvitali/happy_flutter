@@ -28,6 +28,7 @@ class SessionCard extends StatefulWidget {
     this.lastMessageTimestamp,
     this.lastMessagePreview,
     this.lastMessageRole,
+    this.archiveCountdownLabel,
   });
 
   final Session session;
@@ -45,6 +46,7 @@ class SessionCard extends StatefulWidget {
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
   final String? lastMessageRole;
+  final String? archiveCountdownLabel;
 
   @override
   State<SessionCard> createState() => _SessionCardState();
@@ -86,9 +88,7 @@ class _SessionCardState extends State<SessionCard> {
 
   void _computeThemeValues() {
     final cs = Theme.of(context).colorScheme;
-    _titleColor = _d.status.isConnected
-        ? cs.onSurface
-        : cs.onSurfaceVariant;
+    _titleColor = _d.status.isConnected ? cs.onSurface : cs.onSurfaceVariant;
     _cardColor = widget.isSelected
         ? cs.primary.withValues(alpha: 0.08)
         : cs.surfaceContainerHighest;
@@ -99,14 +99,10 @@ class _SessionCardState extends State<SessionCard> {
       return BorderRadius.circular(AppRadius.md);
     }
     if (widget.isFirst) {
-      return const BorderRadius.vertical(
-        top: Radius.circular(AppRadius.md),
-      );
+      return const BorderRadius.vertical(top: Radius.circular(AppRadius.md));
     }
     if (widget.isLast) {
-      return const BorderRadius.vertical(
-        bottom: Radius.circular(AppRadius.md),
-      );
+      return const BorderRadius.vertical(bottom: Radius.circular(AppRadius.md));
     }
     return BorderRadius.zero;
   }
@@ -117,8 +113,7 @@ class _SessionCardState extends State<SessionCard> {
     final cs = theme.colorScheme;
     final session = widget.session;
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget = buildStatusText(_d.status, theme.textTheme);
 
@@ -133,9 +128,7 @@ class _SessionCardState extends State<SessionCard> {
           shape: RoundedRectangleBorder(
             borderRadius: _borderRadius,
             side: widget.isSelected
-                ? BorderSide(
-                    color: cs.primary.withValues(alpha: 0.3),
-                  )
+                ? BorderSide(color: cs.primary.withValues(alpha: 0.3))
                 : BorderSide.none,
           ),
           elevation: 0,
@@ -157,25 +150,16 @@ class _SessionCardState extends State<SessionCard> {
               children: [
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                    widget.selectionMode
-                        ? 36 + AppSpacing.md
-                        : AppSpacing.md,
-                    widget.compact
-                        ? AppSpacing.xsm
-                        : AppSpacing.sm,
+                    widget.selectionMode ? 36 + AppSpacing.md : AppSpacing.md,
+                    widget.compact ? AppSpacing.xsm : AppSpacing.sm,
                     AppSpacing.md,
-                    widget.compact
-                        ? AppSpacing.xsm
-                        : AppSpacing.sm,
+                    widget.compact ? AppSpacing.xsm : AppSpacing.sm,
                   ),
                   child: Row(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(
-                          top: AppSpacing.xxs,
-                        ),
+                        padding: const EdgeInsets.only(top: AppSpacing.xxs),
                         child: buildSessionAvatar(
                           sessionId: session.id,
                           avatarId: _d.avatarId,
@@ -188,35 +172,27 @@ class _SessionCardState extends State<SessionCard> {
                         ),
                       ),
                       SizedBox(
-                        width: widget.compact
-                            ? AppSpacing.sm
-                            : AppSpacing.md,
+                        width: widget.compact ? AppSpacing.sm : AppSpacing.md,
                       ),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             buildNameRow(
                               name: _d.name,
                               sessionStatus: _d.status,
-                              style: theme.textTheme.titleSmall
-                                  ?.copyWith(
+                              style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: _titleColor ??
-                                    cs.onSurfaceVariant,
+                                color: _titleColor ?? cs.onSurfaceVariant,
                               ),
                               dotColor: _d.status.isConnected
                                   ? null
                                   : cs.outlineVariant,
                             ),
-                            const SizedBox(
-                              height: AppSpacing.xxs,
-                            ),
+                            const SizedBox(height: AppSpacing.xxs),
                             Text(
                               _d.subtitle,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(
+                              style: theme.textTheme.bodySmall?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 fontFamily: 'monospace',
                                 fontSize: AppFontSize.xs,
@@ -226,23 +202,16 @@ class _SessionCardState extends State<SessionCard> {
                               maxLines: 1,
                             ),
                             if (statusWidget != null) ...[
-                              const SizedBox(
-                                height: AppSpacing.xxs,
-                              ),
+                              const SizedBox(height: AppSpacing.xxs),
                               statusWidget,
                             ],
-                            if (widget.lastMessagePreview !=
-                                null) ...[
-                              const SizedBox(
-                                height: AppSpacing.sm,
-                              ),
+                            if (widget.lastMessagePreview != null) ...[
+                              const SizedBox(height: AppSpacing.sm),
                               buildPreviewText(
                                 context: context,
-                                preview:
-                                    widget.lastMessagePreview!,
+                                preview: widget.lastMessagePreview!,
                                 role: widget.lastMessageRole,
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(
+                                style: theme.textTheme.bodySmall?.copyWith(
                                   fontSize: AppFontSize.sm,
                                   height: 1.3,
                                 ),
@@ -254,28 +223,33 @@ class _SessionCardState extends State<SessionCard> {
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
                             formatTimestamp(
-                              widget.lastMessageTimestamp ??
-                                  session.updatedAt,
+                              widget.lastMessageTimestamp ?? session.updatedAt,
                               relative: true,
                             ),
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(
+                            style: theme.textTheme.labelSmall?.copyWith(
                               color: cs.onSurfaceVariant,
                               fontSize: AppFontSize.xs,
                             ),
                           ),
                           if (todoProgress != null) ...[
-                            const SizedBox(
-                              height: AppSpacing.xsm,
-                            ),
+                            const SizedBox(height: AppSpacing.xsm),
                             TodoProgressBadge(
                               completed: todoProgress.completed,
                               total: todoProgress.total,
+                            ),
+                          ],
+                          if (widget.archiveCountdownLabel != null) ...[
+                            const SizedBox(height: AppSpacing.xsm),
+                            Text(
+                              widget.archiveCountdownLabel!,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                fontSize: AppFontSize.xxs,
+                              ),
                             ),
                           ],
                         ],
@@ -294,8 +268,7 @@ class _SessionCardState extends State<SessionCard> {
                         )
                       : _OfflineAccentBar(
                           isConnected: _d.status.isConnected,
-                          statusDotColor:
-                              _d.status.statusDotColor,
+                          statusDotColor: _d.status.statusDotColor,
                           outlineVariant: cs.outlineVariant,
                         ),
                 ),

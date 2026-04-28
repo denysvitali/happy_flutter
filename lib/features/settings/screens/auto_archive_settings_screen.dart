@@ -15,8 +15,7 @@ class AutoArchiveSettingsScreen extends StatefulWidget {
       _AutoArchiveSettingsScreenState();
 }
 
-class _AutoArchiveSettingsScreenState
-    extends State<AutoArchiveSettingsScreen> {
+class _AutoArchiveSettingsScreenState extends State<AutoArchiveSettingsScreen> {
   late AutoArchiveSettings _settings;
   final _service = AutoArchiveService.instance;
 
@@ -31,9 +30,7 @@ class _AutoArchiveSettingsScreenState
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.autoArchiveTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.autoArchiveTitle)),
       body: ListView(
         padding: AppScreenPadding.settings,
         children: [
@@ -44,26 +41,23 @@ class _AutoArchiveSettingsScreenState
                 title: l10n.autoArchiveAfterDays,
                 subtitle: l10n.autoArchiveAfterDaysDesc,
                 value: _settings.autoArchiveAfterDays,
-                onChanged: (v) => _update(
-                  _settings.copyWith(autoArchiveAfterDays: v),
-                ),
+                onChanged: (v) =>
+                    _update(_settings.copyWith(autoArchiveAfterDays: v)),
               ),
-              _DayPickerRow(
-                title: l10n.autoArchiveIdleAfterDays,
-                subtitle: l10n.autoArchiveIdleAfterDaysDesc,
+              _IdleArchiveRow(
+                title: 'Idle auto-archive',
+                subtitle: 'Hide inactive sessions after this long',
                 value: _settings.autoArchiveIdleAfterDays,
-                onChanged: (v) => _update(
-                  _settings.copyWith(autoArchiveIdleAfterDays: v),
-                ),
+                onChanged: (v) =>
+                    _update(_settings.copyWith(autoArchiveIdleAfterDays: v)),
               ),
               SettingsToggleRow(
                 icon: Icons.power_settings_new_outlined,
                 title: l10n.autoArchiveOnClose,
                 subtitle: l10n.autoArchiveOnCloseDesc,
                 value: _settings.autoArchiveOnAppClose,
-                onChanged: (v) => _update(
-                  _settings.copyWith(autoArchiveOnAppClose: v),
-                ),
+                onChanged: (v) =>
+                    _update(_settings.copyWith(autoArchiveOnAppClose: v)),
               ),
             ],
           ),
@@ -94,7 +88,6 @@ class _DayPickerRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final cs = Theme.of(context).colorScheme;
 
     return ListTile(
       leading: const Icon(Icons.schedule_outlined),
@@ -112,6 +105,54 @@ class _DayPickerRow extends StatelessWidget {
             DropdownMenuItem<int?>(
               value: days,
               child: Text('$days ${l10n.autoArchiveDays}'),
+            ),
+        ],
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class _IdleArchiveRow extends StatelessWidget {
+  const _IdleArchiveRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  static const _options = <({int? value, String label})>[
+    (value: null, label: 'Never'),
+    (value: -30, label: '30 min'),
+    (value: -120, label: '2 hours'),
+    (value: -480, label: '8 hours'),
+    (value: 1, label: '1 day'),
+    (value: 7, label: '7 days'),
+  ];
+
+  final String title;
+  final String subtitle;
+  final int? value;
+  final void Function(int?) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveValue = _options.any((option) => option.value == value)
+        ? value
+        : null;
+
+    return ListTile(
+      leading: const Icon(Icons.hourglass_bottom_outlined),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: DropdownButton<int?>(
+        value: effectiveValue,
+        underline: const SizedBox(),
+        items: [
+          for (final option in _options)
+            DropdownMenuItem<int?>(
+              value: option.value,
+              child: Text(option.label),
             ),
         ],
         onChanged: onChanged,

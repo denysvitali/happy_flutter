@@ -9,6 +9,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/services/auto_archive_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -401,7 +402,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
       }
     }
 
-    // Build the item list: Needs Attention header + cards, then All header + cards.
+    // Build the item list: Needs Attention header + cards, then All header
+    // + cards.
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     final primaryColor = cs.primary.toARGB32();
@@ -505,6 +507,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         selectionMode: sel.isActive,
         unreadCount: sync.getUnreadCount(session.id),
         accentBarColor: accentBarColor,
+        archiveCountdownLabel: _archiveCountdownLabel(session),
       ),
     );
     return sel.isActive
@@ -561,10 +564,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
           final folder = folders[i];
           final child = FolderOverviewCard(
             header: folder.header,
-            onTap: () => _openFolder(
-              folder.header.folderKey,
-              folder.header,
-            ),
+            onTap: () => _openFolder(folder.header.folderKey, folder.header),
           );
           return StaggeredSlideIn(
             key: ValueKey('folder-${folder.header.folderKey}'),
@@ -839,6 +839,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
           lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
           lastMessagePreview: sync.getLastMessagePreview(session.id),
           lastMessageRole: sync.getLastMessageRole(session.id),
+          archiveCountdownLabel: _archiveCountdownLabel(session),
         ),
         if (!item.isLast! && !item.isSingle!)
           Divider(
@@ -862,8 +863,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     required AvatarStyle? avatarStyle,
     required bool triggerStagger,
   }) {
-    final sel = _sel.value;
-
     switch (item.type) {
       case ListItemType.sectionHeader:
         // StaggeredSlideIn already wraps every item with a staggered
@@ -968,11 +967,43 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         isSelected: sel.selectedIds.contains(session.id),
         selectionMode: sel.isActive,
         unreadCount: sync.getUnreadCount(session.id),
+        archiveCountdownLabel: _archiveCountdownLabel(session),
       ),
     );
     return sel.isActive
         ? card
         : DismissibleActiveSession(session: session, child: card);
+  }
+
+  String? _archiveCountdownLabel(Session session) {
+    final settings = AutoArchiveService.instance.getSettings();
+    final duration = AutoArchiveService.idleArchiveDuration(settings);
+    if (duration == null) return null;
+    if (session.presence == 'online' || session.thinking) return null;
+    if (session.pinned || AutoArchiveService.hasPendingPermission(session)) {
+      return null;
+    }
+    if (session.draft != null && session.draft!.isNotEmpty) return null;
+    if (AutoArchiveService.hasUnsettledSend(
+      sync.messagesForSession(session.id),
+    )) {
+      return null;
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final archiveAt = session.updatedAt + duration.inMilliseconds;
+    final remaining = Duration(milliseconds: archiveAt - now);
+    if (remaining <= Duration.zero) return 'Archiving soon';
+    if (remaining.inMinutes < 1) return 'Archives <1m';
+    if (remaining.inHours < 1) {
+      return 'Archives ${remaining.inMinutes}m';
+    }
+    if (remaining.inHours < 24) {
+      final minutes = remaining.inMinutes.remainder(60);
+      if (minutes == 0) return 'Archives ${remaining.inHours}h';
+      return 'Archives ${remaining.inHours}h ${minutes}m';
+    }
+    return 'Archives ${remaining.inDays}d';
   }
 
   List<ListItem> _buildDateGroupedItems(
