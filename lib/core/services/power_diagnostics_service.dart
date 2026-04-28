@@ -9,6 +9,26 @@ import 'performance_context_service.dart';
 
 enum PowerDiagnosticEventType { lifecycle, socket, http, sync, outbox }
 
+class PowerDiagnosticHttpEndpointStats {
+  const PowerDiagnosticHttpEndpointStats({
+    required this.count,
+    required this.failures,
+    required this.slowRequests,
+    required this.requestBytes,
+    required this.responseBytes,
+    required this.totalDurationMs,
+  });
+
+  final int count;
+  final int failures;
+  final int slowRequests;
+  final int requestBytes;
+  final int responseBytes;
+  final int totalDurationMs;
+
+  int get averageDurationMs => count == 0 ? 0 : totalDurationMs ~/ count;
+}
+
 class PowerDiagnosticEvent {
   const PowerDiagnosticEvent({
     required this.timestamp,
@@ -43,16 +63,26 @@ class PowerDiagnosticsSnapshot {
     required this.socketEvents,
     required this.socketSends,
     required this.socketAckCalls,
+    required this.socketEventCounts,
+    required this.socketUpdateTypeCounts,
+    required this.socketSendCounts,
+    required this.socketAckCounts,
     required this.httpRequests,
     required this.httpFailures,
     required this.httpSlowRequests,
     required this.httpRequestBytes,
     required this.httpResponseBytes,
+    required this.httpEndpointCounts,
+    required this.httpEndpointStats,
     required this.syncInvalidations,
     required this.globalSyncInvalidations,
+    required this.syncInvalidationCounts,
+    required this.syncBackgroundSkips,
+    required this.syncBackgroundSkipCounts,
     required this.outboxSchedules,
     required this.outboxAttempts,
     required this.outboxFailures,
+    required this.lifecycleStateCounts,
     required this.recentEvents,
   });
 
@@ -68,16 +98,26 @@ class PowerDiagnosticsSnapshot {
   final int socketEvents;
   final int socketSends;
   final int socketAckCalls;
+  final Map<String, int> socketEventCounts;
+  final Map<String, int> socketUpdateTypeCounts;
+  final Map<String, int> socketSendCounts;
+  final Map<String, int> socketAckCounts;
   final int httpRequests;
   final int httpFailures;
   final int httpSlowRequests;
   final int httpRequestBytes;
   final int httpResponseBytes;
+  final Map<String, int> httpEndpointCounts;
+  final Map<String, PowerDiagnosticHttpEndpointStats> httpEndpointStats;
   final int syncInvalidations;
   final int globalSyncInvalidations;
+  final Map<String, int> syncInvalidationCounts;
+  final int syncBackgroundSkips;
+  final Map<String, int> syncBackgroundSkipCounts;
   final int outboxSchedules;
   final int outboxAttempts;
   final int outboxFailures;
+  final Map<String, int> lifecycleStateCounts;
   final List<PowerDiagnosticEvent> recentEvents;
 
   Duration get runtime => generatedAt.difference(startedAt);
@@ -124,9 +164,19 @@ class PowerDiagnosticsService extends ChangeNotifier {
   int _httpResponseBytes = 0;
   int _syncInvalidations = 0;
   int _globalSyncInvalidations = 0;
+  int _syncBackgroundSkips = 0;
   int _outboxSchedules = 0;
   int _outboxAttempts = 0;
   int _outboxFailures = 0;
+  final Map<String, int> _socketEventCounts = {};
+  final Map<String, int> _socketUpdateTypeCounts = {};
+  final Map<String, int> _socketSendCounts = {};
+  final Map<String, int> _socketAckCounts = {};
+  final Map<String, int> _httpEndpointCounts = {};
+  final Map<String, _MutableHttpEndpointStats> _httpEndpointStats = {};
+  final Map<String, int> _syncInvalidationCounts = {};
+  final Map<String, int> _syncBackgroundSkipCounts = {};
+  final Map<String, int> _lifecycleStateCounts = {};
 
   PowerDiagnosticsSnapshot snapshot() {
     return PowerDiagnosticsSnapshot(
@@ -142,16 +192,28 @@ class PowerDiagnosticsService extends ChangeNotifier {
       socketEvents: _socketEvents,
       socketSends: _socketSends,
       socketAckCalls: _socketAckCalls,
+      socketEventCounts: Map.unmodifiable(_socketEventCounts),
+      socketUpdateTypeCounts: Map.unmodifiable(_socketUpdateTypeCounts),
+      socketSendCounts: Map.unmodifiable(_socketSendCounts),
+      socketAckCounts: Map.unmodifiable(_socketAckCounts),
       httpRequests: _httpRequests,
       httpFailures: _httpFailures,
       httpSlowRequests: _httpSlowRequests,
       httpRequestBytes: _httpRequestBytes,
       httpResponseBytes: _httpResponseBytes,
+      httpEndpointCounts: Map.unmodifiable(_httpEndpointCounts),
+      httpEndpointStats: Map.unmodifiable(
+        _httpEndpointStats.map((key, value) => MapEntry(key, value.snapshot())),
+      ),
       syncInvalidations: _syncInvalidations,
       globalSyncInvalidations: _globalSyncInvalidations,
+      syncInvalidationCounts: Map.unmodifiable(_syncInvalidationCounts),
+      syncBackgroundSkips: _syncBackgroundSkips,
+      syncBackgroundSkipCounts: Map.unmodifiable(_syncBackgroundSkipCounts),
       outboxSchedules: _outboxSchedules,
       outboxAttempts: _outboxAttempts,
       outboxFailures: _outboxFailures,
+      lifecycleStateCounts: Map.unmodifiable(_lifecycleStateCounts),
       recentEvents: List.unmodifiable(_events),
     );
   }
@@ -176,14 +238,25 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _httpResponseBytes = 0;
     _syncInvalidations = 0;
     _globalSyncInvalidations = 0;
+    _syncBackgroundSkips = 0;
     _outboxSchedules = 0;
     _outboxAttempts = 0;
     _outboxFailures = 0;
+    _socketEventCounts.clear();
+    _socketUpdateTypeCounts.clear();
+    _socketSendCounts.clear();
+    _socketAckCounts.clear();
+    _httpEndpointCounts.clear();
+    _httpEndpointStats.clear();
+    _syncInvalidationCounts.clear();
+    _syncBackgroundSkipCounts.clear();
+    _lifecycleStateCounts.clear();
     _notifySoon();
   }
 
   void recordLifecycle(String state, {bool rapidCycle = false}) {
     _lifecycleTransitions++;
+    _increment(_lifecycleStateCounts, state);
     if (state == 'resumed') _resumeCount++;
     if (state == 'paused' || state == 'hidden') _suspendCount++;
     if (rapidCycle) _rapidLifecycleWarnings++;
@@ -214,6 +287,10 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordSocketEvent(String event, {String? updateType}) {
     _socketEvents++;
+    _increment(_socketEventCounts, event);
+    if (updateType != null) {
+      _increment(_socketUpdateTypeCounts, updateType);
+    }
     final typeText = updateType == null ? '' : ' type=$updateType';
     _addEvent(PowerDiagnosticEventType.socket, 'event=$event$typeText');
   }
@@ -221,8 +298,10 @@ class PowerDiagnosticsService extends ChangeNotifier {
   void recordSocketSend(String event, {bool ack = false}) {
     if (ack) {
       _socketAckCalls++;
+      _increment(_socketAckCounts, event);
     } else {
       _socketSends++;
+      _increment(_socketSendCounts, event);
     }
     _addEvent(
       PowerDiagnosticEventType.socket,
@@ -235,8 +314,15 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _httpRequestBytes += entry.requestBytes ?? 0;
     _httpResponseBytes += entry.responseBytes ?? 0;
     final status = entry.statusCode;
-    if (status != null && status >= 400) _httpFailures++;
-    if ((entry.durationMs ?? 0) >= 1000) _httpSlowRequests++;
+    final failed = status != null && status >= 400;
+    final slow = (entry.durationMs ?? 0) >= 1000;
+    if (failed) _httpFailures++;
+    if (slow) _httpSlowRequests++;
+    final endpoint = '${entry.method} ${entry.path}';
+    _increment(_httpEndpointCounts, endpoint);
+    _httpEndpointStats
+        .putIfAbsent(endpoint, _MutableHttpEndpointStats.new)
+        .record(entry, failed: failed, slow: slow);
     _addEvent(
       PowerDiagnosticEventType.http,
       '${entry.method} ${entry.statusCode ?? '???'} '
@@ -247,10 +333,17 @@ class PowerDiagnosticsService extends ChangeNotifier {
   void recordSyncInvalidation(String name, {bool global = false}) {
     _syncInvalidations++;
     if (global) _globalSyncInvalidations++;
+    _increment(_syncInvalidationCounts, name);
     _addEvent(
       PowerDiagnosticEventType.sync,
       global ? 'global invalidate $name' : 'invalidate $name',
     );
+  }
+
+  void recordSyncBackgroundSkip(String name) {
+    _syncBackgroundSkips++;
+    _increment(_syncBackgroundSkipCounts, name);
+    _addEvent(PowerDiagnosticEventType.sync, 'background skip $name');
   }
 
   void recordOutboxSchedule({required String localId, required int delayMs}) {
@@ -292,6 +385,10 @@ class PowerDiagnosticsService extends ChangeNotifier {
       ..writeln('  events: ${s.socketEvents}')
       ..writeln('  sends: ${s.socketSends}')
       ..writeln('  ackCalls: ${s.socketAckCalls}')
+      ..write(_formatCountSection('  eventTypes', s.socketEventCounts))
+      ..write(_formatCountSection('  updateTypes', s.socketUpdateTypeCounts))
+      ..write(_formatCountSection('  sendsByEvent', s.socketSendCounts))
+      ..write(_formatCountSection('  ackByEvent', s.socketAckCounts))
       ..writeln()
       ..writeln('HTTP')
       ..writeln('  requests: ${s.httpRequests}')
@@ -303,10 +400,24 @@ class PowerDiagnosticsService extends ChangeNotifier {
       ..writeln(
         '  responseBytes: ${HttpRequestEntry.formatBytes(s.httpResponseBytes)}',
       )
+      ..write(_formatHttpEndpoints(s.httpEndpointStats))
       ..writeln()
       ..writeln('Sync')
       ..writeln('  invalidations: ${s.syncInvalidations}')
       ..writeln('  globalInvalidations: ${s.globalSyncInvalidations}')
+      ..writeln('  backgroundSkips: ${s.syncBackgroundSkips}')
+      ..write(
+        _formatCountSection('  invalidationsByName', s.syncInvalidationCounts),
+      )
+      ..write(
+        _formatCountSection(
+          '  backgroundSkipsByName',
+          s.syncBackgroundSkipCounts,
+        ),
+      )
+      ..writeln()
+      ..writeln('Lifecycle Detail')
+      ..write(_formatCountSection('  states', s.lifecycleStateCounts))
       ..writeln()
       ..writeln('Outbox')
       ..writeln('  schedules: ${s.outboxSchedules}')
@@ -316,6 +427,48 @@ class PowerDiagnosticsService extends ChangeNotifier {
       ..writeln('Recent Events');
     for (final event in s.recentEvents) {
       buffer.writeln('  ${event.toFormattedString()}');
+    }
+    return buffer.toString();
+  }
+
+  static void _increment(Map<String, int> counts, String key) {
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  static String _formatCountSection(String title, Map<String, int> counts) {
+    if (counts.isEmpty) return '';
+    final sorted = counts.entries.toList()
+      ..sort((a, b) {
+        final countCompare = b.value.compareTo(a.value);
+        if (countCompare != 0) return countCompare;
+        return a.key.compareTo(b.key);
+      });
+    final buffer = StringBuffer()..writeln(title);
+    for (final entry in sorted.take(10)) {
+      buffer.writeln('    ${entry.key}: ${entry.value}');
+    }
+    return buffer.toString();
+  }
+
+  static String _formatHttpEndpoints(
+    Map<String, PowerDiagnosticHttpEndpointStats> stats,
+  ) {
+    if (stats.isEmpty) return '';
+    final sorted = stats.entries.toList()
+      ..sort((a, b) {
+        final countCompare = b.value.count.compareTo(a.value.count);
+        if (countCompare != 0) return countCompare;
+        return a.key.compareTo(b.key);
+      });
+    final buffer = StringBuffer()..writeln('  endpoints');
+    for (final entry in sorted.take(10)) {
+      final value = entry.value;
+      buffer.writeln(
+        '    ${entry.key}: count=${value.count} '
+        'slow=${value.slowRequests} fail=${value.failures} '
+        'avg=${value.averageDurationMs}ms '
+        'rx=${HttpRequestEntry.formatBytes(value.responseBytes)}',
+      );
     }
     return buffer.toString();
   }
@@ -348,6 +501,39 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _disposed = true;
     _notifyTimer?.cancel();
     super.dispose();
+  }
+}
+
+class _MutableHttpEndpointStats {
+  int count = 0;
+  int failures = 0;
+  int slowRequests = 0;
+  int requestBytes = 0;
+  int responseBytes = 0;
+  int totalDurationMs = 0;
+
+  void record(
+    HttpRequestEntry entry, {
+    required bool failed,
+    required bool slow,
+  }) {
+    count++;
+    if (failed) failures++;
+    if (slow) slowRequests++;
+    requestBytes += entry.requestBytes ?? 0;
+    responseBytes += entry.responseBytes ?? 0;
+    totalDurationMs += entry.durationMs ?? 0;
+  }
+
+  PowerDiagnosticHttpEndpointStats snapshot() {
+    return PowerDiagnosticHttpEndpointStats(
+      count: count,
+      failures: failures,
+      slowRequests: slowRequests,
+      requestBytes: requestBytes,
+      responseBytes: responseBytes,
+      totalDurationMs: totalDurationMs,
+    );
   }
 }
 

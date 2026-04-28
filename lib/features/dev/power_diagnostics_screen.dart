@@ -116,6 +116,27 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
               _Metric('Ack calls', snapshot.socketAckCalls.toString()),
             ],
           ),
+          if (snapshot.socketEventCounts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _CountBreakdownSection(
+              title: 'Socket Event Types',
+              counts: snapshot.socketEventCounts,
+            ),
+          ],
+          if (snapshot.socketUpdateTypeCounts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _CountBreakdownSection(
+              title: 'Socket Update Types',
+              counts: snapshot.socketUpdateTypeCounts,
+            ),
+          ],
+          if (snapshot.socketAckCounts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _CountBreakdownSection(
+              title: 'Socket Ack Calls',
+              counts: snapshot.socketAckCounts,
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           _MetricSection(
             title: 'HTTP',
@@ -133,6 +154,10 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
               ),
             ],
           ),
+          if (snapshot.httpEndpointStats.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _HttpEndpointSection(stats: snapshot.httpEndpointStats),
+          ],
           const SizedBox(height: AppSpacing.lg),
           _MetricSection(
             title: 'Sync and Outbox',
@@ -145,16 +170,93 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
                 'Global invalidations',
                 snapshot.globalSyncInvalidations.toString(),
               ),
+              _Metric(
+                'Background skips',
+                snapshot.syncBackgroundSkips.toString(),
+              ),
               _Metric('Outbox schedules', snapshot.outboxSchedules.toString()),
               _Metric('Outbox attempts', snapshot.outboxAttempts.toString()),
               _Metric('Outbox failures', snapshot.outboxFailures.toString()),
             ],
           ),
+          if (snapshot.syncInvalidationCounts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _CountBreakdownSection(
+              title: 'Sync Invalidations',
+              counts: snapshot.syncInvalidationCounts,
+            ),
+          ],
+          if (snapshot.syncBackgroundSkipCounts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _CountBreakdownSection(
+              title: 'Sync Background Skips',
+              counts: snapshot.syncBackgroundSkipCounts,
+            ),
+          ],
+          if (snapshot.lifecycleStateCounts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _CountBreakdownSection(
+              title: 'Lifecycle States',
+              counts: snapshot.lifecycleStateCounts,
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           _EventsSection(events: snapshot.recentEvents),
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
+    );
+  }
+}
+
+class _CountBreakdownSection extends StatelessWidget {
+  const _CountBreakdownSection({required this.title, required this.counts});
+
+  final String title;
+  final Map<String, int> counts;
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = counts.entries.toList()
+      ..sort((a, b) {
+        final countCompare = b.value.compareTo(a.value);
+        if (countCompare != 0) return countCompare;
+        return a.key.compareTo(b.key);
+      });
+    return _MetricSection(
+      title: title,
+      metrics: [
+        for (final entry in sorted.take(8))
+          _Metric(entry.key, entry.value.toString()),
+      ],
+    );
+  }
+}
+
+class _HttpEndpointSection extends StatelessWidget {
+  const _HttpEndpointSection({required this.stats});
+
+  final Map<String, PowerDiagnosticHttpEndpointStats> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = stats.entries.toList()
+      ..sort((a, b) {
+        final countCompare = b.value.count.compareTo(a.value.count);
+        if (countCompare != 0) return countCompare;
+        return a.key.compareTo(b.key);
+      });
+    return _MetricSection(
+      title: 'HTTP Endpoints',
+      metrics: [
+        for (final entry in sorted.take(8))
+          _Metric(
+            entry.key,
+            'n=${entry.value.count} '
+            'avg=${entry.value.averageDurationMs}ms '
+            'slow=${entry.value.slowRequests}',
+          ),
+      ],
     );
   }
 }

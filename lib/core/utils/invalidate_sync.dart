@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/logger_service.dart';
+import '../services/power_diagnostics_service.dart';
 
 /// A utility class for managing async operations with invalidation
 class InvalidateSync {
@@ -13,9 +14,9 @@ class InvalidateSync {
     Duration? minInterval,
     String? name,
     void Function(bool isRunning)? onRunningChanged,
-  })  : _minInterval = minInterval,
-        _name = name,
-        _onRunningChanged = onRunningChanged;
+  }) : _minInterval = minInterval,
+       _name = name,
+       _onRunningChanged = onRunningChanged;
   final Future<void> Function() _action;
   final Duration? _minInterval;
   final String? _name;
@@ -178,6 +179,7 @@ class InvalidateSync {
     // unblocked rather than hanging forever.
     if (isBackgrounded) {
       backgroundedSkipCount++;
+      powerDiagnostics.recordSyncBackgroundSkip(_name ?? 'unknown');
       _completeOperation();
       return;
     }
@@ -191,14 +193,15 @@ class InvalidateSync {
     // performance monitoring, not just as a breadcrumb attached to errors.
     final rawName = _name ?? 'unknown';
     final normalizedName = rawName.split(':').first;
-    final transaction = Sentry.startTransaction(
-      'sync.invalidate.$normalizedName',
-      'sync.fetch',
-      bindToScope: false,
-    )
-      ..setData('name', rawName)
-      ..setData('normalizedName', normalizedName)
-      ..setData('hasDynamicSuffix', rawName != normalizedName);
+    final transaction =
+        Sentry.startTransaction(
+            'sync.invalidate.$normalizedName',
+            'sync.fetch',
+            bindToScope: false,
+          )
+          ..setData('name', rawName)
+          ..setData('normalizedName', normalizedName)
+          ..setData('hasDynamicSuffix', rawName != normalizedName);
 
     try {
       await _action();
@@ -206,19 +209,18 @@ class InvalidateSync {
       await transaction.finish();
 
       // Add breadcrumb for successful completion
-      unawaited(Sentry.addBreadcrumb(Breadcrumb(
-        message: 'InvalidateSync action completed',
-        category: 'sync.retry',
-        level: SentryLevel.info,
-        data: {
-          'name': _name ?? 'unknown',
-          'retryCount': _retryCount,
-        },
-      )));
-    } catch (error) {
-      await transaction.finish(
-        status: const SpanStatus.internalError(),
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'InvalidateSync action completed',
+            category: 'sync.retry',
+            level: SentryLevel.info,
+            data: {'name': _name ?? 'unknown', 'retryCount': _retryCount},
+          ),
+        ),
       );
+    } catch (error) {
+      await transaction.finish(status: const SpanStatus.internalError());
 
       _retryCount++;
       if (_retryCount <= maxRetries) {
@@ -237,15 +239,16 @@ class InvalidateSync {
           // logger.error already forwards to Sentry via
           // _forwardToSentry — no need for a separate captureException.
           logger.error('InvalidateSync: max retries exceeded', error);
-          unawaited(Sentry.addBreadcrumb(Breadcrumb(
-            message: 'InvalidateSync max retries exceeded',
-            category: 'sync.retry',
-            level: SentryLevel.error,
-            data: {
-              'name': _name ?? 'unknown',
-              'error': error.toString(),
-            },
-          )));
+          unawaited(
+            Sentry.addBreadcrumb(
+              Breadcrumb(
+                message: 'InvalidateSync max retries exceeded',
+                category: 'sync.retry',
+                level: SentryLevel.error,
+                data: {'name': _name ?? 'unknown', 'error': error.toString()},
+              ),
+            ),
+          );
           operation.completeError(error);
         }
         // Start a fresh cycle if a new invalidation arrived during retry.
@@ -287,22 +290,22 @@ class InvalidateSync {
     final delay = (baseDelayMs * pow(2, _retryCount - 1)).toInt();
     final jitter = _jitterRng.nextInt(251); // 0–250ms
     final clampedDelay = min(delay + jitter, maxDelayMs);
-    logger.debug(
-      'InvalidateSync: retry $_retryCount in ${clampedDelay}ms',
-    );
+    logger.debug('InvalidateSync: retry $_retryCount in ${clampedDelay}ms');
 
     // Add Sentry breadcrumb for retry tracking
-    Sentry.addBreadcrumb(Breadcrumb(
-      message: 'InvalidateSync retry scheduled',
-      category: 'sync.retry',
-      level: SentryLevel.warning,
-      data: {
-        'name': _name ?? 'unknown',
-        'retryCount': _retryCount,
-        'delayMs': clampedDelay,
-        'maxRetries': maxRetries,
-      },
-    ));
+    Sentry.addBreadcrumb(
+      Breadcrumb(
+        message: 'InvalidateSync retry scheduled',
+        category: 'sync.retry',
+        level: SentryLevel.warning,
+        data: {
+          'name': _name ?? 'unknown',
+          'retryCount': _retryCount,
+          'delayMs': clampedDelay,
+          'maxRetries': maxRetries,
+        },
+      ),
+    );
 
     _retryTimer?.cancel();
     _retryTimer = Timer(Duration(milliseconds: clampedDelay), () {
