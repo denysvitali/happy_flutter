@@ -146,27 +146,50 @@ class EnvVarsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final actions = Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                TextButton.icon(
+                  onPressed: onImport,
+                  icon: const Icon(Icons.paste, size: 18),
+                  label: Text(l10n.profilesImportLabelShort),
+                ),
+                TextButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text(l10n.commonCreate),
+                ),
+              ],
+            );
+            final title = Text(
               l10n.profilesEnvVarsTitle,
               style: textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
-            ),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: onImport,
-              icon: const Icon(Icons.paste, size: 18),
-              label: Text(l10n.profilesImportLabelShort),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            TextButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(l10n.commonCreate),
-            ),
-          ],
+            );
+
+            if (constraints.maxWidth < 420) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  title,
+                  const SizedBox(height: AppSpacing.xs),
+                  actions,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: title),
+                const SizedBox(width: AppSpacing.sm),
+                actions,
+              ],
+            );
+          },
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(

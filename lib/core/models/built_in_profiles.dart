@@ -293,8 +293,15 @@ AIBackendProfile? resolveProfile(
 /// referenced profile exists and supports the requested agent, so a Codex-only
 /// profile cannot leak into Claude.
 String? resolveSelectedProfileIdForAgent(Settings settings, String? agent) {
+  final agentKey = normalizeAgentKey(agent);
+
   final scoped = settings.lastUsedProfileForAgent(agent);
-  if (scoped != null) return scoped;
+  if (scoped != null) {
+    final scopedProfile = resolveProfile(scoped, settings.profiles);
+    if (scopedProfile == null) return null;
+    if (!scopedProfile.compatibility.supportsAgent(agentKey)) return null;
+    return scoped;
+  }
 
   final legacy = settings.lastUsedProfile;
   if (legacy == null || legacy.isEmpty) return null;
@@ -302,7 +309,6 @@ String? resolveSelectedProfileIdForAgent(Settings settings, String? agent) {
   final profile = resolveProfile(legacy, settings.profiles);
   if (profile == null) return null;
 
-  final agentKey = normalizeAgentKey(agent);
   if (!profile.compatibility.supportsAgent(agentKey)) return null;
 
   return legacy;

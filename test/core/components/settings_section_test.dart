@@ -62,9 +62,11 @@ void main() {
       );
 
       final semantics = tester.widget<Semantics>(
-        find.descendant(
-          of: find.byType(SettingsToggleRow),
-          matching: find.byType(Semantics),
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.button == true &&
+              widget.properties.toggled == true,
         ),
       );
       expect(semantics.properties.button, isTrue);
