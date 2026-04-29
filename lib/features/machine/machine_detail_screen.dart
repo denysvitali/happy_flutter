@@ -159,6 +159,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     final metadata = machine.metadata;
     final machineName = metadata?.displayName ?? metadata?.host ?? machine.id;
     final isOnline = _isMachineOnline(machine.activeAt);
+    final stats = _MachineStats.fromDaemonState(machine.daemonState);
 
     // Sessions for this machine, sorted by most recently updated.
     final machineSessions =
@@ -195,6 +196,13 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
               lastSeen: _formatTimestamp(machine.activeAt),
             ),
             const SizedBox(height: AppSpacing.xxl),
+
+            if (stats != null) ...[
+              AppSectionHeader(title: 'Resources'),
+              const SizedBox(height: AppSpacing.xs),
+              _ResourceStatsList(stats: stats),
+              const SizedBox(height: AppSpacing.xxl),
+            ],
 
             // ── Machine info ──
             AppSectionHeader(title: context.l10n.machineInfo),
@@ -390,6 +398,226 @@ class _StatusBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+class _MachineStats {
+  const _MachineStats({
+    required this.cpuPercent,
+    required this.memoryPercent,
+    required this.memoryUsedBytes,
+    required this.memoryTotalBytes,
+    required this.diskPercent,
+    required this.diskUsedBytes,
+    required this.diskTotalBytes,
+    required this.diskPath,
+    required this.sampledAt,
+  });
+
+  final double cpuPercent;
+  final double memoryPercent;
+  final int memoryUsedBytes;
+  final int memoryTotalBytes;
+  final double diskPercent;
+  final int diskUsedBytes;
+  final int diskTotalBytes;
+  final String diskPath;
+  final int sampledAt;
+
+  static _MachineStats? fromDaemonState(Map<String, dynamic>? daemonState) {
+    final raw = daemonState?['machineStats'];
+    if (raw is! Map) return null;
+
+    final cpu = raw['cpu'];
+    final memory = raw['memory'];
+    final disk = raw['disk'];
+    if (cpu is! Map || memory is! Map || disk is! Map) return null;
+
+    return _MachineStats(
+      cpuPercent: _asDouble(cpu['usagePercent']),
+      memoryPercent: _asDouble(memory['usagePercent']),
+      memoryUsedBytes: _asInt(memory['usedBytes']),
+      memoryTotalBytes: _asInt(memory['totalBytes']),
+      diskPercent: _asDouble(disk['usagePercent']),
+      diskUsedBytes: _asInt(disk['usedBytes']),
+      diskTotalBytes: _asInt(disk['totalBytes']),
+      diskPath: disk['path'] is String ? disk['path'] as String : '/',
+      sampledAt: _asInt(raw['sampledAt']),
+    );
+  }
+
+  static double _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return 0;
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is num) return value.toInt();
+    return 0;
+  }
+}
+
+class _ResourceStatsList extends StatelessWidget {
+  const _ResourceStatsList({required this.stats});
+
+  final _MachineStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          _ResourceRow(
+            icon: Icons.speed_outlined,
+            label: 'CPU',
+            value: _formatPercent(stats.cpuPercent),
+            percent: stats.cpuPercent,
+          ),
+          _ResourceDivider(),
+          _ResourceRow(
+            icon: Icons.memory_outlined,
+            label: 'Memory',
+            value: '${_formatPercent(stats.memoryPercent)}  '
+                '${_formatBytes(stats.memoryUsedBytes)} / '
+                '${_formatBytes(stats.memoryTotalBytes)}',
+            percent: stats.memoryPercent,
+          ),
+          _ResourceDivider(),
+          _ResourceRow(
+            icon: Icons.storage_outlined,
+            label: 'Disk',
+            value: '${_formatPercent(stats.diskPercent)}  '
+                '${_formatBytes(stats.diskUsedBytes)} / '
+                '${_formatBytes(stats.diskTotalBytes)}',
+            subtitle: stats.diskPath,
+            percent: stats.diskPercent,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResourceDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Divider(
+      height: 1,
+      indent: AppSpacing.lg + 36 + AppSpacing.md,
+      color: cs.outlineVariant.withValues(alpha: 0.5),
+    );
+  }
+}
+
+class _ResourceRow extends StatelessWidget {
+  const _ResourceRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.percent,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final double percent;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final normalized = (percent / 100).clamp(0.0, 1.0).toDouble();
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            SettingsIconContainer(icon: icon),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 72,
+                        child: Text(
+                          label,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          value,
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: normalized,
+                      minHeight: 4,
+                      backgroundColor: cs.surfaceContainerHighest,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      subtitle!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontFamily: 'monospace',
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _formatPercent(double value) {
+  if (value.isNaN || value.isInfinite) return '0%';
+  return '${value.clamp(0, 100).toStringAsFixed(0)}%';
+}
+
+String _formatBytes(int bytes) {
+  if (bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var value = bytes.toDouble();
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  final precision = value >= 10 || unit == 0 ? 0 : 1;
+  return '${value.toStringAsFixed(precision)} ${units[unit]}';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -57,6 +57,7 @@ Machine _makeMachine({
   int? daemonLastKnownPid,
   bool active = true,
   int? activeAt,
+  Map<String, dynamic>? daemonState,
 }) {
   final now = DateTime.now().millisecondsSinceEpoch;
   return Machine(
@@ -80,6 +81,7 @@ Machine _makeMachine({
       daemonLastKnownStatus: daemonLastKnownStatus,
       daemonLastKnownPid: daemonLastKnownPid,
     ),
+    daemonState: daemonState,
   );
 }
 
@@ -373,6 +375,43 @@ void main() {
 
         expect(find.text('Last Known PID'), findsOneWidget);
         expect(find.text('4242'), findsOneWidget);
+      });
+
+      testWidgets('shows resource stats when daemon reports them',
+          (tester) async {
+        final machine = _makeMachine(
+          id: 'm1',
+          daemonState: {
+            'machineStats': {
+              'sampledAt': DateTime.now().millisecondsSinceEpoch,
+              'cpu': {'usagePercent': 12.4, 'cores': 8},
+              'memory': {
+                'usagePercent': 50.0,
+                'usedBytes': 4 * 1024 * 1024 * 1024,
+                'totalBytes': 8 * 1024 * 1024 * 1024,
+              },
+              'disk': {
+                'path': '/',
+                'usagePercent': 25.0,
+                'usedBytes': 128 * 1024 * 1024 * 1024,
+                'totalBytes': 512 * 1024 * 1024 * 1024,
+              },
+            },
+          },
+        );
+
+        await tester.pumpWidget(
+          _buildApp(machineId: 'm1', machines: {'m1': machine}),
+        );
+        await tester.pump();
+
+        expect(find.text('Resources'), findsOneWidget);
+        expect(find.text('CPU'), findsOneWidget);
+        expect(find.text('12%'), findsOneWidget);
+        expect(find.text('Memory'), findsOneWidget);
+        expect(find.textContaining('4.0 GB / 8.0 GB'), findsOneWidget);
+        expect(find.text('Disk'), findsOneWidget);
+        expect(find.textContaining('128 GB / 512 GB'), findsOneWidget);
       });
 
       testWidgets('shows remove machine button', (tester) async {
