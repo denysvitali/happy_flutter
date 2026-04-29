@@ -229,6 +229,32 @@ void _processOutputContent({
     return;
   }
 
+  if (dataType == 'web_search_call') {
+    final toolUseId = (data['id'] ?? data['call_id']) as String?;
+    final effectiveUuid = (meta.uuid != null && meta.uuid!.isNotEmpty)
+        ? meta.uuid!
+        : id;
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'tool-call',
+      'name': 'web_search',
+      'input': _webSearchInput(data),
+      'toolUseId': toolUseId ?? id,
+      'state': _webSearchState(data['status'] as String?),
+      'result': data,
+      'content': data,
+      'raw': outerContent,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': toolUseId ?? effectiveUuid,
+      'parentUuid': ?meta.parentUuid,
+    });
+    return;
+  }
+
   if (dataType == 'user') {
     if (meta.isSidechain) {
       final userMessage = WireParsers.asMap(data['message']);
@@ -381,6 +407,31 @@ void _processOutputContent({
     'output dataType=$dataType not handled '
     '(keys=${data.keys.toList()})',
   );
+}
+
+String _webSearchState(String? status) {
+  return switch (status) {
+    'completed' || 'succeeded' => 'completed',
+    'failed' || 'error' => 'error',
+    _ => 'running',
+  };
+}
+
+Map<String, dynamic> _webSearchInput(Map<String, dynamic> data) {
+  final action = WireParsers.asMap(data['action']);
+  if (action == null) return <String, dynamic>{};
+
+  final query = action['query'] as String?;
+  if (query != null && query.isNotEmpty) {
+    return {'query': query};
+  }
+
+  final queries = WireParsers.asList(action['queries']);
+  if (queries != null && queries.isNotEmpty) {
+    return {'query': queries.map((q) => q.toString()).join(', ')};
+  }
+
+  return <String, dynamic>{};
 }
 
 /// Handles `isMeta` / `isCompactSummary` output messages.

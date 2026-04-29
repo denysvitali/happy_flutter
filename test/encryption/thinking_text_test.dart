@@ -18,10 +18,7 @@ void main() {
                     'type': 'thinking',
                     'thinking': 'Let me think about this...',
                   },
-                  {
-                    'type': 'text',
-                    'text': 'Here is my answer.',
-                  },
+                  {'type': 'text', 'text': 'Here is my answer.'},
                 ],
               },
             },
@@ -93,14 +90,8 @@ void main() {
               'uuid': 'u1',
               'message': {
                 'content': [
-                  {
-                    'type': 'thinking',
-                    'thinking': 'Thinking...',
-                  },
-                  {
-                    'type': 'text',
-                    'text': '',
-                  },
+                  {'type': 'thinking', 'thinking': 'Thinking...'},
+                  {'type': 'text', 'text': ''},
                 ],
               },
             },
@@ -117,8 +108,7 @@ void main() {
     expect(result.messages[1]['content'], '');
   });
 
-  test('server_tool_use creates tool-call, redacted_thinking skipped',
-      () {
+  test('server_tool_use creates tool-call, redacted_thinking skipped', () {
     final result = processDecryptedMessages(
       decryptedJsonList: [
         {
@@ -130,10 +120,7 @@ void main() {
               'uuid': 'u1',
               'message': {
                 'content': [
-                  {
-                    'type': 'thinking',
-                    'thinking': 'Let me think...',
-                  },
+                  {'type': 'thinking', 'thinking': 'Let me think...'},
                   {
                     'type': 'server_tool_use',
                     'id': 'st1',
@@ -147,14 +134,8 @@ void main() {
                       {'type': 'text', 'text': 'results'},
                     ],
                   },
-                  {
-                    'type': 'redacted_thinking',
-                    'data': 'xxxxx',
-                  },
-                  {
-                    'type': 'text',
-                    'text': 'Final answer here.',
-                  },
+                  {'type': 'redacted_thinking', 'data': 'xxxxx'},
+                  {'type': 'text', 'text': 'Final answer here.'},
                 ],
               },
             },
@@ -181,6 +162,45 @@ void main() {
     expect(result.toolResults[0]['toolUseId'], 'st1');
   });
 
+  test('top-level web_search_call creates web search tool-call', () {
+    final result = processDecryptedMessages(
+      decryptedJsonList: [
+        {
+          'role': 'agent',
+          'content': {
+            'type': 'output',
+            'data': {
+              'type': 'web_search_call',
+              'id': 'ws1',
+              'status': 'completed',
+              'action': {
+                'type': 'search',
+                'queries': ['flutter release notes'],
+                'sources': [
+                  {
+                    'title': 'Flutter docs',
+                    'url': 'https://docs.flutter.dev/release',
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+      wireMessages: [
+        {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+      ],
+      sessionId: 's1',
+    );
+
+    expect(result.messages.length, 1);
+    expect(result.messages[0]['kind'], 'tool-call');
+    expect(result.messages[0]['name'], 'web_search');
+    expect(result.messages[0]['toolUseId'], 'ws1');
+    expect(result.messages[0]['state'], 'completed');
+    expect(result.messages[0]['input'], {'query': 'flutter release notes'});
+  });
+
   test('mcp_tool_use creates tool-call with result', () {
     final result = processDecryptedMessages(
       decryptedJsonList: [
@@ -205,10 +225,7 @@ void main() {
                     'tool_use_id': 'mcp1',
                     'content': 'Sunny, 20°C',
                   },
-                  {
-                    'type': 'text',
-                    'text': 'The weather is sunny.',
-                  },
+                  {'type': 'text', 'text': 'The weather is sunny.'},
                 ],
               },
             },

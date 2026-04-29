@@ -6,9 +6,9 @@ import '../tool_section_view.dart';
 
 /// Search result item model.
 class SearchResult {
-
   /// Creates a [SearchResult].
   SearchResult({required this.title, required this.url, this.snippet});
+
   /// The title of the search result.
   final String title;
 
@@ -21,8 +21,8 @@ class SearchResult {
 
 /// View for displaying WebSearch tool results.
 class WebSearchView extends StatefulWidget {
-
   const WebSearchView({required this.tool, super.key, this.metadata});
+
   /// The tool data map containing input, result, and state.
   final Map<String, dynamic> tool;
 
@@ -41,53 +41,86 @@ class _WebSearchViewState extends State<WebSearchView> {
   List<SearchResult> _parseResults(dynamic result) {
     final results = <SearchResult>[];
 
-    if (result is List) {
-      for (final item in result) {
-        if (item is Map<String, dynamic>) {
-          results.add(_itemToResult(item));
+    final resultList = WireParsers.asList(result);
+    if (resultList != null) {
+      for (final item in resultList) {
+        final itemMap = WireParsers.asMap(item);
+        if (itemMap != null) {
+          final nestedSources = WireParsers.asList(itemMap['sources']);
+          if (nestedSources != null) {
+            results.addAll(_itemsToResults(nestedSources));
+            continue;
+          }
+          results.add(_itemToResult(itemMap));
         }
       }
       return results;
     }
 
-    if (result is Map<String, dynamic>) {
+    final resultMap = WireParsers.asMap(result);
+    if (resultMap != null) {
+      final action = WireParsers.asMap(resultMap['action']);
       final source =
-          result['results'] as List? ??
-          result['hits'] as List? ??
-          result['items'] as List? ??
-          result['organic_results'] as List? ??
+          WireParsers.asList(resultMap['results']) ??
+          WireParsers.asList(resultMap['hits']) ??
+          WireParsers.asList(resultMap['items']) ??
+          WireParsers.asList(resultMap['organic_results']) ??
+          WireParsers.asList(resultMap['sources']) ??
+          WireParsers.asList(action?['sources']) ??
           [];
-      for (final item in source) {
-        if (item is Map<String, dynamic>) {
-          results.add(_itemToResult(item));
-        }
-      }
+      results.addAll(_itemsToResults(source));
     }
 
     return results;
   }
 
+  List<SearchResult> _itemsToResults(List<dynamic> source) {
+    final results = <SearchResult>[];
+    for (final item in source) {
+      final itemMap = WireParsers.asMap(item);
+      if (itemMap != null) results.add(_itemToResult(itemMap));
+    }
+    return results;
+  }
+
   SearchResult _itemToResult(Map<String, dynamic> item) {
+    final url =
+        item['url'] as String? ??
+        item['link'] as String? ??
+        item['href'] as String? ??
+        item['uri'] as String? ??
+        '';
     return SearchResult(
-      title: item['title'] as String? ?? 'No title',
-      url: item['url'] as String? ??
-          item['link'] as String? ??
-          item['href'] as String? ??
-          '',
-      snippet: item['snippet'] as String? ??
+      title:
+          item['title'] as String? ??
+          item['name'] as String? ??
+          (url.isNotEmpty ? _domain(url) : 'No title'),
+      url: url,
+      snippet:
+          item['snippet'] as String? ??
           item['description'] as String? ??
-          item['summary'] as String?,
+          item['summary'] as String? ??
+          item['text'] as String?,
     );
+  }
+
+  String _domain(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.host.isEmpty) return url;
+    return uri.host;
   }
 
   @override
   Widget build(BuildContext context) {
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final result = widget.tool['result'];
     final state = widget.tool['state'] as String? ?? '';
 
-    final query = input['query'] as String? ?? '';
+    final query =
+        input['query'] as String? ??
+        input['search_query'] as String? ??
+        _extractActionQuery(result) ??
+        '';
 
     return ToolSectionView(
       child: Column(
@@ -106,12 +139,22 @@ class _WebSearchViewState extends State<WebSearchView> {
 
           // Error
           if (state == 'error' || state == 'failed')
-            _ErrorBanner(
-              message: result is String ? result : null,
-            ),
+            _ErrorBanner(message: result is String ? result : null),
         ],
       ),
     );
+  }
+
+  String? _extractActionQuery(dynamic result) {
+    final action = WireParsers.asMap(WireParsers.asMap(result)?['action']);
+    if (action == null) return null;
+
+    final query = action['query'] as String?;
+    if (query != null && query.isNotEmpty) return query;
+
+    final queries = WireParsers.asList(action['queries']);
+    if (queries == null || queries.isEmpty) return null;
+    return queries.map((q) => q.toString()).join(', ');
   }
 
   Widget _buildResultsSection(BuildContext context, dynamic result) {
@@ -146,9 +189,7 @@ class _WebSearchViewState extends State<WebSearchView> {
           ),
           const SizedBox(height: AppSpacing.sm),
           // Result cards
-          ...visible.map(
-            (r) => _ResultCard(searchResult: r),
-          ),
+          ...visible.map((r) => _ResultCard(searchResult: r)),
           // Show more / less toggle
           if (results.length > _maxInline)
             Padding(
@@ -168,9 +209,7 @@ class _WebSearchViewState extends State<WebSearchView> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        _showAll
-                            ? Icons.expand_less
-                            : Icons.expand_more,
+                        _showAll ? Icons.expand_less : Icons.expand_more,
                         size: 14,
                         color: theme.colorScheme.primary,
                       ),
@@ -179,7 +218,7 @@ class _WebSearchViewState extends State<WebSearchView> {
                         _showAll
                             ? 'Show fewer'
                             : '+ $remaining more result'
-                                '${remaining == 1 ? '' : 's'}',
+                                  '${remaining == 1 ? '' : 's'}',
                         style: TextStyle(
                           fontSize: AppFontSize.sm,
                           color: theme.colorScheme.primary,
@@ -199,7 +238,6 @@ class _WebSearchViewState extends State<WebSearchView> {
 
 /// Styled search bar showing the query.
 class _SearchBar extends StatelessWidget {
-
   const _SearchBar({required this.query, required this.state});
   final String query;
   final String state;
@@ -226,11 +264,7 @@ class _SearchBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.search,
-            size: 16,
-            color: theme.colorScheme.primary,
-          ),
+          Icon(Icons.search, size: 16, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -245,11 +279,7 @@ class _SearchBar extends StatelessWidget {
             ),
           ),
           if (isDone)
-            Icon(
-              Icons.check_circle,
-              size: 14,
-              color: AppColors.success,
-            ),
+            Icon(Icons.check_circle, size: 14, color: AppColors.success),
         ],
       ),
     );
@@ -280,7 +310,6 @@ class _GoogleDotsIcon extends StatelessWidget {
 }
 
 class _Dot extends StatelessWidget {
-
   const _Dot({required this.size, required this.color});
   final double size;
   final Color color;
@@ -295,7 +324,6 @@ class _Dot extends StatelessWidget {
 
 /// A single search result card with title, URL chip, and snippet.
 class _ResultCard extends StatelessWidget {
-
   const _ResultCard({required this.searchResult});
   final SearchResult searchResult;
 
@@ -354,8 +382,9 @@ class _ResultCard extends StatelessWidget {
                       Icon(
                         Icons.link,
                         size: 10,
-                        color: theme.colorScheme.onSurfaceVariant
-                            .withAlpha(153),
+                        color: theme.colorScheme.onSurfaceVariant.withAlpha(
+                          153,
+                        ),
                       ),
                       const SizedBox(width: 3),
                       Flexible(
@@ -443,7 +472,6 @@ class _LoadingIndicator extends StatelessWidget {
 
 /// Error state banner.
 class _ErrorBanner extends StatelessWidget {
-
   const _ErrorBanner({this.message});
   final String? message;
 
@@ -465,11 +493,7 @@ class _ErrorBanner extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 14,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 14, color: theme.colorScheme.error),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

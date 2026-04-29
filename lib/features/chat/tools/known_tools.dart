@@ -347,6 +347,24 @@ class KnownTools {
         }
       },
     ),
+    'WebSearch': ToolDefinition(
+      icon: webFetchIcon,
+      title: 'Web Search',
+      minimal: false,
+      extractDescription: _extractWebSearchDescription,
+    ),
+    'web_search': ToolDefinition(
+      icon: webFetchIcon,
+      title: 'Web Search',
+      minimal: false,
+      extractDescription: _extractWebSearchDescription,
+    ),
+    'web_search_preview': ToolDefinition(
+      icon: webFetchIcon,
+      title: 'Web Search',
+      minimal: false,
+      extractDescription: _extractWebSearchDescription,
+    ),
     'ToolSearch': ToolDefinition(
       icon: searchIcon,
       title: 'Tool Search',
@@ -672,6 +690,24 @@ class KnownTools {
     }
     if (files.length == 1) return files.single.split('/').lastOrNull;
     if (files.length > 1) return '${files.length} files';
+    return null;
+  }
+
+  static String? _extractWebSearchDescription(
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? _,
+  ) {
+    final input = WireParsers.asMap(tool['input']);
+    final query = input?['query'] as String?;
+    if (query != null && query.isNotEmpty) return query;
+
+    final action = WireParsers.asMap(tool['result'])?['action'];
+    final actionMap = WireParsers.asMap(action);
+    final queries = WireParsers.asList(actionMap?['queries']);
+    if (queries != null && queries.isNotEmpty) {
+      return queries.map((q) => q.toString()).join(', ');
+    }
+
     return null;
   }
 

@@ -332,6 +332,33 @@ extension SyncMessagingParseOutput on Sync {
       return (results, toolResultsList);
     }
 
+    if (dataType == 'web_search_call') {
+      final toolUseId = (data['id'] ?? data['call_id']) as String?;
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'web_search',
+            'input': _webSearchInput(data),
+            'toolUseId': toolUseId ?? message.id,
+            'state': _webSearchState(data['status'] as String?),
+            'result': data,
+            'content': data,
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': toolUseId ?? dataUuid ?? message.id,
+            'parentUuid': ?dataParentUuid,
+          },
+        ],
+        [],
+      );
+    }
+
     // Handle top-level tool-result / tool-call-result envelopes.
     // Check both `type` and `dataType` since different server responses
     // use different field names.
@@ -488,6 +515,31 @@ extension SyncMessagingParseOutput on Sync {
 
     // Skip system, result, and other unrecognized messages
     return ([], []);
+  }
+
+  String _webSearchState(String? status) {
+    return switch (status) {
+      'completed' || 'succeeded' => 'completed',
+      'failed' || 'error' => 'error',
+      _ => 'running',
+    };
+  }
+
+  Map<String, dynamic> _webSearchInput(Map<String, dynamic> data) {
+    final action = WireParsers.asMap(data['action']);
+    if (action == null) return <String, dynamic>{};
+
+    final query = action['query'] as String?;
+    if (query != null && query.isNotEmpty) {
+      return {'query': query};
+    }
+
+    final queries = WireParsers.asList(action['queries']);
+    if (queries != null && queries.isNotEmpty) {
+      return {'query': queries.map((q) => q.toString()).join(', ')};
+    }
+
+    return <String, dynamic>{};
   }
 
   (List<Map<String, dynamic>>, List<Map<String, dynamic>>) _processEventContent(
