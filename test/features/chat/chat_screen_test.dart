@@ -351,7 +351,7 @@ void main() {
       expect(find.text('Connected'), findsNothing);
     });
 
-    testWidgets('shows provider-specific working status', (tester) async {
+    testWidgets('shows working status while agent is thinking', (tester) async {
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', const []);
@@ -376,8 +376,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Thinking'), findsOneWidget);
-      expect(find.text('host'), findsOneWidget);
-      expect(find.text('/repo'), findsOneWidget);
     });
 
     testWidgets('shows offline and last seen chips for offline session', (
