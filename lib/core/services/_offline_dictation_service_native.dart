@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
@@ -40,10 +41,15 @@ class OfflineDictationService {
 
   final AudioRecorder _recorder;
 
-  sherpa.OfflineRecognizer? _recognizer;
-  Future<sherpa.OfflineRecognizer>? _recognizerFuture;
   String? _recordingPath;
-  bool _bindingsInitialized = false;
+
+  Stream<double> levels({
+    Duration interval = const Duration(milliseconds: 200),
+  }) {
+    return _recorder
+        .onAmplitudeChanged(interval)
+        .map((amplitude) => amplitude.current);
+  }
 
   Future<void> start() async {
     if (await _recorder.isRecording()) {
@@ -99,24 +105,16 @@ class OfflineDictationService {
 
   Future<String> transcribe({required String audioPath}) async {
     try {
-      final recognizer = await _ensureRecognizer();
-      final wave = sherpa.readWave(audioPath);
-      final stream = recognizer.createStream();
-      try {
-        stream.acceptWaveform(
-          samples: wave.samples,
-          sampleRate: wave.sampleRate,
-        );
-        recognizer.decode(stream);
-
-        final text = recognizer.getResult(stream).text.trim();
-        if (text.isEmpty) {
-          throw const OfflineDictationException('No speech was transcribed');
-        }
-        return text;
-      } finally {
-        stream.free();
+      final files = await _ensureModelFiles();
+      final text = await Isolate.run(
+        () => _transcribeInWorker(
+          _OfflineTranscriptionRequest(audioPath: audioPath, files: files),
+        ),
+      );
+      if (text.isEmpty) {
+        throw const OfflineDictationException('No speech was transcribed');
       }
+      return text;
     } on OfflineDictationException {
       rethrow;
     } catch (error, stack) {
@@ -127,45 +125,6 @@ class OfflineDictationService {
 
   Future<void> dispose() async {
     await _recorder.dispose();
-    _recognizer?.free();
-    _recognizer = null;
-  }
-
-  Future<sherpa.OfflineRecognizer> _ensureRecognizer() {
-    final existing = _recognizer;
-    if (existing != null) {
-      return Future.value(existing);
-    }
-
-    return _recognizerFuture ??= _createRecognizer().then((recognizer) {
-      _recognizer = recognizer;
-      _recognizerFuture = null;
-      return recognizer;
-    });
-  }
-
-  Future<sherpa.OfflineRecognizer> _createRecognizer() async {
-    if (!_bindingsInitialized) {
-      sherpa.initBindings();
-      _bindingsInitialized = true;
-    }
-
-    final files = await _ensureModelFiles();
-    final config = sherpa.OfflineRecognizerConfig(
-      model: sherpa.OfflineModelConfig(
-        moonshine: sherpa.OfflineMoonshineModelConfig(
-          preprocessor: files.preprocessor,
-          encoder: files.encoder,
-          uncachedDecoder: files.uncachedDecoder,
-          cachedDecoder: files.cachedDecoder,
-        ),
-        tokens: files.tokens,
-        numThreads: 2,
-        debug: false,
-      ),
-    );
-
-    return sherpa.OfflineRecognizer(config);
   }
 
   Future<_MoonshineModelFiles> _ensureModelFiles() async {
@@ -273,6 +232,45 @@ class OfflineDictationService {
       client.close(force: true);
     }
   }
+}
+
+String _transcribeInWorker(_OfflineTranscriptionRequest request) {
+  sherpa.initBindings();
+  final config = sherpa.OfflineRecognizerConfig(
+    model: sherpa.OfflineModelConfig(
+      moonshine: sherpa.OfflineMoonshineModelConfig(
+        preprocessor: request.files.preprocessor,
+        encoder: request.files.encoder,
+        uncachedDecoder: request.files.uncachedDecoder,
+        cachedDecoder: request.files.cachedDecoder,
+      ),
+      tokens: request.files.tokens,
+      numThreads: 2,
+      debug: false,
+    ),
+  );
+
+  final recognizer = sherpa.OfflineRecognizer(config);
+  final stream = recognizer.createStream();
+  try {
+    final wave = sherpa.readWave(request.audioPath);
+    stream.acceptWaveform(samples: wave.samples, sampleRate: wave.sampleRate);
+    recognizer.decode(stream);
+    return recognizer.getResult(stream).text.trim();
+  } finally {
+    stream.free();
+    recognizer.free();
+  }
+}
+
+class _OfflineTranscriptionRequest {
+  const _OfflineTranscriptionRequest({
+    required this.audioPath,
+    required this.files,
+  });
+
+  final String audioPath;
+  final _MoonshineModelFiles files;
 }
 
 class _MoonshineModelFiles {

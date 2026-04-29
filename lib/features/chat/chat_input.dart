@@ -165,11 +165,20 @@ class _ChatInputState extends ConsumerState<ChatInput>
       AutocompleteController();
   final DraftAutoSave _draftAutoSave;
   final OfflineDictationService _dictationService = OfflineDictationService();
+  static const _dictationSilenceThresholdDb = -45.0;
+  static const _dictationSilenceDuration = Duration(milliseconds: 1200);
+  static const _dictationInitialGrace = Duration(seconds: 2);
+  static const _dictationMaxDuration = Duration(seconds: 30);
 
   String _previousText = '';
   bool _showAutocomplete = false;
   bool _isRecording = false;
   bool _isTranscribing = false;
+  bool _isStoppingDictation = false;
+  DateTime? _dictationStartedAt;
+  DateTime? _dictationSilenceStartedAt;
+  Timer? _dictationMaxTimer;
+  StreamSubscription<double>? _dictationLevelSub;
   final ValueNotifier<bool> _isFocused = ValueNotifier<bool>(false);
 
   late final AnimationController _sendScaleController;
@@ -214,6 +223,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   void dispose() {
     _sendScaleController.dispose();
     _draftAutoSave.dispose();
+    _stopDictationWatchers();
     unawaited(_dictationService.dispose());
     _isFocused.dispose();
     widget.controller.removeListener(_onTextChanged);
@@ -408,7 +418,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Future<void> _onDictationTap() async {
-    if (_isTranscribing) {
+    if (_isTranscribing || _isStoppingDictation) {
       return;
     }
 
@@ -425,7 +435,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
       await _dictationService.start();
       if (!mounted) return;
       unawaited(HapticFeedback.mediumImpact());
-      setState(() => _isRecording = true);
+      setState(() {
+        _isRecording = true;
+        _dictationStartedAt = DateTime.now();
+        _dictationSilenceStartedAt = null;
+      });
+      _startDictationWatchers();
     } on OfflineDictationException catch (error) {
       _showDictationError(error.message);
     } catch (error) {
@@ -434,6 +449,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Future<void> _stopAndTranscribe() async {
+    if (_isStoppingDictation) {
+      return;
+    }
+    _isStoppingDictation = true;
+    _stopDictationWatchers();
+    if (!mounted) {
+      _isStoppingDictation = false;
+      return;
+    }
     setState(() {
       _isRecording = false;
       _isTranscribing = true;
@@ -455,6 +479,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     } catch (error) {
       _showDictationError('Transcription failed');
     } finally {
+      _isStoppingDictation = false;
       if (mounted) {
         setState(() => _isTranscribing = false);
       }
@@ -489,6 +514,50 @@ class _ChatInputState extends ConsumerState<ChatInput>
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _startDictationWatchers() {
+    _stopDictationWatchers();
+    _dictationMaxTimer = Timer(
+      _dictationMaxDuration,
+      () => unawaited(_stopAndTranscribe()),
+    );
+    _dictationLevelSub = _dictationService.levels().listen(
+      _handleDictationLevel,
+      onError: (_) {},
+    );
+  }
+
+  void _stopDictationWatchers() {
+    _dictationMaxTimer?.cancel();
+    _dictationMaxTimer = null;
+    unawaited(_dictationLevelSub?.cancel());
+    _dictationLevelSub = null;
+    _dictationSilenceStartedAt = null;
+  }
+
+  void _handleDictationLevel(double levelDb) {
+    if (!_isRecording || _isStoppingDictation) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final startedAt = _dictationStartedAt;
+    if (startedAt == null ||
+        now.difference(startedAt) < _dictationInitialGrace) {
+      return;
+    }
+
+    if (levelDb > _dictationSilenceThresholdDb) {
+      _dictationSilenceStartedAt = null;
+      return;
+    }
+
+    final silenceStartedAt = _dictationSilenceStartedAt ?? now;
+    _dictationSilenceStartedAt = silenceStartedAt;
+    if (now.difference(silenceStartedAt) >= _dictationSilenceDuration) {
+      unawaited(_stopAndTranscribe());
+    }
   }
 
   // -----------------------------------------------------------
@@ -655,7 +724,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
       controller: widget.controller,
       focusNode: _focusNode,
       decoration: InputDecoration(
-        hintText: l10n.chatInputHint,
+        hintText: _isRecording
+            ? 'Listening...'
+            : _isTranscribing
+            ? 'Transcribing...'
+            : l10n.chatInputHint,
         hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
         filled: false,
         isDense: true,
