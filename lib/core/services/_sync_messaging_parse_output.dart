@@ -147,8 +147,8 @@ extension SyncMessagingParseOutput on Sync {
         final elapsedStr = elapsed is num
             ? '${elapsed.toStringAsFixed(0)}s'
             : '';
-        final label =
-            '$toolName running${elapsedStr.isNotEmpty ? ' ($elapsedStr)' : ''}...';
+        final progress = elapsedStr.isEmpty ? '' : ' ($elapsedStr)';
+        final label = '$toolName running$progress...';
         return (
           [
             {
@@ -574,6 +574,8 @@ extension SyncMessagingParseOutput on Sync {
     }
 
     if (dataType == 'tool-call') {
+      final toolName = data['toolName'] ?? data['name'] ?? 'unknown';
+      final toolInput = data['args'] ?? data['input'] ?? <String, dynamic>{};
       return (
         [
           {
@@ -583,8 +585,8 @@ extension SyncMessagingParseOutput on Sync {
             'createdAt': createdAt,
             'role': 'agent',
             'kind': 'tool-call',
-            'name': data['name'],
-            'input': WireParsers.asMap(data['input']) ?? <String, dynamic>{},
+            'name': toolName,
+            'input': toolInput,
             'toolUseId': data['callId'],
             'state': 'running',
             'content': data,
@@ -600,7 +602,7 @@ extension SyncMessagingParseOutput on Sync {
 
     if (dataType == 'tool-call-result') {
       // Support both 'output' and 'content' fields for tool result
-      final result = data['output'] ?? data['content'];
+      final result = data['result'] ?? data['output'] ?? data['content'];
       return (
         [],
         [
@@ -698,6 +700,8 @@ extension SyncMessagingParseOutput on Sync {
     }
 
     if (dataType == 'tool-call') {
+      final toolName = data['toolName'] ?? data['name'] ?? 'unknown';
+      final toolInput = data['args'] ?? data['input'] ?? <String, dynamic>{};
       return (
         [
           {
@@ -707,8 +711,8 @@ extension SyncMessagingParseOutput on Sync {
             'createdAt': createdAt,
             'role': 'agent',
             'kind': 'tool-call',
-            'name': data['name'],
-            'input': WireParsers.asMap(data['input']) ?? <String, dynamic>{},
+            'name': toolName,
+            'input': toolInput,
             'toolUseId': data['callId'],
             'state': 'running',
             'content': data,
@@ -727,7 +731,7 @@ extension SyncMessagingParseOutput on Sync {
         data['dataType'] == 'tool-result' ||
         data['dataType'] == 'tool-call-result') {
       // Support both 'output' and 'content' fields for tool result
-      final result = data['output'] ?? data['content'];
+      final result = data['result'] ?? data['output'] ?? data['content'];
       return (
         [],
         [

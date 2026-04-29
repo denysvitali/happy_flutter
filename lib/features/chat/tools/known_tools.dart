@@ -683,6 +683,26 @@ class KnownTools {
       final value = inputMap[key];
       if (value is String && value.contains('*** Begin Patch')) return value;
     }
+    return _findPatchText(inputMap);
+  }
+
+  static String? _findPatchText(dynamic value) {
+    if (value is String && value.contains('*** Begin Patch')) return value;
+    final map = WireParsers.asMap(value);
+    if (map != null) {
+      for (final entry in map.values) {
+        final patch = _findPatchText(entry);
+        if (patch != null) return patch;
+      }
+      return null;
+    }
+    final list = WireParsers.asList(value);
+    if (list != null) {
+      for (final item in list) {
+        final patch = _findPatchText(item);
+        if (patch != null) return patch;
+      }
+    }
     return null;
   }
 

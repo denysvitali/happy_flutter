@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../tools/tool_status_indicator.dart';
@@ -108,6 +109,7 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
                             metadata: widget.metadata,
                             sessionId: widget.sessionId,
                             isSessionOnline: widget.isSessionOnline,
+                            onPress: _onToolPress(tool),
                           ),
                       ],
                     ),
@@ -117,6 +119,19 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
         ],
       ),
     );
+  }
+
+  VoidCallback? _onToolPress(Map<String, dynamic> tool) {
+    final sessionId = widget.sessionId;
+    final messageId = tool['id'] as String?;
+    if (sessionId == null || messageId == null) return null;
+    return () {
+      final isTask = tool['name'] == 'Task' || tool['name'] == 'Agent';
+      final route = isTask
+          ? '/chat/$sessionId/agent/$messageId'
+          : '/chat/$sessionId/message/$messageId';
+      context.push(route, extra: tool);
+    };
   }
 
   bool _isCompleted(Map<String, dynamic> tool) {

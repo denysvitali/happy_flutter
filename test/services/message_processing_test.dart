@@ -463,6 +463,56 @@ void main() {
       expect(endResult.$2.first['result'], 'done');
       expect(endResult.$2.first['isError'], false);
     });
+
+    test('maps Codex toolName args and result fields', () {
+      final startResult = instance.testProcessDecryptedMessage(
+        id: 'msg_codex_tool_start',
+        seq: 13,
+        sessionId: 'session_1',
+        content: {
+          'role': 'agent',
+          'content': {
+            'type': 'codex',
+            'data': {
+              'type': 'tool-call',
+              'callId': 'call_1',
+              'toolName': 'apply_patch',
+              'args': {'patch': '*** Begin Patch\n*** End Patch'},
+            },
+          },
+        },
+      );
+
+      expect(startResult.$1, hasLength(1));
+      expect(startResult.$1.first['kind'], 'tool-call');
+      expect(startResult.$1.first['name'], 'apply_patch');
+      expect(startResult.$1.first['input'], {
+        'patch': '*** Begin Patch\n*** End Patch',
+      });
+      expect(startResult.$1.first['toolUseId'], 'call_1');
+
+      final endResult = instance.testProcessDecryptedMessage(
+        id: 'msg_codex_tool_end',
+        seq: 14,
+        sessionId: 'session_1',
+        content: {
+          'role': 'agent',
+          'content': {
+            'type': 'codex',
+            'data': {
+              'type': 'tool-call-result',
+              'callId': 'call_1',
+              'result': {'ok': true},
+            },
+          },
+        },
+      );
+
+      expect(endResult.$1, isEmpty);
+      expect(endResult.$2, hasLength(1));
+      expect(endResult.$2.first['toolUseId'], 'call_1');
+      expect(endResult.$2.first['result'], {'ok': true});
+    });
   });
 
   group('usage tracking', () {

@@ -45,6 +45,39 @@ void main() {
       expect(_findRichTextContaining('-final value = 1;'), findsOneWidget);
       expect(_findRichTextContaining('+final value = 2;'), findsOneWidget);
     });
+
+    testWidgets('renders patch text from nested Codex arguments', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          CodexPatchView(
+            tool: {
+              'input': {
+                'arguments': {
+                  'body': '''
+*** Begin Patch
+*** Update File: lib/app.dart
+@@
+-const name = 'old';
++const name = 'new';
+*** End Patch
+''',
+                },
+              },
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(_findRichTextContaining('app.dart'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 file changed'), findsOneWidget);
+      expect(_findRichTextContaining('lib/app.dart'), findsAtLeastNWidgets(1));
+      expect(_findRichTextContaining("-const name = 'old';"), findsOneWidget);
+      expect(_findRichTextContaining("+const name = 'new';"), findsOneWidget);
+    });
   });
 
   group('ToolView apply_patch', () {
