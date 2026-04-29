@@ -55,6 +55,7 @@ dependencies:
   fuzzy: ^0.5.1
   tflite_flutter: ^0.12.0
   record: ^6.2.0
+  archive: ^4.0.9
   sherpa_onnx: ^1.13.0
 
   # IndexedDB wrapper for web storage (sessions cache quota relief)
@@ -117,7 +118,6 @@ flutter:
     - assets/
     - assets/images/
     - assets/gemma/
-    - assets/speech/moonshine_tiny_en_int8/
     - google_fonts/
 
   generate: true

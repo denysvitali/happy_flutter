@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show FlutterError;
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -25,7 +24,19 @@ class OfflineDictationService {
     : _recorder = recorder ?? AudioRecorder();
 
   static const _sampleRate = 16000;
-  static const _assetRoot = 'assets/speech/moonshine_tiny_en_int8';
+  static const _modelUrl =
+      'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/'
+      'sherpa-onnx-moonshine-tiny-en-int8.tar.bz2';
+  static const _modelSha256 =
+      'd5fe6ec4334fef36255b2a4010412cad4c007e33103fec62fb5d17cad88086f2';
+  static const _archiveRoot = 'sherpa-onnx-moonshine-tiny-en-int8';
+  static const _modelFileNames = {
+    'preprocess.onnx',
+    'encode.int8.onnx',
+    'uncached_decode.int8.onnx',
+    'cached_decode.int8.onnx',
+    'tokens.txt',
+  };
 
   final AudioRecorder _recorder;
 
@@ -139,7 +150,7 @@ class OfflineDictationService {
       _bindingsInitialized = true;
     }
 
-    final files = await _copyModelFiles();
+    final files = await _ensureModelFiles();
     final config = sherpa.OfflineRecognizerConfig(
       model: sherpa.OfflineModelConfig(
         moonshine: sherpa.OfflineMoonshineModelConfig(
@@ -157,54 +168,109 @@ class OfflineDictationService {
     return sherpa.OfflineRecognizer(config);
   }
 
-  Future<_MoonshineModelFiles> _copyModelFiles() async {
+  Future<_MoonshineModelFiles> _ensureModelFiles() async {
     final supportDir = await getApplicationSupportDirectory();
     final modelDir = Directory(
       p.join(supportDir.path, 'speech', 'moonshine_tiny_en_int8'),
     );
     await modelDir.create(recursive: true);
+    var files = _modelFiles(modelDir);
+    if (files.allExist) {
+      return files;
+    }
 
-    return _MoonshineModelFiles(
-      preprocessor: await _copyAssetFile(
-        '$_assetRoot/preprocess.onnx',
-        modelDir,
-      ),
-      encoder: await _copyAssetFile('$_assetRoot/encode.int8.onnx', modelDir),
-      uncachedDecoder: await _copyAssetFile(
-        '$_assetRoot/uncached_decode.int8.onnx',
-        modelDir,
-      ),
-      cachedDecoder: await _copyAssetFile(
-        '$_assetRoot/cached_decode.int8.onnx',
-        modelDir,
-      ),
-      tokens: await _copyAssetFile('$_assetRoot/tokens.txt', modelDir),
-    );
-  }
-
-  Future<String> _copyAssetFile(String assetPath, Directory modelDir) async {
-    final data = await _loadModelAsset(assetPath);
-    final target = File(p.join(modelDir.path, p.basename(assetPath)));
-
-    final shouldWrite =
-        !target.existsSync() || target.lengthSync() != data.lengthInBytes;
-    if (shouldWrite) {
-      await target.writeAsBytes(
-        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-        flush: true,
+    await _downloadAndExtractModel(modelDir);
+    files = _modelFiles(modelDir);
+    if (!files.allExist) {
+      throw const OfflineDictationException(
+        'Offline speech model download is incomplete',
       );
     }
 
-    return target.path;
+    return files;
   }
 
-  Future<ByteData> _loadModelAsset(String assetPath) async {
+  _MoonshineModelFiles _modelFiles(Directory modelDir) {
+    return _MoonshineModelFiles(
+      preprocessor: p.join(modelDir.path, 'preprocess.onnx'),
+      encoder: p.join(modelDir.path, 'encode.int8.onnx'),
+      uncachedDecoder: p.join(modelDir.path, 'uncached_decode.int8.onnx'),
+      cachedDecoder: p.join(modelDir.path, 'cached_decode.int8.onnx'),
+      tokens: p.join(modelDir.path, 'tokens.txt'),
+    );
+  }
+
+  Future<void> _downloadAndExtractModel(Directory modelDir) async {
+    final tempDir = await getTemporaryDirectory();
+    final archiveFile = File(
+      p.join(tempDir.path, 'sherpa_moonshine_tiny_en_int8.tar.bz2'),
+    );
+
     try {
-      return await rootBundle.load(assetPath);
-    } on FlutterError {
+      await _downloadModelArchive(archiveFile);
+      final bytes = await archiveFile.readAsBytes();
+      final actualSha = sha256.convert(bytes).toString();
+      if (actualSha != _modelSha256) {
+        throw const OfflineDictationException(
+          'Offline speech model checksum mismatch',
+        );
+      }
+
+      final tarBytes = BZip2Decoder().decodeBytes(bytes, verify: true);
+      final archive = TarDecoder().decodeBytes(tarBytes);
+      final extracted = <String>{};
+
+      for (final file in archive.files) {
+        if (!file.isFile) {
+          continue;
+        }
+
+        final name = p.basename(file.name);
+        if (!_modelFileNames.contains(name) ||
+            !file.name.contains(_archiveRoot)) {
+          continue;
+        }
+
+        await File(
+          p.join(modelDir.path, name),
+        ).writeAsBytes(file.content, flush: true);
+        extracted.add(name);
+      }
+
+      if (extracted.length != _modelFileNames.length) {
+        throw const OfflineDictationException(
+          'Offline speech model archive is missing files',
+        );
+      }
+    } on OfflineDictationException {
+      rethrow;
+    } catch (error, stack) {
+      logger.warning('Offline speech model download failed', error, stack);
       throw const OfflineDictationException(
-        'Offline speech model is not bundled in this build',
+        'Failed to download offline speech model',
       );
+    } finally {
+      if (archiveFile.existsSync()) {
+        await archiveFile.delete();
+      }
+    }
+  }
+
+  Future<void> _downloadModelArchive(File target) async {
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 30);
+    try {
+      final request = await client.getUrl(Uri.parse(_modelUrl));
+      final response = await request.close();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw OfflineDictationException(
+          'Speech model download failed (${response.statusCode})',
+        );
+      }
+
+      await response.pipe(target.openWrite());
+    } finally {
+      client.close(force: true);
     }
   }
 }
@@ -223,4 +289,11 @@ class _MoonshineModelFiles {
   final String uncachedDecoder;
   final String cachedDecoder;
   final String tokens;
+
+  bool get allExist =>
+      File(preprocessor).existsSync() &&
+      File(encoder).existsSync() &&
+      File(uncachedDecoder).existsSync() &&
+      File(cachedDecoder).existsSync() &&
+      File(tokens).existsSync();
 }
