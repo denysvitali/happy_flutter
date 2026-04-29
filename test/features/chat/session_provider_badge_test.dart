@@ -63,6 +63,40 @@ void main() {
     expect(avatar.showFlavorIcon, isTrue);
   });
 
+  testWidgets('chat app bar shows machine vitals when provided', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          appBar: ChatAppBar(
+            session: _session(flavor: 'codex'),
+            sessionTitle: 'Workspace',
+            statusChips: const [],
+            machineVitals: const ChatMachineVitals(
+              cpuPercent: 12,
+              memoryPercent: 48,
+              diskPercent: 73,
+            ),
+            onMenuTap: () {},
+            onInfoTap: () {},
+            sessionId: 'session-1',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CPU'), findsOneWidget);
+    expect(find.text('MEM'), findsOneWidget);
+    expect(find.text('DISK'), findsOneWidget);
+    expect(find.text('12%'), findsOneWidget);
+    expect(find.text('48%'), findsOneWidget);
+    expect(find.text('73%'), findsOneWidget);
+  });
+
   testWidgets('session cards use hash-based avatar style by default', (
     tester,
   ) async {

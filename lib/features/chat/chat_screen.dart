@@ -854,6 +854,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           session: _session,
           sessionTitle: _getSessionTitle(),
           statusChips: _buildStatusChips(context),
+          machineVitals: _buildMachineVitals(),
           sessionId: widget.sessionId,
           avatarStyle: avatarStyle,
           onInfoTap: () {
@@ -966,5 +967,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       ),
     );
+  }
+
+  ChatMachineVitals? _buildMachineVitals() {
+    final machineId = _session?.metadata?.machineId;
+    if (machineId == null || machineId.isEmpty) return null;
+    final machine = ref.watch(
+      machinesNotifierProvider.select((machines) => machines[machineId]),
+    );
+    return ChatMachineVitals.fromDaemonState(machine?.daemonState);
   }
 }

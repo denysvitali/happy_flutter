@@ -1,3 +1,5 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/components/app_status_dot.dart';
@@ -21,6 +23,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onInfoTap,
     required this.sessionId,
     this.avatarStyle,
+    this.machineVitals,
     super.key,
   });
 
@@ -31,9 +34,12 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onInfoTap;
   final String sessionId;
   final AvatarStyle? avatarStyle;
+  final ChatMachineVitals? machineVitals;
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(
+    kToolbarHeight + (machineVitals == null ? 0 : _VitalsStrip.height),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +48,12 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 0,
       title: _buildTitle(context),
       scrolledUnderElevation: 0.5,
+      bottom: machineVitals == null
+          ? null
+          : PreferredSize(
+              preferredSize: const Size.fromHeight(_VitalsStrip.height),
+              child: _VitalsStrip(vitals: machineVitals!),
+            ),
       actions: [
         // Agents list button with badge
         _AgentsListButton(activeCount: activeAgentCount, sessionId: sessionId),
@@ -89,7 +101,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               style: avatarStyle,
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,9 +116,162 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
+                const SizedBox(height: 3),
                 _StatusRow(statusChips: statusChips),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ChatMachineVitals {
+  const ChatMachineVitals({
+    required this.cpuPercent,
+    required this.memoryPercent,
+    required this.diskPercent,
+  });
+
+  final double cpuPercent;
+  final double memoryPercent;
+  final double diskPercent;
+
+  static ChatMachineVitals? fromDaemonState(
+    Map<String, dynamic>? daemonState,
+  ) {
+    final raw = daemonState?['machineStats'];
+    if (raw is! Map) return null;
+
+    final cpu = raw['cpu'];
+    final memory = raw['memory'];
+    final disk = raw['disk'];
+    if (cpu is! Map || memory is! Map || disk is! Map) return null;
+
+    return ChatMachineVitals(
+      cpuPercent: _asPercent(cpu['usagePercent']),
+      memoryPercent: _asPercent(memory['usagePercent']),
+      diskPercent: _asPercent(disk['usagePercent']),
+    );
+  }
+
+  static double _asPercent(dynamic value) {
+    if (value is! num || value.isNaN || value.isInfinite) return 0;
+    return value.toDouble().clamp(0, 100).toDouble();
+  }
+}
+
+class _VitalsStrip extends StatelessWidget {
+  const _VitalsStrip({required this.vitals});
+
+  static const double height = 34;
+
+  final ChatMachineVitals vitals;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
+        ),
+      ),
+      child: SizedBox(
+        height: height,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: Row(
+            children: [
+              Expanded(
+                child: _VitalPill(
+                  icon: Icons.speed_outlined,
+                  label: 'CPU',
+                  percent: vitals.cpuPercent,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: _VitalPill(
+                  icon: Icons.memory_outlined,
+                  label: 'MEM',
+                  percent: vitals.memoryPercent,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: _VitalPill(
+                  icon: Icons.storage_outlined,
+                  label: 'DISK',
+                  percent: vitals.diskPercent,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VitalPill extends StatelessWidget {
+  const _VitalPill({
+    required this.icon,
+    required this.label,
+    required this.percent,
+  });
+
+  final IconData icon;
+  final String label;
+  final double percent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final value = percent.clamp(0, 100).toDouble();
+    final color = value >= 90
+        ? AppColors.error
+        : value >= 75
+        ? AppColors.warning
+        : cs.primary;
+
+    return Tooltip(
+      message: '$label ${value.toStringAsFixed(0)}%',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: value / 100,
+                minHeight: 4,
+                color: color,
+                backgroundColor: cs.surfaceContainerHighest,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            '${value.toStringAsFixed(0)}%',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurface,
+              fontWeight: FontWeight.w600,
+              fontSize: 10,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
         ],
