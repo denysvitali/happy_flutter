@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart';
+import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -102,7 +102,7 @@ void main() {
     );
   });
 
-  testWidgets('toolbar chips expose semantics and minimum tap targets', (
+  testWidgets('toolbar chips expose semantics and compact height', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -128,7 +128,7 @@ void main() {
     final modelSize = tester.getSize(find.byType(ModelChip));
     final profileSize = tester.getSize(find.byType(ProfileChip));
 
-    expect(modelSize.height, greaterThanOrEqualTo(44));
-    expect(profileSize.height, greaterThanOrEqualTo(44));
+    expect(modelSize.height, lessThanOrEqualTo(30));
+    expect(profileSize.height, lessThanOrEqualTo(30));
   });
 }

@@ -14,7 +14,6 @@ import 'widgets/chat_input_buttons.dart';
 import 'widgets/file_autocomplete.dart';
 import 'widgets/input_toolbar.dart';
 import 'widgets/model_mode.dart';
-import 'widgets/path_chip.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
 import 'widgets/picker_sheets.dart';
 import 'widgets/slash_commands.dart';
@@ -180,6 +179,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
   DateTime? _dictationSilenceStartedAt;
   Timer? _dictationMaxTimer;
   StreamSubscription<double>? _dictationLevelSub;
+  int? _dictationPreviewStart;
+  int? _dictationPreviewEnd;
+  String _dictationPreviewText = '';
   final ValueNotifier<bool> _isFocused = ValueNotifier<bool>(false);
 
   late final AnimationController _sendScaleController;
@@ -433,7 +435,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Future<void> _startDictation() async {
     try {
-      await _dictationService.start();
+      _prepareDictationPreview();
+      await _dictationService.start(onTranscript: _replaceDictationPreview);
       if (!mounted) return;
       unawaited(HapticFeedback.mediumImpact());
       setState(() {
@@ -465,14 +468,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
     });
 
     try {
-      final audioPath = await _dictationService.stop();
-      if (audioPath == null || audioPath.isEmpty) {
-        throw const OfflineDictationException('No recording was captured');
-      }
-
-      final text = await _dictationService.transcribe(audioPath: audioPath);
+      final text = await _dictationService.stopAndTranscribe();
       if (!mounted) return;
-      _insertDictatedText(text);
+      _replaceDictationPreview(text);
       unawaited(HapticFeedback.lightImpact());
       _focusNode.requestFocus();
     } on OfflineDictationException catch (error) {
@@ -508,6 +506,55 @@ class _ChatInputState extends ConsumerState<ChatInput>
       text: text.replaceRange(start, end, replacement),
       selection: TextSelection.collapsed(offset: start + replacement.length),
     );
+  }
+
+  void _prepareDictationPreview() {
+    final value = widget.controller.value;
+    final text = value.text;
+    final selection = value.selection;
+    final start = selection.isValid ? selection.start : text.length;
+    final end = selection.isValid ? selection.end : text.length;
+    _dictationPreviewStart = start;
+    _dictationPreviewEnd = end;
+    _dictationPreviewText = '';
+  }
+
+  void _replaceDictationPreview(String dictatedText) {
+    if (!mounted) return;
+    final trimmed = dictatedText.trim();
+    if (trimmed.isEmpty) return;
+
+    final start = _dictationPreviewStart;
+    final end = _dictationPreviewEnd;
+    final value = widget.controller.value;
+    final text = value.text;
+    if (start == null ||
+        end == null ||
+        start < 0 ||
+        end < start ||
+        end > text.length) {
+      _insertDictatedText(trimmed);
+      return;
+    }
+
+    final currentPreview = text.substring(start, end);
+    if (currentPreview != _dictationPreviewText) {
+      _insertDictatedText(trimmed);
+      return;
+    }
+
+    final before = text.substring(0, start);
+    final after = text.substring(end);
+    final prefix = start > 0 && !RegExp(r'\s$').hasMatch(before) ? ' ' : '';
+    final suffix = after.isNotEmpty && !after.startsWith(' ') ? ' ' : '';
+    final replacement = '$prefix$trimmed$suffix';
+
+    widget.controller.value = TextEditingValue(
+      text: text.replaceRange(start, end, replacement),
+      selection: TextSelection.collapsed(offset: start + replacement.length),
+    );
+    _dictationPreviewEnd = start + replacement.length;
+    _dictationPreviewText = replacement;
   }
 
   void _showDictationError(String message) {
@@ -570,8 +617,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.machineName != null || widget.currentPath != null)
-          _buildContextRow(context),
         // ListenableBuilder ensures only the autocomplete list rebuilds when
         // the selection index changes (arrow keys), not the entire ChatInput.
         ListenableBuilder(
@@ -592,67 +637,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
         ),
         _buildInputContainer(context),
       ],
-    );
-  }
-
-  Widget _buildContextRow(BuildContext context) {
-    final machineName = widget.machineName;
-    final currentPath = widget.currentPath;
-    final cs = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        0,
-        AppSpacing.md,
-        AppSpacing.xs,
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (machineName != null && machineName.isNotEmpty) ...[
-                _ContextChip(
-                  label: machineName,
-                  semanticsLabel: 'Machine: $machineName',
-                  icon: Icons.computer_rounded,
-                  onTap: widget.onMachinePressed,
-                ),
-                if (currentPath != null && currentPath.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                    ),
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 14,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.55),
-                    ),
-                  ),
-              ],
-              if (currentPath != null && currentPath.isNotEmpty)
-                Semantics(
-                  button: widget.onPathPressed != null,
-                  label: 'Path: $currentPath',
-                  child: InkWell(
-                    onTap: widget.onPathPressed,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minHeight: AppTouchTarget.min,
-                        maxWidth: 260,
-                      ),
-                      child: Center(child: PathChip(path: currentPath)),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -691,7 +675,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildCardInputArea(context),
-              const SizedBox(height: AppSpacing.smd),
+              const SizedBox(height: AppSpacing.xs),
               InputToolbar(
                 permissionMode: widget.permissionMode,
                 onPermissionModeChanged: widget.onPermissionModeChanged,
@@ -889,66 +873,6 @@ class _DictationButton extends StatelessWidget {
                       size: 22,
                     ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ContextChip extends StatelessWidget {
-  const _ContextChip({
-    required this.label,
-    required this.semanticsLabel,
-    required this.icon,
-    this.onTap,
-  });
-
-  final String label;
-  final String semanticsLabel;
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Semantics(
-      button: onTap != null,
-      label: semanticsLabel,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.35),
-              width: 0.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 12, color: cs.onSurfaceVariant),
-              const SizedBox(width: AppSpacing.xs),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 160),
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
           ),
         ),
       ),

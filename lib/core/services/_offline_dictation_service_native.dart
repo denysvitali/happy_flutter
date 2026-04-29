@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
@@ -41,7 +42,14 @@ class OfflineDictationService {
 
   final AudioRecorder _recorder;
 
-  String? _recordingPath;
+  final List<Float32List> _sampleChunks = [];
+  int _sampleCount = 0;
+  StreamSubscription<Uint8List>? _audioSub;
+  Timer? _liveTranscriptionTimer;
+  Future<_MoonshineModelFiles>? _modelFilesFuture;
+  void Function(String)? _onTranscript;
+  bool _isTranscribingLive = false;
+  String _lastTranscript = '';
 
   Stream<double> levels({
     Duration interval = const Duration(milliseconds: 200),
@@ -51,7 +59,7 @@ class OfflineDictationService {
         .map((amplitude) => amplitude.current);
   }
 
-  Future<void> start() async {
+  Future<void> start({void Function(String text)? onTranscript}) async {
     if (await _recorder.isRecording()) {
       return;
     }
@@ -63,44 +71,79 @@ class OfflineDictationService {
       );
     }
 
-    const encoder = AudioEncoder.wav;
+    const encoder = AudioEncoder.pcm16bits;
     if (!await _recorder.isEncoderSupported(encoder)) {
       throw const OfflineDictationException(
-        'Offline dictation requires WAV recording support',
+        'Offline dictation requires PCM recording support',
       );
     }
 
-    final tempDir = await getTemporaryDirectory();
-    final path = p.join(
-      tempDir.path,
-      'happy_dictation_${DateTime.now().millisecondsSinceEpoch}.wav',
-    );
+    _sampleChunks.clear();
+    _sampleCount = 0;
+    _lastTranscript = '';
+    _onTranscript = onTranscript;
+    _modelFilesFuture = _ensureModelFiles();
 
-    await _recorder.start(
+    final stream = await _recorder.startStream(
       const RecordConfig(
         encoder: encoder,
         sampleRate: _sampleRate,
         numChannels: 1,
       ),
-      path: path,
     );
-    _recordingPath = path;
+    _audioSub = stream.listen(
+      _handleAudioChunk,
+      onError: (Object error, StackTrace stack) {
+        logger.warning('Offline dictation audio stream failed', error, stack);
+      },
+    );
+    _startLiveTranscription();
   }
 
   Future<String?> stop() async {
-    if (!await _recorder.isRecording()) {
-      return _recordingPath;
+    _stopLiveTranscription();
+    if (await _recorder.isRecording()) {
+      await _recorder.stop();
     }
-    final path = await _recorder.stop();
-    _recordingPath = path;
-    return path;
+    await _audioSub?.cancel();
+    _audioSub = null;
+    return null;
+  }
+
+  Future<String> stopAndTranscribe() async {
+    try {
+      await stop();
+      final samples = _capturedSamples();
+      if (samples.isEmpty) {
+        throw const OfflineDictationException('No recording was captured');
+      }
+
+      final text = await _transcribeSamples(samples, _sampleRate);
+      if (text.isEmpty && _lastTranscript.isNotEmpty) {
+        return _lastTranscript;
+      }
+      if (text.isEmpty) {
+        throw const OfflineDictationException('No speech was transcribed');
+      }
+      return text;
+    } on OfflineDictationException {
+      rethrow;
+    } catch (error, stack) {
+      logger.warning('Offline dictation failed', error, stack);
+      throw const OfflineDictationException('Transcription failed');
+    }
   }
 
   Future<void> cancel() async {
+    _stopLiveTranscription();
     if (await _recorder.isRecording()) {
       await _recorder.cancel();
     }
-    _recordingPath = null;
+    await _audioSub?.cancel();
+    _audioSub = null;
+    _sampleChunks.clear();
+    _sampleCount = 0;
+    _lastTranscript = '';
   }
 
   Future<String> transcribe({required String audioPath}) async {
@@ -124,7 +167,96 @@ class OfflineDictationService {
   }
 
   Future<void> dispose() async {
+    _stopLiveTranscription();
+    await _audioSub?.cancel();
     await _recorder.dispose();
+  }
+
+  void _handleAudioChunk(Uint8List bytes) {
+    final samples = _pcm16ToFloat32(bytes);
+    if (samples.isEmpty) {
+      return;
+    }
+    _sampleChunks.add(samples);
+    _sampleCount += samples.length;
+  }
+
+  Float32List _pcm16ToFloat32(Uint8List bytes) {
+    final sampleCount = bytes.length ~/ 2;
+    if (sampleCount == 0) {
+      return Float32List(0);
+    }
+
+    final data = ByteData.sublistView(bytes, 0, sampleCount * 2);
+    final samples = Float32List(sampleCount);
+    for (var i = 0; i < sampleCount; i++) {
+      samples[i] = data.getInt16(i * 2, Endian.little) / 32768.0;
+    }
+    return samples;
+  }
+
+  Float32List _capturedSamples() {
+    final samples = Float32List(_sampleCount);
+    var offset = 0;
+    for (final chunk in _sampleChunks) {
+      samples.setRange(offset, offset + chunk.length, chunk);
+      offset += chunk.length;
+    }
+    return samples;
+  }
+
+  void _startLiveTranscription() {
+    if (_onTranscript == null) {
+      return;
+    }
+    _liveTranscriptionTimer = Timer.periodic(
+      const Duration(milliseconds: 1400),
+      (_) => unawaited(_transcribeLive()),
+    );
+  }
+
+  void _stopLiveTranscription() {
+    _liveTranscriptionTimer?.cancel();
+    _liveTranscriptionTimer = null;
+  }
+
+  Future<void> _transcribeLive() async {
+    if (_isTranscribingLive || _sampleCount < _sampleRate ~/ 2) {
+      return;
+    }
+
+    _isTranscribingLive = true;
+    try {
+      final text = await _transcribeSamples(_capturedSamples(), _sampleRate);
+      if (_liveTranscriptionTimer == null) {
+        return;
+      }
+      if (text.isNotEmpty && text != _lastTranscript) {
+        _lastTranscript = text;
+        _onTranscript?.call(text);
+      }
+    } catch (error, stack) {
+      logger.warning(
+        'Offline dictation live transcription failed',
+        error,
+        stack,
+      );
+    } finally {
+      _isTranscribingLive = false;
+    }
+  }
+
+  Future<String> _transcribeSamples(Float32List samples, int sampleRate) async {
+    final files = await (_modelFilesFuture ??= _ensureModelFiles());
+    return Isolate.run(
+      () => _transcribeInWorker(
+        _OfflineTranscriptionRequest(
+          files: files,
+          samples: samples,
+          sampleRate: sampleRate,
+        ),
+      ),
+    );
   }
 
   Future<_MoonshineModelFiles> _ensureModelFiles() async {
@@ -253,8 +385,19 @@ String _transcribeInWorker(_OfflineTranscriptionRequest request) {
   final recognizer = sherpa.OfflineRecognizer(config);
   final stream = recognizer.createStream();
   try {
-    final wave = sherpa.readWave(request.audioPath);
-    stream.acceptWaveform(samples: wave.samples, sampleRate: wave.sampleRate);
+    final audioPath = request.audioPath;
+    final samples = request.samples;
+    if (samples != null) {
+      stream.acceptWaveform(samples: samples, sampleRate: request.sampleRate);
+    } else if (audioPath != null) {
+      final wave = sherpa.readWave(audioPath);
+      if (wave.samples.isEmpty || wave.sampleRate <= 0) {
+        throw const OfflineDictationException('No recording was captured');
+      }
+      stream.acceptWaveform(samples: wave.samples, sampleRate: wave.sampleRate);
+    } else {
+      throw const OfflineDictationException('No recording was captured');
+    }
     recognizer.decode(stream);
     return recognizer.getResult(stream).text.trim();
   } finally {
@@ -265,11 +408,15 @@ String _transcribeInWorker(_OfflineTranscriptionRequest request) {
 
 class _OfflineTranscriptionRequest {
   const _OfflineTranscriptionRequest({
-    required this.audioPath,
     required this.files,
+    this.audioPath,
+    this.samples,
+    this.sampleRate = 16000,
   });
 
-  final String audioPath;
+  final String? audioPath;
+  final Float32List? samples;
+  final int sampleRate;
   final _MoonshineModelFiles files;
 }
 

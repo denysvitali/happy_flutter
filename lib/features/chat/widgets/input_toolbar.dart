@@ -6,6 +6,8 @@ import '../../../core/theme/app_tokens.dart';
 import 'model_mode.dart';
 import 'permission_mode_selector.dart' as perm;
 
+const double _toolbarChipHeight = 30;
+
 /// Inline chip for model selection — subtle, tappable.
 class ModelChip extends StatelessWidget {
   const ModelChip({
@@ -37,8 +39,8 @@ class ModelChip extends StatelessWidget {
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: Container(
-          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: _toolbarChipHeight,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           decoration: BoxDecoration(
             color: isDefault
                 ? cs.onSurface.withValues(alpha: 0.05)
@@ -59,11 +61,11 @@ class ModelChip extends StatelessWidget {
                 size: 11,
                 color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
               ),
-              const SizedBox(width: 3),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 model.label,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: AppFontSize.xs,
+                  fontSize: AppFontSize.xxs,
                   color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
                 ),
@@ -107,8 +109,8 @@ class ProfileChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: Container(
-          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: _toolbarChipHeight,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           decoration: BoxDecoration(
             color: isDefault
                 ? cs.onSurface.withValues(alpha: 0.05)
@@ -123,13 +125,13 @@ class ProfileChip extends StatelessWidget {
                 size: 11,
                 color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
               ),
-              const SizedBox(width: 3),
+              const SizedBox(width: AppSpacing.xs),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 80),
+                constraints: const BoxConstraints(maxWidth: 68),
                 child: Text(
                   label,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: AppFontSize.xs,
+                    fontSize: AppFontSize.xxs,
                     color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
                     fontWeight: FontWeight.w500,
                   ),
@@ -253,16 +255,16 @@ class InputToolbar extends StatelessWidget {
               onModeChanged: onPermissionModeChanged,
               availableModes: perm.PermissionModeExtension.claudeGeminiModes,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xs),
           ],
           ModelChip(
             model: model,
             enabled: availableModels.length > 1,
             onTap: onShowModelPicker,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xs),
           ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.xs),
           if (contextSize != null && contextSize! > 0)
             ContextSizeIndicator(contextSize: contextSize!),
         ],

@@ -5,6 +5,8 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
+const double _selectorChipHeight = 30;
+
 /// Permission mode options for Claude/Gemini agents
 enum PermissionMode {
   // Claude/Gemini modes
@@ -265,8 +267,8 @@ class PermissionModeSelector extends ConsumerWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: Container(
           width: width,
-          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: _selectorChipHeight,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           decoration: BoxDecoration(
             color: isDefault
                 ? cs.onSurface.withValues(alpha: 0.05)
@@ -278,14 +280,14 @@ class PermissionModeSelector extends ConsumerWidget {
             children: [
               Icon(
                 currentMode.icon,
-                size: 12,
+                size: 11,
                 color: isDefault ? cs.onSurfaceVariant : currentMode.color,
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 currentMode.localizedDisplayName(l10n),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontSize: AppFontSize.xs,
+                  fontSize: AppFontSize.xxs,
                   fontWeight: FontWeight.w500,
                   color: isDefault ? cs.onSurfaceVariant : currentMode.color,
                 ),

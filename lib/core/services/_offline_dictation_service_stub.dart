@@ -8,13 +8,19 @@ class OfflineDictationException implements Exception {
 }
 
 class OfflineDictationService {
-  Future<void> start() async {
+  Future<void> start({void Function(String text)? onTranscript}) async {
     throw const OfflineDictationException(
       'Offline dictation is not supported on this platform',
     );
   }
 
   Future<String?> stop() async => null;
+
+  Future<String> stopAndTranscribe() async {
+    throw const OfflineDictationException(
+      'Offline dictation is not supported on this platform',
+    );
+  }
 
   Future<void> cancel() async {}
 
