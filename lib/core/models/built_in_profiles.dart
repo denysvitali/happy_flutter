@@ -297,6 +297,8 @@ String? resolveSelectedProfileIdForAgent(Settings settings, String? agent) {
 
   final scoped = settings.lastUsedProfileForAgent(agent);
   if (scoped != null) {
+    if (agent == null && settings.lastUsedAgent == null) return scoped;
+
     final scopedProfile = resolveProfile(scoped, settings.profiles);
     if (scopedProfile == null) return null;
     if (!scopedProfile.compatibility.supportsAgent(agentKey)) return null;

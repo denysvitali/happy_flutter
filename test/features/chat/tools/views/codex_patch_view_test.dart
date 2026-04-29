@@ -41,7 +41,7 @@ void main() {
 
       expect(find.text('1 file changed'), findsOneWidget);
       expect(_findRichTextContaining('lib/main.dart'), findsAtLeastNWidgets(1));
-      expect(find.text('patch'), findsOneWidget);
+      expect(find.text('diff'), findsOneWidget);
       expect(_findRichTextContaining('-final value = 1;'), findsOneWidget);
       expect(_findRichTextContaining('+final value = 2;'), findsOneWidget);
     });
