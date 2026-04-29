@@ -8,6 +8,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
+import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/autocomplete_overlay.dart';
@@ -183,6 +184,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   int? _dictationPreviewStart;
   int? _dictationPreviewEnd;
   String _dictationPreviewText = '';
+  int _dictationSessionId = 0;
   final ValueNotifier<bool> _isFocused = ValueNotifier<bool>(false);
 
   late final AnimationController _sendScaleController;
@@ -420,6 +422,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (widget.isSendDisabled || widget.isSending) {
       return;
     }
+    _cancelDictationForSend();
     HapticFeedback.mediumImpact();
     _sendScaleController
       ..value = 0.0
@@ -441,9 +444,20 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Future<void> _startDictation() async {
+    final sessionId = ++_dictationSessionId;
     try {
       _prepareDictationPreview();
-      await _dictationService.start(onTranscript: _replaceDictationPreview);
+      await _dictationService.start(
+        onTranscript: (text) {
+          if (_dictationSessionId == sessionId) {
+            _replaceDictationPreview(text);
+          }
+        },
+      );
+      if (_dictationSessionId != sessionId) {
+        await _dictationService.cancel();
+        return;
+      }
       if (!mounted) return;
       unawaited(HapticFeedback.mediumImpact());
       setState(() {
@@ -453,8 +467,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
       });
       _startDictationWatchers();
     } on OfflineDictationException catch (error) {
+      if (_dictationSessionId != sessionId) return;
+      _dictationSessionId++;
       _showDictationError(error.message);
     } catch (error) {
+      if (_dictationSessionId != sessionId) return;
+      _dictationSessionId++;
       _showDictationError('Failed to start dictation');
     }
   }
@@ -464,6 +482,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       return;
     }
     _isStoppingDictation = true;
+    final sessionId = _dictationSessionId;
     _stopDictationWatchers();
     if (!mounted) {
       _isStoppingDictation = false;
@@ -476,7 +495,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
     try {
       final text = await _dictationService.stopAndTranscribe();
-      if (!mounted) return;
+      if (!mounted || _dictationSessionId != sessionId) return;
       _replaceDictationPreview(text);
       unawaited(HapticFeedback.lightImpact());
       _focusNode.requestFocus();
@@ -490,6 +509,30 @@ class _ChatInputState extends ConsumerState<ChatInput>
         setState(() => _isTranscribing = false);
       }
     }
+  }
+
+  void _cancelDictationForSend() {
+    _dictationSessionId++;
+    if (!_isRecording && !_isTranscribing && !_isStoppingDictation) {
+      return;
+    }
+
+    _stopDictationWatchers();
+    _dictationPreviewStart = null;
+    _dictationPreviewEnd = null;
+    _dictationPreviewText = '';
+    unawaited(
+      _dictationService.cancel().catchError((Object error, StackTrace stack) {
+        logger.warning('Failed to cancel dictation after send', error, stack);
+      }),
+    );
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _isTranscribing = false;
+      });
+    }
+    _isStoppingDictation = false;
   }
 
   void _insertDictatedText(String dictatedText) {
