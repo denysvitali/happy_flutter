@@ -78,12 +78,18 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
         widget.lastMessagePreview != null &&
         widget.lastMessagePreview!.isNotEmpty;
 
+    final needsAttention =
+        widget.unreadCount > 0 || widget.accentBarColor != null;
     final cardColor = widget.isSelected
         ? cs.primary.withValues(alpha: 0.10)
-        : cs.primary.withValues(alpha: 0.04);
+        : needsAttention
+        ? cs.primary.withValues(alpha: 0.06)
+        : cs.surfaceContainerLow;
     final borderColor = widget.isSelected
-        ? cs.primary.withValues(alpha: 0.3)
-        : cs.primary.withValues(alpha: 0.12);
+        ? cs.primary.withValues(alpha: 0.32)
+        : needsAttention
+        ? cs.primary.withValues(alpha: 0.18)
+        : cs.outlineVariant.withValues(alpha: 0.55);
 
     return AnimatedScale(
       scale: _pressed ? 0.98 : 1.0,

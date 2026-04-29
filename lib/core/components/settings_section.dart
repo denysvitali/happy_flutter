@@ -67,8 +67,10 @@ class SettingsRow extends StatelessWidget {
               onTap!();
             },
       borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(
-        height: subtitle != null ? null : 48,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: subtitle != null ? 64 : AppTouchTarget.comfortable,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
@@ -86,8 +88,10 @@ class SettingsRow extends StatelessWidget {
                     Text(
                       title,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: AppSpacing.xxs),
@@ -156,43 +160,54 @@ class SettingsToggleRow extends StatelessWidget {
             onChanged(!value);
           },
           borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.sm,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: subtitle != null ? 64 : AppTouchTarget.comfortable,
             ),
-            child: Row(
-              children: [
-                SettingsIconContainer(icon: icon, color: iconColor),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: AppSpacing.xxs),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  SettingsIconContainer(icon: icon, color: iconColor),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          subtitle!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
+                          title,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            subtitle!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                ExcludeSemantics(
-                  child: Switch.adaptive(value: value, onChanged: onChanged),
-                ),
-              ],
+                  ExcludeSemantics(
+                    child: Switch.adaptive(
+                      value: value,
+                      onChanged: onChanged,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -287,11 +302,13 @@ class SettingsSection extends StatelessWidget {
               style: theme.textTheme.labelMedium?.copyWith(
                 color: danger ? cs.error : cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
+                letterSpacing: 0,
               ),
             ),
           ),
         Card(
+          color: cs.surfaceContainerLow,
+          clipBehavior: Clip.hardEdge,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
             side: BorderSide(color: borderColor),

@@ -18,7 +18,9 @@ import 'widgets/profile_header.dart';
 
 /// Settings screen
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -69,61 +71,82 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     final l10n = AppLocalizations.of(context);
 
+    final body = LayoutBuilder(
+      builder: (context, constraints) {
+        const maxContentWidth = 760.0;
+        final horizontalPadding =
+            constraints.maxWidth > maxContentWidth + AppSpacing.xl * 2
+            ? (constraints.maxWidth - maxContentWidth) / 2
+            : AppSpacing.lg;
+
+        return ListView(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            AppSpacing.md,
+            horizontalPadding,
+            AppSpacing.xxxl,
+          ),
+          children: [
+            ProfileHeader(profile: profile),
+            const SizedBox(height: AppSpacing.xl),
+            _buildAppearanceSection(
+              context,
+              themeMode: themeMode,
+              showFlavorIcons: showFlavorIcons,
+              avatarStyle: avatarStyle,
+              ref: ref,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _buildBehaviorSection(
+              context,
+              viewInline: viewInline,
+              hideToolCalls: hideToolCalls,
+              expandTodos: expandTodos,
+              ref: ref,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _buildVoiceSection(context, ttsEnabled: ttsEnabled, ref: ref),
+            const SizedBox(height: AppSpacing.lg),
+            _buildAccountSection(context),
+            const SizedBox(height: AppSpacing.lg),
+            _buildToolsSection(context),
+            const SizedBox(height: AppSpacing.lg),
+            _buildSocialSection(context),
+            const SizedBox(height: AppSpacing.lg),
+            _buildSessionsSection(
+              context,
+              sessionsViewStyle: sessionsViewStyle,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _buildMachinesSection(
+              context,
+              machineCount: machineCount,
+              firstMachineSubtitle: firstMachineSubtitle,
+            ),
+            if (machineCount > 0) const SizedBox(height: AppSpacing.lg),
+            const _ServerSection(),
+            const SizedBox(height: AppSpacing.lg),
+            _buildDeveloperSection(
+              context,
+              developerModeEnabled: developerModeEnabled,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _buildAboutSection(context),
+            const SizedBox(height: AppSpacing.xl),
+            DangerZone(onSignOut: () => confirmSignOut(context, ref)),
+            const SizedBox(height: AppSpacing.xxxl),
+          ],
+        );
+      },
+    );
+
+    if (widget.embedded) {
+      return body;
+    }
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settingsTitle)),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        children: [
-          ProfileHeader(profile: profile),
-          const SizedBox(height: AppSpacing.xl),
-          _buildAppearanceSection(
-            context,
-            themeMode: themeMode,
-            showFlavorIcons: showFlavorIcons,
-            avatarStyle: avatarStyle,
-            ref: ref,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _buildBehaviorSection(
-            context,
-            viewInline: viewInline,
-            hideToolCalls: hideToolCalls,
-            expandTodos: expandTodos,
-            ref: ref,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _buildVoiceSection(context, ttsEnabled: ttsEnabled, ref: ref),
-          const SizedBox(height: AppSpacing.lg),
-          _buildAccountSection(context),
-          const SizedBox(height: AppSpacing.lg),
-          _buildToolsSection(context),
-          const SizedBox(height: AppSpacing.lg),
-          _buildSocialSection(context),
-          const SizedBox(height: AppSpacing.lg),
-          _buildSessionsSection(context, sessionsViewStyle: sessionsViewStyle),
-          const SizedBox(height: AppSpacing.lg),
-          _buildMachinesSection(
-            context,
-            machineCount: machineCount,
-            firstMachineSubtitle: firstMachineSubtitle,
-          ),
-          if (machineCount > 0) const SizedBox(height: AppSpacing.lg),
-          const _ServerSection(),
-          const SizedBox(height: AppSpacing.lg),
-          _buildDeveloperSection(
-            context,
-            developerModeEnabled: developerModeEnabled,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _buildAboutSection(context),
-          const SizedBox(height: AppSpacing.xl),
-          DangerZone(onSignOut: () => confirmSignOut(context, ref)),
-          const SizedBox(height: AppSpacing.xxxl),
-        ],
-      ),
+      body: body,
     );
   }
 

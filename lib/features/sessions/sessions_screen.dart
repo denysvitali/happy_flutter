@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
+import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
@@ -145,6 +146,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
 
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isTablet = screenWidth >= AppBreakpoint.tablet;
+    final isTabletDetail =
+        isTablet && _activeTab == AppTab.sessions && _selectedSessionId != null;
+    final appBar = isTabletDetail ? null : _buildAppBar(context, l10n);
 
     return PopScope(
       // Always block if a navigation action is already pending —
@@ -190,23 +194,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         }
       },
       child: Scaffold(
-        appBar:
-            isTablet &&
-                _activeTab == AppTab.sessions &&
-                _selectedSessionId != null
-            ? null
-            : _buildAppBar(context, l10n),
-        body: Column(
-          children: [
-            const SyncProgressBar(),
-            const OfflineBanner(),
-            Expanded(child: _buildCurrentTabContent()),
-          ],
+        appBar: appBar,
+        body: SafeArea(
+          top: appBar == null && !isTabletDetail,
+          bottom: false,
+          child: Column(
+            children: [
+              const SyncProgressBar(),
+              const OfflineBanner(),
+              Expanded(child: _buildCurrentTabContent()),
+            ],
+          ),
         ),
-        bottomNavigationBar:
-            isTablet &&
-                _activeTab == AppTab.sessions &&
-                _selectedSessionId != null
+        bottomNavigationBar: isTabletDetail
             ? null
             : TabBar(
                 activeTab: _activeTab,
@@ -218,7 +218,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
   }
 
-  PreferredSizeWidget _buildAppBar(
+  PreferredSizeWidget? _buildAppBar(
     BuildContext context,
     AppLocalizations l10n,
   ) {
@@ -226,9 +226,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       return _buildSessionsAppBar(context, l10n);
     }
     if (_activeTab == AppTab.settings) {
-      return AppBar(); // SettingsScreen has its own Scaffold/AppBar
+      return AppBar(title: Text(l10n.settingsTitle));
     }
-    return AppBar(title: Text(_getTabTitle(l10n)));
+    return null;
   }
 
   PreferredSizeWidget _buildSessionsAppBar(
@@ -320,19 +320,35 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             });
           },
         ),
-        title: TextField(
-          controller: _searchController,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: l10n.commonSearch,
-            border: InputBorder.none,
+        title: Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
-          onChanged: (_) {
-            _searchDebounce?.cancel();
-            _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-              if (mounted) setState(() {});
-            });
-          },
+          child: TextField(
+            controller: _searchController,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: l10n.commonSearch,
+              prefixIcon: const Icon(Icons.search, size: 20),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.smd,
+              ),
+            ),
+            textInputAction: TextInputAction.search,
+            onChanged: (_) {
+              _searchDebounce?.cancel();
+              _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+                if (mounted) setState(() {});
+              });
+            },
+          ),
         ),
         actions: [
           if (_searchController.text.isNotEmpty)
@@ -442,17 +458,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
   }
 
-  String _getTabTitle(AppLocalizations l10n) {
-    switch (_activeTab) {
-      case AppTab.inbox:
-        return l10n.tabsInbox;
-      case AppTab.sessions:
-        return l10n.sessionHistoryTitle;
-      case AppTab.settings:
-        return l10n.tabsSettings;
-    }
-  }
-
   Widget _buildCurrentTabContent() {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isTablet = screenWidth >= AppBreakpoint.tablet;
@@ -498,37 +503,23 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   }
 
   Widget _buildNoSessionSelected() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: Theme.of(context).colorScheme.outline,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Select a session to start chatting',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.chat_bubble_outline,
+      title: context.l10n.chatChat,
+      subtitle: context.l10n.sessionNoSessionsYet,
     );
+  }
+
+  Widget _buildSettingsTab() {
+    if (_builtTabs.contains(AppTab.settings)) {
+      return const SettingsScreen(embedded: true);
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildInboxTab() {
     if (_builtTabs.contains(AppTab.inbox)) {
       return const InboxScreen();
-    }
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildSettingsTab() {
-    if (_builtTabs.contains(AppTab.settings)) {
-      return const SettingsScreen();
     }
     return const SizedBox.shrink();
   }

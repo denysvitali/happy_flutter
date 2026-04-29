@@ -32,7 +32,7 @@ class SectionHeader extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+                letterSpacing: 0,
               ),
             ),
           ),
@@ -81,19 +81,13 @@ class PathHeader extends StatelessWidget {
                   color: cs.onSurfaceVariant,
                   fontFamily: 'monospace',
                   fontSize: AppFontSize.sm,
-                  letterSpacing: 0.8,
+                  letterSpacing: 0,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(
-              '$sessionCount',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                fontSize: AppFontSize.xs,
-              ),
-            ),
-            const SizedBox(width: 2),
+            _HeaderCountPill(count: sessionCount),
+            const SizedBox(width: AppSpacing.xs),
             AnimatedRotation(
               turns: isCollapsed ? -0.25 : 0,
               duration: const Duration(milliseconds: 200),
@@ -104,6 +98,43 @@ class PathHeader extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderCountPill extends StatelessWidget {
+  const _HeaderCountPill({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 24),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.5),
+          width: AppBorder.hairline,
+        ),
+      ),
+      child: Text(
+        '$count',
+        textAlign: TextAlign.center,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: cs.onSurfaceVariant,
+          fontSize: AppFontSize.xs,
+          fontWeight: FontWeight.w600,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
     );
@@ -147,25 +178,19 @@ class CollapsibleDateHeader extends StatelessWidget {
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
-                  letterSpacing: 0.5,
+                  letterSpacing: 0,
                 ),
               ),
             ),
-            Text(
-              '$sessionCount',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                fontSize: AppFontSize.xs,
-              ),
-            ),
-            const SizedBox(width: 2),
+            _HeaderCountPill(count: sessionCount),
+            const SizedBox(width: AppSpacing.xs),
             AnimatedRotation(
               turns: isCollapsed ? -0.25 : 0,
               duration: const Duration(milliseconds: 200),
               child: Icon(
                 Icons.keyboard_arrow_down,
                 size: 18,
-                color: cs.primary,
+                color: cs.onSurfaceVariant,
               ),
             ),
           ],
@@ -221,7 +246,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
                       color: cs.onSurfaceVariant,
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.sm,
-                      letterSpacing: 0.5,
+                      letterSpacing: 0,
                       fontWeight: FontWeight.w600,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -382,7 +407,7 @@ class ArchiveSectionHeader extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+                letterSpacing: 0,
               ),
             ),
           ),

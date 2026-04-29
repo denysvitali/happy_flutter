@@ -36,9 +36,16 @@ class FeedCard extends StatelessWidget {
             vertical: AppSpacing.md,
           ),
           decoration: BoxDecoration(
-            color: cs.surface,
+            color: isUnread
+                ? cs.primary.withValues(alpha: 0.06)
+                : cs.surfaceContainerLow,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+            border: Border.all(
+              color: isUnread
+                  ? cs.primary.withValues(alpha: 0.18)
+                  : cs.outlineVariant.withValues(alpha: 0.55),
+              width: AppBorder.hairline,
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

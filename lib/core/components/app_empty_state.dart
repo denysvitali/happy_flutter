@@ -81,39 +81,42 @@ class _AppEmptyStateState extends State<AppEmptyState>
     final cs = theme.colorScheme;
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xxxl,
-          vertical: AppSpacing.xxl,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildIconContainer(cs),
-            const SizedBox(height: AppSpacing.lg),
-            // Title.
-            Text(
-              widget.title,
-              style: theme.textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            // Subtitle.
-            if (widget.subtitle != null) ...[
-              const SizedBox(height: AppSpacing.sm),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xxl,
+            vertical: AppSpacing.xxl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildIconContainer(cs),
+              const SizedBox(height: AppSpacing.lg),
+              // Title.
               Text(
-                widget.subtitle!,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                widget.title,
+                style: theme.textTheme.titleMedium,
                 textAlign: TextAlign.center,
               ),
+              // Subtitle.
+              if (widget.subtitle != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  widget.subtitle!,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              // Action widget.
+              if (widget.action != null) ...[
+                const SizedBox(height: AppSpacing.xxl),
+                widget.action!,
+              ],
             ],
-            // Action widget.
-            if (widget.action != null) ...[
-              const SizedBox(height: AppSpacing.xxl),
-              widget.action!,
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -124,15 +127,12 @@ class _AppEmptyStateState extends State<AppEmptyState>
       width: AppSpacing.xxxl * 2,
       height: AppSpacing.xxxl * 2,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cs.surfaceContainerHighest,
-            cs.surfaceContainerHighest.withValues(alpha: 0.6),
-          ],
-        ),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.55),
+          width: AppBorder.hairline,
+        ),
       ),
       child: Icon(
         widget.icon,

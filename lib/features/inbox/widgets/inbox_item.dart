@@ -37,10 +37,14 @@ class InboxItem extends StatelessWidget {
             horizontal: AppSpacing.md,
             vertical: AppSpacing.md,
           ),
+          constraints: const BoxConstraints(minHeight: 68),
           decoration: BoxDecoration(
-            color: cs.surface,
+            color: cs.surfaceContainerLow,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: 0.55),
+              width: AppBorder.hairline,
+            ),
           ),
           child: Row(
             children: [

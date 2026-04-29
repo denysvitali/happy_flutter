@@ -31,8 +31,7 @@ class ActiveSessionCard extends StatefulWidget {
   final int unreadCount;
 
   @override
-  State<ActiveSessionCard> createState() =>
-      _ActiveSessionCardState();
+  State<ActiveSessionCard> createState() => _ActiveSessionCardState();
 }
 
 class _ActiveSessionCardState extends State<ActiveSessionCard> {
@@ -58,13 +57,20 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final session = widget.session;
-    final hasPreview = widget.lastMessagePreview != null &&
+    final hasPreview =
+        widget.lastMessagePreview != null &&
         widget.lastMessagePreview!.isNotEmpty;
     final statusWidget = buildStatusText(_d.status, theme.textTheme);
     final todoProgress = getTodoProgress(session.todos);
     final sessionFlavor = session.metadata?.flavor;
-    final hasDraft =
-        session.draft != null && session.draft!.isNotEmpty;
+    final hasDraft = session.draft != null && session.draft!.isNotEmpty;
+
+    final cardColor = widget.unreadCount > 0
+        ? cs.primary.withValues(alpha: 0.07)
+        : cs.surfaceContainerLow;
+    final borderColor = widget.unreadCount > 0
+        ? cs.primary.withValues(alpha: 0.22)
+        : cs.outlineVariant.withValues(alpha: 0.65);
 
     return AnimatedScale(
       scale: _pressed ? 0.98 : 1.0,
@@ -77,11 +83,9 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          color: cs.primary.withValues(alpha: 0.04),
-          border: Border.all(
-            color: cs.primary.withValues(alpha: 0.12),
-            width: AppBorder.hairline,
-          ),
+          color: cardColor,
+          border: Border.all(color: borderColor, width: AppBorder.hairline),
+          boxShadow: widget.unreadCount > 0 ? AppShadow.card : null,
         ),
         child: Material(
           color: Colors.transparent,
@@ -120,24 +124,20 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             buildNameRow(
                               name: _d.name,
                               sessionStatus: _d.status,
-                              style: theme.textTheme.titleSmall
-                                  ?.copyWith(
+                              style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: AppSpacing.xxs),
                             Text(
                               _d.subtitle,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(
+                              style: theme.textTheme.bodySmall?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 fontFamily: 'monospace',
                                 fontSize: AppFontSize.xs,
@@ -147,16 +147,12 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                               maxLines: 1,
                             ),
                             if (hasPreview) ...[
-                              const SizedBox(
-                                height: AppSpacing.xxs,
-                              ),
+                              const SizedBox(height: AppSpacing.xxs),
                               buildPreviewText(
                                 context: context,
-                                preview:
-                                    widget.lastMessagePreview!,
+                                preview: widget.lastMessagePreview!,
                                 role: widget.lastMessageRole,
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(
+                                style: theme.textTheme.bodySmall?.copyWith(
                                   fontSize: AppFontSize.xs,
                                   height: 1.2,
                                 ),
@@ -164,9 +160,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                               ),
                             ],
                             if (statusWidget != null) ...[
-                              const SizedBox(
-                                height: AppSpacing.xxs,
-                              ),
+                              const SizedBox(height: AppSpacing.xxs),
                               statusWidget,
                             ],
                           ],
@@ -175,8 +169,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                       const SizedBox(width: AppSpacing.sm),
                       buildTimestampBadges(
                         timestamp:
-                            widget.lastMessageTimestamp ??
-                                session.updatedAt,
+                            widget.lastMessageTimestamp ?? session.updatedAt,
                         theme: theme,
                         cs: cs,
                         unreadCount: widget.unreadCount,
@@ -195,10 +188,8 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                     decoration: BoxDecoration(
                       color: Color(_d.status.statusDotColor),
                       borderRadius: const BorderRadius.only(
-                        topLeft:
-                            Radius.circular(AppRadius.md),
-                        bottomLeft:
-                            Radius.circular(AppRadius.md),
+                        topLeft: Radius.circular(AppRadius.md),
+                        bottomLeft: Radius.circular(AppRadius.md),
                       ),
                     ),
                   ),
