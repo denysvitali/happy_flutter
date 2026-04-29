@@ -46,5 +46,54 @@ void main() {
       expect(restored.lastUsedProfileForAgent('claude'), 'anthropic');
       expect(restored.lastUsedProfileForAgent('codex'), 'openai');
     });
+
+    test('fallback decode preserves existing values for partial payloads', () {
+      final existing = Settings()
+        ..themeMode = 'dark'
+        ..avatarStyle = 'gradient'
+        ..agentInputEnterToSend = true
+        ..ttsEnabled = true
+        ..ttsEngine = 'system'
+        ..usagePeriod = 'sevenDays'
+        ..folders = ['Work'];
+
+      final restored = Settings.fromJsonWithFallback(
+        {
+          'themeMode': 'light',
+          'avatarStyle': null,
+          'folders': 'invalid',
+        },
+        existing,
+      );
+
+      expect(restored.themeMode, 'light');
+      expect(restored.avatarStyle, 'gradient');
+      expect(restored.agentInputEnterToSend, isTrue);
+      expect(restored.ttsEnabled, isTrue);
+      expect(restored.ttsEngine, 'system');
+      expect(restored.usagePeriod, 'sevenDays');
+      expect(restored.folders, ['Work']);
+    });
+
+    test('json storage roundtrip preserves all non-secret settings fields', () {
+      final settings = Settings()
+        ..avatarStyle = 'wave'
+        ..agentInputEnterToSend = true
+        ..ttsEnabled = true
+        ..ttsEngine = 'system'
+        ..voiceAssistantLanguage = 'en-US'
+        ..usagePeriod = 'sevenDays'
+        ..folders = ['Work', 'Personal'];
+
+      final restored = Settings.fromJson(settings.toJson());
+
+      expect(restored.avatarStyle, 'wave');
+      expect(restored.agentInputEnterToSend, isTrue);
+      expect(restored.ttsEnabled, isTrue);
+      expect(restored.ttsEngine, 'system');
+      expect(restored.voiceAssistantLanguage, 'en-US');
+      expect(restored.usagePeriod, 'sevenDays');
+      expect(restored.folders, ['Work', 'Personal']);
+    });
   });
 }

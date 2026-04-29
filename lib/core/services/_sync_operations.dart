@@ -50,7 +50,12 @@ extension SyncOperations on Sync {
                   await encryption.decryptRaw(currentSettingsEncrypted),
                 )
               : null;
-          final serverSettings = Settings.fromJson(serverSettingsMap ?? {});
+          final serverSettings = serverSettingsMap != null
+              ? Settings.fromJsonWithFallback(
+                  serverSettingsMap,
+                  _settingsSnapshot,
+                )
+              : _settingsSnapshot;
           _settingsSnapshot = Settings.fromJson({
             ...serverSettings.toJson(),
             ...pendingSettings,
@@ -75,7 +80,10 @@ extension SyncOperations on Sync {
               await encryption.decryptRaw(encryptedSettings),
             );
             if (decrypted != null) {
-              _settingsSnapshot = Settings.fromJson(decrypted);
+              _settingsSnapshot = Settings.fromJsonWithFallback(
+                decrypted,
+                _settingsSnapshot,
+              );
               _settingsVersion =
                   _asInt(data?['settingsVersion']) ?? _settingsVersion;
               _notifyDataChanged({SyncDomain.settings});
@@ -83,10 +91,12 @@ extension SyncOperations on Sync {
               unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
             }
           } else {
-            _settingsSnapshot = Settings();
             _settingsVersion =
                 _asInt(data?['settingsVersion']) ?? _settingsVersion;
-            _notifyDataChanged({SyncDomain.settings});
+            logger.warning(
+              'Settings response did not include settings payload; '
+              'preserving existing settings snapshot',
+            );
           }
         } else {
           logger.warning('Failed to fetch settings: ${response.statusCode}');

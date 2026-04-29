@@ -19,6 +19,14 @@ class Settings {
   factory Settings.fromJson(Map<String, dynamic> json) =>
       _$SettingsFromJson(_normalizeSettingsJson(json));
 
+  factory Settings.fromJsonWithFallback(
+    Map<String, dynamic> json,
+    Settings fallback,
+  ) =>
+      _$SettingsFromJson(
+        _normalizeSettingsJson(json, fallback: fallback.toJson()),
+      );
+
   int schemaVersion = 2;
   String themeMode = 'system';
   bool viewInline = false;
@@ -307,8 +315,11 @@ bool _stringMapsEqual(Map<String, String> a, Map<String, String> b) {
   return true;
 }
 
-Map<String, dynamic> _normalizeSettingsJson(Map<String, dynamic> json) {
-  final defaults = Settings().toJson();
+Map<String, dynamic> _normalizeSettingsJson(
+  Map<String, dynamic> json, {
+  Map<String, dynamic>? fallback,
+}) {
+  final defaults = fallback ?? Settings().toJson();
   final normalized = <String, dynamic>{...defaults, ...json};
 
   for (final entry in defaults.entries) {
