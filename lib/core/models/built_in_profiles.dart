@@ -284,3 +284,26 @@ AIBackendProfile? resolveProfile(
   }
   return getBuiltInProfile(id);
 }
+
+/// Resolve the selected profile ID for an agent.
+///
+/// Newer settings store selections in [Settings.lastUsedProfilesByAgent].
+/// Older installs only have [Settings.lastUsedProfile], and some users may
+/// still have that legacy field without a scoped entry. Use it only when the
+/// referenced profile exists and supports the requested agent, so a Codex-only
+/// profile cannot leak into Claude.
+String? resolveSelectedProfileIdForAgent(Settings settings, String? agent) {
+  final scoped = settings.lastUsedProfileForAgent(agent);
+  if (scoped != null) return scoped;
+
+  final legacy = settings.lastUsedProfile;
+  if (legacy == null || legacy.isEmpty) return null;
+
+  final profile = resolveProfile(legacy, settings.profiles);
+  if (profile == null) return null;
+
+  final agentKey = normalizeAgentKey(agent);
+  if (!profile.compatibility.supportsAgent(agentKey)) return null;
+
+  return legacy;
+}

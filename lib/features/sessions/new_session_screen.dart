@@ -49,7 +49,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     super.initState();
     final settings = ref.read(settingsNotifierProvider);
     _selectedAgent = settings.lastUsedAgent ?? 'claude';
-    _selectedProfileId = settings.lastUsedProfileForAgent(_selectedAgent);
+    _selectedProfileId = resolveSelectedProfileIdForAgent(
+      settings,
+      _selectedAgent,
+    );
     // Refresh machines so encryption keys are up-to-date before spawn.
     Future<void>.microtask(
       () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
@@ -490,7 +493,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                 final settings = ref.read(settingsNotifierProvider);
                 setState(() {
                   _selectedAgent = agent;
-                  _selectedProfileId = settings.lastUsedProfileForAgent(agent);
+                  _selectedProfileId = resolveSelectedProfileIdForAgent(
+                    settings,
+                    agent,
+                  );
                 });
               },
             ),

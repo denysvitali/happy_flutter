@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,9 +33,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       ),
     );
     final selectedAgent = settings.$1 ?? 'claude';
-    final selectedProfileId = ref
-        .read(settingsNotifierProvider)
-        .lastUsedProfileForAgent(selectedAgent);
+    final selectedProfileId = resolveSelectedProfileIdForAgent(
+      ref.read(settingsNotifierProvider),
+      selectedAgent,
+    );
     final effectiveProfiles = _effectiveProfiles(customProfiles);
     final claudeProfiles = effectiveProfiles
         .where((profile) => profile.compatibility.supportsAgent('claude'))
@@ -75,14 +78,16 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                 onTap: () {
                   final current = ref.read(settingsNotifierProvider);
                   final notifier = ref.read(settingsNotifierProvider.notifier);
-                  notifier.updateSetting(
-                    'lastUsedProfilesByAgent',
-                    current.lastUsedProfilesWithAgent(selectedAgent, null),
+                  unawaited(
+                    notifier.updateSetting(
+                      'lastUsedProfilesByAgent',
+                      current.lastUsedProfilesWithAgent(selectedAgent, null),
+                    ),
                   );
-                  if (normalizeAgentKey(current.lastUsedAgent) ==
-                      normalizeAgentKey(selectedAgent)) {
-                    notifier.updateSetting('lastUsedProfile', null);
-                  }
+                  unawaited(
+                    notifier.updateSetting('lastUsedAgent', selectedAgent),
+                  );
+                  unawaited(notifier.updateSetting('lastUsedProfile', null));
                 },
               ),
             ],
@@ -139,9 +144,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         title: title,
         children: [
           ...profiles.map((profile) {
-            final selectedProfileId = ref
-                .read(settingsNotifierProvider)
-                .lastUsedProfileForAgent(agent);
+            final selectedProfileId = resolveSelectedProfileIdForAgent(
+              ref.read(settingsNotifierProvider),
+              agent,
+            );
             final isSelected = selectedProfileId == profile.id;
             final isCustom = !profile.isBuiltIn;
             return _buildProfileRow(
@@ -150,12 +156,17 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               isSelected: isSelected,
               onTap: () {
                 final settings = ref.read(settingsNotifierProvider);
-                ref
-                    .read(settingsNotifierProvider.notifier)
-                    .updateSetting(
-                      'lastUsedProfilesByAgent',
-                      settings.lastUsedProfilesWithAgent(agent, profile.id),
-                    );
+                final notifier = ref.read(settingsNotifierProvider.notifier);
+                unawaited(
+                  notifier.updateSetting(
+                    'lastUsedProfilesByAgent',
+                    settings.lastUsedProfilesWithAgent(agent, profile.id),
+                  ),
+                );
+                unawaited(notifier.updateSetting('lastUsedAgent', agent));
+                unawaited(
+                  notifier.updateSetting('lastUsedProfile', profile.id),
+                );
               },
               onEdit: () => context.pushNamed('profile-editor', extra: profile),
               onDuplicate: isCustom

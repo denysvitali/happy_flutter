@@ -102,7 +102,7 @@ extension SyncSessionOperations on Sync {
     // Use explicit profileId if provided, otherwise fall back to the
     // profile last used for this agent.
     final effectiveProfileId =
-        profileId ?? _settingsSnapshot.lastUsedProfileForAgent(agent);
+        profileId ?? resolveSelectedProfileIdForAgent(_settingsSnapshot, agent);
     final profile = effectiveProfileId != null
         ? _resolveProfile(effectiveProfileId)
         : null;

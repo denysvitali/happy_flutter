@@ -272,7 +272,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
 
     try {
       final settings = ref.read(settingsNotifierProvider);
-      final profileId = settings.lastUsedProfileForAgent(_selectedAgent);
+      final profileId = resolveSelectedProfileIdForAgent(
+        settings,
+        _selectedAgent,
+      );
       // Resolve defaultModelMode so the daemon always receives a model hint,
       // preventing profile env vars from being used incorrectly when
       // lastUsedProfile changes between profile switch and session creation.

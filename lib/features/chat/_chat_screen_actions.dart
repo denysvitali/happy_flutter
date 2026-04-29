@@ -63,7 +63,7 @@ extension _ChatScreenActions on _ChatScreenState {
 
     AIBackendProfile? selectedProfile;
     final effectiveProfileId =
-        savedProfileId ?? settings.lastUsedProfileForAgent(flavor);
+        savedProfileId ?? resolveSelectedProfileIdForAgent(settings, flavor);
     if (effectiveProfileId != null) {
       try {
         selectedProfile = deduped.firstWhere((p) => p.id == effectiveProfileId);

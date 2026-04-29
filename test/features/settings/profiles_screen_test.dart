@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -21,9 +21,9 @@ class _StorageFreeSettingsNotifier extends SettingsNotifier {
 
 /// Settings notifier that starts with a pre-configured state.
 class _PresetSettingsNotifier extends _StorageFreeSettingsNotifier {
-  final Settings _preset;
-
   _PresetSettingsNotifier(this._preset);
+
+  final Settings _preset;
 
   @override
   Settings build() => _preset;
@@ -198,6 +198,8 @@ void main() {
             .lastUsedProfileForAgent('claude'),
         isNull,
       );
+      expect(container.read(settingsNotifierProvider).lastUsedAgent, 'claude');
+      expect(container.read(settingsNotifierProvider).lastUsedProfile, isNull);
     });
 
     testWidgets('tapping built-in profile selects it', (tester) async {
@@ -228,6 +230,11 @@ void main() {
             .read(settingsNotifierProvider)
             .lastUsedProfileForAgent('claude'),
         equals('deepseek'),
+      );
+      expect(container.read(settingsNotifierProvider).lastUsedAgent, 'claude');
+      expect(
+        container.read(settingsNotifierProvider).lastUsedProfile,
+        'deepseek',
       );
     });
 
