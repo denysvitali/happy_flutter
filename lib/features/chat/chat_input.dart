@@ -267,9 +267,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final currentText = widget.controller.text;
     _updateAutocomplete(currentText);
 
-    if (DraftStateTransition.isStateTransition(_previousText, currentText)) {
+    if (currentText.trim().isEmpty) {
+      _draftAutoSave.discardPending();
+      unawaited(_draftStorage.removeDraft(widget.sessionId));
+    } else if (DraftStateTransition.isStateTransition(
+      _previousText,
+      currentText,
+    )) {
       _draftAutoSave.saveNow();
-    } else if (currentText.trim().isNotEmpty) {
+    } else {
       _draftAutoSave.update(currentText);
     }
 

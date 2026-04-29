@@ -228,6 +228,24 @@ void main() {
       expect(savedDrafts, isEmpty);
     });
 
+    test('empty update cancels pending non-empty save', () async {
+      autoSave.update('Pending');
+      autoSave.update('');
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(savedDrafts, isEmpty);
+    });
+
+    test('discardPending cancels pending non-empty save', () async {
+      autoSave.update('Pending');
+      autoSave.discardPending();
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(savedDrafts, isEmpty);
+    });
+
     test('sessionId can be changed', () {
       autoSave.sessionId = 'new-session';
       expect(autoSave.sessionId, equals('new-session'));

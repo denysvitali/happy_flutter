@@ -81,9 +81,20 @@ class DraftAutoSave {
 
   /// Update the draft content
   void update(String draft) {
-    _pendingDraft = draft;
     _debounceTimer?.cancel();
+    if (draft.trim().isEmpty) {
+      _pendingDraft = '';
+      return;
+    }
+    _pendingDraft = draft;
     _debounceTimer = Timer(debounceDuration, _save);
+  }
+
+  /// Cancel any pending save without invoking [onSave].
+  void discardPending() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _pendingDraft = '';
   }
 
   /// Save immediately without debouncing
