@@ -43,14 +43,32 @@ extension _ChatScreenBuilders on _ChatScreenState {
         _cachedKeyToListIndex == null ||
         _cachedListItemsHideToolCalls != hideToolCalls) {
       final items = <Map<String, dynamic>?>[];
+      var hiddenToolCalls = <Map<String, dynamic>>[];
+
+      void flushHiddenToolCalls() {
+        if (hiddenToolCalls.isEmpty) return;
+        final first =
+            hiddenToolCalls.first['id'] as String? ??
+            hiddenToolCalls.first['toolUseId'] as String? ??
+            'hidden-tool-${items.length}';
+        items.add({
+          'kind': 'hidden-tool-summary',
+          'id': 'hidden-tool-summary-$first-${hiddenToolCalls.length}',
+          'tools': hiddenToolCalls,
+        });
+        hiddenToolCalls = <Map<String, dynamic>>[];
+      }
+
       for (final msg in visibleMessages) {
         try {
           // Sidechain (agent) messages should only appear inside
           // the AgentConversationScreen, never in the main chat.
           if (msg['isSidechain'] == true) continue;
           if (_shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
+            hiddenToolCalls.add(msg);
             continue;
           }
+          flushHiddenToolCalls();
           items.add(msg);
           final role = msg['role'] as String?;
           final content = msg['content'] ?? msg['text'];
@@ -70,6 +88,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
           );
         }
       }
+      flushHiddenToolCalls();
 
       final keyToListIndex = <String, int>{};
       for (var i = 0; i < items.length; i++) {

@@ -7,6 +7,7 @@ import 'tools/tools.dart';
 import 'widgets/agent_event_widget.dart';
 import 'widgets/bot_message.dart';
 import 'widgets/error_message_widget.dart';
+import 'widgets/hidden_tool_summary.dart';
 import 'widgets/streaming_cursor.dart';
 import 'widgets/thinking_block.dart';
 import 'widgets/user_bubble.dart';
@@ -182,6 +183,21 @@ class _MessageWidgetState extends State<MessageWidget>
                     context.push(route, extra: widget.messageData);
                   }
                 : null,
+          ),
+        ),
+      );
+    }
+
+    if (kind == 'hidden-tool-summary') {
+      return _cacheBody(
+        signature,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: HiddenToolSummary(
+            data: widget.messageData,
+            metadata: widget.metadata,
+            sessionId: widget.sessionId,
+            isSessionOnline: widget.isSessionOnline,
           ),
         ),
       );
