@@ -35,6 +35,9 @@ class SessionsListContent extends ConsumerStatefulWidget {
     required this.folderNotifier,
     this.searchQuery = '',
     this.onClearSearch,
+    /// When provided, session taps call this instead of pushing a route.
+    /// This allows a parent to handle navigation in a custom way (e.g. tablet master-detail).
+    this.onSessionTap,
     super.key,
   });
 
@@ -51,6 +54,12 @@ class SessionsListContent extends ConsumerStatefulWidget {
   /// clearing its search controller and exiting search
   /// mode.
   final VoidCallback? onClearSearch;
+
+  /// Called when a session is tapped. Provides the session ID.
+  /// When non-null, the list widget will call this instead of
+  /// pushing the 'chat' route. Use this for custom navigation
+  /// (e.g. master-detail layouts on tablet).
+  final void Function(String sessionId)? onSessionTap;
 
   @override
   ConsumerState<SessionsListContent> createState() =>
@@ -819,14 +828,24 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
   }) {
     final sel = _sel.value;
     final session = item.session!;
+
+    void handleTap() {
+      final cb = widget.onSessionTap;
+      if (cb != null) {
+        cb(session.id);
+      } else if (sel.isActive) {
+        _onSessionTapInSelectionMode(session.id);
+      } else {
+        _navigateToChat(session.id);
+      }
+    }
+
     final card = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SessionCard(
           session: session,
-          onTap: sel.isActive
-              ? () => _onSessionTapInSelectionMode(session.id)
-              : () => _navigateToChat(session.id),
+          onTap: handleTap,
           onLongPress: () => _onSessionLongPress(session.id),
           isFirst: item.isFirst!,
           isLast: item.isLast!,
@@ -952,13 +971,22 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     required AvatarStyle? avatarStyle,
   }) {
     final sel = _sel.value;
+    void handleTap() {
+      final cb = widget.onSessionTap;
+      if (cb != null) {
+        cb(session.id);
+      } else if (sel.isActive) {
+        _onSessionTapInSelectionMode(session.id);
+      } else {
+        _navigateToChat(session.id);
+      }
+    }
+
     final card = GestureDetector(
       onLongPress: () => _onSessionLongPress(session.id),
       child: CompactActiveSessionCard(
         session: session,
-        onTap: sel.isActive
-            ? () => _onSessionTapInSelectionMode(session.id)
-            : () => _navigateToChat(session.id),
+        onTap: handleTap,
         showFlavorIcon: showFlavorIcons,
         avatarStyle: avatarStyle,
         lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),

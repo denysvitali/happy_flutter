@@ -9,7 +9,9 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
+import '../chat/chat_screen.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/widgets/offline_banner.dart';
@@ -45,10 +47,15 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   final _searchController = TextEditingController();
   bool _isSearching = false;
   Timer? _searchDebounce;
+
   /// Tracks a pending navigation action so that canPop remains false
   /// for the duration of the async setState, preventing rapid back
   /// presses from racing with state updates.
   _NavigationAction? _pendingNav;
+
+  /// The currently selected session ID when running on a tablet-sized screen.
+  /// On phone, navigation is handled via pushed routes (no in-place selection).
+  String? _selectedSessionId;
 
   @override
   void initState() {
@@ -136,11 +143,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       feedNotifierProvider.select((s) => s.unreadCount > 0),
     );
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isTablet = screenWidth >= AppBreakpoint.tablet;
+
     return PopScope(
       // Always block if a navigation action is already pending —
       // read current state at callback time rather than relying on
       // the build-time value to avoid races with async setState.
-      canPop: _pendingNav == null &&
+      canPop:
+          !isTablet &&
+          _pendingNav == null &&
           _activeTab == AppTab.sessions &&
           _folderNotifier.value == null,
       onPopInvokedWithResult: (didPop, _) {
@@ -154,9 +166,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             _pendingNav = null;
           });
           _updateUrlTab(AppTab.sessions);
-        } else if (!didPop &&
-            currentTab == AppTab.sessions &&
-            folder != null) {
+        } else if (!didPop && currentTab == AppTab.sessions && folder != null) {
           _pendingNav = _NavigationAction.closeFolder;
           setState(() {
             _folderNotifier.value = null;
@@ -180,7 +190,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         }
       },
       child: Scaffold(
-        appBar: _buildAppBar(context, l10n),
+        appBar:
+            isTablet &&
+                _activeTab == AppTab.sessions &&
+                _selectedSessionId != null
+            ? null
+            : _buildAppBar(context, l10n),
         body: Column(
           children: [
             const SyncProgressBar(),
@@ -188,12 +203,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             Expanded(child: _buildCurrentTabContent()),
           ],
         ),
-        bottomNavigationBar: TabBar(
-          activeTab: _activeTab,
-          onTabPress: _setActiveTab,
-          inboxBadgeCount: inboxBadgeCount,
-          showInboxBadge: showInboxDot,
-        ),
+        bottomNavigationBar:
+            isTablet &&
+                _activeTab == AppTab.sessions &&
+                _selectedSessionId != null
+            ? null
+            : TabBar(
+                activeTab: _activeTab,
+                onTabPress: _setActiveTab,
+                inboxBadgeCount: inboxBadgeCount,
+                showInboxBadge: showInboxDot,
+              ),
       ),
     );
   }
@@ -234,8 +254,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final cs = Theme.of(context).colorScheme;
     // Extract machineId and raw path from folderKey ('machineId:path').
     final colonIndex = folder.folderKey.indexOf(':');
-    final machineId =
-        colonIndex > 0 ? folder.folderKey.substring(0, colonIndex) : null;
+    final machineId = colonIndex > 0
+        ? folder.folderKey.substring(0, colonIndex)
+        : null;
     final rawPath = colonIndex > 0 && colonIndex < folder.folderKey.length - 1
         ? folder.folderKey.substring(colonIndex + 1)
         : null;
@@ -250,18 +271,18 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         children: [
           Text(
             folder.displayPath,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           Text(
             '${folder.machineName}'
             ' \u2022 ${folder.sessionCount}',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -433,6 +454,34 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   }
 
   Widget _buildCurrentTabContent() {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isTablet = screenWidth >= AppBreakpoint.tablet;
+
+    // Tablet: sessions tab uses master-detail layout
+    if (isTablet && _activeTab == AppTab.sessions) {
+      return Row(
+        children: [
+          SizedBox(
+            width: AppBreakpoint.sidebarMax.toDouble(),
+            child: SessionsListContent(
+              selectionNotifier: _selectionNotifier,
+              folderNotifier: _folderNotifier,
+              searchQuery: _searchController.text,
+              onClearSearch: _clearSearch,
+              onSessionTap: (sessionId) {
+                setState(() => _selectedSessionId = sessionId);
+              },
+            ),
+          ),
+          Expanded(
+            child: _selectedSessionId != null
+                ? ChatScreen(sessionId: _selectedSessionId!)
+                : _buildNoSessionSelected(),
+          ),
+        ],
+      );
+    }
+
     return IndexedStack(
       index: _activeTab.index,
       children: [
@@ -445,6 +494,28 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         ),
         _buildSettingsTab(),
       ],
+    );
+  }
+
+  Widget _buildNoSessionSelected() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 64,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Select a session to start chatting',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -661,8 +732,15 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (!context.mounted || sessionId == null || sessionId.isEmpty) {
       return;
     }
-    unawaited(
-      context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
-    );
+    // On tablet, set the selected session in parent state; on phone, push route.
+    final state = context.findAncestorStateOfType<_SessionsScreenState>();
+    final isTablet = MediaQuery.sizeOf(context).width >= AppBreakpoint.tablet;
+    if (state != null && isTablet) {
+      state.setState(() => state._selectedSessionId = sessionId);
+    } else {
+      unawaited(
+        context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
+      );
+    }
   }
 }
