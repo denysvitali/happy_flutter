@@ -9,7 +9,6 @@ import '../tool_view_colors.dart';
 
 /// File change model for CodexPatch results.
 class FileChange {
-
   /// Creates a [FileChange].
   FileChange({
     required this.path,
@@ -18,6 +17,7 @@ class FileChange {
     required this.hasDelete,
     required this.changeData,
   });
+
   /// The full file path.
   final String path;
 
@@ -57,11 +57,8 @@ class FileChange {
 
 /// View for displaying CodexPatch tool with file changes summary.
 class CodexPatchView extends StatelessWidget {
+  const CodexPatchView({required this.tool, super.key, this.metadata});
 
-  const CodexPatchView({
-    required this.tool, super.key,
-    this.metadata,
-  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
@@ -71,15 +68,19 @@ class CodexPatchView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = ToolViewColors.of(context);
-    final input = WireParsers.asMap(tool['input']) ?? {};
+    final rawInput = tool['input'];
+    final input = WireParsers.asMap(rawInput) ?? {};
     final changes = WireParsers.asMap(input['changes']);
+    final patch = _extractPatchText(rawInput);
     final autoApproved = input['auto_approved'] as bool?;
 
-    if (changes == null || changes.isEmpty) {
+    if ((changes == null || changes.isEmpty) && patch == null) {
       return const SizedBox.shrink();
     }
 
-    final parsedChanges = _parseChanges(changes);
+    final parsedChanges = changes != null && changes.isNotEmpty
+        ? _parseChanges(changes)
+        : _parsePatch(patch!);
 
     return ToolSectionView(
       child: Container(
@@ -115,17 +116,98 @@ class CodexPatchView extends StatelessWidget {
         'delete' || 'remove' => 'delete',
         _ => null,
       };
-      result.add(FileChange(
-        path: path,
-        hasAdd: data['add'] != null || normalizedKind == 'add',
-        hasModify:
-            data['modify'] != null || normalizedKind == 'modify',
-        hasDelete:
-            data['delete'] != null || normalizedKind == 'delete',
-        changeData: data,
-      ));
+      result.add(
+        FileChange(
+          path: path,
+          hasAdd: data['add'] != null || normalizedKind == 'add',
+          hasModify: data['modify'] != null || normalizedKind == 'modify',
+          hasDelete: data['delete'] != null || normalizedKind == 'delete',
+          changeData: data,
+        ),
+      );
     }
     return result;
+  }
+
+  String? _extractPatchText(dynamic input) {
+    if (input is String && input.contains('*** Begin Patch')) return input;
+    final inputMap = WireParsers.asMap(input);
+    if (inputMap == null) return null;
+    for (final key in const ['patch', 'input', 'content']) {
+      final value = inputMap[key];
+      if (value is String && value.contains('*** Begin Patch')) return value;
+    }
+    return null;
+  }
+
+  List<FileChange> _parsePatch(String patch) {
+    final result = <FileChange>[];
+    String? currentPath;
+    String? currentKind;
+    final buffer = StringBuffer();
+
+    void flush() {
+      if (currentPath == null || currentKind == null) return;
+      final patchText = buffer.toString().trimRight();
+      final changeData = <String, dynamic>{
+        currentKind!: {'patch': patchText},
+      };
+      result.add(
+        FileChange(
+          path: currentPath!,
+          hasAdd: currentKind == 'add',
+          hasModify: currentKind == 'modify',
+          hasDelete: currentKind == 'delete',
+          changeData: changeData,
+        ),
+      );
+    }
+
+    for (final line in patch.split('\n')) {
+      String? nextPath;
+      String? nextKind;
+      if (line.startsWith('*** Add File: ')) {
+        nextPath = line.substring('*** Add File: '.length);
+        nextKind = 'add';
+      } else if (line.startsWith('*** Update File: ')) {
+        nextPath = line.substring('*** Update File: '.length);
+        nextKind = 'modify';
+      } else if (line.startsWith('*** Delete File: ')) {
+        nextPath = line.substring('*** Delete File: '.length);
+        nextKind = 'delete';
+      }
+
+      if (nextPath != null && nextKind != null) {
+        flush();
+        currentPath = nextPath;
+        currentKind = nextKind;
+        buffer
+          ..clear()
+          ..writeln(line);
+        continue;
+      }
+
+      if (currentPath != null &&
+          !line.startsWith('*** Begin Patch') &&
+          !line.startsWith('*** End Patch')) {
+        buffer.writeln(line);
+      }
+    }
+    flush();
+
+    if (result.isNotEmpty) return result;
+
+    return [
+      FileChange(
+        path: 'patch',
+        hasAdd: false,
+        hasModify: true,
+        hasDelete: false,
+        changeData: {
+          'modify': {'patch': patch},
+        },
+      ),
+    ];
   }
 }
 
@@ -134,11 +216,7 @@ class CodexPatchView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _PatchHeaderBar extends StatelessWidget {
-
-  const _PatchHeaderBar({
-    required this.fileCount,
-    this.autoApproved,
-  });
+  const _PatchHeaderBar({required this.fileCount, this.autoApproved});
   final int fileCount;
   final bool? autoApproved;
 
@@ -146,8 +224,7 @@ class _PatchHeaderBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final c = ToolViewColors.of(context);
-    final label =
-        '$fileCount file${fileCount != 1 ? 's' : ''} changed';
+    final label = '$fileCount file${fileCount != 1 ? 's' : ''} changed';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -157,17 +234,11 @@ class _PatchHeaderBar extends StatelessWidget {
           topLeft: Radius.circular(AppRadius.sm),
           topRight: Radius.circular(AppRadius.sm),
         ),
-        border: Border(
-          bottom: BorderSide(color: c.border),
-        ),
+        border: Border(bottom: BorderSide(color: c.border)),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.edit_note,
-            size: 14,
-            color: c.mutedText,
-          ),
+          Icon(Icons.edit_note, size: 14, color: c.mutedText),
           const SizedBox(width: 6),
           Text(
             label,
@@ -180,25 +251,16 @@ class _PatchHeaderBar extends StatelessWidget {
           const Spacer(),
           if (autoApproved ?? false)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 7,
-                vertical: 2,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
                 color: c.greenBadgeBg,
                 borderRadius: BorderRadius.circular(AppRadius.xs),
-                border: Border.all(
-                  color: c.greenBadgeBorder,
-                ),
+                border: Border.all(color: c.greenBadgeBorder),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: 11,
-                    color: c.green,
-                  ),
+                  Icon(Icons.check_circle_outline, size: 11, color: c.green),
                   const SizedBox(width: 4),
                   Text(
                     'auto-approved',
@@ -223,7 +285,6 @@ class _PatchHeaderBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _PatchFileList extends StatefulWidget {
-
   const _PatchFileList({required this.changes});
   final List<FileChange> changes;
 
@@ -267,7 +328,6 @@ class _PatchFileListState extends State<_PatchFileList> {
 // ---------------------------------------------------------------------------
 
 class _FileChangeRow extends StatelessWidget {
-
   const _FileChangeRow({
     required this.change,
     required this.isExpanded,
@@ -351,9 +411,7 @@ class _FileChangeRow extends StatelessWidget {
                     _OperationChip(label: change.operationLabel),
                     const SizedBox(width: 8),
                     Icon(
-                      isExpanded
-                          ? Icons.expand_less
-                          : Icons.expand_more,
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
                       size: 14,
                       color: c.lineNumberText,
                     ),
@@ -379,7 +437,6 @@ class _FileChangeRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _OperationChip extends StatelessWidget {
-
   const _OperationChip({required this.label});
   final String label;
 
@@ -412,11 +469,7 @@ class _OperationChip extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _FileChangeDetail extends StatelessWidget {
-
-  const _FileChangeDetail({
-    required this.changeData,
-    required this.filePath,
-  });
+  const _FileChangeDetail({required this.changeData, required this.filePath});
   final Map<String, dynamic> changeData;
   final String filePath;
 
@@ -461,12 +514,14 @@ class _FileChangeDetail extends StatelessWidget {
       String? overrideLanguage,
     ) {
       if (content == null || content.isEmpty) return;
-      sections.add(_DetailSection(
-        heading: heading,
-        content: content,
-        color: color,
-        language: overrideLanguage ?? language,
-      ));
+      sections.add(
+        _DetailSection(
+          heading: heading,
+          content: content,
+          color: color,
+          language: overrideLanguage ?? language,
+        ),
+      );
     }
 
     final addData = WireParsers.asMap(changeData['add']);
@@ -476,6 +531,12 @@ class _FileChangeDetail extends StatelessWidget {
         _firstString(addData, const ['content', 'after', 'new', 'text']),
         c.green,
         null,
+      );
+      addContentSection(
+        'patch',
+        _firstString(addData, const ['patch', 'diff', 'unified_diff']),
+        c.blue,
+        'diff',
       );
     }
 
@@ -515,6 +576,12 @@ class _FileChangeDetail extends StatelessWidget {
         c.red,
         null,
       );
+      addContentSection(
+        'patch',
+        _firstString(deleteData, const ['patch', 'diff', 'unified_diff']),
+        c.blue,
+        'diff',
+      );
     }
 
     if (sections.isEmpty) return const SizedBox.shrink();
@@ -526,9 +593,7 @@ class _FileChangeDetail extends StatelessWidget {
         bottom: AppSpacing.smd,
       ),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: c.border),
-        ),
+        border: Border(top: BorderSide(color: c.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,7 +605,6 @@ class _FileChangeDetail extends StatelessWidget {
 }
 
 class _DetailSection extends StatelessWidget {
-
   const _DetailSection({
     required this.heading,
     required this.content,
@@ -613,7 +677,6 @@ class _DetailSection extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CopyButton extends StatefulWidget {
-
   const _CopyButton({required this.text, this.iconSize = 14});
   final String text;
   final double iconSize;
@@ -753,9 +816,7 @@ class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
                 visualDensity: VisualDensity.compact,
               ),
               child: Text(
-                _expanded
-                    ? 'Show less'
-                    : 'Show all $_lineCount lines',
+                _expanded ? 'Show less' : 'Show all $_lineCount lines',
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: AppFontSize.xs,

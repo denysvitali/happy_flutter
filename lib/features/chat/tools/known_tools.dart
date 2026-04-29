@@ -526,6 +526,22 @@ class KnownTools {
         return null;
       },
     ),
+    'apply_patch': ToolDefinition(
+      icon: patchIcon,
+      title: 'Apply Changes',
+      minimal: false,
+      hideDefaultError: true,
+      isMutable: true,
+      extractSubtitle: (tool, _) => _extractPatchSubtitle(tool),
+    ),
+    'functions.apply_patch': ToolDefinition(
+      icon: patchIcon,
+      title: 'Apply Changes',
+      minimal: false,
+      hideDefaultError: true,
+      isMutable: true,
+      extractSubtitle: (tool, _) => _extractPatchSubtitle(tool),
+    ),
     'CodexDiff': ToolDefinition(
       icon: diffIcon,
       title: 'View Diff',
@@ -643,5 +659,41 @@ class KnownTools {
     final definition = tools[name];
     if (definition == null) return true; // Unknown tools are minimal by default
     return definition.minimal;
+  }
+
+  static String? _extractPatchSubtitle(Map<String, dynamic> tool) {
+    final patch = _extractPatchText(tool['input']);
+    if (patch == null) return null;
+
+    final files = <String>[];
+    for (final line in patch.split('\n')) {
+      final file = _patchFileFromLine(line);
+      if (file != null && !files.contains(file)) files.add(file);
+    }
+    if (files.length == 1) return files.single.split('/').lastOrNull;
+    if (files.length > 1) return '${files.length} files';
+    return null;
+  }
+
+  static String? _extractPatchText(dynamic input) {
+    if (input is String && input.contains('*** Begin Patch')) return input;
+    final inputMap = WireParsers.asMap(input);
+    if (inputMap == null) return null;
+    for (final key in const ['patch', 'input', 'content']) {
+      final value = inputMap[key];
+      if (value is String && value.contains('*** Begin Patch')) return value;
+    }
+    return null;
+  }
+
+  static String? _patchFileFromLine(String line) {
+    for (final prefix in const [
+      '*** Add File: ',
+      '*** Update File: ',
+      '*** Delete File: ',
+    ]) {
+      if (line.startsWith(prefix)) return line.substring(prefix.length);
+    }
+    return null;
   }
 }

@@ -711,6 +711,8 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     'CodexBash',
     'execute',
     'CodexPatch',
+    'apply_patch',
+    'functions.apply_patch',
     'CodexDiff',
     'Task',
     'Agent',
@@ -748,6 +750,9 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       'CodexBash': (t, m, s) => CodexBashView(tool: t, metadata: m),
       'execute': (t, m, s) => GeminiExecuteView(tool: t, metadata: m),
       'CodexPatch': (t, m, s) => CodexPatchView(tool: t, metadata: m),
+      'apply_patch': (t, m, s) => CodexPatchView(tool: t, metadata: m),
+      'functions.apply_patch': (t, m, s) =>
+          CodexPatchView(tool: t, metadata: m),
       'CodexDiff': (t, m, s) => CodexDiffView(tool: t, metadata: m),
       'Task': (t, m, s) => TaskView(
         tool: t,
