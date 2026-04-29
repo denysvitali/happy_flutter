@@ -17,22 +17,20 @@ class FolderSessionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.55),
-            width: AppBorder.hairline,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Column(mainAxisSize: MainAxisSize.min, children: children),
-        ),
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          children[i],
+          if (i < children.length - 1)
+            Divider(
+              height: 1,
+              thickness: AppBorder.hairline,
+              indent: AppSpacing.xxxl + AppSpacing.xl,
+              color: cs.outlineVariant.withValues(alpha: 0.45),
+            ),
+        ],
+      ],
     );
   }
 }
