@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
-import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 
 import '../../core/components/app_empty_state.dart';
 import 'markdown/markdown_view.dart';
@@ -143,8 +143,7 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
   /// Extracts the file name from the full path.
   String get _fileName {
     if (widget.path.isEmpty) return 'File';
-    final segments =
-        widget.path.split('/').where((s) => s.isNotEmpty).toList();
+    final segments = widget.path.split('/').where((s) => s.isNotEmpty).toList();
     return segments.isNotEmpty ? segments.last : widget.path;
   }
 
@@ -173,18 +172,13 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _fileName,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(_fileName, overflow: TextOverflow.ellipsis),
         actions: [
           // Copy button
           if (_content != null)
             IconButton(
               icon: Icon(
-                _copied
-                    ? Icons.check_rounded
-                    : Icons.content_copy_rounded,
+                _copied ? Icons.check_rounded : Icons.content_copy_rounded,
                 size: 20,
               ),
               tooltip: _copied ? 'Copied!' : 'Copy file',
@@ -222,9 +216,7 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
           ),
 
           // File content
-          Expanded(
-            child: _buildContent(theme),
-          ),
+          Expanded(child: _buildContent(theme)),
         ],
       ),
     );
@@ -341,8 +333,9 @@ class _PathHeader extends StatelessWidget {
               language!,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: AppFontSize.xxs,
-                color: theme.colorScheme.onSurfaceVariant
-                    .withValues(alpha: 0.7),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.7,
+                ),
               ),
             ),
           ],
@@ -375,8 +368,7 @@ class _LineNumbers extends StatelessWidget {
         ? const Color(0xFF45475A)
         : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
 
-    final lineNumbers =
-        List.generate(lineCount, (i) => '${i + 1}').join('\n');
+    final lineNumbers = List.generate(lineCount, (i) => '${i + 1}').join('\n');
 
     return Container(
       padding: const EdgeInsets.only(

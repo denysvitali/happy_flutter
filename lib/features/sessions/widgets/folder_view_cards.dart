@@ -128,4 +128,3 @@ class FolderOverviewCard extends StatelessWidget {
     return count == 1 ? '1 session' : '$count sessions';
   }
 }
-

@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
+
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
 /// View for displaying Bash tool command and output.
 class BashView extends StatelessWidget {
-
   const BashView({required this.tool, super.key, this.metadata});
+
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
@@ -36,8 +37,7 @@ class BashView extends StatelessWidget {
     final exitCode = state == 'completed' && result != null
         ? _getExitCode(result)
         : null;
-    final error =
-        state == 'error' && result != null ? result.toString() : null;
+    final error = state == 'error' && result != null ? result.toString() : null;
 
     return ToolSectionView(
       child: Column(
@@ -63,8 +63,16 @@ class BashView extends StatelessWidget {
     if (command.isEmpty) return null;
     final firstWord = command.split(' ').first;
     const knownCommands = {
-      'cd', 'ls', 'pwd', 'mkdir', 'rm', 'cp', 'mv',
-      'npm', 'yarn', 'git',
+      'cd',
+      'ls',
+      'pwd',
+      'mkdir',
+      'rm',
+      'cp',
+      'mv',
+      'npm',
+      'yarn',
+      'git',
     };
     if (knownCommands.contains(firstWord)) return '$firstWord command';
     return command.length > 20 ? '${command.substring(0, 20)}...' : command;
@@ -97,9 +105,9 @@ class BashView extends StatelessWidget {
 
 /// Command view showing the command being executed and its output.
 class CommandView extends StatefulWidget {
-
   const CommandView({
-    required this.command, super.key,
+    required this.command,
+    super.key,
     this.description,
     this.stdout,
     this.stderr,
@@ -107,6 +115,7 @@ class CommandView extends StatefulWidget {
     this.error,
     this.hideEmptyOutput = true,
   });
+
   /// The shell command string.
   final String command;
 
@@ -180,8 +189,7 @@ class _CommandViewState extends State<CommandView> {
             onToggleExpand: () =>
                 setState(() => _stderrExpanded = !_stderrExpanded),
           ),
-        if (widget.exitCode != null)
-          _ExitCodeBadge(exitCode: widget.exitCode!),
+        if (widget.exitCode != null) _ExitCodeBadge(exitCode: widget.exitCode!),
         if (widget.stdout == null &&
             widget.stderr == null &&
             widget.error == null &&
@@ -207,11 +215,7 @@ class _CommandViewState extends State<CommandView> {
 // ---------------------------------------------------------------------------
 
 class _TerminalCommandBar extends StatelessWidget {
-
-  const _TerminalCommandBar({
-    required this.command,
-    this.description,
-  });
+  const _TerminalCommandBar({required this.command, this.description});
   final String command;
   final String? description;
 
@@ -244,17 +248,11 @@ class _TerminalCommandBar extends StatelessWidget {
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(
-                bottom: BorderSide(color: c.border),
-              ),
+              border: Border(bottom: BorderSide(color: c.border)),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.terminal,
-                  size: 14,
-                  color: c.mutedText,
-                ),
+                Icon(Icons.terminal, size: 14, color: c.mutedText),
                 const SizedBox(width: AppSpacing.xsm),
                 Expanded(
                   child: Text(
@@ -262,15 +260,9 @@ class _TerminalCommandBar extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: description != null
-                          ? c.primaryText
-                          : c.mutedText,
-                      fontFamily: description != null
-                          ? null
-                          : 'monospace',
-                      letterSpacing: description != null
-                          ? null
-                          : 0.5,
+                      color: description != null ? c.primaryText : c.mutedText,
+                      fontFamily: description != null ? null : 'monospace',
+                      letterSpacing: description != null ? null : 0.5,
                     ),
                   ),
                 ),
@@ -321,7 +313,6 @@ class _TerminalCommandBar extends StatelessWidget {
 }
 
 class _TerminalOutputSection extends StatefulWidget {
-
   const _TerminalOutputSection({
     required this.label,
     required this.output,
@@ -338,8 +329,7 @@ class _TerminalOutputSection extends StatefulWidget {
   final VoidCallback onToggleExpand;
 
   @override
-  State<_TerminalOutputSection> createState() =>
-      _TerminalOutputSectionState();
+  State<_TerminalOutputSection> createState() => _TerminalOutputSectionState();
 }
 
 class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
@@ -444,13 +434,8 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
               children: [
                 if (widget.isError)
                   Padding(
-                    padding:
-                        const EdgeInsets.only(right: AppSpacing.xxs2),
-                    child: Icon(
-                      Icons.error_outline,
-                      size: 13,
-                      color: c.red,
-                    ),
+                    padding: const EdgeInsets.only(right: AppSpacing.xxs2),
+                    child: Icon(Icons.error_outline, size: 13, color: c.red),
                   ),
                 Text(
                   widget.label,
@@ -481,9 +466,7 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
           // Output text
           Padding(
             padding: const EdgeInsets.all(AppSpacing.smd),
-            child: SelectableText.rich(
-              TextSpan(children: _parsedSpans),
-            ),
+            child: SelectableText.rich(TextSpan(children: _parsedSpans)),
           ),
           // Show more / show less button
           if (_needsTruncation)
@@ -500,7 +483,6 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
 }
 
 class _ExitCodeBadge extends StatelessWidget {
-
   const _ExitCodeBadge({required this.exitCode});
   final int exitCode;
 
@@ -510,8 +492,7 @@ class _ExitCodeBadge extends StatelessWidget {
     final isSuccess = exitCode == 0;
     final color = isSuccess ? c.green : c.red;
     final bgColor = isSuccess ? c.greenBadgeBg : c.redBadgeBg;
-    final borderColor =
-        isSuccess ? c.greenBadgeBorder : c.redBadgeBorder;
+    final borderColor = isSuccess ? c.greenBadgeBorder : c.redBadgeBorder;
 
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xsm),
@@ -558,7 +539,6 @@ class _ExitCodeBadge extends StatelessWidget {
 }
 
 class _ShowMoreButton extends StatelessWidget {
-
   const _ShowMoreButton({
     required this.expanded,
     required this.hiddenCount,
@@ -600,7 +580,7 @@ class _ShowMoreButton extends StatelessWidget {
               expanded
                   ? 'Show less'
                   : 'Show $hiddenCount more line'
-                      '${hiddenCount == 1 ? '' : 's'}',
+                        '${hiddenCount == 1 ? '' : 's'}',
               style: TextStyle(
                 fontSize: AppFontSize.xs,
                 color: c.mutedText,
@@ -615,7 +595,6 @@ class _ShowMoreButton extends StatelessWidget {
 }
 
 class _CopyButton extends StatefulWidget {
-
   const _CopyButton({required this.text, this.iconSize = 14});
   final String text;
   final double iconSize;
@@ -697,10 +676,8 @@ class FilePillChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final lastSlash = path.lastIndexOf('/');
-    final dir =
-        lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '';
-    final filename =
-        lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
+    final dir = lastSlash >= 0 ? path.substring(0, lastSlash + 1) : '';
+    final filename = lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
 
     final chip = Container(
       padding: const EdgeInsets.symmetric(

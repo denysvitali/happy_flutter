@@ -728,20 +728,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       );
     } else {
-      chips.add(
-        ChatAppBarStatusChip(
-          text: 'Offline',
-          color: colorScheme.outline,
-          icon: Icons.cloud_off_rounded,
-        ),
-      );
-      chips.add(
-        ChatAppBarStatusChip(
-          text: _formatLastSeenLabel(context, session.activeAt),
-          color: colorScheme.onSurfaceVariant,
-          icon: Icons.schedule_rounded,
-        ),
-      );
+      chips
+        ..add(
+          ChatAppBarStatusChip(
+            text: 'Offline',
+            color: colorScheme.outline,
+            icon: Icons.cloud_off_rounded,
+          ),
+        )
+        ..add(
+          ChatAppBarStatusChip(
+            text: _formatLastSeenLabel(context, session.activeAt),
+            color: colorScheme.onSurfaceVariant,
+            icon: Icons.schedule_rounded,
+          ),
+        );
     }
 
     if (hasRequests) {

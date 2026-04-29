@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/changelog_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Changelog screen — shows commits between the previous and current version.
@@ -12,14 +11,11 @@ import '../../core/theme/app_tokens.dart';
 /// Uses the Conventional Commits specification to categorise entries by type
 /// (feat, fix, docs, chore, etc.) and renders them in a readable list.
 class ChangelogScreen extends ConsumerStatefulWidget {
-  const ChangelogScreen({
-    super.key,
-    this.fromVersion,
-    required this.toVersion,
-  });
+  const ChangelogScreen({required this.toVersion, super.key, this.fromVersion});
 
   /// Version that was previously installed (null on first install).
   final String? fromVersion;
+
   /// Current version tag, e.g. "1.2.3".
   final String toVersion;
 
@@ -230,10 +226,7 @@ class _ChangelogEntryTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  entry.message,
-                  style: theme.textTheme.bodyMedium,
-                ),
+                Text(entry.message, style: theme.textTheme.bodyMedium),
                 if (entry.date.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
@@ -254,7 +247,9 @@ class _ChangelogEntryTile extends StatelessWidget {
   String _formatDate(String isoDate) {
     try {
       final dt = DateTime.parse(isoDate);
-      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+      final month = dt.month.toString().padLeft(2, '0');
+      final day = dt.day.toString().padLeft(2, '0');
+      return '${dt.year}-$month-$day';
     } catch (_) {
       return isoDate.split('T').first;
     }

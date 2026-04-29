@@ -13,15 +13,15 @@ class GemmaService {
   Future<List<Map<String, dynamic>>> rankSessions(
     String query,
     List<Map<String, dynamic>> sessions,
-  ) async =>
-      sessions;
+  ) async => sessions;
 
   /// Returns empty list (no auto-tags).
   Future<List<String>> classifySession(Map<String, dynamic> session) async =>
       [];
 
   /// Always returns 0.0 (no Gemma score).
-  Future<double> scoreSessionRelevance(Map<String, dynamic> session) async => 0.0;
+  Future<double> scoreSessionRelevance(Map<String, dynamic> session) async =>
+      0.0;
 
   /// No-op.
   void dispose() {}

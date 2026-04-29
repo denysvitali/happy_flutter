@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
@@ -46,26 +45,9 @@ class GemmaService {
       logger.info('GemmaService: model loaded successfully');
     } catch (e, stack) {
       logger.error('GemmaService: failed to load model', e, stack);
-      Sentry.captureException(e, stackTrace: stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
       _initialized = true;
       _interpreter = null;
-    }
-  }
-
-  /// Runs inference in a separate isolate.
-  Future<List<double>> _runInference(List<List<double>> inputTensors) async {
-    if (_interpreter == null) return [];
-
-    final input = inputTensors.first;
-    final output = List.filled(input.length, 0.0);
-
-    try {
-      _interpreter!.run([input], [output]);
-      return output;
-    } catch (e, stack) {
-      logger.error('GemmaService: inference failed', e, stack);
-      Sentry.captureException(e, stackTrace: stack);
-      return [];
     }
   }
 
@@ -93,13 +75,15 @@ class GemmaService {
       }
 
       // Sort by Gemma score descending
-      sessionScores.sort((a, b) =>
-          (b['gemmaScore'] as double).compareTo(a['gemmaScore'] as double));
+      sessionScores.sort(
+        (a, b) =>
+            (b['gemmaScore'] as double).compareTo(a['gemmaScore'] as double),
+      );
 
       return sessionScores;
     } catch (e, stack) {
       logger.error('GemmaService: rankSessions failed', e, stack);
-      Sentry.captureException(e, stackTrace: stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
       return sessions;
     }
   }
@@ -135,7 +119,7 @@ class GemmaService {
       return tags;
     } catch (e, stack) {
       logger.error('GemmaService: classifySession failed', e, stack);
-      Sentry.captureException(e, stackTrace: stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
       return [];
     }
   }
@@ -148,7 +132,7 @@ class GemmaService {
       final name = session['name'] as String? ?? '';
       final tokens = _tokenize(name);
       // Higher token count in name often means more specific/important
-      return (tokens.length.clamp(1, 10) / 10.0);
+      return tokens.length.clamp(1, 10) / 10.0;
     } catch (e) {
       return 0.0;
     }

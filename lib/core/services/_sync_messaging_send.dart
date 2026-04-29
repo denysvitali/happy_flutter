@@ -1,15 +1,5 @@
 part of 'sync_service.dart';
 
-class _AgentStartupTimeout implements Exception {
-  const _AgentStartupTimeout(this.sessionId);
-
-  final String sessionId;
-
-  @override
-  String toString() =>
-      'StateError: Agent did not become ready for session $sessionId';
-}
-
 extension SyncMessagingSend on Sync {
   /// Create a stable client-side message id that can be shared across
   /// optimistic UI, REST persistence, socket forwarding, and retries.

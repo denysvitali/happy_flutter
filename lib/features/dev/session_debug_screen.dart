@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/clipboard_utils.dart';
-
 import '../../core/api/socket_io_client.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Debug screen showing session state and sync status.
@@ -387,6 +386,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
       ..writeln('  Machines: ${sync.machines.length}');
 
     await setClipboardTextSafely(buffer.toString());
+    if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Session debug info copied')));

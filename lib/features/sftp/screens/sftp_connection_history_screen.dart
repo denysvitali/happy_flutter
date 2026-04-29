@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_empty_state.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../models/connection_event.dart';
 import '../services/connection_history_store.dart';
 import 'widgets/connection_event_card.dart';
@@ -19,10 +19,7 @@ export 'widgets/device_analytics_card.dart';
 
 /// Screen for viewing SFTP connection history
 class SftpConnectionHistoryScreen extends StatefulWidget {
-  const SftpConnectionHistoryScreen({
-    super.key,
-    this.deviceId,
-  });
+  const SftpConnectionHistoryScreen({super.key, this.deviceId});
 
   final String? deviceId;
 
@@ -70,27 +67,19 @@ class _SftpConnectionHistoryScreenState
   Future<void> _exportHistory() async {
     if (_events.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No events to export'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No events to export')));
       }
       return;
     }
 
-    final jsonStr = jsonEncode(
-      _events.map((e) => e.toJson()).toList(),
-    );
+    final jsonStr = jsonEncode(_events.map((e) => e.toJson()).toList());
     await setClipboardTextSafely(jsonStr);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${_events.length} events copied to clipboard',
-          ),
-        ),
+        SnackBar(content: Text('${_events.length} events copied to clipboard')),
       );
     }
   }
@@ -112,8 +101,7 @@ class _SftpConnectionHistoryScreenState
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
             child: const Text('Clear'),
           ),
@@ -138,21 +126,17 @@ class _SftpConnectionHistoryScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.file_upload),
-            onPressed:
-                _events.isNotEmpty ? _exportHistory : null,
+            onPressed: _events.isNotEmpty ? _exportHistory : null,
             tooltip: 'Export',
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed:
-                _events.isNotEmpty ? _clearHistory : null,
+            onPressed: _events.isNotEmpty ? _clearHistory : null,
             tooltip: 'Clear history',
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(
-            AppTouchTarget.comfortable,
-          ),
+          preferredSize: const Size.fromHeight(AppTouchTarget.comfortable),
           child: Align(
             alignment: Alignment.centerLeft,
             child: TabBar(
@@ -176,17 +160,12 @@ class _SftpConnectionHistoryScreenState
     );
   }
 
-  Widget _buildHistoryTab(
-    List<String> allDevices,
-    List<String> allUsers,
-  ) {
+  Widget _buildHistoryTab(List<String> allDevices, List<String> allUsers) {
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(AppSpacing.sm),
-          color: Theme.of(context)
-              .colorScheme
-              .surfaceContainerHighest,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: Column(
             children: [
               Row(
@@ -198,31 +177,20 @@ class _SftpConnectionHistoryScreenState
                       decoration: InputDecoration(
                         labelText: 'Device',
                         isDense: true,
-                        contentPadding:
-                            const EdgeInsets.symmetric(
+                        contentPadding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.md,
                           vertical: AppSpacing.sm,
                         ),
                         border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.sm,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                       ),
                       items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('All'),
-                        ),
+                        const DropdownMenuItem(value: null, child: Text('All')),
                         ...allDevices.map(
                           (id) => DropdownMenuItem(
                             value: id,
-                            child: Text(
-                              id,
-                              overflow:
-                                  TextOverflow.ellipsis,
-                            ),
+                            child: Text(id, overflow: TextOverflow.ellipsis),
                           ),
                         ),
                       ],
@@ -242,28 +210,18 @@ class _SftpConnectionHistoryScreenState
                       decoration: InputDecoration(
                         labelText: 'User',
                         isDense: true,
-                        contentPadding:
-                            const EdgeInsets.symmetric(
+                        contentPadding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.md,
                           vertical: AppSpacing.sm,
                         ),
                         border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.sm,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                       ),
                       items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('All'),
-                        ),
+                        const DropdownMenuItem(value: null, child: Text('All')),
                         ...allUsers.map(
-                          (u) => DropdownMenuItem(
-                            value: u,
-                            child: Text(u),
-                          ),
+                          (u) => DropdownMenuItem(value: u, child: Text(u)),
                         ),
                       ],
                       onChanged: (value) {
@@ -285,31 +243,20 @@ class _SftpConnectionHistoryScreenState
                       label: 'All',
                       isSelected: _eventTypeFilter == null,
                       onTap: () {
-                        setState(
-                          () => _eventTypeFilter = null,
-                        );
+                        setState(() => _eventTypeFilter = null);
                         _loadEvents();
                       },
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     ...ConnectionEventType.values.map(
                       (type) => Padding(
-                        padding: const EdgeInsets.only(
-                          left: AppSpacing.xs,
-                        ),
+                        padding: const EdgeInsets.only(left: AppSpacing.xs),
                         child: EventTypeChip(
                           label: _getEventTypeLabel(type),
-                          isSelected:
-                              _eventTypeFilter == type,
-                          color: _getEventTypeColor(
-                            type,
-                            context,
-                          ),
+                          isSelected: _eventTypeFilter == type,
+                          color: _getEventTypeColor(type, context),
                           onTap: () {
-                            setState(
-                              () =>
-                                  _eventTypeFilter = type,
-                            );
+                            setState(() => _eventTypeFilter = type);
                             _loadEvents();
                           },
                         ),
@@ -326,22 +273,15 @@ class _SftpConnectionHistoryScreenState
             horizontal: AppSpacing.md,
             vertical: AppSpacing.xs,
           ),
-          color: Theme.of(context)
-              .colorScheme
-              .surfaceContainerLow,
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
           child: Row(
             children: [
               Text(
                 '${_events.length} events',
-                style:
-                    Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const Spacer(),
-              Text(
-                'Max: 5,000',
-                style:
-                    Theme.of(context).textTheme.bodySmall,
-              ),
+              Text('Max: 5,000', style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
         ),
@@ -350,7 +290,8 @@ class _SftpConnectionHistoryScreenState
               ? AppEmptyState(
                   icon: Icons.history,
                   title: 'No connection history',
-                  subtitle: 'Connection events will '
+                  subtitle:
+                      'Connection events will '
                       'appear here',
                 )
               : ListView.separated(
@@ -360,13 +301,9 @@ class _SftpConnectionHistoryScreenState
                   ),
                   itemCount: _events.length,
                   separatorBuilder: (_, _) =>
-                      const SizedBox(
-                    height: AppSpacing.sm,
-                  ),
+                      const SizedBox(height: AppSpacing.sm),
                   itemBuilder: (context, index) {
-                    return ConnectionEventCard(
-                      event: _events[index],
-                    );
+                    return ConnectionEventCard(event: _events[index]);
                   },
                 ),
         ),
@@ -379,24 +316,18 @@ class _SftpConnectionHistoryScreenState
       return AppEmptyState(
         icon: Icons.analytics_outlined,
         title: 'No data available',
-        subtitle:
-            'Analytics will appear after connections',
+        subtitle: 'Analytics will appear after connections',
       );
     }
 
     return ListView.separated(
       padding: AppScreenPadding.standard,
       itemCount: allDevices.length,
-      separatorBuilder: (_, _) =>
-          const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
         final deviceId = allDevices[index];
-        final stats =
-            connectionHistoryStore.getDeviceStats(deviceId);
-        return DeviceAnalyticsCard(
-          deviceId: deviceId,
-          stats: stats,
-        );
+        final stats = connectionHistoryStore.getDeviceStats(deviceId);
+        return DeviceAnalyticsCard(deviceId: deviceId, stats: stats);
       },
     );
   }
@@ -418,10 +349,7 @@ class _SftpConnectionHistoryScreenState
     }
   }
 
-  Color _getEventTypeColor(
-    ConnectionEventType type,
-    BuildContext context,
-  ) {
+  Color _getEventTypeColor(ConnectionEventType type, BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     switch (type) {
       case ConnectionEventType.connect:

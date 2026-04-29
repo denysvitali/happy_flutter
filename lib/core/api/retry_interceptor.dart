@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
@@ -44,10 +45,10 @@ class RetryInterceptor extends Interceptor {
     int maxRetries = 3,
     int baseDelayMs = 1000,
     int maxDelayMs = 10000,
-  })  : _dioGetter = dioGetter,
-        _maxRetries = maxRetries,
-        _baseDelayMs = baseDelayMs,
-        _maxDelayMs = maxDelayMs;
+  }) : _dioGetter = dioGetter,
+       _maxRetries = maxRetries,
+       _baseDelayMs = baseDelayMs,
+       _maxDelayMs = maxDelayMs;
 
   final Dio Function() _dioGetter;
   final int _maxRetries;
@@ -59,10 +60,7 @@ class RetryInterceptor extends Interceptor {
   static const _refreshPath = '/v1/auth/refresh';
 
   @override
-  void onError(
-    DioException err,
-    ErrorInterceptorHandler handler,
-  ) async {
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
     // Don't retry if request was cancelled
     if (err.type == DioExceptionType.cancel) {
       return handler.next(err);
@@ -152,8 +150,7 @@ class RetryInterceptor extends Interceptor {
     }
 
     // Get current retry count from request options
-    final currentRetry =
-        err.requestOptions.extra['_retryCount'] as int? ?? 0;
+    final currentRetry = err.requestOptions.extra['_retryCount'] as int? ?? 0;
 
     if (currentRetry >= _maxRetries) {
       logger.warning(
@@ -176,9 +173,7 @@ class RetryInterceptor extends Interceptor {
     );
 
     // Wait before retry
-    await Future<void>.delayed(
-      Duration(milliseconds: clampedDelay),
-    );
+    await Future<void>.delayed(Duration(milliseconds: clampedDelay));
 
     // Increment retry count and retry request
     final retryOptions = err.requestOptions;
@@ -198,7 +193,7 @@ class RetryInterceptor extends Interceptor {
         e,
         s,
       );
-      Sentry.captureException(e, stackTrace: s);
+      unawaited(Sentry.captureException(e, stackTrace: s));
       return handler.next(
         DioException(
           requestOptions: err.requestOptions,

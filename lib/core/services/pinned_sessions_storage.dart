@@ -57,15 +57,13 @@ class PinnedSessionsStorage {
 
   /// Adds a session to the pinned set.
   Future<void> pinSession(String id) async {
-    final cache = getPinned();
-    cache.add(id);
+    getPinned().add(id);
     _schedulePersist();
   }
 
   /// Removes a session from the pinned set.
   Future<void> unpinSession(String id) async {
-    final cache = getPinned();
-    cache.remove(id);
+    getPinned().remove(id);
     _schedulePersist();
   }
 

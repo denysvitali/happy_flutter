@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
 import 'package:happy_flutter/core/ui/diff/diff_view.dart';
+import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
+
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
 /// View for displaying CodexDiff tool with proper unified diff rendering.
 class CodexDiffView extends StatelessWidget {
+  const CodexDiffView({required this.tool, super.key, this.metadata});
 
-  const CodexDiffView({
-    required this.tool, super.key,
-    this.metadata,
-  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
@@ -31,9 +29,7 @@ class CodexDiffView extends StatelessWidget {
 
     final parsed = _parseUnifiedDiff(unifiedDiff);
 
-    return ToolSectionView(
-      child: _DiffContainer(parsed: parsed),
-    );
+    return ToolSectionView(child: _DiffContainer(parsed: parsed));
   }
 
   _ParsedDiff _parseUnifiedDiff(String unifiedDiff) {
@@ -91,7 +87,6 @@ class CodexDiffView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ParsedDiff {
-
   const _ParsedDiff({
     required this.oldText,
     required this.newText,
@@ -109,7 +104,6 @@ class _ParsedDiff {
 // ---------------------------------------------------------------------------
 
 class _DiffContainer extends StatefulWidget {
-
   const _DiffContainer({required this.parsed});
   final _ParsedDiff parsed;
 
@@ -169,16 +163,11 @@ class _DiffContainerState extends State<_DiffContainer> {
             _ExpandToggle(
               expanded: _expanded,
               totalLines: totalLines,
-              onToggle: () =>
-                  setState(() => _expanded = !_expanded),
+              onToggle: () => setState(() => _expanded = !_expanded),
             ),
 
           // -- Diff content
-          if (show)
-            _DiffBody(
-              oldText: p.oldText,
-              newText: p.newText,
-            ),
+          if (show) _DiffBody(oldText: p.oldText, newText: p.newText),
         ],
       ),
     );
@@ -190,7 +179,6 @@ class _DiffContainerState extends State<_DiffContainer> {
 // ---------------------------------------------------------------------------
 
 class _DiffHeaderBar extends StatelessWidget {
-
   const _DiffHeaderBar({
     required this.rawDiff,
     required this.oldCount,
@@ -217,17 +205,11 @@ class _DiffHeaderBar extends StatelessWidget {
           topLeft: Radius.circular(AppRadius.sm),
           topRight: Radius.circular(AppRadius.sm),
         ),
-        border: Border(
-          bottom: BorderSide(color: c.border),
-        ),
+        border: Border(bottom: BorderSide(color: c.border)),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.difference_outlined,
-            size: 14,
-            color: c.mutedText,
-          ),
+          Icon(Icons.difference_outlined, size: 14, color: c.mutedText),
           const SizedBox(width: 6),
           if (filename != null) ...[
             if (dir != null)
@@ -258,15 +240,9 @@ class _DiffHeaderBar extends StatelessWidget {
             ),
           const Spacer(),
           // Stats badges
-          _StatBadge(
-            label: '-$oldCount',
-            color: c.red,
-          ),
+          _StatBadge(label: '-$oldCount', color: c.red),
           const SizedBox(width: 6),
-          _StatBadge(
-            label: '+$newCount',
-            color: c.green,
-          ),
+          _StatBadge(label: '+$newCount', color: c.green),
           const SizedBox(width: 8),
           _CopyButton(text: rawDiff, iconSize: 14),
         ],
@@ -276,7 +252,6 @@ class _DiffHeaderBar extends StatelessWidget {
 }
 
 class _StatBadge extends StatelessWidget {
-
   const _StatBadge({required this.label, required this.color});
   final String label;
   final Color color;
@@ -300,7 +275,6 @@ class _StatBadge extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ExpandToggle extends StatelessWidget {
-
   const _ExpandToggle({
     required this.expanded,
     required this.totalLines,
@@ -318,14 +292,9 @@ class _ExpandToggle extends StatelessWidget {
       onTap: onToggle,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 7,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: c.border),
-          ),
+          border: Border(bottom: BorderSide(color: c.border)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -337,9 +306,7 @@ class _ExpandToggle extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              expanded
-                  ? 'Hide diff'
-                  : 'Show diff ($totalLines lines)',
+              expanded ? 'Hide diff' : 'Show diff ($totalLines lines)',
               style: TextStyle(
                 fontSize: AppFontSize.sm,
                 color: c.blue,
@@ -358,11 +325,7 @@ class _ExpandToggle extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DiffBody extends StatelessWidget {
-
-  const _DiffBody({
-    required this.oldText,
-    required this.newText,
-  });
+  const _DiffBody({required this.oldText, required this.newText});
   final String oldText;
   final String newText;
 
@@ -396,7 +359,6 @@ class _DiffBody extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CopyButton extends StatefulWidget {
-
   const _CopyButton({required this.text, this.iconSize = 14});
   final String text;
   final double iconSize;

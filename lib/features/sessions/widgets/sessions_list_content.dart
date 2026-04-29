@@ -35,8 +35,10 @@ class SessionsListContent extends ConsumerStatefulWidget {
     required this.folderNotifier,
     this.searchQuery = '',
     this.onClearSearch,
+
     /// When provided, session taps call this instead of pushing a route.
-    /// This allows a parent to handle navigation in a custom way (e.g. tablet master-detail).
+    /// This allows a parent to handle navigation in a custom way
+    /// (for example, tablet master-detail).
     this.onSessionTap,
     super.key,
   });

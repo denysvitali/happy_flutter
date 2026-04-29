@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
@@ -13,11 +13,8 @@ import '../tool_view_colors.dart';
 
 /// View for displaying CodexBash tool (parsed bash commands).
 class CodexBashView extends StatelessWidget {
+  const CodexBashView({required this.tool, super.key, this.metadata});
 
-  const CodexBashView({
-    required this.tool, super.key,
-    this.metadata,
-  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
@@ -47,7 +44,8 @@ class CodexBashView extends StatelessWidget {
       }
     }
 
-    final displayCommand = commandStr ??
+    final displayCommand =
+        commandStr ??
         (command != null && command.isNotEmpty
             ? cleanShellCommand(command.join(' '))
             : '');
@@ -58,13 +56,7 @@ class CodexBashView extends StatelessWidget {
       case 'write':
         return _buildWriteView(context, fileName, commandStr, cwd);
       default:
-        return _buildCommandView(
-          context,
-          displayCommand,
-          cwd,
-          result,
-          state,
-        );
+        return _buildCommandView(context, displayCommand, cwd, result, state);
     }
   }
 
@@ -75,21 +67,13 @@ class CodexBashView extends StatelessWidget {
     String? cwd,
   ) {
     if (fileName == null) {
-      return _buildCommandView(
-        context,
-        commandStr ?? '',
-        cwd,
-        null,
-        'pending',
-      );
+      return _buildCommandView(context, commandStr ?? '', cwd, null, 'pending');
     }
 
     final c = ToolViewColors.of(context);
     final resolvedPath = resolvePath(fileName, metadata);
     final lastSlash = resolvedPath.lastIndexOf('/');
-    final dir = lastSlash >= 0
-        ? resolvedPath.substring(0, lastSlash + 1)
-        : '';
+    final dir = lastSlash >= 0 ? resolvedPath.substring(0, lastSlash + 1) : '';
     final displayName = lastSlash >= 0
         ? resolvedPath.substring(lastSlash + 1)
         : resolvedPath;
@@ -113,21 +97,13 @@ class CodexBashView extends StatelessWidget {
     String? cwd,
   ) {
     if (fileName == null) {
-      return _buildCommandView(
-        context,
-        commandStr ?? '',
-        cwd,
-        null,
-        'pending',
-      );
+      return _buildCommandView(context, commandStr ?? '', cwd, null, 'pending');
     }
 
     final c = ToolViewColors.of(context);
     final resolvedPath = resolvePath(fileName, metadata);
     final lastSlash = resolvedPath.lastIndexOf('/');
-    final dir = lastSlash >= 0
-        ? resolvedPath.substring(0, lastSlash + 1)
-        : '';
+    final dir = lastSlash >= 0 ? resolvedPath.substring(0, lastSlash + 1) : '';
     final displayName = lastSlash >= 0
         ? resolvedPath.substring(lastSlash + 1)
         : resolvedPath;
@@ -212,7 +188,6 @@ class CodexBashView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _FileOperationBar extends StatelessWidget {
-
   const _FileOperationBar({
     required this.icon,
     required this.iconColor,
@@ -245,19 +220,14 @@ class _FileOperationBar extends StatelessWidget {
         children: [
           // Title bar
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: c.headerBg,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(
-                bottom: BorderSide(color: c.border),
-              ),
+              border: Border(bottom: BorderSide(color: c.border)),
             ),
             child: Row(
               children: [
@@ -276,10 +246,7 @@ class _FileOperationBar extends StatelessWidget {
           ),
           // File path body
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -321,11 +288,7 @@ class _FileOperationBar extends StatelessWidget {
           ),
           if (detail != null && detail!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(
-                left: 12,
-                right: 12,
-                bottom: 10,
-              ),
+              padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
               child: SelectableText(
                 detail!,
                 style: TextStyle(
@@ -347,7 +310,6 @@ class _FileOperationBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CodexCommandView extends StatefulWidget {
-
   const _CodexCommandView({
     required this.command,
     this.cwd,
@@ -376,10 +338,7 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _TerminalCommandBar(
-          command: widget.command,
-          cwd: widget.cwd,
-        ),
+        _TerminalCommandBar(command: widget.command, cwd: widget.cwd),
         if (widget.stdout != null && widget.stdout!.isNotEmpty)
           _TerminalOutputSection(
             label: 'stdout',
@@ -401,8 +360,7 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
             isError: true,
             maxLines: _maxLines,
           ),
-        if (widget.exitCode != null)
-          _ExitCodeBadge(exitCode: widget.exitCode!),
+        if (widget.exitCode != null) _ExitCodeBadge(exitCode: widget.exitCode!),
       ],
     );
   }
@@ -413,7 +371,6 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
 // ---------------------------------------------------------------------------
 
 class _TerminalCommandBar extends StatelessWidget {
-
   const _TerminalCommandBar({required this.command, this.cwd});
   final String command;
   final String? cwd;
@@ -435,27 +392,18 @@ class _TerminalCommandBar extends StatelessWidget {
         children: [
           // Title bar
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: c.headerBg,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(
-                bottom: BorderSide(color: c.border),
-              ),
+              border: Border(bottom: BorderSide(color: c.border)),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.terminal,
-                  size: 14,
-                  color: c.mutedText,
-                ),
+                Icon(Icons.terminal, size: 14, color: c.mutedText),
                 const SizedBox(width: 6),
                 Text(
                   'bash',
@@ -494,10 +442,7 @@ class _TerminalCommandBar extends StatelessWidget {
           ),
           // Command line
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -532,7 +477,6 @@ class _TerminalCommandBar extends StatelessWidget {
 }
 
 class _TerminalOutputSection extends StatefulWidget {
-
   const _TerminalOutputSection({
     required this.label,
     required this.output,
@@ -545,8 +489,7 @@ class _TerminalOutputSection extends StatefulWidget {
   final int maxLines;
 
   @override
-  State<_TerminalOutputSection> createState() =>
-      _TerminalOutputSectionState();
+  State<_TerminalOutputSection> createState() => _TerminalOutputSectionState();
 }
 
 class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
@@ -578,10 +521,7 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 5,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: c.headerBg,
               borderRadius: const BorderRadius.only(
@@ -595,11 +535,7 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
                 if (widget.isError)
                   Padding(
                     padding: const EdgeInsets.only(right: 5),
-                    child: Icon(
-                      Icons.error_outline,
-                      size: 13,
-                      color: c.red,
-                    ),
+                    child: Icon(Icons.error_outline, size: 13, color: c.red),
                   ),
                 Text(
                   widget.label,
@@ -648,7 +584,6 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
 }
 
 class _ExitCodeBadge extends StatelessWidget {
-
   const _ExitCodeBadge({required this.exitCode});
   final int exitCode;
 
@@ -658,16 +593,12 @@ class _ExitCodeBadge extends StatelessWidget {
     final isSuccess = exitCode == 0;
     final color = isSuccess ? c.green : c.red;
     final bgColor = isSuccess ? c.greenBadgeBg : c.redBadgeBg;
-    final borderColor =
-        isSuccess ? c.greenBadgeBorder : c.redBadgeBorder;
+    final borderColor = isSuccess ? c.greenBadgeBorder : c.redBadgeBorder;
 
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 3,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -677,9 +608,7 @@ class _ExitCodeBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isSuccess
-                  ? Icons.check_circle_outline
-                  : Icons.cancel_outlined,
+              isSuccess ? Icons.check_circle_outline : Icons.cancel_outlined,
               size: 12,
               color: color,
             ),
@@ -701,7 +630,6 @@ class _ExitCodeBadge extends StatelessWidget {
 }
 
 class _ShowMoreButton extends StatelessWidget {
-
   const _ShowMoreButton({
     required this.expanded,
     required this.hiddenCount,
@@ -743,7 +671,7 @@ class _ShowMoreButton extends StatelessWidget {
               expanded
                   ? 'Show less'
                   : 'Show $hiddenCount more '
-                      'line${hiddenCount == 1 ? '' : 's'}',
+                        'line${hiddenCount == 1 ? '' : 's'}',
               style: TextStyle(
                 fontSize: AppFontSize.xs,
                 color: c.mutedText,
@@ -758,7 +686,6 @@ class _ShowMoreButton extends StatelessWidget {
 }
 
 class _CopyButton extends StatefulWidget {
-
   const _CopyButton({required this.text, this.iconSize = 14});
   final String text;
   final double iconSize;

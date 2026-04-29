@@ -527,8 +527,8 @@ extension SyncMessagingMerge on Sync {
     // result, even if the list reference is the same (hasOrphans case).
     // Without this, _sessionMessages is never updated for the hasOrphans &&
     // identical(result.messages, messages) path, causing orphans to remain
-    // and trigger the warning again on every subsequent _runDeferredRegroupSweep
-    // call — creating an infinite warning loop.
+    // and trigger the warning again on every subsequent deferred regroup
+    // sweep call — creating an infinite warning loop.
     _sessionMessages[sessionId] = result.messages;
     if (!identical(result.messages, messages)) {
       _sessionMessagesCache = null;

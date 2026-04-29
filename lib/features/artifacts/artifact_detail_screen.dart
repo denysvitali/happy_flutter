@@ -1,11 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../core/utils/clipboard_utils.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
@@ -14,6 +12,7 @@ import '../../core/services/logger_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Screen showing detail view for a single artifact.
@@ -27,16 +26,13 @@ class ArtifactDetailScreen extends ConsumerStatefulWidget {
       _ArtifactDetailScreenState();
 }
 
-class _ArtifactDetailScreenState
-    extends ConsumerState<ArtifactDetailScreen>
+class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
     with SyncSubscriptionMixin {
   @override
   void initState() {
     super.initState();
     Future<void>.microtask(() async {
-      await ref
-          .read(artifactsNotifierProvider.notifier)
-          .refreshFromSync();
+      await ref.read(artifactsNotifierProvider.notifier).refreshFromSync();
     });
     subscribeToDataChanged(ref, () {
       ref.read(artifactsNotifierProvider.notifier).loadFromSync();
@@ -60,22 +56,18 @@ class _ArtifactDetailScreenState
       );
     }
 
-    final appBarTitle =
-        (artifact.title?.isNotEmpty ?? false) ? artifact.title! : artifact.id;
+    final appBarTitle = (artifact.title?.isNotEmpty ?? false)
+        ? artifact.title!
+        : artifact.id;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          appBarTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(appBarTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: l10n.commonEdit,
-            onPressed: () =>
-                context.push('/artifacts/${artifact.id}/edit'),
+            onPressed: () => context.push('/artifacts/${artifact.id}/edit'),
           ),
           IconButton(
             icon: Icon(
@@ -83,8 +75,7 @@ class _ArtifactDetailScreenState
               color: Theme.of(context).colorScheme.error,
             ),
             tooltip: l10n.commonDelete,
-            onPressed: () =>
-                _confirmDelete(context, l10n, artifact),
+            onPressed: () => _confirmDelete(context, l10n, artifact),
           ),
         ],
       ),
@@ -138,9 +129,9 @@ class _ArtifactDetailScreenState
           st,
         );
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.artifactsFailedToDelete)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.artifactsFailedToDelete)));
         }
       }
     }
@@ -154,12 +145,8 @@ class _ArtifactDetailBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final createdAt = DateTime.fromMillisecondsSinceEpoch(
-      artifact.createdAt,
-    );
-    final updatedAt = DateTime.fromMillisecondsSinceEpoch(
-      artifact.updatedAt,
-    );
+    final createdAt = DateTime.fromMillisecondsSinceEpoch(artifact.createdAt);
+    final updatedAt = DateTime.fromMillisecondsSinceEpoch(artifact.updatedAt);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,9 +219,7 @@ class _MetadataCard extends StatelessWidget {
               Divider(
                 height: AppBorder.thin,
                 thickness: AppBorder.hairline,
-                color: cs.outlineVariant.withValues(
-                  alpha: AppOpacity.half,
-                ),
+                color: cs.outlineVariant.withValues(alpha: AppOpacity.half),
               ),
           ],
         ],
@@ -363,9 +348,7 @@ class _ContentBlockState extends State<_ContentBlock> {
           Divider(
             height: AppBorder.thin,
             thickness: AppBorder.hairline,
-            color: cs.outlineVariant.withValues(
-              alpha: AppOpacity.half,
-            ),
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.half),
           ),
           // Content.
           Padding(
@@ -417,13 +400,11 @@ class _CopyButton extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(
-              copied
-                  ? context.l10n.commonDone
-                  : context.l10n.commonCopy,
+              copied ? context.l10n.commonDone : context.l10n.commonCopy,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: copied ? cs.primary : cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: copied ? cs.primary : cs.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),

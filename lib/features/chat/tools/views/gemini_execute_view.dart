@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
+
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
 /// View for displaying Gemini execute tool (lowercase 'execute').
 class GeminiExecuteView extends StatefulWidget {
+  const GeminiExecuteView({required this.tool, super.key, this.metadata});
 
-  const GeminiExecuteView({
-    required this.tool, super.key,
-    this.metadata,
-  });
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
@@ -43,18 +41,14 @@ class _GeminiExecuteViewState extends State<GeminiExecuteView> {
     if (title != null) {
       // Title format: "rm file.txt [cwd /path] (description)"
       final bracketIdx = title.indexOf(' [');
-      command = bracketIdx > 0
-          ? title.substring(0, bracketIdx)
-          : title;
+      command = bracketIdx > 0 ? title.substring(0, bracketIdx) : title;
 
-      final cwdMatch =
-          RegExp(r'\[cwd ([^\]]+)\]').firstMatch(title);
+      final cwdMatch = RegExp(r'\[cwd ([^\]]+)\]').firstMatch(title);
       if (cwdMatch != null) {
         cwd = cwdMatch.group(1);
       }
 
-      final parenMatch =
-          RegExp(r'\(([^)]+)\)$').firstMatch(title);
+      final parenMatch = RegExp(r'\(([^)]+)\)$').firstMatch(title);
       if (parenMatch != null) {
         description = parenMatch.group(1);
       }
@@ -78,9 +72,7 @@ class _GeminiExecuteViewState extends State<GeminiExecuteView> {
     final exitCode = state == 'completed' && result != null
         ? _getExitCode(result)
         : null;
-    final error = state == 'error' && result != null
-        ? result.toString()
-        : null;
+    final error = state == 'error' && result != null ? result.toString() : null;
 
     return ToolSectionView(
       child: Column(
@@ -158,7 +150,6 @@ class _GeminiExecuteViewState extends State<GeminiExecuteView> {
 // ---------------------------------------------------------------------------
 
 class _TerminalCommandBar extends StatelessWidget {
-
   const _TerminalCommandBar({
     required this.command,
     this.cwd,
@@ -185,27 +176,18 @@ class _TerminalCommandBar extends StatelessWidget {
         children: [
           // Title bar
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: c.headerBg,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(
-                bottom: BorderSide(color: c.border),
-              ),
+              border: Border(bottom: BorderSide(color: c.border)),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.terminal,
-                  size: 14,
-                  color: c.mutedText,
-                ),
+                Icon(Icons.terminal, size: 14, color: c.mutedText),
                 const SizedBox(width: 6),
                 Text(
                   'execute',
@@ -244,10 +226,7 @@ class _TerminalCommandBar extends StatelessWidget {
           ),
           // Command line
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -279,15 +258,10 @@ class _TerminalCommandBar extends StatelessWidget {
           if (description != null && description!.isNotEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 7,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
                 color: c.headerBg,
-                border: Border(
-                  top: BorderSide(color: c.border),
-                ),
+                border: Border(top: BorderSide(color: c.border)),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(AppRadius.sm),
                   bottomRight: Radius.circular(AppRadius.sm),
@@ -295,11 +269,7 @@ class _TerminalCommandBar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 12,
-                    color: c.blue,
-                  ),
+                  Icon(Icons.info_outline, size: 12, color: c.blue),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -325,7 +295,6 @@ class _TerminalCommandBar extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _TerminalOutputSection extends StatelessWidget {
-
   const _TerminalOutputSection({
     required this.label,
     required this.output,
@@ -369,10 +338,7 @@ class _TerminalOutputSection extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 5,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: c.headerBg,
               borderRadius: const BorderRadius.only(
@@ -386,11 +352,7 @@ class _TerminalOutputSection extends StatelessWidget {
                 if (isError)
                   Padding(
                     padding: const EdgeInsets.only(right: 5),
-                    child: Icon(
-                      Icons.error_outline,
-                      size: 13,
-                      color: c.red,
-                    ),
+                    child: Icon(Icons.error_outline, size: 13, color: c.red),
                   ),
                 Text(
                   label,
@@ -449,7 +411,6 @@ class _TerminalOutputSection extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ExitCodeBadge extends StatelessWidget {
-
   const _ExitCodeBadge({required this.exitCode});
   final int exitCode;
 
@@ -459,16 +420,12 @@ class _ExitCodeBadge extends StatelessWidget {
     final isSuccess = exitCode == 0;
     final color = isSuccess ? c.green : c.red;
     final bgColor = isSuccess ? c.greenBadgeBg : c.redBadgeBg;
-    final borderColor =
-        isSuccess ? c.greenBadgeBorder : c.redBadgeBorder;
+    final borderColor = isSuccess ? c.greenBadgeBorder : c.redBadgeBorder;
 
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 3,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -478,9 +435,7 @@ class _ExitCodeBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isSuccess
-                  ? Icons.check_circle_outline
-                  : Icons.cancel_outlined,
+              isSuccess ? Icons.check_circle_outline : Icons.cancel_outlined,
               size: 12,
               color: color,
             ),
@@ -506,7 +461,6 @@ class _ExitCodeBadge extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ShowMoreButton extends StatelessWidget {
-
   const _ShowMoreButton({
     required this.expanded,
     required this.hiddenCount,
@@ -548,7 +502,7 @@ class _ShowMoreButton extends StatelessWidget {
               expanded
                   ? 'Show less'
                   : 'Show $hiddenCount more '
-                      'line${hiddenCount == 1 ? '' : 's'}',
+                        'line${hiddenCount == 1 ? '' : 's'}',
               style: TextStyle(
                 fontSize: AppFontSize.xs,
                 color: c.mutedText,
@@ -567,7 +521,6 @@ class _ShowMoreButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _CopyButton extends StatefulWidget {
-
   const _CopyButton({required this.text, this.iconSize = 14});
   final String text;
   final double iconSize;

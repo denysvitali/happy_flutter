@@ -16,7 +16,7 @@ extension SyncDataMachines on Sync {
       final sessions = payload['sessions'] as List?;
       if (sessions == null) return;
       final now = DateTime.now().millisecondsSinceEpoch;
-      bool anyChanged = false;
+      var anyChanged = false;
       for (final s in sessions) {
         if (s is! Map) continue;
         final sid = s['id'] as String?;
@@ -405,7 +405,7 @@ extension SyncDataMachines on Sync {
     } catch (error, stack) {
       if (Sync._isTransientConnectionError(error)) {
         logger.warning('Error fetching machines', error, stack);
-        Sentry.captureException(error, stackTrace: stack);
+        unawaited(Sentry.captureException(error, stackTrace: stack));
       } else {
         logger.error('Error fetching machines', error, stack);
       }

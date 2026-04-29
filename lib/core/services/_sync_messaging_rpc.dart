@@ -148,7 +148,8 @@ extension SyncMessagingRpc on Sync {
     // test override path which may return null.
     if (raw == null) {
       throw StateError(
-        'Machine RPC $method returned null — test override may be misconfigured',
+        'Machine RPC $method returned null — '
+        'test override may be misconfigured',
       );
     }
     if (raw is! Map<String, dynamic>) {

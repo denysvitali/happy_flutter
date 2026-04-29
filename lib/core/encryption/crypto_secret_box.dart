@@ -162,7 +162,8 @@ class CryptoSecretBox {
     logger.warning(
       'CryptoSecretBox.decrypt failed '
       'stage=$stage reason=$reason '
-      'cipherLen=$cipherLen keyFp=$fingerprint${error == null ? '' : '\n$error'}',
+      'cipherLen=$cipherLen keyFp=$fingerprint'
+      '${error == null ? '' : '\n$error'}',
     );
     // Post-sodium stages (utf8/json) indicate that the MAC check passed
     // but the plaintext was unexpected — that is always worth capturing.

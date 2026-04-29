@@ -26,7 +26,9 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
         height: isUser
             ? 32.0 + random.nextDouble() * 24
             : 48.0 + random.nextDouble() * 32,
-        width: isUser ? 160.0 + random.nextDouble() * 80 : 200.0 + random.nextDouble() * 120,
+        width: isUser
+            ? 160.0 + random.nextDouble() * 80
+            : 200.0 + random.nextDouble() * 120,
         alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
         delayMs: i * 50,
       );
@@ -48,9 +50,7 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
         itemBuilder: (_, i) {
           final item = _items[i];
           return Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.xs,
-            ),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Shimmer(
               child: Align(
                 alignment: item.alignment,
@@ -59,9 +59,7 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
                   width: item.width,
                   decoration: BoxDecoration(
                     color: base,
-                    borderRadius: BorderRadius.circular(
-                      AppRadius.lg,
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
                 ),
               ),
@@ -74,15 +72,14 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
 }
 
 class _ShimmerItem {
-  final double height;
-  final double width;
-  final Alignment alignment;
-  final int delayMs;
-
   _ShimmerItem({
     required this.height,
     required this.width,
     required this.alignment,
     required this.delayMs,
   });
+  final double height;
+  final double width;
+  final Alignment alignment;
+  final int delayMs;
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 import 'logger_service.dart' show logger;
@@ -112,18 +111,24 @@ class TtsService {
       return;
     }
     if (_tts == null) {
-      logger.warning('[TTS] speak skipped: _tts is null '
-          '(call init() first)');
+      logger.warning(
+        '[TTS] speak skipped: _tts is null '
+        '(call init() first)',
+      );
       return;
     }
     final clean = _stripMarkdown(markdown);
     if (clean.isEmpty) {
-      logger.warning('[TTS] speak skipped: text empty '
-          'after stripping markdown');
+      logger.warning(
+        '[TTS] speak skipped: text empty '
+        'after stripping markdown',
+      );
       return;
     }
-    logger.info('[TTS] Speaking ${clean.length} chars: '
-        '"${clean.substring(0, clean.length.clamp(0, 80))}..."');
+    logger.info(
+      '[TTS] Speaking ${clean.length} chars: '
+      '"${clean.substring(0, clean.length.clamp(0, 80))}..."',
+    );
     try {
       await _tts!.stop();
     } catch (e) {
@@ -164,10 +169,7 @@ class TtsService {
   static String _stripMarkdown(String md) {
     var text = md;
     // Remove fenced code blocks (``` ... ```)
-    text = text.replaceAll(
-      RegExp(r'```[\s\S]*?```'),
-      '',
-    );
+    text = text.replaceAll(RegExp(r'```[\s\S]*?```'), '');
     // Remove inline code
     text = text.replaceAll(RegExp(r'`[^`]+`'), '');
     // Remove images ![alt](url)
@@ -187,14 +189,8 @@ class TtsService {
     // Remove horizontal rules
     text = text.replaceAll(RegExp(r'^[-*_]{3,}\s*$', multiLine: true), '');
     // Remove list markers
-    text = text.replaceAll(
-      RegExp(r'^\s*[-*+]\s+', multiLine: true),
-      '',
-    );
-    text = text.replaceAll(
-      RegExp(r'^\s*\d+\.\s+', multiLine: true),
-      '',
-    );
+    text = text.replaceAll(RegExp(r'^\s*[-*+]\s+', multiLine: true), '');
+    text = text.replaceAll(RegExp(r'^\s*\d+\.\s+', multiLine: true), '');
     // Collapse whitespace
     text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
     return text.trim();
@@ -231,16 +227,10 @@ class TtsService {
       return mapped;
     }
     if (entry is String) {
-      return <String, String>{
-        'name': entry,
-        stringKey: entry,
-      };
+      return <String, String>{'name': entry, stringKey: entry};
     }
     if (entry == null) return null;
     final value = entry.toString();
-    return <String, String>{
-      'name': '$fallbackName $value',
-      stringKey: value,
-    };
+    return <String, String>{'name': '$fallbackName $value', stringKey: value};
   }
 }

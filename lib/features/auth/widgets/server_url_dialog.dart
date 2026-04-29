@@ -1,16 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../core/api/api_client.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/api/socket_io_client.dart';
 import '../../../core/components/app_loading_indicator.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/server_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/clipboard_utils.dart';
 
 /// Dialog for configuring the server URL.
 class ServerUrlDialog extends StatefulWidget {
@@ -24,12 +23,10 @@ class ServerUrlDialog extends StatefulWidget {
   final String defaultUrl;
 
   @override
-  State<ServerUrlDialog> createState() =>
-      _ServerUrlDialogState();
+  State<ServerUrlDialog> createState() => _ServerUrlDialogState();
 }
 
-class _ServerUrlDialogState
-    extends State<ServerUrlDialog> {
+class _ServerUrlDialogState extends State<ServerUrlDialog> {
   late final TextEditingController _controller;
   final _formKey = GlobalKey<FormState>();
   String? _errorText;
@@ -40,9 +37,7 @@ class _ServerUrlDialogState
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(
-      text: widget.initialUrl,
-    );
+    _controller = TextEditingController(text: widget.initialUrl);
   }
 
   @override
@@ -99,9 +94,7 @@ class _ServerUrlDialogState
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            context.l10n.authServerUrlSaved,
-          ),
+          content: Text(context.l10n.authServerUrlSaved),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -111,8 +104,7 @@ class _ServerUrlDialogState
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final isDefault =
-        widget.initialUrl == widget.defaultUrl;
+    final isDefault = widget.initialUrl == widget.defaultUrl;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(
@@ -120,8 +112,7 @@ class _ServerUrlDialogState
         vertical: AppSpacing.xxxl + AppSpacing.sm,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.circular(AppRadius.xl),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -138,19 +129,14 @@ class _ServerUrlDialogState
               children: [
                 Icon(
                   Icons.dns_outlined,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary,
+                  color: Theme.of(context).colorScheme.primary,
                   size: AppSpacing.xxl,
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
                     l10n.settingsServerUrl,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -161,76 +147,50 @@ class _ServerUrlDialogState
           const SizedBox(height: AppSpacing.lg),
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xxl,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
               child: Form(
                 key: _formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextFormField(
                       controller: _controller,
                       decoration: InputDecoration(
-                        labelText:
-                            l10n.settingsServerUrlLabel,
+                        labelText: l10n.settingsServerUrlLabel,
                         hintText: widget.defaultUrl,
-                        prefixIcon: const Icon(
-                          Icons.link_outlined,
-                        ),
+                        prefixIcon: const Icon(Icons.link_outlined),
                         errorText: _errorText,
                         border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.smd,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.smd),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.smd,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.smd),
                           borderSide: BorderSide(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .outline
-                                .withValues(
-                              alpha: AppOpacity.half,
-                            ),
+                            color: Theme.of(context).colorScheme.outline
+                                .withValues(alpha: AppOpacity.half),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            AppRadius.smd,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.smd),
                           borderSide: BorderSide(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary,
+                            color: Theme.of(context).colorScheme.primary,
                             width: AppBorder.thick,
                           ),
                         ),
-                        suffixIcon:
-                            _controller.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(
-                                      Icons.clear,
-                                    ),
-                                    tooltip: 'Clear',
-                                    onPressed: () {
-                                      _controller.clear();
-                                      setState(() {});
-                                    },
-                                  )
-                                : null,
+                        suffixIcon: _controller.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                tooltip: 'Clear',
+                                onPressed: () {
+                                  _controller.clear();
+                                  setState(() {});
+                                },
+                              )
+                            : null,
                       ),
                       keyboardType: TextInputType.url,
-                      autofillHints: const [
-                        AutofillHints.url,
-                      ],
+                      autofillHints: const [AutofillHints.url],
                       onChanged: (_) {
                         _clearErrors();
                         setState(() {});
@@ -243,9 +203,7 @@ class _ServerUrlDialogState
                         errorMessage: _detailedError!,
                         l10n: l10n,
                       ),
-                      const SizedBox(
-                        height: AppSpacing.md,
-                      ),
+                      const SizedBox(height: AppSpacing.md),
                     ],
                   ],
                 ),
@@ -258,25 +216,18 @@ class _ServerUrlDialogState
               vertical: AppSpacing.lg,
             ),
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(
-                alpha: AppOpacity.half,
-              ),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest
+                  .withValues(alpha: AppOpacity.half),
               borderRadius: const BorderRadius.only(
-                bottomLeft:
-                    Radius.circular(AppRadius.xl),
-                bottomRight:
-                    Radius.circular(AppRadius.xl),
+                bottomLeft: Radius.circular(AppRadius.xl),
+                bottomRight: Radius.circular(AppRadius.xl),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: () =>
-                      Navigator.pop(context),
+                  onPressed: () => Navigator.pop(context),
                   child: Text(l10n.commonCancel),
                 ),
                 if (!isDefault) ...[
@@ -286,50 +237,32 @@ class _ServerUrlDialogState
                       setServerUrl(null);
                       ApiClient().refreshServerUrl();
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            l10n
-                                .settingsServerResetSuccess,
-                          ),
-                          duration:
-                              const Duration(seconds: 3),
+                          content: Text(l10n.settingsServerResetSuccess),
+                          duration: const Duration(seconds: 3),
                         ),
                       );
                     },
-                    child: Text(
-                      l10n.settingsServerResetToDefault,
-                    ),
+                    child: Text(l10n.settingsServerResetToDefault),
                   ),
                 ],
                 const SizedBox(width: AppSpacing.md),
                 FilledButton(
-                  onPressed:
-                      _isVerifying ? null : _save,
+                  onPressed: _isVerifying ? null : _save,
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size(
-                      0,
-                      AppTouchTarget.comfortable,
-                    ),
+                    minimumSize: const Size(0, AppTouchTarget.comfortable),
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        AppRadius.smd,
-                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.smd),
                     ),
                   ),
                   child: _isVerifying
                       ? AppLoadingIndicator(
                           size: AppSpacing.lg,
                           strokeWidth: 2,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onPrimary,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         )
-                      : Text(
-                          l10n.settingsServerSaveVerify,
-                        ),
+                      : Text(l10n.settingsServerSaveVerify),
                 ),
               ],
             ),
@@ -362,12 +295,9 @@ class _ErrorDetailBox extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: cs.errorContainer,
-        borderRadius:
-            BorderRadius.circular(AppRadius.smd),
+        borderRadius: BorderRadius.circular(AppRadius.smd),
         border: Border.all(
-          color: cs.error.withValues(
-            alpha: AppOpacity.medium,
-          ),
+          color: cs.error.withValues(alpha: AppOpacity.medium),
         ),
       ),
       child: Column(
@@ -375,11 +305,7 @@ class _ErrorDetailBox extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.error_outline,
-                color: cs.onErrorContainer,
-                size: 18,
-              ),
+              Icon(Icons.error_outline, color: cs.onErrorContainer, size: 18),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
@@ -397,18 +323,12 @@ class _ErrorDetailBox extends StatelessWidget {
                     vertical: AppSpacing.xxs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.error.withValues(
-                      alpha: AppOpacity.soft,
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(
-                      AppRadius.xs,
-                    ),
+                    color: cs.error.withValues(alpha: AppOpacity.soft),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
                   child: Text(
                     errorType!,
-                    style: textTheme.labelSmall
-                        ?.copyWith(
+                    style: textTheme.labelSmall?.copyWith(
                       color: cs.onErrorContainer,
                       fontWeight: FontWeight.w500,
                     ),
@@ -432,26 +352,18 @@ class _ErrorDetailBox extends StatelessWidget {
               TextButton.icon(
                 onPressed: () async {
                   await setClipboardTextSafely(errorMessage);
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        l10n.authErrorDetailsCopied,
-                      ),
-                      duration:
-                          const Duration(seconds: 2),
+                      content: Text(l10n.authErrorDetailsCopied),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 },
-                icon: const Icon(
-                  Icons.content_copy,
-                  size: AppSpacing.lg,
-                ),
+                icon: const Icon(Icons.content_copy, size: AppSpacing.lg),
                 label: Text(
                   l10n.commonCopy,
-                  style: TextStyle(
-                    fontSize: AppFontSize.sm,
-                  ),
+                  style: TextStyle(fontSize: AppFontSize.sm),
                 ),
                 style: TextButton.styleFrom(
                   foregroundColor: cs.onErrorContainer,

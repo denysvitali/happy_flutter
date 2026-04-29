@@ -15,18 +15,17 @@ extension SyncMessaging on Sync {
     // GlitchTip can aggregate fetches across sessions.
     final parentSpan = Sentry.getSpan();
     final fetchSpan =
-        parentSpan?.startChild(
-          'sync.fetchMessages',
-          description: 'Fetch messages for visible/background session',
-        ) ??
-        Sentry.startTransaction(
-          'sync.fetchMessages',
-          'sync.fetch',
-          bindToScope: false,
-        );
-    fetchSpan
-      ..setData('sessionId', sessionId)
-      ..setData('hasParentSpan', parentSpan != null);
+        (parentSpan?.startChild(
+                'sync.fetchMessages',
+                description: 'Fetch messages for visible/background session',
+              ) ??
+              Sentry.startTransaction(
+                'sync.fetchMessages',
+                'sync.fetch',
+                bindToScope: false,
+              ))
+          ..setData('sessionId', sessionId)
+          ..setData('hasParentSpan', parentSpan != null);
 
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
@@ -60,9 +59,10 @@ extension SyncMessaging on Sync {
           'Session encryption not initialized for '
           '$sessionId after 2 attempts, skipping',
         );
-        fetchSpan.setData('status', 'preconditionFailed');
-        fetchSpan.setData('encryptionInitFailed', true);
-        fetchSpan.setData('elapsedMs', fetchStopwatch.elapsedMilliseconds);
+        fetchSpan
+          ..setData('status', 'preconditionFailed')
+          ..setData('encryptionInitFailed', true)
+          ..setData('elapsedMs', fetchStopwatch.elapsedMilliseconds);
         unawaited(fetchSpan.finish());
         unawaited(
           Sentry.addBreadcrumb(
@@ -307,14 +307,14 @@ extension SyncMessaging on Sync {
         // unnecessary repaints.
         final isStillVisible = _visibleSessionId == sessionId;
 
-        final pageSpan = fetchSpan.startChild(
-          'sync.fetchMessages.page',
-          description: 'Fetch/process page $page',
-        );
-        pageSpan
-          ..setData('page', page)
-          ..setData('afterSeq', afterSeq)
-          ..setData('isVisible', isStillVisible);
+        final pageSpan =
+            fetchSpan.startChild(
+                'sync.fetchMessages.page',
+                description: 'Fetch/process page $page',
+              )
+              ..setData('page', page)
+              ..setData('afterSeq', afterSeq)
+              ..setData('isVisible', isStillVisible);
         final maxPages = isStillVisible
             ? Sync._visibleMessageFetchPageLimit
             : Sync._backgroundMessageFetchPageLimit;
@@ -706,9 +706,10 @@ extension SyncMessaging on Sync {
         unawaited(fetchSpan.finish());
         return;
       }
-      fetchSpan.setData('status', 'networkError');
-      fetchSpan.setData('dioExceptionType', e.type.name);
-      fetchSpan.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      fetchSpan
+        ..setData('status', 'networkError')
+        ..setData('dioExceptionType', e.type.name)
+        ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       unawaited(fetchSpan.finish());
       unawaited(
         Sentry.addBreadcrumb(
@@ -734,9 +735,10 @@ extension SyncMessaging on Sync {
       _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
       rethrow;
     } catch (error, stack) {
-      fetchSpan.status = SpanStatus.internalError();
-      fetchSpan.setData('error', error.toString());
-      fetchSpan.setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      fetchSpan
+        ..status = SpanStatus.internalError()
+        ..setData('error', error.toString())
+        ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       unawaited(fetchSpan.finish());
       unawaited(
         Sentry.addBreadcrumb(

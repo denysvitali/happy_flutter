@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/utils/wire_parsers.dart';
 import 'message_detail_sheet.dart';
 
@@ -20,8 +20,7 @@ class ErrorMessageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final errorType =
-        messageData['errorType'] as String? ?? 'unknown';
+    final errorType = messageData['errorType'] as String? ?? 'unknown';
     final errorMessage =
         messageData['errorMessage'] as String? ?? 'Unknown error';
 
@@ -40,11 +39,7 @@ class ErrorMessageWidget extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 18,
-                color: cs.onErrorContainer,
-              ),
+              Icon(Icons.error_outline, size: 18, color: cs.onErrorContainer),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -61,9 +56,7 @@ class ErrorMessageWidget extends StatelessWidget {
                     Text(
                       errorMessage,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onErrorContainer.withValues(
-                          alpha: 0.8,
-                        ),
+                        color: cs.onErrorContainer.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -85,15 +78,13 @@ class ErrorMessageWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final l10n = context.l10n;
-    final errorType =
-        messageData['errorType'] as String? ?? 'unknown';
+    final errorType = messageData['errorType'] as String? ?? 'unknown';
     final errorMessage =
         messageData['errorMessage'] as String? ?? 'Unknown error';
     final messageId = messageData['id'] as String?;
     final seq = messageData['seq'] as int?;
     final createdAt = messageData['createdAt'] as int?;
-    final debugData =
-        WireParsers.asMap(messageData['debugData']);
+    final debugData = WireParsers.asMap(messageData['debugData']);
 
     final timestamp = createdAt != null
         ? DateTime.fromMillisecondsSinceEpoch(createdAt).toString()
@@ -114,9 +105,7 @@ class ErrorMessageWidget extends StatelessWidget {
       useSafeArea: true,
       backgroundColor: cs.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.lg),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.55,
@@ -127,9 +116,7 @@ class ErrorMessageWidget extends StatelessWidget {
           children: [
             // Header row
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
                   Expanded(
@@ -144,6 +131,7 @@ class ErrorMessageWidget extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () async {
                       await setClipboardTextSafely(jsonString);
+                      if (!ctx.mounted || !context.mounted) return;
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -158,9 +146,7 @@ class ErrorMessageWidget extends StatelessWidget {
                 ],
               ),
             ),
-            Divider(
-              color: cs.outlineVariant.withValues(alpha: 0.3),
-            ),
+            Divider(color: cs.outlineVariant.withValues(alpha: 0.3)),
             // Error details
             Expanded(
               child: ListView(
@@ -173,8 +159,7 @@ class ErrorMessageWidget extends StatelessWidget {
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
                       color: cs.errorContainer.withValues(alpha: 0.3),
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.sm),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: Text(
                       errorMessage,
@@ -211,8 +196,7 @@ class ErrorMessageWidget extends StatelessWidget {
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E1E1E),
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.sm),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: SelectableText(
                       debugData != null

@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/clipboard_utils.dart';
 
 /// Shows the backup key in a dialog with a copy button.
 Future<void> showBackupKeyDialog(BuildContext context) async {
@@ -37,9 +37,7 @@ Future<void> showBackupKeyDialog(BuildContext context) async {
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: cs.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(
-                      AppRadius.sm,
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                     border: Border.all(color: cs.outlineVariant),
                   ),
                   child: SelectableText(
@@ -63,9 +61,7 @@ Future<void> showBackupKeyDialog(BuildContext context) async {
                   await setClipboardTextSafely(key);
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(l10n.accountBackupKeyCopied),
-                    ),
+                    SnackBar(content: Text(l10n.accountBackupKeyCopied)),
                   );
                 },
                 icon: const Icon(Icons.content_copy),
@@ -77,9 +73,7 @@ Future<void> showBackupKeyDialog(BuildContext context) async {
       ),
     );
   } catch (e) {
-    scaffoldMessenger.showSnackBar(
-      SnackBar(content: Text('$errorPrefix: $e')),
-    );
+    scaffoldMessenger.showSnackBar(SnackBar(content: Text('$errorPrefix: $e')));
   }
 }
 
@@ -91,12 +85,8 @@ Future<void> copyBackupKeyToClipboard(BuildContext context) async {
   try {
     final key = await AuthService().generateBackupKey();
     await setClipboardTextSafely(key);
-    scaffoldMessenger.showSnackBar(
-      SnackBar(content: Text(copiedMsg)),
-    );
+    scaffoldMessenger.showSnackBar(SnackBar(content: Text(copiedMsg)));
   } catch (e) {
-    scaffoldMessenger.showSnackBar(
-      SnackBar(content: Text('$errorPrefix: $e')),
-    );
+    scaffoldMessenger.showSnackBar(SnackBar(content: Text('$errorPrefix: $e')));
   }
 }

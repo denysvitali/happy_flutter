@@ -2,8 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../core/utils/clipboard_utils.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
@@ -14,6 +12,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/session_utils.dart';
 import 'widgets/session_info_widgets.dart';
 

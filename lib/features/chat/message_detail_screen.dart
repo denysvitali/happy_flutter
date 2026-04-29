@@ -1,14 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/clipboard_utils.dart';
-
 import '../../core/i18n/app_localizations.dart';
-
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/wire_parsers.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
@@ -177,13 +174,9 @@ class _ToolDetailView extends StatelessWidget {
             title: state == ToolState.error
                 ? context.l10n.commonError
                 : context.l10n.messageDetailOutput,
-            icon: state == ToolState.error
-                ? Icons.error_outline
-                : Icons.output,
+            icon: state == ToolState.error ? Icons.error_outline : Icons.output,
             json: result is Map || result is List ? result : null,
-            text: result is! Map && result is! List
-                ? result.toString()
-                : null,
+            text: result is! Map && result is! List ? result.toString() : null,
             isError: state == ToolState.error,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -213,7 +206,6 @@ class _ToolDetailView extends StatelessWidget {
       ],
     );
   }
-
 }
 
 // ── Message header ─────────────────────────────────────────────────────────
@@ -245,14 +237,8 @@ class _MessageHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _LabelValue(
-            label: context.l10n.messageDetailTool,
-            value: toolName,
-          ),
-          _LabelValue(
-            label: context.l10n.messageDetailState,
-            value: toolState,
-          ),
+          _LabelValue(label: context.l10n.messageDetailTool, value: toolName),
+          _LabelValue(label: context.l10n.messageDetailState, value: toolState),
           if (isTask && input != null) ...[
             if (input?['subagent_type'] != null)
               _LabelValue(
@@ -295,8 +281,7 @@ class _ToolResultSection extends StatefulWidget {
   final bool isError;
 
   @override
-  State<_ToolResultSection> createState() =>
-      _ToolResultSectionState();
+  State<_ToolResultSection> createState() => _ToolResultSectionState();
 }
 
 class _ToolResultSectionState extends State<_ToolResultSection> {
@@ -341,10 +326,7 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
       color: cs.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: cs.outlineVariant,
-          width: AppBorder.hairline,
-        ),
+        side: BorderSide(color: cs.outlineVariant, width: AppBorder.hairline),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -442,10 +424,7 @@ class _ChildToolItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              ToolStatusIndicator(
-                state: _parseToolState(state),
-                size: 14,
-              ),
+              ToolStatusIndicator(state: _parseToolState(state), size: 14),
               const SizedBox(width: AppSpacing.xs),
               Icon(
                 Icons.chevron_right,
@@ -459,10 +438,7 @@ class _ChildToolItem extends StatelessWidget {
     );
   }
 
-  void _showToolDetail(
-    BuildContext context,
-    Map<String, dynamic> tool,
-  ) {
+  void _showToolDetail(BuildContext context, Map<String, dynamic> tool) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -472,8 +448,7 @@ class _ChildToolItem extends StatelessWidget {
         minChildSize: 0.3,
         maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) =>
-            _ToolDetailBottomSheet(
+        builder: (context, scrollController) => _ToolDetailBottomSheet(
           tool: tool,
           scrollController: scrollController,
         ),
@@ -520,10 +495,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              ToolStatusIndicator(
-                state: _parseToolState(state),
-                size: 18,
-              ),
+              ToolStatusIndicator(state: _parseToolState(state), size: 18),
             ],
           ),
         ),
@@ -545,9 +517,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
                   title: state == 'error'
                       ? context.l10n.commonError
                       : context.l10n.messageDetailOutput,
-                  icon: state == 'error'
-                      ? Icons.error_outline
-                      : Icons.output,
+                  icon: state == 'error' ? Icons.error_outline : Icons.output,
                   json: result is Map<String, dynamic> ? result : null,
                   text: result is! Map<String, dynamic>
                       ? result.toString()
@@ -561,7 +531,6 @@ class _ToolDetailBottomSheet extends StatelessWidget {
       ],
     );
   }
-
 }
 
 // ── Shared detail widgets ──────────────────────────────────────────────────
@@ -587,10 +556,7 @@ class _DetailCard extends StatelessWidget {
       color: cs.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: cs.outlineVariant,
-          width: AppBorder.hairline,
-        ),
+        side: BorderSide(color: cs.outlineVariant, width: AppBorder.hairline),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -599,11 +565,7 @@ class _DetailCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: cs.primary,
-                ),
+                Icon(icon, size: 18, color: cs.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
@@ -648,10 +610,7 @@ class _LabelValue extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: SelectableText(
-              value,
-              style: theme.textTheme.bodySmall,
-            ),
+            child: SelectableText(value, style: theme.textTheme.bodySmall),
           ),
         ],
       ),
@@ -732,6 +691,7 @@ class _CopyButton extends StatelessWidget {
       tooltip: context.l10n.commonCopy,
       onPressed: () async {
         await setClipboardTextSafely(content);
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(context.l10n.commonCopiedToClipboard),
@@ -739,10 +699,7 @@ class _CopyButton extends StatelessWidget {
           ),
         );
       },
-      constraints: const BoxConstraints(
-        minWidth: 32,
-        minHeight: 32,
-      ),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
     );

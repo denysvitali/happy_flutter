@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../models/session.dart';
@@ -8,11 +9,9 @@ import 'ml_platform_io.dart';
 /// Session ranker that blends Gemma semantic scores with heuristics.
 /// Falls back to pure heuristics when Gemma is unavailable or disabled.
 class SessionRanker {
-  SessionRanker({
-    GemmaService? gemmaService,
-    bool gemmaEnabled = false,
-  })  : _gemma = gemmaService ?? GemmaService(),
-        _gemmaEnabled = gemmaEnabled;
+  SessionRanker({GemmaService? gemmaService, bool gemmaEnabled = false})
+    : _gemma = gemmaService ?? GemmaService(),
+      _gemmaEnabled = gemmaEnabled;
 
   final GemmaService _gemma;
   final bool _gemmaEnabled;
@@ -39,28 +38,35 @@ class SessionRanker {
     if (isAvailable) {
       try {
         final sessionMaps = sessions
-            .map((s) => {
-                  'id': s.id,
-                  'name': s.metadata?.name ?? '',
-                  'path': s.metadata?.path ?? '',
-                  'summary': s.metadata?.summary?.text ?? '',
-                  'updatedAt': s.updatedAt,
-                  'createdAt': s.createdAt,
-                  'pinned': s.pinned,
-                })
+            .map(
+              (s) => {
+                'id': s.id,
+                'name': s.metadata?.name ?? '',
+                'path': s.metadata?.path ?? '',
+                'summary': s.metadata?.summary?.text ?? '',
+                'updatedAt': s.updatedAt,
+                'createdAt': s.createdAt,
+                'pinned': s.pinned,
+              },
+            )
             .toList();
 
         final rankedMaps = await _gemma.rankSessions(query, sessionMaps);
 
         // Merge Gemma scores back with original sessions
         final gemmaScores = {
-          for (final m in rankedMaps) m['id'] as String: m['gemmaScore'] as double
+          for (final m in rankedMaps)
+            m['id'] as String: m['gemmaScore'] as double,
         };
 
         return _blendWithHeuristics(sessions, gemmaScores);
       } catch (e, stack) {
-        logger.error('SessionRanker: Gemma ranking failed, using heuristics', e, stack);
-        Sentry.captureException(e, stackTrace: stack);
+        logger.error(
+          'SessionRanker: Gemma ranking failed, using heuristics',
+          e,
+          stack,
+        );
+        unawaited(Sentry.captureException(e, stackTrace: stack));
         return _heuristicRank(query, sessions);
       }
     }
@@ -80,7 +86,7 @@ class SessionRanker {
       return await _gemma.classifySession(sessionMap);
     } catch (e, stack) {
       logger.error('SessionRanker: classifySession failed', e, stack);
-      Sentry.captureException(e, stackTrace: stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
       return [];
     }
   }
@@ -93,12 +99,23 @@ class SessionRanker {
     const recencyWeight = 0.4;
     const gemmaWeight = 0.6;
 
-    return List.from(sessions)
-      ..sort((a, b) {
-        final scoreA = _computeBlendScore(a, gemmaScores, nowMs, recencyWeight, gemmaWeight);
-        final scoreB = _computeBlendScore(b, gemmaScores, nowMs, recencyWeight, gemmaWeight);
-        return scoreB.compareTo(scoreA);
-      });
+    return List.from(sessions)..sort((a, b) {
+      final scoreA = _computeBlendScore(
+        a,
+        gemmaScores,
+        nowMs,
+        recencyWeight,
+        gemmaWeight,
+      );
+      final scoreB = _computeBlendScore(
+        b,
+        gemmaScores,
+        nowMs,
+        recencyWeight,
+        gemmaWeight,
+      );
+      return scoreB.compareTo(scoreA);
+    });
   }
 
   double _computeBlendScore(
@@ -137,7 +154,7 @@ class SessionRanker {
     if (base == 1.0) return 1.0;
     // For base in (0, 1], use exp * log(base)
     // Approximate using iteration
-    double result = 1.0;
+    var result = 1.0;
     var term = 1.0;
     final lnBase = _ln(base);
     for (var i = 1; i < 10; i++) {
@@ -162,8 +179,8 @@ class SessionRanker {
 
   double _exp(double x) {
     // Taylor series for e^x
-    double result = 1.0;
-    double term = 1.0;
+    var result = 1.0;
+    var term = 1.0;
     for (var i = 1; i < 20; i++) {
       term *= x / i;
       result += term;
@@ -176,29 +193,24 @@ class SessionRanker {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     const halfLifeMs = 7 * 24 * 60 * 60 * 1000;
 
-    return List.from(sessions)
-      ..sort((a, b) {
-        // Pinned sessions always first
-        if (a.pinned && !b.pinned) return -1;
-        if (!a.pinned && b.pinned) return 1;
+    return List.from(sessions)..sort((a, b) {
+      // Pinned sessions always first
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
 
-        // Then by recency score
-        final recencyA = _expDecay(nowMs - a.updatedAt, halfLifeMs);
-        final recencyB = _expDecay(nowMs - b.updatedAt, halfLifeMs);
+      // Then by recency score
+      final recencyA = _expDecay(nowMs - a.updatedAt, halfLifeMs);
+      final recencyB = _expDecay(nowMs - b.updatedAt, halfLifeMs);
 
-        // Then by fuzzy match score if query present
-        final matchScoreA = query.isEmpty
-            ? 0.0
-            : _fuzzyScore(a, queryLower);
-        final matchScoreB = query.isEmpty
-            ? 0.0
-            : _fuzzyScore(b, queryLower);
+      // Then by fuzzy match score if query present
+      final matchScoreA = query.isEmpty ? 0.0 : _fuzzyScore(a, queryLower);
+      final matchScoreB = query.isEmpty ? 0.0 : _fuzzyScore(b, queryLower);
 
-        final scoreA = recencyA + matchScoreA * 0.3;
-        final scoreB = recencyB + matchScoreB * 0.3;
+      final scoreA = recencyA + matchScoreA * 0.3;
+      final scoreB = recencyB + matchScoreB * 0.3;
 
-        return scoreB.compareTo(scoreA);
-      });
+      return scoreB.compareTo(scoreA);
+    });
   }
 
   double _fuzzyScore(Session session, String query) {
@@ -206,7 +218,9 @@ class SessionRanker {
     final path = (session.metadata?.path ?? '').toLowerCase();
     final summary = (session.metadata?.summary?.text ?? '').toLowerCase();
 
-    if (name.contains(query) || path.contains(query) || summary.contains(query)) {
+    if (name.contains(query) ||
+        path.contains(query) ||
+        summary.contains(query)) {
       return 1.0;
     }
 

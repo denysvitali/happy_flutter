@@ -9,11 +9,7 @@ enum ArchivedGrouping { date, folder }
 
 /// Section header for active / archived sessions.
 class SectionHeader extends StatelessWidget {
-  const SectionHeader({
-    required this.title,
-    super.key,
-    this.trailing,
-  });
+  const SectionHeader({required this.title, super.key, this.trailing});
   final String title;
   final Widget? trailing;
 
@@ -40,7 +36,7 @@ class SectionHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );

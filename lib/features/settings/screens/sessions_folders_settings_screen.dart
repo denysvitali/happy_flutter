@@ -26,9 +26,7 @@ class _SessionsFoldersSettingsScreenState
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.sessionsFolders),
-      ),
+      appBar: AppBar(title: Text(l10n.sessionsFolders)),
       body: ListView(
         padding: AppScreenPadding.settings,
         children: [
@@ -46,15 +44,17 @@ class _SessionsFoldersSettingsScreenState
                   ),
                 )
               else
-                ...folders.map((folder) => _FolderTile(
-                      folder: folder,
-                      onRename: (newName) {
-                        _renameFolder(notifier, folders, folder, newName);
-                      },
-                      onDelete: () {
-                        _deleteFolder(notifier, folders, folder);
-                      },
-                    )),
+                ...folders.map(
+                  (folder) => _FolderTile(
+                    folder: folder,
+                    onRename: (newName) {
+                      _renameFolder(notifier, folders, folder, newName);
+                    },
+                    onDelete: () {
+                      _deleteFolder(notifier, folders, folder);
+                    },
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -71,10 +71,7 @@ class _SessionsFoldersSettingsScreenState
     );
   }
 
-  Future<void> _addFolder(
-    dynamic notifier,
-    List<String> folders,
-  ) async {
+  Future<void> _addFolder(dynamic notifier, List<String> folders) async {
     final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
@@ -85,9 +82,7 @@ class _SessionsFoldersSettingsScreenState
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: InputDecoration(
-              hintText: l10n.sessionsFoldersName,
-            ),
+            decoration: InputDecoration(hintText: l10n.sessionsFoldersName),
           ),
           actions: [
             TextButton(
@@ -115,7 +110,9 @@ class _SessionsFoldersSettingsScreenState
     String newName,
   ) async {
     if (newName.isEmpty || newName == oldFolder) return;
-    final newFolders = folders.map((f) => f == oldFolder ? newName : f).toList();
+    final newFolders = folders
+        .map((f) => f == oldFolder ? newName : f)
+        .toList();
     await notifier.updateSetting('folders', newFolders);
   }
 
@@ -199,9 +196,7 @@ class _FolderTile extends StatelessWidget {
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: InputDecoration(
-              hintText: l10n.sessionsFoldersName,
-            ),
+            decoration: InputDecoration(hintText: l10n.sessionsFoldersName),
           ),
           actions: [
             TextButton(

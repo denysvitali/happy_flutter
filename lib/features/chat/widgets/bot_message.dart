@@ -64,7 +64,9 @@ class BotMessage extends StatelessWidget {
             bottom: isLastInGroup ? AppSpacing.xs : 1,
           ),
           child: Semantics(
-            label: isStreaming ? 'AI response streaming' : 'AI message: ${_truncateForLabel(text)}',
+            label: isStreaming
+                ? 'AI response streaming'
+                : 'AI message: ${_truncateForLabel(text)}',
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,

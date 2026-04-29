@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
 import '../../core/i18n/app_localizations.dart';
-import '../../core/utils/clipboard_utils.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 import 'syntax_highlighter.dart';
 
 // Catppuccin Mocha palette constants
@@ -361,8 +361,7 @@ class _LineNumbers extends StatelessWidget {
     final dividerColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
     final numColor = isDark ? _mocha.surface1 : const Color(0xFF8C959F);
 
-    final lineNumbers =
-        List.generate(lineCount, (i) => '${i + 1}').join('\n');
+    final lineNumbers = List.generate(lineCount, (i) => '${i + 1}').join('\n');
 
     return Container(
       padding: const EdgeInsets.only(

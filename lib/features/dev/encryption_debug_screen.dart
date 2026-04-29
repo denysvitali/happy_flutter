@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/clipboard_utils.dart';
-
 import '../../core/components/settings_section.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 
 /// Debug screen showing encryption status and configuration.
 class EncryptionDebugScreen extends ConsumerWidget {
@@ -54,8 +53,7 @@ class EncryptionDebugScreen extends ConsumerWidget {
                 icon: Icons.power,
                 label: 'Encryption initialized',
                 value: syncInitialized ? 'Yes' : 'No',
-                valueColor:
-                    syncInitialized ? AppColors.success : cs.error,
+                valueColor: syncInitialized ? AppColors.success : cs.error,
               ),
               if (syncInitialized) ...[
                 _InfoRow(
@@ -290,6 +288,7 @@ class EncryptionDebugScreen extends ConsumerWidget {
       ..writeln('  Total: ${cacheStats['totalEntries'] ?? 0}');
 
     await setClipboardTextSafely(buffer.toString());
+    if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Encryption debug info copied')),
     );

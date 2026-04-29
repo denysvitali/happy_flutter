@@ -362,6 +362,7 @@ class LogEntryWidget extends StatelessWidget {
         onTap: () => _showEntryDetails(context),
         onLongPress: () async {
           await setClipboardTextSafely(entry.toFormattedString());
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(AppLocalizations.of(context).devLogsLogEntryCopied),
@@ -567,9 +568,8 @@ class LogEntryWidget extends StatelessWidget {
                                 if (buffer.isNotEmpty) buffer.writeln();
                                 buffer.write(entry.stackTrace.toString());
                               }
-                              await setClipboardTextSafely(
-                                buffer.toString(),
-                              );
+                              await setClipboardTextSafely(buffer.toString());
+                              if (!ctx.mounted || !context.mounted) return;
                               Navigator.of(ctx).pop();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -592,6 +592,7 @@ class LogEntryWidget extends StatelessWidget {
                             await setClipboardTextSafely(
                               entry.toFormattedString(),
                             );
+                            if (!ctx.mounted || !context.mounted) return;
                             Navigator.of(ctx).pop();
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(

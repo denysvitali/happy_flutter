@@ -2,9 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../core/utils/clipboard_utils.dart';
-
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,16 +10,14 @@ import '../../../core/components/app_empty_state.dart';
 import '../../../core/components/settings_section.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../models/sftp_directory.dart';
 import '../providers/sftp_provider.dart';
 
 /// Directory manager screen showing shared folder contents
 /// and actions
 class SftpDirectoryManagerScreen extends ConsumerStatefulWidget {
-  const SftpDirectoryManagerScreen({
-    required this.directory,
-    super.key,
-  });
+  const SftpDirectoryManagerScreen({required this.directory, super.key});
 
   final SftpDirectory directory;
 
@@ -95,9 +90,7 @@ class _SftpDirectoryManagerScreenState
 
       switch (_sortBy) {
         case 'name':
-          return p
-              .basename(a.path)
-              .compareTo(p.basename(b.path));
+          return p.basename(a.path).compareTo(p.basename(b.path));
         case 'modified':
           try {
             final aStat = a.statSync();
@@ -142,8 +135,7 @@ class _SftpDirectoryManagerScreenState
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
             child: const Text('Remove'),
           ),
@@ -152,9 +144,7 @@ class _SftpDirectoryManagerScreenState
     );
 
     if ((confirmed ?? false) && mounted) {
-      await ref
-          .read(sftpNotifierProvider.notifier)
-          .removeDirectory(_dir.id);
+      await ref.read(sftpNotifierProvider.notifier).removeDirectory(_dir.id);
       if (mounted) {
         Navigator.pop(context);
       }
@@ -163,16 +153,13 @@ class _SftpDirectoryManagerScreenState
 
   Future<void> _copyShareUrl() async {
     // Generate a connection reference string
-    final ref =
-        'sftp://<host>:${_dir.port}/${_dir.remotePath ?? _dir.name}';
+    final ref = 'sftp://<host>:${_dir.port}/${_dir.remotePath ?? _dir.name}';
     await setClipboardTextSafely(ref);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Connection reference copied to clipboard',
-          ),
+          content: Text('Connection reference copied to clipboard'),
           duration: Duration(seconds: 2),
         ),
       );
@@ -191,9 +178,7 @@ class _SftpDirectoryManagerScreenState
     final launched = await launchUrl(uri);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No app found to open this file'),
-        ),
+        const SnackBar(content: Text('No app found to open this file')),
       );
     }
   }
@@ -214,12 +199,9 @@ class _SftpDirectoryManagerScreenState
               ),
               child: Text(
                 'Sort by',
-                style: Theme.of(ctx)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  ctx,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
             _SortOption(
@@ -283,11 +265,9 @@ class _SftpDirectoryManagerScreenState
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
-                  final parent =
-                      p.dirname(_currentPath);
+                  final parent = p.dirname(_currentPath);
                   if (parent != _dir.path &&
-                      _currentPath
-                          .startsWith(_dir.path)) {
+                      _currentPath.startsWith(_dir.path)) {
                     _navigateToSubdirectory(parent);
                   } else {
                     _navigateToSubdirectory(_dir.path);
@@ -295,11 +275,7 @@ class _SftpDirectoryManagerScreenState
                 },
               )
             : null,
-        title: Text(
-          _isSubdirectory
-              ? p.basename(_currentPath)
-              : _dir.name,
-        ),
+        title: Text(_isSubdirectory ? p.basename(_currentPath) : _dir.name),
         actions: [
           IconButton(
             icon: const Icon(Icons.link),
@@ -337,12 +313,9 @@ class _SftpDirectoryManagerScreenState
                     Expanded(
                       child: Text(
                         _currentPath,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              fontFamily: 'monospace',
-                            ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontFamily: 'monospace',
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -353,14 +326,8 @@ class _SftpDirectoryManagerScreenState
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.xs,
                   children: [
-                    _InfoChip(
-                      icon: Icons.numbers,
-                      label: 'Port ${_dir.port}',
-                    ),
-                    _InfoChip(
-                      icon: Icons.lock,
-                      label: _dir.authMethod.name,
-                    ),
+                    _InfoChip(icon: Icons.numbers, label: 'Port ${_dir.port}'),
+                    _InfoChip(icon: Icons.lock, label: _dir.authMethod.name),
                     _InfoChip(
                       icon: Icons.paste,
                       label: _dir.clipboardMode.name,
@@ -386,19 +353,13 @@ class _SftpDirectoryManagerScreenState
               children: [
                 Text(
                   '${_entities.length} items',
-                  style:
-                      Theme.of(context).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const Spacer(),
                 TextButton.icon(
                   onPressed: _removeShare,
-                  style: TextButton.styleFrom(
-                    foregroundColor: cs.error,
-                  ),
-                  icon: const Icon(
-                    Icons.link_off,
-                    size: 18,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: cs.error),
+                  icon: const Icon(Icons.link_off, size: 18),
                   label: const Text('Remove Share'),
                 ),
               ],
@@ -414,49 +375,44 @@ class _SftpDirectoryManagerScreenState
           // Content
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
+                ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? AppEmptyState(
-                        icon: Icons.error_outline,
-                        title: 'Something went wrong',
-                        subtitle: _error,
-                        action: FilledButton(
-                          onPressed: _loadDirectory,
-                          child: const Text('Retry'),
-                        ),
-                      )
-                    : _entities.isEmpty
-                        ? AppEmptyState(
-                            icon: Icons.folder_off,
-                            title: 'Empty directory',
-                            subtitle: 'No files or '
-                                'folders here yet',
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _loadDirectory,
-                            child: ListView.separated(
-                              padding:
-                                  const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: AppSpacing.sm,
-                              ),
-                              itemCount: _entities.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(
-                                height: AppSpacing.xs,
-                              ),
-                              itemBuilder: (context, i) {
-                                return _FileEntityCard(
-                                  entity: _entities[i],
-                                  onDirectoryTap:
-                                      _navigateToSubdirectory,
-                                  onFileTap: _openFile,
-                                );
-                              },
-                            ),
-                          ),
+                ? AppEmptyState(
+                    icon: Icons.error_outline,
+                    title: 'Something went wrong',
+                    subtitle: _error,
+                    action: FilledButton(
+                      onPressed: _loadDirectory,
+                      child: const Text('Retry'),
+                    ),
+                  )
+                : _entities.isEmpty
+                ? AppEmptyState(
+                    icon: Icons.folder_off,
+                    title: 'Empty directory',
+                    subtitle:
+                        'No files or '
+                        'folders here yet',
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadDirectory,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.sm,
+                      ),
+                      itemCount: _entities.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.xs),
+                      itemBuilder: (context, i) {
+                        return _FileEntityCard(
+                          entity: _entities[i],
+                          onDirectoryTap: _navigateToSubdirectory,
+                          onFileTap: _openFile,
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -526,9 +482,10 @@ class _FileEntityCard extends StatelessWidget {
       if (!isDir) {
         subtitle = _formatSize(stat.size);
       }
-      subtitle = '${subtitle ?? ''}  ·  '
-              '${_formatDate(stat.modified)}'
-          .trim();
+      subtitle =
+          '${subtitle ?? ''}  ·  '
+                  '${_formatDate(stat.modified)}'
+              .trim();
     } catch (_) {}
 
     return AppCard(
@@ -545,37 +502,27 @@ class _FileEntityCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          SettingsIconContainer(
-            icon: icon,
-            color: iconColor,
-          ),
+          SettingsIconContainer(icon: icon, color: iconColor),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     subtitle,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                   ),
                 ],
               ],
@@ -585,19 +532,14 @@ class _FileEntityCard extends StatelessWidget {
             Icon(
               Icons.chevron_right,
               size: AppSpacing.xl,
-              color: cs.onSurface.withValues(
-                alpha: AppOpacity.medium,
-              ),
+              color: cs.onSurface.withValues(alpha: AppOpacity.medium),
             ),
         ],
       ),
     );
   }
 
-  (IconData, Color) _getFileIcon(
-    String ext,
-    ColorScheme cs,
-  ) {
+  (IconData, Color) _getFileIcon(String ext, ColorScheme cs) {
     switch (ext) {
       case '.dart':
         return (Icons.code, cs.primary);
@@ -649,10 +591,7 @@ class _FileEntityCard extends StatelessWidget {
       case '.zsh':
         return (Icons.terminal, AppColors.success);
       default:
-        return (
-          Icons.insert_drive_file,
-          cs.onSurfaceVariant,
-        );
+        return (Icons.insert_drive_file, cs.onSurfaceVariant);
     }
   }
 
@@ -705,10 +644,9 @@ class _InfoChip extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Text(
             label,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: cs.onSurfaceVariant),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
           ),
         ],
       ),
@@ -734,14 +672,9 @@ class _SortOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? cs.primary : null,
-      ),
+      leading: Icon(icon, color: isSelected ? cs.primary : null),
       title: Text(title),
-      trailing: isSelected
-          ? Icon(Icons.check, color: cs.primary)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: cs.primary) : null,
       onTap: onTap,
     );
   }

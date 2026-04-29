@@ -44,9 +44,9 @@ extension SyncSocketEvents on Sync {
       // called _invalidateAllSyncs(force: true) moments before the
       // socket connects.  Without this guard, every cold start pays
       // for two full sync cycles (18 HTTP requests instead of 9).
-      final _reconnectNowMs = DateTime.now().millisecondsSinceEpoch;
+      final reconnectNowMs = DateTime.now().millisecondsSinceEpoch;
       if (_lastInvalidateAllSyncsAtMs == null ||
-          _reconnectNowMs - _lastInvalidateAllSyncsAtMs! >= 2000) {
+          reconnectNowMs - _lastInvalidateAllSyncsAtMs! >= 2000) {
         _invalidateAllSyncs(force: true);
       }
       // Refresh _lastEphemeralAt for all sessions that show as online.
@@ -71,8 +71,8 @@ extension SyncSocketEvents on Sync {
       // rapid reconnect cycling — each reconnect can re-queue dozens of
       // pending message fetches that cascade into HTTP storms.
       if (_lastReconnectSessionEnumerationMs == null ||
-          _reconnectNowMs - _lastReconnectSessionEnumerationMs! >= 5000) {
-        _lastReconnectSessionEnumerationMs = _reconnectNowMs;
+          reconnectNowMs - _lastReconnectSessionEnumerationMs! >= 5000) {
+        _lastReconnectSessionEnumerationMs = reconnectNowMs;
         for (final sessionId in _sessionMessages.keys) {
           if (sessionId == _visibleSessionId) continue;
           final cursorSeq = _sessionLastSeq[sessionId] ?? 0;

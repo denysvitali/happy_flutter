@@ -6,7 +6,7 @@ import 'mmkv_storage.dart';
 
 /// MMKV-backed storage for session-to-folder mapping.
 ///
-/// Stores a JSON-encoded Map<String, String> (sessionId -> folder name).
+/// Stores a JSON-encoded map from session id to folder name.
 /// Follows the 500ms debounce pattern for batching writes.
 class SessionFoldersStorage {
   SessionFoldersStorage._();
@@ -68,8 +68,7 @@ class SessionFoldersStorage {
 
   /// Removes a session from folder tracking.
   Future<void> removeSession(String sessionId) async {
-    final cache = getAllFolders();
-    cache.remove(sessionId);
+    getAllFolders().remove(sessionId);
     _schedulePersist();
   }
 

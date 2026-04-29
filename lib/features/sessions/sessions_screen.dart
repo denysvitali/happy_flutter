@@ -11,11 +11,11 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
-import '../chat/chat_screen.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
+import '../chat/chat_screen.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/connection_status_badge.dart';
@@ -732,7 +732,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (!context.mounted || sessionId == null || sessionId.isEmpty) {
       return;
     }
-    // On tablet, set the selected session in parent state; on phone, push route.
+    // On tablet, set the selected session in parent state.
+    // On phone, push route.
     final state = context.findAncestorStateOfType<_SessionsScreenState>();
     final isTablet = MediaQuery.sizeOf(context).width >= AppBreakpoint.tablet;
     if (state != null && isTablet) {

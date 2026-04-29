@@ -132,9 +132,7 @@ void _processOutputContent({
     }
 
     if (agentContentList.isEmpty) {
-      droppedReasons?.add(
-        'seq=$seq id=$id: assistant content list is empty',
-      );
+      droppedReasons?.add('seq=$seq id=$id: assistant content list is empty');
       return;
     }
 
@@ -182,10 +180,9 @@ void _processOutputContent({
           type == 'server_tool_use' ||
           type == 'mcp_tool_use' ||
           type == 'code_execution_tool_use') {
-        final toolUseUuid =
-            (block['id'] as String?)?.isNotEmpty ?? false
-                ? block['id'] as String
-                : effectiveUuid;
+        final toolUseUuid = (block['id'] as String?)?.isNotEmpty ?? false
+            ? block['id'] as String
+            : effectiveUuid;
         messages.add({
           'id': '${id}_u$i',
           'localId': localId,
@@ -239,8 +236,8 @@ void _processOutputContent({
       final promptText = msgContent is String
           ? msgContent
           : (msgContent is List
-              ? _extractTextFromContentBlocks(msgContent)
-              : null);
+                ? _extractTextFromContentBlocks(msgContent)
+                : null);
       if (promptText != null && promptText.isNotEmpty) {
         messages.add({
           'id': '${id}_sc',
@@ -314,8 +311,7 @@ void _processOutputContent({
           // aborts a tool call mid-run. Different field names from the
           // standard tool_result block, but the downstream consumer
           // only needs toolUseId + result + isError.
-          final callId =
-              (c['callId'] ?? c['tool_use_id']) as String?;
+          final callId = (c['callId'] ?? c['tool_use_id']) as String?;
           if (callId != null && callId.isNotEmpty) {
             toolResults.add({
               'toolUseId': callId,
@@ -345,9 +341,7 @@ void _processOutputContent({
             'parentUuid': ?meta.parentUuid,
           });
         } else if (type != null) {
-          droppedReasons?.add(
-            'user content block type=$type not handled',
-          );
+          droppedReasons?.add('user content block type=$type not handled');
         }
         i++;
       }
@@ -370,8 +364,7 @@ void _processOutputContent({
       toolResults.add({
         'toolUseId': callId,
         'result': result,
-        'isError':
-            data['isError'] == true || data['is_error'] == true,
+        'isError': data['isError'] == true || data['is_error'] == true,
         'createdAt': createdAt,
         if (meta.isSidechain) 'isSidechain': true,
         'uuid': ?meta.uuid,
@@ -460,8 +453,11 @@ void _processMetaOutput({
     if (subtype == 'api_retry') {
       final attempt = data['attempt'];
       final maxRetries = data['max_retries'];
-      addEvent('ar', 'message',
-          'Retrying API request ($attempt/$maxRetries)...');
+      addEvent(
+        'ar',
+        'message',
+        'Retrying API request ($attempt/$maxRetries)...',
+      );
       return;
     }
   }
@@ -469,8 +465,7 @@ void _processMetaOutput({
   if (dataType == 'tool_progress') {
     final toolName = data['tool_name'] as String? ?? 'tool';
     final elapsed = data['elapsed_time_seconds'];
-    final elapsedStr =
-        elapsed is num ? '${elapsed.toStringAsFixed(0)}s' : '';
+    final elapsedStr = elapsed is num ? '${elapsed.toStringAsFixed(0)}s' : '';
     final label =
         '$toolName running${elapsedStr.isNotEmpty ? ' ($elapsedStr)' : ''}...';
     addEvent('tp', 'message', label);
@@ -505,4 +500,3 @@ void _processMetaOutput({
     });
   }
 }
-

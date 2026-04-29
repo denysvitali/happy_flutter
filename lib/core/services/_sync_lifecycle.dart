@@ -138,13 +138,16 @@ extension SyncLifecycle on Sync {
     // cycle into a cascade of reconnects, session re-fetches, and message
     // cache churn for 100+ sessions.  Just leave the socket connected and
     // let the OS manage the network lifecycle.
-    final isRapidSuspend = _lastResumeAtMs != null &&
+    final isRapidSuspend =
+        _lastResumeAtMs != null &&
         DateTime.now().millisecondsSinceEpoch - _lastResumeAtMs! <
             Sync._resumeDebounceWindowMs;
     if (isRapidSuspend) {
+      final elapsedMs =
+          DateTime.now().millisecondsSinceEpoch - _lastResumeAtMs!;
       logger.debug(
         '[Sync] rapid suspend — keeping socket connected '
-        '(last resume ${DateTime.now().millisecondsSinceEpoch - _lastResumeAtMs!}ms ago)',
+        '(last resume ${elapsedMs}ms ago)',
       );
     } else {
       socketIoClient.disconnect(preserveConnectionHistory: true);
@@ -381,43 +384,40 @@ extension SyncLifecycle on Sync {
   /// sessions beyond the cap.
   void _scheduleResumeMessageBatch() {
     _resumeBatchTimer?.cancel();
-    _resumeBatchTimer = Timer(
-      const Duration(seconds: 2),
-      () {
-        _resumeBatchTimer = null;
-        if (!isInitialized || InvalidateSync.isBackgrounded) return;
-        if (_sessionsWithPendingSocketMessages.isEmpty) return;
+    _resumeBatchTimer = Timer(const Duration(seconds: 2), () {
+      _resumeBatchTimer = null;
+      if (!isInitialized || InvalidateSync.isBackgrounded) return;
+      if (_sessionsWithPendingSocketMessages.isEmpty) return;
 
-        final batch = _sessionsWithPendingSocketMessages
-            .take(Sync._maxResumeMessageSyncs)
-            .toList();
-        for (final sessionId in batch) {
-          _sessionsWithPendingSocketMessages.remove(sessionId);
-          if (_shouldForceTailRefreshForPendingSession(sessionId)) {
-            _sessionsNeedingTailRefresh.add(sessionId);
-          }
-          if (!messagesSync.containsKey(sessionId)) {
-            messagesSync[sessionId] = InvalidateSync(
-              () => fetchMessages(sessionId),
-              minInterval: Sync._messagesSyncMinInterval,
-              name: 'fetchMessages',
-              onRunningChanged: _onSyncRunningChanged,
-            );
-          }
-          _sessionsNeedingFetchProbe.add(sessionId);
-          messagesSync[sessionId]?.invalidate();
+      final batch = _sessionsWithPendingSocketMessages
+          .take(Sync._maxResumeMessageSyncs)
+          .toList();
+      for (final sessionId in batch) {
+        _sessionsWithPendingSocketMessages.remove(sessionId);
+        if (_shouldForceTailRefreshForPendingSession(sessionId)) {
+          _sessionsNeedingTailRefresh.add(sessionId);
         }
-
-        logger.info(
-          '[Sync] resume batch: fetched ${batch.length} sessions, '
-          '${_sessionsWithPendingSocketMessages.length} remaining',
-        );
-
-        if (_sessionsWithPendingSocketMessages.isNotEmpty) {
-          _scheduleResumeMessageBatch();
+        if (!messagesSync.containsKey(sessionId)) {
+          messagesSync[sessionId] = InvalidateSync(
+            () => fetchMessages(sessionId),
+            minInterval: Sync._messagesSyncMinInterval,
+            name: 'fetchMessages',
+            onRunningChanged: _onSyncRunningChanged,
+          );
         }
-      },
-    );
+        _sessionsNeedingFetchProbe.add(sessionId);
+        messagesSync[sessionId]?.invalidate();
+      }
+
+      logger.info(
+        '[Sync] resume batch: fetched ${batch.length} sessions, '
+        '${_sessionsWithPendingSocketMessages.length} remaining',
+      );
+
+      if (_sessionsWithPendingSocketMessages.isNotEmpty) {
+        _scheduleResumeMessageBatch();
+      }
+    });
   }
 
   /// Schedule (or reschedule) a reconnection watchdog timer.
@@ -444,8 +444,7 @@ extension SyncLifecycle on Sync {
         _reconnectWatchdogTimer = null;
         if (!isInitialized || InvalidateSync.isBackgrounded) return;
 
-        if (socketIoClient.connectionStatus ==
-            ConnectionStatus.connected) {
+        if (socketIoClient.connectionStatus == ConnectionStatus.connected) {
           return;
         }
 
@@ -460,8 +459,7 @@ extension SyncLifecycle on Sync {
               category: 'sync.lifecycle',
               level: SentryLevel.warning,
               data: <String, dynamic>{
-                'socketStatus':
-                    socketIoClient.connectionStatus.name,
+                'socketStatus': socketIoClient.connectionStatus.name,
                 'visibleSessionId': _visibleSessionId,
               },
             ),

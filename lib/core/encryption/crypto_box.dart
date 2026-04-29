@@ -17,7 +17,6 @@ class CryptoBoxConstants {
 /// CryptoBox encryption using libsodium (crypto_box_easy)
 /// Compatible with React Native's @more-tech/react-native-libsodium
 class CryptoBox {
-
   /// Generate a random nonce (24 bytes for libsodium compatibility)
   static Future<Uint8List> randomNonce() async {
     final sodium = await sodiumSingleton;
@@ -122,7 +121,7 @@ class CryptoBox {
       );
 
       return decrypted;
-    } catch (e, stack) {
+    } catch (e) {
       // Warning, not error: decryption failures are expected during
       // key rotation or device re-link and are handled gracefully
       // (returns null → caller falls back to legacy encryption).

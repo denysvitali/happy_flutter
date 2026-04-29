@@ -1,11 +1,6 @@
 part of 'sync_service.dart';
 
 extension SyncSessionOperations on Sync {
-  /// Returns true if [timestampMs] is within [maxAgeMs] milliseconds of now.
-  bool _isRecent(int? timestampMs, int maxAgeMs) =>
-      timestampMs != null &&
-      DateTime.now().millisecondsSinceEpoch - timestampMs < maxAgeMs;
-
   /// Create a session on a target machine/path and return the new session ID.
   /// Sends a `spawn-happy-session` RPC to the machine daemon, which starts a
   /// new Claude Code agent in [path].  If the directory does not yet exist the
@@ -876,21 +871,28 @@ PY
     final looksReady = health.looksReady;
     final onlineTrusted = health.isOnlineTrusted;
 
+    final lifecycleState = session.metadata?.lifecycleState;
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
       'profileChanged=$profileChanged modelChanged=$modelChanged '
       '(isOnline=${session.isOnline} onlineTrusted=$onlineTrusted '
-      'lifecycleState=${session.metadata?.lifecycleState} lcRecent=${health.lcRecent})',
+      'lifecycleState=$lifecycleState lcRecent=${health.lcRecent})',
     );
 
     if (looksReady && (profileChanged || modelChanged)) {
       final machineId = session.metadata?.machineId;
       if (machineId != null && machineId.isNotEmpty) {
+        final spawnedChange = _spawnedValueChange(
+          profileChanged: profileChanged,
+          sessionId: sessionId,
+          profileId: profileId,
+          modelMode: modelMode,
+        );
         logger.info(
           '[sendMessage] ${profileChanged ? "profile" : "model"} changed '
           'for session=$sessionId '
-          '${profileChanged ? "(${_sessionSpawnedProfile[sessionId]} -> $profileId)" : "(${_sessionSpawnedModel[sessionId]} -> $modelMode)"}; '
+          '$spawnedChange; '
           'killing session for respawn',
         );
         // Clear spawned data BEFORE killSession so that if kill fails,
@@ -1158,5 +1160,17 @@ PY
       _autoRestoreCompleters.remove(sessionId);
       _autoRestoreProfileIds.remove(sessionId);
     }
+  }
+
+  String _spawnedValueChange({
+    required bool profileChanged,
+    required String sessionId,
+    required String? profileId,
+    required String? modelMode,
+  }) {
+    if (profileChanged) {
+      return '(${_sessionSpawnedProfile[sessionId]} -> $profileId)';
+    }
+    return '(${_sessionSpawnedModel[sessionId]} -> $modelMode)';
   }
 }

@@ -30,8 +30,7 @@ class _Keys {
   static const String sessionProfiles = 'session-profiles';
   static const String profile = 'profile';
   static const String sessionLastSeq = 'session-last-seq';
-  static const String sessionFirstLoadedSeq =
-      'session-first-loaded-seq';
+  static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
   static const String sessionsCache = 'sessions-cache';
   static const String installedVersion = 'installed-version';
 
@@ -245,10 +244,7 @@ class MMKVStorage {
 
   Future<void> saveSettings(Settings settings) async {
     try {
-      await _persistAsync(
-        _Keys.settings,
-        jsonEncode(settings.toJson()),
-      );
+      await _persistAsync(_Keys.settings, jsonEncode(settings.toJson()));
     } catch (e) {
       // IndexedDB is much larger than localStorage, but log and continue
       // on any failure — settings will be re-fetched from server on
@@ -329,31 +325,21 @@ class MMKVStorage {
         return map[sessionId] as String?;
       }
     } catch (e) {
-      logger.warning(
-        'WebStorage: failed to get session permission mode: $e',
-      );
+      logger.warning('WebStorage: failed to get session permission mode: $e');
     }
     return null;
   }
 
-  Future<void> saveSessionPermissionMode(
-    String sessionId,
-    String mode,
-  ) async {
+  Future<void> saveSessionPermissionMode(String sessionId, String mode) async {
     try {
       final json = _cache[_Keys.sessionPermissionModes];
       final map = json != null
           ? jsonDecode(json) as Map<String, dynamic>
           : <String, dynamic>{};
       map[sessionId] = mode;
-      await _persistAsync(
-        _Keys.sessionPermissionModes,
-        jsonEncode(map),
-      );
+      await _persistAsync(_Keys.sessionPermissionModes, jsonEncode(map));
     } catch (e) {
-      logger.warning(
-        'WebStorage: failed to save session permission mode: $e',
-      );
+      logger.warning('WebStorage: failed to save session permission mode: $e');
     }
   }
 
@@ -363,10 +349,7 @@ class MMKVStorage {
       if (json != null) {
         final map = (jsonDecode(json) as Map<String, dynamic>)
           ..remove(sessionId);
-        await _persistAsync(
-          _Keys.sessionPermissionModes,
-          jsonEncode(map),
-        );
+        await _persistAsync(_Keys.sessionPermissionModes, jsonEncode(map));
       }
     } catch (e) {
       logger.warning(
@@ -383,9 +366,7 @@ class MMKVStorage {
         return map.map((k, v) => MapEntry(k, v as String));
       }
     } catch (e) {
-      logger.warning(
-        'WebStorage: failed to get session permission modes: $e',
-      );
+      logger.warning('WebStorage: failed to get session permission modes: $e');
     }
     return {};
   }
@@ -424,10 +405,7 @@ class MMKVStorage {
     return null;
   }
 
-  Future<void> saveSessionModelMode(
-    String sessionId,
-    String mode,
-  ) async {
+  Future<void> saveSessionModelMode(String sessionId, String mode) async {
     try {
       final json = _cache[_Keys.sessionModelModes];
       final map = json != null
@@ -440,10 +418,7 @@ class MMKVStorage {
     }
   }
 
-  Future<void> saveSessionProfile(
-    String sessionId,
-    String profileId,
-  ) async {
+  Future<void> saveSessionProfile(String sessionId, String profileId) async {
     try {
       final json = _cache[_Keys.sessionProfiles];
       final map = json != null
@@ -677,8 +652,8 @@ class MMKVStorage {
 /// Web implementation of ProfileStorage.
 class ProfileStorage {
   factory ProfileStorage() => _instance;
-  static final ProfileStorage _instance = ProfileStorage._();
   ProfileStorage._();
+  static final ProfileStorage _instance = ProfileStorage._();
 
   static const String _profileKey = 'profile';
   final _storage = MMKVStorage();
@@ -695,9 +670,9 @@ class ProfileStorage {
           lastName: decoded['lastName'] as String?,
           connectedServices:
               (decoded['connectedServices'] as List<dynamic>?)
-                      ?.map((e) => e as String)
-                      .toList() ??
-                  [],
+                  ?.map((e) => e as String)
+                  .toList() ??
+              [],
         );
       }
     } catch (e) {

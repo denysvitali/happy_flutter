@@ -16,12 +16,16 @@ class ChangelogEntry {
 
   /// Commit date (ISO 8601).
   final String date;
+
   /// Commit subject line (first line).
   final String message;
+
   /// Conventional commit type: feat, fix, chore, docs, refactor, etc.
   final String type;
+
   /// Optional scope extracted from feat(scope): pattern.
   final String? scope;
+
   /// True if the commit has a BREAKING CHANGE footer.
   final bool isBreaking;
 }
@@ -46,8 +50,7 @@ class ChangelogResult {
 /// then parses each commit message using the Conventional Commits
 /// specification (https://www.conventionalcommits.org/).
 class ChangelogService {
-  ChangelogService({http.Client? client})
-      : _client = client ?? http.Client();
+  ChangelogService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
 
@@ -59,8 +62,9 @@ class ChangelogService {
 
   /// Regex for conventional commit prefix: type(scope)!: subject
   /// Examples: feat:, fix(scope):, chore!:, docs:!
-  static final RegExp _conventionalPrefix =
-      RegExp(r'^(\w+)(?:\([^)]+\))?!?:\s+(.*)$');
+  static final RegExp _conventionalPrefix = RegExp(
+    r'^(\w+)(?:\([^)]+\))?!?:\s+(.*)$',
+  );
 
   /// Fetch the changelog between [fromVersion] and [toVersion].
   ///
@@ -92,10 +96,7 @@ class ChangelogService {
       }
 
       // Enumerate commits in the range
-      final commits = await _getCommitsInRange(
-        fromSha: fromSha,
-        toSha: toSha,
-      );
+      final commits = await _getCommitsInRange(fromSha: fromSha, toSha: toSha);
 
       if (commits.isEmpty) {
         return ChangelogResult(
@@ -150,8 +151,7 @@ class ChangelogService {
         );
         final response2 = await _client.get(url2, headers: _headers);
         if (response2.statusCode == 200) {
-          final data =
-              jsonDecode(response2.body) as Map<String, dynamic>;
+          final data = jsonDecode(response2.body) as Map<String, dynamic>;
           return data['object']?['sha'] as String?;
         }
         return null;
@@ -245,12 +245,13 @@ class ChangelogService {
   ChangelogEntry? _parseCommit(Map<String, dynamic> commit) {
     try {
       final commitData = commit['commit'] as Map<String, dynamic>? ?? commit;
-      final message =
-          (commitData['message'] as String? ?? '').split('\n').first;
+      final message = (commitData['message'] as String? ?? '')
+          .split('\n')
+          .first;
       final dateStr =
           (commitData['committer'] as Map<String, dynamic>?)?['date']
-                  as String? ??
-              '';
+              as String? ??
+          '';
 
       final match = _conventionalPrefix.firstMatch(message);
       if (match == null) return null;
@@ -259,7 +260,8 @@ class ChangelogService {
       final subject = match.group(2)!;
 
       // Detect breaking change
-      final isBreaking = subject.contains('BREAKING CHANGE') ||
+      final isBreaking =
+          subject.contains('BREAKING CHANGE') ||
           message.contains('BREAKING CHANGE:');
 
       return ChangelogEntry(
@@ -274,8 +276,8 @@ class ChangelogService {
   }
 
   Map<String, String> get _headers => {
-        'Accept': 'application/vnd.github.v3+json',
-        // Optionally use a token for higher rate limits:
-        // 'Authorization': 'token ...',
-      };
+    'Accept': 'application/vnd.github.v3+json',
+    // Optionally use a token for higher rate limits:
+    // 'Authorization': 'token ...',
+  };
 }

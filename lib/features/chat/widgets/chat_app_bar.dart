@@ -1,5 +1,3 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/components/app_status_dot.dart';
@@ -138,9 +136,7 @@ class ChatMachineVitals {
   final double memoryPercent;
   final double diskPercent;
 
-  static ChatMachineVitals? fromDaemonState(
-    Map<String, dynamic>? daemonState,
-  ) {
+  static ChatMachineVitals? fromDaemonState(Map<String, dynamic>? daemonState) {
     final raw = daemonState?['machineStats'];
     if (raw is! Map) return null;
 
@@ -453,10 +449,9 @@ class _AgentsListButton extends StatelessWidget {
 /// Compact three-dot typing indicator for the app bar
 /// subtitle. Shows bouncing dots alongside a label.
 class _AppBarTypingIndicator extends StatefulWidget {
-  const _AppBarTypingIndicator({required this.color, this.label, super.key});
+  const _AppBarTypingIndicator({required this.color});
 
   final Color color;
-  final String? label;
 
   @override
   State<_AppBarTypingIndicator> createState() => _AppBarTypingIndicatorState();
@@ -483,8 +478,6 @@ class _AppBarTypingIndicatorState extends State<_AppBarTypingIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return SizedBox(
       height: 16,
       child: Row(
@@ -509,18 +502,6 @@ class _AppBarTypingIndicatorState extends State<_AppBarTypingIndicator>
               ),
             );
           }),
-          if (widget.label != null && widget.label!.isNotEmpty) ...[
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              widget.label!,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.primary,
-                fontWeight: FontWeight.w500,
-                fontSize: AppFontSize.xs,
-                height: 1.2,
-              ),
-            ),
-          ],
         ],
       ),
     );

@@ -78,8 +78,8 @@ class _AppStatusDotState extends State<AppStatusDot>
     super.didChangeDependencies();
     final mediaQuery = MediaQuery.maybeOf(context);
     final reduceMotion =
-        mediaQuery?.disableAnimations == true ||
-        mediaQuery?.accessibleNavigation == true;
+        (mediaQuery?.disableAnimations ?? false) ||
+        (mediaQuery?.accessibleNavigation ?? false);
     if (_reduceMotion == reduceMotion) return;
     _reduceMotion = reduceMotion;
     _syncAnimation();

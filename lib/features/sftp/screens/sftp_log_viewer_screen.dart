@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_empty_state.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../models/sftp_log.dart';
 import 'widgets/sftp_log_entry_card.dart';
 import 'widgets/sftp_log_stats_tab.dart';
@@ -19,23 +19,16 @@ enum LogLevelFilter { all, info, warning, error }
 
 /// Screen for viewing and managing SFTP server logs
 class SftpLogViewerScreen extends StatefulWidget {
-  const SftpLogViewerScreen({
-    super.key,
-    this.initialDeviceId,
-  });
+  const SftpLogViewerScreen({super.key, this.initialDeviceId});
 
   final String? initialDeviceId;
 
   @override
-  State<SftpLogViewerScreen> createState() =>
-      _SftpLogViewerScreenState();
+  State<SftpLogViewerScreen> createState() => _SftpLogViewerScreenState();
 }
 
-class _SftpLogViewerScreenState
-    extends State<SftpLogViewerScreen>
-    with
-        SingleTickerProviderStateMixin,
-        WidgetsBindingObserver {
+class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   String? _selectedDeviceId;
   LogLevelFilter _levelFilter = LogLevelFilter.all;
   String _searchQuery = '';
@@ -91,17 +84,13 @@ class _SftpLogViewerScreenState
     if (!mounted) return;
     setState(() {
       if (_selectedDeviceId != null) {
-        _allLogs =
-            sftpLogStore.getLogs(_selectedDeviceId!);
+        _allLogs = sftpLogStore.getLogs(_selectedDeviceId!);
       } else {
         final allLogs = <SftpLogEntry>[];
-        for (final deviceId
-            in sftpLogStore.deviceIdsWithLogs) {
+        for (final deviceId in sftpLogStore.deviceIdsWithLogs) {
           allLogs.addAll(sftpLogStore.getLogs(deviceId));
         }
-        allLogs.sort(
-          (a, b) => b.timestamp.compareTo(a.timestamp),
-        );
+        allLogs.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         _allLogs = allLogs;
       }
       _applyFilters();
@@ -113,20 +102,16 @@ class _SftpLogViewerScreenState
 
     if (_levelFilter != LogLevelFilter.all) {
       final levelName = _levelFilter.name;
-      logs =
-          logs.where((l) => l.level == levelName).toList();
+      logs = logs.where((l) => l.level == levelName).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       logs = logs.where((l) {
         return l.message.toLowerCase().contains(query) ||
-            (l.username?.toLowerCase().contains(query) ??
-                false) ||
-            (l.operation?.toLowerCase().contains(query) ??
-                false) ||
-            (l.details?.toLowerCase().contains(query) ??
-                false);
+            (l.username?.toLowerCase().contains(query) ?? false) ||
+            (l.operation?.toLowerCase().contains(query) ?? false) ||
+            (l.details?.toLowerCase().contains(query) ?? false);
       }).toList();
     }
 
@@ -137,17 +122,14 @@ class _SftpLogViewerScreenState
     final logs = _filteredLogs;
     if (logs.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No logs to export'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No logs to export')));
       }
       return;
     }
 
-    final jsonStr =
-        jsonEncode(logs.map((l) => l.toJson()).toList());
+    final jsonStr = jsonEncode(logs.map((l) => l.toJson()).toList());
     await setClipboardTextSafely(jsonStr);
 
     if (mounted) {
@@ -180,8 +162,7 @@ class _SftpLogViewerScreenState
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
-              foregroundColor:
-                  Theme.of(ctx).colorScheme.error,
+              foregroundColor: Theme.of(ctx).colorScheme.error,
             ),
             child: const Text('Clear'),
           ),
@@ -191,8 +172,7 @@ class _SftpLogViewerScreenState
 
     if (confirmed ?? false) {
       if (_selectedDeviceId != null) {
-        await sftpLogStore
-            .clearDeviceLogs(_selectedDeviceId!);
+        await sftpLogStore.clearDeviceLogs(_selectedDeviceId!);
       } else {
         await sftpLogStore.clearAll();
       }
@@ -204,11 +184,9 @@ class _SftpLogViewerScreenState
     await sftpLogStore.rotateLogs();
     _loadLogs();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Old logs rotated'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Old logs rotated')));
     }
   }
 
@@ -222,9 +200,7 @@ class _SftpLogViewerScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.file_upload),
-            onPressed: _filteredLogs.isNotEmpty
-                ? _exportLogs
-                : null,
+            onPressed: _filteredLogs.isNotEmpty ? _exportLogs : null,
             tooltip: 'Export logs',
           ),
           PopupMenuButton<String>(
@@ -241,17 +217,12 @@ class _SftpLogViewerScreenState
                 value: 'rotate',
                 child: Text('Rotate old logs'),
               ),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Text('Clear logs'),
-              ),
+              const PopupMenuItem(value: 'clear', child: Text('Clear logs')),
             ],
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(
-            AppTouchTarget.comfortable,
-          ),
+          preferredSize: const Size.fromHeight(AppTouchTarget.comfortable),
           child: Align(
             alignment: Alignment.centerLeft,
             child: TabBar(
@@ -294,11 +265,7 @@ class _SftpLogViewerScreenState
               Row(
                 children: [
                   const SizedBox(width: AppSpacing.sm),
-                  Icon(
-                    Icons.devices,
-                    size: 18,
-                    color: cs.onSurfaceVariant,
-                  ),
+                  Icon(Icons.devices, size: 18, color: cs.onSurfaceVariant),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: DropdownButtonHideUnderline(
@@ -313,11 +280,7 @@ class _SftpLogViewerScreenState
                           ...deviceIds.map(
                             (id) => DropdownMenuItem(
                               value: id,
-                              child: Text(
-                                id,
-                                overflow:
-                                    TextOverflow.ellipsis,
-                              ),
+                              child: Text(id, overflow: TextOverflow.ellipsis),
                             ),
                           ),
                         ],
@@ -331,21 +294,16 @@ class _SftpLogViewerScreenState
                     ),
                   ),
                   ...LogLevelFilter.values.map((filter) {
-                    final isSelected =
-                        _levelFilter == filter;
+                    final isSelected = _levelFilter == filter;
                     return Padding(
-                      padding: const EdgeInsets.only(
-                        left: AppSpacing.xs,
-                      ),
+                      padding: const EdgeInsets.only(left: AppSpacing.xs),
                       child: ChoiceChip(
                         label: Text(
                           filter.name[0].toUpperCase() +
                               filter.name.substring(1),
                           style: TextStyle(
                             fontSize: AppFontSize.sm,
-                            color: isSelected
-                                ? cs.onPrimary
-                                : null,
+                            color: isSelected ? cs.onPrimary : null,
                           ),
                         ),
                         selected: isSelected,
@@ -355,22 +313,16 @@ class _SftpLogViewerScreenState
                             _applyFilters();
                           });
                         },
-                        selectedColor:
-                            filter == LogLevelFilter.error
-                                ? cs.error
-                                : filter ==
-                                        LogLevelFilter
-                                            .warning
-                                    ? AppColors.warning
-                                    : cs.primary,
+                        selectedColor: filter == LogLevelFilter.error
+                            ? cs.error
+                            : filter == LogLevelFilter.warning
+                            ? AppColors.warning
+                            : cs.primary,
                         showCheckmark: false,
-                        padding:
-                            const EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.sm,
                         ),
-                        materialTapTargetSize:
-                            MaterialTapTargetSize
-                                .shrinkWrap,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     );
                   }),
@@ -383,16 +335,10 @@ class _SftpLogViewerScreenState
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Search logs...',
-                    prefixIcon: const Icon(
-                      Icons.search,
-                      size: 20,
-                    ),
+                    prefixIcon: const Icon(Icons.search, size: 20),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(
-                              Icons.clear,
-                              size: 18,
-                            ),
+                            icon: const Icon(Icons.clear, size: 18),
                             onPressed: () {
                               _searchController.clear();
                               setState(() {
@@ -403,15 +349,12 @@ class _SftpLogViewerScreenState
                           )
                         : null,
                     isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
                       vertical: AppSpacing.sm,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.sm,
-                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                   ),
                   onChanged: (value) {
@@ -435,16 +378,13 @@ class _SftpLogViewerScreenState
             children: [
               Text(
                 '${_filteredLogs.length} entries',
-                style:
-                    Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               const Spacer(),
               if (_allLogs.isNotEmpty)
                 Text(
                   'Total: ${sftpLogStore.totalLogCount}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
             ],
           ),
@@ -458,7 +398,7 @@ class _SftpLogViewerScreenState
                       : 'No logs match filters',
                   subtitle: _allLogs.isEmpty
                       ? 'Logs will appear here when '
-                          'SFTP clients connect'
+                            'SFTP clients connect'
                       : 'Try adjusting your filters',
                 )
               : RefreshIndicator(
@@ -471,9 +411,7 @@ class _SftpLogViewerScreenState
                     ),
                     itemCount: _filteredLogs.length,
                     separatorBuilder: (_, _) =>
-                        const SizedBox(
-                      height: AppSpacing.xs,
-                    ),
+                        const SizedBox(height: AppSpacing.xs),
                     itemBuilder: (context, index) {
                       return SftpLogEntryCard(
                         log: _filteredLogs[index],

@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/components/app_empty_state.dart';
-import '../../core/utils/clipboard_utils.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/http_request_logger.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/datetime_extensions.dart';
 
 /// Debug screen that shows all HTTP requests made by [ApiClient].
@@ -15,12 +15,10 @@ class NetworkInspectorScreen extends StatefulWidget {
   const NetworkInspectorScreen({super.key});
 
   @override
-  State<NetworkInspectorScreen> createState() =>
-      _NetworkInspectorScreenState();
+  State<NetworkInspectorScreen> createState() => _NetworkInspectorScreenState();
 }
 
-class _NetworkInspectorScreenState
-    extends State<NetworkInspectorScreen> {
+class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
   late List<HttpRequestEntry> _entries;
   StreamSubscription<List<HttpRequestEntry>>? _sub;
 
@@ -41,19 +39,19 @@ class _NetworkInspectorScreenState
   }
 
   String _buildCopyText() {
+    final requestBytes = HttpRequestEntry.formatBytes(
+      httpRequestLogger.totalRequestBytes,
+    );
+    final responseBytes = HttpRequestEntry.formatBytes(
+      httpRequestLogger.totalResponseBytes,
+    );
     final buf = StringBuffer()
       ..writeln('=== HTTP Request Log ===')
-      ..writeln(
-        'Generated: ${DateTime.now().toIso8601String()}',
-      )
+      ..writeln('Generated: ${DateTime.now().toIso8601String()}')
       ..writeln(
         'Total: ${_entries.length} requests  '
-        '↑ ${HttpRequestEntry.formatBytes(
-          httpRequestLogger.totalRequestBytes,
-        )}  '
-        '↓ ${HttpRequestEntry.formatBytes(
-          httpRequestLogger.totalResponseBytes,
-        )}',
+        '↑ $requestBytes  '
+        '↓ $responseBytes',
       )
       ..writeln()
       ..writeln(
@@ -71,18 +69,13 @@ class _NetworkInspectorScreenState
       final num = e.id.toString().padRight(5);
       final ts = e.timestamp.toIso8601String().padRight(28);
       final method = e.method.padRight(8);
-      final status =
-          (e.statusCode?.toString() ?? '???').padRight(8);
-      final reqB =
-          HttpRequestEntry.formatBytes(e.requestBytes).padLeft(9);
-      final resB =
-          HttpRequestEntry.formatBytes(e.responseBytes).padLeft(9);
+      final status = (e.statusCode?.toString() ?? '???').padRight(8);
+      final reqB = HttpRequestEntry.formatBytes(e.requestBytes).padLeft(9);
+      final resB = HttpRequestEntry.formatBytes(e.responseBytes).padLeft(9);
       final dur = e.durationMs != null
           ? '${e.durationMs}ms'.padLeft(8)
           : '       -';
-      buf.writeln(
-        '$num$ts$method$status$reqB$resB$dur  ${e.path}',
-      );
+      buf.writeln('$num$ts$method$status$reqB$resB$dur  ${e.path}');
     }
     return buf.toString();
   }
@@ -92,9 +85,7 @@ class _NetworkInspectorScreenState
     await setClipboardTextSafely(_buildCopyText());
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_entries.length} requests copied'),
-        ),
+        SnackBar(content: Text('${_entries.length} requests copied')),
       );
     }
   }
@@ -114,8 +105,7 @@ class _NetworkInspectorScreenState
             ),
             TextButton(
               style: TextButton.styleFrom(
-                foregroundColor:
-                    Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.error,
               ),
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(l10n.developerClearCacheAction),
@@ -160,9 +150,7 @@ class _NetworkInspectorScreenState
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.smd,
             ),
-            color: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Wrap(
               spacing: 24,
               runSpacing: 4,
@@ -179,8 +167,7 @@ class _NetworkInspectorScreenState
                 ),
                 _SummaryChip(
                   label: l10n.networkInspectorLabelReceived,
-                  value:
-                      HttpRequestEntry.formatBytes(totalResB),
+                  value: HttpRequestEntry.formatBytes(totalResB),
                   icon: Icons.download,
                 ),
               ],
@@ -202,10 +189,12 @@ class _NetworkInspectorScreenState
             child: _entries.isEmpty
                 ? AppEmptyState(
                     icon: Icons.network_check,
-                    title: AppLocalizations.of(context)
-                        .networkInspectorNoRequests,
-                    subtitle: AppLocalizations.of(context)
-                        .networkInspectorNoRequestsSubtitle,
+                    title: AppLocalizations.of(
+                      context,
+                    ).networkInspectorNoRequests,
+                    subtitle: AppLocalizations.of(
+                      context,
+                    ).networkInspectorNoRequestsSubtitle,
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.only(
@@ -215,12 +204,8 @@ class _NetworkInspectorScreenState
                     // newest first
                     itemCount: _entries.length,
                     itemBuilder: (ctx, i) {
-                      final e = _entries[
-                          _entries.length - 1 - i];
-                      return _RequestRow(
-                        entry: e,
-                        isEven: i.isEven,
-                      );
+                      final e = _entries[_entries.length - 1 - i];
+                      return _RequestRow(entry: e, isEven: i.isEven);
                     },
                   ),
           ),
@@ -279,13 +264,10 @@ class _CopyBox extends StatelessWidget {
     final cs = theme.colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest
-            .withValues(alpha: AppOpacity.half),
-        borderRadius:
-            BorderRadius.circular(AppRadius.smd),
+        color: cs.surfaceContainerHighest.withValues(alpha: AppOpacity.half),
+        borderRadius: BorderRadius.circular(AppRadius.smd),
         border: Border.all(
-          color: cs.outline
-              .withValues(alpha: AppOpacity.medium),
+          color: cs.outline.withValues(alpha: AppOpacity.medium),
         ),
       ),
       padding: const EdgeInsets.symmetric(
@@ -294,16 +276,11 @@ class _CopyBox extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.share,
-            size: AppSpacing.lg,
-            color: cs.primary,
-          ),
+          Icon(Icons.share, size: AppSpacing.lg, color: cs.primary),
           const SizedBox(width: AppSpacing.smd),
           Expanded(
             child: Text(
-              AppLocalizations.of(context)
-                  .networkInspectorCopyInstruction,
+              AppLocalizations.of(context).networkInspectorCopyInstruction,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant,
               ),
@@ -313,9 +290,7 @@ class _CopyBox extends StatelessWidget {
           FilledButton.icon(
             onPressed: onCopy,
             icon: const Icon(Icons.copy, size: 16),
-            label: Text(
-              AppLocalizations.of(context).commonCopy,
-            ),
+            label: Text(AppLocalizations.of(context).commonCopy),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.lg,
@@ -331,10 +306,7 @@ class _CopyBox extends StatelessWidget {
 }
 
 class _RequestRow extends StatelessWidget {
-  const _RequestRow({
-    required this.entry,
-    required this.isEven,
-  });
+  const _RequestRow({required this.entry, required this.isEven});
 
   final HttpRequestEntry entry;
   final bool isEven;
@@ -397,11 +369,7 @@ class _RequestRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.xsm),
-            _Badge(
-              label: entry.method,
-              color: mColor,
-              width: 50,
-            ),
+            _Badge(label: entry.method, color: mColor, width: 50),
             const SizedBox(width: AppSpacing.xsm),
             _Badge(
               label: entry.statusCode?.toString() ?? '???',
@@ -420,9 +388,7 @@ class _RequestRow extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.sm),
             Text(
-              HttpRequestEntry.formatBytes(
-                entry.responseBytes,
-              ),
+              HttpRequestEntry.formatBytes(entry.responseBytes),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontFamily: 'monospace',
@@ -467,65 +433,49 @@ class _RequestRow extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 _Badge(
-                  label:
-                      e.statusCode?.toString() ?? '???',
+                  label: e.statusCode?.toString() ?? '???',
                   color: _statusColor(context),
                   width: 44,
                 ),
                 const Spacer(),
                 Text(
                   e.timestamp.toIso8601String(),
-                  style:
-                      Theme.of(context).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
             SelectableText(
               e.path,
-              style:
-                  Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'monospace',
-                        fontSize: AppFontSize.md,
-                      ),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontFamily: 'monospace',
+                fontSize: AppFontSize.md,
+              ),
             ),
             const Divider(height: AppSpacing.xxl),
             _DetailRow(
-              label:
-                  AppLocalizations.of(ctx).networkInspectorLabelDuration,
-              value: e.durationMs != null
-                  ? '${e.durationMs} ms'
-                  : '-',
+              label: AppLocalizations.of(ctx).networkInspectorLabelDuration,
+              value: e.durationMs != null ? '${e.durationMs} ms' : '-',
             ),
             _DetailRow(
               label: AppLocalizations.of(ctx).networkInspectorLabelSentBody,
-              value: HttpRequestEntry.formatBytes(
-                e.requestBytes,
-              ),
+              value: HttpRequestEntry.formatBytes(e.requestBytes),
             ),
             _DetailRow(
-              label: AppLocalizations.of(ctx)
-                  .networkInspectorLabelReceivedBody,
-              value: HttpRequestEntry.formatBytes(
-                e.responseBytes,
-              ),
+              label: AppLocalizations.of(ctx).networkInspectorLabelReceivedBody,
+              value: HttpRequestEntry.formatBytes(e.responseBytes),
             ),
             const SizedBox(height: AppSpacing.xl),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 icon: const Icon(Icons.copy),
-                label: Text(
-                  AppLocalizations.of(context).devLogsCopyEntry,
-                ),
+                label: Text(AppLocalizations.of(context).devLogsCopyEntry),
                 onPressed: () async {
-                  await setClipboardTextSafely(
-                    e.toFormattedString(),
-                  );
+                  await setClipboardTextSafely(e.toFormattedString());
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
                           AppLocalizations.of(
@@ -546,11 +496,7 @@ class _RequestRow extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.label,
-    required this.color,
-    required this.width,
-  });
+  const _Badge({required this.label, required this.color, required this.width});
 
   final String label;
   final Color color;
@@ -567,17 +513,15 @@ class _Badge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: AppOpacity.subtle),
         borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(
-          color: color.withValues(alpha: AppOpacity.medium),
-        ),
+        border: Border.all(color: color.withValues(alpha: AppOpacity.medium)),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'monospace',
-            ),
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'monospace',
+        ),
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
       ),
@@ -594,9 +538,7 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
         children: [
           SizedBox(

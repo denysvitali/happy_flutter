@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
-import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_colors.dart';

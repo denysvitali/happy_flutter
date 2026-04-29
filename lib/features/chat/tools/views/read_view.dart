@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
-import '../../../../core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 
+import '../../../../core/utils/clipboard_utils.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Read tool file content preview.
 class ReadView extends StatelessWidget {
-
   const ReadView({
     required this.tool,
     super.key,
     this.metadata,
     this.sessionId,
   });
+
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
@@ -60,10 +59,12 @@ class ReadView extends StatelessWidget {
         content = result;
         totalLines = content.split('\n').length;
       } else if (result is Map<String, dynamic>) {
-        content = result['content'] as String? ??
+        content =
+            result['content'] as String? ??
             result['text'] as String? ??
             result['body'] as String?;
-        totalLines = result['totalLines'] as int? ??
+        totalLines =
+            result['totalLines'] as int? ??
             result['numLines'] as int? ??
             (content?.split('\n').length ?? 0);
       }
@@ -91,7 +92,6 @@ class ReadView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _ReadViewContent extends StatefulWidget {
-
   const _ReadViewContent({
     required this.resolvedPath,
     required this.extension,
@@ -134,9 +134,7 @@ class _ReadViewContentState extends State<_ReadViewContent> {
           onTap: widget.sessionId != null
               ? () => context.pushNamed(
                   'session-file',
-                  pathParameters: {
-                    'sessionId': widget.sessionId!,
-                  },
+                  pathParameters: {'sessionId': widget.sessionId!},
                   extra: {'path': widget.resolvedPath},
                 )
               : null,
@@ -170,8 +168,7 @@ class _ReadViewContentState extends State<_ReadViewContent> {
             offset: widget.offset,
             expanded: _expanded,
             maxLines: _defaultMaxLines,
-            onToggleExpand: () =>
-                setState(() => _expanded = !_expanded),
+            onToggleExpand: () => setState(() => _expanded = !_expanded),
             extension: widget.extension,
           ),
         ],
@@ -219,7 +216,6 @@ class _ReadSectionLabel extends StatelessWidget {
 }
 
 class _FileHeader extends StatelessWidget {
-
   const _FileHeader({
     required this.resolvedPath,
     required this.extension,
@@ -255,9 +251,7 @@ class _FileHeader extends StatelessWidget {
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(
-                bottom: BorderSide(color: c.border),
-              ),
+              border: Border(bottom: BorderSide(color: c.border)),
             ),
             child: Row(
               children: [
@@ -275,8 +269,7 @@ class _FileHeader extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (content != null)
-                  _CopyButton(text: content!, iconSize: 13),
+                if (content != null) _CopyButton(text: content!, iconSize: 13),
               ],
             ),
           ),
@@ -305,8 +298,7 @@ class _FileHeader extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: c.chipBg,
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.xxxs),
+                      borderRadius: BorderRadius.circular(AppRadius.xxxs),
                       border: Border.all(color: c.chipBorder),
                     ),
                     child: Text(
@@ -330,7 +322,6 @@ class _FileHeader extends StatelessWidget {
 }
 
 class _FileIcon extends StatelessWidget {
-
   const _FileIcon({required this.extension});
   final String extension;
 
@@ -423,7 +414,6 @@ class _FileIcon extends StatelessWidget {
 }
 
 class _MetaRow extends StatelessWidget {
-
   const _MetaRow({this.offset, this.limit, this.totalLines});
   final int? offset;
   final int? limit;
@@ -456,15 +446,11 @@ class _MetaRow extends StatelessWidget {
       }
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: chips,
-    );
+    return Row(mainAxisSize: MainAxisSize.min, children: chips);
   }
 }
 
 class _MetaChip extends StatelessWidget {
-
   const _MetaChip(this.label);
   final String label;
 
@@ -495,7 +481,6 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _ContentBlock extends StatelessWidget {
-
   const _ContentBlock({
     required this.content,
     required this.offset,
@@ -540,10 +525,7 @@ class _ContentBlock extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Line numbers column
-                _LineNumbers(
-                  count: visibleLines.length,
-                  startLine: startLine,
-                ),
+                _LineNumbers(count: visibleLines.length, startLine: startLine),
                 const SizedBox(width: AppSpacing.md),
                 // Content column with syntax highlighting
                 Expanded(
@@ -574,7 +556,6 @@ class _ContentBlock extends StatelessWidget {
 }
 
 class _LineNumbers extends StatelessWidget {
-
   const _LineNumbers({required this.count, required this.startLine});
   final int count;
   final int startLine;
@@ -602,7 +583,6 @@ class _LineNumbers extends StatelessWidget {
 }
 
 class _ShowMoreButton extends StatelessWidget {
-
   const _ShowMoreButton({
     required this.expanded,
     required this.hiddenCount,
@@ -642,7 +622,7 @@ class _ShowMoreButton extends StatelessWidget {
               expanded
                   ? 'Show less'
                   : 'Show $hiddenCount more line'
-                      '${hiddenCount == 1 ? '' : 's'}',
+                        '${hiddenCount == 1 ? '' : 's'}',
               style: TextStyle(
                 fontSize: AppFontSize.xs,
                 color: c.mutedText,
@@ -657,7 +637,6 @@ class _ShowMoreButton extends StatelessWidget {
 }
 
 class _CopyButton extends StatefulWidget {
-
   const _CopyButton({required this.text, this.iconSize = 14});
   final String text;
   final double iconSize;

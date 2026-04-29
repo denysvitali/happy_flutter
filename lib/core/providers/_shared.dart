@@ -2,11 +2,11 @@
 /// "parameter not provided" from an explicit [null] value.
 ///
 /// Use [identical] for comparison — never `==`.
-final class _Unset {
-  const _Unset();
+final class Unset {
+  const Unset();
 }
 
-const _Unset unset = _Unset();
+const Unset unset = Unset();
 
 bool mapEquals<K, V>(Map<K, V> a, Map<K, V> b) {
   if (identical(a, b)) return true;

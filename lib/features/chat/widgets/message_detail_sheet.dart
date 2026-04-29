@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/utils/wire_parsers.dart';
 
 // ---------------------------------------------------------------------------
@@ -21,14 +21,13 @@ void showMessageDetailSheet(
 
   // meta may be directly on the message or inside the 'raw' decrypted record.
   final raw = WireParsers.asMap(messageData['raw']);
-  final meta = WireParsers.asMap(messageData['meta'])
-      ?? WireParsers.asMap(raw?['meta']);
+  final meta =
+      WireParsers.asMap(messageData['meta']) ?? WireParsers.asMap(raw?['meta']);
   // Prefer the per-message model reported by Claude Code
   // (messageData['model'], parsed from the assistant payload) over the
   // session-level meta.model, which is a user-supplied label and can be
   // stale or unrelated to the actual inference model.
-  final model = messageData['model'] as String?
-      ?? meta?['model'] as String?;
+  final model = messageData['model'] as String? ?? meta?['model'] as String?;
   final permissionMode = meta?['permissionMode'] as String?;
   final createdAt = messageData['createdAt'] as int?;
 
@@ -41,9 +40,7 @@ void showMessageDetailSheet(
     context: context,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     builder: (ctx) => SafeArea(
       child: Padding(
@@ -139,9 +136,7 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
     useSafeArea: true,
     backgroundColor: cs.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadius.lg),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
     ),
     builder: (ctx) => DraggableScrollableSheet(
       initialChildSize: 0.55,
@@ -152,9 +147,7 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
         children: [
           // Header row
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Row(
               children: [
                 Expanded(
@@ -168,6 +161,7 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
                 TextButton.icon(
                   onPressed: () async {
                     await setClipboardTextSafely(markdown);
+                    if (!ctx.mounted || !context.mounted) return;
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -182,9 +176,7 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
               ],
             ),
           ),
-          Divider(
-            color: cs.outlineVariant.withValues(alpha: 0.3),
-          ),
+          Divider(color: cs.outlineVariant.withValues(alpha: 0.3)),
           // Selectable content
           Expanded(
             child: ListView(
@@ -272,11 +264,7 @@ class _MessageInfoRow extends StatelessWidget {
 
 /// A two-column label/value row used in detail sheets.
 class DetailRow extends StatelessWidget {
-  const DetailRow({
-    required this.label,
-    required this.value,
-    super.key,
-  });
+  const DetailRow({required this.label, required this.value, super.key});
 
   final String label;
   final String value;

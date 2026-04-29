@@ -2,13 +2,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/utils/clipboard_utils.dart';
-
 import '../../core/components/settings_section.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/clipboard_utils.dart';
 
 /// Debug screen for testing and inspecting push notification configuration.
 class NotificationTestScreen extends ConsumerStatefulWidget {
@@ -91,17 +90,15 @@ class _NotificationTestScreenState
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Permission: ${settings.authorizationStatus.name}',
-            ),
+            content: Text('Permission: ${settings.authorizationStatus.name}'),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -117,15 +114,15 @@ class _NotificationTestScreenState
           _fcmToken = token;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Token refreshed')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Token refreshed')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -133,9 +130,10 @@ class _NotificationTestScreenState
   Future<void> _copyToken(String? token) async {
     if (token == null) return;
     await setClipboardTextSafely(token);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Token copied')),
-    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Token copied')));
   }
 
   static String _truncateToken(String token) {
@@ -239,11 +237,7 @@ class _NotificationTestScreenState
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.token,
-                          size: 18,
-                          color: cs.onSurfaceVariant,
-                        ),
+                        Icon(Icons.token, size: 18, color: cs.onSurfaceVariant),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
@@ -264,8 +258,7 @@ class _NotificationTestScreenState
                       padding: const EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
                         color: cs.surfaceContainerHighest,
-                        borderRadius:
-                            BorderRadius.circular(AppRadius.sm),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Text(
                         _fcmToken != null
@@ -326,9 +319,7 @@ class _NotificationTestScreenState
                     ..info('APNS Token: $_apnsToken')
                     ..info('Auth status: ${_authStatus?.name}');
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Token info logged'),
-                    ),
+                    const SnackBar(content: Text('Token info logged')),
                   );
                 },
               ),
@@ -347,13 +338,10 @@ class _NotificationTestScreenState
                       '${sync.isInitialized ? 'Yes' : 'No'}',
                     );
 
-                  await setClipboardTextSafely(
-                    buffer.toString(),
-                  );
+                  await setClipboardTextSafely(buffer.toString());
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Notification info copied'),
-                    ),
+                    const SnackBar(content: Text('Notification info copied')),
                   );
                 },
               ),
@@ -443,8 +431,7 @@ class _ActionRow extends StatelessWidget {
       trailing: Icon(
         Icons.chevron_right,
         size: AppSpacing.xl,
-        color: cs.onSurface
-            .withValues(alpha: AppOpacity.medium),
+        color: cs.onSurface.withValues(alpha: AppOpacity.medium),
       ),
     );
   }
