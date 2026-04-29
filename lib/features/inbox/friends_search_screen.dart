@@ -13,19 +13,16 @@ class FriendsSearchScreen extends StatefulWidget {
   const FriendsSearchScreen({super.key});
 
   @override
-  State<FriendsSearchScreen> createState() =>
-      _FriendsSearchScreenState();
+  State<FriendsSearchScreen> createState() => _FriendsSearchScreenState();
 }
 
-class _FriendsSearchScreenState
-    extends State<FriendsSearchScreen> {
+class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
   final SocialService _socialService = SocialService();
-  final TextEditingController _controller =
-      TextEditingController();
+  final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
   bool _isSearching = false;
-  bool _isMutating = false;
+  final Set<String> _mutatingUserIds = {};
   bool _hasSearched = false;
   List<UserProfile> _results = const <UserProfile>[];
 
@@ -55,44 +52,36 @@ class _FriendsSearchScreenState
       return;
     }
 
-    final searchFailedMsg =
-        context.l10n.friendsSearchFailed;
+    final searchFailedMsg = context.l10n.friendsSearchFailed;
     setState(() => _isSearching = true);
     try {
-      final results =
-          await _socialService.searchUsers(query);
+      final results = await _socialService.searchUsers(query);
       if (!mounted) return;
       setState(() {
         _results = results;
         _hasSearched = true;
       });
     } catch (error, st) {
-      logger.warning(
-        '[FriendsSearchScreen] _search failed: $error',
-        error,
-        st,
-      );
+      logger.warning('[FriendsSearchScreen] _search failed: $error', error, st);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(searchFailedMsg)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(searchFailedMsg)));
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
   }
 
   Future<void> _sendRequest(String userId) async {
-    final requestSentMsg =
-        context.l10n.friendsRequestSent;
-    final actionFailedMsg =
-        context.l10n.friendsActionFailed;
-    setState(() => _isMutating = true);
+    final requestSentMsg = context.l10n.friendsRequestSent;
+    final actionFailedMsg = context.l10n.friendsActionFailed;
+    setState(() => _mutatingUserIds.add(userId));
     try {
       await _socialService.addFriend(userId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(requestSentMsg)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(requestSentMsg)));
       await _search();
     } catch (error, st) {
       logger.warning(
@@ -101,11 +90,11 @@ class _FriendsSearchScreenState
         st,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(actionFailedMsg)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(actionFailedMsg)));
     } finally {
-      if (mounted) setState(() => _isMutating = false);
+      if (mounted) setState(() => _mutatingUserIds.remove(userId));
     }
   }
 
@@ -145,60 +134,43 @@ class _FriendsSearchScreenState
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _isSearching
                     ? const Padding(
-                        padding: EdgeInsets.all(
-                          AppSpacing.md,
-                        ),
+                        padding: EdgeInsets.all(AppSpacing.md),
                         child: SizedBox(
                           width: AppSpacing.xl,
                           height: AppSpacing.xl,
-                          child:
-                              CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       )
                     : _controller.text.isNotEmpty
-                        ? IconButton(
-                            onPressed: () {
-                              _controller.clear();
-                              setState(() {
-                                _results = const <
-                                    UserProfile>[];
-                                _hasSearched = false;
-                              });
-                            },
-                            icon: const Icon(
-                              Icons.clear,
-                            ),
-                          )
-                        : null,
+                    ? IconButton(
+                        onPressed: () {
+                          _controller.clear();
+                          setState(() {
+                            _results = const <UserProfile>[];
+                            _hasSearched = false;
+                          });
+                        },
+                        icon: const Icon(Icons.clear),
+                      )
+                    : null,
                 filled: true,
-                fillColor:
-                    cs.surfaceContainerHighest
-                        .withValues(alpha: 0.5),
+                fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.pill,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   borderSide: BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.pill,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.pill,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   borderSide: BorderSide(
                     color: cs.primary,
                     width: AppBorder.thick,
                   ),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
                   vertical: AppSpacing.md,
                 ),
@@ -206,19 +178,13 @@ class _FriendsSearchScreenState
             ),
           ),
           // Results
-          Expanded(
-            child: _buildResults(theme, cs, l10n),
-          ),
+          Expanded(child: _buildResults(theme, cs, l10n)),
         ],
       ),
     );
   }
 
-  Widget _buildResults(
-    ThemeData theme,
-    ColorScheme cs,
-    AppLocalizations l10n,
-  ) {
+  Widget _buildResults(ThemeData theme, ColorScheme cs, AppLocalizations l10n) {
     // Empty state: never searched yet
     if (!_hasSearched && _results.isEmpty) {
       return AppEmptyState(
@@ -251,7 +217,7 @@ class _FriendsSearchScreenState
           key: ValueKey(user.id),
           user: user,
           l10n: l10n,
-          isMutating: _isMutating,
+          isMutating: _mutatingUserIds.contains(user.id),
           onAdd: () => _sendRequest(user.id),
         );
       },
@@ -281,18 +247,14 @@ class _SearchResultTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isFriend =
-        user.status == RelationshipStatus.friend;
+    final isFriend = user.status == RelationshipStatus.friend;
     final isPending = user.status.isPending;
     final name = user.name ?? user.id;
 
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppTappable(
-        borderRadius:
-            BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
@@ -300,13 +262,8 @@ class _SearchResultTile extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius:
-                BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(
-                alpha: 0.4,
-              ),
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
           ),
           child: Row(
             children: [
@@ -319,56 +276,39 @@ class _SearchResultTile extends StatelessWidget {
               // Name + status
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       name,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(
-                      height: AppSpacing.xsm,
-                    ),
+                    const SizedBox(height: AppSpacing.xsm),
                     Row(
                       children: [
                         if (isFriend)
-                          Icon(
-                            Icons.check_circle,
-                            size: 14,
-                            color: cs.primary,
-                          ),
+                          Icon(Icons.check_circle, size: 14, color: cs.primary),
                         if (isPending)
                           Icon(
                             Icons.schedule,
                             size: 14,
-                            color:
-                                cs.onSurfaceVariant,
+                            color: cs.onSurfaceVariant,
                           ),
                         if (isFriend || isPending)
-                          const SizedBox(
-                            width: AppSpacing.xs,
-                          ),
+                          const SizedBox(width: AppSpacing.xs),
                         Flexible(
                           child: Text(
-                            _statusLabel(
-                              user.status,
-                            ),
-                            style: theme
-                                .textTheme.bodySmall
-                                ?.copyWith(
+                            _statusLabel(user.status),
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: isFriend
                                   ? cs.primary
-                                  : cs
-                                      .onSurfaceVariant,
+                                  : cs.onSurfaceVariant,
                             ),
                             maxLines: 1,
-                            overflow:
-                                TextOverflow.ellipsis,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -381,28 +321,18 @@ class _SearchResultTile extends StatelessWidget {
               if (isFriend)
                 FilledButton.tonal(
                   onPressed: null,
-                  child: Text(
-                    l10n.friendsStatusFriends,
-                  ),
+                  child: Text(l10n.friendsStatusFriends),
                 )
               else if (isPending)
                 FilledButton.tonal(
                   onPressed: null,
-                  child: Text(
-                    l10n.friendsStatusPending,
-                  ),
+                  child: Text(l10n.friendsStatusPending),
                 )
               else
                 FilledButton.icon(
-                  onPressed:
-                      isMutating ? null : onAdd,
-                  icon: const Icon(
-                    Icons.person_add_alt_1,
-                    size: 18,
-                  ),
-                  label: Text(
-                    l10n.friendsAddFriendAction,
-                  ),
+                  onPressed: isMutating ? null : onAdd,
+                  icon: const Icon(Icons.person_add_alt_1, size: 18),
+                  label: Text(l10n.friendsAddFriendAction),
                 ),
             ],
           ),

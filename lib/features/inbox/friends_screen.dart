@@ -22,15 +22,14 @@ class FriendsScreen extends ConsumerStatefulWidget {
   const FriendsScreen({super.key});
 
   @override
-  ConsumerState<FriendsScreen> createState() =>
-      _FriendsScreenState();
+  ConsumerState<FriendsScreen> createState() => _FriendsScreenState();
 }
 
 class _FriendsScreenState extends ConsumerState<FriendsScreen>
     with SingleTickerProviderStateMixin {
   final SocialService _socialService = SocialService();
-  bool _isBusy = false;
   bool _isLoading = true;
+  final Set<String> _busyIds = {};
   late final TabController _tabController;
 
   @override
@@ -50,42 +49,36 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
   }
 
   Future<void> _refresh() async {
-    await ref
-        .read(friendsNotifierProvider.notifier)
-        .refreshFromSync();
+    await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
   }
 
   Future<void> _runAction(
+    String itemId,
     Future<void> Function() action,
     String successMsg,
   ) async {
-    setState(() => _isBusy = true);
+    setState(() => _busyIds.add(itemId));
     try {
       await action();
       await _refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMsg)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMsg)));
     } catch (error, st) {
-      logger.warning(
-        '[FriendsScreen] _runAction failed: $error',
-        error,
-        st,
-      );
+      logger.warning('[FriendsScreen] _runAction failed: $error', error, st);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.friendsActionFailed),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.friendsActionFailed)));
     } finally {
-      if (mounted) setState(() => _isBusy = false);
+      if (mounted) setState(() => _busyIds.remove(itemId));
     }
   }
 
   Future<void> _accept(FriendRequest request) async {
     await _runAction(
+      request.fromUserId,
       () => _socialService.addFriend(request.fromUserId),
       context.l10n.friendsRequestAccepted,
     );
@@ -93,8 +86,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
 
   Future<void> _reject(FriendRequest request) async {
     await _runAction(
-      () =>
-          _socialService.removeFriend(request.fromUserId),
+      request.fromUserId,
+      () => _socialService.removeFriend(request.fromUserId),
       context.l10n.friendsRequestRejected,
     );
   }
@@ -104,11 +97,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(ctx.l10n.friendsRemoveTitle),
-        content: Text(
-          ctx.l10n.friendsRemoveConfirm(
-            friend.name ?? friend.id,
-          ),
-        ),
+        content: Text(ctx.l10n.friendsRemoveConfirm(friend.name ?? friend.id)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -123,6 +112,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
     );
     if (confirmed != true || !mounted) return;
     await _runAction(
+      friend.id,
       () => _socialService.removeFriend(friend.id),
       context.l10n.friendsRemoved,
     );
@@ -143,8 +133,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
           tabs: [
             Tab(
               child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(l10n.friendsTabFriends),
                   if (friends.isNotEmpty) ...[
@@ -156,8 +145,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
             ),
             Tab(
               child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(l10n.friendsTabRequests),
                   if (incoming.isNotEmpty) ...[
@@ -177,13 +165,13 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
               children: [
                 _FriendsTab(
                   friends: friends,
-                  isBusy: _isBusy,
+                  busyIds: _busyIds,
                   onRemove: _removeFriend,
                   onRefresh: _refresh,
                 ),
                 _RequestsTab(
                   requests: incoming,
-                  isBusy: _isBusy,
+                  busyIds: _busyIds,
                   onAccept: _accept,
                   onReject: _reject,
                   onRefresh: _refresh,
@@ -206,13 +194,13 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
 class _FriendsTab extends StatelessWidget {
   const _FriendsTab({
     required this.friends,
-    required this.isBusy,
+    required this.busyIds,
     required this.onRemove,
     required this.onRefresh,
   });
 
   final List<UserProfile> friends;
-  final bool isBusy;
+  final Set<String> busyIds;
   final void Function(UserProfile) onRemove;
   final Future<void> Function() onRefresh;
 
@@ -230,15 +218,11 @@ class _FriendsTab extends StatelessWidget {
             AppEmptyState(
               icon: Icons.people_outline,
               title: context.l10n.friendsEmptyTitle,
-              subtitle:
-                  context.l10n.friendsEmptySubtitle,
+              subtitle: context.l10n.friendsEmptySubtitle,
               action: FilledButton.icon(
-                onPressed: () =>
-                    context.push('/friends/search'),
+                onPressed: () => context.push('/friends/search'),
                 icon: const Icon(Icons.person_search),
-                label: Text(
-                  context.l10n.friendsAddFriend,
-                ),
+                label: Text(context.l10n.friendsAddFriend),
               ),
             ),
           ],
@@ -261,7 +245,7 @@ class _FriendsTab extends StatelessWidget {
           return _FriendTile(
             key: ValueKey(friend.id),
             friend: friend,
-            isBusy: isBusy,
+            isBusy: busyIds.contains(friend.id),
             onRemove: () => onRemove(friend),
           );
         },
@@ -287,9 +271,9 @@ class _FriendTile extends StatelessWidget {
     final name = friend.name ?? friend.id;
 
     return _FriendListCard(
-      leading: _AvatarWithStatus(
-        userId: friend.id,
-        avatarUrl: friend.avatarUrl,
+      leading: Avatar(
+        id: friend.id,
+        imageUrl: friend.avatarUrl,
         size: AppTouchTarget.comfortable,
       ),
       title: name,
@@ -314,14 +298,14 @@ class _FriendTile extends StatelessWidget {
 class _RequestsTab extends StatelessWidget {
   const _RequestsTab({
     required this.requests,
-    required this.isBusy,
+    required this.busyIds,
     required this.onAccept,
     required this.onReject,
     required this.onRefresh,
   });
 
   final List<FriendRequest> requests;
-  final bool isBusy;
+  final Set<String> busyIds;
   final void Function(FriendRequest) onAccept;
   final void Function(FriendRequest) onReject;
   final Future<void> Function() onRefresh;
@@ -362,7 +346,7 @@ class _RequestsTab extends StatelessWidget {
           return _RequestTile(
             key: ValueKey(req.id),
             request: req,
-            isBusy: isBusy,
+            isBusy: busyIds.contains(req.fromUserId),
             onAccept: () => onAccept(req),
             onReject: () => onReject(req),
           );
@@ -399,16 +383,13 @@ class _RequestTile extends StatelessWidget {
       title: request.fromUserName,
       subtitleWidget: Row(
         children: [
-          AppStatusDot(
-            color: AppColors.warning,
-            size: AppSpacing.xsm,
-          ),
+          AppStatusDot(color: AppColors.warning, size: AppSpacing.xsm),
           const SizedBox(width: AppSpacing.xs),
           Text(
             l10n.friendsWantsToConnect,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -417,10 +398,7 @@ class _RequestTile extends StatelessWidget {
         children: [
           IconButton.outlined(
             onPressed: isBusy ? null : onReject,
-            icon: const Icon(
-              Icons.close,
-              size: AppSpacing.xl,
-            ),
+            icon: const Icon(Icons.close, size: AppSpacing.xl),
             tooltip: l10n.friendsReject,
             style: IconButton.styleFrom(
               side: BorderSide(
@@ -431,10 +409,7 @@ class _RequestTile extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           IconButton.filled(
             onPressed: isBusy ? null : onAccept,
-            icon: const Icon(
-              Icons.check,
-              size: AppSpacing.xl,
-            ),
+            icon: const Icon(Icons.check, size: AppSpacing.xl),
             tooltip: l10n.friendsAccept,
           ),
         ],
@@ -474,9 +449,7 @@ class _FriendListCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: cs.surface,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.4),
-            ),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
           ),
           child: Row(
             children: [
@@ -520,61 +493,6 @@ class _FriendListCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────
-// Avatar with online/offline status dot
-// ─────────────────────────────────────────────────────
-
-class _AvatarWithStatus extends StatelessWidget {
-  const _AvatarWithStatus({
-    required this.userId,
-    required this.size,
-    this.avatarUrl,
-  });
-
-  final String userId;
-  final String? avatarUrl;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final dotSize = size * 0.26;
-    final borderWidth = size * 0.06;
-
-    return SizedBox(
-      width: size + dotSize / 2,
-      height: size + dotSize / 2,
-      child: Stack(
-        children: [
-          Avatar(
-            id: userId,
-            size: size,
-            imageUrl: avatarUrl,
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              width: dotSize,
-              height: dotSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: cs.onSurfaceVariant.withValues(
-                  alpha: 0.4,
-                ),
-                border: Border.all(
-                  color: cs.surface,
-                  width: borderWidth,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────
 
@@ -591,13 +509,10 @@ class _CountBadge extends StatelessWidget {
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxs,
       ),
-      constraints: const BoxConstraints(
-        minWidth: AppSpacing.xl,
-      ),
+      constraints: const BoxConstraints(minWidth: AppSpacing.xl),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
-        borderRadius:
-            BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
         '$count',
@@ -632,22 +547,16 @@ class _FriendsLoadingShimmer extends StatelessWidget {
         itemCount: 5,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.sm,
-            ),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.md,
               ),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(
-                  AppRadius.md,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(
-                    alpha: 0.3,
-                  ),
+                  color: cs.outlineVariant.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -660,39 +569,26 @@ class _FriendsLoadingShimmer extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(
-                    width: AppSpacing.md,
-                  ),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           height: 14,
-                          width: 100.0 +
-                              (index * 20.0) % 60,
+                          width: 100.0 + (index * 20.0) % 60,
                           decoration: BoxDecoration(
                             color: color,
-                            borderRadius:
-                                BorderRadius.circular(
-                              AppRadius.xs,
-                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                           ),
                         ),
-                        const SizedBox(
-                          height: AppSpacing.xs,
-                        ),
+                        const SizedBox(height: AppSpacing.xs),
                         Container(
                           height: 12,
-                          width: 150.0 +
-                              (index * 15.0) % 50,
+                          width: 150.0 + (index * 15.0) % 50,
                           decoration: BoxDecoration(
                             color: color,
-                            borderRadius:
-                                BorderRadius.circular(
-                              AppRadius.xs,
-                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
                           ),
                         ),
                       ],

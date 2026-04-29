@@ -192,42 +192,65 @@ class EnvVarsSection extends StatelessWidget {
           final row = entry.value;
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: row.nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: l10n.profilesEnvKeyLabel,
-                      hintText: l10n.profilesEnvKeyHint,
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.smd,
-                      ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final useStackedLayout = constraints.maxWidth < 420;
+                final keyField = TextFormField(
+                  controller: row.nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: l10n.profilesEnvKeyLabel,
+                    hintText: l10n.profilesEnvKeyHint,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.smd,
                     ),
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.md,
-                    ),
-                    maxLines: 2,
-                    minLines: 1,
-                    textCapitalization: TextCapitalization.characters,
-                    onChanged: (_) => onChanged(),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(flex: 3, child: ValueField(row: row)),
-                IconButton(
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: AppFontSize.md,
+                  ),
+                  maxLines: 2,
+                  minLines: 1,
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: (_) => onChanged(),
+                );
+                final removeButton = IconButton(
                   icon: Icon(
                     Icons.remove_circle_outline,
                     color: colorScheme.error,
                   ),
                   onPressed: () => onRemove(i),
-                ),
-              ],
+                );
+
+                if (useStackedLayout) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: keyField),
+                          const SizedBox(width: AppSpacing.xs),
+                          removeButton,
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ValueField(row: row),
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 2, child: keyField),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(flex: 3, child: ValueField(row: row)),
+                    removeButton,
+                  ],
+                );
+              },
             ),
           );
         }),
@@ -341,15 +364,15 @@ class ValueField extends StatefulWidget {
 }
 
 class _ValueFieldState extends State<ValueField> {
-  bool _obscure = false;
+  bool _obscure = true;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: widget.row.valueCtrl,
       obscureText: _obscure,
-      maxLines: 3,
-      minLines: 2,
+      maxLines: _obscure ? 1 : 3,
+      minLines: _obscure ? 1 : 2,
       decoration: InputDecoration(
         labelText: AppLocalizations.of(context).profilesEnvValueLabel,
         border: const OutlineInputBorder(),

@@ -46,8 +46,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -68,8 +67,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -81,8 +79,9 @@ void main() {
       expect(find.byIcon(Icons.developer_mode), findsOneWidget);
     });
 
-    testWidgets('shows disabled description when developer mode is off',
-        (tester) async {
+    testWidgets('shows disabled description when developer mode is off', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -91,8 +90,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -100,14 +98,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Disabled'),
-        findsOneWidget,
-      );
+      expect(find.text('Disabled'), findsOneWidget);
     });
 
-    testWidgets('hides debug tools when developer mode is off',
-        (tester) async {
+    testWidgets('hides debug tools when developer mode is off', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -116,8 +110,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -129,8 +122,7 @@ void main() {
       expect(find.text('Logs'), findsNothing);
     });
 
-    testWidgets('shows debug tools when developer mode is on',
-        (tester) async {
+    testWidgets('shows debug tools when developer mode is on', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -139,8 +131,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -155,8 +146,9 @@ void main() {
       expect(find.text('Session Debug'), findsOneWidget);
     });
 
-    testWidgets('shows enabled description when developer mode is on',
-        (tester) async {
+    testWidgets('shows enabled description when developer mode is on', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -165,8 +157,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -174,14 +165,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Enabled - Debug tools are visible'),
-        findsOneWidget,
-      );
+      expect(find.text('Enabled - Debug tools are visible'), findsOneWidget);
     });
 
-    testWidgets('shows testing section when developer mode is on',
-        (tester) async {
+    testWidgets('shows testing section when developer mode is on', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -190,8 +179,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -202,8 +190,7 @@ void main() {
       expect(find.text('Test Notifications'), findsOneWidget);
     });
 
-    testWidgets('shows cache and storage section when developer mode is on',
-        (tester) async {
+    testWidgets('unhandled Sentry test requires confirmation', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -212,8 +199,66 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const DeveloperScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Test Sentry (Unhandled)'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Test Sentry (Unhandled)'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Throw an unhandled error'), findsWidgets);
+    });
+
+    testWidgets('unhandled Sentry test is separated as danger', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const DeveloperScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Test Sentry (Unhandled)'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('DANGER ZONE'), findsOneWidget);
+    });
+
+    testWidgets('shows cache and storage section when developer mode is on', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsNotifierProvider.overrideWith(
+              () => _StorageFreeSettingsNotifier(_devModeSettings()),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -233,8 +278,9 @@ void main() {
       expect(find.text('Reset Settings'), findsOneWidget);
     });
 
-    testWidgets('shows build info section when developer mode is on',
-        (tester) async {
+    testWidgets('shows build info section when developer mode is on', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -243,8 +289,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -267,8 +312,9 @@ void main() {
       expect(find.text('3.38.7'), findsOneWidget);
     });
 
-    testWidgets('toggling developer mode on reveals debug tools',
-        (tester) async {
+    testWidgets('toggling developer mode on reveals debug tools', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -277,8 +323,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -302,8 +347,9 @@ void main() {
       expect(find.text('Network Inspector'), findsOneWidget);
     });
 
-    testWidgets('debug tools section shows network inspector icon',
-        (tester) async {
+    testWidgets('debug tools section shows network inspector icon', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -312,8 +358,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -337,8 +382,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),
@@ -367,8 +411,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const DeveloperScreen(),
           ),

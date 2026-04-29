@@ -56,15 +56,14 @@ class _AppTappableState extends State<AppTappable> {
   bool _pressed = false;
 
   void _handleTap() {
+    if (widget.onTap == null) return;
     if (widget.haptic) HapticFeedback.lightImpact();
-    widget.onTap?.call();
+    widget.onTap!();
   }
 
   @override
   Widget build(BuildContext context) {
-    final radius =
-        widget.borderRadius ??
-        BorderRadius.circular(AppRadius.sm);
+    final radius = widget.borderRadius ?? BorderRadius.circular(AppRadius.sm);
 
     final isIOS = !kIsWeb && Platform.isIOS;
 
@@ -76,23 +75,37 @@ class _AppTappableState extends State<AppTappable> {
           minWidth: AppTouchTarget.min,
           minHeight: AppTouchTarget.min,
         ),
-        child: GestureDetector(
-          onTap: widget.onTap == null ? null : _handleTap,
-          onTapDown: widget.onTap == null
-              ? null
-              : (_) => setState(() => _pressed = true),
-          onTapUp: widget.onTap == null
-              ? null
-              : (_) =>
-                  setState(() => _pressed = false),
-          onTapCancel: widget.onTap == null
-              ? null
-              : () => setState(() => _pressed = false),
-          child: AnimatedScale(
-            scale: _pressed ? 0.97 : 1.0,
-            duration: AppDuration.fast,
-            curve: Curves.easeInOut,
-            child: widget.child,
+        child: FocusableActionDetector(
+          enabled: widget.onTap != null,
+          mouseCursor: widget.onTap == null
+              ? MouseCursor.defer
+              : SystemMouseCursors.click,
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                _handleTap();
+                return null;
+              },
+            ),
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap == null ? null : _handleTap,
+            onTapDown: widget.onTap == null
+                ? null
+                : (_) => setState(() => _pressed = true),
+            onTapUp: widget.onTap == null
+                ? null
+                : (_) => setState(() => _pressed = false),
+            onTapCancel: widget.onTap == null
+                ? null
+                : () => setState(() => _pressed = false),
+            child: AnimatedScale(
+              scale: _pressed ? 0.97 : 1.0,
+              duration: AppDuration.fast,
+              curve: Curves.easeInOut,
+              child: widget.child,
+            ),
           ),
         ),
       );
@@ -100,30 +113,26 @@ class _AppTappableState extends State<AppTappable> {
       result = InkWell(
         onTap: widget.onTap == null ? null : _handleTap,
         borderRadius: radius,
-        splashColor: Theme.of(context)
-            .colorScheme
-            .primary
-            .withValues(alpha: 0.08),
-        highlightColor: Theme.of(context)
-            .colorScheme
-            .primary
-            .withValues(alpha: 0.04),
+        splashColor: Theme.of(
+          context,
+        ).colorScheme.primary.withValues(alpha: 0.08),
+        highlightColor: Theme.of(
+          context,
+        ).colorScheme.primary.withValues(alpha: 0.04),
         splashFactory: InkRipple.splashFactory,
         child: widget.child,
       );
     }
 
     if (widget.tooltip != null) {
-      result = Tooltip(
-        message: widget.tooltip!,
-        child: result,
-      );
+      result = Tooltip(message: widget.tooltip!, child: result);
     }
 
-    if (widget.semanticLabel != null) {
+    if (widget.semanticLabel != null || widget.onTap != null) {
       result = Semantics(
         label: widget.semanticLabel,
-        button: true,
+        button: widget.onTap != null,
+        enabled: widget.onTap != null,
         child: result,
       );
     }

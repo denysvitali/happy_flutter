@@ -9,32 +9,34 @@ void main() {
 
   Widget buildApp({required Widget child}) {
     return MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: child));
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: child),
+    );
   }
 
   group('AppStatusDot', () {
     testWidgets('renders with required color', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(color: Colors.green),
-      ));
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green)),
+      );
 
       expect(find.byType(AppStatusDot), findsOneWidget);
     });
 
-    testWidgets('renders Container with correct default size',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(color: Colors.red),
-      ));
+    testWidgets('renders Container with correct default size', (tester) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.red)),
+      );
 
       // Without pulse, renders a Container directly with width/height.
       final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(AppStatusDot),
-          matching: find.byType(Container),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(AppStatusDot),
+              matching: find.byType(Container),
+            )
+            .first,
       );
 
       final box = container.decoration as BoxDecoration;
@@ -43,18 +45,19 @@ void main() {
 
     testWidgets('renders with custom size', (tester) async {
       const customSize = 12.0;
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.blue,
-          size: customSize,
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppStatusDot(color: Colors.blue, size: customSize),
         ),
-      ));
+      );
 
       final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(AppStatusDot),
-          matching: find.byType(Container),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(AppStatusDot),
+              matching: find.byType(Container),
+            )
+            .first,
       );
 
       // The Container uses explicit width/height, not constraints.
@@ -63,17 +66,18 @@ void main() {
       expect(box.color, Colors.blue);
     });
 
-    testWidgets('renders dot with BoxDecoration circle shape',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(color: Colors.green),
-      ));
+    testWidgets('renders dot with BoxDecoration circle shape', (tester) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green)),
+      );
 
       final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(AppStatusDot),
-          matching: find.byType(Container),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(AppStatusDot),
+              matching: find.byType(Container),
+            )
+            .first,
       );
 
       final decoration = container.decoration as BoxDecoration;
@@ -82,15 +86,17 @@ void main() {
     });
 
     testWidgets('non-pulsing dot has box shadow', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(color: Colors.green),
-      ));
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green)),
+      );
 
       final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(AppStatusDot),
-          matching: find.byType(Container),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(AppStatusDot),
+              matching: find.byType(Container),
+            )
+            .first,
       );
 
       final decoration = container.decoration as BoxDecoration;
@@ -99,12 +105,9 @@ void main() {
     });
 
     testWidgets('pulse=true shows AnimatedBuilder', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: true,
-        ),
-      ));
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: true)),
+      );
 
       expect(
         find.descendant(
@@ -115,14 +118,38 @@ void main() {
       );
     });
 
-    testWidgets('pulse=false does not use Stack',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: false,
+    testWidgets('pulse uses static dot when accessible navigation is enabled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(accessibleNavigation: true),
+          child: buildApp(
+            child: const AppStatusDot(color: Colors.green, pulse: true),
+          ),
         ),
-      ));
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(AppStatusDot),
+          matching: find.byType(AnimatedBuilder),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(AppStatusDot),
+          matching: find.byType(Stack),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('pulse=false does not use Stack', (tester) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: false)),
+      );
 
       expect(
         find.descendant(
@@ -134,12 +161,9 @@ void main() {
     });
 
     testWidgets('pulse=true uses Stack layout', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: true,
-        ),
-      ));
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: true)),
+      );
 
       expect(
         find.descendant(
@@ -152,28 +176,28 @@ void main() {
 
     testWidgets('applies margin when provided', (tester) async {
       const margin = EdgeInsets.all(8);
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          margin: margin,
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppStatusDot(color: Colors.green, margin: margin),
         ),
-      ));
+      );
 
       final padding = tester.widget<Padding>(
-        find.descendant(
-          of: find.byType(AppStatusDot),
-          matching: find.byType(Padding),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(AppStatusDot),
+              matching: find.byType(Padding),
+            )
+            .first,
       );
 
       expect(padding.padding, equals(margin));
     });
 
-    testWidgets('no margin Padding widget when margin is null',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(color: Colors.green),
-      ));
+    testWidgets('no margin Padding widget when margin is null', (tester) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green)),
+      );
 
       // When margin is null the build method does NOT wrap in Padding.
       // Verify the root element is not a Padding with AppStatusDot's margin.
@@ -182,14 +206,17 @@ void main() {
       expect(widget.margin, isNull);
     });
 
-    testWidgets('wraps in Semantics when semanticLabel provided',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          semanticLabel: 'Online',
+    testWidgets('wraps in Semantics when semanticLabel provided', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppStatusDot(
+            color: Colors.green,
+            semanticLabel: 'Online',
+          ),
         ),
-      ));
+      );
 
       final semantics = tester.widget<Semantics>(
         find.descendant(
@@ -201,11 +228,10 @@ void main() {
       expect(semantics.properties.label, 'Online');
     });
 
-    testWidgets('no Semantics when semanticLabel is null',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(color: Colors.green),
-      ));
+    testWidgets('no Semantics when semanticLabel is null', (tester) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green)),
+      );
 
       expect(
         find.descendant(
@@ -216,14 +242,12 @@ void main() {
       );
     });
 
-    testWidgets('updating pulse from false to true starts animation',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: false,
-        ),
-      ));
+    testWidgets('updating pulse from false to true starts animation', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: false)),
+      );
 
       expect(
         find.descendant(
@@ -234,12 +258,9 @@ void main() {
       );
 
       // Update to pulsing.
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: true,
-        ),
-      ));
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: true)),
+      );
 
       expect(
         find.descendant(
@@ -250,14 +271,12 @@ void main() {
       );
     });
 
-    testWidgets('updating pulse from true to false stops animation',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: true,
-        ),
-      ));
+    testWidgets('updating pulse from true to false stops animation', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: true)),
+      );
 
       expect(
         find.descendant(
@@ -268,12 +287,9 @@ void main() {
       );
 
       // Update to non-pulsing.
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: false,
-        ),
-      ));
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: false)),
+      );
 
       expect(
         find.descendant(
@@ -287,13 +303,15 @@ void main() {
     testWidgets('pulseColor overrides pulse ring color', (tester) async {
       // This is a visual property; we verify the widget builds without
       // error when pulseColor is provided.
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: true,
-          pulseColor: Colors.yellow,
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppStatusDot(
+            color: Colors.green,
+            pulse: true,
+            pulseColor: Colors.yellow,
+          ),
         ),
-      ));
+      );
 
       expect(find.byType(AppStatusDot), findsOneWidget);
       expect(
@@ -305,31 +323,23 @@ void main() {
       );
     });
 
-    testWidgets('disposes animation controller properly',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: true,
-        ),
-      ));
+    testWidgets('disposes animation controller properly', (tester) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: true)),
+      );
 
       // Replace with different widget to trigger dispose.
-      await tester.pumpWidget(buildApp(
-        child: const Text('Replaced'),
-      ));
+      await tester.pumpWidget(buildApp(child: const Text('Replaced')));
 
       expect(find.text('Replaced'), findsOneWidget);
     });
 
-    testWidgets('pulse dot has two Container children in Stack',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppStatusDot(
-          color: Colors.green,
-          pulse: true,
-        ),
-      ));
+    testWidgets('pulse dot has two Container children in Stack', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildApp(child: const AppStatusDot(color: Colors.green, pulse: true)),
+      );
 
       // The Stack should contain a pulsing ring and a static dot.
       final stack = tester.widget<Stack>(

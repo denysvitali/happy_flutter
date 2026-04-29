@@ -43,8 +43,7 @@ class AppCard extends StatefulWidget {
   /// Defaults to true. Has no effect when [onTap] is null.
   final bool haptic;
 
-  static const _radius =
-      BorderRadius.all(Radius.circular(AppRadius.lg));
+  static const _radius = BorderRadius.all(Radius.circular(AppRadius.lg));
 
   @override
   State<AppCard> createState() => _AppCardState();
@@ -111,11 +110,16 @@ class _AppCardState extends State<AppCard> {
 
     if (widget.onTap == null) return card;
 
-    return AnimatedScale(
-      scale: _pressed ? 0.98 : 1.0,
-      duration: AppDuration.fast,
-      curve: AppCurve.standard,
-      child: card,
+    return Semantics(
+      button: true,
+      enabled: true,
+      container: true,
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1.0,
+        duration: AppDuration.fast,
+        curve: AppCurve.standard,
+        child: card,
+      ),
     );
   }
 }

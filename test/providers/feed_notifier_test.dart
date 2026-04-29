@@ -35,6 +35,8 @@ void main() {
       expect(state.items, isEmpty);
       expect(state.notifications, isEmpty);
       expect(state.unreadCount, 0);
+      expect(state.isLoading, isFalse);
+      expect(state.errorMessage, isNull);
     });
 
     test('should load from sync when uninitialized', () {
@@ -61,9 +63,24 @@ void main() {
       final notifier = container.read(feedNotifierProvider.notifier);
 
       final items = [
-        createTestFeedItem(id: 'item-1', userId: 'user-1', text: 'Test 1', read: false),
-        createTestFeedItem(id: 'item-2', userId: 'user-2', text: 'Test 2', read: false),
-        createTestFeedItem(id: 'item-3', userId: 'user-3', text: 'Test 3', read: true),
+        createTestFeedItem(
+          id: 'item-1',
+          userId: 'user-1',
+          text: 'Test 1',
+          read: false,
+        ),
+        createTestFeedItem(
+          id: 'item-2',
+          userId: 'user-2',
+          text: 'Test 2',
+          read: false,
+        ),
+        createTestFeedItem(
+          id: 'item-3',
+          userId: 'user-3',
+          text: 'Test 3',
+          read: true,
+        ),
       ];
 
       // Set items via state copy
@@ -112,11 +129,36 @@ void main() {
       final notifier = container.read(feedNotifierProvider.notifier);
 
       final items = [
-        createTestFeedItem(id: 'item-1', userId: 'user-1', text: 'Test 1', read: false),
-        createTestFeedItem(id: 'item-2', userId: 'user-2', text: 'Test 2', read: false),
-        createTestFeedItem(id: 'item-3', userId: 'user-3', text: 'Test 3', read: false),
-        createTestFeedItem(id: 'item-4', userId: 'user-4', text: 'Test 4', read: true),
-        createTestFeedItem(id: 'item-5', userId: 'user-5', text: 'Test 5', read: true),
+        createTestFeedItem(
+          id: 'item-1',
+          userId: 'user-1',
+          text: 'Test 1',
+          read: false,
+        ),
+        createTestFeedItem(
+          id: 'item-2',
+          userId: 'user-2',
+          text: 'Test 2',
+          read: false,
+        ),
+        createTestFeedItem(
+          id: 'item-3',
+          userId: 'user-3',
+          text: 'Test 3',
+          read: false,
+        ),
+        createTestFeedItem(
+          id: 'item-4',
+          userId: 'user-4',
+          text: 'Test 4',
+          read: true,
+        ),
+        createTestFeedItem(
+          id: 'item-5',
+          userId: 'user-5',
+          text: 'Test 5',
+          read: true,
+        ),
       ];
 
       notifier.state = FeedState(items: items);
@@ -127,8 +169,14 @@ void main() {
 
     test('should handle different feed body kinds', () {
       final textBody = FeedBody(kind: 'text', text: 'Hello world');
-      final friendRequestBody = FeedBody(kind: 'friend_request', uid: 'user-123');
-      final friendAcceptedBody = FeedBody(kind: 'friend_accepted', uid: 'user-456');
+      final friendRequestBody = FeedBody(
+        kind: 'friend_request',
+        uid: 'user-123',
+      );
+      final friendAcceptedBody = FeedBody(
+        kind: 'friend_accepted',
+        uid: 'user-456',
+      );
 
       expect(textBody.kind, 'text');
       expect(textBody.text, 'Hello world');
@@ -166,7 +214,12 @@ void main() {
     });
 
     test('should copy feed item correctly', () {
-      final original = createTestFeedItem(id: 'item-1', userId: 'user-1', text: 'Original', read: false);
+      final original = createTestFeedItem(
+        id: 'item-1',
+        userId: 'user-1',
+        text: 'Original',
+        read: false,
+      );
       final copy = original.copyWith(read: true);
 
       expect(original.read, isFalse);
@@ -188,7 +241,9 @@ void main() {
     test('should handle feed state copyWith', () {
       final original = FeedState();
       final withItems = original.copyWith(
-        items: [createTestFeedItem(id: 'item-1', userId: 'user-1', text: 'Test')],
+        items: [
+          createTestFeedItem(id: 'item-1', userId: 'user-1', text: 'Test'),
+        ],
       );
 
       expect(original.items, isEmpty);
@@ -206,6 +261,22 @@ void main() {
       );
 
       expect(withNotifications.notifications, hasLength(1));
+    });
+
+    test('should preserve and clear feed load metadata', () {
+      final state = FeedState(isLoading: true, errorMessage: 'failed');
+
+      final updated = state.copyWith(
+        items: [
+          createTestFeedItem(id: 'item-1', userId: 'user-1', text: 'Test'),
+        ],
+      );
+      expect(updated.isLoading, isTrue);
+      expect(updated.errorMessage, 'failed');
+
+      final cleared = updated.copyWith(isLoading: false, clearError: true);
+      expect(cleared.isLoading, isFalse);
+      expect(cleared.errorMessage, isNull);
     });
 
     test('should calculate unread notifications correctly', () {
@@ -256,7 +327,10 @@ void main() {
 
       expect(NotificationType.fromString('info'), NotificationType.info);
       expect(NotificationType.fromString('success'), NotificationType.success);
-      expect(NotificationType.fromString('unknown'), NotificationType.info); // default fallback
+      expect(
+        NotificationType.fromString('unknown'),
+        NotificationType.info,
+      ); // default fallback
     });
 
     test('should handle notification read status', () {
@@ -289,10 +363,7 @@ void main() {
         data: {'key': 'value'},
       );
 
-      final copy = original.copyWith(
-        title: 'Updated',
-        readAt: 1234567895,
-      );
+      final copy = original.copyWith(title: 'Updated', readAt: 1234567895);
 
       expect(original.title, 'Original');
       expect(copy.title, 'Updated');

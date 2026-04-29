@@ -29,48 +29,55 @@ class ModelChip extends StatelessWidget {
         ? cs.onSurfaceVariant.withValues(alpha: 0.5)
         : cs.primary.withValues(alpha: 0.6);
 
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isDefault
-              ? cs.onSurface.withValues(alpha: 0.05)
-              : cs.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              model.isCodex
-                  ? Icons.psychology_alt_outlined
-                  : model == ChatModelMode.opus
-                  ? Icons.diamond_outlined
-                  : model == ChatModelMode.sonnet
-                  ? Icons.auto_awesome_outlined
-                  : Icons.smart_toy_outlined,
-              size: 11,
-              color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
-            ),
-            const SizedBox(width: 3),
-            Text(
-              model.label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: AppFontSize.xs,
-                color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            if (enabled) ...[
-              const SizedBox(width: 1),
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: 'Model: ${model.label}',
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: isDefault
+                ? cs.onSurface.withValues(alpha: 0.05)
+                : cs.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 12,
-                color: chevronColor,
+                model.isCodex
+                    ? Icons.psychology_alt_outlined
+                    : model == ChatModelMode.opus
+                    ? Icons.diamond_outlined
+                    : model == ChatModelMode.sonnet
+                    ? Icons.auto_awesome_outlined
+                    : Icons.smart_toy_outlined,
+                size: 11,
+                color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
               ),
+              const SizedBox(width: 3),
+              Text(
+                model.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: AppFontSize.xs,
+                  color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (enabled) ...[
+                const SizedBox(width: 1),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 12,
+                  color: chevronColor,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -93,47 +100,53 @@ class ProfileChip extends StatelessWidget {
     final label =
         profile?.name ?? AppLocalizations.of(context).chatInputProfileDefault;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isDefault
-              ? cs.onSurface.withValues(alpha: 0.05)
-              : cs.tertiary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.swap_horiz_rounded,
-              size: 11,
-              color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-            ),
-            const SizedBox(width: 3),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 80),
-              child: Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: AppFontSize.xs,
-                  color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+    return Semantics(
+      button: true,
+      label: 'Profile: $label',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: isDefault
+                ? cs.onSurface.withValues(alpha: 0.05)
+                : cs.tertiary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.swap_horiz_rounded,
+                size: 11,
+                color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
               ),
-            ),
-            const SizedBox(width: 1),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 12,
-              color: isDefault
-                  ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-                  : cs.tertiary.withValues(alpha: 0.6),
-            ),
-          ],
+              const SizedBox(width: 3),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 80),
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: AppFontSize.xs,
+                    color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 1),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 12,
+                color: isDefault
+                    ? cs.onSurfaceVariant.withValues(alpha: 0.5)
+                    : cs.tertiary.withValues(alpha: 0.6),
+              ),
+            ],
+          ),
         ),
       ),
     );

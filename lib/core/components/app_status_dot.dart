@@ -53,6 +53,7 @@ class _AppStatusDotState extends State<AppStatusDot>
   late AnimationController _controller;
   late Animation<double> _opacity;
   late Animation<double> _scale;
+  bool _reduceMotion = false;
 
   @override
   void initState() {
@@ -61,24 +62,37 @@ class _AppStatusDotState extends State<AppStatusDot>
       duration: const Duration(milliseconds: 1500), // 1.5s pulse loop
       vsync: this,
     );
-    _opacity = Tween<double>(begin: 1.0, end: 0.2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    _scale = Tween<double>(begin: 1.0, end: 1.6).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    if (widget.pulse) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller.value = 0.0;
-    }
+    _opacity = Tween<double>(
+      begin: 1.0,
+      end: 0.2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 1.6,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _syncAnimation();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final mediaQuery = MediaQuery.maybeOf(context);
+    final reduceMotion =
+        mediaQuery?.disableAnimations == true ||
+        mediaQuery?.accessibleNavigation == true;
+    if (_reduceMotion == reduceMotion) return;
+    _reduceMotion = reduceMotion;
+    _syncAnimation();
   }
 
   @override
   void didUpdateWidget(AppStatusDot oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.pulse == widget.pulse) return;
-    if (widget.pulse) {
+    if (oldWidget.pulse != widget.pulse) _syncAnimation();
+  }
+
+  void _syncAnimation() {
+    if (widget.pulse && !_reduceMotion) {
       _controller.repeat(reverse: true);
     } else {
       _controller
@@ -96,15 +110,16 @@ class _AppStatusDotState extends State<AppStatusDot>
   @override
   Widget build(BuildContext context) {
     Widget dot;
-    if (!widget.pulse) {
+    if (!widget.pulse || _reduceMotion) {
       dot = _buildDot();
     } else {
       dot = AnimatedBuilder(
         animation: _controller,
         child: _buildStaticDot(),
         builder: (context, child) {
-          final ringColor = (widget.pulseColor ?? widget.color)
-              .withValues(alpha: _opacity.value * 0.4);
+          final ringColor = (widget.pulseColor ?? widget.color).withValues(
+            alpha: _opacity.value * 0.4,
+          );
           return SizedBox(
             width: widget.size * 2.4,
             height: widget.size * 2.4,
@@ -132,10 +147,7 @@ class _AppStatusDotState extends State<AppStatusDot>
       );
     }
     if (widget.semanticLabel != null) {
-      dot = Semantics(
-        label: widget.semanticLabel,
-        child: dot,
-      );
+      dot = Semantics(label: widget.semanticLabel, child: dot);
     }
     if (widget.margin != null) {
       return Padding(padding: widget.margin!, child: dot);
@@ -165,10 +177,7 @@ class _AppStatusDotState extends State<AppStatusDot>
     return Container(
       width: widget.size,
       height: widget.size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: widget.color,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: widget.color),
     );
   }
 }

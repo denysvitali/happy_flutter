@@ -713,7 +713,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (isReady) {
       chips.add(
         const ChatAppBarStatusChip(
-          text: '',
+          text: 'Online',
           color: AppColors.success,
           showDot: true,
           pulse: true,
@@ -955,6 +955,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               selectedProfile: _selectedProfile,
               availableProfiles: _availableProfiles,
               onProfileChanged: _onProfileChanged,
+              machineName: _session?.metadata?.host,
+              currentPath: _session?.metadata?.path,
               contextSize:
                   sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
               isSessionOnline: _session?.isPresenceOnline ?? false,

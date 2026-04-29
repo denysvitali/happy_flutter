@@ -17,17 +17,17 @@ void main() {
     });
 
     test('returns pixelated for "pixelated"', () {
-      expect(
-        parseAvatarStyle('pixelated'),
-        AvatarStyle.pixelated,
-      );
+      expect(parseAvatarStyle('pixelated'), AvatarStyle.pixelated);
     });
 
     test('returns brutalist for "brutalist"', () {
-      expect(
-        parseAvatarStyle('brutalist'),
-        AvatarStyle.brutalist,
-      );
+      expect(parseAvatarStyle('brutalist'), AvatarStyle.brutalist);
+    });
+
+    test('returns colorful generated styles', () {
+      expect(parseAvatarStyle('neon'), AvatarStyle.neon);
+      expect(parseAvatarStyle('bloom'), AvatarStyle.bloom);
+      expect(parseAvatarStyle('prism'), AvatarStyle.prism);
     });
 
     test('returns null for unknown style', () {
@@ -89,8 +89,7 @@ void main() {
   // ─── ActiveSessionCard ──────────────────────────────────
 
   group('ActiveSessionCard', () {
-    testWidgets('renders session name from path',
-        (tester) async {
+    testWidgets('renders session name from path', (tester) async {
       final session = _session(
         id: 'test-1',
         path: '/home/user/myproject',
@@ -99,8 +98,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ActiveSessionCard(
               session: session,
@@ -125,13 +124,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: ActiveSessionCard(
-              session: session,
-              showFlavorIcon: true,
-            ),
+            body: ActiveSessionCard(session: session, showFlavorIcon: true),
           ),
         ),
       );
@@ -151,8 +147,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ActiveSessionCard(
               session: session,
@@ -167,8 +163,7 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('renders draft badge when draft exists',
-        (tester) async {
+    testWidgets('renders draft badge when draft exists', (tester) async {
       final session = _session(
         id: 'test-4',
         path: '/project',
@@ -178,25 +173,18 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: ActiveSessionCard(
-              session: session,
-              showFlavorIcon: true,
-            ),
+            body: ActiveSessionCard(session: session, showFlavorIcon: true),
           ),
         ),
       );
 
-      expect(
-        find.byIcon(Icons.drive_file_rename_outline),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.drive_file_rename_outline), findsOneWidget);
     });
 
-    testWidgets('does not render draft badge when no draft',
-        (tester) async {
+    testWidgets('does not render draft badge when no draft', (tester) async {
       final session = _session(
         id: 'test-5',
         path: '/nodraft',
@@ -205,21 +193,15 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: ActiveSessionCard(
-              session: session,
-              showFlavorIcon: true,
-            ),
+            body: ActiveSessionCard(session: session, showFlavorIcon: true),
           ),
         ),
       );
 
-      expect(
-        find.byIcon(Icons.drive_file_rename_outline),
-        findsNothing,
-      );
+      expect(find.byIcon(Icons.drive_file_rename_outline), findsNothing);
     });
   });
 
@@ -236,8 +218,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionCard(
               session: session,
@@ -262,8 +244,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionCard(
               session: session,
@@ -278,8 +260,7 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('shows TodoProgressBadge when todos exist',
-        (tester) async {
+    testWidgets('shows TodoProgressBadge when todos exist', (tester) async {
       final session = _session(
         id: 'inactive-3',
         path: '/todos',
@@ -293,13 +274,10 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SessionCard(
-              session: session,
-              showFlavorIcon: false,
-            ),
+            body: SessionCard(session: session, showFlavorIcon: false),
           ),
         ),
       );
@@ -317,8 +295,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SessionCard(
               session: session,
@@ -372,9 +350,6 @@ Session _session({
     presence: presence,
     draft: draft,
     todos: todos,
-    metadata: Metadata(
-      host: host,
-      path: path,
-    ),
+    metadata: Metadata(host: host, path: path),
   );
 }

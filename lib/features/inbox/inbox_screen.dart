@@ -319,7 +319,6 @@ class _InboxScreenState extends ConsumerState<InboxScreen>
           subtitle: friend.bio ?? '@${friend.username}',
           userId: friend.id,
           avatarUrl: friend.avatarUrl,
-          showStatusDot: true,
           trailing: IconButton(
             onPressed: _isItemBusy(friend.id)
                 ? null

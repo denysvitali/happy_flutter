@@ -8,11 +8,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 /// Uses a tinted background derived from the icon colour for a modern,
 /// iOS-style grouped settings look.
 class SettingsIconContainer extends StatelessWidget {
-  const SettingsIconContainer({
-    required this.icon,
-    this.color,
-    super.key,
-  });
+  const SettingsIconContainer({required this.icon, this.color, super.key});
 
   final IconData icon;
   final Color? color;
@@ -23,8 +19,9 @@ class SettingsIconContainer extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final effectiveColor = color ?? cs.primary;
     final bgAlpha = dark
-        ? AppOpacity.subtle  // 0.12
-        : AppOpacity.faint;  // 0.08
+        ? AppOpacity
+              .subtle // 0.12
+        : AppOpacity.faint; // 0.08
 
     return Container(
       width: 36,
@@ -62,7 +59,7 @@ class SettingsRow extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return InkWell(
+    final row = InkWell(
       onTap: onTap == null
           ? null
           : () {
@@ -115,6 +112,10 @@ class SettingsRow extends StatelessWidget {
         ),
       ),
     );
+
+    if (onTap == null) return row;
+
+    return Semantics(button: true, enabled: true, container: true, child: row);
   }
 }
 
@@ -142,44 +143,58 @@ class SettingsToggleRow extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return InkWell(
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            SettingsIconContainer(icon: icon, color: iconColor),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      subtitle!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        toggled: value,
+        enabled: true,
+        container: true,
+        onTap: () => onChanged(!value),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onChanged(!value);
+          },
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
             ),
-            Switch.adaptive(value: value, onChanged: onChanged),
-          ],
+            child: Row(
+              children: [
+                SettingsIconContainer(icon: icon, color: iconColor),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          subtitle!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                ExcludeSemantics(
+                  child: Switch.adaptive(value: value, onChanged: onChanged),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -212,6 +227,7 @@ class SettingsNavRow extends StatelessWidget {
       trailing: Icon(
         Icons.chevron_right,
         size: AppSpacing.xl,
+        textDirection: Directionality.of(context),
         color: cs.onSurface.withValues(alpha: AppOpacity.medium),
       ),
     );
@@ -247,8 +263,7 @@ class SettingsSection extends StatelessWidget {
   final List<Widget> children;
 
   // Leading padding (16) + icon container width (36) + gap (12).
-  static const double _dividerIndent =
-      AppSpacing.lg + 36 + AppSpacing.md;
+  static const double _dividerIndent = AppSpacing.lg + 36 + AppSpacing.md;
 
   @override
   Widget build(BuildContext context) {
@@ -278,13 +293,10 @@ class SettingsSection extends StatelessWidget {
           ),
         Card(
           shape: RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             side: BorderSide(color: borderColor),
           ),
-          child: Column(
-            children: _intersperse(children, cs),
-          ),
+          child: Column(children: _intersperse(children, cs)),
         ),
         if (description != null)
           Padding(
@@ -304,10 +316,7 @@ class SettingsSection extends StatelessWidget {
   }
 
   /// Inserts a slim divider between children (but not before/after).
-  List<Widget> _intersperse(
-    List<Widget> items,
-    ColorScheme cs,
-  ) {
+  List<Widget> _intersperse(List<Widget> items, ColorScheme cs) {
     if (items.length <= 1) return items;
     final result = <Widget>[];
     for (var i = 0; i < items.length; i++) {

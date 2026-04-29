@@ -14,6 +14,7 @@ import 'widgets/chat_input_buttons.dart';
 import 'widgets/file_autocomplete.dart';
 import 'widgets/input_toolbar.dart';
 import 'widgets/model_mode.dart';
+import 'widgets/path_chip.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
 import 'widgets/picker_sheets.dart';
 import 'widgets/slash_commands.dart';
@@ -570,7 +571,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.machineName != null || widget.currentPath != null)
-          const SizedBox.shrink(),
+          _buildContextRow(context),
         // ListenableBuilder ensures only the autocomplete list rebuilds when
         // the selection index changes (arrow keys), not the entire ChatInput.
         ListenableBuilder(
@@ -591,6 +592,67 @@ class _ChatInputState extends ConsumerState<ChatInput>
         ),
         _buildInputContainer(context),
       ],
+    );
+  }
+
+  Widget _buildContextRow(BuildContext context) {
+    final machineName = widget.machineName;
+    final currentPath = widget.currentPath;
+    final cs = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.xs,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (machineName != null && machineName.isNotEmpty) ...[
+                _ContextChip(
+                  label: machineName,
+                  semanticsLabel: 'Machine: $machineName',
+                  icon: Icons.computer_rounded,
+                  onTap: widget.onMachinePressed,
+                ),
+                if (currentPath != null && currentPath.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 14,
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+                    ),
+                  ),
+              ],
+              if (currentPath != null && currentPath.isNotEmpty)
+                Semantics(
+                  button: widget.onPathPressed != null,
+                  label: 'Path: $currentPath',
+                  child: InkWell(
+                    onTap: widget.onPathPressed,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minHeight: AppTouchTarget.min,
+                        maxWidth: 260,
+                      ),
+                      child: Center(child: PathChip(path: currentPath)),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -827,6 +889,66 @@ class _DictationButton extends StatelessWidget {
                       size: 22,
                     ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ContextChip extends StatelessWidget {
+  const _ContextChip({
+    required this.label,
+    required this.semanticsLabel,
+    required this.icon,
+    this.onTap,
+  });
+
+  final String label;
+  final String semanticsLabel;
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Semantics(
+      button: onTap != null,
+      label: semanticsLabel,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            border: Border.all(
+              color: cs.outlineVariant.withValues(alpha: 0.35),
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 12, color: cs.onSurfaceVariant),
+              const SizedBox(width: AppSpacing.xs),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),

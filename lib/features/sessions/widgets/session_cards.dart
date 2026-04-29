@@ -25,6 +25,9 @@ AvatarStyle? parseAvatarStyle(String? style) {
     'rings' => AvatarStyle.rings,
     'constellation' => AvatarStyle.constellation,
     'wave' => AvatarStyle.wave,
+    'neon' => AvatarStyle.neon,
+    'bloom' => AvatarStyle.bloom,
+    'prism' => AvatarStyle.prism,
     _ => null,
   };
 }

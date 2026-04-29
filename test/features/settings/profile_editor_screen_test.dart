@@ -23,7 +23,22 @@ class _StorageFreeSettingsNotifier extends SettingsNotifier {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Widget buildSubject() {
+  Widget buildSubject({AIBackendProfile? existing, Size? size}) {
+    final child = ProviderScope(
+      overrides: [
+        settingsNotifierProvider.overrideWith(
+          () => _StorageFreeSettingsNotifier(),
+        ),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ProfileEditorScreen(existing: existing),
+      ),
+    );
+
+    if (size == null) return child;
+
     return ProviderScope(
       overrides: [
         settingsNotifierProvider.overrideWith(
@@ -33,7 +48,17 @@ void main() {
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: const ProfileEditorScreen(),
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: size.width,
+            height: size.height,
+            child: MediaQuery(
+              data: MediaQueryData(size: size),
+              child: ProfileEditorScreen(existing: existing),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -56,6 +81,50 @@ void main() {
         };
         expect(find.text(expectedLabel), findsOneWidget);
       }
+    });
+
+    testWidgets('obscures environment values by default', (tester) async {
+      final profile = AIBackendProfile(
+        id: 'custom_env',
+        name: 'Env test',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_AUTH_TOKEN',
+            value: 'secret-token',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(buildSubject(existing: profile));
+      await tester.pumpAndSettle();
+
+      final obscuredFields = tester.widgetList<EditableText>(
+        find.byWidgetPredicate(
+          (widget) => widget is EditableText && widget.obscureText,
+        ),
+      );
+      expect(obscuredFields, isNotEmpty);
+      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+    });
+
+    testWidgets('stacks environment fields on narrow screens', (tester) async {
+      final profile = AIBackendProfile(
+        id: 'custom_env',
+        name: 'Env test',
+        environmentVariables: [
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: 'secret-token'),
+        ],
+      );
+
+      await tester.pumpWidget(
+        buildSubject(existing: profile, size: const Size(390, 844)),
+      );
+      await tester.pumpAndSettle();
+
+      final keyTop = tester.getTopLeft(find.text('Key')).dy;
+      final valueTop = tester.getTopLeft(find.text('Value')).dy;
+
+      expect(valueTop, greaterThan(keyTop));
     });
   });
 }

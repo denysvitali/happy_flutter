@@ -12,7 +12,10 @@ class FriendsNotifier extends Notifier<FriendsState> {
   FriendsState build() => FriendsState();
 
   void loadFromSync() {
-    if (!sync.isInitialized) return;
+    if (!sync.isInitialized) {
+      state = state.copyWith(isLoading: false);
+      return;
+    }
     final counter = sync.domainChangeCounter(SyncDomain.friends);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
@@ -20,19 +23,31 @@ class FriendsNotifier extends Notifier<FriendsState> {
     final nextRequests = sync.friendRequests;
     if (listEquals(state.friends, nextFriends) &&
         listEquals(state.pendingRequests, nextRequests)) {
+      state = state.copyWith(isLoading: false, clearError: true);
       return;
     }
-    state = state.copyWith(friends: nextFriends, pendingRequests: nextRequests);
+    state = state.copyWith(
+      friends: nextFriends,
+      pendingRequests: nextRequests,
+      isLoading: false,
+      clearError: true,
+    );
   }
 
   Future<void> refreshFromSync() async {
     if (!sync.isInitialized) {
+      state = state.copyWith(isLoading: false);
       return;
     }
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       await sync.friendsSync.invalidateAndAwait();
     } catch (e, stack) {
       logger.warning('Failed to refresh friends', e, stack);
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to refresh friends',
+      );
     }
     loadFromSync();
   }
@@ -134,9 +149,16 @@ class FriendsNotifier extends Notifier<FriendsState> {
 }
 
 class FriendsState {
-  FriendsState({this.friends = const [], this.pendingRequests = const []});
+  FriendsState({
+    this.friends = const [],
+    this.pendingRequests = const [],
+    this.isLoading = false,
+    this.errorMessage,
+  });
   final List<UserProfile> friends;
   final List<FriendRequest> pendingRequests;
+  final bool isLoading;
+  final String? errorMessage;
 
   // Cached computed lists — populated lazily on first access.
   List<UserProfile>? _friendList;
@@ -145,10 +167,15 @@ class FriendsState {
   FriendsState copyWith({
     List<UserProfile>? friends,
     List<FriendRequest>? pendingRequests,
+    bool? isLoading,
+    String? errorMessage,
+    bool clearError = false,
   }) {
     return FriendsState(
         friends: friends ?? this.friends,
         pendingRequests: pendingRequests ?? this.pendingRequests,
+        isLoading: isLoading ?? this.isLoading,
+        errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
       )
       .._friendList = null
       .._incomingRequests = null;

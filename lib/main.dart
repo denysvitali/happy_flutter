@@ -196,14 +196,10 @@ Future<void> _deferredInit() async {
             .getUserCertificates();
         for (final derBytes in (certs ?? {}).values) {
           final pem = _derToPem(derBytes);
-          SecurityContext.defaultContext.setTrustedCertificatesBytes(
-            pem,
-          );
+          SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
         }
       } catch (e) {
-        logger.warning(
-          'Failed to load Android user certificates: $e',
-        );
+        logger.warning('Failed to load Android user certificates: $e');
         certsSpan
           ..status = const SpanStatus.internalError()
           ..setData('error', e.toString());
@@ -493,7 +489,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
         }
 
         return Directionality(
-          textDirection: TextDirection.ltr,
+          textDirection: _textDirectionForPlatformLocale(),
           child: CommandPaletteKeyboardHandler(
             child: Stack(
               children: [
@@ -524,5 +520,13 @@ class _HappyAppState extends ConsumerState<HappyApp>
       AppThemeMode.dark => ThemeMode.dark,
       AppThemeMode.adaptive => ThemeMode.system,
     };
+  }
+
+  TextDirection _textDirectionForPlatformLocale() {
+    final locale = WidgetsBinding.instance.platformDispatcher.locale;
+    const rtlLanguageCodes = <String>{'ar', 'fa', 'he', 'ps', 'ur'};
+    return rtlLanguageCodes.contains(locale.languageCode.toLowerCase())
+        ? TextDirection.rtl
+        : TextDirection.ltr;
   }
 }

@@ -36,6 +36,7 @@ class _AppEmptyStateState extends State<AppEmptyState>
     with SingleTickerProviderStateMixin {
   late final AnimationController _breathe;
   late final Animation<double> _scale;
+  bool _reduceMotion = false;
 
   @override
   void initState() {
@@ -43,13 +44,29 @@ class _AppEmptyStateState extends State<AppEmptyState>
     _breathe = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3000),
-    )..repeat(reverse: true);
-    _scale = Tween(begin: 1.0, end: 1.04).animate(
-      CurvedAnimation(
-        parent: _breathe,
-        curve: Curves.easeInOut,
-      ),
     );
+    _scale = Tween(
+      begin: 1.0,
+      end: 1.04,
+    ).animate(CurvedAnimation(parent: _breathe, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final mediaQuery = MediaQuery.maybeOf(context);
+    final reduceMotion =
+        mediaQuery?.disableAnimations == true ||
+        mediaQuery?.accessibleNavigation == true;
+    if (_reduceMotion == reduceMotion) return;
+    _reduceMotion = reduceMotion;
+    if (_reduceMotion) {
+      _breathe
+        ..stop()
+        ..value = 0.0;
+    } else {
+      _breathe.repeat(reverse: true);
+    }
   }
 
   @override
@@ -72,37 +89,7 @@ class _AppEmptyStateState extends State<AppEmptyState>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Breathing icon container with gradient.
-            AnimatedBuilder(
-              animation: _scale,
-              builder: (context, child) => Transform.scale(
-                scale: _scale.value,
-                child: child,
-              ),
-              child: Container(
-                width: AppSpacing.xxxl * 2,
-                height: AppSpacing.xxxl * 2,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      cs.surfaceContainerHighest,
-                      cs.surfaceContainerHighest
-                          .withValues(alpha: 0.6),
-                    ],
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Icon(
-                  widget.icon,
-                  size: AppSpacing.xxxl + AppSpacing.sm,
-                  color: cs.onSurfaceVariant
-                      .withValues(alpha: 0.7),
-                ),
-              ),
-            ),
+            _buildIconContainer(cs),
             const SizedBox(height: AppSpacing.lg),
             // Title.
             Text(
@@ -129,6 +116,38 @@ class _AppEmptyStateState extends State<AppEmptyState>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildIconContainer(ColorScheme cs) {
+    final iconContainer = Container(
+      width: AppSpacing.xxxl * 2,
+      height: AppSpacing.xxxl * 2,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            cs.surfaceContainerHighest,
+            cs.surfaceContainerHighest.withValues(alpha: 0.6),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Icon(
+        widget.icon,
+        size: AppSpacing.xxxl + AppSpacing.sm,
+        color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+      ),
+    );
+
+    if (_reduceMotion) return iconContainer;
+
+    return AnimatedBuilder(
+      animation: _scale,
+      builder: (context, child) =>
+          Transform.scale(scale: _scale.value, child: child),
+      child: iconContainer,
     );
   }
 }

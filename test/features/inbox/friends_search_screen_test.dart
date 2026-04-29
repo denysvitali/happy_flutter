@@ -30,8 +30,7 @@ class _InlineSearchScreen extends StatefulWidget {
   final bool hasSearched;
 
   @override
-  State<_InlineSearchScreen> createState() =>
-      _InlineSearchScreenState();
+  State<_InlineSearchScreen> createState() => _InlineSearchScreenState();
 }
 
 class _InlineSearchScreenState extends State<_InlineSearchScreen> {
@@ -145,15 +144,12 @@ class _ResultTile extends StatelessWidget {
       trailing: isFriend
           ? const Text('Friends')
           : isPending
-              ? const Text('Pending')
-              : ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.person_add_alt_1,
-                    size: 18,
-                  ),
-                  label: const Text('Add Friend'),
-                ),
+          ? const Text('Pending')
+          : ElevatedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.person_add_alt_1, size: 18),
+              label: const Text('Add Friend'),
+            ),
     );
   }
 }
@@ -186,14 +182,10 @@ void main() {
 
       expect(find.byType(TextField), findsOneWidget);
       expect(find.byIcon(Icons.search), findsOneWidget);
-      expect(
-        find.text('Search by username'),
-        findsOneWidget,
-      );
+      expect(find.text('Search by username'), findsOneWidget);
     });
 
-    testWidgets('shows empty state when no search performed',
-        (tester) async {
+    testWidgets('shows empty state when no search performed', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -203,31 +195,21 @@ void main() {
       );
 
       expect(find.byIcon(Icons.person_search), findsOneWidget);
-      expect(
-        find.text('Search for friends'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Search for a username to connect'),
-        findsOneWidget,
-      );
+      expect(find.text('Search for friends'), findsOneWidget);
+      expect(find.text('Search for a username to connect'), findsOneWidget);
     });
 
-    testWidgets('shows no-results state after search',
-        (tester) async {
+    testWidgets('shows no-results state after search', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: _InlineSearchScreen(hasSearched: true),
         ),
       );
 
       expect(find.byIcon(Icons.search_off), findsOneWidget);
-      expect(
-        find.text('Search for friends'),
-        findsOneWidget,
-      );
+      expect(find.text('Search for friends'), findsOneWidget);
     });
 
     testWidgets('renders search results', (tester) async {
@@ -238,12 +220,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: _InlineSearchScreen(
-            initialResults: results,
-            hasSearched: true,
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(initialResults: results, hasSearched: true),
         ),
       );
 
@@ -252,52 +231,33 @@ void main() {
       expect(find.byType(ListView), findsOneWidget);
     });
 
-    testWidgets('shows Add Friend button for non-friends',
-        (tester) async {
+    testWidgets('shows Add Friend button for non-friends', (tester) async {
       final results = [
-        const _SearchResult(
-          id: 'u1',
-          name: 'NewUser',
-          status: 'none',
-        ),
+        const _SearchResult(id: 'u1', name: 'NewUser', status: 'none'),
       ];
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: _InlineSearchScreen(
-            initialResults: results,
-            hasSearched: true,
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(initialResults: results, hasSearched: true),
         ),
       );
 
       expect(find.text('Add Friend'), findsOneWidget);
-      expect(
-        find.byIcon(Icons.person_add_alt_1),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.person_add_alt_1), findsOneWidget);
     });
 
-    testWidgets('shows Friends badge for existing friends',
-        (tester) async {
+    testWidgets('shows Friends badge for existing friends', (tester) async {
       final results = [
-        const _SearchResult(
-          id: 'u1',
-          name: 'OldFriend',
-          status: 'friend',
-        ),
+        const _SearchResult(id: 'u1', name: 'OldFriend', status: 'friend'),
       ];
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: _InlineSearchScreen(
-            initialResults: results,
-            hasSearched: true,
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(initialResults: results, hasSearched: true),
         ),
       );
 
@@ -306,24 +266,16 @@ void main() {
       expect(find.text('Add Friend'), findsNothing);
     });
 
-    testWidgets('shows Pending badge for sent requests',
-        (tester) async {
+    testWidgets('shows Pending badge for sent requests', (tester) async {
       final results = [
-        const _SearchResult(
-          id: 'u1',
-          name: 'PendingUser',
-          status: 'requested',
-        ),
+        const _SearchResult(id: 'u1', name: 'PendingUser', status: 'requested'),
       ];
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: _InlineSearchScreen(
-            initialResults: results,
-            hasSearched: true,
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(initialResults: results, hasSearched: true),
         ),
       );
 
@@ -334,31 +286,16 @@ void main() {
 
     testWidgets('renders mixed result statuses', (tester) async {
       final results = [
-        const _SearchResult(
-          id: 'u1',
-          name: 'Friend',
-          status: 'friend',
-        ),
-        const _SearchResult(
-          id: 'u2',
-          name: 'Pending',
-          status: 'requested',
-        ),
-        const _SearchResult(
-          id: 'u3',
-          name: 'Stranger',
-          status: 'none',
-        ),
+        const _SearchResult(id: 'u1', name: 'Friend', status: 'friend'),
+        const _SearchResult(id: 'u2', name: 'Pending', status: 'requested'),
+        const _SearchResult(id: 'u3', name: 'Stranger', status: 'none'),
       ];
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: _InlineSearchScreen(
-            initialResults: results,
-            hasSearched: true,
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(initialResults: results, hasSearched: true),
         ),
       );
 
@@ -368,14 +305,10 @@ void main() {
       expect(find.text('Pending'), findsNWidgets(2));
       expect(find.text('Stranger'), findsOneWidget);
       expect(find.text('Friends'), findsOneWidget);
-      expect(
-        find.text('Add Friend'),
-        findsOneWidget,
-      );
+      expect(find.text('Add Friend'), findsOneWidget);
     });
 
-    testWidgets('accepts text input in search field',
-        (tester) async {
+    testWidgets('accepts text input in search field', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -384,33 +317,23 @@ void main() {
         ),
       );
 
-      await tester.enterText(
-        find.byType(TextField),
-        'testuser',
-      );
+      await tester.enterText(find.byType(TextField), 'testuser');
       await tester.pump();
 
       expect(find.text('testuser'), findsOneWidget);
     });
 
-    testWidgets('renders multiple results in scrollable list',
-        (tester) async {
+    testWidgets('renders multiple results in scrollable list', (tester) async {
       final results = List.generate(
         20,
-        (i) => _SearchResult(
-          id: 'u$i',
-          name: 'User $i',
-        ),
+        (i) => _SearchResult(id: 'u$i', name: 'User $i'),
       );
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: _InlineSearchScreen(
-            initialResults: results,
-            hasSearched: true,
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: _InlineSearchScreen(initialResults: results, hasSearched: true),
         ),
       );
 

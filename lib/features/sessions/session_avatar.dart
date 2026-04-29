@@ -1,11 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/ui/avatars/avatar_bloom.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
 import '../../core/ui/avatars/avatar_constellation.dart';
 import '../../core/ui/avatars/avatar_geometric.dart';
 import '../../core/ui/avatars/avatar_gradient.dart';
+import '../../core/ui/avatars/avatar_neon.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
+import '../../core/ui/avatars/avatar_prism.dart';
 import '../../core/ui/avatars/avatar_rings.dart';
 import '../../core/ui/avatars/avatar_wave.dart';
 
@@ -18,6 +21,9 @@ enum AvatarStyle {
   rings,
   constellation,
   wave,
+  neon,
+  bloom,
+  prism,
 }
 
 /// AI provider flavors for flavor icon display.
@@ -99,10 +105,8 @@ class SessionAvatar extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
-        memCacheWidth:
-            (size * MediaQuery.devicePixelRatioOf(context)).toInt(),
-        memCacheHeight:
-            (size * MediaQuery.devicePixelRatioOf(context)).toInt(),
+        memCacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).toInt(),
+        memCacheHeight: (size * MediaQuery.devicePixelRatioOf(context)).toInt(),
         placeholder: (context, url) => Container(
           width: size,
           height: size,
@@ -115,19 +119,11 @@ class SessionAvatar extends StatelessWidget {
     if (showFlavorIcon && flavor != null) {
       return Stack(
         children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: avatarWidget,
-          ),
+          SizedBox(width: size, height: size, child: avatarWidget),
           Positioned(
             bottom: -2,
             right: -2,
-            child: _buildFlavorIcon(
-              effectiveFlavor,
-              circleSize,
-              iconSize,
-            ),
+            child: _buildFlavorIcon(effectiveFlavor, circleSize, iconSize),
           ),
         ],
       );
@@ -151,12 +147,13 @@ class SessionAvatar extends StatelessWidget {
       AvatarStyle.gradient => AvatarGradient(id: id, size: size),
       AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
       AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
-      AvatarStyle.geometric =>
-        AvatarGeometric(id: id, size: size),
+      AvatarStyle.geometric => AvatarGeometric(id: id, size: size),
       AvatarStyle.rings => AvatarRings(id: id, size: size),
-      AvatarStyle.constellation =>
-        AvatarConstellation(id: id, size: size),
+      AvatarStyle.constellation => AvatarConstellation(id: id, size: size),
       AvatarStyle.wave => AvatarWave(id: id, size: size),
+      AvatarStyle.neon => AvatarNeon(id: id, size: size),
+      AvatarStyle.bloom => AvatarBloom(id: id, size: size),
+      AvatarStyle.prism => AvatarPrism(id: id, size: size),
     };
     // Wrap CustomPaint-based avatars in RepaintBoundary so they are not
     // redrawn when the parent session card repaints (hover, presence, typing).
@@ -164,8 +161,10 @@ class SessionAvatar extends StatelessWidget {
       AvatarStyle.geometric ||
       AvatarStyle.rings ||
       AvatarStyle.constellation ||
-      AvatarStyle.wave =>
-        RepaintBoundary(child: rawAvatar),
+      AvatarStyle.wave ||
+      AvatarStyle.neon ||
+      AvatarStyle.bloom ||
+      AvatarStyle.prism => RepaintBoundary(child: rawAvatar),
       _ => rawAvatar,
     };
 
@@ -176,11 +175,7 @@ class SessionAvatar extends StatelessWidget {
           Positioned(
             bottom: -2,
             right: -2,
-            child: _buildFlavorIcon(
-              effectiveFlavor,
-              circleSize,
-              iconSize,
-            ),
+            child: _buildFlavorIcon(effectiveFlavor, circleSize, iconSize),
           ),
         ],
       );
@@ -214,10 +209,10 @@ class SessionAvatar extends StatelessWidget {
               iconPath,
               width: iconSize.toDouble(),
               height: iconSize.toDouble(),
-              cacheWidth:
-                  (iconSize * MediaQuery.devicePixelRatioOf(context)).round(),
-              cacheHeight:
-                  (iconSize * MediaQuery.devicePixelRatioOf(context)).round(),
+              cacheWidth: (iconSize * MediaQuery.devicePixelRatioOf(context))
+                  .round(),
+              cacheHeight: (iconSize * MediaQuery.devicePixelRatioOf(context))
+                  .round(),
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 // Fallback to icon if image fails
@@ -258,12 +253,13 @@ class SessionAvatar extends StatelessWidget {
       AvatarStyle.gradient => AvatarGradient(id: id, size: size),
       AvatarStyle.pixelated => AvatarPixelated(id: id, size: size),
       AvatarStyle.brutalist => AvatarBrutalist(id: id, size: size),
-      AvatarStyle.geometric =>
-        AvatarGeometric(id: id, size: size),
+      AvatarStyle.geometric => AvatarGeometric(id: id, size: size),
       AvatarStyle.rings => AvatarRings(id: id, size: size),
-      AvatarStyle.constellation =>
-        AvatarConstellation(id: id, size: size),
+      AvatarStyle.constellation => AvatarConstellation(id: id, size: size),
       AvatarStyle.wave => AvatarWave(id: id, size: size),
+      AvatarStyle.neon => AvatarNeon(id: id, size: size),
+      AvatarStyle.bloom => AvatarBloom(id: id, size: size),
+      AvatarStyle.prism => AvatarPrism(id: id, size: size),
     };
   }
 

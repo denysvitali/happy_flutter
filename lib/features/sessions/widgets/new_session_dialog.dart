@@ -11,6 +11,7 @@ import '../../../core/services/logger_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../new_session_screen.dart';
 
 /// New session dialog.
 class NewSessionDialog extends ConsumerStatefulWidget {
@@ -65,6 +66,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         selectedMachineObj != null &&
         (now - selectedMachineObj.activeAt >= onlineThresholdMs ||
             !selectedMachineObj.active);
+    final createBlocker = newSessionCreateBlocker(
+      machine: selectedMachineObj,
+      machineOnline: selectedMachineObj != null && !selectedMachineOffline,
+      path: _selectedPath ?? '',
+      isCreating: _isCreating,
+      connectionStatus: connectionStatus,
+      syncInitialized: sync.isInitialized,
+    );
 
     return AlertDialog(
       title: Text(l10n.newSessionTitle),
@@ -125,12 +134,16 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               ],
               onChanged: (value) {
                 setState(() {
+                  if (_selectedMachine != value) {
+                    _selectedPath = null;
+                  }
                   _selectedMachine = value;
                 });
               },
             ),
           const SizedBox(height: AppSpacing.lg),
           Autocomplete<String>(
+            key: ValueKey(_selectedMachine),
             optionsBuilder: (textEditingValue) {
               if (_selectedMachine == null) return const [];
               final sessions = ref.read(sessionsNotifierProvider);
@@ -209,14 +222,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               setState(() => _selectedAgent = selection.first);
             },
           ),
-          if (selectedMachineOffline) ...[
+          if (createBlocker != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text(
-              // TODO(i18n): add to ARB files when l10n pipeline is updated
-              'Selected machine is offline',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.error,
-              ),
+            _DialogRequirementStatus(
+              blocker: createBlocker,
+              selectedMachineOffline: selectedMachineOffline,
+            ),
+          ],
+          if (createBlocker == null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _DialogRequirementStatus(
+              blocker: null,
+              selectedMachineOffline: false,
             ),
           ],
           if (_createError != null) ...[
@@ -236,13 +253,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           child: Text(l10n.commonCancel),
         ),
         ElevatedButton(
-          onPressed:
-              !_isCreating &&
-                  (_selectedPath?.isNotEmpty ?? false) &&
-                  _selectedMachine != null &&
-                  !selectedMachineOffline &&
-                  connectionStatus == ConnectionStatus.connected &&
-                  sync.isInitialized
+          onPressed: createBlocker == null
               ? () => _createSession(context)
               : null,
           child: _isCreating
@@ -336,5 +347,71 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         _createError = e.toString().replaceFirst('Bad state: ', '');
       });
     }
+  }
+}
+
+class _DialogRequirementStatus extends StatelessWidget {
+  const _DialogRequirementStatus({
+    required this.blocker,
+    required this.selectedMachineOffline,
+  });
+
+  final NewSessionCreateBlocker? blocker;
+  final bool selectedMachineOffline;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isBlocked = blocker != null;
+    final color =
+        selectedMachineOffline ||
+            blocker == NewSessionCreateBlocker.offlineMachine
+        ? cs.error
+        : isBlocked
+        ? cs.onSurfaceVariant
+        : AppColors.success;
+    final icon = isBlocked
+        ? selectedMachineOffline ||
+                  blocker == NewSessionCreateBlocker.offlineMachine
+              ? Icons.cloud_off_rounded
+              : Icons.info_outline_rounded
+        : Icons.check_circle_outline_rounded;
+
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            _dialogRequirementText(l10n, blocker),
+            style: theme.textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _dialogRequirementText(
+  AppLocalizations l10n,
+  NewSessionCreateBlocker? blocker,
+) {
+  switch (blocker) {
+    case NewSessionCreateBlocker.missingMachine:
+      return l10n.sessionNoMachineSelected;
+    case NewSessionCreateBlocker.offlineMachine:
+      return l10n.machineOfflineUnableToSpawn;
+    case NewSessionCreateBlocker.missingPath:
+      return l10n.sessionNoPathSelected;
+    case NewSessionCreateBlocker.creating:
+      return l10n.commonCreate;
+    case NewSessionCreateBlocker.disconnected:
+      return l10n.sessionNotConnectedToServer;
+    case NewSessionCreateBlocker.syncNotReady:
+      return l10n.authConnecting;
+    case null:
+      return l10n.statusConnected('');
   }
 }

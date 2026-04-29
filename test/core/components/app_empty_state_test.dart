@@ -8,44 +8,45 @@ void main() {
 
   Widget buildApp({required Widget child}) {
     return MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: child));
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: child),
+    );
   }
 
   group('AppEmptyState', () {
     testWidgets('renders icon and title', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'No items',
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(icon: Icons.inbox, title: 'No items'),
         ),
-      ));
+      );
 
       expect(find.byIcon(Icons.inbox), findsOneWidget);
       expect(find.text('No items'), findsOneWidget);
     });
 
     testWidgets('renders subtitle when provided', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'No items',
-          subtitle: 'Try adding some',
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(
+            icon: Icons.inbox,
+            title: 'No items',
+            subtitle: 'Try adding some',
+          ),
         ),
-      ));
+      );
 
       expect(find.text('No items'), findsOneWidget);
       expect(find.text('Try adding some'), findsOneWidget);
     });
 
     testWidgets('does not render subtitle when null', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'No items',
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(icon: Icons.inbox, title: 'No items'),
         ),
-      ));
+      );
 
       expect(find.text('No items'), findsOneWidget);
       // Should only have one Text widget (the title).
@@ -53,62 +54,78 @@ void main() {
     });
 
     testWidgets('renders action widget when provided', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'No items',
-          action: ElevatedButton(
-            onPressed: null,
-            child: Text('Add Item'),
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(
+            icon: Icons.inbox,
+            title: 'No items',
+            action: ElevatedButton(onPressed: null, child: Text('Add Item')),
           ),
         ),
-      ));
+      );
 
       expect(find.text('Add Item'), findsOneWidget);
       expect(find.byType(ElevatedButton), findsOneWidget);
     });
 
     testWidgets('does not render action when null', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'No items',
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(icon: Icons.inbox, title: 'No items'),
         ),
-      ));
+      );
 
       expect(find.byType(ElevatedButton), findsNothing);
     });
 
     testWidgets('is centered in parent', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'Centered',
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(icon: Icons.inbox, title: 'Centered'),
         ),
-      ));
+      );
 
       expect(find.byType(Center), findsWidgets);
     });
 
     testWidgets('has breathing animation controller', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'Animated',
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(icon: Icons.inbox, title: 'Animated'),
         ),
-      ));
+      );
 
       // AnimatedBuilder is used for the breathing animation.
       expect(find.byType(AnimatedBuilder), findsWidgets);
     });
 
-    testWidgets('icon is inside gradient container', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'Gradient',
+    testWidgets('disables breathing animation when animations disabled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: buildApp(
+            child: const AppEmptyState(icon: Icons.inbox, title: 'Static'),
+          ),
         ),
-      ));
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(AppEmptyState),
+          matching: find.byType(AnimatedBuilder),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('icon is inside gradient container', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(icon: Icons.inbox, title: 'Gradient'),
+        ),
+      );
 
       final containers = tester.widgetList<Container>(
         find.descendant(
@@ -128,17 +145,16 @@ void main() {
     });
 
     testWidgets('renders with all optional parameters', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.search,
-          title: 'No results',
-          subtitle: 'Try a different search',
-          action: TextButton(
-            onPressed: null,
-            child: Text('Clear'),
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(
+            icon: Icons.search,
+            title: 'No results',
+            subtitle: 'Try a different search',
+            action: TextButton(onPressed: null, child: Text('Clear')),
           ),
         ),
-      ));
+      );
 
       expect(find.byIcon(Icons.search), findsOneWidget);
       expect(find.text('No results'), findsOneWidget);
@@ -146,37 +162,34 @@ void main() {
       expect(find.text('Clear'), findsOneWidget);
     });
 
-    testWidgets('disposes animation controller properly',
-        (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'Disposable',
+    testWidgets('disposes animation controller properly', (tester) async {
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(icon: Icons.inbox, title: 'Disposable'),
         ),
-      ));
+      );
 
       // Replace with different widget to trigger dispose.
-      await tester.pumpWidget(buildApp(
-        child: const Text('Replaced'),
-      ));
+      await tester.pumpWidget(buildApp(child: const Text('Replaced')));
 
       // If dispose is broken, this would throw.
       expect(find.text('Replaced'), findsOneWidget);
     });
 
     testWidgets('Column has MainAxisSize.min', (tester) async {
-      await tester.pumpWidget(buildApp(
-        child: const AppEmptyState(
-          icon: Icons.inbox,
-          title: 'Compact',
+      await tester.pumpWidget(
+        buildApp(
+          child: const AppEmptyState(icon: Icons.inbox, title: 'Compact'),
         ),
-      ));
+      );
 
       final column = tester.widget<Column>(
-        find.descendant(
-          of: find.byType(AppEmptyState),
-          matching: find.byType(Column),
-        ).first,
+        find
+            .descendant(
+              of: find.byType(AppEmptyState),
+              matching: find.byType(Column),
+            )
+            .first,
       );
 
       expect(column.mainAxisSize, MainAxisSize.min);

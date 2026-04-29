@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/models/friend.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/providers/feed_notifier.dart';
 import 'package:happy_flutter/core/providers/friends_notifier.dart';
+import 'package:happy_flutter/features/inbox/widgets/feed_card.dart';
 
 /// Stub [FriendsNotifier].
 class _StubFriendsNotifier extends FriendsNotifier {
@@ -44,10 +45,7 @@ class _StubFeedNotifier extends FeedNotifier {
 
 /// Inline reproduction of the InboxScreen _FeedCard widget.
 class _InlineFeedCard extends StatelessWidget {
-  const _InlineFeedCard({
-    required this.item,
-    this.onTap,
-  });
+  const _InlineFeedCard({required this.item, this.onTap});
 
   final FeedItem item;
   final VoidCallback? onTap;
@@ -87,9 +85,7 @@ class _InlineFeedCard extends StatelessWidget {
                   Text(
                     _bodyTitle(item.body),
                     style: TextStyle(
-                      fontWeight: isUnread
-                          ? FontWeight.w600
-                          : FontWeight.w500,
+                      fontWeight: isUnread ? FontWeight.w600 : FontWeight.w500,
                     ),
                   ),
                   if (item.body.text != null) ...[
@@ -115,12 +111,8 @@ class _InlineFeedCard extends StatelessWidget {
                   _timeAgo(item.createdAt),
                   style: TextStyle(
                     fontSize: 12,
-                    color: isUnread
-                        ? cs.primary
-                        : cs.onSurfaceVariant,
-                    fontWeight: isUnread
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+                    color: isUnread ? cs.primary : cs.onSurfaceVariant,
+                    fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
                 if (isUnread) ...[
@@ -156,8 +148,7 @@ class _InlineFeedCard extends StatelessWidget {
   }
 
   String _timeAgo(int createdAtMs) {
-    final created =
-        DateTime.fromMillisecondsSinceEpoch(createdAtMs);
+    final created = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
     final diff = DateTime.now().difference(created);
     if (diff.inMinutes < 1) return 'Now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m';
@@ -217,8 +208,7 @@ FeedItem _feedItem(
     id: id,
     userId: 'u1',
     body: FeedBody(kind: kind, text: text),
-    createdAt: createdAt ??
-        DateTime.now().millisecondsSinceEpoch,
+    createdAt: createdAt ?? DateTime.now().millisecondsSinceEpoch,
     read: read,
   );
 }
@@ -244,20 +234,35 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Feed card rendering', () {
-    testWidgets('renders text feed item', (tester) async {
-      final item = _feedItem(
-        'f1',
-        kind: 'text',
-        text: 'Hello world',
-      );
+    testWidgets('renders text feed item with generic title once', (
+      tester,
+    ) async {
+      final item = _feedItem('f1', kind: 'text', text: 'Hello world');
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFeedCard(item: item),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: FeedCard(item: item, l10n: AppLocalizations.of(context)),
+            ),
           ),
+        ),
+      );
+
+      expect(find.text('Update'), findsOneWidget);
+      expect(find.text('Hello world'), findsOneWidget);
+    });
+
+    testWidgets('renders text feed item', (tester) async {
+      final item = _feedItem('f1', kind: 'text', text: 'Hello world');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFeedCard(item: item)),
         ),
       );
 
@@ -265,8 +270,7 @@ void main() {
       expect(find.byIcon(Icons.notifications), findsOneWidget);
     });
 
-    testWidgets('renders friend_request feed item with icon',
-        (tester) async {
+    testWidgets('renders friend_request feed item with icon', (tester) async {
       final item = _feedItem(
         'f1',
         kind: 'friend_request',
@@ -275,26 +279,17 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFeedCard(item: item),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFeedCard(item: item)),
         ),
       );
 
-      expect(
-        find.text('Friend Request'),
-        findsOneWidget,
-      );
-      expect(
-        find.byIcon(Icons.person_add_alt_1),
-        findsOneWidget,
-      );
+      expect(find.text('Friend Request'), findsOneWidget);
+      expect(find.byIcon(Icons.person_add_alt_1), findsOneWidget);
     });
 
-    testWidgets('renders friend_accepted feed item',
-        (tester) async {
+    testWidgets('renders friend_accepted feed item', (tester) async {
       final item = _feedItem(
         'f1',
         kind: 'friend_accepted',
@@ -303,26 +298,17 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFeedCard(item: item),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFeedCard(item: item)),
         ),
       );
 
-      expect(
-        find.text('Friend Accepted'),
-        findsOneWidget,
-      );
-      expect(
-        find.byIcon(Icons.notifications),
-        findsOneWidget,
-      );
+      expect(find.text('Friend Accepted'), findsOneWidget);
+      expect(find.byIcon(Icons.notifications), findsOneWidget);
     });
 
-    testWidgets('shows unread indicator for unread items',
-        (tester) async {
+    testWidgets('shows unread indicator for unread items', (tester) async {
       final item = _feedItem(
         'f1',
         kind: 'text',
@@ -332,11 +318,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFeedCard(item: item),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFeedCard(item: item)),
         ),
       );
 
@@ -344,8 +328,7 @@ void main() {
       expect(find.text('Now'), findsOneWidget);
     });
 
-    testWidgets('hides unread indicator for read items',
-        (tester) async {
+    testWidgets('hides unread indicator for read items', (tester) async {
       final item = _feedItem(
         'f1',
         kind: 'text',
@@ -355,11 +338,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFeedCard(item: item),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFeedCard(item: item)),
         ),
       );
 
@@ -369,21 +350,14 @@ void main() {
 
     testWidgets('handles tap callback', (tester) async {
       var tapped = false;
-      final item = _feedItem(
-        'f1',
-        kind: 'text',
-        text: 'Tappable',
-      );
+      final item = _feedItem('f1', kind: 'text', text: 'Tappable');
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: _InlineFeedCard(
-              item: item,
-              onTap: () => tapped = true,
-            ),
+            body: _InlineFeedCard(item: item, onTap: () => tapped = true),
           ),
         ),
       );
@@ -392,15 +366,11 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('renders item with session link',
-        (tester) async {
+    testWidgets('renders item with session link', (tester) async {
       final item = FeedItem(
         id: 'f1',
         userId: 'u1',
-        body: const FeedBody(
-          kind: 'text',
-          text: 'Session update',
-        ),
+        body: const FeedBody(kind: 'text', text: 'Session update'),
         createdAt: DateTime.now().millisecondsSinceEpoch,
         read: false,
         sessionId: 'session-123',
@@ -408,22 +378,16 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFeedCard(item: item),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFeedCard(item: item)),
         ),
       );
 
-      expect(
-        find.text('Session update'),
-        findsNWidgets(2),
-      );
+      expect(find.text('Session update'), findsNWidgets(2));
     });
 
-    testWidgets('renders unknown feed kind as Update',
-        (tester) async {
+    testWidgets('renders unknown feed kind as Update', (tester) async {
       final item = _feedItem(
         'f1',
         kind: 'unknown_kind',
@@ -432,64 +396,40 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFeedCard(item: item),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFeedCard(item: item)),
         ),
       );
 
       expect(find.text('Update'), findsOneWidget);
     });
 
-    testWidgets('renders item without text body',
-        (tester) async {
-      final item = _feedItem(
-        'f1',
-        kind: 'friend_accepted',
-      );
+    testWidgets('renders item without text body', (tester) async {
+      final item = _feedItem('f1', kind: 'friend_accepted');
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFeedCard(item: item),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFeedCard(item: item)),
         ),
       );
 
-      expect(
-        find.text('Friend Accepted'),
-        findsOneWidget,
-      );
+      expect(find.text('Friend Accepted'), findsOneWidget);
     });
 
-    testWidgets('renders multiple feed items in list',
-        (tester) async {
+    testWidgets('renders multiple feed items in list', (tester) async {
       final items = [
-        _feedItem(
-          'f1',
-          kind: 'friend_request',
-          text: 'Request from A',
-        ),
-        _feedItem(
-          'f2',
-          kind: 'friend_accepted',
-          text: 'B accepted',
-        ),
-        _feedItem(
-          'f3',
-          kind: 'text',
-          text: 'Update message',
-        ),
+        _feedItem('f1', kind: 'friend_request', text: 'Request from A'),
+        _feedItem('f2', kind: 'friend_accepted', text: 'B accepted'),
+        _feedItem('f3', kind: 'text', text: 'Update message'),
       ];
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ListView(
               children: items
@@ -512,32 +452,24 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFriendRequestCard(request: req),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFriendRequestCard(request: req)),
         ),
       );
 
       expect(find.text('Charlie'), findsOneWidget);
-      expect(
-        find.text('Wants to connect'),
-        findsOneWidget,
-      );
+      expect(find.text('Wants to connect'), findsOneWidget);
     });
 
-    testWidgets('shows accept and reject buttons',
-        (tester) async {
+    testWidgets('shows accept and reject buttons', (tester) async {
       final req = _request('r1', fromName: 'Diana');
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: _InlineFriendRequestCard(request: req),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: _InlineFriendRequestCard(request: req)),
         ),
       );
 
@@ -551,8 +483,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: _InlineFriendRequestCard(
               request: req,
@@ -572,8 +504,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: _InlineFriendRequestCard(
               request: req,
@@ -587,16 +519,15 @@ void main() {
       expect(rejected, isTrue);
     });
 
-    testWidgets('buttons disabled when disabled flag is true',
-        (tester) async {
+    testWidgets('buttons disabled when disabled flag is true', (tester) async {
       var acceptCalled = false;
       var rejectCalled = false;
       final req = _request('r1', fromName: 'Grace');
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: _InlineFriendRequestCard(
               request: req,
@@ -623,15 +554,12 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: ListView(
               children: requests
-                  .map(
-                    (req) =>
-                        _InlineFriendRequestCard(request: req),
-                  )
+                  .map((req) => _InlineFriendRequestCard(request: req))
                   .toList(),
             ),
           ),
@@ -641,10 +569,7 @@ void main() {
       expect(find.text('Alice'), findsOneWidget);
       expect(find.text('Bob'), findsOneWidget);
       expect(find.text('Charlie'), findsOneWidget);
-      expect(
-        find.text('Wants to connect'),
-        findsNWidgets(3),
-      );
+      expect(find.text('Wants to connect'), findsNWidgets(3));
     });
   });
 
@@ -663,23 +588,16 @@ void main() {
 
     test('unreadCount is zero for all read', () {
       final state = FeedState(
-        items: [
-          _feedItem('1', read: true),
-          _feedItem('2', read: true),
-        ],
+        items: [_feedItem('1', read: true), _feedItem('2', read: true)],
       );
 
       expect(state.unreadCount, 0);
     });
 
     test('copyWith updates items', () {
-      final state = FeedState(
-        items: [_feedItem('1')],
-      );
+      final state = FeedState(items: [_feedItem('1')]);
 
-      final updated = state.copyWith(
-        items: [_feedItem('1'), _feedItem('2')],
-      );
+      final updated = state.copyWith(items: [_feedItem('1'), _feedItem('2')]);
 
       expect(updated.items, hasLength(2));
     });
@@ -688,12 +606,14 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           feedNotifierProvider.overrideWith(
-            () => _StubFeedNotifier(FeedState(
-              items: [
-                _feedItem('1', read: false),
-                _feedItem('2', read: false),
-              ],
-            )),
+            () => _StubFeedNotifier(
+              FeedState(
+                items: [
+                  _feedItem('1', read: false),
+                  _feedItem('2', read: false),
+                ],
+              ),
+            ),
           ),
         ],
       );

@@ -347,6 +347,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
+      expect(find.text('Online'), findsOneWidget);
       expect(find.text('Connected'), findsNothing);
     });
 
@@ -375,6 +376,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Thinking'), findsOneWidget);
+      expect(find.text('host'), findsOneWidget);
+      expect(find.text('/repo'), findsOneWidget);
     });
 
     testWidgets('shows offline and last seen chips for offline session', (
@@ -531,6 +534,36 @@ void main() {
           'state': 'pending',
           'input': {'command': 'pwd'},
           'permission': {'status': 'pending'},
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(
+          settings: Settings()..hideToolCalls = true,
+          child: const ChatScreen(sessionId: 'session_1'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Terminal'), findsOneWidget);
+    });
+
+    testWidgets('shows errored tool calls when hiding completed tools', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'msg_1',
+          'role': 'assistant',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'toolUseId': 'tool_1',
+          'state': 'error',
+          'input': {'command': 'exit 1'},
         },
       ]);
       sync.testSessions['session_1'] = _makeSession();

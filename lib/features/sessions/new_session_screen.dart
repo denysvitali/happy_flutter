@@ -27,6 +27,34 @@ List<Machine> sortMachinesForSessionCreation(Iterable<Machine> machines) {
   return sorted;
 }
 
+enum NewSessionCreateBlocker {
+  missingMachine,
+  offlineMachine,
+  missingPath,
+  creating,
+  disconnected,
+  syncNotReady,
+}
+
+NewSessionCreateBlocker? newSessionCreateBlocker({
+  required Machine? machine,
+  required bool machineOnline,
+  required String path,
+  required bool isCreating,
+  required ConnectionStatus connectionStatus,
+  required bool syncInitialized,
+}) {
+  if (machine == null) return NewSessionCreateBlocker.missingMachine;
+  if (!machineOnline) return NewSessionCreateBlocker.offlineMachine;
+  if (path.trim().isEmpty) return NewSessionCreateBlocker.missingPath;
+  if (isCreating) return NewSessionCreateBlocker.creating;
+  if (connectionStatus != ConnectionStatus.connected) {
+    return NewSessionCreateBlocker.disconnected;
+  }
+  if (!syncInitialized) return NewSessionCreateBlocker.syncNotReady;
+  return null;
+}
+
 /// Full screen for creating a new session.
 class NewSessionScreen extends ConsumerStatefulWidget {
   const NewSessionScreen({super.key});
@@ -80,12 +108,15 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     ConnectionStatus connectionStatus,
     Machine? resolvedMachine,
   ) =>
-      resolvedMachine != null &&
-      _isMachineOnline(resolvedMachine) &&
-      _pathController.text.trim().isNotEmpty &&
-      !_isCreating &&
-      connectionStatus == ConnectionStatus.connected &&
-      sync.isInitialized;
+      newSessionCreateBlocker(
+        machine: resolvedMachine,
+        machineOnline: _isMachineOnline(resolvedMachine),
+        path: _pathController.text,
+        isCreating: _isCreating,
+        connectionStatus: connectionStatus,
+        syncInitialized: sync.isInitialized,
+      ) ==
+      null;
 
   /// Resolve the currently selected profile display name.
   String _profileDisplayName() {
@@ -185,6 +216,9 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     final result = await context.pushNamed<Machine>('pick-machine');
     if (result != null) {
       setState(() {
+        if (_selectedMachine?.id != result.id) {
+          _pathController.clear();
+        }
         _selectedMachine = result;
       });
     }
@@ -273,6 +307,14 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     final selectedMachineOffline =
         resolvedSelectedMachine != null &&
         !_isMachineOnline(resolvedSelectedMachine);
+    final createBlocker = newSessionCreateBlocker(
+      machine: resolvedSelectedMachine,
+      machineOnline: _isMachineOnline(resolvedSelectedMachine),
+      path: _pathController.text,
+      isCreating: _isCreating,
+      connectionStatus: connectionStatus,
+      syncInitialized: sync.isInitialized,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -527,55 +569,11 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           ),
           const SizedBox(height: AppSpacing.xxxl),
 
-          // ── Offline machine warning ───────────────────────────────
-          if (selectedMachineOffline)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Row(
-                children: [
-                  Icon(Icons.cloud_off_rounded, size: 16, color: cs.error),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      // TODO(i18n): add to ARB when l10n pipeline is updated
-                      'Selected machine is offline',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.error,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // ── Connection status hint ────────────────────────────────
-          if (connectionStatus != ConnectionStatus.connected &&
-              connectionStatus != ConnectionStatus.error)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    connectionStatus == ConnectionStatus.connecting
-                        ? l10n.authConnecting
-                        : l10n.sidebarStatusDisconnected,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _CreateRequirementStatus(
+            blocker: createBlocker,
+            selectedMachineOffline: selectedMachineOffline,
+          ),
+          const SizedBox(height: AppSpacing.md),
 
           // ── Create button ─────────────────────────────────────────
           SizedBox(
@@ -607,6 +605,72 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
         ],
       ),
     );
+  }
+}
+
+class _CreateRequirementStatus extends StatelessWidget {
+  const _CreateRequirementStatus({
+    required this.blocker,
+    required this.selectedMachineOffline,
+  });
+
+  final NewSessionCreateBlocker? blocker;
+  final bool selectedMachineOffline;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isBlocked = blocker != null;
+    final color =
+        selectedMachineOffline ||
+            blocker == NewSessionCreateBlocker.offlineMachine
+        ? cs.error
+        : isBlocked
+        ? cs.onSurfaceVariant
+        : AppColors.success;
+    final icon = isBlocked
+        ? selectedMachineOffline ||
+                  blocker == NewSessionCreateBlocker.offlineMachine
+              ? Icons.cloud_off_rounded
+              : Icons.info_outline_rounded
+        : Icons.check_circle_outline_rounded;
+
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            _createRequirementText(l10n, blocker),
+            style: theme.textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _createRequirementText(
+  AppLocalizations l10n,
+  NewSessionCreateBlocker? blocker,
+) {
+  switch (blocker) {
+    case NewSessionCreateBlocker.missingMachine:
+      return l10n.sessionNoMachineSelected;
+    case NewSessionCreateBlocker.offlineMachine:
+      return l10n.machineOfflineUnableToSpawn;
+    case NewSessionCreateBlocker.missingPath:
+      return l10n.sessionNoPathSelected;
+    case NewSessionCreateBlocker.creating:
+      return l10n.commonCreate;
+    case NewSessionCreateBlocker.disconnected:
+      return l10n.sessionNotConnectedToServer;
+    case NewSessionCreateBlocker.syncNotReady:
+      return l10n.authConnecting;
+    case null:
+      return l10n.statusConnected('');
   }
 }
 

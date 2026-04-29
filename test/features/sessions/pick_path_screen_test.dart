@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/auth.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/routing/app_router.dart';
 import 'package:happy_flutter/features/sessions/pick_path_screen.dart';
 
 void main() {
@@ -133,6 +135,52 @@ void main() {
         find.text('/home/testuser/projects'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('route passes machineId query parameter', (tester) async {
+      final machine = Machine(
+        id: 'm1',
+        seq: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        active: true,
+        activeAt: 1,
+        metadataVersion: 1,
+        daemonStateVersion: 1,
+        metadata: MachineMetadata(
+          displayName: 'Test Machine',
+          host: 'test-host',
+          homeDir: '/home/testuser',
+          platform: 'linux',
+        ),
+      );
+      final router = createRouter(null)
+        ..go('/new/pick/path?machineId=m1');
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateNotifierProvider.overrideWith(
+              () => _StubAuthNotifier(AuthState.authenticated),
+            ),
+            machinesNotifierProvider.overrideWith(
+              () => _StubMachinesNotifier({'m1': machine}),
+            ),
+            sessionsNotifierProvider.overrideWith(
+              () => _StubSessionsNotifier({}),
+            ),
+          ],
+          child: MaterialApp.router(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            routerConfig: router,
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('/home/testuser/projects'), findsOneWidget);
     });
 
     testWidgets('shows recent paths from sessions',
@@ -268,4 +316,15 @@ class _StubSessionsNotifier extends SessionsNotifier {
 
   @override
   void loadFromSync() {}
+}
+
+class _StubAuthNotifier extends AuthStateNotifier {
+  _StubAuthNotifier(this._state);
+  final AuthState _state;
+
+  @override
+  AuthState build() => _state;
+
+  @override
+  Future<void> checkAuth() async {}
 }

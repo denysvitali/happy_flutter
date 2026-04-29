@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/api/github_api.dart';
-import '../../core/api/services_api.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/profile.dart';
@@ -100,15 +98,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: AppSpacing.lg),
           _buildVoiceSection(context, ttsEnabled: ttsEnabled, ref: ref),
           const SizedBox(height: AppSpacing.lg),
-          _buildConnectedAccountsSection(context, ref, profile),
+          _buildAccountSection(context),
           const SizedBox(height: AppSpacing.lg),
-          _buildAIProfilesSection(context),
-          const SizedBox(height: AppSpacing.lg),
-          _buildUsageSection(context),
-          const SizedBox(height: AppSpacing.lg),
-          _buildFeaturesSection(context),
-          const SizedBox(height: AppSpacing.lg),
-          _buildSmartFeaturesSection(context),
+          _buildToolsSection(context),
           const SizedBox(height: AppSpacing.lg),
           _buildSocialSection(context),
           const SizedBox(height: AppSpacing.lg),
@@ -120,8 +112,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             firstMachineSubtitle: firstMachineSubtitle,
           ),
           if (machineCount > 0) const SizedBox(height: AppSpacing.lg),
-          _buildAccountSection(context),
-          const SizedBox(height: AppSpacing.lg),
           const _ServerSection(),
           const SizedBox(height: AppSpacing.lg),
           _buildDeveloperSection(
@@ -135,99 +125,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
-    );
-  }
-
-  Widget _buildConnectedAccountsSection(
-    BuildContext context,
-    WidgetRef ref,
-    Profile? profile,
-  ) {
-    final github = profile?.github;
-    final claudeConnected =
-        profile?.connectedServices.contains('anthropic') ?? false;
-
-    final l10n = context.l10n;
-    return SettingsSection(
-      title: l10n.settingsConnectedAccounts,
-      children: [
-        SettingsNavRow(
-          icon: Icons.smart_toy_outlined,
-          title: l10n.settingsClaudeCode,
-          subtitle: claudeConnected
-              ? l10n.settingsConnected
-              : l10n.settingsNotConnected,
-          onTap: () async {
-            final claudeMsg = l10n.settingsClaudeDisconnected;
-            final failMsg = l10n.settingsFailedToDisconnect;
-            if (claudeConnected) {
-              try {
-                await ServicesApi().disconnectClaude();
-                await ref
-                    .read(profileNotifierProvider.notifier)
-                    .refreshFromSync();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(claudeMsg)));
-              } catch (error) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(failMsg(error.toString()))),
-                );
-              }
-            } else {
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(l10n.claudeConnectCliInfo),
-                  duration: const Duration(seconds: 4),
-                ),
-              );
-            }
-          },
-        ),
-        SettingsNavRow(
-          icon: Icons.code,
-          title: l10n.settingsGitHub,
-          subtitle: github != null
-              ? l10n.settingsConnectedAs(github.login)
-              : l10n.settingsNotConnected,
-          onTap: () async {
-            final githubMsg = l10n.settingsGitHubDisconnected;
-            final failMsg = l10n.settingsFailedToDisconnect;
-            final oauthFailMsg = l10n.settingsFailedToStartOAuth;
-            if (github != null) {
-              try {
-                await GitHubApi().disconnectGitHub();
-                await ref
-                    .read(profileNotifierProvider.notifier)
-                    .refreshFromSync();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(githubMsg)));
-              } catch (error) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(failMsg(error.toString()))),
-                );
-              }
-            } else {
-              try {
-                final params = await GitHubApi().getOAuthParams();
-                final uri = Uri.parse(params.url);
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              } catch (error) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(oauthFailMsg(error.toString()))),
-                );
-              }
-            }
-          },
-        ),
-      ],
     );
   }
 
@@ -337,10 +234,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildAIProfilesSection(BuildContext context) {
+  Widget _buildToolsSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return SettingsSection(
-      title: l10n.settingsProfiles,
+      title: l10n.settingsFeatures,
       children: [
         SettingsNavRow(
           icon: Icons.account_tree,
@@ -348,15 +245,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: l10n.settingsProfilesSubtitle,
           onTap: () => context.pushNamed('profiles'),
         ),
-      ],
-    );
-  }
-
-  Widget _buildUsageSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsUsage,
-      children: [
         SettingsNavRow(
           icon: Icons.analytics,
           title: l10n.settingsUsage,
@@ -375,30 +263,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: l10n.codexUsageSubtitle,
           onTap: () => context.pushNamed('codex-usage'),
         ),
-      ],
-    );
-  }
-
-  Widget _buildFeaturesSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsFeatures,
-      children: [
         SettingsNavRow(
           icon: Icons.science,
           title: l10n.settingsFeatures,
           subtitle: l10n.settingsFeaturesSubtitle,
           onTap: () => context.pushNamed('features'),
         ),
-      ],
-    );
-  }
-
-  Widget _buildSmartFeaturesSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.smartFeaturesTitle,
-      children: [
         SettingsNavRow(
           icon: Icons.auto_awesome,
           title: l10n.smartFeaturesTitle,
@@ -588,12 +458,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: l10n.settingsAccountSubtitle,
           onTap: () => context.pushNamed('account'),
         ),
-        SettingsNavRow(
-          icon: Icons.devices_outlined,
-          title: l10n.accountLinkedDevices,
-          subtitle: l10n.accountLinkedDevicesSubtitle,
-          onTap: () => context.pushNamed('devices'),
-        ),
       ],
     );
   }
@@ -636,6 +500,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     'rings' => 'Rings',
     'constellation' => 'Constellation',
     'wave' => 'Wave',
+    'neon' => 'Neon',
+    'bloom' => 'Bloom',
+    'prism' => 'Prism',
     _ => style,
   };
 
@@ -669,6 +536,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         'rings',
                         'constellation',
                         'wave',
+                        'neon',
+                        'bloom',
+                        'prism',
                       ]
                       .map(
                         (style) => RadioListTile(

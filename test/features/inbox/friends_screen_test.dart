@@ -68,8 +68,7 @@ class _InlineFriendsScreen extends ConsumerStatefulWidget {
       _InlineFriendsScreenState();
 }
 
-class _InlineFriendsScreenState
-    extends ConsumerState<_InlineFriendsScreen>
+class _InlineFriendsScreenState extends ConsumerState<_InlineFriendsScreen>
     with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   late final TabController _tabController;
@@ -79,9 +78,7 @@ class _InlineFriendsScreenState
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     Future<void>.microtask(() async {
-      await ref
-          .read(friendsNotifierProvider.notifier)
-          .refreshFromSync();
+      await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
       if (mounted) setState(() => _isLoading = false);
     });
   }
@@ -259,10 +256,7 @@ class _CountBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primary,
         borderRadius: BorderRadius.circular(4),
@@ -289,8 +283,8 @@ Widget _buildApp({required FriendsState friendsState}) {
       ),
     ],
     child: const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: _InlineFriendsScreen(),
     ),
   );
@@ -300,36 +294,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('FriendsScreen', () {
-    testWidgets('renders app bar with Friends title',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(friendsState: FriendsState()),
-      );
+    testWidgets('renders app bar with Friends title', (tester) async {
+      await tester.pumpWidget(_buildApp(friendsState: FriendsState()));
       await tester.pump();
 
       expect(find.text('Friends'), findsWidgets);
       expect(find.byType(AppBar), findsOneWidget);
     });
 
-    testWidgets('shows loading indicator initially',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(friendsState: FriendsState()),
-      );
+    testWidgets('shows loading indicator initially', (tester) async {
+      await tester.pumpWidget(_buildApp(friendsState: FriendsState()));
       // Before microtask resolves.
-      expect(
-        find.byType(CircularProgressIndicator),
-        findsOneWidget,
-      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       await tester.pumpAndSettle();
     });
 
-    testWidgets('shows two tabs: Friends and Requests',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(friendsState: FriendsState()),
-      );
+    testWidgets('shows two tabs: Friends and Requests', (tester) async {
+      await tester.pumpWidget(_buildApp(friendsState: FriendsState()));
       await tester.pump();
       await tester.pumpAndSettle();
 
@@ -338,58 +320,33 @@ void main() {
     });
 
     testWidgets('shows FAB for adding friends', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(friendsState: FriendsState()),
-      );
+      await tester.pumpWidget(_buildApp(friendsState: FriendsState()));
       await tester.pump();
       await tester.pumpAndSettle();
 
       expect(find.byType(FloatingActionButton), findsOneWidget);
-      expect(
-        find.byIcon(Icons.person_add_alt_1),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.person_add_alt_1), findsOneWidget);
     });
 
     group('Friends tab', () {
-      testWidgets('shows empty state when no friends',
-          (tester) async {
-        await tester.pumpWidget(
-          _buildApp(friendsState: FriendsState()),
-        );
+      testWidgets('shows empty state when no friends', (tester) async {
+        await tester.pumpWidget(_buildApp(friendsState: FriendsState()));
         await tester.pump();
         await tester.pumpAndSettle();
 
-        expect(
-          find.byIcon(Icons.people_outline),
-          findsOneWidget,
-        );
-        expect(
-          find.text('No Friends Yet'),
-          findsOneWidget,
-        );
+        expect(find.byIcon(Icons.people_outline), findsOneWidget);
+        expect(find.text('No Friends Yet'), findsOneWidget);
       });
 
       testWidgets('renders friend list items', (tester) async {
         final state = FriendsState(
           friends: [
-            _friend(
-              'f1',
-              name: 'Alice',
-              username: 'alice',
-              bio: 'Hello',
-            ),
-            _friend(
-              'f2',
-              name: 'Bob',
-              username: 'bob',
-            ),
+            _friend('f1', name: 'Alice', username: 'alice', bio: 'Hello'),
+            _friend('f2', name: 'Bob', username: 'bob'),
           ],
         );
 
-        await tester.pumpWidget(
-          _buildApp(friendsState: state),
-        );
+        await tester.pumpWidget(_buildApp(friendsState: state));
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -399,36 +356,20 @@ void main() {
         expect(find.text('@bob'), findsOneWidget);
       });
 
-      testWidgets('shows remove button on friend tiles',
-          (tester) async {
+      testWidgets('shows remove button on friend tiles', (tester) async {
         final state = FriendsState(
-          friends: [
-            _friend(
-              'f1',
-              name: 'Alice',
-              username: 'alice',
-            ),
-          ],
+          friends: [_friend('f1', name: 'Alice', username: 'alice')],
         );
 
-        await tester.pumpWidget(
-          _buildApp(friendsState: state),
-        );
+        await tester.pumpWidget(_buildApp(friendsState: state));
         await tester.pump();
         await tester.pumpAndSettle();
 
-        expect(
-          find.byIcon(Icons.person_remove_outlined),
-          findsOneWidget,
-        );
-        expect(
-          find.byTooltip('Remove'),
-          findsOneWidget,
-        );
+        expect(find.byIcon(Icons.person_remove_outlined), findsOneWidget);
+        expect(find.byTooltip('Remove'), findsOneWidget);
       });
 
-      testWidgets('shows count badge when friends exist',
-          (tester) async {
+      testWidgets('shows count badge when friends exist', (tester) async {
         final state = FriendsState(
           friends: [
             _friend('f1', name: 'A', username: 'a'),
@@ -437,30 +378,23 @@ void main() {
           ],
         );
 
-        await tester.pumpWidget(
-          _buildApp(friendsState: state),
-        );
+        await tester.pumpWidget(_buildApp(friendsState: state));
         await tester.pump();
         await tester.pumpAndSettle();
 
         expect(find.text('3'), findsOneWidget);
       });
 
-      testWidgets('renders multiple friends in scrollable list',
-          (tester) async {
+      testWidgets('renders multiple friends in scrollable list', (
+        tester,
+      ) async {
         final friends = List.generate(
           15,
-          (i) => _friend(
-            'f$i',
-            name: 'Friend $i',
-            username: 'friend$i',
-          ),
+          (i) => _friend('f$i', name: 'Friend $i', username: 'friend$i'),
         );
 
         await tester.pumpWidget(
-          _buildApp(
-            friendsState: FriendsState(friends: friends),
-          ),
+          _buildApp(friendsState: FriendsState(friends: friends)),
         );
         await tester.pump();
         await tester.pumpAndSettle();
@@ -471,11 +405,8 @@ void main() {
     });
 
     group('Requests tab', () {
-      testWidgets('shows empty state when no requests',
-          (tester) async {
-        await tester.pumpWidget(
-          _buildApp(friendsState: FriendsState()),
-        );
+      testWidgets('shows empty state when no requests', (tester) async {
+        await tester.pumpWidget(_buildApp(friendsState: FriendsState()));
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -483,18 +414,11 @@ void main() {
         await tester.tap(find.text('Requests'));
         await tester.pumpAndSettle();
 
-        expect(
-          find.byIcon(Icons.mark_email_read_outlined),
-          findsOneWidget,
-        );
-        expect(
-          find.text('No Incoming Requests'),
-          findsOneWidget,
-        );
+        expect(find.byIcon(Icons.mark_email_read_outlined), findsOneWidget);
+        expect(find.text('No Incoming Requests'), findsOneWidget);
       });
 
-      testWidgets('renders incoming request items',
-          (tester) async {
+      testWidgets('renders incoming request items', (tester) async {
         final state = FriendsState(
           pendingRequests: [
             _request('r1', fromName: 'Charlie'),
@@ -502,9 +426,7 @@ void main() {
           ],
         );
 
-        await tester.pumpWidget(
-          _buildApp(friendsState: state),
-        );
+        await tester.pumpWidget(_buildApp(friendsState: state));
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -514,23 +436,15 @@ void main() {
 
         expect(find.text('Charlie'), findsOneWidget);
         expect(find.text('Diana'), findsOneWidget);
-        expect(
-          find.text('Wants to connect'),
-          findsNWidgets(2),
-        );
+        expect(find.text('Wants to connect'), findsNWidgets(2));
       });
 
-      testWidgets('shows accept and reject buttons',
-          (tester) async {
+      testWidgets('shows accept and reject buttons', (tester) async {
         final state = FriendsState(
-          pendingRequests: [
-            _request('r1', fromName: 'Eve'),
-          ],
+          pendingRequests: [_request('r1', fromName: 'Eve')],
         );
 
-        await tester.pumpWidget(
-          _buildApp(friendsState: state),
-        );
+        await tester.pumpWidget(_buildApp(friendsState: state));
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -541,8 +455,7 @@ void main() {
         expect(find.byTooltip('Reject'), findsOneWidget);
       });
 
-      testWidgets('shows count badge for pending requests',
-          (tester) async {
+      testWidgets('shows count badge for pending requests', (tester) async {
         final state = FriendsState(
           pendingRequests: [
             _request('r1', fromName: 'F'),
@@ -550,9 +463,7 @@ void main() {
           ],
         );
 
-        await tester.pumpWidget(
-          _buildApp(friendsState: state),
-        );
+        await tester.pumpWidget(_buildApp(friendsState: state));
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -560,22 +471,15 @@ void main() {
         expect(find.text('2'), findsOneWidget);
       });
 
-      testWidgets('only shows pending requests, not accepted',
-          (tester) async {
+      testWidgets('only shows pending requests, not accepted', (tester) async {
         final state = FriendsState(
           pendingRequests: [
             _request('r1', fromName: 'Pending'),
-            _request(
-              'r2',
-              fromName: 'Accepted',
-              status: 'accepted',
-            ),
+            _request('r2', fromName: 'Accepted', status: 'accepted'),
           ],
         );
 
-        await tester.pumpWidget(
-          _buildApp(friendsState: state),
-        );
+        await tester.pumpWidget(_buildApp(friendsState: state));
         await tester.pump();
         await tester.pumpAndSettle();
 
@@ -589,24 +493,13 @@ void main() {
     });
 
     group('Combined data', () {
-      testWidgets('shows both friends and requests',
-          (tester) async {
+      testWidgets('shows both friends and requests', (tester) async {
         final state = FriendsState(
-          friends: [
-            _friend(
-              'f1',
-              name: 'Friend',
-              username: 'friend',
-            ),
-          ],
-          pendingRequests: [
-            _request('r1', fromName: 'Requester'),
-          ],
+          friends: [_friend('f1', name: 'Friend', username: 'friend')],
+          pendingRequests: [_request('r1', fromName: 'Requester')],
         );
 
-        await tester.pumpWidget(
-          _buildApp(friendsState: state),
-        );
+        await tester.pumpWidget(_buildApp(friendsState: state));
         await tester.pump();
         await tester.pumpAndSettle();
 

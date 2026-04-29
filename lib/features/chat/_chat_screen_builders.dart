@@ -276,6 +276,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
   }) {
     if (!hideToolCalls || message['kind'] != 'tool-call') return false;
 
+    if (message['state'] == 'error') return false;
+
     final permission = WireParsers.asMap(message['permission']);
     if (permission == null) return true;
 

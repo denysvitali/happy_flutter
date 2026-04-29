@@ -26,9 +26,7 @@ class FeedCard extends StatelessWidget {
     final isUnread = !item.read;
 
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppTappable(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -39,86 +37,82 @@ class FeedCard extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: cs.surface,
-            borderRadius:
-                BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: cs.outlineVariant.withValues(
-                alpha: 0.4,
-              ),
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
           ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: AppTouchTarget.min,
-              height: AppTouchTarget.min,
-              decoration: BoxDecoration(
-                color: cs.primaryContainer,
-                borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: AppTouchTarget.min,
+                height: AppTouchTarget.min,
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Icon(
+                  item.body.kind == 'friend_request'
+                      ? Icons.person_add_alt_1
+                      : Icons.notifications,
+                  size: AppSpacing.xl,
+                  color: cs.onPrimaryContainer,
+                ),
               ),
-              child: Icon(
-                item.body.kind == 'friend_request'
-                    ? Icons.person_add_alt_1
-                    : Icons.notifications,
-                size: AppSpacing.xl,
-                color: cs.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            // Title + preview
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _bodyTitle(item.body),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight:
-                          isUnread ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (item.body.text != null) ...[
-                    const SizedBox(height: AppSpacing.xsm),
+              const SizedBox(width: AppSpacing.md),
+              // Title + preview
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      item.body.text!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
+                      _bodyTitle(item.body),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: isUnread
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (_bodyPreview(item.body) != null) ...[
+                      const SizedBox(height: AppSpacing.xsm),
+                      Text(
+                        _bodyPreview(item.body)!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              // Timestamp + unread indicator column
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _timeAgo(item.createdAt),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: AppFontSize.sm,
+                      color: isUnread ? cs.primary : cs.onSurfaceVariant,
+                      fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                  if (isUnread) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    AppStatusDot(
+                      color: cs.primary,
+                      size: AppSpacing.sm,
+                      pulse: true,
+                    ),
                   ],
                 ],
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            // Timestamp + unread indicator column
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _timeAgo(item.createdAt),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: AppFontSize.sm,
-                    color: isUnread ? cs.primary : cs.onSurfaceVariant,
-                    fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-                if (isUnread) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  AppStatusDot(
-                    color: cs.primary,
-                    size: AppSpacing.sm,
-                    pulse: true,
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
@@ -131,15 +125,22 @@ class FeedCard extends StatelessWidget {
       case 'friend_accepted':
         return l10n.inboxFeedFriendAccepted;
       case 'text':
-        return body.text ?? l10n.inboxFeedUpdate;
+        return l10n.inboxFeedUpdate;
       default:
         return l10n.inboxFeedUpdate;
     }
   }
 
+  String? _bodyPreview(FeedBody body) {
+    final text = body.text;
+    if (text == null || text.trim().isEmpty) {
+      return null;
+    }
+    return text;
+  }
+
   String _timeAgo(int createdAtMs) {
-    final created =
-        DateTime.fromMillisecondsSinceEpoch(createdAtMs);
+    final created = DateTime.fromMillisecondsSinceEpoch(createdAtMs);
     final now = DateTime.now();
     final diff = now.difference(created);
     if (diff.inMinutes < 1) {
@@ -153,8 +154,7 @@ class FeedCard extends StatelessWidget {
     }
     // Yesterday check
     final yesterday = DateTime(now.year, now.month, now.day - 1);
-    final createdDate =
-        DateTime(created.year, created.month, created.day);
+    final createdDate = DateTime(created.year, created.month, created.day);
     if (createdDate == yesterday) {
       return l10n.inboxTimeYesterday;
     }

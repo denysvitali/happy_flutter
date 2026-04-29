@@ -101,4 +101,34 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('toolbar chips expose semantics and minimum tap targets', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          permissionMode: null,
+          onPermissionModeChanged: (_) {},
+          modelMode: ChatModelMode.sonnet,
+          availableModels: ChatModelMode.availableForFlavor('claude'),
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+
+    expect(
+      find.bySemanticsLabel(RegExp(r'Permission mode: Default')),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel(RegExp(r'Model: Sonnet')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'Profile: Default')), findsOneWidget);
+
+    final modelSize = tester.getSize(find.byType(ModelChip));
+    final profileSize = tester.getSize(find.byType(ProfileChip));
+
+    expect(modelSize.height, greaterThanOrEqualTo(44));
+    expect(profileSize.height, greaterThanOrEqualTo(44));
+  });
 }

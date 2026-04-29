@@ -44,8 +44,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     final friendRequestCount = ref.watch(
       friendsNotifierProvider.select((s) => s.incomingRequests.length),
     );
-    final inboxHasContent = ref.watch(
-      feedNotifierProvider.select((s) => s.unreadNotifications > 0),
+    final unreadFeedCount = ref.watch(
+      feedNotifierProvider.select((s) => s.unreadCount),
     );
 
     // Calculate sidebar width - same formula as SidebarNavigator.tsx
@@ -67,10 +67,9 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
       decoration: BoxDecoration(
         border: Border(
           right: BorderSide(
-            color: Theme.of(context)
-                .colorScheme
-                .outlineVariant
-                .withValues(alpha: AppOpacity.medium),
+            color: Theme.of(
+              context,
+            ).colorScheme.outlineVariant.withValues(alpha: AppOpacity.medium),
             width: AppBorder.hairline,
           ),
         ),
@@ -87,7 +86,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             connectionInfo,
             shouldLeftJustify,
             friendRequestCount,
-            inboxHasContent,
+            unreadFeedCount,
           ),
 
           // Voice assistant status bar (shown when connected or connecting)
@@ -153,7 +152,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     _ConnectionInfo connectionInfo,
     bool shouldLeftJustify,
     int friendRequestCount,
-    bool inboxHasContent,
+    int unreadFeedCount,
   ) {
     final theme = Theme.of(context);
     final headerTintColor =
@@ -206,8 +205,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             connectionInfo.text,
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(
+                            style: theme.textTheme.labelSmall?.copyWith(
                               color: connectionInfo.color,
                               fontWeight: FontWeight.w500,
                             ),
@@ -237,7 +235,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                 _buildInboxIcon(
                   context,
                   friendRequestCount: friendRequestCount,
-                  hasContent: inboxHasContent,
+                  unreadFeedCount: unreadFeedCount,
                   tintColor: headerTintColor,
                 ),
 
@@ -287,8 +285,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             connectionInfo.text,
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(
+                            style: theme.textTheme.labelSmall?.copyWith(
                               color: connectionInfo.color,
                               fontWeight: FontWeight.w500,
                             ),
@@ -324,10 +321,11 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
   Widget _buildInboxIcon(
     BuildContext context, {
     required int friendRequestCount,
-    required bool hasContent,
+    required int unreadFeedCount,
     required Color tintColor,
   }) {
     final cs = Theme.of(context).colorScheme;
+    final badgeCount = friendRequestCount + unreadFeedCount;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -343,8 +341,8 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             ),
           ),
         ),
-        // Badge for friend requests
-        if (friendRequestCount > 0)
+        // Badge for incoming friend requests and unread feed items.
+        if (badgeCount > 0)
           Positioned(
             top: -AppSpacing.sm,
             right: -AppSpacing.sm,
@@ -362,30 +360,13 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                 minHeight: AppSpacing.md,
               ),
               child: Text(
-                friendRequestCount > 99 ? '99+' : friendRequestCount.toString(),
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(
+                badgeCount > 99 ? '99+' : badgeCount.toString(),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: cs.onError,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
                 textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        // Indicator dot for inbox content
-        if (hasContent && friendRequestCount == 0)
-          Positioned(
-            top: 0,
-            right: -AppSpacing.xs,
-            child: Container(
-              width: AppSpacing.xs + AppSpacing.xs,
-              height: AppSpacing.xs + AppSpacing.xs,
-              decoration: BoxDecoration(
-                color: cs.onSurface,
-                shape: BoxShape.circle,
               ),
             ),
           ),
@@ -426,9 +407,9 @@ class _DefaultSessionContent extends ConsumerWidget {
             const SizedBox(height: AppSpacing.lg),
             Text(
               l10n.sessionNoSessionsYet,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
           ],
         ),
@@ -450,10 +431,7 @@ class _DefaultSessionContent extends ConsumerWidget {
 }
 
 class _SidebarSessionListItem extends ConsumerWidget {
-  const _SidebarSessionListItem({
-    required this.sessionId,
-    super.key,
-  });
+  const _SidebarSessionListItem({required this.sessionId, super.key});
   final String sessionId;
 
   @override

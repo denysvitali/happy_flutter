@@ -55,18 +55,17 @@ Widget _buildApp({
   return ProviderScope(
     overrides: [
       friendsNotifierProvider.overrideWith(
-        () => _StubFriendsNotifier(
-          friendsState ?? FriendsState(),
-        ),
+        () => _StubFriendsNotifier(friendsState ?? FriendsState()),
       ),
       feedNotifierProvider.overrideWith(
         () => _StubFeedNotifier(feedState ?? FeedState()),
       ),
     ],
     child: MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-        home: child),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: child,
+    ),
   );
 }
 
@@ -150,9 +149,7 @@ void main() {
 
     test('friendList caches result until mutated', () {
       final state = FriendsState(
-        friends: [
-          _friend('1', status: RelationshipStatus.friend),
-        ],
+        friends: [_friend('1', status: RelationshipStatus.friend)],
       );
 
       final first = state.friendList;
@@ -161,9 +158,7 @@ void main() {
     });
 
     test('incomingRequests caches result until mutated', () {
-      final state = FriendsState(
-        pendingRequests: [_request('1')],
-      );
+      final state = FriendsState(pendingRequests: [_request('1')]);
 
       final first = state.incomingRequests;
       final second = state.incomingRequests;
@@ -177,11 +172,7 @@ void main() {
       // with _isLoading = true, so the shimmer should appear briefly.
       // Since refreshFromSync is a no-op, we simulate loading by
       // providing a delayed notifier.
-      await tester.pumpWidget(
-        _buildApp(
-          child: const _InboxScreenScaffold(),
-        ),
-      );
+      await tester.pumpWidget(_buildApp(child: const _InboxScreenScaffold()));
 
       // Initial frame before microtask fires.
       await tester.pump();
@@ -194,11 +185,7 @@ void main() {
     });
 
     testWidgets('shows empty state when no data', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(
-          child: const _InboxScreenScaffold(),
-        ),
-      );
+      await tester.pumpWidget(_buildApp(child: const _InboxScreenScaffold()));
       await tester.pump();
       await tester.pumpAndSettle();
 
@@ -256,8 +243,7 @@ void main() {
       expect(find.text('Carol'), findsOneWidget);
     });
 
-    testWidgets('shows sent requests with cancel button',
-        (tester) async {
+    testWidgets('shows sent requests with cancel button', (tester) async {
       final friendsState = FriendsState(
         friends: [
           _friend(
@@ -296,10 +282,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        _buildApp(
-          feedState: feedState,
-          child: const _InboxScreenScaffold(),
-        ),
+        _buildApp(feedState: feedState, child: const _InboxScreenScaffold()),
       );
       await tester.pump();
       await tester.pumpAndSettle();
@@ -310,11 +293,7 @@ void main() {
     });
 
     testWidgets('shows find friends button', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(
-          child: const _InboxScreenScaffold(),
-        ),
-      );
+      await tester.pumpWidget(_buildApp(child: const _InboxScreenScaffold()));
       await tester.pump();
       await tester.pumpAndSettle();
 
@@ -343,9 +322,7 @@ void main() {
             status: RelationshipStatus.pending,
           ),
         ],
-        pendingRequests: [
-          _request('pend1', fromName: 'Pending'),
-        ],
+        pendingRequests: [_request('pend1', fromName: 'Pending')],
       );
 
       await tester.pumpWidget(
@@ -389,12 +366,10 @@ class _InlineInboxScreen extends ConsumerStatefulWidget {
   const _InlineInboxScreen();
 
   @override
-  ConsumerState<_InlineInboxScreen> createState() =>
-      _InlineInboxScreenState();
+  ConsumerState<_InlineInboxScreen> createState() => _InlineInboxScreenState();
 }
 
-class _InlineInboxScreenState
-    extends ConsumerState<_InlineInboxScreen> {
+class _InlineInboxScreenState extends ConsumerState<_InlineInboxScreen> {
   bool _isLoading = true;
 
   @override
@@ -402,12 +377,8 @@ class _InlineInboxScreenState
     super.initState();
     // Simulate the loading delay of the real InboxScreen.
     Future<void>.microtask(() async {
-      await ref
-          .read(friendsNotifierProvider.notifier)
-          .refreshFromSync();
-      await ref
-          .read(feedNotifierProvider.notifier)
-          .refreshFromSync();
+      await ref.read(friendsNotifierProvider.notifier).refreshFromSync();
+      await ref.read(feedNotifierProvider.notifier).refreshFromSync();
       if (mounted) setState(() => _isLoading = false);
     });
   }
@@ -419,15 +390,11 @@ class _InlineInboxScreenState
     final friends = friendsState.friendList;
     final incoming = friendsState.incomingRequests;
     final requested = friendsState.friends
-        .where(
-          (f) => f.status == RelationshipStatus.requested,
-        )
+        .where((f) => f.status == RelationshipStatus.requested)
         .toList(growable: false);
 
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     final isEmpty =
@@ -441,9 +408,7 @@ class _InlineInboxScreenState
         children: [
           Row(
             children: [
-              const Expanded(
-                child: Text('Inbox'),
-              ),
+              const Expanded(child: Text('Inbox')),
               FilledButton.icon(
                 onPressed: () {},
                 icon: const Icon(Icons.person_add_alt_1),

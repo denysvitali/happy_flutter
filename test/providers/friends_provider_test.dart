@@ -19,6 +19,8 @@ void main() {
       final state = container.read(friendsNotifierProvider);
       expect(state.friends, isEmpty);
       expect(state.pendingRequests, isEmpty);
+      expect(state.isLoading, isFalse);
+      expect(state.errorMessage, isNull);
     });
 
     test('should add a friend', () {
@@ -155,8 +157,10 @@ void main() {
       final state = container.read(friendsNotifierProvider);
       expect(state.friends, hasLength(4));
       expect(state.friendList, hasLength(2));
-      expect(state.friendList.map((f) => f.id).toSet(),
-        containsAll(['user-1', 'user-3']));
+      expect(
+        state.friendList.map((f) => f.id).toSet(),
+        containsAll(['user-1', 'user-3']),
+      );
     });
 
     test('should add a pending friend request', () {
@@ -231,8 +235,10 @@ void main() {
       notifier.addPendingRequest(request1);
       notifier.addPendingRequest(request2);
 
-      expect(container.read(friendsNotifierProvider).pendingRequests,
-        hasLength(2));
+      expect(
+        container.read(friendsNotifierProvider).pendingRequests,
+        hasLength(2),
+      );
 
       notifier.removePendingRequest('request-1');
 
@@ -293,8 +299,10 @@ void main() {
       notifier.addPendingRequest(request);
 
       expect(container.read(friendsNotifierProvider).friends, isNotEmpty);
-      expect(container.read(friendsNotifierProvider).pendingRequests,
-        isNotEmpty);
+      expect(
+        container.read(friendsNotifierProvider).pendingRequests,
+        isNotEmpty,
+      );
 
       notifier.clear();
 
@@ -584,15 +592,33 @@ void main() {
         ),
       ];
 
-      final state = FriendsState(
-        friends: friends,
-        pendingRequests: requests,
-      );
+      final state = FriendsState(friends: friends, pendingRequests: requests);
 
       // copyWith with no arguments preserves everything.
       final copy = state.copyWith();
       expect(copy.friends, hasLength(1));
       expect(copy.pendingRequests, hasLength(1));
+    });
+
+    test('copyWith preserves and clears load metadata', () {
+      final state = FriendsState(isLoading: true, errorMessage: 'failed');
+
+      final updated = state.copyWith(
+        friends: [
+          UserProfile(
+            id: '1',
+            firstName: 'A',
+            username: 'a',
+            status: RelationshipStatus.friend,
+          ),
+        ],
+      );
+      expect(updated.isLoading, isTrue);
+      expect(updated.errorMessage, 'failed');
+
+      final cleared = updated.copyWith(isLoading: false, clearError: true);
+      expect(cleared.isLoading, isFalse);
+      expect(cleared.errorMessage, isNull);
     });
   });
 }

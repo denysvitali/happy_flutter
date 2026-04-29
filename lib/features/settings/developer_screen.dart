@@ -48,9 +48,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.developerTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.developerTitle)),
       body: ListView(
         padding: AppScreenPadding.settings,
         children: [
@@ -66,13 +64,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 value: isDeveloperMode,
                 onChanged: (value) {
                   ref
-                      .read(
-                        settingsNotifierProvider.notifier,
-                      )
-                      .updateSetting(
-                        'developerModeEnabled',
-                        value,
-                      );
+                      .read(settingsNotifierProvider.notifier)
+                      .updateSetting('developerModeEnabled', value);
                 },
               ),
             ],
@@ -85,46 +78,33 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 SettingsNavRow(
                   icon: Icons.network_check,
                   title: l10n.developerNetworkInspector,
-                  subtitle:
-                      l10n.developerNetworkInspectorDesc,
-                  onTap: () => context.push(
-                    '/settings/developer/network',
-                  ),
+                  subtitle: l10n.developerNetworkInspectorDesc,
+                  onTap: () => context.push('/settings/developer/network'),
                 ),
                 SettingsNavRow(
                   icon: Icons.battery_charging_full,
                   title: 'Power Diagnostics',
                   subtitle:
                       'Track lifecycle, socket, HTTP, sync, and retry activity',
-                  onTap: () => context.push(
-                    '/settings/developer/power',
-                  ),
+                  onTap: () => context.push('/settings/developer/power'),
                 ),
                 SettingsNavRow(
                   icon: Icons.terminal,
                   title: l10n.settingsLogs,
                   subtitle: l10n.developerLogsDesc,
-                  onTap: () => context.push(
-                    '/settings/developer/logs',
-                  ),
+                  onTap: () => context.push('/settings/developer/logs'),
                 ),
                 SettingsNavRow(
                   icon: Icons.security,
                   title: l10n.developerEncryptionDebug,
-                  subtitle:
-                      l10n.developerEncryptionDebugDesc,
-                  onTap: () => context.push(
-                    '/settings/developer/encryption',
-                  ),
+                  subtitle: l10n.developerEncryptionDebugDesc,
+                  onTap: () => context.push('/settings/developer/encryption'),
                 ),
                 SettingsNavRow(
                   icon: Icons.history,
                   title: l10n.developerSessionDebug,
-                  subtitle:
-                      l10n.developerSessionDebugDesc,
-                  onTap: () => context.push(
-                    '/settings/developer/session',
-                  ),
+                  subtitle: l10n.developerSessionDebugDesc,
+                  onTap: () => context.push('/settings/developer/session'),
                 ),
               ],
             ),
@@ -135,38 +115,29 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 SettingsNavRow(
                   icon: Icons.notifications,
                   title: l10n.developerTestNotifications,
-                  subtitle:
-                      l10n.developerTestNotificationsDesc,
-                  onTap: () => context.push(
-                    '/settings/developer/notifications',
-                  ),
+                  subtitle: l10n.developerTestNotificationsDesc,
+                  onTap: () =>
+                      context.push('/settings/developer/notifications'),
                 ),
                 SettingsNavRow(
                   icon: Icons.bug_report,
-                  title:
-                      l10n.developerTestSentryException,
-                  subtitle:
-                      l10n.developerTestSentryExceptionDesc,
+                  title: l10n.developerTestSentryException,
+                  subtitle: l10n.developerTestSentryExceptionDesc,
                   onTap: () async {
                     try {
-                      throw StateError(
-                        'Sentry test exception',
-                      );
+                      throw StateError('Sentry test exception');
                     } catch (e, st) {
-                      final eventId =
-                          await Sentry.captureException(
+                      final eventId = await Sentry.captureException(
                         e,
                         stackTrace: st,
                       );
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              AppLocalizations.of(context)
-                                  .developerSentToSentry(
-                                '$eventId',
-                              ),
+                              AppLocalizations.of(
+                                context,
+                              ).developerSentToSentry('$eventId'),
                             ),
                           ),
                         );
@@ -174,17 +145,18 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                     }
                   },
                 ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            SettingsSection(
+              title: l10n.settingsAccountDangerZone,
+              danger: true,
+              children: [
                 SettingsNavRow(
                   icon: Icons.error,
-                  title:
-                      l10n.developerTestSentryUnhandled,
-                  subtitle:
-                      l10n.developerTestSentryUnhandledDesc,
-                  onTap: () {
-                    throw StateError(
-                      'Sentry unhandled test error',
-                    );
-                  },
+                  title: l10n.developerTestSentryUnhandled,
+                  subtitle: l10n.developerTestSentryUnhandledDesc,
+                  onTap: () => _confirmUnhandledSentryTest(context),
                 ),
               ],
             ),
@@ -201,10 +173,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 SettingsNavRow(
                   icon: Icons.restart_alt,
                   title: l10n.developerResetSettings,
-                  subtitle:
-                      l10n.developerResetSettingsDesc,
-                  onTap: () =>
-                      _resetSettings(context, ref),
+                  subtitle: l10n.developerResetSettingsDesc,
+                  onTap: () => _resetSettings(context, ref),
                 ),
               ],
             ),
@@ -288,6 +258,37 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
     );
   }
 
+  void _confirmUnhandledSentryTest(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final l10nDialog = AppLocalizations.of(context);
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          title: Text(l10nDialog.developerTestSentryUnhandled),
+          content: Text(l10nDialog.developerTestSentryUnhandledDesc),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10nDialog.commonCancel),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.error,
+                foregroundColor: colorScheme.onError,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                throw StateError('Sentry unhandled test error');
+              },
+              child: Text(l10nDialog.developerTestSentryUnhandled),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _resetSettings(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
@@ -303,8 +304,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    Theme.of(context).colorScheme.error,
+                backgroundColor: Theme.of(context).colorScheme.error,
               ),
               onPressed: () async {
                 Navigator.pop(context);
@@ -351,14 +351,13 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 try {
                   await sync.settingsSync.invalidateAndAwait();
                   if (context.mounted) {
-                    ref
-                        .read(settingsNotifierProvider.notifier)
-                        .loadFromSync();
+                    ref.read(settingsNotifierProvider.notifier).loadFromSync();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          AppLocalizations.of(context)
-                              .developerForceSyncSettingsSuccess,
+                          AppLocalizations.of(
+                            context,
+                          ).developerForceSyncSettingsSuccess,
                         ),
                       ),
                     );
@@ -368,8 +367,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          AppLocalizations.of(context)
-                              .developerForceSyncSettingsError,
+                          AppLocalizations.of(
+                            context,
+                          ).developerForceSyncSettingsError,
                         ),
                       ),
                     );
