@@ -6,9 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
-import '../../core/providers/settings_notifier.dart';
 import '../../core/services/draft_storage.dart';
-import '../../core/services/whisper_dictation_service.dart';
+import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_input_buttons.dart';
@@ -165,7 +164,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   final AutocompleteController _autocompleteController =
       AutocompleteController();
   final DraftAutoSave _draftAutoSave;
-  final WhisperDictationService _dictationService = WhisperDictationService();
+  final OfflineDictationService _dictationService = OfflineDictationService();
 
   String _previousText = '';
   bool _showAutocomplete = false;
@@ -427,7 +426,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       if (!mounted) return;
       unawaited(HapticFeedback.mediumImpact());
       setState(() => _isRecording = true);
-    } on WhisperDictationException catch (error) {
+    } on OfflineDictationException catch (error) {
       _showDictationError(error.message);
     } catch (error) {
       _showDictationError('Failed to start dictation');
@@ -435,13 +434,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Future<void> _stopAndTranscribe() async {
-    final config = _dictationConfig();
-    if (config == null) {
-      await _cancelDictation();
-      _showDictationError('Add an OpenAI API key to use dictation');
-      return;
-    }
-
     setState(() {
       _isRecording = false;
       _isTranscribing = true;
@@ -450,18 +442,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
     try {
       final audioPath = await _dictationService.stop();
       if (audioPath == null || audioPath.isEmpty) {
-        throw const WhisperDictationException('No recording was captured');
+        throw const OfflineDictationException('No recording was captured');
       }
 
-      final text = await _dictationService.transcribe(
-        audioPath: audioPath,
-        config: config,
-      );
+      final text = await _dictationService.transcribe(audioPath: audioPath);
       if (!mounted) return;
       _insertDictatedText(text);
       unawaited(HapticFeedback.lightImpact());
       _focusNode.requestFocus();
-    } on WhisperDictationException catch (error) {
+    } on OfflineDictationException catch (error) {
       _showDictationError(error.message);
     } catch (error) {
       _showDictationError('Transcription failed');
@@ -470,39 +459,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
         setState(() => _isTranscribing = false);
       }
     }
-  }
-
-  Future<void> _cancelDictation() async {
-    try {
-      await _dictationService.cancel();
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isRecording = false;
-          _isTranscribing = false;
-        });
-      }
-    }
-  }
-
-  WhisperDictationConfig? _dictationConfig() {
-    final settings = ref.read(settingsNotifierProvider);
-    final selectedOpenAI = widget.selectedProfile?.openaiConfig;
-    final selectedKey = selectedOpenAI?.apiKey;
-
-    if (selectedKey != null && selectedKey.trim().isNotEmpty) {
-      return WhisperDictationConfig(
-        apiKey: selectedKey.trim(),
-        baseUrl: selectedOpenAI?.baseUrl ?? 'https://api.openai.com/v1',
-      );
-    }
-
-    final inferenceKey = settings.inferenceOpenAIKey;
-    if (inferenceKey != null && inferenceKey.trim().isNotEmpty) {
-      return WhisperDictationConfig(apiKey: inferenceKey.trim());
-    }
-
-    return null;
   }
 
   void _insertDictatedText(String dictatedText) {
