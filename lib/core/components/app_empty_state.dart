@@ -127,7 +127,14 @@ class _AppEmptyStateState extends State<AppEmptyState>
       width: AppSpacing.xxxl * 2,
       height: AppSpacing.xxxl * 2,
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.72),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            cs.surfaceContainerHighest,
+            cs.surfaceContainerHighest.withValues(alpha: 0.62),
+          ],
+        ),
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(
           color: cs.outlineVariant.withValues(alpha: 0.55),

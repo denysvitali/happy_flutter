@@ -69,7 +69,7 @@ class SettingsRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          minHeight: subtitle != null ? 64 : AppTouchTarget.comfortable,
+          minHeight: subtitle != null ? 56 : AppTouchTarget.comfortable,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -162,7 +162,7 @@ class SettingsToggleRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: subtitle != null ? 64 : AppTouchTarget.comfortable,
+              minHeight: subtitle != null ? 56 : AppTouchTarget.comfortable,
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
