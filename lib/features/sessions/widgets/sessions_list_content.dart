@@ -627,13 +627,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
               title: context.l10n.sessionsActiveSessions,
               count: folder.activeSessions.length,
             ),
-          ...folder.activeSessions.map(
-            (session) => _buildActiveSessionCard(
-              session,
+          if (folder.activeSessions.isNotEmpty)
+            _buildFolderSessionGroup(
+              folder.activeSessions,
               showFlavorIcons: showFlavorIcons,
               avatarStyle: avatarStyle,
             ),
-          ),
           if (folder.inactiveSessions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -662,20 +661,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
                 title: context.l10n.sessionsArchivedLabel,
                 count: recentArchived.length,
               ),
-            ...recentArchived.asMap().entries.map(
-              (entry) => _buildArchivedCard(
-                context,
-                ListItem.archivedSession(
-                  entry.value,
-                  entry.key,
-                  isFirst: entry.key == 0,
-                  isLast: entry.key == recentArchived.length - 1,
-                  isSingle: recentArchived.length == 1,
-                ),
+            if (recentArchived.isNotEmpty)
+              _buildFolderSessionGroup(
+                recentArchived,
                 showFlavorIcons: showFlavorIcons,
                 avatarStyle: avatarStyle,
+                archived: true,
               ),
-            ),
             if (olderArchived.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -696,26 +688,88 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
                   ),
                 ),
               ),
-            if (isOlderArchivedExpanded)
-              ...olderArchived.asMap().entries.map(
-                (entry) => _buildArchivedCard(
-                  context,
-                  ListItem.archivedSession(
-                    entry.value,
-                    recentArchived.length + entry.key,
-                    isFirst: recentArchived.isEmpty && entry.key == 0,
-                    isLast: entry.key == olderArchived.length - 1,
-                    isSingle:
-                        recentArchived.isEmpty && olderArchived.length == 1,
-                  ),
-                  showFlavorIcons: showFlavorIcons,
-                  avatarStyle: avatarStyle,
-                ),
+            if (olderArchived.isNotEmpty && isOlderArchivedExpanded)
+              _buildFolderSessionGroup(
+                olderArchived,
+                showFlavorIcons: showFlavorIcons,
+                avatarStyle: avatarStyle,
+                archived: true,
               ),
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildFolderSessionGroup(
+    List<Session> sessions, {
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+    bool archived = false,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final rows = <Widget>[];
+    for (var i = 0; i < sessions.length; i++) {
+      final session = sessions[i];
+      final row = _buildFolderSessionRow(
+        session,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+        archived: archived,
+      );
+      rows.add(row);
+      if (i < sessions.length - 1) {
+        rows.add(
+          Divider(
+            height: 1,
+            indent: 78,
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
+          ),
+        );
+      }
+    }
+    return FolderSessionGroup(children: rows);
+  }
+
+  Widget _buildFolderSessionRow(
+    Session session, {
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+    required bool archived,
+  }) {
+    final sel = _sel.value;
+
+    void handleTap() {
+      final cb = widget.onSessionTap;
+      if (cb != null) {
+        cb(session.id);
+      } else if (sel.isActive) {
+        _onSessionTapInSelectionMode(session.id);
+      } else {
+        _navigateToChat(session.id);
+      }
+    }
+
+    final row = FolderSessionRow(
+      session: session,
+      onTap: handleTap,
+      onLongPress: () => _onSessionLongPress(session.id),
+      showFlavorIcon: showFlavorIcons,
+      avatarStyle: avatarStyle,
+      lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+      lastMessagePreview: sync.getLastMessagePreview(session.id),
+      lastMessageRole: sync.getLastMessageRole(session.id),
+      isSelected: sel.selectedIds.contains(session.id),
+      selectionMode: sel.isActive,
+      unreadCount: archived ? 0 : sync.getUnreadCount(session.id),
+      archiveCountdownLabel: archived ? _archiveCountdownLabel(session) : null,
+      muted: archived,
+    );
+
+    if (sel.isActive) return row;
+    return archived
+        ? DismissibleInactiveSession(session: session, child: row)
+        : DismissibleActiveSession(session: session, child: row);
   }
 
   List<ListItem> _buildListItems(
