@@ -58,10 +58,11 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..profilesSampleRate = sentryProfilesSampleRate
       ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..environment = kReleaseMode ? 'production' : 'debug'
-      // ANR detection disabled — background ANRs on Android are
-      // almost always false positives and native-layer ANR events
-      // bypass Dart's beforeSend filter.
-      ..anrEnabled = false
+      // Keep Android ANR reporting enabled. Background ANRs are filtered below
+      // when the SDK routes them through beforeSend, but disabling this option
+      // prevents foreground "Application Not Responding" events from reaching
+      // GlitchTip at all.
+      ..anrEnabled = true
       // Automatic user interaction tracing creates a transaction for
       // every tap (back button, list items, etc.) with a 3-second idle
       // timeout. This produces false "error" transactions when widgets

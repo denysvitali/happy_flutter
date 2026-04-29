@@ -299,40 +299,12 @@ class OfflineDictationService {
 
     try {
       await _downloadModelArchive(archiveFile);
-      final bytes = await archiveFile.readAsBytes();
-      final actualSha = sha256.convert(bytes).toString();
-      if (actualSha != _modelSha256) {
-        throw const OfflineDictationException(
-          'Offline speech model checksum mismatch',
-        );
-      }
-
-      final tarBytes = BZip2Decoder().decodeBytes(bytes, verify: true);
-      final archive = TarDecoder().decodeBytes(tarBytes);
-      final extracted = <String>{};
-
-      for (final file in archive.files) {
-        if (!file.isFile) {
-          continue;
-        }
-
-        final name = p.basename(file.name);
-        if (!_modelFileNames.contains(name) ||
-            !file.name.contains(_archiveRoot)) {
-          continue;
-        }
-
-        await File(
-          p.join(modelDir.path, name),
-        ).writeAsBytes(file.content, flush: true);
-        extracted.add(name);
-      }
-
-      if (extracted.length != _modelFileNames.length) {
-        throw const OfflineDictationException(
-          'Offline speech model archive is missing files',
-        );
-      }
+      await Isolate.run(
+        () => _verifyAndExtractModelArchive(
+          archivePath: archiveFile.path,
+          modelDirPath: modelDir.path,
+        ),
+      );
     } on OfflineDictationException {
       rethrow;
     } catch (error, stack) {
@@ -363,6 +335,46 @@ class OfflineDictationService {
     } finally {
       client.close(force: true);
     }
+  }
+}
+
+Future<void> _verifyAndExtractModelArchive({
+  required String archivePath,
+  required String modelDirPath,
+}) async {
+  final bytes = await File(archivePath).readAsBytes();
+  final actualSha = sha256.convert(bytes).toString();
+  if (actualSha != OfflineDictationService._modelSha256) {
+    throw const OfflineDictationException(
+      'Offline speech model checksum mismatch',
+    );
+  }
+
+  final tarBytes = BZip2Decoder().decodeBytes(bytes, verify: true);
+  final archive = TarDecoder().decodeBytes(tarBytes);
+  final extracted = <String>{};
+
+  for (final file in archive.files) {
+    if (!file.isFile) {
+      continue;
+    }
+
+    final name = p.basename(file.name);
+    if (!OfflineDictationService._modelFileNames.contains(name) ||
+        !file.name.contains(OfflineDictationService._archiveRoot)) {
+      continue;
+    }
+
+    await File(
+      p.join(modelDirPath, name),
+    ).writeAsBytes(file.content, flush: true);
+    extracted.add(name);
+  }
+
+  if (extracted.length != OfflineDictationService._modelFileNames.length) {
+    throw const OfflineDictationException(
+      'Offline speech model archive is missing files',
+    );
   }
 }
 
