@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
+import '../../core/providers/settings_notifier.dart';
 import '../../core/services/draft_storage.dart';
+import '../../core/services/whisper_dictation_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_input_buttons.dart';
@@ -163,9 +165,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
   final AutocompleteController _autocompleteController =
       AutocompleteController();
   final DraftAutoSave _draftAutoSave;
+  final WhisperDictationService _dictationService = WhisperDictationService();
 
   String _previousText = '';
   bool _showAutocomplete = false;
+  bool _isRecording = false;
+  bool _isTranscribing = false;
   final ValueNotifier<bool> _isFocused = ValueNotifier<bool>(false);
 
   late final AnimationController _sendScaleController;
@@ -210,6 +215,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   void dispose() {
     _sendScaleController.dispose();
     _draftAutoSave.dispose();
+    unawaited(_dictationService.dispose());
     _isFocused.dispose();
     widget.controller.removeListener(_onTextChanged);
     _focusNode
@@ -402,6 +408,133 @@ class _ChatInputState extends ConsumerState<ChatInput>
     widget.onSend();
   }
 
+  Future<void> _onDictationTap() async {
+    if (_isTranscribing) {
+      return;
+    }
+
+    if (_isRecording) {
+      await _stopAndTranscribe();
+      return;
+    }
+
+    await _startDictation();
+  }
+
+  Future<void> _startDictation() async {
+    try {
+      await _dictationService.start();
+      if (!mounted) return;
+      unawaited(HapticFeedback.mediumImpact());
+      setState(() => _isRecording = true);
+    } on WhisperDictationException catch (error) {
+      _showDictationError(error.message);
+    } catch (error) {
+      _showDictationError('Failed to start dictation');
+    }
+  }
+
+  Future<void> _stopAndTranscribe() async {
+    final config = _dictationConfig();
+    if (config == null) {
+      await _cancelDictation();
+      _showDictationError('Add an OpenAI API key to use dictation');
+      return;
+    }
+
+    setState(() {
+      _isRecording = false;
+      _isTranscribing = true;
+    });
+
+    try {
+      final audioPath = await _dictationService.stop();
+      if (audioPath == null || audioPath.isEmpty) {
+        throw const WhisperDictationException('No recording was captured');
+      }
+
+      final text = await _dictationService.transcribe(
+        audioPath: audioPath,
+        config: config,
+      );
+      if (!mounted) return;
+      _insertDictatedText(text);
+      unawaited(HapticFeedback.lightImpact());
+      _focusNode.requestFocus();
+    } on WhisperDictationException catch (error) {
+      _showDictationError(error.message);
+    } catch (error) {
+      _showDictationError('Transcription failed');
+    } finally {
+      if (mounted) {
+        setState(() => _isTranscribing = false);
+      }
+    }
+  }
+
+  Future<void> _cancelDictation() async {
+    try {
+      await _dictationService.cancel();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRecording = false;
+          _isTranscribing = false;
+        });
+      }
+    }
+  }
+
+  WhisperDictationConfig? _dictationConfig() {
+    final settings = ref.read(settingsNotifierProvider);
+    final selectedOpenAI = widget.selectedProfile?.openaiConfig;
+    final selectedKey = selectedOpenAI?.apiKey;
+
+    if (selectedKey != null && selectedKey.trim().isNotEmpty) {
+      return WhisperDictationConfig(
+        apiKey: selectedKey.trim(),
+        baseUrl: selectedOpenAI?.baseUrl ?? 'https://api.openai.com/v1',
+      );
+    }
+
+    final inferenceKey = settings.inferenceOpenAIKey;
+    if (inferenceKey != null && inferenceKey.trim().isNotEmpty) {
+      return WhisperDictationConfig(apiKey: inferenceKey.trim());
+    }
+
+    return null;
+  }
+
+  void _insertDictatedText(String dictatedText) {
+    final trimmed = dictatedText.trim();
+    if (trimmed.isEmpty) return;
+
+    final value = widget.controller.value;
+    final text = value.text;
+    final selection = value.selection;
+    final start = selection.isValid ? selection.start : text.length;
+    final end = selection.isValid ? selection.end : text.length;
+    final beforeCursor = text.substring(0, start);
+    final afterCursor = text.substring(end);
+    final prefix = start > 0 && !RegExp(r'\s$').hasMatch(beforeCursor)
+        ? ' '
+        : '';
+    final suffix = end < text.length && !afterCursor.startsWith(' ') ? ' ' : '';
+    final replacement = '$prefix$trimmed$suffix';
+
+    widget.controller.value = TextEditingValue(
+      text: text.replaceRange(start, end, replacement),
+      selection: TextSelection.collapsed(offset: start + replacement.length),
+    );
+  }
+
+  void _showDictationError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   // -----------------------------------------------------------
   // Build
   // -----------------------------------------------------------
@@ -535,6 +668,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
               ),
             ),
           Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xs),
+            child: _DictationButton(
+              isRecording: _isRecording,
+              isTranscribing: _isTranscribing,
+              onTap: _onDictationTap,
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.all(AppSpacing.xsm),
             child: SendButton(
               isSending: widget.isSending,
@@ -607,6 +748,59 @@ class _ChatInputState extends ConsumerState<ChatInput>
       widget.selectedProfile,
       widget.availableProfiles,
       (profile) => widget.onProfileChanged?.call(profile),
+    );
+  }
+}
+
+class _DictationButton extends StatelessWidget {
+  const _DictationButton({
+    required this.isRecording,
+    required this.isTranscribing,
+    required this.onTap,
+  });
+
+  final bool isRecording;
+  final bool isTranscribing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = isRecording ? cs.error : cs.onSurfaceVariant;
+    final label = isRecording
+        ? 'Stop dictation'
+        : isTranscribing
+        ? 'Transcribing'
+        : 'Start dictation';
+
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: InkResponse(
+          onTap: isTranscribing ? null : onTap,
+          radius: AppTouchTarget.min / 2,
+          child: SizedBox.square(
+            dimension: AppTouchTarget.min,
+            child: Center(
+              child: isTranscribing
+                  ? SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: cs.primary,
+                      ),
+                    )
+                  : Icon(
+                      isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
+                      color: color,
+                      size: 22,
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
