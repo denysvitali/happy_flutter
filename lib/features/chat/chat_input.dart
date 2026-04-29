@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
+import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -164,7 +165,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   final AutocompleteController _autocompleteController =
       AutocompleteController();
   final DraftAutoSave _draftAutoSave;
-  final OfflineDictationService _dictationService = OfflineDictationService();
+  late final OfflineDictationService _dictationService;
   static const _dictationSilenceThresholdDb = -45.0;
   static const _dictationSilenceDuration = Duration(milliseconds: 1200);
   static const _dictationInitialGrace = Duration(seconds: 2);
@@ -190,6 +191,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   @override
   void initState() {
     super.initState();
+    _dictationService = ref.read(offlineDictationServiceProvider);
     _draftAutoSave
       ..sessionId = widget.sessionId
       ..onSave = _saveDraft;
@@ -227,7 +229,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _sendScaleController.dispose();
     _draftAutoSave.dispose();
     _stopDictationWatchers();
-    unawaited(_dictationService.dispose());
     _isFocused.dispose();
     widget.controller.removeListener(_onTextChanged);
     _focusNode

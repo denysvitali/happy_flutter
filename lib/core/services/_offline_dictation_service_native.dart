@@ -59,6 +59,10 @@ class OfflineDictationService {
         .map((amplitude) => amplitude.current);
   }
 
+  Future<void> initialize() async {
+    await _ensureModelFilesOnce();
+  }
+
   Future<void> start({void Function(String text)? onTranscript}) async {
     if (await _recorder.isRecording()) {
       return;
@@ -82,7 +86,7 @@ class OfflineDictationService {
     _sampleCount = 0;
     _lastTranscript = '';
     _onTranscript = onTranscript;
-    _modelFilesFuture = _ensureModelFiles();
+    unawaited(_ensureModelFilesOnce());
 
     final stream = await _recorder.startStream(
       const RecordConfig(
@@ -148,7 +152,7 @@ class OfflineDictationService {
 
   Future<String> transcribe({required String audioPath}) async {
     try {
-      final files = await _ensureModelFiles();
+      final files = await _ensureModelFilesOnce();
       final text = await Isolate.run(
         () => _transcribeInWorker(
           _OfflineTranscriptionRequest(audioPath: audioPath, files: files),
@@ -247,7 +251,7 @@ class OfflineDictationService {
   }
 
   Future<String> _transcribeSamples(Float32List samples, int sampleRate) async {
-    final files = await (_modelFilesFuture ??= _ensureModelFiles());
+    final files = await _ensureModelFilesOnce();
     return Isolate.run(
       () => _transcribeInWorker(
         _OfflineTranscriptionRequest(
@@ -257,6 +261,27 @@ class OfflineDictationService {
         ),
       ),
     );
+  }
+
+  Future<_MoonshineModelFiles> _ensureModelFilesOnce() {
+    final existing = _modelFilesFuture;
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = _ensureModelFiles();
+    _modelFilesFuture = future;
+    unawaited(
+      future.then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stack) {
+          if (identical(_modelFilesFuture, future)) {
+            _modelFilesFuture = null;
+          }
+        },
+      ),
+    );
+    return future;
   }
 
   Future<_MoonshineModelFiles> _ensureModelFiles() async {

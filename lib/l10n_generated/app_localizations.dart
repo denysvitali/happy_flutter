@@ -5761,6 +5761,24 @@ abstract class AppLocalizations {
   /// **'Tap to end'**
   String get voiceAssistantTapToEnd;
 
+  /// No description provided for @transcriptionInitializing.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting up transcription...'**
+  String get transcriptionInitializing;
+
+  /// No description provided for @transcriptionReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription ready'**
+  String get transcriptionReady;
+
+  /// No description provided for @transcriptionUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription unavailable'**
+  String get transcriptionUnavailable;
+
   /// No description provided for @authClientError.
   ///
   /// In en, this message translates to:

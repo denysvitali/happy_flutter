@@ -13,6 +13,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart' show Sentry, SpanStatus;
 
 import 'core/api/api_client.dart';
+import 'core/components/transcription_startup_status_bar.dart';
 import 'core/encryption/sodium_singleton.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/providers/app_providers.dart';
@@ -306,6 +307,13 @@ class _HappyAppState extends ConsumerState<HappyApp>
     _router = createRouter(widget.initialDeepLink);
     NotificationService.instance.updateRouter(_router);
     _setupDeepLinkListener();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!kIsWeb) {
+        unawaited(
+          ref.read(offlineDictationNotifierProvider.notifier).initialize(),
+        );
+      }
+    });
     Future<void>.microtask(() {
       ref.read(authStateNotifierProvider.notifier).checkAuth();
       unawaited(_initializeTheme());
@@ -503,6 +511,14 @@ class _HappyAppState extends ConsumerState<HappyApp>
                       AppLocalizations.localizationsDelegates,
                   supportedLocales: AppLocalizations.supportedLocales,
                   routerConfig: _router,
+                  builder: (context, child) {
+                    return Column(
+                      children: [
+                        const TranscriptionStartupStatusBar(),
+                        Expanded(child: child ?? const SizedBox.shrink()),
+                      ],
+                    );
+                  },
                 ),
                 // Command palette overlay
                 const CommandPaletteOverlayWrapper(),

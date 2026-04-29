@@ -3121,6 +3121,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceAssistantTapToEnd => 'Tap to end';
 
   @override
+  String get transcriptionInitializing => 'Setting up transcription...';
+
+  @override
+  String get transcriptionReady => 'Transcription ready';
+
+  @override
+  String get transcriptionUnavailable => 'Transcription unavailable';
+
+  @override
   String get authClientError => 'Client Error';
 
   @override
