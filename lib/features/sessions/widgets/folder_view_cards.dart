@@ -9,6 +9,8 @@ import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
 
+const double _folderStatusDotSlotSize = 17;
+
 class FolderSessionGroup extends StatelessWidget {
   const FolderSessionGroup({required this.children, super.key});
 
@@ -111,12 +113,17 @@ class FolderSessionRow extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                   ] else ...[
-                    AppStatusDot(
-                      color: muted
-                          ? cs.outlineVariant
-                          : Color(derived.status.statusDotColor),
-                      pulse: derived.status.isPulsing && !muted,
-                      size: 7,
+                    SizedBox.square(
+                      dimension: _folderStatusDotSlotSize,
+                      child: Center(
+                        child: AppStatusDot(
+                          color: muted
+                              ? cs.outlineVariant
+                              : Color(derived.status.statusDotColor),
+                          pulse: derived.status.isPulsing && !muted,
+                          size: 7,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                   ],

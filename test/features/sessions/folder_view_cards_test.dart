@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/app_status_dot.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
+import 'package:happy_flutter/features/sessions/session_avatar.dart';
 import 'package:happy_flutter/features/sessions/widgets/folder_view_cards.dart';
 
-Session _session({String id = 's1', String path = '/repo/happy'}) {
+Session _session({
+  String id = 's1',
+  String path = '/repo/happy',
+  bool active = true,
+  bool thinking = false,
+  String presence = 'online',
+}) {
   return Session(
     id: id,
     seq: 1,
     createdAt: 1700000000000,
     updatedAt: 1700000000000,
-    active: true,
+    active: active,
     activeAt: 1700000000000,
     metadataVersion: 1,
     agentStateVersion: 1,
-    thinking: false,
-    presence: 'online',
+    thinking: thinking,
+    presence: presence,
     metadata: Metadata(path: path, host: 'mac'),
   );
 }
@@ -116,6 +124,53 @@ void main() {
 
       await tester.tap(find.byType(FolderSessionRow));
       expect(tapped, isTrue);
+    });
+
+    testWidgets('aligns pulsing active and inactive status dots', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FolderSessionGroup(
+              children: [
+                FolderSessionRow(
+                  session: _session(id: 'active', thinking: true),
+                  showFlavorIcon: false,
+                  onTap: () {},
+                  onLongPress: () {},
+                ),
+                FolderSessionRow(
+                  session: _session(
+                    id: 'inactive',
+                    active: false,
+                    presence: 'offline',
+                  ),
+                  showFlavorIcon: false,
+                  onTap: () {},
+                  onLongPress: () {},
+                  muted: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final dots = find.byType(AppStatusDot).evaluate().toList();
+      expect(dots, hasLength(2));
+      final firstDot = find.byWidget(dots[0].widget);
+      final secondDot = find.byWidget(dots[1].widget);
+      expect(tester.getCenter(firstDot).dx, tester.getCenter(secondDot).dx);
+
+      final avatars = find.byType(SessionAvatar).evaluate().toList();
+      expect(avatars, hasLength(2));
+      final firstAvatar = find.byWidget(avatars[0].widget);
+      final secondAvatar = find.byWidget(avatars[1].widget);
+      expect(
+        tester.getTopLeft(firstAvatar).dx,
+        tester.getTopLeft(secondAvatar).dx,
+      );
     });
   });
 }
