@@ -31,7 +31,6 @@ import 'views/read_view.dart';
 import 'views/task_view.dart';
 import 'views/todo_view.dart';
 import 'views/web_fetch_view.dart';
-import 'views/web_search_view.dart';
 import 'views/write_view.dart';
 
 // Re-export public helpers so existing imports continue to work.
@@ -720,9 +719,6 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     'TodoWrite',
     'todo_list',
     'WebFetch',
-    'WebSearch',
-    'web_search',
-    'web_search_preview',
     'ExitPlanMode',
     'exit_plan_mode',
     'AskUserQuestion',
@@ -771,9 +767,6 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       'TodoWrite': (t, m, s) => TodoView(tool: t, metadata: m),
       'todo_list': (t, m, s) => TodoView(tool: t, metadata: m),
       'WebFetch': (t, m, s) => WebFetchView(tool: t, metadata: m),
-      'WebSearch': (t, m, s) => WebSearchView(tool: t, metadata: m),
-      'web_search': (t, m, s) => WebSearchView(tool: t, metadata: m),
-      'web_search_preview': (t, m, s) => WebSearchView(tool: t, metadata: m),
       'ExitPlanMode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
       'exit_plan_mode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
       'AskUserQuestion': _buildAskUserQuestionView,

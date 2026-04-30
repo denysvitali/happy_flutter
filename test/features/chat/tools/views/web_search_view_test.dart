@@ -9,7 +9,7 @@ Widget _wrap(Widget child) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('web_search uses the dedicated web search view', (tester) async {
+  testWidgets('web_search uses normal tool call sections', (tester) async {
     await tester.pumpWidget(
       _wrap(
         ToolView(
@@ -42,11 +42,13 @@ void main() {
 
     expect(find.text('flutter release notes'), findsWidgets);
     expect(find.text('Flutter docs'), findsOneWidget);
-    expect(find.text('INPUT'), findsNothing);
-    expect(find.text('OUTPUT'), findsNothing);
+    expect(find.text('INPUT'), findsOneWidget);
+    expect(find.text('OUTPUT'), findsOneWidget);
   });
 
-  testWidgets('web_search_preview alias uses web search view', (tester) async {
+  testWidgets('web_search_preview alias uses normal tool call sections', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         ToolView(
@@ -62,7 +64,6 @@ void main() {
 
     expect(find.text('Web Search'), findsOneWidget);
     expect(find.text('weather today'), findsWidgets);
-    expect(find.text('Searching the web...'), findsOneWidget);
-    expect(find.text('INPUT'), findsNothing);
+    expect(find.text('INPUT'), findsOneWidget);
   });
 }
