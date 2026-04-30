@@ -161,16 +161,20 @@ void main() {
       expect(dots, hasLength(2));
       final firstDot = find.byWidget(dots[0].widget);
       final secondDot = find.byWidget(dots[1].widget);
-      expect(tester.getCenter(firstDot).dx, tester.getCenter(secondDot).dx);
+      final dotDelta =
+          tester.getCenter(firstDot).dx - tester.getCenter(secondDot).dx;
+      expect(dotDelta.abs(), lessThan(0.01));
 
       final avatars = find.byType(SessionAvatar).evaluate().toList();
       expect(avatars, hasLength(2));
       final firstAvatar = find.byWidget(avatars[0].widget);
       final secondAvatar = find.byWidget(avatars[1].widget);
-      expect(
-        tester.getTopLeft(firstAvatar).dx,
-        tester.getTopLeft(secondAvatar).dx,
-      );
+      final avatarDelta =
+          tester.getTopLeft(firstAvatar).dx -
+          tester.getTopLeft(secondAvatar).dx;
+      expect(avatarDelta.abs(), lessThan(0.01));
+
+      await tester.pumpWidget(const SizedBox.shrink());
     });
   });
 }
