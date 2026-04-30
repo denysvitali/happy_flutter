@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Workflow Rules
 
 - **Always commit and push** after completing changes — do not wait for the user to ask
@@ -140,6 +144,7 @@ lib/
 │   └── utils/             # InvalidateSync, path/version/message utils, ANSI parser
 └── features/
     ├── auth/              # QR auth, device linking, backup restore
+    ├── changelog/         # In-app changelog viewer
     ├── chat/              # Chat screen, input, markdown, tool views, autocomplete
     ├── command_palette/   # Modal command search
     ├── dev/               # Dev logs, encryption debug, network inspector
@@ -186,7 +191,7 @@ lib/
 
 Three top-level globals: `sync` (Sync singleton), `logger` (LoggerService), `socketIoClient` (SocketIoClient).
 
-**`Sync` is a true singleton** (`factory Sync() => _instance`). It is a large class (~3,700 lines) — see `lib/core/services/sync_service.dart` and its `_sync_*.dart` part files.
+**`Sync` is a true singleton** (`factory Sync() => _instance`). The main file `lib/core/services/sync_service.dart` is ~1,000 lines, split across ~20 `_sync_*.dart` part files (`_sync_messaging*`, `_sync_socket*`, `_sync_data*`, `_sync_lifecycle`, `_sync_operations*`, `_sync_health`, `_sync_test_helpers`, etc.). When adding methods, place them in the part file matching the concern.
 
 **Provider bridge pattern:** Screens subscribe to `sync.onDataChanged` (debounced 100ms):
 - `provider.notifier.loadFromSync()` — reads in-memory state (instant). Use on every `onDataChanged` callback.
@@ -204,7 +209,7 @@ See @docs/SYNC_PATTERNS.md for subscription template and details.
 
 ### Navigation
 
-Routes defined in `lib/core/routing/app_router.dart` (not `main.dart`). ~40 flat `GoRoute` entries. Use named routes:
+Routes defined in `lib/core/routing/app_router.dart` (not `main.dart`). ~64 flat `GoRoute` entries. Use named routes:
 
 ```dart
 context.goNamed('chat', pathParameters: {'sessionId': id});
@@ -275,7 +280,7 @@ import 'package:flutter/material.dart' hide TabBar;
 
 ## Testing
 
-**Unit, widget, and integration tests.** Integration tests in `test/integration/` cover session spawning, message deduplication, routing, pagination, cold starts, reconnection, and concurrent sends (~12 files, ~8,500 lines). They use `mock_sync_server.dart` and `fake_session_encryption.dart` helpers.
+**Unit, widget, and integration tests.** Integration tests in `test/integration/` cover session spawning, message deduplication, routing, pagination, cold starts, reconnection, and concurrent sends (~18 e2e files). They use `mock_sync_server.dart` and `fake_session_encryption.dart` helpers, plus replay fixtures under `test/integration/jsonl_replay/`.
 
 **Global test config:** `test/flutter_test_config.dart` runs before every test file — calls `TestWidgetsFlutterBinding.ensureInitialized()`, disables Google Fonts runtime fetching, loads Roboto Mono for golden screenshots.
 
