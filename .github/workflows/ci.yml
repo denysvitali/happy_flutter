@@ -203,7 +203,9 @@ jobs:
         run: flutter pub get
 
       - name: Run golden tests
-        run: flutter test test/golden/golden_test.dart
+        # Runs both the phone suite (golden_test.dart) and the tablet suite
+        # (tablet_golden_test.dart) in `test/golden/`.
+        run: flutter test test/golden/
 
   build-debug:
     name: Build Debug APK
