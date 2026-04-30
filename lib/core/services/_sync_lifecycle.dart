@@ -13,7 +13,7 @@ extension SyncLifecycle on Sync {
   void suspend() {
     if (!isInitialized) return;
     powerDiagnostics.recordLifecycle('sync.suspend');
-    logger.info('[Sync] suspending — disconnecting socket');
+    logger.info('[Sync] suspending');
     unawaited(
       Sentry.addBreadcrumb(
         Breadcrumb(
@@ -132,26 +132,12 @@ extension SyncLifecycle on Sync {
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     _persistSessionsCache();
 
-    // Don't disconnect the socket during rapid lifecycle cycling — the
-    // previous resume just established the connection and tearing it down
-    // forces a full reconnect on the next resume, which amplifies the
-    // cycle into a cascade of reconnects, session re-fetches, and message
-    // cache churn for 100+ sessions.  Just leave the socket connected and
-    // let the OS manage the network lifecycle.
-    final isRapidSuspend =
-        _lastResumeAtMs != null &&
-        DateTime.now().millisecondsSinceEpoch - _lastResumeAtMs! <
-            Sync._resumeDebounceWindowMs;
-    if (isRapidSuspend) {
-      final elapsedMs =
-          DateTime.now().millisecondsSinceEpoch - _lastResumeAtMs!;
-      logger.debug(
-        '[Sync] rapid suspend — keeping socket connected '
-        '(last resume ${elapsedMs}ms ago)',
-      );
-    } else {
-      socketIoClient.disconnect(preserveConnectionHistory: true);
-    }
+    // Always disconnect the socket when the app is backgrounded.
+    // On physical devices the OS may keep a cached connection alive across
+    // rapid lifecycle cycles, causing Socket.IO to accumulate reconnection
+    // attempts and orphan messages.  Disconnecting on every background
+    // ensures no traffic flows while the app is not visible.
+    socketIoClient.disconnect(preserveConnectionHistory: true);
   }
 
   /// Resume the sync engine when the app returns to the foreground.
@@ -202,19 +188,9 @@ extension SyncLifecycle on Sync {
       ),
     );
 
-    // During rapid lifecycle cycling, the socket was intentionally left
-    // connected by suspend().  Don't tear it down — just resume lightweight
-    // services, keep the watchdog, and defer heavyweight work.  The socket
-    // reconnect path (disconnect + connect) on every rapid cycle amplifies
-    // into a cascade of 100+ session re-fetches and message cache saves.
-    if (!isRapidResume) {
-      socketIoClient.reconnect();
-    } else {
-      logger.debug(
-        '[Sync] rapid resume — skipping socket reconnect, '
-        'connection will self-heal',
-      );
-    }
+    // Reconnect the socket on every resume.  The socket was disconnected on
+    // suspend, so a fresh connect is always needed.
+    socketIoClient.reconnect();
 
     // Resume lightweight services immediately.
     messageOutbox.resume();
