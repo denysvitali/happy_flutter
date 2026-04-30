@@ -255,11 +255,15 @@ class PowerDiagnosticsService extends ChangeNotifier {
   }
 
   void recordLifecycle(String state, {bool rapidCycle = false}) {
-    _lifecycleTransitions++;
     _increment(_lifecycleStateCounts, state);
-    if (state == 'resumed') _resumeCount++;
-    if (state == 'paused' || state == 'hidden') _suspendCount++;
-    if (rapidCycle) _rapidLifecycleWarnings++;
+    final isAppLifecycleState =
+        state == 'resumed' || state == 'paused' || state == 'hidden';
+    if (isAppLifecycleState) {
+      _lifecycleTransitions++;
+      if (state == 'resumed') _resumeCount++;
+      if (state == 'paused' || state == 'hidden') _suspendCount++;
+      if (rapidCycle) _rapidLifecycleWarnings++;
+    }
     _addEvent(
       PowerDiagnosticEventType.lifecycle,
       rapidCycle ? '$state rapid-cycle' : state,

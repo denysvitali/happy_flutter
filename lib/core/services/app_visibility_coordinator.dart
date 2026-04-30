@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+enum AppVisibilityEdge { none, suspended, resumed }
+
 /// Maps Flutter lifecycle states to a single suspend/resume edge.
 ///
 /// Flutter can emit `hidden -> paused` when the app backgrounds and may send
@@ -10,7 +12,7 @@ class AppVisibilityCoordinator {
 
   bool get isSuspended => _isSuspended;
 
-  void handleLifecycleState(
+  AppVisibilityEdge handleLifecycleState(
     AppLifecycleState state, {
     required VoidCallback onSuspend,
     required VoidCallback onResume,
@@ -19,19 +21,21 @@ class AppVisibilityCoordinator {
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
         if (_isSuspended) {
-          return;
+          return AppVisibilityEdge.none;
         }
         _isSuspended = true;
         onSuspend();
+        return AppVisibilityEdge.suspended;
       case AppLifecycleState.resumed:
         if (!_isSuspended) {
-          return;
+          return AppVisibilityEdge.none;
         }
         _isSuspended = false;
         onResume();
+        return AppVisibilityEdge.resumed;
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
-        return;
+        return AppVisibilityEdge.none;
     }
   }
 }

@@ -9,12 +9,12 @@ void main() {
       var suspendCalls = 0;
       var resumeCalls = 0;
 
-      coordinator.handleLifecycleState(
+      final hiddenEdge = coordinator.handleLifecycleState(
         AppLifecycleState.hidden,
         onSuspend: () => suspendCalls++,
         onResume: () => resumeCalls++,
       );
-      coordinator.handleLifecycleState(
+      final pausedEdge = coordinator.handleLifecycleState(
         AppLifecycleState.paused,
         onSuspend: () => suspendCalls++,
         onResume: () => resumeCalls++,
@@ -22,6 +22,8 @@ void main() {
 
       expect(suspendCalls, 1);
       expect(resumeCalls, 0);
+      expect(hiddenEdge, AppVisibilityEdge.suspended);
+      expect(pausedEdge, AppVisibilityEdge.none);
       expect(coordinator.isSuspended, isTrue);
     });
 
@@ -30,7 +32,7 @@ void main() {
       var suspendCalls = 0;
       var resumeCalls = 0;
 
-      coordinator.handleLifecycleState(
+      final edge = coordinator.handleLifecycleState(
         AppLifecycleState.inactive,
         onSuspend: () => suspendCalls++,
         onResume: () => resumeCalls++,
@@ -38,6 +40,7 @@ void main() {
 
       expect(suspendCalls, 0);
       expect(resumeCalls, 0);
+      expect(edge, AppVisibilityEdge.none);
       expect(coordinator.isSuspended, isFalse);
     });
 
@@ -46,22 +49,22 @@ void main() {
       var suspendCalls = 0;
       var resumeCalls = 0;
 
-      coordinator.handleLifecycleState(
+      final firstResumeEdge = coordinator.handleLifecycleState(
         AppLifecycleState.resumed,
         onSuspend: () => suspendCalls++,
         onResume: () => resumeCalls++,
       );
-      coordinator.handleLifecycleState(
+      final hiddenEdge = coordinator.handleLifecycleState(
         AppLifecycleState.hidden,
         onSuspend: () => suspendCalls++,
         onResume: () => resumeCalls++,
       );
-      coordinator.handleLifecycleState(
+      final secondResumeEdge = coordinator.handleLifecycleState(
         AppLifecycleState.resumed,
         onSuspend: () => suspendCalls++,
         onResume: () => resumeCalls++,
       );
-      coordinator.handleLifecycleState(
+      final thirdResumeEdge = coordinator.handleLifecycleState(
         AppLifecycleState.resumed,
         onSuspend: () => suspendCalls++,
         onResume: () => resumeCalls++,
@@ -69,6 +72,10 @@ void main() {
 
       expect(suspendCalls, 1);
       expect(resumeCalls, 1);
+      expect(firstResumeEdge, AppVisibilityEdge.none);
+      expect(hiddenEdge, AppVisibilityEdge.suspended);
+      expect(secondResumeEdge, AppVisibilityEdge.resumed);
+      expect(thirdResumeEdge, AppVisibilityEdge.none);
       expect(coordinator.isSuspended, isFalse);
     });
   });

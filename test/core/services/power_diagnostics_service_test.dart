@@ -76,6 +76,23 @@ void main() {
       expect(snapshot.recentEvents, hasLength(14));
     });
 
+    test('does not count sync lifecycle states as app transitions', () {
+      powerDiagnostics
+        ..recordLifecycle('paused')
+        ..recordLifecycle('sync.suspend')
+        ..recordLifecycle('resumed')
+        ..recordLifecycle('sync.resume');
+
+      final snapshot = powerDiagnostics.snapshot();
+      expect(snapshot.lifecycleTransitions, 2);
+      expect(snapshot.resumeCount, 1);
+      expect(snapshot.suspendCount, 1);
+      expect(snapshot.lifecycleStateCounts['paused'], 1);
+      expect(snapshot.lifecycleStateCounts['resumed'], 1);
+      expect(snapshot.lifecycleStateCounts['sync.suspend'], 1);
+      expect(snapshot.lifecycleStateCounts['sync.resume'], 1);
+    });
+
     test('exports a readable report', () {
       powerDiagnostics.recordHttpRequest(
         HttpRequestEntry(
