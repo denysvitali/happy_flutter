@@ -857,10 +857,16 @@ PY
 
     final recentlySpawned = health.wasRecentlySpawned;
 
+    // When the caller didn't pass a profileId (e.g. ask_user_question
+    // fallback), fall back to MMKV — the persisted session profile reflects
+    // the user's last explicit choice. This mirrors _getSpawnEnvVarsForSession
+    // and lets us detect "user switched to Default" (MMKV cleared) as a real
+    // change, while still ignoring no-op sends from callers that don't care.
+    final effectiveProfileIdForChange =
+        profileId ?? await MMKVStorage().getSessionProfile(sessionId);
     final profileChanged =
-        profileId != null &&
         _sessionSpawnedProfile.containsKey(sessionId) &&
-        _sessionSpawnedProfile[sessionId] != profileId;
+        _sessionSpawnedProfile[sessionId] != effectiveProfileIdForChange;
 
     final modelChanged =
         modelMode != null &&

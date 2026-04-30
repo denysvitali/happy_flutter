@@ -1302,6 +1302,177 @@ void main() {
       expect(sync.testGetModelOverride(profile: profile), isNull);
     });
   });
+
+  group('Profile change on running session triggers respawn', () {
+    late Sync sync;
+    late _FakeEncryption encryption;
+
+    setUp(() {
+      sync = Sync();
+      encryption = _FakeEncryption();
+      sync.encryption = encryption;
+      sync.testIsInitialized = true;
+      sync.testSocketConnectedOverride = true;
+      sync.testSocketSendOverride = (_, __) {};
+      sync.testSessions.clear();
+      sync.testMachines.clear();
+      sync.testClearSessionSpawnedAt();
+      sync.testSettingsSnapshot = Settings();
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <dynamic>[],
+      };
+      _stubAllSyncs(sync);
+    });
+
+    tearDown(() {
+      sync.testSocketConnectedOverride = null;
+      sync.testSocketSendOverride = null;
+      sync.testMachineRPCOverride = null;
+      sync.testGetSpawnEnvVarsOverride = null;
+      sync.testFetchMessagesOverride = null;
+      sync.testFetchSingleSessionOverride = null;
+    });
+
+    /// Marks [sessionId] as a healthy "online" session running on [machineId]
+    /// at [path], with the given [spawnedProfileId] tracked as the profile the
+    /// running daemon was spawned with. Mirrors the state of an active chat.
+    void primeOnlineSession({
+      required String sessionId,
+      required String machineId,
+      required String path,
+      required String? spawnedProfileId,
+    }) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now - 60000,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'online',
+        metadata: Metadata(
+          host: '',
+          machineId: machineId,
+          path: path,
+          lifecycleState: 'running',
+          lifecycleStateSince: now,
+        ),
+      );
+      sync.testMachines[machineId] = Machine(
+        id: machineId,
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: now,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
+      sync.testLastEphemeralAt[sessionId] = now;
+      sync.testSetSessionSpawnedProfile(sessionId, spawnedProfileId);
+    }
+
+    test('switching from custom profile to Default kills and respawns '
+        'with empty env vars', () async {
+      const sessionId = 'switch-to-default';
+      Map<String, dynamic>? capturedSpawnParams;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'deepseek',
+      );
+
+      // Simulate "user picked Default in the picker" — MMKV cleared,
+      // so _getSpawnEnvVarsForSession resolves to empty env vars and a
+      // null profile. Without the override, a real MMKV read would also
+      // return null (no entry), which is what we want — but tests don't
+      // have a fake MMKV plugin, so we override explicitly.
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'error'};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      try {
+        await sync.sendMessage(sessionId, 'hello');
+      } catch (_) {
+        // sendMessage may throw after the kill+respawn (REST POST not
+        // mocked); the kill+respawn happens before that and is what we
+        // are asserting here.
+      }
+
+      expect(
+        capturedSpawnParams,
+        isNotNull,
+        reason:
+            'Switching to Default on a running session must trigger '
+            'a kill+respawn — sendMessage(profileId: null) should not '
+            'silently keep the old profile alive.',
+      );
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>?;
+      if (envVars != null) {
+        expect(
+          envVars.containsKey('ANTHROPIC_BASE_URL'),
+          isFalse,
+          reason: 'Respawn after switching to Default must drop the '
+              'previous DeepSeek base URL',
+        );
+        expect(envVars.containsKey('ANTHROPIC_AUTH_TOKEN'), isFalse);
+      }
+    });
+
+    test('sendMessage with profileId=null does NOT kill session when '
+        'the daemon was already spawned with no profile', () async {
+      const sessionId = 'no-change-default-to-default';
+      var spawnCalled = false;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: null,
+      );
+
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          spawnCalled = true;
+        }
+        return <String, dynamic>{'type': 'success', 'sessionId': sessionId};
+      };
+
+      try {
+        await sync.sendMessage(sessionId, 'hello');
+      } catch (_) {
+        // REST POST not mocked.
+      }
+
+      expect(
+        spawnCalled,
+        isFalse,
+        reason: 'A no-op send (Default → Default) must not respawn',
+      );
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
