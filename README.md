@@ -24,36 +24,45 @@ The project follows **Feature-Based Clean Architecture** with clear separation o
 
 ```
 lib/
-├── main.dart                    # App entry, router (GoRouter), all route definitions
+├── main.dart                    # App entry, theme, AuthGate wiring
 ├── core/
-│   ├── api/                     # ApiClient (Dio+NativeAdapter), SocketIoClient, feature API classes
-│   ├── encryption/              # NaCl crypto, session/machine/artifact encryption, key caching
+│   ├── api/                     # ApiClient (Dio+NativeAdapter), SocketIoClient, per-domain API classes
+│   ├── encryption/              # NaCl/libsodium (legacy) + AES-256-GCM (new), key derivation/caching
+│   ├── i18n/                    # Localization helpers
 │   ├── models/                  # Pure Dart models with manual fromJson/toJson/copyWith
-│   ├── providers/               # Riverpod NotifierProvider state (all in app_providers.dart)
-│   ├── services/                # Auth, sync (Sync singleton), storage, certificates
-│   ├── theme/                   # app_tokens.dart: AppSpacing, AppRadius design tokens
-│   ├── ui/                      # Lower-level shared widgets (avatars, tab_bar, shimmer, diff, sidebar)
-│   ├── components/              # Higher-level shared components (AppCard, AppEmptyState, etc.)
-│   └── utils/                   # InvalidateSync, logging, helpers
+│   ├── providers/               # Riverpod NotifierProviders (one file per notifier; app_providers.dart is the barrel)
+│   ├── routing/                 # GoRouter setup (createRouter()) and ~64 route definitions
+│   ├── rpc/                     # RPC layer
+│   ├── services/                # Auth, Sync (split across ~20 _sync_*.dart part files), storage, push, TTS, etc.
+│   ├── theme/                   # app_tokens.dart: AppSpacing, AppRadius, AppFontSize, AppDuration, AppBreakpoint
+│   ├── ui/                      # Lower-level shared widgets (avatars, tab_bar, shimmer, diff, status_bar)
+│   ├── components/              # Higher-level shared components (AppCard, AppEmptyState, sidebar, settings sections)
+│   ├── widgets/                 # App-level widgets (ErrorBoundary, AuthGate, etc.)
+│   └── utils/                   # InvalidateSync, SyncSubscriptionMixin, logging, helpers
 └── features/
-    ├── auth/                    # Landing + QR authentication
-    ├── chat/                    # Chat interface with message pagination
-    ├── sessions/                # Session list (also embeds Inbox + Settings as inline tabs)
-    ├── settings/                # App settings
-    ├── inbox/                   # Notifications inbox
-    ├── artifacts/               # Artifacts browser
-    ├── machine/                 # Machine management
-    ├── zen/                     # Todo/zen mode
-    └── terminal/                # Terminal feature
+    ├── auth/                    # Landing, QR authentication, device linking, backup restore
+    ├── changelog/               # In-app changelog viewer
+    ├── chat/                    # Chat interface, input, markdown, tool views, autocomplete
+    ├── command_palette/         # Modal command search
+    ├── dev/                     # Dev logs, encryption debug, network inspector, notification test
+    ├── inbox/                   # Friends, friend search, inbox
+    ├── sessions/                # Session list (embeds Inbox + Settings as inline tabs), creation, pickers
+    ├── settings/                # App settings (theme, language, voice, profiles, usage, machines, etc.)
+    ├── artifacts/               # Artifact list, detail, edit, create
+    ├── machine/                 # Machine detail
+    ├── sftp/                    # SFTP feature with own models/providers/screens
+    ├── terminal/                # Terminal connect and screen
+    ├── user/                    # User profile
+    └── zen/                     # Todo/zen mode
 ```
 
 ### Key Architectural Patterns
 
 - **State Management**: Riverpod v3 with manual `NotifierProvider` (no code generation)
-- **Sync Singleton**: Central in-memory data hub (`Sync` class) with `InvalidateSync` for debounced server fetches
-- **Provider Bridge**: Screens subscribe to `sync.onDataChanged` and call `loadFromSync()` / `refreshFromSync()`
-- **Service/API Duality**: Each feature has a singleton `XxxService` for production and injectable `XxxApi` class for tests
-- **Platform-Specific Code**: Conditional exports (`lib/platform_io.dart`, `lib/platform_stub.dart`)
+- **Sync Singleton**: Central in-memory data hub (`Sync` class) — main file ~1,000 lines, split across ~20 `_sync_*.dart` part files. `InvalidateSync` provides debounced server fetches with exponential backoff.
+- **Provider Bridge**: Notifiers expose `loadFromSync()` (in-memory read) and `refreshFromSync()` (server fetch + read). Screens use `SyncSubscriptionMixin` (in `lib/core/utils/`) which wraps `sync.onDataChanged` / `onDomainChanged` with deduplication.
+- **Service/API Duality**: Some domains expose both a singleton `XxxService` (production) and an injectable `XxxApi` class (tests).
+- **Platform-Specific Code**: Conditional exports — `platform_io.dart`/`platform_stub.dart`, `mmkv_storage_native.dart`/`mmkv_storage_web.dart`, `sodium_loader_native.dart`/`sodium_loader_web.dart`, `sentry_*.dart`
 
 ## Technology Stack
 
@@ -133,7 +142,7 @@ Spacing and radius tokens are defined in `lib/core/theme/app_tokens.dart`:
 
 ### State Management
 
-All providers are manually declared in `lib/core/providers/app_providers.dart`:
+Providers live in `lib/core/providers/`, one notifier per file. `app_providers.dart` is a barrel that re-exports them:
 
 | Provider | State |
 |----------|-------|
@@ -144,11 +153,16 @@ All providers are manually declared in `lib/core/providers/app_providers.dart`:
 | `connectionNotifierProvider` | `ConnectionStatus` |
 | `currentSessionNotifierProvider` | `Session?` |
 | `profileNotifierProvider` | `Profile?` |
-| `sessionGitStatusProvider` | `Map<String, GitStatus>` |
-| `artifactsNotifierProvider` | `Map<String, Artifact>` |
+| `sessionGitStatusNotifierProvider` | `Map<String, GitStatus>` |
+| `artifactsNotifierProvider` | `Map<String, DecryptedArtifact>` |
 | `friendsNotifierProvider` | `FriendsState` |
 | `feedNotifierProvider` | `FeedState` |
 | `todoStateNotifierProvider` | `TodoListState` |
+| `chatActionNotifierProvider` | `void` (pure action dispatcher) |
+| `syncStateNotifierProvider` | `SyncState` |
+| `networkNotifierProvider` | `NetworkState` |
+| `offlineDictationNotifierProvider` | `OfflineDictationState` |
+| `loggerNotifierProvider` / `loggerServiceProvider` | logger debounced state / service |
 
 ## Security
 
@@ -158,13 +172,15 @@ All providers are manually declared in `lib/core/providers/app_providers.dart`:
 - **App data**: Stored in MMKV (separate instance for server config that persists across logouts)
 - **Certificate pinning**: Currently relies on platform CA store via NativeAdapter
 
-**Note**: Web build is disabled — `sodium` and `mmkv` are not web-compatible.
+**Web platform**: Web is supported — CI runs `flutter build web --release` and deploys it. Web-specific shims are used for storage (`mmkv_storage_web.dart` falls back to `SharedPreferences`) and crypto (`sodium_loader_web.dart`).
 
 ## Testing
 
-- **Unit tests**: Comprehensive test suites for all providers, APIs, and services
+- **Unit tests**: Comprehensive test suites for providers, APIs, and services
 - **Widget tests**: Key UI components tested
-- **Mock generation**: Mockito for `ApiClient` mocking
+- **Integration / e2e**: ~18 e2e files in `test/integration/` covering session spawning, message dedup, pagination, cold starts, reconnection, concurrent sends. Backed by `mock_sync_server.dart` and `fake_session_encryption.dart`, plus replay fixtures in `test/integration/jsonl_replay/`.
+- **Golden screenshots**: `test/golden/golden_test.dart` — phone viewport (390×844 @ 2x). PNGs tracked via Git LFS. Update with `--update-goldens` after any UI change.
+- **Mock generation**: Mockito for `ApiClient` mocking; `.mocks.dart` files sit next to each test
 - **Test command**: `devenv shell -- flutter test`
 
 ### Test Structure
@@ -176,7 +192,10 @@ test/
 ├── encryption/             # Encryption round-trip tests
 ├── features/               # Feature widget tests
 ├── providers/              # State management tests
-└── services/               # Service tests
+├── services/               # Service tests
+├── integration/            # End-to-end tests + mock_sync_server + jsonl_replay
+├── golden/                 # Golden screenshots (Git LFS)
+└── helpers/                # createTestSync(), mockResponse<T>(), shared helpers
 ```
 
 ## Contribution Guidelines

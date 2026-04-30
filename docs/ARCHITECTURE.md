@@ -1,6 +1,6 @@
 # Architecture Review
 
-**Date:** 2026-03-13
+**Date:** 2026-04-30 (refresh of 2026-03-13 review)
 **Agent:** A1 — Architect & Tech Lead
 
 ---
@@ -11,43 +11,53 @@ Happy Flutter uses a **feature-based layered architecture** with Riverpod v3 for
 
 ```
 lib/
-├── main.dart                    # App entry, GoRouter routes
+├── main.dart                    # App entry, theme wiring, AuthGate
 ├── core/
-│   ├── api/                     # Dio HTTP clients, Socket.IO
-│   ├── encryption/              # NaCl + AES-256-GCM crypto
+│   ├── api/                     # Dio HTTP clients, Socket.IO, per-domain API classes
+│   ├── encryption/              # NaCl/libsodium (legacy) + AES-256-GCM (new)
+│   ├── i18n/                    # Localization helpers
 │   ├── models/                  # Manual fromJson/toJson/copyWith
-│   ├── providers/               # Riverpod NotifierProviders
-│   ├── services/                # Auth, Sync, Storage singletons
-│   ├── routing/                 # GoRouter configuration
-│   ├── theme/                   # Design tokens (AppSpacing, AppRadius)
+│   ├── providers/               # Riverpod NotifierProviders (one file per notifier)
+│   ├── routing/                 # GoRouter (~64 routes in app_router.dart)
+│   ├── rpc/                     # RPC layer
+│   ├── services/                # Auth, Sync (split across ~20 part files), Storage, push, TTS
+│   ├── theme/                   # Design tokens (AppSpacing, AppRadius, AppFontSize, etc.)
 │   ├── ui/                      # Low-level widgets
 │   ├── components/              # High-level widgets
 │   ├── widgets/                 # App-level widgets (ErrorBoundary, AuthGate)
-│   └── utils/                   # InvalidateSync, logging
+│   └── utils/                   # InvalidateSync, SyncSubscriptionMixin, logging
 └── features/
     ├── auth/                    # QR auth, device linking
+    ├── changelog/               # In-app changelog
     ├── chat/                    # Chat screen, messages, tools, markdown
-    ├── sessions/                # Session list, creation, management
-    ├── settings/                # Settings screens
+    ├── command_palette/         # Modal command search
+    ├── dev/                     # Dev logs, encryption debug, network inspector
     ├── inbox/                   # Feed, friends, notifications
+    ├── sessions/                # Session list, creation, pickers
+    ├── settings/                # Settings screens
     ├── artifacts/               # Artifact management
-    ├── machine/                 # Machine management
-    ├── zen/                     # Zen mode
-    └── terminal/                # Terminal features
+    ├── machine/                 # Machine detail
+    ├── sftp/                    # SFTP feature
+    ├── terminal/                # Terminal features
+    ├── user/                    # User profile
+    └── zen/                     # Todo/zen mode
 ```
 
 ### Data Flow (Current)
 
 ```
 Presentation (Widgets/Screens)
-    ├── ref.watch(provider)          ← Riverpod providers
-    ├── sync.sendMessage()           ← Direct sync calls (VIOLATION)
-    └── sync.onDataChanged.listen()  ← Manual stream subs (VIOLATION)
+    ├── ref.watch(provider)                      ← preferred path
+    ├── SyncSubscriptionMixin                    ← deduped sync subscriptions
+    │     ├── subscribeToDataChanged(...)
+    │     ├── subscribeToDomains([SyncDomain])   ← scoped invalidation
+    │     └── subscribeToSessionMessagesChanged
+    └── sync.sendMessage() / createSession()...  ← still present in chat + new_session
          ↓
 Riverpod Providers (NotifierProvider)
     └── loadFromSync() / refreshFromSync()
          ↓
-Sync Singleton (3,700 lines — god object)
+Sync Singleton (~1,000 LoC main file + ~20 _sync_*.dart part files)
     ├── API clients (Dio)
     ├── Storage (MMKV)
     ├── WebSocket (Socket.IO)
@@ -58,37 +68,43 @@ Sync Singleton (3,700 lines — god object)
 
 ## Critical Findings
 
-### 1. Sync Singleton — God Object (CRITICAL)
+### 1. Sync Singleton — Still a God, but Decomposed (HIGH, was CRITICAL)
 
-`sync_service.dart` is 3,700+ lines managing sessions, messages, machines, artifacts, settings, profiles, friends, feed, todos, encryption, WebSocket, and API calls. This violates single-responsibility and makes testing extremely difficult.
+`sync_service.dart` itself is now ~1,000 lines, but the class is split across ~20 `_sync_*.dart` part files (`_sync_messaging*`, `_sync_socket*`, `_sync_data*`, `_sync_lifecycle`, `_sync_operations*`, `_sync_health`, `_sync_isolate_helpers`, `_sync_test_helpers`, etc.). Concerns are visually separated but the runtime object is still one class managing sessions, messages, machines, artifacts, settings, profiles, friends, feed, todos, encryption, WebSocket, and API calls.
 
-**Evidence:** The Sync class directly instantiates API clients (`SessionsApi()`, `KvApi()`, `PushApi()`) with no dependency injection or repository abstraction.
+**Evidence:** API clients (`SessionsApi()`, `KvApi()`, `PushApi()`) are still constructed directly inside Sync. No DI / repository abstraction has been introduced yet.
 
-### 2. Direct Widget-to-Sync Coupling (CRITICAL)
+**Status:** Decomposition into part files is good for navigation; runtime decomposition into focused managers (Phase 3 below) has not started.
 
-Screens bypass the Riverpod layer and call sync methods directly:
+### 2. Direct Widget-to-Sync Coupling (HIGH, was CRITICAL — improved)
 
-| Screen | Direct Sync Calls |
-|--------|-------------------|
-| `chat_screen.dart` | 28+ calls (sendMessage, deleteSession, applySettings, etc.) |
-| `new_session_screen.dart` | 3 calls (createSession, createWorktree, applySettings) |
-| `artifacts_list_screen.dart` | Stream subscription to `sync.onDataChanged` |
-| `sessions_screen.dart` | Stream subscription to `sync.onDataChanged` |
+Direct `sync.<method>()` calls from screens have been reduced. Current state:
 
-### 3. Business Logic in Presentation Layer (CRITICAL)
+| Screen | `sync.` references | Notes |
+|--------|--------------------|-------|
+| `chat_screen.dart` | ~14 | Down from 28+. Still the largest violator (`sendMessage`, `deleteSession`, `applySettings`, abort, etc.). |
+| `new_session_screen.dart` | ~6 | `createSession`, `createWorktree`, `applySettings`. |
+| Most other screens | 0 raw `sync.onDataChanged.listen` | Migrated to `SyncSubscriptionMixin` (see below). |
 
-Screens contain operations that belong in notifiers or use cases:
-- `chat_screen.dart`: Message sending, session aborting, settings application
-- `new_session_screen.dart`: Session creation workflow, worktree creation
-- `artifact_detail_screen.dart`: Artifact deletion
+### 3. Business Logic in Presentation Layer (HIGH)
 
-### 4. Missing Repository Pattern (HIGH)
+Screens still contain operations that belong in notifiers or use cases:
+- `chat_screen.dart`: message send, abort, delete, settings application
+- `new_session_screen.dart`: session creation + worktree workflow
+- `artifact_detail_screen.dart`: artifact deletion
 
-No abstraction layer exists between notifiers/sync and API clients. APIs are instantiated directly throughout `sync_service.dart`.
+### 4. Missing Repository Pattern (HIGH, unchanged)
 
-### 5. Manual Stream Subscriptions (HIGH)
+No abstraction layer between notifiers/Sync and API clients. APIs are instantiated directly inside `sync_service.dart`.
 
-Screens subscribe to `sync.onDataChanged` in `initState()` instead of using `ref.watch()`. This requires manual `dispose()` cleanup and creates coupling.
+### 5. Manual Stream Subscriptions — Mostly Fixed (RESOLVED for non-chat)
+
+Introduced `SyncSubscriptionMixin` in `lib/core/utils/sync_subscription_mixin.dart`. It centralizes:
+- `subscribeToDataChanged(ref, cb)` — global stream with counter-based dedup
+- `subscribeToDomains([SyncDomain.x, ...], cb)` — per-domain scoped subscriptions (newer API; reduces wakeups)
+- `subscribeToSessionMessagesChanged(sessionId, cb)` — chat-only
+
+10+ screens already use the mixin (sessions, inbox, machine_detail, machines settings, artifacts list/detail, zen home/new/view, session_debug). `ChatScreen` is still the documented exception because it manages paginated messages with local `setState`.
 
 ---
 
@@ -128,20 +144,18 @@ Data Layer
 
 ### Migration Path
 
-1. **Phase 1 — Extract business logic from screens into notifiers** (P0)
-   - Move `sync.sendMessage()` calls to `ChatNotifier`
-   - Move `sync.createSession()` to `SessionsNotifier`
-   - Replace `sync.onDataChanged.listen()` with `ref.watch()`
+1. **Phase 1 — Extract business logic from screens into notifiers** (P0, **partially done**)
+   - Stream subscriptions: ✅ centralized via `SyncSubscriptionMixin` for non-chat screens. `subscribeToDomains` provides scoped invalidation.
+   - Direct `sync.method()` calls: 🟡 reduced significantly across most features, but `chat_screen.dart` (~14) and `new_session_screen.dart` (~6) still call Sync directly. Move remaining `sync.sendMessage` / abort / delete / `createSession` / `createWorktree` calls behind `chatActionNotifierProvider` and `SessionsNotifier`.
 
-2. **Phase 2 — Create repository interfaces** (P1)
+2. **Phase 2 — Create repository interfaces** (P1, **not started**)
    - `SessionsRepository`, `MessagesRepository`, `ArtifactsRepository`
    - Inject via Riverpod provider overrides for testing
 
-3. **Phase 3 — Break Sync into focused managers** (P2)
-   - `SessionManager`, `MessageManager`, `ArtifactManager`
-   - Each manages its own state, API calls, and encryption
-   - Reduces god object from 3,700 lines to focused modules
+3. **Phase 3 — Break Sync into focused managers** (P2, **part-file decomposition only**)
+   - Sync has been split into ~20 part files (textual decomposition); runtime is still one class.
+   - Next step: extract part files into independent classes (`SessionManager`, `MessageManager`, `ArtifactManager`) that compose into Sync, each owning its state, API calls, and encryption.
 
-4. **Phase 4 — Add use case layer for complex operations** (P3)
+4. **Phase 4 — Add use case layer for complex operations** (P3, **not started**)
    - `SendMessageUseCase`, `CreateSessionUseCase`
    - Only where orchestration across multiple repositories is needed
