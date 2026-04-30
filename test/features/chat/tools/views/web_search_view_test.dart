@@ -3,7 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 
 Widget _wrap(Widget child) {
-  return MaterialApp(home: Scaffold(body: child));
+  // The expanded ToolView with both INPUT and OUTPUT sections is taller than
+  // the default 800x600 test viewport, so wrap the body in a scroll view to
+  // avoid RenderFlex overflow assertions in tests.
+  return MaterialApp(
+    home: Scaffold(body: SingleChildScrollView(child: child)),
+  );
 }
 
 void main() {
@@ -40,8 +45,15 @@ void main() {
     await tester.tap(find.text('Web Search'));
     await tester.pumpAndSettle();
 
-    expect(find.text('flutter release notes'), findsWidgets);
-    expect(find.text('Flutter docs'), findsOneWidget);
+    // Input/output payloads are rendered through JsonTreeViewer, which wraps
+    // string values in quotes inside RichText spans — `find.text` requires
+    // exact matches and so misses them. `findRichText: true` traverses the
+    // span text instead.
+    expect(
+      find.text('"flutter release notes"', findRichText: true),
+      findsWidgets,
+    );
+    expect(find.text('"Flutter docs"', findRichText: true), findsOneWidget);
     expect(find.text('INPUT'), findsOneWidget);
     expect(find.text('OUTPUT'), findsOneWidget);
   });
@@ -63,7 +75,7 @@ void main() {
     );
 
     expect(find.text('Web Search'), findsOneWidget);
-    expect(find.text('weather today'), findsWidgets);
+    expect(find.text('"weather today"', findRichText: true), findsWidgets);
     expect(find.text('INPUT'), findsOneWidget);
   });
 }
