@@ -707,7 +707,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     required AvatarStyle? avatarStyle,
     bool archived = false,
   }) {
-    final cs = Theme.of(context).colorScheme;
     final rows = <Widget>[];
     for (var i = 0; i < sessions.length; i++) {
       final session = sessions[i];
@@ -718,15 +717,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
         archived: archived,
       );
       rows.add(row);
-      if (i < sessions.length - 1) {
-        rows.add(
-          Divider(
-            height: 1,
-            indent: 78,
-            color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
-          ),
-        );
-      }
     }
     return FolderSessionGroup(children: rows);
   }
