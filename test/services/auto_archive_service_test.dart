@@ -7,6 +7,7 @@ Session _session({
   required int updatedAt,
   int? createdAt,
   bool archived = false,
+  bool active = false,
   bool thinking = false,
   String presence = 'offline',
   String? draft,
@@ -17,7 +18,7 @@ Session _session({
     seq: 1,
     createdAt: createdAt ?? updatedAt,
     updatedAt: updatedAt,
-    active: false,
+    active: active,
     activeAt: updatedAt,
     metadataVersion: 1,
     agentStateVersion: 1,
@@ -77,6 +78,7 @@ void main() {
       );
 
       for (final session in [
+        _session(updatedAt: oldUpdatedAt, active: true),
         _session(updatedAt: oldUpdatedAt, presence: 'online'),
         _session(updatedAt: oldUpdatedAt, thinking: true),
         _session(updatedAt: oldUpdatedAt, draft: 'unfinished'),

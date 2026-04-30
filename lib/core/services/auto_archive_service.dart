@@ -133,6 +133,7 @@ class AutoArchiveService {
     required bool hasUnsettledSend,
   }) {
     if (session.archived || isPinned) return false;
+    if (session.active) return false;
     if (session.presence == 'online' || session.thinking) return false;
     if (hasPendingPermission(session)) return false;
     if (hasUnsettledSend) return false;
