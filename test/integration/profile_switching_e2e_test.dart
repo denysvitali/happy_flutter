@@ -1431,11 +1431,66 @@ void main() {
         expect(
           envVars.containsKey('ANTHROPIC_BASE_URL'),
           isFalse,
-          reason: 'Respawn after switching to Default must drop the '
+          reason:
+              'Respawn after switching to Default must drop the '
               'previous DeepSeek base URL',
         );
         expect(envVars.containsKey('ANTHROPIC_AUTH_TOKEN'), isFalse);
       }
+    });
+
+    test('selecting a profile on a running session with unknown spawn state '
+        'kills and respawns with profile env vars', () async {
+      const sessionId = 'unknown-spawn-select-profile';
+      Map<String, dynamic>? capturedSpawnParams;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: null,
+      );
+      sync.testSessionSpawnedProfile.remove(sessionId);
+
+      final deepseek = getBuiltInProfile('deepseek')!;
+      sync.testGetSpawnEnvVarsOverride = (_) async => (
+        envVars: {
+          for (final v in deepseek.environmentVariables) v.name: v.value,
+        },
+        profile: deepseek,
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'success'};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      try {
+        await sync.sendMessage(sessionId, 'hello', profileId: 'deepseek');
+      } catch (_) {
+        // REST POST not mocked.
+      }
+
+      expect(
+        capturedSpawnParams,
+        isNotNull,
+        reason:
+            'A profile selected in the picker must restart a running '
+            'session even when this app instance did not spawn it.',
+      );
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      expect(envVars!['ANTHROPIC_BASE_URL'], contains('deepseek'));
+      expect(envVars['ANTHROPIC_AUTH_TOKEN'], isNotNull);
     });
 
     test('sendMessage with profileId=null does NOT kill session when '

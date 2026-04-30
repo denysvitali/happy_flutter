@@ -864,9 +864,10 @@ PY
     // change, while still ignoring no-op sends from callers that don't care.
     final effectiveProfileIdForChange =
         profileId ?? await MMKVStorage().getSessionProfile(sessionId);
-    final profileChanged =
-        _sessionSpawnedProfile.containsKey(sessionId) &&
-        _sessionSpawnedProfile[sessionId] != effectiveProfileIdForChange;
+    final spawnedProfileKnown = _sessionSpawnedProfile.containsKey(sessionId);
+    final profileChanged = spawnedProfileKnown
+        ? _sessionSpawnedProfile[sessionId] != effectiveProfileIdForChange
+        : effectiveProfileIdForChange != null;
 
     final modelChanged =
         modelMode != null &&
