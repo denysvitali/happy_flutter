@@ -153,10 +153,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final isTablet = screenWidth >= AppBreakpoint.tablet;
     final isTabletDetail =
         isTablet && _activeTab == AppTab.sessions && _selectedSessionId != null;
-    final folder = _folderNotifier.value;
-    final appBar = isTabletDetail && folder == null
-        ? null
-        : _buildAppBar(context, l10n);
+    final appBar = _buildAppBar(context, l10n);
 
     return PopScope(
       // Always block if a navigation action is already pending —
