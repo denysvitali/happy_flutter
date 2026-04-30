@@ -22,6 +22,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.sessionId,
     this.avatarStyle,
     this.machineVitals,
+    this.onBackTap,
     super.key,
   });
 
@@ -33,6 +34,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String sessionId;
   final AvatarStyle? avatarStyle;
   final ChatMachineVitals? machineVitals;
+  final VoidCallback? onBackTap;
 
   @override
   Size get preferredSize => Size.fromHeight(
@@ -43,6 +45,13 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final activeAgentCount = AgentsListSheet.countActiveAgents(sessionId);
     return AppBar(
+      leading: onBackTap == null
+          ? null
+          : IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: context.l10n.commonBack,
+              onPressed: onBackTap,
+            ),
       titleSpacing: 0,
       title: _buildTitle(context),
       scrolledUnderElevation: 0.5,

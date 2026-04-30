@@ -24,7 +24,12 @@ import 'widgets/new_session_dialog.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
 
-enum _NavigationAction { switchToSessions, closeFolder, exitConfirm }
+enum _NavigationAction {
+  switchToSessions,
+  closeFolder,
+  closeTabletChat,
+  exitConfirm,
+}
 
 /// Sessions list screen with date grouping and enhanced
 /// status display.
@@ -148,7 +153,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final isTablet = screenWidth >= AppBreakpoint.tablet;
     final isTabletDetail =
         isTablet && _activeTab == AppTab.sessions && _selectedSessionId != null;
-    final appBar = isTabletDetail ? null : _buildAppBar(context, l10n);
+    final folder = _folderNotifier.value;
+    final appBar = isTabletDetail && folder == null
+        ? null
+        : _buildAppBar(context, l10n);
 
     return PopScope(
       // Always block if a navigation action is already pending —
@@ -170,6 +178,15 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             _pendingNav = null;
           });
           _updateUrlTab(AppTab.sessions);
+        } else if (!didPop &&
+            isTablet &&
+            currentTab == AppTab.sessions &&
+            _selectedSessionId != null) {
+          _pendingNav = _NavigationAction.closeTabletChat;
+          setState(() {
+            _selectedSessionId = null;
+            _pendingNav = null;
+          });
         } else if (!didPop && currentTab == AppTab.sessions && folder != null) {
           _pendingNav = _NavigationAction.closeFolder;
           setState(() {
@@ -480,7 +497,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           ),
           Expanded(
             child: _selectedSessionId != null
-                ? ChatScreen(sessionId: _selectedSessionId!)
+                ? ChatScreen(
+                    sessionId: _selectedSessionId!,
+                    onBack: () => setState(() => _selectedSessionId = null),
+                  )
                 : _buildNoSessionSelected(),
           ),
         ],

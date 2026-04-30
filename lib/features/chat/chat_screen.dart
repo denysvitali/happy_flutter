@@ -46,8 +46,9 @@ part '_chat_screen_builders.dart';
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({required this.sessionId, super.key});
+  const ChatScreen({required this.sessionId, this.onBack, super.key});
   final String sessionId;
+  final VoidCallback? onBack;
 
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
@@ -870,6 +871,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             sessionId: widget.sessionId,
             onAbort: _abortSession,
           ),
+          onBackTap: widget.onBack,
         ),
         body: Column(
           children: [

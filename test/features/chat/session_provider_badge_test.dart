@@ -97,6 +97,31 @@ void main() {
     expect(find.text('73%'), findsOneWidget);
   });
 
+  testWidgets('chat app bar can show an embedded back button', (tester) async {
+    var backTapped = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          appBar: ChatAppBar(
+            session: _session(flavor: 'codex'),
+            sessionTitle: 'Workspace',
+            statusChips: const [],
+            onMenuTap: () {},
+            onInfoTap: () {},
+            onBackTap: () => backTapped = true,
+            sessionId: 'session-1',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    expect(backTapped, isTrue);
+  });
+
   testWidgets('session cards use hash-based avatar style by default', (
     tester,
   ) async {
