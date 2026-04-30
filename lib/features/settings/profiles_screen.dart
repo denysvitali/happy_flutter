@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/components/settings_section.dart';
+import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
@@ -11,6 +12,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/shell_script_parser.dart';
+import 'profile_editor_screen.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
 class ProfilesScreen extends ConsumerStatefulWidget {
@@ -21,6 +23,8 @@ class ProfilesScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
+  String? _selectedProfileId;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -48,6 +52,68 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         .where((profile) => profile.compatibility.supportsAgent('gemini'))
         .toList();
 
+    final isWide = MasterDetailScaffold.isWide(context);
+
+    // If the currently-selected profile no longer exists (deleted or
+    // built-in customisation reset), drop the selection so the empty
+    // state is shown instead of an editor with stale state.
+    if (_selectedProfileId != null &&
+        !effectiveProfiles.any((p) => p.id == _selectedProfileId)) {
+      _selectedProfileId = null;
+    }
+
+    final master = ListView(
+      padding: AppScreenPadding.settings,
+      children: [
+        SettingsSection(
+          title: l10n.profilesTitle,
+          uppercase: false,
+          children: [
+            _buildProfileRow(
+              context: context,
+              profile: null,
+              isSelected: selectedProfileId == null,
+              onTap: () {
+                final current = ref.read(settingsNotifierProvider);
+                final notifier = ref.read(settingsNotifierProvider.notifier);
+                unawaited(
+                  notifier.updateSetting(
+                    'lastUsedProfilesByAgent',
+                    current.lastUsedProfilesWithAgent(selectedAgent, null),
+                  ),
+                );
+                unawaited(
+                  notifier.updateSetting('lastUsedAgent', selectedAgent),
+                );
+                unawaited(notifier.updateSetting('lastUsedProfile', null));
+              },
+            ),
+          ],
+        ),
+        _buildAgentSection(
+          context: context,
+          title: l10n.settingsClaudeCode,
+          profiles: claudeProfiles,
+          agent: 'claude',
+          isWide: isWide,
+        ),
+        _buildAgentSection(
+          context: context,
+          title: l10n.sessionsCodex,
+          profiles: codexProfiles,
+          agent: 'codex',
+          isWide: isWide,
+        ),
+        _buildAgentSection(
+          context: context,
+          title: l10n.sessionsGemini,
+          profiles: geminiProfiles,
+          agent: 'gemini',
+          isWide: isWide,
+        ),
+      ],
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.profilesTitle),
@@ -64,54 +130,25 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: AppScreenPadding.settings,
-        children: [
-          SettingsSection(
-            title: l10n.profilesTitle,
-            uppercase: false,
-            children: [
-              _buildProfileRow(
-                context: context,
-                profile: null,
-                isSelected: selectedProfileId == null,
-                onTap: () {
-                  final current = ref.read(settingsNotifierProvider);
-                  final notifier = ref.read(settingsNotifierProvider.notifier);
-                  unawaited(
-                    notifier.updateSetting(
-                      'lastUsedProfilesByAgent',
-                      current.lastUsedProfilesWithAgent(selectedAgent, null),
+      body: isWide
+          ? MasterDetailScaffold(
+              hasSelection: _selectedProfileId != null,
+              master: master,
+              detail: _selectedProfileId == null
+                  ? const SizedBox.shrink()
+                  : ProfileEditorScreen(
+                      key: ValueKey(_selectedProfileId),
+                      profileId: _selectedProfileId,
+                      embedded: true,
+                      onClose: () =>
+                          setState(() => _selectedProfileId = null),
                     ),
-                  );
-                  unawaited(
-                    notifier.updateSetting('lastUsedAgent', selectedAgent),
-                  );
-                  unawaited(notifier.updateSetting('lastUsedProfile', null));
-                },
+              emptyDetail: const TabletDetailEmpty(
+                icon: Icons.person_outline,
+                message: 'Select a profile to edit',
               ),
-            ],
-          ),
-          _buildAgentSection(
-            context: context,
-            title: l10n.settingsClaudeCode,
-            profiles: claudeProfiles,
-            agent: 'claude',
-          ),
-          _buildAgentSection(
-            context: context,
-            title: l10n.sessionsCodex,
-            profiles: codexProfiles,
-            agent: 'codex',
-          ),
-          _buildAgentSection(
-            context: context,
-            title: l10n.sessionsGemini,
-            profiles: geminiProfiles,
-            agent: 'gemini',
-          ),
-        ],
-      ),
+            )
+          : master,
     );
   }
 
@@ -133,6 +170,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     required String title,
     required List<AIBackendProfile> profiles,
     required String agent,
+    required bool isWide,
   }) {
     if (profiles.isEmpty) {
       return const SizedBox.shrink();
@@ -154,7 +192,13 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               context: context,
               profile: profile,
               isSelected: isSelected,
+              isInlineSelected:
+                  isWide && _selectedProfileId == profile.id,
               onTap: () {
+                if (isWide) {
+                  setState(() => _selectedProfileId = profile.id);
+                  return;
+                }
                 final settings = ref.read(settingsNotifierProvider);
                 final notifier = ref.read(settingsNotifierProvider.notifier);
                 unawaited(
@@ -168,7 +212,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                   notifier.updateSetting('lastUsedProfile', profile.id),
                 );
               },
-              onEdit: () => context.pushNamed('profile-editor', extra: profile),
+              onEdit: isWide
+                  ? () => setState(() => _selectedProfileId = profile.id)
+                  : () => context.pushNamed('profile-editor', extra: profile),
               onDuplicate: isCustom
                   ? () => _duplicateProfile(context, ref, profile)
                   : null,
@@ -187,6 +233,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     required AIBackendProfile? profile,
     required bool isSelected,
     required VoidCallback onTap,
+    bool isInlineSelected = false,
     VoidCallback? onEdit,
     VoidCallback? onDelete,
     VoidCallback? onDuplicate,
@@ -203,7 +250,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         ? _iconForProfile(profile.id)
         : Icons.person_outline;
 
-    return SettingsRow(
+    final row = SettingsRow(
       icon: icon,
       iconColor: iconColor,
       title: profile?.name ?? AppLocalizations.of(context).profilesNone,
@@ -254,6 +301,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         ],
       ),
     );
+
+    if (!isInlineSelected) return row;
+    return ColoredBox(color: cs.primary.withValues(alpha: 0.08), child: row);
   }
 
   Future<void> _showImportDialog() async {

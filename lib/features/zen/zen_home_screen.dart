@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/components/components.dart';
+import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
@@ -13,7 +14,12 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
+import 'zen_new_screen.dart';
 import 'zen_priority.dart';
+import 'zen_view_screen.dart';
+
+/// Inline detail mode for the wide (tablet+) zen layout.
+enum _ZenInlineMode { none, view, create }
 
 /// Selector value for todo data used in zen home.
 class _ZenTodoData {
@@ -52,6 +58,9 @@ class ZenHomeScreen extends ConsumerStatefulWidget {
 class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     with SyncSubscriptionMixin {
   bool _isLoading = true;
+  String? _selectedTodoId;
+  String? _selectedSessionId;
+  _ZenInlineMode _inlineMode = _ZenInlineMode.none;
 
   @override
   void initState() {
@@ -64,6 +73,44 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     subscribeToDomains([SyncDomain.todos], () {
       ref.read(todoStateNotifierProvider.notifier).loadFromSync();
     });
+  }
+
+  void _clearInline() {
+    setState(() {
+      _selectedTodoId = null;
+      _selectedSessionId = null;
+      _inlineMode = _ZenInlineMode.none;
+    });
+  }
+
+  void _openTodoWide(TodoItem item) {
+    setState(() {
+      _selectedTodoId = item.id;
+      _selectedSessionId = item.sessionId ?? 'global';
+      _inlineMode = _ZenInlineMode.view;
+    });
+  }
+
+  void _openCreateWide() {
+    setState(() {
+      _selectedTodoId = null;
+      _selectedSessionId = null;
+      _inlineMode = _ZenInlineMode.create;
+    });
+  }
+
+  void _openTodoNarrow(TodoItem item) {
+    context.push(
+      '/zen/view',
+      extra: {
+        'todoId': item.id,
+        'sessionId': item.sessionId ?? 'global',
+      },
+    );
+  }
+
+  void _openCreateNarrow() {
+    context.push('/zen/new');
   }
 
   @override
@@ -92,6 +139,77 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
         .where((t) => t.status.isTerminal)
         .toList(growable: false);
 
+    final isWide = MasterDetailScaffold.isWide(context);
+
+    // If selection no longer exists (e.g. deleted), reset inline state.
+    if (isWide &&
+        _inlineMode == _ZenInlineMode.view &&
+        _selectedTodoId != null) {
+      final stillExists = allTodos.any(
+        (t) => t.id == _selectedTodoId,
+      );
+      if (!stillExists) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _clearInline();
+        });
+      }
+    }
+
+    final masterBody = _isLoading
+        ? const _ZenLoadingShimmer()
+        : allTodos.isEmpty
+        ? AppEmptyState(
+            icon: Icons.spa,
+            title: context.l10n.zenEmptyTitle,
+            subtitle: context.l10n.zenEmptySubtitle,
+            action: FilledButton.icon(
+              onPressed: () =>
+                  isWide ? _openCreateWide() : _openCreateNarrow(),
+              icon: const Icon(Icons.add),
+              label: Text(context.l10n.zenNewTask),
+            ),
+          )
+        : _TodoSectionsList(
+            activeTodos: activeTodos,
+            completedTodos: completedTodos,
+            selectedId: isWide ? _selectedTodoId : null,
+            onOpen: (item) =>
+                isWide ? _openTodoWide(item) : _openTodoNarrow(item),
+          );
+
+    final scaffoldBody = isWide
+        ? MasterDetailScaffold(
+            master: masterBody,
+            hasSelection: _inlineMode != _ZenInlineMode.none,
+            emptyDetail: const TabletDetailEmpty(
+              icon: Icons.task_alt_outlined,
+              // TODO(i18n): localize 'Select a todo'.
+              message: 'Select a todo',
+            ),
+            detail: switch (_inlineMode) {
+              _ZenInlineMode.view => ZenViewScreen(
+                key: ValueKey<String>(
+                  'zen-view-${_selectedTodoId ?? ''}',
+                ),
+                todoId: _selectedTodoId ?? '',
+                sessionId: _selectedSessionId ?? 'global',
+                embedded: true,
+                onClose: _clearInline,
+              ),
+              _ZenInlineMode.create => ZenNewScreen(
+                key: const ValueKey<String>('zen-new-embedded'),
+                embedded: true,
+                onClose: _clearInline,
+              ),
+              _ZenInlineMode.none => const TabletDetailEmpty(
+                icon: Icons.task_alt_outlined,
+                // TODO(i18n): localize 'Select a todo'.
+                message: 'Select a todo',
+              ),
+            },
+          )
+        : masterBody;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -104,32 +222,10 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
           ],
         ),
       ),
-      body: _isLoading
-          ? const _ZenLoadingShimmer()
-          : allTodos.isEmpty
-          ? AppEmptyState(
-              icon: Icons.spa,
-              title: context.l10n.zenEmptyTitle,
-              subtitle: context.l10n.zenEmptySubtitle,
-              action: FilledButton.icon(
-                onPressed: () => context.push('/zen/new'),
-                icon: const Icon(Icons.add),
-                label: Text(context.l10n.zenNewTask),
-              ),
-            )
-          : _TodoSectionsList(
-              activeTodos: activeTodos,
-              completedTodos: completedTodos,
-              onOpen: (item) => context.push(
-                '/zen/view',
-                extra: {
-                  'todoId': item.id,
-                  'sessionId': item.sessionId ?? 'global',
-                },
-              ),
-            ),
+      body: scaffoldBody,
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/zen/new'),
+        onPressed: () =>
+            isWide ? _openCreateWide() : _openCreateNarrow(),
         tooltip: context.l10n.zenNewTask,
         child: const Icon(Icons.add),
       ),
@@ -167,10 +263,15 @@ class _TaskCountBadge extends StatelessWidget {
 }
 
 class _TodoItemCard extends StatelessWidget {
-  const _TodoItemCard({required this.item, required this.onTap});
+  const _TodoItemCard({
+    required this.item,
+    required this.onTap,
+    required this.isSelected,
+  });
 
   final TodoItem item;
   final VoidCallback onTap;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +281,7 @@ class _TodoItemCard extends StatelessWidget {
     // Apply opacity via color alpha instead of wrapping the entire
     // card in an Opacity widget (which forces a separate layer).
     final alpha = isDone ? AppOpacity.medium + 0.3 : 1.0;
-    return AppCard(
+    final card = AppCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       onTap: isDone ? null : onTap,
       padding: const EdgeInsets.symmetric(
@@ -213,6 +314,15 @@ class _TodoItemCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+    if (!isSelected) return card;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer
+            .withValues(alpha: AppOpacity.subtle),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: card,
     );
   }
 }
@@ -281,11 +391,13 @@ class _TodoSectionsList extends StatelessWidget {
     required this.activeTodos,
     required this.completedTodos,
     required this.onOpen,
+    required this.selectedId,
   });
 
   final List<TodoItem> activeTodos;
   final List<TodoItem> completedTodos;
   final void Function(TodoItem item) onOpen;
+  final String? selectedId;
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +410,11 @@ class _TodoSectionsList extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           for (final item in activeTodos)
-            _TodoItemCard(item: item, onTap: () => onOpen(item)),
+            _TodoItemCard(
+              item: item,
+              onTap: () => onOpen(item),
+              isSelected: selectedId == item.id,
+            ),
         ],
         if (completedTodos.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
@@ -307,7 +423,11 @@ class _TodoSectionsList extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           ),
           for (final item in completedTodos)
-            _TodoItemCard(item: item, onTap: () => onOpen(item)),
+            _TodoItemCard(
+              item: item,
+              onTap: () => onOpen(item),
+              isSelected: selectedId == item.id,
+            ),
         ],
       ],
     );

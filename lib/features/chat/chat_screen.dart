@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart'
     show Breadcrumb, Hint, Sentry, SentryLevel;
 
+import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/session.dart';
@@ -22,9 +23,14 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/wire_parsers.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
+import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
 import 'helpers/chat_dialogs.dart';
+import 'message_detail_screen.dart';
 import 'message_widget.dart';
+import 'session_file_viewer_screen.dart';
+import 'session_files_screen.dart';
+import 'session_info_screen.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_loading_shimmer.dart';
 import 'widgets/cleared_divider.dart';
@@ -33,6 +39,18 @@ import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
+
+/// Identifies which detail pane (if any) is currently selected when the
+/// chat screen is rendered as a master-detail layout on desktop-width
+/// viewports.
+enum _ChatDetailKind {
+  none,
+  messageDetail,
+  sessionInfo,
+  sessionFiles,
+  agent,
+  fileViewer,
+}
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
 // because Dart's library-private (`_`) visibility is required for
@@ -120,6 +138,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   bool _initialLoadComplete = false;
   final Set<String> _seenMessageIds = {};
+
+  // ── Tablet master-detail state (desktop-width only) ──────────────────────
+  // Tracks which detail pane is currently selected when the chat screen is
+  // wide enough to host its own master-detail layout.
+  _ChatDetailKind _detailKind = _ChatDetailKind.none;
+  String? _detailMessageId;
+  Map<String, dynamic>? _detailMessageData;
+  String? _detailFilePath;
+  String? _detailFileContent;
 
   // Track when the actual messages list changes (not just rebuilds)
   List<Map<String, dynamic>>? _lastMessagesList;
@@ -268,6 +295,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _codexModelModesMachineId = null;
       _isLoadingCodexModelModes = false;
       _metadataJson = null;
+      // Reset the tablet detail pane on session change.
+      _detailKind = _ChatDetailKind.none;
+      _detailMessageId = null;
+      _detailMessageData = null;
+      _detailFilePath = null;
+      _detailFileContent = null;
     }
   }
 
@@ -811,6 +844,94 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return chips;
   }
 
+  /// Whether the chat screen itself is wide enough to host its own
+  /// master-detail layout (sessions screen already eats the first 360px,
+  /// so we only nest a second master-detail above the desktop breakpoint).
+  bool _isChatWide(BuildContext context) =>
+      MediaQuery.sizeOf(context).width >= AppBreakpoint.desktop;
+
+  void _clearChatDetail() {
+    if (_detailKind == _ChatDetailKind.none) return;
+    setState(() {
+      _detailKind = _ChatDetailKind.none;
+      _detailMessageId = null;
+      _detailMessageData = null;
+      _detailFilePath = null;
+      _detailFileContent = null;
+    });
+  }
+
+  void _showSessionInfoDetail() {
+    setState(() {
+      _detailKind = _ChatDetailKind.sessionInfo;
+      _detailMessageId = null;
+      _detailMessageData = null;
+      _detailFilePath = null;
+      _detailFileContent = null;
+    });
+  }
+
+  static const TabletDetailEmpty _emptyChatDetail = TabletDetailEmpty(
+    icon: Icons.chat_bubble_outline,
+    // TODO(i18n): tablet detail empty message not yet localized
+    message: 'Tap a message to inspect tools, files, or agent runs',
+  );
+
+  Widget _buildDetailPane() {
+    final sid = widget.sessionId;
+    switch (_detailKind) {
+      case _ChatDetailKind.none:
+        return _emptyChatDetail;
+      case _ChatDetailKind.sessionInfo:
+        return SessionInfoScreen(
+          key: ValueKey('detail-info-$sid'),
+          sessionId: sid,
+          embedded: true,
+          onClose: _clearChatDetail,
+        );
+      case _ChatDetailKind.sessionFiles:
+        return SessionFilesScreen(
+          key: ValueKey('detail-files-$sid'),
+          sessionId: sid,
+          embedded: true,
+          onClose: _clearChatDetail,
+        );
+      case _ChatDetailKind.messageDetail:
+        final id = _detailMessageId;
+        if (id == null) return _emptyChatDetail;
+        return MessageDetailScreen(
+          key: ValueKey('detail-message-$sid-$id'),
+          sessionId: sid,
+          messageId: id,
+          messageData: _detailMessageData,
+          embedded: true,
+          onClose: _clearChatDetail,
+        );
+      case _ChatDetailKind.agent:
+        final id = _detailMessageId;
+        if (id == null) return _emptyChatDetail;
+        return AgentConversationScreen(
+          key: ValueKey('detail-agent-$sid-$id'),
+          sessionId: sid,
+          messageId: id,
+          taskData: _detailMessageData,
+          embedded: true,
+          onClose: _clearChatDetail,
+        );
+      case _ChatDetailKind.fileViewer:
+        final path = _detailFilePath;
+        if (path == null) return _emptyChatDetail;
+        return SessionFileViewerScreen(
+          key: ValueKey('detail-file-$sid-$path'),
+          path: path,
+          sessionId: sid,
+          content: _detailFileContent,
+          embedded: true,
+          onClose: _clearChatDetail,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final availableModels = ChatModelMode.availableForProfile(
@@ -830,6 +951,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final hideToolCalls = ref.watch(
       settingsNotifierProvider.select((s) => s.hideToolCalls),
     );
+    final isWide = _isChatWide(context);
 
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: _controller,
@@ -861,6 +983,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           avatarStyle: avatarStyle,
           onInfoTap: () {
             HapticFeedback.lightImpact();
+            if (isWide) {
+              _showSessionInfoDetail();
+              return;
+            }
             context.pushNamed(
               'session-info',
               pathParameters: {'sessionId': widget.sessionId},
@@ -873,101 +999,139 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           onBackTap: widget.onBack,
         ),
-        body: Column(
-          children: [
-            const OfflineBanner(),
-            Expanded(
-              child: ValueListenableBuilder<int>(
-                valueListenable: _messagePaneRevision,
-                builder: (context, revision, child) {
-                  return Stack(
-                    children: [
-                      AnimatedSwitcher(
-                        duration: AppDuration.normal,
-                        child: _isLoadingMessages
-                            ? const ChatLoadingShimmer(key: ValueKey('loading'))
-                            : _messages.isEmpty
-                            ? (_loadFailed
-                                  ? RetryErrorView(onRetry: _retry)
-                                  : EmptyChatView(
-                                      key: const ValueKey('empty'),
-                                      onSuggestionTap: _onSuggestionTap,
-                                    ))
-                            : _buildMessageList(hideToolCalls: hideToolCalls),
-                      ),
-                      // The scroll-to-bottom pill listens to
-                      // _autoScrollNotifier directly so scroll events do NOT
-                      // trigger a full _ChatScreenState rebuild.
-                      RepaintBoundary(
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: _autoScrollNotifier,
-                          builder: (context, autoScroll, _) {
-                            return ExcludeSemantics(
-                              excluding: autoScroll || _isLoadingMessages,
-                              child: IgnorePointer(
-                                ignoring: autoScroll || _isLoadingMessages,
-                                child: AnimatedOpacity(
-                                  opacity: (!autoScroll && !_isLoadingMessages)
-                                      ? 1.0
-                                      : 0.0,
-                                  duration: AppDuration.normal,
-                                  curve: AppCurve.standard,
-                                  child: AnimatedScale(
-                                    scale: (!autoScroll && !_isLoadingMessages)
-                                        ? 1.0
-                                        : 0.8,
-                                    duration: AppDuration.normal,
-                                    curve: AppCurve.standard,
-                                    child: Align(
-                                      alignment: Alignment.bottomCenter,
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: AppSpacing.md,
-                                        ),
-                                        child: ScrollToBottomPill(
-                                          onTap: () {
-                                            HapticFeedback.lightImpact();
-                                            _autoScroll = true;
-                                            _scrollToBottom();
-                                          },
-                                        ),
-                                      ),
+        body: _buildScaffoldBody(
+          isWide: isWide,
+          hideToolCalls: hideToolCalls,
+          enterToSend: enterToSend,
+          availableModels: availableModels,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScaffoldBody({
+    required bool isWide,
+    required bool hideToolCalls,
+    required bool enterToSend,
+    required List<ChatModelMode> availableModels,
+  }) {
+    final master = _buildMasterPane(
+      hideToolCalls: hideToolCalls,
+      enterToSend: enterToSend,
+      availableModels: availableModels,
+    );
+    if (!isWide) return master;
+    return MasterDetailScaffold(
+      master: master,
+      detail: _buildDetailPane(),
+      hasSelection: _detailKind != _ChatDetailKind.none,
+      tabletBreakpoint: AppBreakpoint.desktop,
+      emptyDetail: const TabletDetailEmpty(
+        icon: Icons.chat_bubble_outline,
+        // TODO(i18n): empty detail message not yet localized
+        message: 'Tap a message to inspect tools, files, or agent runs',
+      ),
+    );
+  }
+
+  Widget _buildMasterPane({
+    required bool hideToolCalls,
+    required bool enterToSend,
+    required List<ChatModelMode> availableModels,
+  }) {
+    return Column(
+      children: [
+        const OfflineBanner(),
+        Expanded(
+          child: ValueListenableBuilder<int>(
+            valueListenable: _messagePaneRevision,
+            builder: (context, revision, child) {
+              return Stack(
+                children: [
+                  AnimatedSwitcher(
+                    duration: AppDuration.normal,
+                    child: _isLoadingMessages
+                        ? const ChatLoadingShimmer(key: ValueKey('loading'))
+                        : _messages.isEmpty
+                        ? (_loadFailed
+                              ? RetryErrorView(onRetry: _retry)
+                              : EmptyChatView(
+                                  key: const ValueKey('empty'),
+                                  onSuggestionTap: _onSuggestionTap,
+                                ))
+                        : _buildMessageList(hideToolCalls: hideToolCalls),
+                  ),
+                  // The scroll-to-bottom pill listens to
+                  // _autoScrollNotifier directly so scroll events do NOT
+                  // trigger a full _ChatScreenState rebuild.
+                  RepaintBoundary(
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _autoScrollNotifier,
+                      builder: (context, autoScroll, _) {
+                        return ExcludeSemantics(
+                          excluding: autoScroll || _isLoadingMessages,
+                          child: IgnorePointer(
+                            ignoring: autoScroll || _isLoadingMessages,
+                            child: AnimatedOpacity(
+                              opacity: (!autoScroll && !_isLoadingMessages)
+                                  ? 1.0
+                                  : 0.0,
+                              duration: AppDuration.normal,
+                              curve: AppCurve.standard,
+                              child: AnimatedScale(
+                                scale: (!autoScroll && !_isLoadingMessages)
+                                    ? 1.0
+                                    : 0.8,
+                                duration: AppDuration.normal,
+                                curve: AppCurve.standard,
+                                child: Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: AppSpacing.md,
+                                    ),
+                                    child: ScrollToBottomPill(
+                                      onTap: () {
+                                        HapticFeedback.lightImpact();
+                                        _autoScroll = true;
+                                        _scrollToBottom();
+                                      },
                                     ),
                                   ),
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            ChatInput(
-              sessionId: widget.sessionId,
-              controller: _controller,
-              onSend: _sendMessage,
-              isSending: _isSending,
-              permissionMode: _permissionMode,
-              onPermissionModeChanged: _onPermissionModeChanged,
-              modelMode: _modelMode,
-              availableModels: availableModels,
-              onModelModeChanged: _onModelModeChanged,
-              selectedProfile: _selectedProfile,
-              availableProfiles: _availableProfiles,
-              onProfileChanged: _onProfileChanged,
-              machineName: _session?.metadata?.host,
-              currentPath: _session?.metadata?.path,
-              contextSize:
-                  sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
-              isSessionOnline: _session?.isPresenceOnline ?? false,
-              enterToSend: enterToSend,
-            ),
-          ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
-      ),
+        ChatInput(
+          sessionId: widget.sessionId,
+          controller: _controller,
+          onSend: _sendMessage,
+          isSending: _isSending,
+          permissionMode: _permissionMode,
+          onPermissionModeChanged: _onPermissionModeChanged,
+          modelMode: _modelMode,
+          availableModels: availableModels,
+          onModelModeChanged: _onModelModeChanged,
+          selectedProfile: _selectedProfile,
+          availableProfiles: _availableProfiles,
+          onProfileChanged: _onProfileChanged,
+          machineName: _session?.metadata?.host,
+          currentPath: _session?.metadata?.path,
+          contextSize:
+              sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
+          isSessionOnline: _session?.isPresenceOnline ?? false,
+          enterToSend: enterToSend,
+        ),
+      ],
     );
   }
 

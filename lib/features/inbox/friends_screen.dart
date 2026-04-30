@@ -6,6 +6,7 @@ import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/app_tappable.dart';
 import '../../core/components/avatar.dart';
+import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/friend.dart';
 import '../../core/providers/app_providers.dart';
@@ -14,6 +15,11 @@ import '../../core/services/social_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/shimmer/shimmer.dart';
+import 'friends_search_screen.dart';
+import 'widgets/friend_detail_panel.dart';
+
+/// Inline detail mode shown on wide layouts.
+enum _FriendsInlineMode { none, search }
 
 /// Friends screen with two tabs: accepted friends
 /// and incoming requests.
@@ -31,6 +37,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
   bool _isLoading = true;
   final Set<String> _busyIds = {};
   late final TabController _tabController;
+
+  String? _selectedFriendId;
+  _FriendsInlineMode _inlineMode = _FriendsInlineMode.none;
 
   @override
   void initState() {
@@ -118,14 +127,44 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
     );
   }
 
+  void _openSearch() {
+    if (MasterDetailScaffold.isWide(context)) {
+      setState(() {
+        _inlineMode = _FriendsInlineMode.search;
+        _selectedFriendId = null;
+      });
+    } else {
+      context.push('/friends/search');
+    }
+  }
+
+  void _selectFriend(UserProfile friend) {
+    if (MasterDetailScaffold.isWide(context)) {
+      setState(() {
+        _selectedFriendId = friend.id;
+        _inlineMode = _FriendsInlineMode.none;
+      });
+    } else {
+      context.pushNamed('user-profile', pathParameters: {'userId': friend.id});
+    }
+  }
+
+  void _closeDetail() {
+    setState(() {
+      _selectedFriendId = null;
+      _inlineMode = _FriendsInlineMode.none;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final friendsState = ref.watch(friendsNotifierProvider);
     final friends = friendsState.friendList;
     final incoming = friendsState.incomingRequests;
+    final isWide = MasterDetailScaffold.isWide(context);
 
-    return Scaffold(
+    final master = Scaffold(
       appBar: AppBar(
         title: Text(l10n.friendsTitle),
         bottom: TabBar(
@@ -166,8 +205,11 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
                 _FriendsTab(
                   friends: friends,
                   busyIds: _busyIds,
+                  selectedId: isWide ? _selectedFriendId : null,
+                  onSelect: _selectFriend,
                   onRemove: _removeFriend,
                   onRefresh: _refresh,
+                  onAddFriend: _openSearch,
                 ),
                 _RequestsTab(
                   requests: incoming,
@@ -179,9 +221,52 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen>
               ],
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/friends/search'),
+        onPressed: _openSearch,
         tooltip: l10n.friendsAddFriend,
         child: const Icon(Icons.person_add_alt_1),
+      ),
+    );
+
+    if (!isWide) {
+      return master;
+    }
+
+    final selectedFriend = _selectedFriendId == null
+        ? null
+        : friends.cast<UserProfile?>().firstWhere(
+            (f) => f?.id == _selectedFriendId,
+            orElse: () => null,
+          );
+
+    final hasSelection =
+        _inlineMode == _FriendsInlineMode.search || selectedFriend != null;
+
+    Widget detail;
+    if (_inlineMode == _FriendsInlineMode.search) {
+      detail = FriendsSearchScreen(embedded: true, onClose: _closeDetail);
+    } else if (selectedFriend != null) {
+      detail = FriendDetailPanel(
+        friend: selectedFriend,
+        onClose: _closeDetail,
+        onOpenProfile: () => context.pushNamed(
+          'user-profile',
+          pathParameters: {'userId': selectedFriend.id},
+        ),
+      );
+    } else {
+      detail = const TabletDetailEmpty(
+        icon: Icons.people_outline,
+        message: 'Select a friend or search',
+      );
+    }
+
+    return MasterDetailScaffold(
+      master: master,
+      detail: detail,
+      hasSelection: hasSelection,
+      emptyDetail: const TabletDetailEmpty(
+        icon: Icons.people_outline,
+        message: 'Select a friend or search',
       ),
     );
   }
@@ -197,12 +282,18 @@ class _FriendsTab extends StatelessWidget {
     required this.busyIds,
     required this.onRemove,
     required this.onRefresh,
+    required this.onAddFriend,
+    this.selectedId,
+    this.onSelect,
   });
 
   final List<UserProfile> friends;
   final Set<String> busyIds;
   final void Function(UserProfile) onRemove;
   final Future<void> Function() onRefresh;
+  final VoidCallback onAddFriend;
+  final String? selectedId;
+  final void Function(UserProfile)? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +311,7 @@ class _FriendsTab extends StatelessWidget {
               title: context.l10n.friendsEmptyTitle,
               subtitle: context.l10n.friendsEmptySubtitle,
               action: FilledButton.icon(
-                onPressed: () => context.push('/friends/search'),
+                onPressed: onAddFriend,
                 icon: const Icon(Icons.person_search),
                 label: Text(context.l10n.friendsAddFriend),
               ),
@@ -246,6 +337,8 @@ class _FriendsTab extends StatelessWidget {
             key: ValueKey(friend.id),
             friend: friend,
             isBusy: busyIds.contains(friend.id),
+            isSelected: selectedId == friend.id,
+            onTap: onSelect == null ? null : () => onSelect!(friend),
             onRemove: () => onRemove(friend),
           );
         },
@@ -259,18 +352,24 @@ class _FriendTile extends StatelessWidget {
     required this.friend,
     required this.isBusy,
     required this.onRemove,
+    this.onTap,
+    this.isSelected = false,
     super.key,
   });
 
   final UserProfile friend;
   final bool isBusy;
   final VoidCallback onRemove;
+  final VoidCallback? onTap;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
     final name = friend.name ?? friend.id;
 
     return _FriendListCard(
+      onTap: onTap,
+      isSelected: isSelected,
       leading: Avatar(
         id: friend.id,
         imageUrl: friend.avatarUrl,
@@ -425,6 +524,8 @@ class _FriendListCard extends StatelessWidget {
     required this.trailing,
     this.subtitle,
     this.subtitleWidget,
+    this.onTap,
+    this.isSelected = false,
   });
 
   final Widget leading;
@@ -432,6 +533,8 @@ class _FriendListCard extends StatelessWidget {
   final String? subtitle;
   final Widget? subtitleWidget;
   final Widget trailing;
+  final VoidCallback? onTap;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -440,6 +543,7 @@ class _FriendListCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: AppTappable(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -447,9 +551,15 @@ class _FriendListCard extends StatelessWidget {
             vertical: AppSpacing.md,
           ),
           decoration: BoxDecoration(
-            color: cs.surface,
+            color: isSelected
+                ? cs.primaryContainer.withValues(alpha: 0.35)
+                : cs.surface,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+            border: Border.all(
+              color: isSelected
+                  ? cs.primary.withValues(alpha: 0.6)
+                  : cs.outlineVariant.withValues(alpha: 0.4),
+            ),
           ),
           child: Row(
             children: [
@@ -603,3 +713,4 @@ class _FriendsLoadingShimmer extends StatelessWidget {
     );
   }
 }
+

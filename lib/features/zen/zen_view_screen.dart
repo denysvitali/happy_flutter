@@ -22,6 +22,8 @@ class ZenViewScreen extends ConsumerStatefulWidget {
   const ZenViewScreen({
     required this.todoId,
     required this.sessionId,
+    this.embedded = false,
+    this.onClose,
     super.key,
   });
 
@@ -30,6 +32,14 @@ class ZenViewScreen extends ConsumerStatefulWidget {
 
   /// The session (list) the task belongs to.
   final String sessionId;
+
+  /// When true, render without an outer Scaffold/AppBar so the screen
+  /// can be embedded inside a master-detail pane.
+  final bool embedded;
+
+  /// Optional close handler invoked when the in-pane close button is
+  /// tapped or after a destructive action completes (embedded only).
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<ZenViewScreen> createState() =>
@@ -63,20 +73,30 @@ class _ZenViewScreenState
         .firstOrNull;
 
     if (item == null) {
+      final emptyBody = AppEmptyState(
+        icon: Icons.search_off,
+        title: context.l10n.zenTaskNotFound,
+      );
+      if (widget.embedded) {
+        return _EmbeddedFrame(
+          title: context.l10n.zenTaskTitle,
+          onClose: widget.onClose,
+          child: emptyBody,
+        );
+      }
       return Scaffold(
         appBar: AppBar(
           title: Text(context.l10n.zenTaskTitle),
         ),
-        body: AppEmptyState(
-          icon: Icons.search_off,
-          title: context.l10n.zenTaskNotFound,
-        ),
+        body: emptyBody,
       );
     }
 
     return _ZenViewBody(
       item: item,
       sessionId: widget.sessionId,
+      embedded: widget.embedded,
+      onClose: widget.onClose,
     );
   }
 }
@@ -85,10 +105,14 @@ class _ZenViewBody extends ConsumerStatefulWidget {
   const _ZenViewBody({
     required this.item,
     required this.sessionId,
+    required this.embedded,
+    required this.onClose,
   });
 
   final TodoItem item;
   final String sessionId;
+  final bool embedded;
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<_ZenViewBody> createState() =>
@@ -98,6 +122,14 @@ class _ZenViewBody extends ConsumerStatefulWidget {
 class _ZenViewBodyState
     extends ConsumerState<_ZenViewBody> {
   bool _isBusy = false;
+
+  void _dismiss() {
+    if (widget.embedded) {
+      widget.onClose?.call();
+    } else {
+      context.pop();
+    }
+  }
 
   Future<void> _markDone() async {
     if (_isBusy) {
@@ -120,7 +152,7 @@ class _ZenViewBodyState
       if (!mounted) {
         return;
       }
-      context.pop();
+      _dismiss();
     } finally {
       if (mounted) {
         setState(() => _isBusy = false);
@@ -170,7 +202,7 @@ class _ZenViewBodyState
       if (!mounted) {
         return;
       }
-      context.pop();
+      _dismiss();
     } finally {
       if (mounted) {
         setState(() => _isBusy = false);
@@ -186,73 +218,83 @@ class _ZenViewBodyState
     final item = widget.item;
     final isDone = item.status.isTerminal;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.zenTaskTitle)),
-      body: ListView(
-        padding: AppScreenPadding.standard.copyWith(
-          bottom: AppSpacing.xxxl,
+    final body = ListView(
+      padding: AppScreenPadding.standard.copyWith(
+        bottom: AppSpacing.xxxl,
+      ),
+      children: [
+        Text(
+          item.content,
+          style: theme.textTheme.titleLarge?.copyWith(
+            decoration: isDone
+                ? TextDecoration.lineThrough
+                : null,
+            decorationColor: cs.onSurface,
+            color: isDone
+                ? cs.onSurfaceVariant
+                : cs.onSurface,
+            height: AppLineHeight.normal,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        children: [
-          Text(
-            item.content,
-            style: theme.textTheme.titleLarge?.copyWith(
-              decoration: isDone
-                  ? TextDecoration.lineThrough
-                  : null,
-              decorationColor: cs.onSurface,
-              color: isDone
-                  ? cs.onSurfaceVariant
-                  : cs.onSurface,
-              height: AppLineHeight.normal,
-              fontWeight: FontWeight.w600,
-            ),
+        const SizedBox(height: AppSpacing.xxl),
+        AppSectionHeader(
+          title: l10n.zenTaskTitle,
+          padding: const EdgeInsets.only(
+            bottom: AppSpacing.sm,
           ),
-          const SizedBox(height: AppSpacing.xxl),
-          AppSectionHeader(
-            title: l10n.zenTaskTitle,
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.sm,
-            ),
-          ),
-          _MetaCard(
-            priority: item.priority,
-            statusLabel: item.status.displayName,
-            createdAt: item.createdAt,
-            completedAt: item.completedAt,
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          if (!isDone) ...[
-            FilledButton.icon(
-              onPressed: _isBusy ? null : _markDone,
-              icon: const Icon(Icons.check),
-              label: Text(l10n.zenMarkDone),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(
-                  AppTouchTarget.comfortable,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-          OutlinedButton.icon(
-            onPressed: _isBusy ? null : _delete,
-            icon: Icon(
-              Icons.delete_outline,
-              color: cs.error,
-            ),
-            label: Text(
-              l10n.commonDelete,
-              style: TextStyle(color: cs.error),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: cs.error),
+        ),
+        _MetaCard(
+          priority: item.priority,
+          statusLabel: item.status.displayName,
+          createdAt: item.createdAt,
+          completedAt: item.completedAt,
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+        if (!isDone) ...[
+          FilledButton.icon(
+            onPressed: _isBusy ? null : _markDone,
+            icon: const Icon(Icons.check),
+            label: Text(l10n.zenMarkDone),
+            style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(
                 AppTouchTarget.comfortable,
               ),
             ),
           ),
+          const SizedBox(height: AppSpacing.md),
         ],
-      ),
+        OutlinedButton.icon(
+          onPressed: _isBusy ? null : _delete,
+          icon: Icon(
+            Icons.delete_outline,
+            color: cs.error,
+          ),
+          label: Text(
+            l10n.commonDelete,
+            style: TextStyle(color: cs.error),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: cs.error),
+            minimumSize: const Size.fromHeight(
+              AppTouchTarget.comfortable,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (widget.embedded) {
+      return _EmbeddedFrame(
+        title: l10n.zenTaskTitle,
+        onClose: widget.onClose,
+        child: body,
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.zenTaskTitle)),
+      body: body,
     );
   }
 
@@ -264,6 +306,63 @@ class _ZenViewBodyState
         '${dt.day.toString().padLeft(2, '0')} '
         '${dt.hour.toString().padLeft(2, '0')}:'
         '${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Lightweight in-pane header used when the screen is embedded inside a
+/// master-detail layout.
+class _EmbeddedFrame extends StatelessWidget {
+  const _EmbeddedFrame({
+    required this.title,
+    required this.onClose,
+    required this.child,
+  });
+
+  final String title;
+  final VoidCallback? onClose;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (onClose != null)
+                IconButton(
+                  tooltip:
+                      MaterialLocalizations.of(context)
+                          .closeButtonTooltip,
+                  icon: const Icon(Icons.close),
+                  onPressed: onClose,
+                ),
+            ],
+          ),
+        ),
+        Divider(
+          height: AppBorder.thin,
+          thickness: AppBorder.thin,
+          color: theme.dividerColor,
+        ),
+        Expanded(child: child),
+      ],
+    );
   }
 }
 

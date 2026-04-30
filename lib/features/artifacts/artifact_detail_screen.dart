@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,9 +15,28 @@ import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Screen showing detail view for a single artifact.
 class ArtifactDetailScreen extends ConsumerStatefulWidget {
-  const ArtifactDetailScreen({required this.artifactId, super.key});
+  const ArtifactDetailScreen({
+    required this.artifactId,
+    this.embedded = false,
+    this.onClose,
+    this.onEdit,
+    super.key,
+  });
 
   final String artifactId;
+
+  /// When true, this widget is rendered inside a master-detail pane and
+  /// must not provide its own [Scaffold]/[AppBar].
+  final bool embedded;
+
+  /// Invoked when the user taps the close action in embedded mode.
+  final VoidCallback? onClose;
+
+  /// Invoked when the user taps the edit action in embedded mode.
+  ///
+  /// When null (or in non-embedded mode), the edit action falls back to
+  /// route-based navigation.
+  final VoidCallback? onEdit;
 
   @override
   ConsumerState<ArtifactDetailScreen> createState() =>
@@ -47,42 +64,79 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
     );
 
     if (artifact == null) {
+      final emptyBody = AppEmptyState(
+        icon: Icons.error_outline,
+        title: l10n.errorNotFound,
+      );
+      if (widget.embedded) {
+        return Column(
+          children: [
+            _EmbeddedHeader(
+              title: l10n.artifactsDetail,
+              onClose: widget.onClose,
+            ),
+            Expanded(child: emptyBody),
+          ],
+        );
+      }
       return Scaffold(
         appBar: AppBar(title: Text(l10n.artifactsDetail)),
-        body: AppEmptyState(
-          icon: Icons.error_outline,
-          title: l10n.errorNotFound,
-        ),
+        body: emptyBody,
       );
     }
 
-    final appBarTitle = (artifact.title?.isNotEmpty ?? false)
+    final headerTitle = (artifact.title?.isNotEmpty ?? false)
         ? artifact.title!
         : artifact.id;
 
+    final cs = Theme.of(context).colorScheme;
+    final actions = <Widget>[
+      IconButton(
+        icon: const Icon(Icons.edit_outlined),
+        tooltip: l10n.commonEdit,
+        onPressed: () {
+          if (widget.embedded && widget.onEdit != null) {
+            widget.onEdit!();
+          } else {
+            context.push('/artifacts/${artifact.id}/edit');
+          }
+        },
+      ),
+      IconButton(
+        icon: Icon(Icons.delete_outline, color: cs.error),
+        tooltip: l10n.commonDelete,
+        onPressed: () => _confirmDelete(context, l10n, artifact),
+      ),
+    ];
+
+    final body = SingleChildScrollView(
+      padding: AppScreenPadding.standard,
+      child: _ArtifactDetailBody(artifact: artifact),
+    );
+
+    if (widget.embedded) {
+      return Column(
+        children: [
+          _EmbeddedHeader(
+            title: headerTitle,
+            onClose: widget.onClose,
+            actions: actions,
+          ),
+          Expanded(child: body),
+        ],
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(appBarTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: l10n.commonEdit,
-            onPressed: () => context.push('/artifacts/${artifact.id}/edit'),
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.delete_outline,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            tooltip: l10n.commonDelete,
-            onPressed: () => _confirmDelete(context, l10n, artifact),
-          ),
-        ],
+        title: Text(
+          headerTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: actions,
       ),
-      body: SingleChildScrollView(
-        padding: AppScreenPadding.standard,
-        child: _ArtifactDetailBody(artifact: artifact),
-      ),
+      body: body,
     );
   }
 
@@ -118,7 +172,10 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
         ref
             .read(artifactsNotifierProvider.notifier)
             .removeArtifact(artifact.id);
-        if (context.mounted) {
+        if (!context.mounted) return;
+        if (widget.embedded) {
+          widget.onClose?.call();
+        } else {
           context.pop();
         }
       } catch (e, st) {
@@ -135,6 +192,72 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
         }
       }
     }
+  }
+}
+
+/// Compact header shown at the top of an embedded detail pane. Mirrors the
+/// AppBar visual language using design tokens (no explicit hex colors).
+class _EmbeddedHeader extends StatelessWidget {
+  const _EmbeddedHeader({
+    required this.title,
+    this.onClose,
+    this.actions = const [],
+  });
+
+  final String title;
+  final VoidCallback? onClose;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.half),
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: kToolbarHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                ...actions,
+                if (onClose != null)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: AppLocalizations.of(context).commonClose,
+                    onPressed: onClose,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -19,9 +19,16 @@ enum LogLevelFilter { all, info, warning, error }
 
 /// Screen for viewing and managing SFTP server logs
 class SftpLogViewerScreen extends StatefulWidget {
-  const SftpLogViewerScreen({super.key, this.initialDeviceId});
+  const SftpLogViewerScreen({
+    super.key,
+    this.initialDeviceId,
+    this.embedded = false,
+    this.onClose,
+  });
 
   final String? initialDeviceId;
+  final bool embedded;
+  final VoidCallback? onClose;
 
   @override
   State<SftpLogViewerScreen> createState() => _SftpLogViewerScreenState();
@@ -194,59 +201,107 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
   Widget build(BuildContext context) {
     final deviceIds = sftpLogStore.deviceIdsWithLogs;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('SFTP Logs'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_upload),
-            onPressed: _filteredLogs.isNotEmpty ? _exportLogs : null,
-            tooltip: 'Export logs',
+    final actions = <Widget>[
+      IconButton(
+        icon: const Icon(Icons.file_upload),
+        onPressed: _filteredLogs.isNotEmpty ? _exportLogs : null,
+        tooltip: 'Export logs',
+      ),
+      PopupMenuButton<String>(
+        onSelected: (value) {
+          switch (value) {
+            case 'clear':
+              _clearLogs();
+            case 'rotate':
+              _rotateLogs();
+          }
+        },
+        itemBuilder: (_) => [
+          const PopupMenuItem(
+            value: 'rotate',
+            child: Text('Rotate old logs'),
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'clear':
-                  _clearLogs();
-                case 'rotate':
-                  _rotateLogs();
-              }
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'rotate',
-                child: Text('Rotate old logs'),
-              ),
-              const PopupMenuItem(value: 'clear', child: Text('Clear logs')),
-            ],
-          ),
+          const PopupMenuItem(value: 'clear', child: Text('Clear logs')),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(AppTouchTarget.comfortable),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabs: const [
-                Tab(text: 'Logs'),
-                Tab(text: 'Stats'),
+      ),
+    ];
+
+    final tabBar = PreferredSize(
+      preferredSize: const Size.fromHeight(AppTouchTarget.comfortable),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'Logs'),
+            Tab(text: 'Stats'),
+          ],
+        ),
+      ),
+    );
+
+    final body = TabBarView(
+      controller: _tabController,
+      children: [
+        _buildLogsTab(deviceIds),
+        SftpLogStatsTab(
+          deviceIds: deviceIds,
+          onRotateLogs: _rotateLogs,
+          onClearLogs: _clearLogs,
+        ),
+      ],
+    );
+
+    if (widget.embedded) {
+      final cs = Theme.of(context).colorScheme;
+      return Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              border: Border(
+                bottom: BorderSide(
+                  color: cs.outlineVariant,
+                  width: AppBorder.hairline,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'SFTP Logs',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                ...actions,
+                if (widget.onClose != null)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: widget.onClose,
+                    tooltip: 'Close',
+                  ),
               ],
             ),
           ),
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildLogsTab(deviceIds),
-          SftpLogStatsTab(
-            deviceIds: deviceIds,
-            onRotateLogs: _rotateLogs,
-            onClearLogs: _clearLogs,
-          ),
+          tabBar,
+          Expanded(child: body),
         ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('SFTP Logs'),
+        actions: actions,
+        bottom: tabBar,
       ),
+      body: body,
     );
   }
 

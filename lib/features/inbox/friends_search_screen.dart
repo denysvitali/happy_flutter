@@ -10,7 +10,18 @@ import '../../core/services/social_service.dart';
 import '../../core/theme/app_tokens.dart';
 
 class FriendsSearchScreen extends StatefulWidget {
-  const FriendsSearchScreen({super.key});
+  const FriendsSearchScreen({
+    super.key,
+    this.embedded = false,
+    this.onClose,
+  });
+
+  /// When true, render as an embedded panel (no full-screen Scaffold/AppBar)
+  /// suitable for the detail pane of a tablet master-detail layout.
+  final bool embedded;
+
+  /// Called when the embedded panel's close affordance is tapped.
+  final VoidCallback? onClose;
 
   @override
   State<FriendsSearchScreen> createState() => _FriendsSearchScreenState();
@@ -104,83 +115,93 @@ class _FriendsSearchScreenState extends State<FriendsSearchScreen> {
     final cs = theme.colorScheme;
     final l10n = context.l10n;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.friendsAddFriend)),
-      body: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.sm,
-            ),
-            child: TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _search(),
-              onChanged: (value) {
-                if (value.isEmpty && _hasSearched) {
-                  setState(() {
-                    _results = const <UserProfile>[];
-                    _hasSearched = false;
-                  });
-                }
-              },
-              decoration: InputDecoration(
-                hintText: l10n.friendsSearchByUsername,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _isSearching
-                    ? const Padding(
-                        padding: EdgeInsets.all(AppSpacing.md),
-                        child: SizedBox(
-                          width: AppSpacing.xl,
-                          height: AppSpacing.xl,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : _controller.text.isNotEmpty
-                    ? IconButton(
-                        onPressed: () {
-                          _controller.clear();
-                          setState(() {
-                            _results = const <UserProfile>[];
-                            _hasSearched = false;
-                          });
-                        },
-                        icon: const Icon(Icons.clear),
-                      )
-                    : null,
-                filled: true,
-                fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  borderSide: BorderSide.none,
+    final body = Column(
+      children: [
+        if (widget.embedded)
+          _EmbeddedHeader(
+            title: l10n.friendsAddFriend,
+            onClose: widget.onClose,
+          ),
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.sm,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: TextField(
+            controller: _controller,
+            focusNode: _focusNode,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _search(),
+            onChanged: (value) {
+              if (value.isEmpty && _hasSearched) {
+                setState(() {
+                  _results = const <UserProfile>[];
+                  _hasSearched = false;
+                });
+              }
+            },
+            decoration: InputDecoration(
+              hintText: l10n.friendsSearchByUsername,
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _isSearching
+                  ? const Padding(
+                      padding: EdgeInsets.all(AppSpacing.md),
+                      child: SizedBox(
+                        width: AppSpacing.xl,
+                        height: AppSpacing.xl,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : _controller.text.isNotEmpty
+                  ? IconButton(
+                      onPressed: () {
+                        _controller.clear();
+                        setState(() {
+                          _results = const <UserProfile>[];
+                          _hasSearched = false;
+                        });
+                      },
+                      icon: const Icon(Icons.clear),
+                    )
+                  : null,
+              filled: true,
+              fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                borderSide: BorderSide(
+                  color: cs.primary,
+                  width: AppBorder.thick,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  borderSide: BorderSide(
-                    color: cs.primary,
-                    width: AppBorder.thick,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
-                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
               ),
             ),
           ),
-          // Results
-          Expanded(child: _buildResults(theme, cs, l10n)),
-        ],
-      ),
+        ),
+        // Results
+        Expanded(child: _buildResults(theme, cs, l10n)),
+      ],
+    );
+
+    if (widget.embedded) {
+      return Material(color: cs.surface, child: body);
+    }
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.friendsAddFriend)),
+      body: body,
     );
   }
 
@@ -354,5 +375,52 @@ class _SearchResultTile extends StatelessWidget {
       case RelationshipStatus.none:
         return l10n.friendsNotConnected;
     }
+  }
+}
+
+class _EmbeddedHeader extends StatelessWidget {
+  const _EmbeddedHeader({required this.title, this.onClose});
+
+  final String title;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: 0.55),
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (onClose != null)
+            IconButton(
+              onPressed: onClose,
+              icon: const Icon(Icons.close),
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            ),
+        ],
+      ),
+    );
   }
 }

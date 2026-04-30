@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/components/components.dart';
+import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/machine.dart';
@@ -15,17 +16,16 @@ import '../../core/services/logger_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'pick_machine_screen.dart';
+import 'pick_path_screen.dart';
+import 'pick_profile_screen.dart';
 
-List<Machine> sortMachinesForSessionCreation(Iterable<Machine> machines) {
-  final sorted = machines.toList()
-    ..sort((a, b) {
-      if (a.active != b.active) {
-        return a.active ? -1 : 1;
-      }
-      return b.activeAt.compareTo(a.activeAt);
-    });
-  return sorted;
-}
+List<Machine> sortMachinesForSessionCreation(Iterable<Machine> machines) =>
+    machines.toList()
+      ..sort((a, b) {
+        if (a.active != b.active) return a.active ? -1 : 1;
+        return b.activeAt.compareTo(a.activeAt);
+      });
 
 enum NewSessionCreateBlocker {
   missingMachine,
@@ -51,9 +51,11 @@ NewSessionCreateBlocker? newSessionCreateBlocker({
   if (connectionStatus != ConnectionStatus.connected) {
     return NewSessionCreateBlocker.disconnected;
   }
-  if (!syncInitialized) return NewSessionCreateBlocker.syncNotReady;
-  return null;
+  return syncInitialized ? null : NewSessionCreateBlocker.syncNotReady;
 }
+
+/// Which picker is currently shown in the tablet detail pane.
+enum _PickerMode { none, machine, path, profile }
 
 /// Full screen for creating a new session.
 class NewSessionScreen extends ConsumerStatefulWidget {
@@ -71,6 +73,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   String _selectedAgent = 'claude';
   String _sessionType = 'simple';
   String? _selectedProfileId;
+  _PickerMode _pickerMode = _PickerMode.none;
 
   @override
   void initState() {
@@ -98,8 +101,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   static const int _onlineThresholdMs = 120 * 1000;
 
   bool _isMachineOnline(Machine? machine) {
-    if (machine == null) return false;
-    if (!machine.active) return false;
+    if (machine == null || !machine.active) return false;
     final age = DateTime.now().millisecondsSinceEpoch - machine.activeAt;
     return age < _onlineThresholdMs;
   }
@@ -120,10 +122,10 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
 
   /// Resolve the currently selected profile display name.
   String _profileDisplayName() {
-    if (_selectedProfileId == null) return 'None';
+    final pid = _selectedProfileId;
+    if (pid == null) return 'None';
     final settings = ref.read(settingsNotifierProvider);
-    final profile = resolveProfile(_selectedProfileId!, settings.profiles);
-    return profile?.name ?? _selectedProfileId!;
+    return resolveProfile(pid, settings.profiles)?.name ?? pid;
   }
 
   Future<void> _createSession() async {
@@ -143,15 +145,9 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           _selectedProfileId,
         ),
       });
-      final String sessionPath;
-      if (_sessionType == 'worktree') {
-        sessionPath = await sync.createWorktree(
-          machineId: machine.id,
-          basePath: path,
-        );
-      } else {
-        sessionPath = path;
-      }
+      final sessionPath = _sessionType == 'worktree'
+          ? await sync.createWorktree(machineId: machine.id, basePath: path)
+          : path;
       final initialMessage = _messageController.text.trim();
       final sessionId = await sync.createSession(
         machineId: machine.id,
@@ -174,9 +170,8 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       if (modelMode != null) {
         unawaited(DraftStorage().saveModelMode(sessionId, modelMode));
       }
-      if (_selectedProfileId != null) {
-        await DraftStorage().saveProfileId(sessionId, _selectedProfileId!);
-      }
+      final pid = _selectedProfileId;
+      if (pid != null) await DraftStorage().saveProfileId(sessionId, pid);
       // Persist the initial message on the server via the normal
       // sendMessage flow.  The daemon child already received the
       // message via HAPPY_INITIAL_PROMPT env var, so this is purely
@@ -212,81 +207,94 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     }
   }
 
+  void _applyPickedMachine(Machine result) {
+    setState(() {
+      if (_selectedMachine?.id != result.id) {
+        _pathController.clear();
+      }
+      _selectedMachine = result;
+    });
+  }
+
+  void _applyPickedPath(String result) {
+    setState(() {
+      _pathController.text = result;
+    });
+  }
+
+  void _applyPickedProfile(String? result) {
+    if (!mounted) return;
+    setState(() => _selectedProfileId = result);
+    // Auto-adjust agent based on profile compatibility — if current
+    // agent is incompatible, switch to the first compatible one.
+    if (result == null) return;
+    final settings = ref.read(settingsNotifierProvider);
+    final profile = resolveProfile(result, settings.profiles);
+    if (profile == null) return;
+    final compat = profile.compatibility;
+    if (_isAgentCompatible(_selectedAgent, compat)) return;
+    final fallback = compat.claude
+        ? 'claude'
+        : compat.codex
+            ? 'codex'
+            : compat.gemini
+                ? 'gemini'
+                : null;
+    if (fallback != null) setState(() => _selectedAgent = fallback);
+  }
+
   Future<void> _pickMachine() async {
+    if (MasterDetailScaffold.isWide(context)) {
+      setState(() => _pickerMode = _PickerMode.machine);
+      return;
+    }
     final result = await context.pushNamed<Machine>('pick-machine');
     if (result != null) {
-      setState(() {
-        if (_selectedMachine?.id != result.id) {
-          _pathController.clear();
-        }
-        _selectedMachine = result;
-      });
+      _applyPickedMachine(result);
     }
   }
 
   Future<void> _pickPath() async {
+    if (MasterDetailScaffold.isWide(context)) {
+      setState(() => _pickerMode = _PickerMode.path);
+      return;
+    }
     final machineId = _selectedMachine?.id;
     final result = await context.pushNamed<String>(
       'pick-path',
       queryParameters: machineId != null ? {'machineId': machineId} : const {},
     );
     if (result != null) {
-      setState(() {
-        _pathController.text = result;
-      });
+      _applyPickedPath(result);
     }
   }
 
   Future<void> _pickProfile() async {
+    if (MasterDetailScaffold.isWide(context)) {
+      setState(() => _pickerMode = _PickerMode.profile);
+      return;
+    }
     final result = await context.pushNamed<String?>(
       'pick-profile',
       queryParameters: {'agent': _selectedAgent},
     );
-    // result is the profile ID or null for "None"
-    if (!mounted) return;
-    setState(() {
-      _selectedProfileId = result;
-    });
-    // Auto-adjust agent based on profile compatibility
-    if (result != null) {
-      final settings = ref.read(settingsNotifierProvider);
-      final profile = resolveProfile(result, settings.profiles);
-      if (profile != null) {
-        final compat = profile.compatibility;
-        // If current agent is incompatible, switch to first
-        // compatible one.
-        if (!_isAgentCompatible(_selectedAgent, compat)) {
-          if (compat.claude) {
-            setState(() => _selectedAgent = 'claude');
-          } else if (compat.codex) {
-            setState(() => _selectedAgent = 'codex');
-          } else if (compat.gemini) {
-            setState(() => _selectedAgent = 'gemini');
-          }
-        }
-      }
-    }
+    _applyPickedProfile(result);
   }
 
-  bool _isAgentCompatible(String agent, ProfileCompatibility compat) {
-    switch (agent) {
-      case 'claude':
-        return compat.claude;
-      case 'codex':
-        return compat.codex;
-      case 'gemini':
-        return compat.gemini;
-      default:
-        return true;
-    }
-  }
+  bool _isAgentCompatible(String agent, ProfileCompatibility compat) =>
+      switch (agent) {
+        'claude' => compat.claude,
+        'codex' => compat.codex,
+        'gemini' => compat.gemini,
+        _ => true,
+      };
 
   /// Get the compatibility flags for the current profile.
   ProfileCompatibility? _currentProfileCompatibility() {
-    if (_selectedProfileId == null) return null;
+    final pid = _selectedProfileId;
+    if (pid == null) return null;
     final settings = ref.read(settingsNotifierProvider);
-    final profile = resolveProfile(_selectedProfileId!, settings.profiles);
-    return profile?.compatibility;
+    return resolveProfile(pid, settings.profiles)?.compatibility;
   }
 
   @override
@@ -316,16 +324,9 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       syncInitialized: sync.isInitialized,
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.newSessionTitle),
-        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      body: ListView(
-        padding: AppScreenPadding.standard,
-        children: [
+    final formList = ListView(
+      padding: AppScreenPadding.standard,
+      children: [
           // ── Machine ──────────────────────────────────────────────
           _SectionLabel(l10n.sessionMachine),
           const SizedBox(height: AppSpacing.sm),
@@ -364,7 +365,6 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
               ),
             ),
           const SizedBox(height: AppSpacing.xl),
-
           // ── Path ─────────────────────────────────────────────────
           _SectionLabel(l10n.sessionPath),
           const SizedBox(height: AppSpacing.sm),
@@ -435,7 +435,6 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-
           // ── Session type ─────────────────────────────────────────
           _SectionLabel(l10n.sessionsType),
           const SizedBox(height: AppSpacing.sm),
@@ -461,7 +460,6 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-
           // ── Profile ──────────────────────────────────────────────
           _SectionLabel(l10n.accountProfile),
           const SizedBox(height: AppSpacing.sm),
@@ -505,7 +503,6 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-
           // ── Agent ────────────────────────────────────────────────
           _SectionLabel(l10n.sessionsAgent),
           const SizedBox(height: AppSpacing.sm),
@@ -544,7 +541,6 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-
           // ── Initial message (optional) ─────────────────────────
           _SectionLabel(l10n.sessionInitialMessage),
           const SizedBox(height: AppSpacing.sm),
@@ -568,13 +564,11 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.xxxl),
-
           _CreateRequirementStatus(
             blocker: createBlocker,
             selectedMachineOffline: selectedMachineOffline,
           ),
           const SizedBox(height: AppSpacing.md),
-
           // ── Create button ─────────────────────────────────────────
           SizedBox(
             width: double.infinity,
@@ -603,8 +597,61 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
-      ),
     );
+
+    final isWide = MasterDetailScaffold.isWide(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.newSessionTitle),
+        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      body: !isWide
+          ? formList
+          : MasterDetailScaffold(
+              master: formList,
+              detail: _buildPickerDetail(),
+              hasSelection: _pickerMode != _PickerMode.none,
+              emptyDetail: const TabletDetailEmpty(
+                icon: Icons.add_circle_outline,
+                message: 'Pick a machine, path, or profile',
+              ),
+            ),
+    );
+  }
+
+  Widget _buildPickerDetail() {
+    void close() => setState(() => _pickerMode = _PickerMode.none);
+    return switch (_pickerMode) {
+      _PickerMode.machine => PickMachineScreen(
+        embedded: true,
+        onPicked: (m) {
+          _applyPickedMachine(m);
+          close();
+        },
+        onClose: close,
+      ),
+      _PickerMode.path => PickPathScreen(
+        machineId: _selectedMachine?.id,
+        embedded: true,
+        onPicked: (p) {
+          _applyPickedPath(p);
+          close();
+        },
+        onClose: close,
+      ),
+      _PickerMode.profile => PickProfileScreen(
+        agent: _selectedAgent,
+        embedded: true,
+        onPicked: (id) {
+          _applyPickedProfile(id);
+          close();
+        },
+        onClose: close,
+      ),
+      _PickerMode.none => const SizedBox.shrink(),
+    };
   }
 }
 
@@ -623,19 +670,16 @@ class _CreateRequirementStatus extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final isBlocked = blocker != null;
-    final color =
-        selectedMachineOffline ||
-            blocker == NewSessionCreateBlocker.offlineMachine
+    final isOffline = selectedMachineOffline ||
+        blocker == NewSessionCreateBlocker.offlineMachine;
+    final color = isOffline
         ? cs.error
+        : isBlocked ? cs.onSurfaceVariant : AppColors.success;
+    final icon = isOffline
+        ? Icons.cloud_off_rounded
         : isBlocked
-        ? cs.onSurfaceVariant
-        : AppColors.success;
-    final icon = isBlocked
-        ? selectedMachineOffline ||
-                  blocker == NewSessionCreateBlocker.offlineMachine
-              ? Icons.cloud_off_rounded
-              : Icons.info_outline_rounded
-        : Icons.check_circle_outline_rounded;
+            ? Icons.info_outline_rounded
+            : Icons.check_circle_outline_rounded;
 
     return Row(
       children: [
@@ -655,24 +699,17 @@ class _CreateRequirementStatus extends StatelessWidget {
 String _createRequirementText(
   AppLocalizations l10n,
   NewSessionCreateBlocker? blocker,
-) {
-  switch (blocker) {
-    case NewSessionCreateBlocker.missingMachine:
-      return l10n.sessionNoMachineSelected;
-    case NewSessionCreateBlocker.offlineMachine:
-      return l10n.machineOfflineUnableToSpawn;
-    case NewSessionCreateBlocker.missingPath:
-      return l10n.sessionNoPathSelected;
-    case NewSessionCreateBlocker.creating:
-      return l10n.commonCreate;
-    case NewSessionCreateBlocker.disconnected:
-      return l10n.sessionNotConnectedToServer;
-    case NewSessionCreateBlocker.syncNotReady:
-      return l10n.authConnecting;
-    case null:
-      return l10n.statusConnected('');
-  }
-}
+) =>
+    switch (blocker) {
+      NewSessionCreateBlocker.missingMachine => l10n.sessionNoMachineSelected,
+      NewSessionCreateBlocker.offlineMachine =>
+        l10n.machineOfflineUnableToSpawn,
+      NewSessionCreateBlocker.missingPath => l10n.sessionNoPathSelected,
+      NewSessionCreateBlocker.creating => l10n.commonCreate,
+      NewSessionCreateBlocker.disconnected => l10n.sessionNotConnectedToServer,
+      NewSessionCreateBlocker.syncNotReady => l10n.authConnecting,
+      null => l10n.statusConnected(''),
+    };
 
 /// Machine picker row — shows placeholder or selected machine info.
 class _MachinePickerRow extends StatelessWidget {

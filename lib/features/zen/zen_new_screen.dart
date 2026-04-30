@@ -16,7 +16,19 @@ import 'zen_priority.dart';
 /// Screen for creating a new Zen todo item.
 class ZenNewScreen extends ConsumerStatefulWidget {
   /// Creates the new Zen task screen.
-  const ZenNewScreen({super.key});
+  const ZenNewScreen({
+    this.embedded = false,
+    this.onClose,
+    super.key,
+  });
+
+  /// When true, render without an outer Scaffold/AppBar so the screen
+  /// can be embedded inside a master-detail pane.
+  final bool embedded;
+
+  /// Optional close handler invoked when the in-pane close button is
+  /// tapped or after a successful save (embedded only).
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<ZenNewScreen> createState() => _ZenNewScreenState();
@@ -63,6 +75,14 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen>
     return 'global';
   }
 
+  void _dismiss() {
+    if (widget.embedded) {
+      widget.onClose?.call();
+    } else {
+      context.pop();
+    }
+  }
+
   Future<void> _addTask() async {
     final content = _contentController.text.trim();
     if (content.isEmpty) {
@@ -92,7 +112,7 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen>
       if (!mounted) {
         return;
       }
-      context.pop();
+      _dismiss();
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -108,6 +128,94 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen>
     final canSubmit =
         _contentController.text.trim().isNotEmpty && !_isSaving;
 
+    final submitButton = FilledButton(
+      onPressed: canSubmit ? _addTask : null,
+      child: _isSaving
+          ? const SizedBox.square(
+              dimension: AppSpacing.lg,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            )
+          : Text(l10n.zenAddTask),
+    );
+
+    final formBody = Padding(
+      padding: AppScreenPadding.standard,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _TaskContentField(
+            controller: _contentController,
+            hintText: l10n.zenDescriptionHint,
+            colorScheme: cs,
+            onChanged: () => setState(() {}),
+          ),
+          const SizedBox(height: AppSpacing.xxxl),
+          AppSectionHeader(
+            title: l10n.zenPriorityLabel,
+            padding: const EdgeInsets.only(
+              bottom: AppSpacing.md,
+            ),
+          ),
+          _PrioritySelector(
+            priorities: _priorities,
+            selected: _priority,
+            colorScheme: cs,
+            textTheme: theme.textTheme,
+            onSelected: (value) =>
+                setState(() => _priority = value),
+          ),
+        ],
+      ),
+    );
+
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.zenNewTask,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                submitButton,
+                if (widget.onClose != null) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  IconButton(
+                    tooltip:
+                        MaterialLocalizations.of(context)
+                            .closeButtonTooltip,
+                    icon: const Icon(Icons.close),
+                    onPressed: widget.onClose,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Divider(
+            height: AppBorder.thin,
+            thickness: AppBorder.thin,
+            color: theme.dividerColor,
+          ),
+          Expanded(child: formBody),
+        ],
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.zenNewTask),
@@ -115,49 +223,11 @@ class _ZenNewScreenState extends ConsumerState<ZenNewScreen>
           Padding(
             padding:
                 const EdgeInsets.only(right: AppSpacing.sm),
-            child: FilledButton(
-              onPressed: canSubmit ? _addTask : null,
-              child: _isSaving
-                  ? const SizedBox.square(
-                      dimension: AppSpacing.lg,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Text(l10n.zenAddTask),
-            ),
+            child: submitButton,
           ),
         ],
       ),
-      body: Padding(
-        padding: AppScreenPadding.standard,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _TaskContentField(
-              controller: _contentController,
-              hintText: l10n.zenDescriptionHint,
-              colorScheme: cs,
-              onChanged: () => setState(() {}),
-            ),
-            const SizedBox(height: AppSpacing.xxxl),
-            AppSectionHeader(
-              title: l10n.zenPriorityLabel,
-              padding: const EdgeInsets.only(
-                bottom: AppSpacing.md,
-              ),
-            ),
-            _PrioritySelector(
-              priorities: _priorities,
-              selected: _priority,
-              colorScheme: cs,
-              textTheme: theme.textTheme,
-              onSelected: (value) =>
-                  setState(() => _priority = value),
-            ),
-          ],
-        ),
-      ),
+      body: formBody,
     );
   }
 }

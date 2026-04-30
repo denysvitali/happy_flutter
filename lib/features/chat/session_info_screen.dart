@@ -19,6 +19,13 @@ import 'widgets/session_info_widgets.dart';
 // Minimum CLI version required for full compatibility.
 const _minimumCliVersion = '0.10.0';
 
+// Reusable thin divider used inside the metadata/info cards.
+const _kRowDivider = Divider(
+  height: 1,
+  thickness: AppBorder.hairline,
+  indent: 52,
+);
+
 /// Compares two semver strings.
 /// Returns -1, 0, or 1 (like compareTo).
 int _compareVersions(String v1, String v2) {
@@ -47,35 +54,124 @@ bool _isVersionSupported(String version) {
 /// Screen that shows detailed info about a specific session.
 class SessionInfoScreen extends ConsumerWidget {
   /// Creates a [SessionInfoScreen] for the given [sessionId].
-  const SessionInfoScreen({required this.sessionId, super.key});
+  const SessionInfoScreen({
+    required this.sessionId,
+    this.embedded = false,
+    this.onClose,
+    super.key,
+  });
 
   /// The session ID to display info for.
   final String sessionId;
+
+  /// When true, render as a pane inside a tablet master-detail layout.
+  /// Skips the outer [Scaffold]/[AppBar] and uses a thin in-pane header.
+  final bool embedded;
+
+  /// Called when the in-pane close button is tapped (embedded only).
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(
       sessionsNotifierProvider.select((s) => s[sessionId]),
     );
+    final title = context.l10n.sessionInfoTitle;
 
     if (session == null) {
-      return Scaffold(
-        appBar: AppBar(title: Text(context.l10n.sessionInfoTitle)),
+      return _InfoShell(
+        title: title,
+        embedded: embedded,
+        onClose: onClose,
         body: Center(child: Text(context.l10n.sessionInfoNotFound)),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.sessionInfoTitle)),
-      body: _SessionInfoBody(session: session),
+    return _InfoShell(
+      title: title,
+      embedded: embedded,
+      onClose: onClose,
+      body: _SessionInfoBody(session: session, embedded: embedded),
+    );
+  }
+}
+
+/// Wraps [body] in a [Scaffold] (route mode) or a thin in-pane header +
+/// body column (embedded mode for tablet master-detail).
+class _InfoShell extends StatelessWidget {
+  const _InfoShell({
+    required this.title,
+    required this.body,
+    required this.embedded,
+    this.onClose,
+  });
+
+  final String title;
+  final Widget body;
+  final bool embedded;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!embedded) {
+      return Scaffold(appBar: AppBar(title: Text(title)), body: body);
+    }
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colorScheme.outlineVariant,
+                width: AppBorder.hairline,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (onClose != null)
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  // TODO(i18n): close tooltip not yet localized
+                  tooltip: 'Close',
+                  onPressed: onClose,
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+        ),
+        Expanded(child: body),
+      ],
     );
   }
 }
 
 class _SessionInfoBody extends ConsumerStatefulWidget {
-  const _SessionInfoBody({required this.session});
+  const _SessionInfoBody({required this.session, this.embedded = false});
 
   final Session session;
+  final bool embedded;
 
   @override
   ConsumerState<_SessionInfoBody> createState() => _SessionInfoBodyState();
@@ -159,7 +255,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       await SessionsApi().setSessionArchived(widget.session.id, true);
       sync.markSessionArchived(widget.session.id);
       if (!mounted) return;
-      Navigator.of(context).pop();
+      if (!widget.embedded) {
+        Navigator.of(context).pop();
+      }
     } catch (e, st) {
       logger.error(
         'Failed to archive session from info screen: '
@@ -208,7 +306,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (!mounted) return;
     setState(() => _isDeleting = false);
     if (deleted) {
-      Navigator.of(context).pop();
+      if (!widget.embedded) {
+        Navigator.of(context).pop();
+      }
     } else {
       _showError(failedDeleteMsg);
     }
@@ -352,31 +452,19 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     : session.id,
                 onTap: () => _copyToClipboard(session.id),
               ),
-              const Divider(
-                height: 1,
-                thickness: AppBorder.hairline,
-                indent: 52,
-              ),
+              _kRowDivider,
               InfoRow(
                 icon: Icons.access_time,
                 label: l10n.sessionInfoLabelCreated,
                 value: _formatDate(session.createdAt),
               ),
-              const Divider(
-                height: 1,
-                thickness: AppBorder.hairline,
-                indent: 52,
-              ),
+              _kRowDivider,
               InfoRow(
                 icon: Icons.update,
                 label: l10n.sessionInfoLabelLastUpdated,
                 value: _formatDate(session.updatedAt),
               ),
-              const Divider(
-                height: 1,
-                thickness: AppBorder.hairline,
-                indent: 52,
-              ),
+              _kRowDivider,
               InfoRow(
                 icon: Icons.tag,
                 label: l10n.sessionInfoLabelSequence,
@@ -410,11 +498,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 ),
               ],
               if (meta?.machineId != null && (isOnline || !session.active))
-                const Divider(
-                  height: 1,
-                  thickness: AppBorder.hairline,
-                  indent: 52,
-                ),
+                _kRowDivider,
               if (isOnline)
                 ActionRow(
                   icon: Icons.archive_outlined,
@@ -424,11 +508,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   onTap: _isArchiving ? null : _handleArchiveSession,
                 ),
               if (isOnline && !session.active)
-                const Divider(
-                  height: 1,
-                  thickness: AppBorder.hairline,
-                  indent: 52,
-                ),
+                _kRowDivider,
               if (!session.active)
                 ActionRow(
                   icon: Icons.delete_outline,
@@ -463,11 +543,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   value: meta.host,
                 ),
                 if (meta.path != null) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: Icons.folder_outlined,
                     label: l10n.sessionInfoLabelPath,
@@ -478,11 +554,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.machineId != null) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: Icons.dns_outlined,
                     label: l10n.sessionInfoLabelMachineId,
@@ -491,11 +563,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.os != null) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: Icons.memory,
                     label: l10n.sessionInfoLabelOs,
@@ -503,11 +571,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.version != null) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: isCliOutdated
                         ? Icons.warning_amber_outlined
@@ -520,11 +584,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.flavor != null) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: Icons.auto_awesome,
                     label: l10n.sessionInfoLabelAiProvider,
@@ -532,11 +592,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.claudeSessionId != null) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: Icons.code_outlined,
                     label: l10n.sessionInfoLabelClaudeSessionId,
@@ -549,11 +605,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.hostPid != null) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: Icons.terminal,
                     label: l10n.sessionInfoLabelProcessId,
@@ -561,11 +613,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   ),
                 ],
                 if (meta.happyHomeDir != null) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: Icons.home_outlined,
                     label: l10n.sessionInfoLabelHappyHome,
@@ -575,11 +623,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     ),
                   ),
                 ],
-                const Divider(
-                  height: 1,
-                  thickness: AppBorder.hairline,
-                  indent: 52,
-                ),
+                _kRowDivider,
                 ActionRow(
                   icon: Icons.copy_outlined,
                   label: l10n.sessionInfoActionCopyMetadata,
@@ -621,11 +665,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 ),
                 if (session.agentState!.requests != null &&
                     session.agentState!.requests!.isNotEmpty) ...[
-                  const Divider(
-                    height: 1,
-                    thickness: AppBorder.hairline,
-                    indent: 52,
-                  ),
+                  _kRowDivider,
                   InfoRow(
                     icon: Icons.hourglass_empty_outlined,
                     label: l10n.sessionInfoLabelPendingRequests,
@@ -661,11 +701,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                     : theme.colorScheme.onSurfaceVariant,
               ),
               if (session.thinking && session.thinkingAt != null) ...[
-                const Divider(
-                  height: 1,
-                  thickness: AppBorder.hairline,
-                  indent: 52,
-                ),
+                _kRowDivider,
                 InfoRow(
                   icon: Icons.timer_outlined,
                   label: l10n.sessionInfoLabelThinkingSince,

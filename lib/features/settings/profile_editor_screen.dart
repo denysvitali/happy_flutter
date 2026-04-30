@@ -12,10 +12,32 @@ import 'widgets/profile_editor_widgets.dart';
 /// Full-screen editor for creating or editing a custom AI backend
 /// profile.
 class ProfileEditorScreen extends ConsumerStatefulWidget {
-  const ProfileEditorScreen({super.key, this.existing});
+  const ProfileEditorScreen({
+    super.key,
+    this.existing,
+    this.profileId,
+    this.embedded = false,
+    this.onClose,
+  });
 
-  /// Existing profile to edit; null means create new.
+  /// Existing profile to edit; null means create new. Takes
+  /// precedence over [profileId] when both are provided.
   final AIBackendProfile? existing;
+
+  /// Optional profile ID; when set and [existing] is null, the editor
+  /// resolves the profile from current settings (custom + built-in).
+  /// Useful for embedded master-detail flows where the master keeps
+  /// only an ID in state.
+  final String? profileId;
+
+  /// When true, renders without a [Scaffold]/[AppBar] for use inside
+  /// a master-detail pane on tablet. A thin in-pane header with the
+  /// title and a close icon is rendered instead.
+  final bool embedded;
+
+  /// Callback invoked when the editor wants to close itself while in
+  /// [embedded] mode (replaces the route pop).
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<ProfileEditorScreen> createState() =>
@@ -28,6 +50,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   late final TextEditingController _descCtrl;
   late final TextEditingController _scriptCtrl;
   late final List<EnvRow> _envRows;
+  AIBackendProfile? _profile;
 
   bool _showScript = false;
   String? _selectedTemplate;
@@ -35,7 +58,8 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   @override
   void initState() {
     super.initState();
-    final p = widget.existing;
+    _profile = widget.existing ?? _resolveProfileById(widget.profileId);
+    final p = _profile;
     _nameCtrl = TextEditingController(text: p?.name ?? '');
     _descCtrl = TextEditingController(text: p?.description ?? '');
     _scriptCtrl = TextEditingController(text: p?.startupBashScript ?? '');
@@ -43,6 +67,15 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         .map((e) => EnvRow(name: e.name, value: e.value))
         .toList();
     _showScript = p?.startupBashScript?.isNotEmpty ?? false;
+  }
+
+  AIBackendProfile? _resolveProfileById(String? id) {
+    if (id == null) return null;
+    final settings = ref.read(settingsNotifierProvider);
+    for (final p in settings.profiles) {
+      if (p.id == id) return p;
+    }
+    return getBuiltInProfile(id);
   }
 
   @override
@@ -170,7 +203,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   /// Reset a built-in profile to its factory defaults by removing
   /// the user's customisation from [Settings.profiles].
   Future<void> _resetToDefaults() async {
-    final existing = widget.existing;
+    final existing = _profile;
     if (existing == null) return;
 
     final builtIn = getBuiltInProfile(existing.id);
@@ -188,7 +221,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       await ref
           .read(settingsNotifierProvider.notifier)
           .updateSetting('profiles', updatedProfiles);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) _close();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -196,6 +229,14 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         ).showSnackBar(SnackBar(content: Text(failedMsg)));
       }
     }
+  }
+
+  void _close() {
+    if (widget.embedded) {
+      widget.onClose?.call();
+      return;
+    }
+    Navigator.of(context).pop();
   }
 
   Future<void> _save() async {
@@ -212,7 +253,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         .toList();
 
     final now = DateTime.now().millisecondsSinceEpoch;
-    final existing = widget.existing;
+    final existing = _profile;
     final updated = AIBackendProfile(
       id: existing?.id ?? 'custom_$now',
       name: _nameCtrl.text.trim(),
@@ -248,7 +289,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       await ref
           .read(settingsNotifierProvider.notifier)
           .updateSetting('profiles', profiles);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) _close();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -286,14 +327,103 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
     final l10n = AppLocalizations.of(context);
-    final isEditing = widget.existing != null;
-    final isBuiltIn = widget.existing?.isBuiltIn ?? false;
+    final isEditing = _profile != null;
+    final isBuiltIn = _profile?.isBuiltIn ?? false;
+    final title = isEditing
+        ? l10n.profilesEditProfile
+        : l10n.profilesAddProfile;
+
+    final form = Form(
+      key: _formKey,
+      child: ListView(
+        padding: AppScreenPadding.settings,
+        children: [
+          // Name
+          TextFormField(
+            controller: _nameCtrl,
+            decoration: InputDecoration(
+              labelText: l10n.profilesProfileName,
+              hintText: l10n.profilesNameHint,
+              border: const OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.words,
+            validator: (v) => v == null || v.trim().isEmpty
+                ? l10n.profilesNameRequired
+                : null,
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Description
+          TextFormField(
+            controller: _descCtrl,
+            decoration: InputDecoration(
+              labelText: l10n.profilesDescriptionLabel,
+              hintText: l10n.profilesDescriptionHint,
+              border: const OutlineInputBorder(),
+            ),
+            maxLines: 2,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+
+          // Template selector for new profiles
+          if (!isEditing) ...[
+            TemplateSelector(
+              selectedTemplate: _selectedTemplate,
+              onSelect: _applyTemplate,
+              colorScheme: cs,
+              textTheme: tt,
+              l10n: l10n,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+
+          EnvVarsSection(
+            envRows: _envRows,
+            l10n: l10n,
+            textTheme: tt,
+            colorScheme: cs,
+            onImport: _showImportDialog,
+            onAdd: _addEnvRow,
+            onRemove: _removeEnvRow,
+            onChanged: () => setState(() {}),
+          ),
+
+          const SizedBox(height: AppSpacing.lg),
+
+          ScriptSection(
+            show: _showScript,
+            l10n: l10n,
+            textTheme: tt,
+            colorScheme: cs,
+            controller: _scriptCtrl,
+            onToggle: () => setState(() => _showScript = !_showScript),
+          ),
+
+          const SizedBox(height: AppSpacing.xxxl),
+        ],
+      ),
+    );
+
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _EmbeddedHeader(
+            title: title,
+            onClose: _close,
+            onReset: isBuiltIn ? _resetToDefaults : null,
+            onSave: _save,
+            resetLabel: l10n.commonReset,
+            saveLabel: l10n.commonSave,
+          ),
+          Expanded(child: form),
+        ],
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          isEditing ? l10n.profilesEditProfile : l10n.profilesAddProfile,
-        ),
+        title: Text(title),
         actions: [
           if (isBuiltIn)
             TextButton(
@@ -304,73 +434,61 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
           const SizedBox(width: AppSpacing.sm),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: AppScreenPadding.settings,
+      body: form,
+    );
+  }
+}
+
+class _EmbeddedHeader extends StatelessWidget {
+  const _EmbeddedHeader({
+    required this.title,
+    required this.onClose,
+    required this.onSave,
+    required this.saveLabel,
+    required this.resetLabel,
+    this.onReset,
+  });
+
+  final String title;
+  final VoidCallback onClose;
+  final VoidCallback onSave;
+  final VoidCallback? onReset;
+  final String saveLabel;
+  final String resetLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: cs.outlineVariant, width: AppBorder.thin),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
           children: [
-            // Name
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: InputDecoration(
-                labelText: l10n.profilesProfileName,
-                hintText: l10n.profilesNameHint,
-                border: const OutlineInputBorder(),
+            IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: MaterialLocalizations.of(context).closeButtonLabel,
+              onPressed: onClose,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                title,
+                style: tt.titleMedium,
+                overflow: TextOverflow.ellipsis,
               ),
-              textCapitalization: TextCapitalization.words,
-              validator: (v) => v == null || v.trim().isEmpty
-                  ? l10n.profilesNameRequired
-                  : null,
             ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Description
-            TextFormField(
-              controller: _descCtrl,
-              decoration: InputDecoration(
-                labelText: l10n.profilesDescriptionLabel,
-                hintText: l10n.profilesDescriptionHint,
-                border: const OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-
-            // Template selector for new profiles
-            if (!isEditing) ...[
-              TemplateSelector(
-                selectedTemplate: _selectedTemplate,
-                onSelect: _applyTemplate,
-                colorScheme: cs,
-                textTheme: tt,
-                l10n: l10n,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-            ],
-
-            EnvVarsSection(
-              envRows: _envRows,
-              l10n: l10n,
-              textTheme: tt,
-              colorScheme: cs,
-              onImport: _showImportDialog,
-              onAdd: _addEnvRow,
-              onRemove: _removeEnvRow,
-              onChanged: () => setState(() {}),
-            ),
-
-            const SizedBox(height: AppSpacing.lg),
-
-            ScriptSection(
-              show: _showScript,
-              l10n: l10n,
-              textTheme: tt,
-              colorScheme: cs,
-              controller: _scriptCtrl,
-              onToggle: () => setState(() => _showScript = !_showScript),
-            ),
-
-            const SizedBox(height: AppSpacing.xxxl),
+            if (onReset != null)
+              TextButton(onPressed: onReset, child: Text(resetLabel)),
+            TextButton(onPressed: onSave, child: Text(saveLabel)),
           ],
         ),
       ),

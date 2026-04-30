@@ -38,6 +38,8 @@ class SessionFileViewerScreen extends StatefulWidget {
     required this.path,
     required this.sessionId,
     this.content,
+    this.embedded = false,
+    this.onClose,
     super.key,
   });
 
@@ -49,6 +51,13 @@ class SessionFileViewerScreen extends StatefulWidget {
 
   /// Optional pre-loaded file content.
   final String? content;
+
+  /// When true, render as a pane inside a tablet master-detail layout.
+  /// Skips the outer [Scaffold]/[AppBar] and uses a thin in-pane header.
+  final bool embedded;
+
+  /// Called when the in-pane close button is tapped (embedded only).
+  final VoidCallback? onClose;
 
   @override
   State<SessionFileViewerScreen> createState() =>
@@ -170,55 +179,74 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_fileName, overflow: TextOverflow.ellipsis),
-        actions: [
-          // Copy button
-          if (_content != null)
-            IconButton(
-              icon: Icon(
-                _copied ? Icons.check_rounded : Icons.content_copy_rounded,
-                size: 20,
-              ),
-              tooltip: _copied ? 'Copied!' : 'Copy file',
-              onPressed: _copyToClipboard,
-            ),
-          // Markdown preview / code toggle
-          if (_isMd && _content != null)
-            IconButton(
-              icon: Icon(
-                _viewMode == _ViewMode.preview
-                    ? Icons.code_rounded
-                    : Icons.visibility_rounded,
-                size: 20,
-              ),
-              tooltip: _viewMode == _ViewMode.preview
-                  ? 'View source'
-                  : 'View preview',
-              onPressed: () => setState(() {
-                _viewMode = _viewMode == _ViewMode.preview
-                    ? _ViewMode.code
-                    : _ViewMode.preview;
-              }),
-            ),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Path header bar
-          _PathHeader(path: widget.path, language: _language),
-          Divider(
-            height: 1,
-            thickness: AppBorder.hairline,
-            color: theme.colorScheme.outlineVariant,
+    final actions = <Widget>[
+      // Copy button
+      if (_content != null)
+        IconButton(
+          icon: Icon(
+            _copied ? Icons.check_rounded : Icons.content_copy_rounded,
+            size: 20,
           ),
+          // TODO(i18n): copy tooltip not yet localized
+          tooltip: _copied ? 'Copied!' : 'Copy file',
+          onPressed: _copyToClipboard,
+        ),
+      // Markdown preview / code toggle
+      if (_isMd && _content != null)
+        IconButton(
+          icon: Icon(
+            _viewMode == _ViewMode.preview
+                ? Icons.code_rounded
+                : Icons.visibility_rounded,
+            size: 20,
+          ),
+          // TODO(i18n): view-mode tooltip not yet localized
+          tooltip: _viewMode == _ViewMode.preview
+              ? 'View source'
+              : 'View preview',
+          onPressed: () => setState(() {
+            _viewMode = _viewMode == _ViewMode.preview
+                ? _ViewMode.code
+                : _ViewMode.preview;
+          }),
+        ),
+    ];
 
-          // File content
-          Expanded(child: _buildContent(theme)),
-        ],
-      ),
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Path header bar
+        _PathHeader(path: widget.path, language: _language),
+        Divider(
+          height: 1,
+          thickness: AppBorder.hairline,
+          color: theme.colorScheme.outlineVariant,
+        ),
+        // File content
+        Expanded(child: _buildContent(theme)),
+      ],
+    );
+
+    if (!widget.embedded) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(_fileName, overflow: TextOverflow.ellipsis),
+          actions: actions,
+        ),
+        body: body,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _FileViewerEmbeddedHeader(
+          fileName: _fileName,
+          actions: actions,
+          onClose: widget.onClose,
+        ),
+        Expanded(child: body),
+      ],
     );
   }
 
@@ -287,6 +315,65 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// In-pane header used when the viewer is embedded inside a tablet
+/// master-detail scaffold. Shows the file name, the same action buttons
+/// as the AppBar, and a close button.
+class _FileViewerEmbeddedHeader extends StatelessWidget {
+  const _FileViewerEmbeddedHeader({
+    required this.fileName,
+    required this.actions,
+    this.onClose,
+  });
+
+  final String fileName;
+  final List<Widget> actions;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant,
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              fileName,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          ...actions,
+          if (onClose != null)
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 20),
+              // TODO(i18n): close tooltip not yet localized
+              tooltip: 'Close',
+              onPressed: onClose,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
       ),
     );
   }

@@ -11,8 +11,21 @@ import '../../core/theme/app_tokens.dart';
 /// Screen for selecting a machine from the list of available machines.
 ///
 /// Pops with the selected [Machine] object when a machine is tapped.
+///
+/// When [embedded] is true, the [Scaffold]/[AppBar] are omitted and a thin
+/// header is rendered instead. Selection invokes [onPicked] (instead of
+/// `Navigator.pop`) and the close button invokes [onClose].
 class PickMachineScreen extends ConsumerWidget {
-  const PickMachineScreen({super.key});
+  const PickMachineScreen({
+    super.key,
+    this.embedded = false,
+    this.onPicked,
+    this.onClose,
+  });
+
+  final bool embedded;
+  final ValueChanged<Machine>? onPicked;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,6 +47,101 @@ class PickMachineScreen extends ConsumerWidget {
         .toList();
     final otherMachines = machines.where((m) => !seen.contains(m.id)).toList();
 
+    void handlePick(Machine m) {
+      if (embedded) {
+        onPicked?.call(m);
+      } else {
+        context.pop(m);
+      }
+    }
+
+    final body = machines.isEmpty
+        ? AppEmptyState(
+            icon: Icons.computer_outlined,
+            title: l10n.pickNoMachinesAvailable,
+          )
+        : ListView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
+            children: [
+              if (recentMachines.isNotEmpty) ...[
+                AppSectionHeader(title: l10n.pickRecent),
+                const SizedBox(height: AppSpacing.xs),
+                AppCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      for (int i = 0; i < recentMachines.length; i++) ...[
+                        _MachineListTile(
+                          machine: recentMachines[i],
+                          showRecentIcon: true,
+                          isFirst: i == 0,
+                          isLast: i == recentMachines.length - 1,
+                          onTap: () => handlePick(recentMachines[i]),
+                        ),
+                        if (i < recentMachines.length - 1)
+                          Divider(
+                            height: 1,
+                            indent: AppSpacing.lg + 36 + AppSpacing.md,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outlineVariant,
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+              ],
+              if (otherMachines.isNotEmpty) ...[
+                if (recentMachines.isNotEmpty)
+                  AppSectionHeader(title: l10n.pickAllMachines),
+                if (recentMachines.isNotEmpty)
+                  const SizedBox(height: AppSpacing.xs),
+                AppCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: [
+                      for (int i = 0; i < otherMachines.length; i++) ...[
+                        _MachineListTile(
+                          machine: otherMachines[i],
+                          showRecentIcon: false,
+                          isFirst: i == 0,
+                          isLast: i == otherMachines.length - 1,
+                          onTap: () => handlePick(otherMachines[i]),
+                        ),
+                        if (i < otherMachines.length - 1)
+                          Divider(
+                            height: 1,
+                            indent: AppSpacing.lg + 36 + AppSpacing.md,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outlineVariant,
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.xl),
+            ],
+          );
+
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _EmbeddedHeader(
+            title: l10n.pickSelectMachine,
+            onClose: onClose,
+          ),
+          Expanded(child: body),
+        ],
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.pickSelectMachine),
@@ -41,79 +149,51 @@ class PickMachineScreen extends ConsumerWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
-      body: machines.isEmpty
-          ? AppEmptyState(
-              icon: Icons.computer_outlined,
-              title: l10n.pickNoMachinesAvailable,
-            )
-          : ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.sm,
+      body: body,
+    );
+  }
+}
+
+/// Thin header row for embedded picker panes (tablet master-detail).
+class _EmbeddedHeader extends StatelessWidget {
+  const _EmbeddedHeader({required this.title, this.onClose});
+
+  final String title;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: cs.outlineVariant, width: AppBorder.thin),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              children: [
-                if (recentMachines.isNotEmpty) ...[
-                  AppSectionHeader(title: l10n.pickRecent),
-                  const SizedBox(height: AppSpacing.xs),
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (int i = 0; i < recentMachines.length; i++) ...[
-                          _MachineListTile(
-                            machine: recentMachines[i],
-                            showRecentIcon: true,
-                            isFirst: i == 0,
-                            isLast: i == recentMachines.length - 1,
-                            onTap: () => context.pop(recentMachines[i]),
-                          ),
-                          if (i < recentMachines.length - 1)
-                            Divider(
-                              height: 1,
-                              indent: AppSpacing.lg + 36 + AppSpacing.md,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outlineVariant,
-                            ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                ],
-                if (otherMachines.isNotEmpty) ...[
-                  if (recentMachines.isNotEmpty)
-                    AppSectionHeader(title: l10n.pickAllMachines),
-                  if (recentMachines.isNotEmpty)
-                    const SizedBox(height: AppSpacing.xs),
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (int i = 0; i < otherMachines.length; i++) ...[
-                          _MachineListTile(
-                            machine: otherMachines[i],
-                            showRecentIcon: false,
-                            isFirst: i == 0,
-                            isLast: i == otherMachines.length - 1,
-                            onTap: () => context.pop(otherMachines[i]),
-                          ),
-                          if (i < otherMachines.length - 1)
-                            Divider(
-                              height: 1,
-                              indent: AppSpacing.lg + 36 + AppSpacing.md,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outlineVariant,
-                            ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-              ],
             ),
+          ),
+          if (onClose != null)
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              onPressed: onClose,
+            ),
+        ],
+      ),
     );
   }
 }

@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/components/components.dart';
+import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
@@ -12,6 +11,12 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
+import 'artifact_detail_screen.dart';
+import 'edit_artifact_screen.dart';
+import 'new_artifact_screen.dart';
+
+/// Inline detail mode rendered in the side pane on wide layouts.
+enum _InlineMode { none, view, edit, create }
 
 /// Screen displaying the list of all artifacts.
 class ArtifactsListScreen extends ConsumerStatefulWidget {
@@ -28,6 +33,9 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
   String _searchQuery = '';
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
+
+  String? _selectedArtifactId;
+  _InlineMode _inlineMode = _InlineMode.none;
 
   @override
   void initState() {
@@ -53,6 +61,155 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
     await ref.read(artifactsNotifierProvider.notifier).refreshFromSync();
   }
 
+  void _clearInline() {
+    setState(() {
+      _selectedArtifactId = null;
+      _inlineMode = _InlineMode.none;
+    });
+  }
+
+  void _selectInlineView(String id) {
+    setState(() {
+      _selectedArtifactId = id;
+      _inlineMode = _InlineMode.view;
+    });
+  }
+
+  void _selectInlineEdit() {
+    if (_selectedArtifactId == null) return;
+    setState(() => _inlineMode = _InlineMode.edit);
+  }
+
+  void _selectInlineCreate() {
+    setState(() {
+      _selectedArtifactId = null;
+      _inlineMode = _InlineMode.create;
+    });
+  }
+
+  /// Resolves which inline detail widget to render in the side pane.
+  Widget _resolveInlineDetail() {
+    switch (_inlineMode) {
+      case _InlineMode.view:
+        final id = _selectedArtifactId;
+        if (id == null) {
+          return const SizedBox.shrink();
+        }
+        return ArtifactDetailScreen(
+          key: ValueKey('artifact-view-$id'),
+          artifactId: id,
+          embedded: true,
+          onClose: _clearInline,
+          onEdit: _selectInlineEdit,
+        );
+      case _InlineMode.edit:
+        final id = _selectedArtifactId;
+        if (id == null) {
+          return const SizedBox.shrink();
+        }
+        return EditArtifactScreen(
+          key: ValueKey('artifact-edit-$id'),
+          artifactId: id,
+          embedded: true,
+          onClose: () {
+            // After save / cancel transition back to view mode if we still
+            // have a selection, otherwise clear the pane.
+            if (_selectedArtifactId != null) {
+              setState(() => _inlineMode = _InlineMode.view);
+            } else {
+              _clearInline();
+            }
+          },
+        );
+      case _InlineMode.create:
+        return NewArtifactScreen(
+          key: const ValueKey('artifact-create'),
+          embedded: true,
+          onClose: _clearInline,
+          onCreated: (artifactId) {
+            // Successful create transitions the pane to view mode for the
+            // freshly created artifact.
+            setState(() {
+              _selectedArtifactId = artifactId;
+              _inlineMode = _InlineMode.view;
+            });
+          },
+        );
+      case _InlineMode.none:
+        return const SizedBox.shrink();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final isWide = MasterDetailScaffold.isWide(context);
+    final artifacts = ref.watch(artifactsNotifierProvider);
+    final filtered = _filterAndSort(artifacts);
+    final hasArtifacts = artifacts.isNotEmpty;
+
+    if (!isWide) {
+      // Phone layout: clear any inline selection so it doesn't reappear if
+      // the device rotates back to wide later. Use a post-frame callback to
+      // avoid mutating state during build.
+      if (_selectedArtifactId != null || _inlineMode != _InlineMode.none) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (_selectedArtifactId != null ||
+              _inlineMode != _InlineMode.none) {
+            _clearInline();
+          }
+        });
+      }
+    }
+
+    final masterBody = _isLoading
+        ? const _ArtifactsLoadingShimmer()
+        : !hasArtifacts
+        ? _buildEmptyState(l10n)
+        : _buildBody(
+            l10n,
+            filtered,
+            artifacts.length,
+            onTap: isWide
+                ? _selectInlineView
+                : (id) => context.push('/artifacts/$id'),
+            selectedId: isWide ? _selectedArtifactId : null,
+          );
+
+    final hasSelection = _selectedArtifactId != null ||
+        _inlineMode == _InlineMode.create;
+
+    final scaffoldBody = isWide
+        ? MasterDetailScaffold(
+            master: masterBody,
+            detail: _resolveInlineDetail(),
+            hasSelection: hasSelection,
+            emptyDetail: const TabletDetailEmpty(
+              icon: Icons.description_outlined,
+              // TODO(i18n): localize side-pane empty placeholder.
+              message: 'Select an artifact',
+            ),
+          )
+        : masterBody;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.artifactsTitle)),
+      body: scaffoldBody,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          if (isWide) {
+            _selectInlineCreate();
+          } else {
+            context.push('/artifacts/new');
+          }
+        },
+        tooltip: l10n.commonCreate,
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
   List<DecryptedArtifact> _filterAndSort(
     Map<String, DecryptedArtifact> artifacts,
   ) {
@@ -69,28 +226,6 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
     return list;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final artifacts = ref.watch(artifactsNotifierProvider);
-    final filtered = _filterAndSort(artifacts);
-    final hasArtifacts = artifacts.isNotEmpty;
-
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.artifactsTitle)),
-      body: _isLoading
-          ? const _ArtifactsLoadingShimmer()
-          : !hasArtifacts
-          ? _buildEmptyState(l10n)
-          : _buildBody(l10n, filtered, artifacts.length),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/artifacts/new'),
-        tooltip: l10n.commonCreate,
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
   Widget _buildEmptyState(AppLocalizations l10n) {
     return AppEmptyState(
       icon: Icons.description_outlined,
@@ -102,8 +237,10 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
   Widget _buildBody(
     AppLocalizations l10n,
     List<DecryptedArtifact> filtered,
-    int totalCount,
-  ) {
+    int totalCount, {
+    required ValueChanged<String> onTap,
+    String? selectedId,
+  }) {
     final cs = Theme.of(context).colorScheme;
 
     return Column(
@@ -208,10 +345,15 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final artifact = filtered[index];
+                      final isSelected = selectedId == artifact.id;
                       return Padding(
                         key: ValueKey(artifact.id),
                         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: _ArtifactListCard(artifact: artifact),
+                        child: _ArtifactListCard(
+                          artifact: artifact,
+                          selected: isSelected,
+                          onTap: () => onTap(artifact.id),
+                        ),
                       );
                     },
                   ),
@@ -248,9 +390,15 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
 // ── Card ────────────────────────────────────────────────────────
 
 class _ArtifactListCard extends StatelessWidget {
-  const _ArtifactListCard({required this.artifact});
+  const _ArtifactListCard({
+    required this.artifact,
+    this.selected = false,
+    this.onTap,
+  });
 
   final DecryptedArtifact artifact;
+  final bool selected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -267,12 +415,12 @@ class _ArtifactListCard extends StatelessWidget {
         artifact.sessions != null && artifact.sessions!.isNotEmpty;
     final sessionCount = artifact.sessions?.length ?? 0;
 
-    return AppCard(
+    final card = AppCard(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
-      onTap: () => context.push('/artifacts/${artifact.id}'),
+      onTap: onTap ?? () => context.push('/artifacts/${artifact.id}'),
       child: Row(
         children: [
           SettingsIconContainer(icon: indicator.icon, color: indicator.color),
@@ -347,6 +495,20 @@ class _ArtifactListCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (!selected) return card;
+
+    // Highlight the currently selected row in the master pane.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: AppOpacity.medium),
+          width: AppBorder.thin,
+        ),
+      ),
+      child: card,
     );
   }
 

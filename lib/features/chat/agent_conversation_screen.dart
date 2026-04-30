@@ -31,6 +31,8 @@ class AgentConversationScreen extends ConsumerStatefulWidget {
     required this.messageId,
     super.key,
     this.taskData,
+    this.embedded = false,
+    this.onClose,
   });
 
   /// The ID of the session this Task belongs to.
@@ -41,6 +43,13 @@ class AgentConversationScreen extends ConsumerStatefulWidget {
 
   /// Pre-loaded task message data passed via route extra.
   final Map<String, dynamic>? taskData;
+
+  /// When true, render as a pane inside a tablet master-detail layout.
+  /// Skips the outer [Scaffold]/[AppBar] and uses a thin in-pane header.
+  final bool embedded;
+
+  /// Called when the in-pane close button is tapped (embedded only).
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<AgentConversationScreen> createState() =>
@@ -232,67 +241,84 @@ class _AgentConversationScreenState
         )?.whereType<Map<String, dynamic>>().toList() ??
         [];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              description,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium,
+    final body = children.isEmpty
+        ? Center(
+            child: isRunning
+                ? const CircularProgressIndicator()
+                : Text(
+                    l10n.agentNoMessages,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+          )
+        : ListView.builder(
+            controller: _scroll,
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.xxl,
             ),
-            if (subagentType != null)
+            itemCount: children.length,
+            itemBuilder: (context, i) => _buildChildMessage(
+              theme,
+              children[i],
+              key: ValueKey(children[i]['id'] ?? i),
+            ),
+          );
+
+    if (!widget.embedded) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Text(
-                subagentType,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                description,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium,
+              ),
+              if (subagentType != null)
+                Text(
+                  subagentType,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            if (isRunning)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.lg),
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
           ],
         ),
-        actions: [
-          if (isRunning)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.lg),
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ),
-        ],
-      ),
-      body: children.isEmpty
-          ? Center(
-              child: isRunning
-                  ? const CircularProgressIndicator()
-                  : Text(
-                      l10n.agentNoMessages,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-            )
-          : ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.sm,
-                AppSpacing.md,
-                AppSpacing.xxl,
-              ),
-              itemCount: children.length,
-              itemBuilder: (context, i) => _buildChildMessage(
-                theme,
-                children[i],
-                key: ValueKey(children[i]['id'] ?? i),
-              ),
-            ),
+        body: body,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _AgentEmbeddedHeader(
+          description: description,
+          subagentType: subagentType,
+          isRunning: isRunning,
+          onClose: widget.onClose,
+        ),
+        Expanded(child: body),
+      ],
     );
   }
 
@@ -493,6 +519,92 @@ class _AgentConversationScreenState
   }
 
   ToolState _parseToolState(String state) => parseToolState(state);
+}
+
+// ----------------------------------------------------------
+// Embedded header
+// ----------------------------------------------------------
+
+class _AgentEmbeddedHeader extends StatelessWidget {
+  const _AgentEmbeddedHeader({
+    required this.description,
+    required this.isRunning,
+    this.subagentType,
+    this.onClose,
+  });
+
+  final String description;
+  final String? subagentType;
+  final bool isRunning;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant,
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  description,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (subagentType != null)
+                  Text(
+                    subagentType!,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (isRunning)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.5,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          if (onClose != null)
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 20),
+              // TODO(i18n): close tooltip not yet localized
+              tooltip: 'Close',
+              onPressed: onClose,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 // ----------------------------------------------------------

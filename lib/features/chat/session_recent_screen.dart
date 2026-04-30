@@ -16,7 +16,18 @@ import '../sessions/widgets/session_cards.dart';
 /// "Today"/"Yesterday"/etc. Reuses SessionCard from sessions_screen.dart.
 class SessionRecentScreen extends ConsumerWidget {
   /// Creates a [SessionRecentScreen].
-  const SessionRecentScreen({super.key});
+  const SessionRecentScreen({
+    this.embedded = false,
+    this.onClose,
+    super.key,
+  });
+
+  /// When true, render as a pane inside a tablet master-detail layout.
+  /// Skips the outer [Scaffold]/[AppBar] and uses a thin in-pane header.
+  final bool embedded;
+
+  /// Called when the in-pane close button is tapped (embedded only).
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,20 +50,84 @@ class SessionRecentScreen extends ConsumerWidget {
       };
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.sessionsRecentTitle)),
-      body: sessionIds.isEmpty
-          ? const _EmptyRecentView()
-          : RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(sessionsNotifierProvider.notifier).refreshFromSync(),
-              child: _SessionRecentList(
-                sessionIds: sessionIds,
-                localizeDateGroup: localizeDateGroup,
-                showFlavorIcons: showFlavorIcons,
-                avatarStyle: avatarStyle,
-              ),
+    final body = sessionIds.isEmpty
+        ? const _EmptyRecentView()
+        : RefreshIndicator(
+            onRefresh: () =>
+                ref.read(sessionsNotifierProvider.notifier).refreshFromSync(),
+            child: _SessionRecentList(
+              sessionIds: sessionIds,
+              localizeDateGroup: localizeDateGroup,
+              showFlavorIcons: showFlavorIcons,
+              avatarStyle: avatarStyle,
             ),
+          );
+
+    if (!embedded) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.sessionsRecentTitle)),
+        body: body,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _RecentEmbeddedHeader(
+          title: l10n.sessionsRecentTitle,
+          onClose: onClose,
+        ),
+        Expanded(child: body),
+      ],
+    );
+  }
+}
+
+class _RecentEmbeddedHeader extends StatelessWidget {
+  const _RecentEmbeddedHeader({required this.title, this.onClose});
+
+  final String title;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant,
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (onClose != null)
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 20),
+              // TODO(i18n): close tooltip not yet localized
+              tooltip: 'Close',
+              onPressed: onClose,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
     );
   }
 }

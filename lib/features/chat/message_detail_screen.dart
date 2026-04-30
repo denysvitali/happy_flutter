@@ -23,6 +23,8 @@ class MessageDetailScreen extends ConsumerWidget {
     required this.sessionId,
     required this.messageId,
     this.messageData,
+    this.embedded = false,
+    this.onClose,
     super.key,
   });
 
@@ -35,28 +37,112 @@ class MessageDetailScreen extends ConsumerWidget {
   /// Optional pre-loaded message data passed via route extra.
   final Map<String, dynamic>? messageData;
 
+  /// When true, render as a pane inside a tablet master-detail layout.
+  /// Skips the outer [Scaffold]/[AppBar] and uses a thin in-pane header.
+  final bool embedded;
+
+  /// Called when the in-pane close button is tapped (embedded only).
+  final VoidCallback? onClose;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = messageData;
 
     if (data == null) {
-      return Scaffold(
-        appBar: AppBar(title: Text(context.l10n.messageDetailTitle)),
+      return _ScreenShell(
+        title: context.l10n.messageDetailTitle,
+        embedded: embedded,
+        onClose: onClose,
         body: Center(child: Text(context.l10n.messageNotFound)),
       );
     }
 
     final kind = data['kind'] as String? ?? 'unknown';
     if (kind != 'tool-call') {
-      return Scaffold(
-        appBar: AppBar(title: Text(context.l10n.messageDetailTitle)),
+      return _ScreenShell(
+        title: context.l10n.messageDetailTitle,
+        embedded: embedded,
+        onClose: onClose,
         body: _TextDetailView(data: data),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.toolDetailsTitle)),
+    return _ScreenShell(
+      title: context.l10n.toolDetailsTitle,
+      embedded: embedded,
+      onClose: onClose,
       body: _ToolDetailView(data: data),
+    );
+  }
+}
+
+/// Wraps [body] in a [Scaffold] (route mode) or a thin in-pane header +
+/// body column (embedded mode for tablet master-detail).
+class _ScreenShell extends StatelessWidget {
+  const _ScreenShell({
+    required this.title,
+    required this.body,
+    required this.embedded,
+    this.onClose,
+  });
+
+  final String title;
+  final Widget body;
+  final bool embedded;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!embedded) {
+      return Scaffold(appBar: AppBar(title: Text(title)), body: body);
+    }
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colorScheme.outlineVariant,
+                width: AppBorder.hairline,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (onClose != null)
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                  // TODO(i18n): close tooltip not yet localized
+                  tooltip: 'Close',
+                  onPressed: onClose,
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+        ),
+        Expanded(child: body),
+      ],
     );
   }
 }

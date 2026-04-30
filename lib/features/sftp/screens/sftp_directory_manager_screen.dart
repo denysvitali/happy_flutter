@@ -8,11 +8,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/components/app_card.dart';
 import '../../../core/components/app_empty_state.dart';
 import '../../../core/components/settings_section.dart';
+import '../../../core/components/tablet/master_detail_scaffold.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../models/sftp_directory.dart';
 import '../providers/sftp_provider.dart';
+import 'sftp_connection_history_screen.dart';
+import 'sftp_log_viewer_screen.dart';
+
+/// Right-pane modes when the directory manager is rendered as a
+/// master-detail layout on wider viewports.
+enum _PaneMode { none, log, history, file }
 
 /// Directory manager screen showing shared folder contents
 /// and actions
@@ -33,6 +40,10 @@ class _SftpDirectoryManagerScreenState
   String? _error;
   String _sortBy = 'name'; // name, size, modified, type
   late String _currentPath;
+
+  // Tablet master-detail state.
+  _PaneMode _paneMode = _PaneMode.none;
+  String? _selectedEntry;
 
   SftpDirectory get _dir => widget.directory;
   bool get _isSubdirectory => _currentPath != _dir.path;
@@ -174,6 +185,13 @@ class _SftpDirectoryManagerScreenState
   }
 
   Future<void> _openFile(String filePath) async {
+    if (MasterDetailScaffold.isWide(context)) {
+      setState(() {
+        _paneMode = _PaneMode.file;
+        _selectedEntry = filePath;
+      });
+      return;
+    }
     final uri = Uri.file(filePath);
     final launched = await launchUrl(uri);
     if (!launched && mounted) {
@@ -182,6 +200,39 @@ class _SftpDirectoryManagerScreenState
       );
     }
   }
+
+  void _showLogs() {
+    if (MasterDetailScaffold.isWide(context)) {
+      setState(() {
+        _paneMode = _PaneMode.log;
+      });
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const SftpLogViewerScreen(),
+        ),
+      );
+    }
+  }
+
+  void _showHistory() {
+    if (MasterDetailScaffold.isWide(context)) {
+      setState(() {
+        _paneMode = _PaneMode.history;
+      });
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const SftpConnectionHistoryScreen(),
+        ),
+      );
+    }
+  }
+
+  void _closeDetailPane() => setState(() {
+        _paneMode = _PaneMode.none;
+        _selectedEntry = null;
+      });
 
   void _showSortOptions() {
     showModalBottomSheet(
@@ -258,6 +309,8 @@ class _SftpDirectoryManagerScreenState
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final directorySize = _calculateTotalSize();
+    final isWide = MasterDetailScaffold.isWide(context);
+    final master = _buildMasterContent(cs, directorySize);
 
     return Scaffold(
       appBar: AppBar(
@@ -278,6 +331,16 @@ class _SftpDirectoryManagerScreenState
         title: Text(_isSubdirectory ? p.basename(_currentPath) : _dir.name),
         actions: [
           IconButton(
+            icon: const Icon(Icons.article_outlined),
+            onPressed: _showLogs,
+            tooltip: 'View logs',
+          ),
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: _showHistory,
+            tooltip: 'Connection history',
+          ),
+          IconButton(
             icon: const Icon(Icons.link),
             onPressed: _copyShareUrl,
             tooltip: 'Copy connection info',
@@ -294,129 +357,169 @@ class _SftpDirectoryManagerScreenState
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Share info banner
-          AppCard(
-            margin: const EdgeInsets.all(AppSpacing.sm),
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    SettingsIconContainer(
-                      icon: Icons.folder_shared,
-                      color: cs.primary,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        _currentPath,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    _InfoChip(icon: Icons.numbers, label: 'Port ${_dir.port}'),
-                    _InfoChip(icon: Icons.lock, label: _dir.authMethod.name),
-                    _InfoChip(
-                      icon: Icons.paste,
-                      label: _dir.clipboardMode.name,
-                    ),
-                    if (directorySize != null)
-                      _InfoChip(
-                        icon: Icons.storage,
-                        label: _formatSize(directorySize),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+      body: isWide
+          ? MasterDetailScaffold(
+              master: master,
+              detail: _buildDetailPane(),
+              hasSelection: _paneMode != _PaneMode.none,
+              emptyDetail: const TabletDetailEmpty(
+                icon: Icons.folder_open,
+                message: 'Open a file or view logs',
+              ),
+            )
+          : master,
+    );
+  }
 
-          // Action bar
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              children: [
-                Text(
-                  '${_entities.length} items',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _removeShare,
-                  style: TextButton.styleFrom(foregroundColor: cs.error),
-                  icon: const Icon(Icons.link_off, size: 18),
-                  label: const Text('Remove Share'),
-                ),
-              ],
-            ),
-          ),
-
-          Divider(
-            height: 1,
-            thickness: AppBorder.hairline,
-            color: cs.outlineVariant,
-          ),
-
-          // Content
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? AppEmptyState(
-                    icon: Icons.error_outline,
-                    title: 'Something went wrong',
-                    subtitle: _error,
-                    action: FilledButton(
-                      onPressed: _loadDirectory,
-                      child: const Text('Retry'),
-                    ),
-                  )
-                : _entities.isEmpty
-                ? AppEmptyState(
-                    icon: Icons.folder_off,
-                    title: 'Empty directory',
-                    subtitle:
-                        'No files or '
-                        'folders here yet',
-                  )
-                : RefreshIndicator(
-                    onRefresh: _loadDirectory,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.sm,
+  Widget _buildMasterContent(ColorScheme cs, int? directorySize) {
+    return Column(
+      children: [
+        // Share info banner
+        AppCard(
+          margin: const EdgeInsets.all(AppSpacing.sm),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  SettingsIconContainer(
+                    icon: Icons.folder_shared,
+                    color: cs.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      _currentPath,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
                       ),
-                      itemCount: _entities.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: AppSpacing.xs),
-                      itemBuilder: (context, i) {
-                        return _FileEntityCard(
-                          entity: _entities[i],
-                          onDirectoryTap: _navigateToSubdirectory,
-                          onFileTap: _openFile,
-                        );
-                      },
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  _InfoChip(icon: Icons.numbers, label: 'Port ${_dir.port}'),
+                  _InfoChip(icon: Icons.lock, label: _dir.authMethod.name),
+                  _InfoChip(
+                    icon: Icons.paste,
+                    label: _dir.clipboardMode.name,
+                  ),
+                  if (directorySize != null)
+                    _InfoChip(
+                      icon: Icons.storage,
+                      label: _formatSize(directorySize),
+                    ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+
+        // Action bar
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              Text(
+                '${_entities.length} items',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _removeShare,
+                style: TextButton.styleFrom(foregroundColor: cs.error),
+                icon: const Icon(Icons.link_off, size: 18),
+                label: const Text('Remove Share'),
+              ),
+            ],
+          ),
+        ),
+
+        Divider(
+          height: 1,
+          thickness: AppBorder.hairline,
+          color: cs.outlineVariant,
+        ),
+
+        // Content
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+              ? AppEmptyState(
+                  icon: Icons.error_outline,
+                  title: 'Something went wrong',
+                  subtitle: _error,
+                  action: FilledButton(
+                    onPressed: _loadDirectory,
+                    child: const Text('Retry'),
+                  ),
+                )
+              : _entities.isEmpty
+              ? AppEmptyState(
+                  icon: Icons.folder_off,
+                  title: 'Empty directory',
+                  subtitle:
+                      'No files or '
+                      'folders here yet',
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadDirectory,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.sm,
+                    ),
+                    itemCount: _entities.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.xs),
+                    itemBuilder: (context, i) {
+                      final entity = _entities[i];
+                      final isSelected =
+                          _paneMode == _PaneMode.file &&
+                          _selectedEntry == entity.path;
+                      return _FileEntityCard(
+                        entity: entity,
+                        isSelected: isSelected,
+                        onDirectoryTap: _navigateToSubdirectory,
+                        onFileTap: _openFile,
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
     );
+  }
+
+  Widget _buildDetailPane() {
+    switch (_paneMode) {
+      case _PaneMode.log:
+        return SftpLogViewerScreen(
+            embedded: true, onClose: _closeDetailPane);
+      case _PaneMode.history:
+        return SftpConnectionHistoryScreen(
+            embedded: true, onClose: _closeDetailPane);
+      case _PaneMode.file:
+        return TabletDetailEmpty(
+          icon: Icons.insert_drive_file_outlined,
+          message: 'Selected: ${_selectedEntry ?? ''}',
+        );
+      case _PaneMode.none:
+        return const TabletDetailEmpty(
+          icon: Icons.folder_open,
+          message: 'Open a file or view logs',
+        );
+    }
   }
 
   int? _calculateTotalSize() {
@@ -451,11 +554,13 @@ class _FileEntityCard extends StatelessWidget {
     required this.entity,
     required this.onDirectoryTap,
     required this.onFileTap,
+    this.isSelected = false,
   });
 
   final FileSystemEntity entity;
   final void Function(String subPath) onDirectoryTap;
   final void Function(String filePath) onFileTap;
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -488,7 +593,7 @@ class _FileEntityCard extends StatelessWidget {
               .trim();
     } catch (_) {}
 
-    return AppCard(
+    final card = AppCard(
       onTap: () {
         if (isDir) {
           onDirectoryTap(entity.path);
@@ -536,6 +641,19 @@ class _FileEntityCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+
+    if (!isSelected) return card;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.all(Radius.circular(AppRadius.lg)),
+        border: Border.all(
+          color: cs.primary,
+          width: AppBorder.thin,
+        ),
+      ),
+      child: card,
     );
   }
 

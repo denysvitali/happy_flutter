@@ -19,9 +19,16 @@ export 'widgets/device_analytics_card.dart';
 
 /// Screen for viewing SFTP connection history
 class SftpConnectionHistoryScreen extends StatefulWidget {
-  const SftpConnectionHistoryScreen({super.key, this.deviceId});
+  const SftpConnectionHistoryScreen({
+    super.key,
+    this.deviceId,
+    this.embedded = false,
+    this.onClose,
+  });
 
   final String? deviceId;
+  final bool embedded;
+  final VoidCallback? onClose;
 
   @override
   State<SftpConnectionHistoryScreen> createState() =>
@@ -120,43 +127,91 @@ class _SftpConnectionHistoryScreenState
     final allDevices = connectionHistoryStore.allDeviceIds;
     final allUsers = connectionHistoryStore.allUsernames;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Connection History'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_upload),
-            onPressed: _events.isNotEmpty ? _exportHistory : null,
-            tooltip: 'Export',
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _events.isNotEmpty ? _clearHistory : null,
-            tooltip: 'Clear history',
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(AppTouchTarget.comfortable),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabs: const [
-                Tab(text: 'History'),
-                Tab(text: 'Analytics'),
+    final actions = <Widget>[
+      IconButton(
+        icon: const Icon(Icons.file_upload),
+        onPressed: _events.isNotEmpty ? _exportHistory : null,
+        tooltip: 'Export',
+      ),
+      IconButton(
+        icon: const Icon(Icons.delete_outline),
+        onPressed: _events.isNotEmpty ? _clearHistory : null,
+        tooltip: 'Clear history',
+      ),
+    ];
+
+    final tabBar = PreferredSize(
+      preferredSize: const Size.fromHeight(AppTouchTarget.comfortable),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'History'),
+            Tab(text: 'Analytics'),
+          ],
+        ),
+      ),
+    );
+
+    final body = TabBarView(
+      controller: _tabController,
+      children: [
+        _buildHistoryTab(allDevices, allUsers),
+        _buildAnalyticsTab(allDevices),
+      ],
+    );
+
+    if (widget.embedded) {
+      final cs = Theme.of(context).colorScheme;
+      return Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              border: Border(
+                bottom: BorderSide(
+                  color: cs.outlineVariant,
+                  width: AppBorder.hairline,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Connection History',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const Spacer(),
+                ...actions,
+                if (widget.onClose != null)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: widget.onClose,
+                    tooltip: 'Close',
+                  ),
               ],
             ),
           ),
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildHistoryTab(allDevices, allUsers),
-          _buildAnalyticsTab(allDevices),
+          tabBar,
+          Expanded(child: body),
         ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Connection History'),
+        actions: actions,
+        bottom: tabBar,
       ),
+      body: body,
     );
   }
 

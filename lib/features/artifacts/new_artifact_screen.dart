@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Screen for creating a new artifact.
@@ -11,7 +12,25 @@ import '../../core/theme/app_tokens.dart';
 /// Shows a form with title and content fields. Actual encryption
 /// and API submission are out of scope for this screen — see TODO below.
 class NewArtifactScreen extends ConsumerStatefulWidget {
-  const NewArtifactScreen({super.key});
+  const NewArtifactScreen({
+    this.embedded = false,
+    this.onClose,
+    this.onCreated,
+    super.key,
+  });
+
+  /// When true, this widget is rendered inside a master-detail pane and
+  /// must not provide its own [Scaffold]/[AppBar].
+  final bool embedded;
+
+  /// Invoked when the user closes the create pane in embedded mode (without
+  /// creating an artifact).
+  final VoidCallback? onClose;
+
+  /// Invoked with the freshly created artifact id in embedded mode. Replaces
+  /// the normal `context.go('/artifacts/$id')` navigation so the master-detail
+  /// host can transition to view mode for the new artifact.
+  final void Function(String artifactId)? onCreated;
 
   @override
   ConsumerState<NewArtifactScreen> createState() =>
@@ -55,7 +74,10 @@ class _NewArtifactScreenState
         title.isNotEmpty ? title : null,
         content.isNotEmpty ? content : null,
       );
-      if (mounted) {
+      if (!mounted) return;
+      if (widget.embedded) {
+        widget.onCreated?.call(artifactId);
+      } else {
         context.go('/artifacts/$artifactId');
       }
     } catch (e, st) {
@@ -79,6 +101,122 @@ class _NewArtifactScreenState
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
+    final form = Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        padding: AppScreenPadding.standard,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _SectionLabel(label: l10n.artifactsTitleLabel),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                hintText: l10n.artifactsEnterTitle,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                filled: true,
+                fillColor: cs.surfaceContainerLow,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.next,
+              maxLines: 1,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            _SectionLabel(label: l10n.artifactsContentLabel),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              controller: _contentController,
+              decoration: InputDecoration(
+                hintText: l10n.artifactsEnterContent,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                filled: true,
+                fillColor: cs.surfaceContainerLow,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                alignLabelWithHint: true,
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              maxLines: 10,
+              minLines: 6,
+              keyboardType: TextInputType.multiline,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                height: AppLineHeight.normal,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxxl),
+            SizedBox(
+              height: AppTouchTarget.comfortable,
+              child: FilledButton(
+                onPressed: _isBusy ? null : _handleCreate,
+                child: _isBusy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      )
+                    : Text(
+                        l10n.commonCreate,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (widget.embedded) {
+      return Column(
+        children: [
+          _EmbeddedNewHeader(
+            title: l10n.artifactsNew,
+            isBusy: _isBusy,
+            onCreate: _handleCreate,
+            onClose: widget.onClose,
+          ),
+          Expanded(child: form),
+        ],
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.artifactsNew),
@@ -95,112 +233,95 @@ class _NewArtifactScreenState
                   : Text(
                       l10n.commonCreate,
                       style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
             ),
           ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: AppScreenPadding.standard,
-          keyboardDismissBehavior:
-              ScrollViewKeyboardDismissBehavior.onDrag,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _SectionLabel(label: l10n.artifactsTitleLabel),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  hintText: l10n.artifactsEnterTitle,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: BorderSide(
-                      color: cs.outlineVariant.withValues(alpha: 0.5),
+      body: form,
+    );
+  }
+}
+
+/// Compact header for the embedded create pane: title + create + close.
+class _EmbeddedNewHeader extends StatelessWidget {
+  const _EmbeddedNewHeader({
+    required this.title,
+    required this.isBusy,
+    required this.onCreate,
+    this.onClose,
+  });
+
+  final String title;
+  final bool isBusy;
+  final Future<void> Function() onCreate;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.half),
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: kToolbarHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
                     ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: BorderSide(
-                      color: cs.outlineVariant.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  filled: true,
-                  fillColor: cs.surfaceContainerLow,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.md,
-                  ),
-                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                        color: cs.onSurfaceVariant,
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.next,
-                maxLines: 1,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              _SectionLabel(label: l10n.artifactsContentLabel),
-              const SizedBox(height: AppSpacing.sm),
-              TextFormField(
-                controller: _contentController,
-                decoration: InputDecoration(
-                  hintText: l10n.artifactsEnterContent,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: BorderSide(
-                      color: cs.outlineVariant.withValues(alpha: 0.5),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    borderSide: BorderSide(
-                      color: cs.outlineVariant.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  filled: true,
-                  fillColor: cs.surfaceContainerLow,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.md,
-                  ),
-                  alignLabelWithHint: true,
-                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
                 ),
-                textCapitalization: TextCapitalization.sentences,
-                maxLines: 10,
-                minLines: 6,
-                keyboardType: TextInputType.multiline,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                      height: AppLineHeight.normal,
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.xxxl),
-              SizedBox(
-                height: AppTouchTarget.comfortable,
-                child: FilledButton(
-                  onPressed: _isBusy ? null : _handleCreate,
-                  child: _isBusy
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        )
-                      : Text(
-                          l10n.commonCreate,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
+                  child: TextButton(
+                    onPressed: isBusy ? null : onCreate,
+                    child: isBusy
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            l10n.commonCreate,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
                 ),
-              ),
-            ],
+                if (onClose != null)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: l10n.commonClose,
+                    onPressed: onClose,
+                  ),
+              ],
+            ),
           ),
         ),
       ),

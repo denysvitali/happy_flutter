@@ -6,6 +6,7 @@ import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Screen for editing an existing artifact.
@@ -14,9 +15,22 @@ import '../../core/theme/app_tokens.dart';
 /// Title and content fields are displayed for editing, but the actual
 /// encryption and API update are out of scope — see TODO below.
 class EditArtifactScreen extends ConsumerStatefulWidget {
-  const EditArtifactScreen({required this.artifactId, super.key});
+  const EditArtifactScreen({
+    required this.artifactId,
+    this.embedded = false,
+    this.onClose,
+    super.key,
+  });
 
   final String artifactId;
+
+  /// When true, this widget is rendered inside a master-detail pane and
+  /// must not provide its own [Scaffold]/[AppBar].
+  final bool embedded;
+
+  /// Invoked after a successful save (or when the user cancels) when in
+  /// embedded mode. Replaces the normal route pop.
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<EditArtifactScreen> createState() => _EditArtifactScreenState();
@@ -65,7 +79,10 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
         title.isNotEmpty ? title : null,
         content.isNotEmpty ? content : null,
       );
-      if (mounted) {
+      if (!mounted) return;
+      if (widget.embedded) {
+        widget.onClose?.call();
+      } else {
         Navigator.of(context).pop();
       }
     } catch (e, st) {
@@ -96,17 +113,155 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     );
 
     if (artifact == null) {
+      final emptyBody = AppEmptyState(
+        icon: Icons.error_outline,
+        title: l10n.errorNotFound,
+      );
+      if (widget.embedded) {
+        return Column(
+          children: [
+            _EmbeddedEditHeader(
+              title: l10n.artifactsEdit,
+              isBusy: _isBusy,
+              onSave: _handleSave,
+              onClose: widget.onClose,
+            ),
+            Expanded(child: emptyBody),
+          ],
+        );
+      }
       return Scaffold(
         appBar: AppBar(title: Text(l10n.artifactsEdit)),
-        body: AppEmptyState(
-          icon: Icons.error_outline,
-          title: l10n.errorNotFound,
-        ),
+        body: emptyBody,
       );
     }
 
     // Populate fields once on first build after artifact loads.
     _initFromArtifact(artifact);
+
+    final form = Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        padding: AppScreenPadding.standard,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _EncryptionNote(),
+            const SizedBox(height: AppSpacing.xl),
+            _SectionLabel(label: l10n.artifactsTitleLabel),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                hintText: l10n.artifactsEnterTitle,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                filled: true,
+                fillColor: cs.surfaceContainerLow,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.next,
+              maxLines: 1,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            _SectionLabel(label: l10n.artifactsContentLabel),
+            const SizedBox(height: AppSpacing.sm),
+            TextFormField(
+              controller: _contentController,
+              decoration: InputDecoration(
+                hintText: l10n.artifactsEnterContent,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderSide: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                filled: true,
+                fillColor: cs.surfaceContainerLow,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                alignLabelWithHint: true,
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              maxLines: 10,
+              minLines: 6,
+              keyboardType: TextInputType.multiline,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                height: AppLineHeight.normal,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxxl),
+            SizedBox(
+              height: AppTouchTarget.comfortable,
+              child: FilledButton(
+                onPressed: _isBusy ? null : _handleSave,
+                child: _isBusy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      )
+                    : Text(
+                        l10n.commonSave,
+                        style: theme.textTheme.labelLarge
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (widget.embedded) {
+      return Column(
+        children: [
+          _EmbeddedEditHeader(
+            title: l10n.artifactsEdit,
+            isBusy: _isBusy,
+            onSave: _handleSave,
+            onClose: () {
+              if (_titleController.text.trim() != (artifact.title ?? '') ||
+                  _contentController.text.trim() != (artifact.body ?? '')) {
+                _showUnsavedChangesDialog(context, embedded: true);
+                return;
+              }
+              widget.onClose?.call();
+            },
+          ),
+          Expanded(child: form),
+        ],
+      );
+    }
 
     return PopScope(
       // Read current text at pop-gesture time, not build time,
@@ -144,113 +299,15 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
             ),
           ],
         ),
-        body: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: AppScreenPadding.standard,
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _EncryptionNote(),
-                const SizedBox(height: AppSpacing.xl),
-                _SectionLabel(label: l10n.artifactsTitleLabel),
-                const SizedBox(height: AppSpacing.sm),
-                TextFormField(
-                  controller: _titleController,
-                  decoration: InputDecoration(
-                    hintText: l10n.artifactsEnterTitle,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: BorderSide(
-                        color: cs.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: BorderSide(
-                        color: cs.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: cs.surfaceContainerLow,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                      vertical: AppSpacing.md,
-                    ),
-                    hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.next,
-                  maxLines: 1,
-                  style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                _SectionLabel(label: l10n.artifactsContentLabel),
-                const SizedBox(height: AppSpacing.sm),
-                TextFormField(
-                  controller: _contentController,
-                  decoration: InputDecoration(
-                    hintText: l10n.artifactsEnterContent,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: BorderSide(
-                        color: cs.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: BorderSide(
-                        color: cs.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: cs.surfaceContainerLow,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                      vertical: AppSpacing.md,
-                    ),
-                    alignLabelWithHint: true,
-                    hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  maxLines: 10,
-                  minLines: 6,
-                  keyboardType: TextInputType.multiline,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    height: AppLineHeight.normal,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxxl),
-                SizedBox(
-                  height: AppTouchTarget.comfortable,
-                  child: FilledButton(
-                    onPressed: _isBusy ? null : _handleSave,
-                    child: _isBusy
-                        ? const SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.5),
-                          )
-                        : Text(
-                            l10n.commonSave,
-                            style: theme.textTheme.labelLarge
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        body: form,
       ),
     );
   }
 
-  void _showUnsavedChangesDialog(BuildContext screenContext) {
+  void _showUnsavedChangesDialog(
+    BuildContext screenContext, {
+    bool embedded = false,
+  }) {
     final cs = Theme.of(screenContext).colorScheme;
     showDialog(
       context: screenContext,
@@ -268,13 +325,101 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
               style: TextButton.styleFrom(foregroundColor: cs.error),
               onPressed: () {
                 Navigator.pop(dialogContext);
-                Navigator.of(screenContext).pop();
+                if (embedded) {
+                  widget.onClose?.call();
+                } else {
+                  Navigator.of(screenContext).pop();
+                }
               },
               child: Text(l10n.chatLeave),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+/// Compact header for the embedded edit pane: title + save + close.
+class _EmbeddedEditHeader extends StatelessWidget {
+  const _EmbeddedEditHeader({
+    required this.title,
+    required this.isBusy,
+    required this.onSave,
+    this.onClose,
+  });
+
+  final String title;
+  final bool isBusy;
+  final Future<void> Function() onSave;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.half),
+            width: AppBorder.hairline,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: kToolbarHeight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
+                  child: TextButton(
+                    onPressed: isBusy ? null : onSave,
+                    child: isBusy
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(
+                            l10n.commonSave,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                if (onClose != null)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: l10n.commonClose,
+                    onPressed: onClose,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

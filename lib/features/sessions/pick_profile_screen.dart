@@ -14,10 +14,23 @@ import '../../core/theme/app_tokens.dart';
 /// plus any user-defined custom profiles from settings.
 ///
 /// Pops with the selected profile ID string, or `null` for "None".
+///
+/// When [embedded] is true, the [Scaffold]/[AppBar] are omitted and a thin
+/// header is rendered instead. Selection invokes [onPicked] (instead of
+/// `Navigator.pop`) and the close button invokes [onClose].
 class PickProfileScreen extends ConsumerWidget {
-  const PickProfileScreen({super.key, this.agent = 'claude'});
+  const PickProfileScreen({
+    super.key,
+    this.agent = 'claude',
+    this.embedded = false,
+    this.onPicked,
+    this.onClose,
+  });
 
   final String agent;
+  final bool embedded;
+  final ValueChanged<String?>? onPicked;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,39 +52,74 @@ class PickProfileScreen extends ConsumerWidget {
         .where((profile) => profile.compatibility.supportsAgent(agent))
         .toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.pickSelectProfile),
-        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      body: ListView(
-        padding: AppScreenPadding.standard,
-        children: [
-          // Subtitle
-          Text(
-            l10n.pickProfileChooseBackend,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
+    void handlePick(String? id) {
+      if (embedded) {
+        onPicked?.call(id);
+      } else {
+        context.pop<String?>(id);
+      }
+    }
 
-          // ── "None" ────────────────────────────────────────────────
-          _ProfileCard(
-            name: l10n.pickProfileNone,
-            description: l10n.pickProfileNoneDesc,
-            icon: Icons.remove_circle_outline_rounded,
+    final body = ListView(
+      padding: AppScreenPadding.standard,
+      children: [
+        // Subtitle
+        Text(
+          l10n.pickProfileChooseBackend,
+          style: theme.textTheme.bodyMedium?.copyWith(
             color: cs.onSurfaceVariant,
-            isSelected: selectedId == null,
-            onTap: () => context.pop<String?>(null),
           ),
-          const SizedBox(height: AppSpacing.xl),
+        ),
+        const SizedBox(height: AppSpacing.lg),
 
-          // ── Built-in profiles ─────────────────────────────────────
+        // ── "None" ────────────────────────────────────────────────
+        _ProfileCard(
+          name: l10n.pickProfileNone,
+          description: l10n.pickProfileNoneDesc,
+          icon: Icons.remove_circle_outline_rounded,
+          color: cs.onSurfaceVariant,
+          isSelected: selectedId == null,
+          onTap: () => handlePick(null),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+
+        // ── Built-in profiles ─────────────────────────────────────
+        AppSectionHeader(
+          title: l10n.pickProfileBuiltInSection,
+          uppercase: true,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        AppCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (int i = 0; i < filteredBuiltInProfiles.length; i++) ...[
+                _ProfileTile(
+                  name: filteredBuiltInProfiles[i].name,
+                  description: filteredBuiltInProfiles[i].description ?? '',
+                  icon: _iconForProfile(filteredBuiltInProfiles[i].id),
+                  color: colorForProfile(filteredBuiltInProfiles[i].id),
+                  isSelected: selectedId == filteredBuiltInProfiles[i].id,
+                  isFirst: i == 0,
+                  isLast: i == filteredBuiltInProfiles.length - 1,
+                  onTap: () => handlePick(filteredBuiltInProfiles[i].id),
+                ),
+                if (i < filteredBuiltInProfiles.length - 1)
+                  Divider(
+                    height: 1,
+                    indent: AppSpacing.lg + 36 + AppSpacing.md,
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+              ],
+            ],
+          ),
+        ),
+
+        // ── Custom profiles ───────────────────────────────────────
+        if (filteredCustomProfiles.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
           AppSectionHeader(
-            title: l10n.pickProfileBuiltInSection,
+            title: l10n.pickProfileCustomSection,
             uppercase: true,
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -79,19 +127,20 @@ class PickProfileScreen extends ConsumerWidget {
             padding: EdgeInsets.zero,
             child: Column(
               children: [
-                for (int i = 0; i < filteredBuiltInProfiles.length; i++) ...[
+                for (int i = 0; i < filteredCustomProfiles.length; i++) ...[
                   _ProfileTile(
-                    name: filteredBuiltInProfiles[i].name,
-                    description: filteredBuiltInProfiles[i].description ?? '',
-                    icon: _iconForProfile(filteredBuiltInProfiles[i].id),
-                    color: colorForProfile(filteredBuiltInProfiles[i].id),
-                    isSelected: selectedId == filteredBuiltInProfiles[i].id,
+                    name: filteredCustomProfiles[i].name,
+                    description:
+                        filteredCustomProfiles[i].description ??
+                        l10n.pickProfileCustomDescription,
+                    icon: Icons.person_outline_rounded,
+                    color: cs.primary,
+                    isSelected: selectedId == filteredCustomProfiles[i].id,
                     isFirst: i == 0,
-                    isLast: i == filteredBuiltInProfiles.length - 1,
-                    onTap: () =>
-                        context.pop<String?>(filteredBuiltInProfiles[i].id),
+                    isLast: i == filteredCustomProfiles.length - 1,
+                    onTap: () => handlePick(filteredCustomProfiles[i].id),
                   ),
-                  if (i < filteredBuiltInProfiles.length - 1)
+                  if (i < filteredCustomProfiles.length - 1)
                     Divider(
                       height: 1,
                       indent: AppSpacing.lg + 36 + AppSpacing.md,
@@ -101,48 +150,33 @@ class PickProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
-
-          // ── Custom profiles ───────────────────────────────────────
-          if (filteredCustomProfiles.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            AppSectionHeader(
-              title: l10n.pickProfileCustomSection,
-              uppercase: true,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  for (int i = 0; i < filteredCustomProfiles.length; i++) ...[
-                    _ProfileTile(
-                      name: filteredCustomProfiles[i].name,
-                      description:
-                          filteredCustomProfiles[i].description ??
-                          l10n.pickProfileCustomDescription,
-                      icon: Icons.person_outline_rounded,
-                      color: cs.primary,
-                      isSelected: selectedId == filteredCustomProfiles[i].id,
-                      isFirst: i == 0,
-                      isLast: i == filteredCustomProfiles.length - 1,
-                      onTap: () =>
-                          context.pop<String?>(filteredCustomProfiles[i].id),
-                    ),
-                    if (i < filteredCustomProfiles.length - 1)
-                      Divider(
-                        height: 1,
-                        indent: AppSpacing.lg + 36 + AppSpacing.md,
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                      ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-
-          const SizedBox(height: AppSpacing.xl),
         ],
+
+        const SizedBox(height: AppSpacing.xl),
+      ],
+    );
+
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _EmbeddedHeader(
+            title: l10n.pickSelectProfile,
+            onClose: onClose,
+          ),
+          Expanded(child: body),
+        ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.pickSelectProfile),
+        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
       ),
+      body: body,
     );
   }
 }
@@ -165,6 +199,50 @@ IconData _iconForProfile(String id) {
       return Icons.cloud_rounded;
     default:
       return Icons.computer_rounded;
+  }
+}
+
+/// Thin header row for embedded picker panes (tablet master-detail).
+class _EmbeddedHeader extends StatelessWidget {
+  const _EmbeddedHeader({required this.title, this.onClose});
+
+  final String title;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: cs.outlineVariant, width: AppBorder.thin),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (onClose != null)
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+              onPressed: onClose,
+            ),
+        ],
+      ),
+    );
   }
 }
 
