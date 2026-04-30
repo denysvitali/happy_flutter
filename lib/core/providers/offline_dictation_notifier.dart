@@ -1,7 +1,9 @@
-import 'dart:async';
+import 'dart:async' show unawaited, Timer;
 
+import 'package:flutter/material.dart';
 import 'package:riverpod/riverpod.dart';
 
+import '../i18n/app_localizations.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/offline_dictation_service.dart';
 
@@ -40,7 +42,7 @@ class OfflineDictationNotifier extends Notifier<OfflineDictationState> {
     return const OfflineDictationState.idle();
   }
 
-  Future<void> initialize() {
+  Future<void> initialize([BuildContext? context]) {
     final existing = _initializeFuture;
     if (existing != null) {
       return existing;
@@ -49,11 +51,23 @@ class OfflineDictationNotifier extends Notifier<OfflineDictationState> {
     state = const OfflineDictationState(
       status: OfflineDictationStatus.initializing,
     );
-    _initializeFuture = _initialize();
+    _initializeFuture = _initialize(context);
     return _initializeFuture!;
   }
 
-  Future<void> _initialize() async {
+  Future<void> _showReadyToast(BuildContext context) async {
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.transcriptionReady),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _initialize(BuildContext? context) async {
     try {
       await ref.read(offlineDictationServiceProvider).initialize();
       state = const OfflineDictationState(status: OfflineDictationStatus.ready);
@@ -61,6 +75,9 @@ class OfflineDictationNotifier extends Notifier<OfflineDictationState> {
       _readyTimer = Timer(const Duration(seconds: 2), () {
         state = const OfflineDictationState.idle();
       });
+      if (context != null) {
+        unawaited(_showReadyToast(context));
+      }
     } on OfflineDictationException catch (error) {
       _initializeFuture = null;
       state = OfflineDictationState(

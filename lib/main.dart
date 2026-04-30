@@ -13,7 +13,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart' show Sentry, SpanStatus;
 
 import 'core/api/api_client.dart';
-import 'core/components/transcription_startup_status_bar.dart';
 import 'core/encryption/sodium_singleton.dart';
 import 'core/i18n/app_localizations.dart';
 import 'core/providers/app_providers.dart';
@@ -310,7 +309,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!kIsWeb) {
         unawaited(
-          ref.read(offlineDictationNotifierProvider.notifier).initialize(),
+          ref
+              .read(offlineDictationNotifierProvider.notifier)
+              .initialize(context),
         );
       }
     });
@@ -413,41 +414,34 @@ class _HappyAppState extends ConsumerState<HappyApp>
     _applyThemeFromSettings();
   }
 
+  void _recordLifecycleEdge(String state) {
+    _lifecycleCycleCount++;
+    final now = DateTime.now();
+    var isRapidLifecycleCycle = false;
+    if (_lastLifecycleCycleAt != null) {
+      final elapsed = now.difference(_lastLifecycleCycleAt!).inSeconds;
+      if (elapsed < 60) {
+        if (_lifecycleCycleCount > _lifecycleCyclingWarningThreshold) {
+          isRapidLifecycleCycle = true;
+          // Log locally for dev logs — not worth a Sentry event
+          // since Android routinely cycles the lifecycle on low
+          // battery or when the OS manages background apps.
+          logger.info(
+            '[Battery] Rapid lifecycle cycling: '
+            '$_lifecycleCycleCount transitions in ${elapsed}s',
+          );
+        }
+      } else {
+        _lifecycleCycleCount = 1;
+      }
+    }
+    _lastLifecycleCycleAt = now;
+    powerDiagnostics.recordLifecycle(state, rapidCycle: isRapidLifecycleCycle);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-
-    // Battery diagnostics: only count actual paused/resumed transitions.
-    // Intermediate states (inactive, hidden, detached) are ignored because
-    // Android sends ~6 callbacks per single background/foreground cycle.
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.resumed) {
-      _lifecycleCycleCount++;
-      final now = DateTime.now();
-      var isRapidLifecycleCycle = false;
-      if (_lastLifecycleCycleAt != null) {
-        final elapsed = now.difference(_lastLifecycleCycleAt!).inSeconds;
-        if (elapsed < 60) {
-          if (_lifecycleCycleCount > _lifecycleCyclingWarningThreshold) {
-            isRapidLifecycleCycle = true;
-            // Log locally for dev logs — not worth a Sentry event
-            // since Android routinely cycles the lifecycle on low
-            // battery or when the OS manages background apps.
-            logger.info(
-              '[Battery] Rapid lifecycle cycling: '
-              '$_lifecycleCycleCount transitions in ${elapsed}s',
-            );
-          }
-        } else {
-          _lifecycleCycleCount = 1;
-        }
-      }
-      _lastLifecycleCycleAt = now;
-      powerDiagnostics.recordLifecycle(
-        state.name,
-        rapidCycle: isRapidLifecycleCycle,
-      );
-    }
 
     switch (state) {
       case AppLifecycleState.hidden:
@@ -456,6 +450,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
         _visibilityCoordinator.handleLifecycleState(
           state,
           onSuspend: () {
+            _recordLifecycleEdge('paused');
             // App is no longer visible — disconnect the socket and cancel
             // all timers to ensure zero network traffic and battery drain.
             FrameMetricsService.instance.detach();
@@ -463,6 +458,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
             storage.SettingsStorage().suspend();
           },
           onResume: () {
+            _recordLifecycleEdge('resumed');
             // App is foregrounded — reconnect and catch up on missed events.
             if (sentryEnableFrameMetrics && sentryTracesSampleRate > 0) {
               FrameMetricsService.instance.attach();
@@ -512,12 +508,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
                   supportedLocales: AppLocalizations.supportedLocales,
                   routerConfig: _router,
                   builder: (context, child) {
-                    return Column(
-                      children: [
-                        const TranscriptionStartupStatusBar(),
-                        Expanded(child: child ?? const SizedBox.shrink()),
-                      ],
-                    );
+                    return child ?? const SizedBox.shrink();
                   },
                 ),
                 // Command palette overlay
