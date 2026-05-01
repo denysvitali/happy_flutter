@@ -794,10 +794,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Whether the chat screen itself is wide enough to host its own
-  /// master-detail layout (sessions screen already eats the first 360px,
-  /// so we only nest a second master-detail above the desktop breakpoint).
-  bool _isChatWide(BuildContext context) =>
-      MediaQuery.sizeOf(context).width >= AppBreakpoint.desktop;
+  /// master-detail layout. Compared against the available pane width (via
+  /// `LayoutBuilder`), not the full screen width, so that an embedded chat
+  /// (e.g. inside the sessions tablet master-detail) correctly falls back
+  /// to single-pane and pushes routes for info/files instead of carving a
+  /// second empty detail pane out of its own slot.
+  ///
+  /// Always single-pane when embedded — `onBack` is set by the embedding
+  /// parent (sessions tablet layout) and double-nesting master-detail leaves
+  /// an unused empty section visible until the user opens an info pane.
+  bool _isChatWide(double availableWidth) {
+    if (widget.onBack != null) return false;
+    return availableWidth >= AppBreakpoint.desktop;
+  }
 
   void _clearChatDetail() {
     if (_detailKind == _ChatDetailKind.none) return;
@@ -896,61 +905,65 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final hideToolCalls = ref.watch(
       settingsNotifierProvider.select((s) => s.hideToolCalls),
     );
-    final isWide = _isChatWide(context);
 
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: _controller,
-      builder: (context, value, child) {
-        // Always evaluate canPop at pop-gesture time via the callback.
-        // Using !didPop guards on the actual current text, not the
-        // build-time value that may have changed between keystrokes.
-        return PopScope(
-          canPop: value.text.trim().isEmpty,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop && _controller.text.trim().isNotEmpty) {
-              showUnsentMessageDialog(
-                context,
-                sessionId: widget.sessionId,
-                controller: _controller,
-              );
-            }
-          },
-          child: child!,
-        );
-      },
-      child: Scaffold(
-        appBar: ChatAppBar(
-          session: _session,
-          sessionTitle: _getSessionTitle(),
-          statusChips: _buildStatusChips(context),
-          machineVitals: _buildMachineVitals(),
-          sessionId: widget.sessionId,
-          avatarStyle: avatarStyle,
-          onInfoTap: () {
-            HapticFeedback.lightImpact();
-            if (isWide) {
-              _showSessionInfoDetail();
-              return;
-            }
-            context.pushNamed(
-              'session-info',
-              pathParameters: {'sessionId': widget.sessionId},
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = _isChatWide(constraints.maxWidth);
+        return ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _controller,
+          builder: (context, value, child) {
+            // Always evaluate canPop at pop-gesture time via the callback.
+            // Using !didPop guards on the actual current text, not the
+            // build-time value that may have changed between keystrokes.
+            return PopScope(
+              canPop: value.text.trim().isEmpty,
+              onPopInvokedWithResult: (didPop, _) {
+                if (!didPop && _controller.text.trim().isNotEmpty) {
+                  showUnsentMessageDialog(
+                    context,
+                    sessionId: widget.sessionId,
+                    controller: _controller,
+                  );
+                }
+              },
+              child: child!,
             );
           },
-          onMenuTap: () => showSessionMenu(
-            context,
-            sessionId: widget.sessionId,
-            onAbort: _abortSession,
+          child: Scaffold(
+            appBar: ChatAppBar(
+              session: _session,
+              sessionTitle: _getSessionTitle(),
+              statusChips: _buildStatusChips(context),
+              machineVitals: _buildMachineVitals(),
+              sessionId: widget.sessionId,
+              avatarStyle: avatarStyle,
+              onInfoTap: () {
+                HapticFeedback.lightImpact();
+                if (isWide) {
+                  _showSessionInfoDetail();
+                  return;
+                }
+                context.pushNamed(
+                  'session-info',
+                  pathParameters: {'sessionId': widget.sessionId},
+                );
+              },
+              onMenuTap: () => showSessionMenu(
+                context,
+                sessionId: widget.sessionId,
+                onAbort: _abortSession,
+              ),
+              onBackTap: widget.onBack,
+            ),
+            body: _buildScaffoldBody(
+              isWide: isWide,
+              hideToolCalls: hideToolCalls,
+              enterToSend: enterToSend,
+              availableModels: availableModels,
+            ),
           ),
-          onBackTap: widget.onBack,
-        ),
-        body: _buildScaffoldBody(
-          isWide: isWide,
-          hideToolCalls: hideToolCalls,
-          enterToSend: enterToSend,
-          availableModels: availableModels,
-        ),
-      ),
+        );
+      },
     );
   }
 
