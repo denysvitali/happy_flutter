@@ -4471,6 +4471,12 @@ abstract class AppLocalizations {
   /// **'Gemini'**
   String get sessionsGemini;
 
+  /// No description provided for @sessionsPi.
+  ///
+  /// In en, this message translates to:
+  /// **'pi'**
+  String get sessionsPi;
+
   /// No description provided for @sessionsType.
   ///
   /// In en, this message translates to:

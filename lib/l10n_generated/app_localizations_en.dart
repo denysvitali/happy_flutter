@@ -2452,6 +2452,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsGemini => 'Gemini';
 
   @override
+  String get sessionsPi => 'pi';
+
+  @override
   String get sessionsType => 'Type';
 
   @override
