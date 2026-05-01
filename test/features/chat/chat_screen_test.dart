@@ -16,6 +16,7 @@ import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_loading_shimmer.dart';
 import 'package:happy_flutter/features/chat/widgets/empty_chat_view.dart';
+import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
 /// Fake MMKV platform that returns no-op stubs so DraftStorage/MMKVStorage
@@ -616,6 +617,93 @@ void main() {
       expect(container.read(settingsNotifierProvider).hideToolCalls, isTrue);
       expect(find.text('Read File'), findsNothing);
     });
+
+    testWidgets(
+      'expanded hidden-tool-call group stays expanded when new tool arrives',
+      (tester) async {
+        sync.isInitialized = true;
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSetSessionMessages('session_1', [
+          {
+            'id': 'tool_1',
+            'role': 'assistant',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'toolUseId': 'tool_1',
+            'state': 'completed',
+            'input': {'file_path': '/a.dart'},
+          },
+          {
+            'id': 'tool_2',
+            'role': 'assistant',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'toolUseId': 'tool_2',
+            'state': 'completed',
+            'input': {'file_path': '/b.dart'},
+          },
+        ]);
+        sync.testSessions['session_1'] = _makeSession();
+
+        await tester.pumpWidget(
+          _buildApp(
+            settings: Settings()..hideToolCalls = true,
+            child: const ChatScreen(sessionId: 'session_1'),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.byType(HiddenToolSummary), findsOneWidget);
+        expect(find.byIcon(Icons.expand_more), findsOneWidget);
+
+        await tester.tap(find.byType(HiddenToolSummary));
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.expand_less), findsOneWidget);
+
+        sync.testSetSessionMessages('session_1', [
+          {
+            'id': 'tool_1',
+            'role': 'assistant',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'toolUseId': 'tool_1',
+            'state': 'completed',
+            'input': {'file_path': '/a.dart'},
+          },
+          {
+            'id': 'tool_2',
+            'role': 'assistant',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'toolUseId': 'tool_2',
+            'state': 'completed',
+            'input': {'file_path': '/b.dart'},
+          },
+          {
+            'id': 'tool_3',
+            'role': 'assistant',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'toolUseId': 'tool_3',
+            'state': 'completed',
+            'input': {'file_path': '/c.dart'},
+          },
+        ]);
+        sync.testNotifySessionMessagesChanged('session_1');
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.byType(HiddenToolSummary), findsOneWidget);
+        expect(
+          find.byIcon(Icons.expand_less),
+          findsOneWidget,
+          reason: 'Group should remain expanded after a new hidden tool '
+              'call arrives.',
+        );
+      },
+    );
 
     testWidgets('displays session title from summary when available', (
       tester,
