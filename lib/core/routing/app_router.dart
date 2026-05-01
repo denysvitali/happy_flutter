@@ -491,8 +491,15 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/new',
         name: 'new-session',
-        pageBuilder: (context, state) =>
-            _slideUpPage(const AuthGate(child: NewSessionScreen()), state),
+        pageBuilder: (context, state) => _slideUpPage(
+          AuthGate(
+            child: NewSessionScreen(
+              initialMachineId: state.uri.queryParameters['machineId'],
+              initialPath: state.uri.queryParameters['path'],
+            ),
+          ),
+          state,
+        ),
       ),
       GoRoute(
         path: '/new/pick/machine',

@@ -20,7 +20,6 @@ import '../chat/chat_screen.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/connection_status_badge.dart';
-import 'widgets/new_session_dialog.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
 
@@ -732,31 +731,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     }
   }
 
-  static Future<void> _showNewSessionDialog(
+  static void _showNewSessionDialog(
     BuildContext context, {
     String? initialMachineId,
     String? initialPath,
-  }) async {
-    final sessionId = await showDialog<String>(
-      context: context,
-      builder: (context) => NewSessionDialog(
-        initialMachineId: initialMachineId,
-        initialPath: initialPath,
-      ),
+  }) {
+    context.pushNamed(
+      'new-session',
+      queryParameters: {
+        'machineId': ?initialMachineId,
+        'path': ?initialPath,
+      },
     );
-    if (!context.mounted || sessionId == null || sessionId.isEmpty) {
-      return;
-    }
-    // On tablet, set the selected session in parent state.
-    // On phone, push route.
-    final state = context.findAncestorStateOfType<_SessionsScreenState>();
-    final isTablet = MediaQuery.sizeOf(context).width >= AppBreakpoint.tablet;
-    if (state != null && isTablet) {
-      state.setState(() => state._selectedSessionId = sessionId);
-    } else {
-      unawaited(
-        context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
-      );
-    }
   }
 }

@@ -59,7 +59,14 @@ enum _PickerMode { none, machine, path, profile }
 
 /// Full screen for creating a new session.
 class NewSessionScreen extends ConsumerStatefulWidget {
-  const NewSessionScreen({super.key});
+  const NewSessionScreen({super.key, this.initialMachineId, this.initialPath});
+
+  /// Optional pre-selected machine ID (resolved against the machines
+  /// provider once data is available).
+  final String? initialMachineId;
+
+  /// Optional pre-filled path.
+  final String? initialPath;
 
   @override
   ConsumerState<NewSessionScreen> createState() => _NewSessionScreenState();
@@ -84,6 +91,15 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       settings,
       _selectedAgent,
     );
+    if (widget.initialPath != null) {
+      _pathController.text = widget.initialPath!;
+    }
+    final initialMachineId = widget.initialMachineId;
+    if (initialMachineId != null) {
+      final machines = ref.read(machinesNotifierProvider);
+      final preselected = machines[initialMachineId];
+      if (preselected != null) _selectedMachine = preselected;
+    }
     // Refresh machines so encryption keys are up-to-date before spawn.
     Future<void>.microtask(
       () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
@@ -97,7 +113,6 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     super.dispose();
   }
 
-  /// Online threshold shared with `new_session_dialog.dart`.
   static const int _onlineThresholdMs = 120 * 1000;
 
   bool _isMachineOnline(Machine? machine) {
