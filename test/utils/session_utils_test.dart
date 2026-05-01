@@ -8,6 +8,7 @@ Session _session({
   bool archived = false,
   String? lifecycleState,
   int? lifecycleStateSince,
+  int? activeAt,
 }) {
   return Session(
     id: 's1',
@@ -15,7 +16,10 @@ Session _session({
     createdAt: 1,
     updatedAt: 1,
     active: active,
-    activeAt: 1,
+    // Default to a recent timestamp so isSessionActive() doesn't classify the
+    // session as idle (>6h since last activity) in tests that don't care
+    // about the idle dimension.
+    activeAt: activeAt ?? DateTime.now().millisecondsSinceEpoch,
     metadataVersion: 1,
     agentStateVersion: 1,
     thinking: false,
@@ -89,6 +93,61 @@ void main() {
         archived: true,
       );
       expect(isSessionActive(session), isFalse);
+    });
+
+    test('demotes online sessions idle for more than 6h', () {
+      final session = _session(
+        active: false,
+        presence: 'online',
+        activeAt: DateTime.now().millisecondsSinceEpoch -
+            (sessionIdleAfterMs + 60 * 1000),
+      );
+      expect(isSessionActive(session), isFalse);
+    });
+
+    test('demotes persisted-active sessions idle for more than 6h', () {
+      final session = _session(
+        active: true,
+        presence: 'offline',
+        activeAt: DateTime.now().millisecondsSinceEpoch -
+            (sessionIdleAfterMs + 60 * 1000),
+      );
+      expect(isSessionActive(session), isFalse);
+    });
+
+    test('keeps online sessions active just below the idle threshold', () {
+      final session = _session(
+        active: false,
+        presence: 'online',
+        activeAt: DateTime.now().millisecondsSinceEpoch -
+            (sessionIdleAfterMs - 60 * 1000),
+      );
+      expect(isSessionActive(session), isTrue);
+    });
+
+    test(
+      'idle session with a recently-running lifecycle still counts as active',
+      () {
+        final session = _session(
+          active: false,
+          presence: 'offline',
+          activeAt: DateTime.now().millisecondsSinceEpoch -
+              (sessionIdleAfterMs + 60 * 1000),
+          lifecycleState: 'running',
+          lifecycleStateSince:
+              DateTime.now().millisecondsSinceEpoch - 5 * 1000,
+        );
+        expect(isSessionActive(session), isTrue);
+      },
+    );
+
+    test('activeAt of 0 is treated as no signal, not idle', () {
+      final session = _session(
+        active: true,
+        presence: 'online',
+        activeAt: 0,
+      );
+      expect(isSessionActive(session), isTrue);
     });
   });
 }

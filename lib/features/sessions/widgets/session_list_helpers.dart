@@ -158,6 +158,9 @@ int _computeSortedSessionsSignature(
       session.metadata?.summary?.text,
       getLastMessageTimestamp(session.id),
       optimisticallyArchivedIds.contains(session.id),
+      // Capture idleness so a session crossing the idle threshold purely
+      // from time passing (no field change) still busts the cache.
+      isSessionIdle(session),
     );
   }
   return signature;

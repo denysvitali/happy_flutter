@@ -336,6 +336,11 @@ bool isSessionOnline(Session session) {
 /// Prefers real-time [Session.presence] when available, but falls back to
 /// persisted [Session.active] so sessions still appear after app relaunch or
 /// when ephemeral activity events have not arrived yet.
+///
+/// Sessions whose last [Session.activeAt] is older than [sessionIdleAfterMs]
+/// are demoted to the inactive group even if `presence == 'online'` or
+/// `active == true`, so long-running agents that haven't done anything for
+/// hours stop cluttering the active list.
 bool isSessionActive(Session session) {
   // A live agent process wins over a stale `archived` flag. The CLI flips
   // archived=true on clean exit; on respawn the daemon flips it back, but
@@ -345,6 +350,7 @@ bool isSessionActive(Session session) {
   // archived bucket — the visible discrepancy users hit.
   if (_hasRecentRunningLifecycle(session)) return true;
   if (session.archived) return false;
+  if (isSessionIdle(session)) return false;
   return session.presence == 'online' || session.active;
 }
 
@@ -357,6 +363,21 @@ bool _hasRecentRunningLifecycle(Session session) {
   if (since == null) return false;
   return DateTime.now().millisecondsSinceEpoch - since <
       _sessionLifecycleRecentMs;
+}
+
+/// How long a session can sit without activity before it is treated as idle
+/// and pushed into the inactive list, regardless of `presence`/`active`.
+const int sessionIdleAfterMs = 6 * 60 * 60 * 1000;
+
+/// Whether the session has been quiet long enough to be considered idle.
+///
+/// A non-positive [Session.activeAt] is treated as "no signal" and never
+/// classified as idle — that prevents brand-new or partially-hydrated
+/// sessions from disappearing the moment they show up.
+bool isSessionIdle(Session session) {
+  final activeAt = session.activeAt;
+  if (activeAt <= 0) return false;
+  return DateTime.now().millisecondsSinceEpoch - activeAt > sessionIdleAfterMs;
 }
 
 /// Formats OS platform string into a more readable format.
