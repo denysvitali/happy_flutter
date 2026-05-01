@@ -150,9 +150,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
 
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isTablet = screenWidth >= AppBreakpoint.tablet;
-    final isTabletDetail =
-        isTablet && _activeTab == AppTab.sessions && _selectedSessionId != null;
-    final appBar = _buildAppBar(context, l10n);
+    final isSessionsTabOnTablet = isTablet && _activeTab == AppTab.sessions;
+    final isTabletDetail = isSessionsTabOnTablet && _selectedSessionId != null;
+    // On tablet's sessions tab, the master pane owns the sessions AppBar
+    // (search/+/selection/folder modes only affect the list) and the detail
+    // pane is `ChatScreen`, which has its own `ChatAppBar`. The outer
+    // Scaffold therefore has no AppBar — otherwise we'd render two stacked
+    // headers and selection/folder mode would replace the chat's header.
+    final appBar = isSessionsTabOnTablet
+        ? null
+        : _buildAppBar(context, l10n);
 
     return PopScope(
       // Always block if a navigation action is already pending —
@@ -209,7 +216,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       child: Scaffold(
         appBar: appBar,
         body: SafeArea(
-          top: appBar == null && !isTabletDetail,
+          top: appBar == null,
           bottom: false,
           child: Column(
             children: [
@@ -475,22 +482,29 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isTablet = screenWidth >= AppBreakpoint.tablet;
 
-    // Tablet: sessions tab uses master-detail layout
+    // Tablet: sessions tab uses master-detail layout. Master and detail each
+    // own their own AppBar (the outer Scaffold has none), so selection /
+    // folder / search modes affect only the master pane and the chat detail
+    // keeps `ChatAppBar` visible at all times.
     if (isTablet && _activeTab == AppTab.sessions) {
       return Row(
         children: [
           SizedBox(
             width: AppBreakpoint.sidebarMax.toDouble(),
-            child: SessionsListContent(
-              selectionNotifier: _selectionNotifier,
-              folderNotifier: _folderNotifier,
-              searchQuery: _searchController.text,
-              onClearSearch: _clearSearch,
-              onSessionTap: (sessionId) {
-                setState(() => _selectedSessionId = sessionId);
-              },
+            child: Scaffold(
+              appBar: _buildSessionsAppBar(context, context.l10n),
+              body: SessionsListContent(
+                selectionNotifier: _selectionNotifier,
+                folderNotifier: _folderNotifier,
+                searchQuery: _searchController.text,
+                onClearSearch: _clearSearch,
+                onSessionTap: (sessionId) {
+                  setState(() => _selectedSessionId = sessionId);
+                },
+              ),
             ),
           ),
+          const VerticalDivider(width: 1, thickness: 1),
           Expanded(
             child: _selectedSessionId != null
                 ? ChatScreen(

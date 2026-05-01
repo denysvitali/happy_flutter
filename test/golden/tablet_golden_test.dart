@@ -269,7 +269,6 @@ void main() {
           matchesGoldenFile('goldens/tablet_sessions_landscape_light.png'),
         );
       },
-      skip: true,
     );
 
     testWidgets(
@@ -289,7 +288,6 @@ void main() {
           matchesGoldenFile('goldens/tablet_sessions_portrait_light.png'),
         );
       },
-      skip: true,
     );
   });
 
