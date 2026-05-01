@@ -15,6 +15,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
+import '../../../core/utils/sync_subscription_mixin.dart';
 import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
 import 'folder_view_cards.dart';
@@ -68,7 +69,8 @@ class SessionsListContent extends ConsumerStatefulWidget {
       _SessionsListContentState();
 }
 
-class _SessionsListContentState extends ConsumerState<SessionsListContent> {
+class _SessionsListContentState extends ConsumerState<SessionsListContent>
+    with SyncSubscriptionMixin {
   bool _hasLoaded = false;
   bool _animationTriggered = false;
   String? _selectedFolderKey;
@@ -107,6 +109,15 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent> {
     super.initState();
     _sel.addListener(_onSelectionChanged);
     widget.folderNotifier.addListener(_onFolderChanged);
+    // Sessions list cards read sync.getLastMessageTimestamp/Preview/Role
+    // directly. The parent SessionsScreen subscribes only to the sessions
+    // domain, so when message previews are warmed (e.g. during cold-start
+    // batched cache restore) without any session-metadata change, we need
+    // a separate trigger to rebuild and re-render the previews.
+    subscribeToDomains({SyncDomain.messages}, () {
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
   @override

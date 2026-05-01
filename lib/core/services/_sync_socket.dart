@@ -619,81 +619,106 @@ extension SyncSocket on Sync {
     });
   }
 
-  /// Maximum session message caches to warm on cold start.
-  ///
-  /// This keeps previews available for the first screenful while avoiding a
-  /// 200-session MMKV/jsonDecode sweep on the UI isolate.
-  static const int _maxColdStartMessageCacheRestores = 20;
+  /// Sessions warmed per batch when restoring cached messages on cold
+  /// start. Yielding to the event loop between batches keeps the UI
+  /// isolate responsive while still warming previews quickly.
+  static const int _coldStartMessageCacheBatchSize = 20;
 
-  /// Restores cached messages for recent sessions from MMKV into
-  /// [_sessionMessages].  Deferred off the synchronous [_init] critical path.
-  /// Older sessions are restored lazily by [onSessionVisible].
+  /// Restores cached messages for sessions from MMKV into
+  /// [_sessionMessages]. Deferred off the synchronous [_init] critical path.
+  ///
+  /// Sessions are processed in [_coldStartMessageCacheBatchSize]-sized
+  /// batches, ordered by [Session.updatedAt] desc, with a microtask yield
+  /// between batches. After each batch the messages and sessions domains
+  /// are notified so the sessions list rebuilds with last-message previews
+  /// and timestamps as they become available — without this, sessions
+  /// past the first batch fall back to [Session.updatedAt] (rendering as
+  /// "Just now") with no preview until the user opens the chat.
   Future<void> _restoreRecentCachedMessagesAsync() async {
     await Future<void>.delayed(Duration.zero);
     if (!isInitialized) return;
-    _restoreRecentCachedMessages();
-  }
 
-  void _restoreRecentCachedMessages() {
     final stopwatch = Stopwatch()..start();
-    var firstLoadedChanged = false;
-    var restored = 0;
-    var attempted = 0;
-    final sessionIds = _recentSessionIdsForCacheWarmup();
+    final entries = _sessions.entries.toList()
+      ..sort((a, b) => b.value.updatedAt.compareTo(a.value.updatedAt));
+    if (entries.isEmpty) return;
 
-    for (final sessionId in sessionIds) {
-      attempted++;
-      if (_sessionMessages.containsKey(sessionId)) continue;
-      final cached = MessageCacheService().getMessages(sessionId);
-      if (cached.isNotEmpty) {
-        restored++;
-        _sessionMessages[sessionId] = cached;
-        _rebuildSessionContentSignatures(sessionId);
-        _sessionMessagesViewCache.remove(sessionId);
+    var totalRestored = 0;
+    var batchRestored = 0;
+    var batchFirstLoadedChanged = false;
+    var processedInBatch = 0;
 
-        // Defer sidechain grouping to onSessionVisible() instead of
-        // running O(4N) grouper for every session on cold start.
-        // Mark session as needing regroup; onSessionVisible() checks
-        // this flag and runs the grouper only when the user opens it.
-        if (cached.any((m) => m['isSidechain'] == true)) {
-          _sessionsNeedingSidechainRegroup.add(sessionId);
-        }
+    for (final entry in entries) {
+      if (!isInitialized) return;
+      final sessionId = entry.key;
+      if (!_sessionMessages.containsKey(sessionId)) {
+        final cached = MessageCacheService().getMessages(sessionId);
+        if (cached.isNotEmpty) {
+          batchRestored++;
+          totalRestored++;
+          _sessionMessages[sessionId] = cached;
+          _rebuildSessionContentSignatures(sessionId);
+          _sessionMessagesViewCache.remove(sessionId);
 
-        // Recalculate the older-messages boundary from the lowest
-        // seq so the user can scroll up.
-        int? minSeq;
-        for (final m in cached) {
-          final seq = m['seq'] as int?;
-          if (seq != null && (minSeq == null || seq < minSeq)) {
-            minSeq = seq;
+          // Defer sidechain grouping to onSessionVisible() instead of
+          // running O(4N) grouper for every session on cold start.
+          // Mark session as needing regroup; onSessionVisible() checks
+          // this flag and runs the grouper only when the user opens it.
+          if (cached.any((m) => m['isSidechain'] == true)) {
+            _sessionsNeedingSidechainRegroup.add(sessionId);
+          }
+
+          // Recalculate the older-messages boundary from the lowest
+          // seq so the user can scroll up.
+          int? minSeq;
+          for (final m in cached) {
+            final seq = m['seq'] as int?;
+            if (seq != null && (minSeq == null || seq < minSeq)) {
+              minSeq = seq;
+            }
+          }
+          if (minSeq != null && minSeq > 1) {
+            _sessionFirstLoadedSeq[sessionId] = minSeq;
+            batchFirstLoadedChanged = true;
           }
         }
-        if (minSeq != null && minSeq > 1) {
-          _sessionFirstLoadedSeq[sessionId] = minSeq;
-          firstLoadedChanged = true;
-        }
+      }
+      processedInBatch++;
+      if (processedInBatch >= _coldStartMessageCacheBatchSize) {
+        _flushBatchAfterCacheRestore(
+          restored: batchRestored,
+          firstLoadedChanged: batchFirstLoadedChanged,
+        );
+        batchRestored = 0;
+        batchFirstLoadedChanged = false;
+        processedInBatch = 0;
+        await Future<void>.delayed(Duration.zero);
       }
     }
+
+    _flushBatchAfterCacheRestore(
+      restored: batchRestored,
+      firstLoadedChanged: batchFirstLoadedChanged,
+    );
+
+    logger.debug(
+      '[MessageCache] Warmed $totalRestored/${entries.length} session caches '
+      'in ${stopwatch.elapsedMilliseconds}ms',
+    );
+  }
+
+  void _flushBatchAfterCacheRestore({
+    required int restored,
+    required bool firstLoadedChanged,
+  }) {
+    if (restored == 0) return;
     _sessionMessagesCache = null;
     if (firstLoadedChanged) {
       MMKVStorage().saveSessionFirstLoadedSeq(
         Map.unmodifiable(_sessionFirstLoadedSeq),
       );
     }
-    logger.debug(
-      '[MessageCache] Warmed $restored/$attempted recent session caches '
-      'in ${stopwatch.elapsedMilliseconds}ms '
-      '(totalSessions=${_sessions.length})',
-    );
-  }
-
-  List<String> _recentSessionIdsForCacheWarmup() {
-    final entries = _sessions.entries.toList()
-      ..sort((a, b) => b.value.updatedAt.compareTo(a.value.updatedAt));
-    return [
-      for (final entry in entries.take(_maxColdStartMessageCacheRestores))
-        entry.key,
-    ];
+    _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
   }
 
   Future<void> _primeSessionFromSpawnResult({
