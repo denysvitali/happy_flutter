@@ -52,7 +52,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               tooltip: context.l10n.commonBack,
               onPressed: onBackTap,
             ),
-      titleSpacing: 0,
+      titleSpacing: AppSpacing.sm,
       title: _buildTitle(context),
       scrolledUnderElevation: 0.5,
       bottom: machineVitals == null
@@ -74,7 +74,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           tooltip: context.l10n.chatMoreOptions,
           onPressed: onMenuTap,
         ),
-        const SizedBox(width: AppSpacing.xs),
+        const SizedBox(width: AppSpacing.sm),
       ],
     );
   }
