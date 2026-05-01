@@ -337,8 +337,26 @@ bool isSessionOnline(Session session) {
 /// persisted [Session.active] so sessions still appear after app relaunch or
 /// when ephemeral activity events have not arrived yet.
 bool isSessionActive(Session session) {
+  // A live agent process wins over a stale `archived` flag. The CLI flips
+  // archived=true on clean exit; on respawn the daemon flips it back, but
+  // the unarchive can lose to the next clean-exit archive when sessions
+  // churn. Without this check the chat header shows "Online" (it trusts
+  // lifecycleState=running) while the list keeps the session in the
+  // archived bucket — the visible discrepancy users hit.
+  if (_hasRecentRunningLifecycle(session)) return true;
   if (session.archived) return false;
   return session.presence == 'online' || session.active;
+}
+
+const int _sessionLifecycleRecentMs = 120000;
+
+bool _hasRecentRunningLifecycle(Session session) {
+  final lc = session.metadata?.lifecycleState;
+  if (lc != 'running' && lc != 'starting') return false;
+  final since = session.metadata?.lifecycleStateSince;
+  if (since == null) return false;
+  return DateTime.now().millisecondsSinceEpoch - since <
+      _sessionLifecycleRecentMs;
 }
 
 /// Formats OS platform string into a more readable format.
