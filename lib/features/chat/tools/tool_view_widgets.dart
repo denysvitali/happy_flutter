@@ -333,12 +333,19 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
         AnimatedContainer(
           duration: AppDuration.normal,
           curve: AppCurve.standard,
-          constraints: BoxConstraints(
-            maxHeight: _expanded ? _contentHeight! : _kCollapsedHeight,
-          ),
+          height: _expanded ? _contentHeight! : _kCollapsedHeight,
           clipBehavior: Clip.hardEdge,
           decoration: const BoxDecoration(),
-          child: widget.child,
+          // OverflowBox lets the child render at its natural unbounded
+          // height anchored at top-left. Without this, the height
+          // constraint propagates into the inner RenderFlex, emitting an
+          // overflow assertion (failing tests in strict mode) even though
+          // the visible output is clipped correctly.
+          child: OverflowBox(
+            maxHeight: double.infinity,
+            alignment: Alignment.topLeft,
+            child: widget.child,
+          ),
         ),
         GestureDetector(
           onTap: () => setState(() => _expanded = !_expanded),

@@ -33,6 +33,25 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ProfilesScreen', () {
+    setUp(() {
+      // Force a phone-sized viewport (< AppBreakpoint.tablet=600) so the
+      // screen renders in single-pane mode. The default 800x600 test
+      // viewport otherwise triggers MasterDetailScaffold's tablet layout,
+      // which (a) clips the master ListView so off-screen sections like
+      // "Codex" don't render and (b) routes profile taps into the editor
+      // pane instead of updating lastUsedProfile.
+      final binding = TestWidgetsFlutterBinding.instance;
+      binding.platformDispatcher.views.first.physicalSize =
+          const Size(390 * 3, 4000 * 3);
+      binding.platformDispatcher.views.first.devicePixelRatio = 3.0;
+    });
+
+    tearDown(() {
+      final binding = TestWidgetsFlutterBinding.instance;
+      binding.platformDispatcher.views.first.resetPhysicalSize();
+      binding.platformDispatcher.views.first.resetDevicePixelRatio();
+    });
+
     testWidgets('renders app bar with profiles title', (tester) async {
       await tester.pumpWidget(
         ProviderScope(

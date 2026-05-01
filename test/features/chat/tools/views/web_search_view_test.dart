@@ -45,15 +45,19 @@ void main() {
     await tester.tap(find.text('Web Search'));
     await tester.pumpAndSettle();
 
-    // Input/output payloads are rendered through JsonTreeViewer, which wraps
-    // string values in quotes inside RichText spans — `find.text` requires
-    // exact matches and so misses them. `findRichText: true` traverses the
-    // span text instead.
+    // Input/output payloads are rendered through JsonTreeViewer, which
+    // joins each key, colon, and primitive value into a single RichText
+    // (e.g. `"title": "Flutter docs"`). `find.text` matches the whole
+    // plain text of a RichText, so use `find.textContaining` to assert
+    // the value substring is present somewhere in the rendered tree.
     expect(
-      find.text('"flutter release notes"', findRichText: true),
+      find.textContaining('"flutter release notes"', findRichText: true),
       findsWidgets,
     );
-    expect(find.text('"Flutter docs"', findRichText: true), findsOneWidget);
+    expect(
+      find.textContaining('"Flutter docs"', findRichText: true),
+      findsWidgets,
+    );
     expect(find.text('INPUT'), findsOneWidget);
     expect(find.text('OUTPUT'), findsOneWidget);
   });
@@ -75,7 +79,10 @@ void main() {
     );
 
     expect(find.text('Web Search'), findsOneWidget);
-    expect(find.text('"weather today"', findRichText: true), findsWidgets);
+    expect(
+      find.textContaining('"weather today"', findRichText: true),
+      findsWidgets,
+    );
     expect(find.text('INPUT'), findsOneWidget);
   });
 }
