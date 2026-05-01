@@ -773,11 +773,34 @@ PY
     if (agent != 'claude' && _isClaudeModelAlias(modelMode)) {
       return 'default';
     }
+    // The reverse direction: Codex/Gemini-style names from a previous
+    // session must not leak into Claude spawns — Claude CLI rejects them
+    // with "There's an issue with the selected model ... Run --model to
+    // pick a different model." `lastUsedModelMode` is a global preference,
+    // not per-agent, so the stale value survives a profile switch.
+    if (agent == 'claude' && _isNonClaudeModelMode(modelMode)) {
+      return 'default';
+    }
     return modelMode;
   }
 
   bool _isClaudeModelAlias(String modelMode) {
     return modelMode == 'opus' || modelMode == 'sonnet';
+  }
+
+  /// Recognize known non-Claude model identifiers so they can be stripped
+  /// from Claude spawns. Conservative on purpose: Claude-compatible
+  /// providers (e.g. GLM, MiniMax) use arbitrary model names that we want
+  /// to preserve, so we only match patterns that are definitely Codex or
+  /// Gemini.
+  bool _isNonClaudeModelMode(String modelMode) {
+    // Codex selections use `<slug>:<reasoning-effort>` wire format.
+    if (modelMode.contains(':')) return true;
+    // OpenAI / Azure OpenAI models from Codex profiles.
+    if (modelMode.startsWith('gpt-')) return true;
+    // Gemini models.
+    if (modelMode.startsWith('gemini-')) return true;
+    return false;
   }
 
   String? _agentForProfile(AIBackendProfile? profile) {

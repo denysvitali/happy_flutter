@@ -117,12 +117,18 @@ extension _ChatScreenActions on _ChatScreenState {
       );
     } else if (settings.lastUsedModelMode != null) {
       // Fall back to the user's last-used model preference so new sessions
-      // inherit the model the user most recently picked.
-      rawModelModeString = settings.lastUsedModelMode;
-      modelMode = ChatModelMode.normalizeForFlavor(
-        ChatModelMode.fromString(settings.lastUsedModelMode),
-        flavor,
-      );
+      // inherit the model the user most recently picked. `lastUsedModelMode`
+      // is a global preference, so only inherit it when it is compatible
+      // with the current flavor — otherwise a Codex selection (e.g.
+      // `gpt-5.5:medium`) leaks into a Claude session and Claude CLI rejects
+      // it on respawn.
+      final candidate = ChatModelMode.fromString(settings.lastUsedModelMode);
+      final available = ChatModelMode.availableForFlavor(flavor);
+      if (available.contains(candidate) ||
+          (flavor == 'codex' && candidate.isCodex)) {
+        rawModelModeString = settings.lastUsedModelMode;
+        modelMode = candidate;
+      }
     }
 
     setState(() {

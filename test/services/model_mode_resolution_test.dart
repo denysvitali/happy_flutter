@@ -122,5 +122,51 @@ void main() {
         'gpt-5.5:high',
       );
     });
+
+    test('normalizes stale Codex selections away from Claude', () {
+      expect(
+        sync.testNormalizeModelModeForAgent('gpt-5.5:medium', 'claude'),
+        'default',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent('gpt-5-codex:high', 'claude'),
+        'default',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent('gpt-4o', 'claude'),
+        'default',
+      );
+    });
+
+    test('normalizes stale Gemini selections away from Claude', () {
+      expect(
+        sync.testNormalizeModelModeForAgent('gemini-2.5-pro', 'claude'),
+        'default',
+      );
+    });
+
+    test('preserves Claude aliases for Claude sessions', () {
+      expect(
+        sync.testNormalizeModelModeForAgent('opus', 'claude'),
+        'opus',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent('sonnet', 'claude'),
+        'sonnet',
+      );
+    });
+
+    test('preserves Claude-compatible custom model names', () {
+      // GLM, MiniMax, etc. are Claude-API-compatible providers — their
+      // model identifiers must not be stripped.
+      expect(
+        sync.testNormalizeModelModeForAgent('GLM-5', 'claude'),
+        'GLM-5',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent('MiniMax-Text-01', 'claude'),
+        'MiniMax-Text-01',
+      );
+    });
   });
 }
