@@ -57,9 +57,23 @@ NewSessionCreateBlocker? newSessionCreateBlocker({
 /// Which picker is currently shown in the tablet detail pane.
 enum _PickerMode { none, machine, path, profile }
 
-/// Full screen for creating a new session.
+/// Screen for creating a new session.
+///
+/// Renders as a full-screen route on phone (slide-up via `_slideUpPage`) and
+/// can be embedded inside the tablet sessions master-detail's right pane by
+/// supplying [onBack] / [onCreated]. When embedded the screen forces a
+/// single-pane layout (no nested machine/path/profile master-detail) and
+/// reports the new session id via the [onCreated] callback rather than
+/// replacing the GoRouter stack with `/chat/:id` — so the caller stays
+/// inside the sessions tablet layout.
 class NewSessionScreen extends ConsumerStatefulWidget {
-  const NewSessionScreen({super.key, this.initialMachineId, this.initialPath});
+  const NewSessionScreen({
+    super.key,
+    this.initialMachineId,
+    this.initialPath,
+    this.onBack,
+    this.onCreated,
+  });
 
   /// Optional pre-selected machine ID (resolved against the machines
   /// provider once data is available).
@@ -67,6 +81,17 @@ class NewSessionScreen extends ConsumerStatefulWidget {
 
   /// Optional pre-filled path.
   final String? initialPath;
+
+  /// When non-null, the screen is embedded (not a pushed route). The AppBar
+  /// shows a close button that calls this instead of `Navigator.maybePop`.
+  final VoidCallback? onBack;
+
+  /// When non-null, called with the freshly created session id instead of
+  /// navigating to `/chat/:id`. The embedding parent is responsible for
+  /// surfacing the new session in its own UI.
+  final void Function(String sessionId)? onCreated;
+
+  bool get isEmbedded => onBack != null;
 
   @override
   ConsumerState<NewSessionScreen> createState() => _NewSessionScreenState();
@@ -211,7 +236,12 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
       // Just read the in-memory state — no redundant server fetch.
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       if (!mounted) return;
-      context.goNamed('chat', pathParameters: {'sessionId': sessionId});
+      final onCreated = widget.onCreated;
+      if (onCreated != null) {
+        onCreated(sessionId);
+      } else {
+        context.goNamed('chat', pathParameters: {'sessionId': sessionId});
+      }
     } catch (e, st) {
       logger.warning('[NewSessionScreen] createSession failed: $e', e, st);
       if (!mounted) return;
@@ -258,8 +288,15 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
     if (fallback != null) setState(() => _selectedAgent = fallback);
   }
 
+  /// Pickers render inline in the screen's own master-detail layout only on
+  /// a real wide screen AND when this screen is itself the full-screen
+  /// route. When embedded inside the sessions tablet detail pane, fall back
+  /// to pushed picker routes so we don't try to nest a third master-detail.
+  bool _useInlinePickers(BuildContext context) =>
+      !widget.isEmbedded && MasterDetailScaffold.isWide(context);
+
   Future<void> _pickMachine() async {
-    if (MasterDetailScaffold.isWide(context)) {
+    if (_useInlinePickers(context)) {
       setState(() => _pickerMode = _PickerMode.machine);
       return;
     }
@@ -270,7 +307,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   }
 
   Future<void> _pickPath() async {
-    if (MasterDetailScaffold.isWide(context)) {
+    if (_useInlinePickers(context)) {
       setState(() => _pickerMode = _PickerMode.path);
       return;
     }
@@ -285,7 +322,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
   }
 
   Future<void> _pickProfile() async {
-    if (MasterDetailScaffold.isWide(context)) {
+    if (_useInlinePickers(context)) {
       setState(() => _pickerMode = _PickerMode.profile);
       return;
     }
@@ -620,15 +657,23 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
         ],
     );
 
-    final isWide = MasterDetailScaffold.isWide(context);
+    final useInlinePickers = _useInlinePickers(context);
+    final onBack = widget.onBack;
     return Scaffold(
       appBar: AppBar(
+        leading: onBack == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: l10n.commonCancel,
+                onPressed: onBack,
+              ),
         title: Text(l10n.newSessionTitle),
         titleTextStyle: theme.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
         ),
       ),
-      body: !isWide
+      body: !useInlinePickers
           ? formList
           : MasterDetailScaffold(
               master: formList,

@@ -19,6 +19,7 @@ import '../../core/widgets/sync_progress_bar.dart';
 import '../chat/chat_screen.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
+import 'new_session_screen.dart';
 import 'widgets/connection_status_badge.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
@@ -27,6 +28,7 @@ enum _NavigationAction {
   switchToSessions,
   closeFolder,
   closeTabletChat,
+  closeTabletNewSession,
   exitConfirm,
 }
 
@@ -61,6 +63,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   /// The currently selected session ID when running on a tablet-sized screen.
   /// On phone, navigation is handled via pushed routes (no in-place selection).
   String? _selectedSessionId;
+
+  /// Whether the tablet master-detail's right pane is currently hosting the
+  /// new-session form (rather than a chat or the empty placeholder). On
+  /// phone, new session creation is still a pushed full-screen route.
+  bool _isCreatingNewSession = false;
+  String? _newSessionInitialMachineId;
+  String? _newSessionInitialPath;
 
   @override
   void initState() {
@@ -151,12 +160,14 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isTablet = screenWidth >= AppBreakpoint.tablet;
     final isSessionsTabOnTablet = isTablet && _activeTab == AppTab.sessions;
-    final isTabletDetail = isSessionsTabOnTablet && _selectedSessionId != null;
+    final isTabletDetail = isSessionsTabOnTablet &&
+        (_selectedSessionId != null || _isCreatingNewSession);
     // On tablet's sessions tab, the master pane owns the sessions AppBar
     // (search/+/selection/folder modes only affect the list) and the detail
-    // pane is `ChatScreen`, which has its own `ChatAppBar`. The outer
-    // Scaffold therefore has no AppBar — otherwise we'd render two stacked
-    // headers and selection/folder mode would replace the chat's header.
+    // pane is `ChatScreen` / `NewSessionScreen`, each of which has its own
+    // AppBar. The outer Scaffold therefore has no AppBar — otherwise we'd
+    // render two stacked headers and selection/folder mode would replace
+    // the detail pane's header.
     final appBar = isSessionsTabOnTablet
         ? null
         : _buildAppBar(context, l10n);
@@ -169,7 +180,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           !isTablet &&
           _pendingNav == null &&
           _activeTab == AppTab.sessions &&
-          _folderNotifier.value == null,
+          _folderNotifier.value == null &&
+          !_isCreatingNewSession,
       onPopInvokedWithResult: (didPop, _) {
         if (_pendingNav != null) return;
         final currentTab = _activeTab;
@@ -181,6 +193,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             _pendingNav = null;
           });
           _updateUrlTab(AppTab.sessions);
+        } else if (!didPop &&
+            isTablet &&
+            currentTab == AppTab.sessions &&
+            _isCreatingNewSession) {
+          _pendingNav = _NavigationAction.closeTabletNewSession;
+          setState(() {
+            _isCreatingNewSession = false;
+            _newSessionInitialMachineId = null;
+            _newSessionInitialPath = null;
+            _pendingNav = null;
+          });
         } else if (!didPop &&
             isTablet &&
             currentTab == AppTab.sessions &&
@@ -506,19 +529,37 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           ),
           const VerticalDivider(width: 1, thickness: 1),
           Expanded(
-            child: _selectedSessionId != null
-                ? ChatScreen(
-                    // The key forces a fresh _ChatScreenState whenever the
-                    // user picks a different session in the master pane, so
-                    // initState re-runs the cache load, settings load, and
-                    // sync subscriptions for the new session id. Without
-                    // it, didUpdateWidget would reset state but never
-                    // re-subscribe, leaving the chat stuck on a shimmer.
-                    key: ValueKey<String>(_selectedSessionId!),
-                    sessionId: _selectedSessionId!,
-                    onBack: () => setState(() => _selectedSessionId = null),
+            child: _isCreatingNewSession
+                ? NewSessionScreen(
+                    // Re-key on the seed values so swapping initialMachineId
+                    // / initialPath while the form is already open rebuilds
+                    // controllers cleanly instead of silently keeping stale
+                    // text.
+                    key: ValueKey<String>(
+                      'new-session'
+                      '-${_newSessionInitialMachineId ?? ''}'
+                      '-${_newSessionInitialPath ?? ''}',
+                    ),
+                    initialMachineId: _newSessionInitialMachineId,
+                    initialPath: _newSessionInitialPath,
+                    onBack: _closeNewSessionPane,
+                    onCreated: _onNewSessionCreated,
                   )
-                : _buildNoSessionSelected(),
+                : _selectedSessionId != null
+                    ? ChatScreen(
+                        // The key forces a fresh _ChatScreenState whenever
+                        // the user picks a different session in the master
+                        // pane, so initState re-runs the cache load,
+                        // settings load, and sync subscriptions for the new
+                        // session id. Without it, didUpdateWidget would
+                        // reset state but never re-subscribe, leaving the
+                        // chat stuck on a shimmer.
+                        key: ValueKey<String>(_selectedSessionId!),
+                        sessionId: _selectedSessionId!,
+                        onBack: () =>
+                            setState(() => _selectedSessionId = null),
+                      )
+                    : _buildNoSessionSelected(),
           ),
         ],
       );
@@ -745,11 +786,24 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     }
   }
 
-  static void _showNewSessionDialog(
+  void _showNewSessionDialog(
     BuildContext context, {
     String? initialMachineId,
     String? initialPath,
   }) {
+    final isTablet = MediaQuery.sizeOf(context).width >= AppBreakpoint.tablet;
+    if (isTablet) {
+      // Stay in the master-detail layout: render the new-session form in
+      // the right pane so the sessions list and outer chrome remain
+      // visible. Phone keeps the slide-up route.
+      setState(() {
+        _isCreatingNewSession = true;
+        _newSessionInitialMachineId = initialMachineId;
+        _newSessionInitialPath = initialPath;
+        _selectedSessionId = null;
+      });
+      return;
+    }
     context.pushNamed(
       'new-session',
       queryParameters: {
@@ -757,5 +811,22 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         'path': ?initialPath,
       },
     );
+  }
+
+  void _closeNewSessionPane() {
+    setState(() {
+      _isCreatingNewSession = false;
+      _newSessionInitialMachineId = null;
+      _newSessionInitialPath = null;
+    });
+  }
+
+  void _onNewSessionCreated(String sessionId) {
+    setState(() {
+      _isCreatingNewSession = false;
+      _newSessionInitialMachineId = null;
+      _newSessionInitialPath = null;
+      _selectedSessionId = sessionId;
+    });
   }
 }
