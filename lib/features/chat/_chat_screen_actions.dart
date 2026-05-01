@@ -62,32 +62,20 @@ extension _ChatScreenActions on _ChatScreenState {
     }
 
     AIBackendProfile? selectedProfile;
-    final effectiveProfileId =
-        savedProfileId ?? resolveSelectedProfileIdForAgent(settings, flavor);
-    if (effectiveProfileId != null) {
+    // Profile selection is session-scoped: only honor the per-session draft.
+    // Falling back to the global last-used profile would leak the most
+    // recent choice (e.g. from creating a new session) into every existing
+    // session that has no explicit profile saved.
+    if (savedProfileId != null) {
       try {
-        selectedProfile = deduped.firstWhere((p) => p.id == effectiveProfileId);
+        selectedProfile = deduped.firstWhere((p) => p.id == savedProfileId);
       } catch (_) {
         selectedProfile = null;
         logger.info(
-          '[ChatScreen] saved profile "$effectiveProfileId" no longer '
+          '[ChatScreen] saved profile "$savedProfileId" no longer '
           'exists in settings; falling back to no profile',
         );
-        // Clear the stale reference so it doesn't fire again.
-        if (savedProfileId != null) {
-          unawaited(DraftStorage().removeProfileId(sessionId));
-        } else {
-          // Stale reference came from the agent-scoped last profile.
-          final updatedProfiles = settings.lastUsedProfilesWithAgent(
-            flavor,
-            null,
-          );
-          unawaited(
-            ref
-                .read(settingsNotifierProvider.notifier)
-                .updateSetting('lastUsedProfilesByAgent', updatedProfiles),
-          );
-        }
+        unawaited(DraftStorage().removeProfileId(sessionId));
       }
     }
 
