@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/components/app_empty_state.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'new_session_dialog.dart';
 
 /// Empty sessions view — clean, minimal design.
 class EmptySessionsView extends StatelessWidget {
@@ -21,7 +21,7 @@ class EmptySessionsView extends StatelessWidget {
           '${l10n.emptyMainScreenRunIt}\n'
           '${l10n.emptyMainScreenScanQrCode}',
       action: FilledButton.icon(
-        onPressed: () => context.pushNamed('new-session'),
+        onPressed: () => _showNewSessionDialog(context),
         icon: const Icon(Icons.add),
         label: Text(l10n.sessionNewSession),
         style: FilledButton.styleFrom(
@@ -31,6 +31,13 @@ class EmptySessionsView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showNewSessionDialog(BuildContext context) async {
+    await showDialog<String>(
+      context: context,
+      builder: (context) => const NewSessionDialog(),
     );
   }
 }

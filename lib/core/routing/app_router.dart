@@ -25,10 +25,6 @@ import '../../features/inbox/friends_screen.dart';
 import '../../features/inbox/friends_search_screen.dart';
 import '../../features/inbox/inbox_screen.dart';
 import '../../features/machine/machine_detail_screen.dart';
-import '../../features/sessions/new_session_screen.dart';
-import '../../features/sessions/pick_machine_screen.dart';
-import '../../features/sessions/pick_path_screen.dart';
-import '../../features/sessions/pick_profile_screen.dart';
 import '../../features/sessions/sessions_screen.dart';
 import '../../features/settings/account_screen.dart';
 import '../../features/settings/claude_limits_screen.dart';
@@ -484,47 +480,6 @@ GoRouter createRouter(String? initialDeepLink) {
                 taskData: extra,
               ),
             ),
-            state,
-          );
-        },
-      ),
-      GoRoute(
-        path: '/new',
-        name: 'new-session',
-        pageBuilder: (context, state) => _slideUpPage(
-          AuthGate(
-            child: NewSessionScreen(
-              initialMachineId: state.uri.queryParameters['machineId'],
-              initialPath: state.uri.queryParameters['path'],
-            ),
-          ),
-          state,
-        ),
-      ),
-      GoRoute(
-        path: '/new/pick/machine',
-        name: 'pick-machine',
-        pageBuilder: (context, state) =>
-            _slidePage(const AuthGate(child: PickMachineScreen()), state),
-      ),
-      GoRoute(
-        path: '/new/pick/path',
-        name: 'pick-path',
-        pageBuilder: (context, state) {
-          final machineId = state.uri.queryParameters['machineId'];
-          return _slidePage(
-            AuthGate(child: PickPathScreen(machineId: machineId)),
-            state,
-          );
-        },
-      ),
-      GoRoute(
-        path: '/new/pick/profile',
-        name: 'pick-profile',
-        pageBuilder: (context, state) {
-          final agent = state.uri.queryParameters['agent'] ?? 'claude';
-          return _slidePage(
-            AuthGate(child: PickProfileScreen(agent: agent)),
             state,
           );
         },

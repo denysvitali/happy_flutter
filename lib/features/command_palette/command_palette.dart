@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../sessions/widgets/new_session_dialog.dart';
 import 'command_item.dart';
 import 'command_palette_overlay.dart';
 
@@ -91,7 +92,7 @@ class CommandPaletteController {
         category: l10n.commandCategorySessions,
         shortcut: 'Ctrl+N',
         action: () {
-          router.go('/new');
+          _showNewSessionDialog(context);
         },
       ),
       CommandItem(
@@ -225,6 +226,20 @@ final commandPaletteControllerProvider = Provider<CommandPaletteController>(
   (ref) => CommandPaletteController(ref),
 );
 
+Future<void> _showNewSessionDialog(BuildContext context) async {
+  final sessionId = await showDialog<String>(
+    context: context,
+    useRootNavigator: true,
+    builder: (_) => const NewSessionDialog(),
+  );
+  if (sessionId != null && context.mounted) {
+    GoRouter.of(context).goNamed(
+      'chat',
+      pathParameters: {'sessionId': sessionId},
+    );
+  }
+}
+
 /// Global keyboard shortcut handler for command palette
 class CommandPaletteKeyboardHandler extends ConsumerStatefulWidget {
   const CommandPaletteKeyboardHandler({required this.child, super.key});
@@ -261,7 +276,7 @@ class _CommandPaletteKeyboardHandlerState
 
     // Check for Ctrl+N or Cmd+N for new session
     if (isCommandPressed && event.logicalKey == LogicalKeyboardKey.keyN) {
-      GoRouter.of(context).go('/new');
+      _showNewSessionDialog(context);
       return KeyEventResult.handled;
     }
 
