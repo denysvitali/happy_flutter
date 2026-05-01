@@ -215,8 +215,10 @@ class _ThinkingBlockState extends State<ThinkingBlock>
                                     fontSize: AppFontSize.md,
                                     height: 1.5,
                                   ),
-                                  child: SimpleMarkdownView(
-                                    markdown: _cleanedContent,
+                                  child: SelectionArea(
+                                    child: SimpleMarkdownView(
+                                      markdown: _cleanedContent,
+                                    ),
                                   ),
                                 ),
                               ),
