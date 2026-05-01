@@ -662,6 +662,7 @@ class ProfileCompatibility {
     this.claude = true,
     this.codex = true,
     this.gemini = true,
+    this.pi = true,
   });
 
   factory ProfileCompatibility.fromJson(Map<String, dynamic> json) =>
@@ -670,6 +671,7 @@ class ProfileCompatibility {
   final bool claude;
   final bool codex;
   final bool gemini;
+  final bool pi;
 
   Map<String, dynamic> toJson() => _$ProfileCompatibilityToJson(this);
 
@@ -681,6 +683,8 @@ class ProfileCompatibility {
         return codex;
       case 'gemini':
         return gemini;
+      case 'pi':
+        return pi;
       default:
         return true;
     }

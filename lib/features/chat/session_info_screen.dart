@@ -194,6 +194,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (flavor == 'claude') return 'Claude';
     if (flavor == 'gpt' || flavor == 'openai') return 'Codex';
     if (flavor == 'gemini') return 'Gemini';
+    if (flavor == 'pi') return 'pi';
     return flavor;
   }
 

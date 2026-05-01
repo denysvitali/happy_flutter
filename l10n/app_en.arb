@@ -930,6 +930,7 @@
   "sessionsClaude": "Claude",
   "sessionsCodex": "Codex",
   "sessionsGemini": "Gemini",
+  "sessionsPi": "pi",
   "sessionsType": "Type",
   "sessionsAgent": "Agent",
   "sessionsSelectAll": "Select All",

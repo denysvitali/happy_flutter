@@ -24,6 +24,7 @@ enum FlavorIcon {
   claude,
   codex,
   gemini,
+  pi,
 }
 
 /// Hash code function for consistent avatar selection based on id
@@ -245,6 +246,8 @@ class FlavorIconOverlay extends StatelessWidget {
         return 'assets/images/icon-gpt.png';
       case FlavorIcon.gemini:
         return 'assets/images/icon-gemini.png';
+      case FlavorIcon.pi:
+        return 'assets/images/icon-claude.png'; // TODO: add pi icon asset
     }
   }
 
@@ -256,6 +259,8 @@ class FlavorIconOverlay extends StatelessWidget {
         return avatarSize * 0.25;
       case FlavorIcon.gemini:
         return avatarSize * 0.35;
+      case FlavorIcon.pi:
+        return avatarSize * 0.28;
     }
   }
 

@@ -234,6 +234,7 @@ class SessionAvatar extends StatelessWidget {
       'claude' => 'assets/images/icon-claude.png',
       'codex' => 'assets/images/icon-gpt.png',
       'gemini' => 'assets/images/icon-gemini.png',
+      'pi' => 'assets/images/icon-claude.png', // TODO: add pi icon asset
       _ => 'assets/images/icon-claude.png',
     };
   }
@@ -243,6 +244,7 @@ class SessionAvatar extends StatelessWidget {
       'claude' => Icons.auto_awesome,
       'codex' => Icons.code,
       'gemini' => Icons.auto_awesome,
+      'pi' => Icons.auto_awesome,
       _ => Icons.auto_awesome,
     };
   }

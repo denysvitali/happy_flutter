@@ -12,6 +12,7 @@ part 'processors/user_message_handler.dart';
 part 'processors/output_content_handler.dart';
 part 'processors/event_content_handler.dart';
 part 'processors/codex_content_handler.dart';
+part 'processors/pi_content_handler.dart';
 part 'processors/acp_content_handler.dart';
 part 'processors/session_content_handler.dart';
 
@@ -253,6 +254,20 @@ ProcessedMessages processDecryptedMessages({
         );
       } else if (contentType == 'codex') {
         _processCodexContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          sessionId: sessionId,
+          outerContent: content,
+          nestedContent: nestedContent,
+          messages: messages,
+          toolResults: toolResults,
+          usageUpdates: usageUpdates,
+          droppedReasons: droppedReasons,
+        );
+      } else if (contentType == 'pi') {
+        _processPiContent(
           id: id,
           localId: localId,
           seq: seq,

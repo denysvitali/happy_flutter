@@ -286,6 +286,7 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
         'claude' => compat.claude,
         'codex' => compat.codex,
         'gemini' => compat.gemini,
+        'pi' => compat.pi,
         _ => true,
       };
 
@@ -524,6 +525,11 @@ class _NewSessionScreenState extends ConsumerState<NewSessionScreen> {
                   value: 'gemini',
                   label: Text(l10n.sessionsGemini),
                   enabled: compat == null || compat.gemini,
+                ),
+                ButtonSegment(
+                  value: 'pi',
+                  label: Text(l10n.sessionsPi),
+                  enabled: compat == null || compat.pi,
                 ),
               ],
               selected: {_selectedAgent},
