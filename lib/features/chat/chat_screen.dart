@@ -871,11 +871,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  static const TabletDetailEmpty _emptyChatDetail = TabletDetailEmpty(
-    icon: Icons.chat_bubble_outline,
-    // TODO(i18n): tablet detail empty message not yet localized
-    message: 'Tap a message to inspect tools, files, or agent runs',
-  );
+  static const Widget _emptyChatDetail = SizedBox.shrink();
 
   Widget _buildDetailPane() {
     final sid = widget.sessionId;
@@ -1026,11 +1022,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       detail: _buildDetailPane(),
       hasSelection: _detailKind != _ChatDetailKind.none,
       tabletBreakpoint: AppBreakpoint.desktop,
-      emptyDetail: const TabletDetailEmpty(
-        icon: Icons.chat_bubble_outline,
-        // TODO(i18n): empty detail message not yet localized
-        message: 'Tap a message to inspect tools, files, or agent runs',
-      ),
+      emptyDetail: _emptyChatDetail,
     );
   }
 
