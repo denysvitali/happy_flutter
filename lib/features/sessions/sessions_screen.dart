@@ -495,6 +495,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           Expanded(
             child: _selectedSessionId != null
                 ? ChatScreen(
+                    // The key forces a fresh _ChatScreenState whenever the
+                    // user picks a different session in the master pane, so
+                    // initState re-runs the cache load, settings load, and
+                    // sync subscriptions for the new session id. Without
+                    // it, didUpdateWidget would reset state but never
+                    // re-subscribe, leaving the chat stuck on a shimmer.
+                    key: ValueKey<String>(_selectedSessionId!),
                     sessionId: _selectedSessionId!,
                     onBack: () => setState(() => _selectedSessionId = null),
                   )

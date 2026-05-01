@@ -254,57 +254,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   @override
-  void didUpdateWidget(ChatScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Session changed: reset all state so the new session loads fresh.
-    if (oldWidget.sessionId != widget.sessionId) {
-      _dataSyncSubscription?.cancel();
-      _messageSyncSubscription?.cancel();
-      _loadingSafetyTimer?.cancel();
-      _didStartInitialLoad = false;
-      _lastDataChangeCounter = -1;
-      _lastMessagesList = null;
-      _lastMessageFingerprint = 0;
-      // Reset UI state
-      _isSending = false;
-      _isAborting = false;
-      _isLoadingMessages = true;
-      _loadFailed = false;
-      _session = null;
-      _messages = const [];
-      _visibleCount = _pageSize;
-      _isLoadingMore = false;
-      _prevMessagesLength = 0;
-      _prevSeenLength = 0;
-      _initialLoadComplete = false;
-      _seenMessageIds.clear();
-      _cachedVisibleMessages = null;
-      _cachedVisibleSource = null;
-      _cachedMessagesLength = -1;
-      _cachedVisibleCount = -1;
-      _neighborCache.clear();
-      _neighborCacheSource = null;
-      _neighborCacheLength = -1;
-      _neighborCacheSourceHash = 0;
-      _controller.clear();
-      _permissionMode = PermissionMode.defaultMode;
-      _modelMode = ChatModelMode.defaultModel;
-      _profileModelOverride = null;
-      _selectedProfile = null;
-      _codexModelModes = const [ChatModelMode.defaultModel];
-      _codexModelModesMachineId = null;
-      _isLoadingCodexModelModes = false;
-      _metadataJson = null;
-      // Reset the tablet detail pane on session change.
-      _detailKind = _ChatDetailKind.none;
-      _detailMessageId = null;
-      _detailMessageData = null;
-      _detailFilePath = null;
-      _detailFileContent = null;
-    }
-  }
-
-  @override
   void dispose() {
     _loadingSafetyTimer?.cancel();
     _dataSyncSubscription?.cancel();

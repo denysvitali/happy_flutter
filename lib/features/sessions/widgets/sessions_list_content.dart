@@ -95,7 +95,16 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   ValueNotifier<SelectionState> get _sel => widget.selectionNotifier;
 
+  /// Routes a session tap to the parent's [onSessionTap] callback (used by
+  /// the tablet master-detail layout) or, on phone, pushes the chat route.
+  /// Selection mode is handled by callers since not every entry point uses
+  /// the same selection-toggle behavior.
   void _navigateToChat(String sessionId) {
+    final cb = widget.onSessionTap;
+    if (cb != null) {
+      cb(sessionId);
+      return;
+    }
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     if (nowMs - _lastNavTapMs < _navDebounceMs) return;
     _lastNavTapMs = nowMs;
@@ -741,10 +750,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final sel = _sel.value;
 
     void handleTap() {
-      final cb = widget.onSessionTap;
-      if (cb != null) {
-        cb(session.id);
-      } else if (sel.isActive) {
+      if (sel.isActive) {
         _onSessionTapInSelectionMode(session.id);
       } else {
         _navigateToChat(session.id);
@@ -887,10 +893,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final session = item.session!;
 
     void handleTap() {
-      final cb = widget.onSessionTap;
-      if (cb != null) {
-        cb(session.id);
-      } else if (sel.isActive) {
+      if (sel.isActive) {
         _onSessionTapInSelectionMode(session.id);
       } else {
         _navigateToChat(session.id);
@@ -1029,10 +1032,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   }) {
     final sel = _sel.value;
     void handleTap() {
-      final cb = widget.onSessionTap;
-      if (cb != null) {
-        cb(session.id);
-      } else if (sel.isActive) {
+      if (sel.isActive) {
         _onSessionTapInSelectionMode(session.id);
       } else {
         _navigateToChat(session.id);
