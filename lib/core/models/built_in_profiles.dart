@@ -37,6 +37,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           claude: true,
           codex: false,
           gemini: false,
+          pi: true,
         ),
       );
 
@@ -77,6 +78,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           claude: true,
           codex: false,
           gemini: false,
+          pi: true,
         ),
       );
 
@@ -121,6 +123,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           claude: true,
           codex: false,
           gemini: false,
+          pi: true,
         ),
       );
 
@@ -173,6 +176,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           claude: true,
           codex: false,
           gemini: false,
+          pi: true,
         ),
       );
 
@@ -214,6 +218,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           claude: true,
           codex: false,
           gemini: false,
+          pi: true,
         ),
       );
 
@@ -239,6 +244,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           claude: false,
           codex: true,
           gemini: false,
+          pi: false,
         ),
       );
 
@@ -265,6 +271,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
           claude: false,
           codex: true,
           gemini: false,
+          pi: false,
         ),
       );
 
