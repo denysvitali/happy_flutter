@@ -26,9 +26,6 @@ enum AvatarStyle {
   prism,
 }
 
-/// AI provider flavors for flavor icon display.
-enum AiFlavor { claude, codex, gemini }
-
 /// Session avatar widget that supports custom images, multiple styles,
 /// and AI provider flavor icons.
 ///

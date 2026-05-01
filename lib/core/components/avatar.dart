@@ -19,14 +19,6 @@ enum AvatarStyle {
   wave,
 }
 
-/// Flavor icon types for AI assistant avatars
-enum FlavorIcon {
-  claude,
-  codex,
-  gemini,
-  pi,
-}
-
 /// Hash code function for consistent avatar selection based on id
 int _avatarHashCode(String str) {
   var hash = 0;
@@ -225,82 +217,12 @@ class _PixelGridPainter extends CustomPainter {
       oldDelegate.palette != palette;
 }
 
-/// Flavor icon overlay widget for AI assistant avatars
-class FlavorIconOverlay extends StatelessWidget {
-
-  const FlavorIconOverlay({
-    required this.flavor,
-    required this.avatarSize,
-    this.showBackground = true,
-    super.key,
-  });
-  final FlavorIcon flavor;
-  final double avatarSize;
-  final bool showBackground;
-
-  String get _iconPath {
-    switch (flavor) {
-      case FlavorIcon.claude:
-        return 'assets/images/icon-claude.png';
-      case FlavorIcon.codex:
-        return 'assets/images/icon-gpt.png';
-      case FlavorIcon.gemini:
-        return 'assets/images/icon-gemini.png';
-      case FlavorIcon.pi:
-        return 'assets/images/icon-claude.png'; // TODO: add pi icon asset
-    }
-  }
-
-  double get _iconSize {
-    switch (flavor) {
-      case FlavorIcon.claude:
-        return avatarSize * 0.28;
-      case FlavorIcon.codex:
-        return avatarSize * 0.25;
-      case FlavorIcon.gemini:
-        return avatarSize * 0.35;
-      case FlavorIcon.pi:
-        return avatarSize * 0.28;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final circleSize = (avatarSize * 0.35).round();
-
-    return Container(
-      width: circleSize.toDouble(),
-      height: circleSize.toDouble(),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Image.asset(
-        _iconPath,
-        width: _iconSize,
-        height: _iconSize,
-        cacheWidth:
-            (_iconSize * MediaQuery.devicePixelRatioOf(context)).round(),
-        cacheHeight:
-            (_iconSize * MediaQuery.devicePixelRatioOf(context)).round(),
-        fit: BoxFit.contain,
-        color: flavor == FlavorIcon.codex
-            ? Theme.of(context).colorScheme.onSurface
-            : null,
-        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-      ),
-    );
-  }
-}
-
-/// Main Avatar widget with support for all styles and image override
+/// Main Avatar widget with support for all styles and image override.
+///
+/// Flavor icon rendering is handled by [SessionAvatar] in
+/// `lib/features/sessions/session_avatar.dart` using string-based
+/// flavor names.  This widget focuses on avatar generation and image
+/// display without flavor overlay concerns.
 class Avatar extends StatelessWidget {
 
   const Avatar({
@@ -308,32 +230,26 @@ class Avatar extends StatelessWidget {
     this.size = 48,
     this.square = false,
     this.monochrome = false,
-    this.flavor,
     this.imageUrl,
     this.thumbhash,
     this.style = AvatarStyle.brutalist,
-    this.showFlavorIcon = false,
     super.key,
   });
   final String id;
   final double size;
   final bool square;
   final bool monochrome;
-  final FlavorIcon? flavor;
   final String? imageUrl;
   final String? thumbhash;
   final AvatarStyle style;
-  final bool showFlavorIcon;
 
   @override
   Widget build(BuildContext context) {
-    // If image URL is provided, show custom image
     if (imageUrl != null) {
       return _buildImageAvatar(context);
     }
 
-    // Otherwise show generated avatar
-    final avatarWidget = switch (style) {
+    return switch (style) {
       AvatarStyle.brutalist => AvatarBrutalist(
           id: id,
           size: size,
@@ -352,49 +268,17 @@ class Avatar extends StatelessWidget {
           square: square,
           monochrome: monochrome,
         ),
-      AvatarStyle.geometric => AvatarGeometric(
-          id: id,
-          size: size,
-        ),
-      AvatarStyle.rings => AvatarRings(
-          id: id,
-          size: size,
-        ),
-      AvatarStyle.constellation => AvatarConstellation(
-          id: id,
-          size: size,
-        ),
-      AvatarStyle.wave => AvatarWave(
-          id: id,
-          size: size,
-        ),
+      AvatarStyle.geometric => AvatarGeometric(id: id, size: size),
+      AvatarStyle.rings => AvatarRings(id: id, size: size),
+      AvatarStyle.constellation => AvatarConstellation(id: id, size: size),
+      AvatarStyle.wave => AvatarWave(id: id, size: size),
     };
-
-    if (showFlavorIcon && flavor != null) {
-      return Stack(
-        clipBehavior: Clip.none,
-        children: [
-          avatarWidget,
-          Positioned(
-            bottom: -2,
-            right: -2,
-            child: FlavorIconOverlay(
-              flavor: flavor!,
-              avatarSize: size,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return avatarWidget;
   }
 
   Widget _buildImageAvatar(BuildContext context) {
     final borderRadius = square ? 0.0 : size / 2;
-    final cacheSize = (size *
-        MediaQuery.devicePixelRatioOf(context)).toInt();
-    final imageElement = ClipRRect(
+    final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).toInt();
+    return ClipRRect(
       clipBehavior: Clip.hardEdge,
       borderRadius: BorderRadius.circular(borderRadius),
       child: CachedNetworkImage(
@@ -407,16 +291,12 @@ class Avatar extends StatelessWidget {
         placeholder: (context, url) => Container(
           width: size,
           height: size,
-          color: Theme.of(context)
-              .colorScheme
-              .surfaceContainerHighest,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),
         errorWidget: (context, url, error) => Container(
           width: size,
           height: size,
-          color: Theme.of(context)
-              .colorScheme
-              .surfaceContainerHighest,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: Icon(
             Icons.person,
             size: size * 0.6,
@@ -425,24 +305,5 @@ class Avatar extends StatelessWidget {
         ),
       ),
     );
-
-    if (showFlavorIcon && flavor != null) {
-      return Stack(
-        clipBehavior: Clip.none,
-        children: [
-          imageElement,
-          Positioned(
-            bottom: -2,
-            right: -2,
-            child: FlavorIconOverlay(
-              flavor: flavor!,
-              avatarSize: size,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return imageElement;
   }
 }
