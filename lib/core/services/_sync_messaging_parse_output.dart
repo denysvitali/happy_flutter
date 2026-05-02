@@ -393,15 +393,18 @@ extension SyncMessagingParseOutput on Sync {
 
     // pi/codex result envelope with batched tool results.
     if (dataType == 'result') {
+      final parsedMessages = <Map<String, dynamic>>[];
+      final parsedResults = <Map<String, dynamic>>[];
+      var handled = false;
+
       final toolResults = WireParsers.asList(data['toolResults']) ?? const [];
-      if (toolResults.isEmpty) return ([], []);
-      final parsed = <Map<String, dynamic>>[];
       for (final item in toolResults) {
         final tr = WireParsers.asMap(item);
         if (tr == null) continue;
         final toolUseId = (tr['toolCallId'] ?? tr['tool_use_id']) as String?;
         if (toolUseId == null || toolUseId.isEmpty) continue;
-        parsed.add({
+        handled = true;
+        parsedResults.add({
           'toolUseId': toolUseId,
           'result': tr['content'],
           'isError': tr['isError'] == true || tr['is_error'] == true,
@@ -411,7 +414,63 @@ extension SyncMessagingParseOutput on Sync {
           'parentUuid': ?dataParentUuid,
         });
       }
-      return ([], parsed);
+
+      final outputItems = WireParsers.asList(data['output']) ?? const [];
+      var i = 0;
+      for (final item in outputItems) {
+        final row = WireParsers.asMap(item);
+        if (row == null) {
+          i++;
+          continue;
+        }
+        final role = row['role'] as String?;
+        final callId =
+            (row['toolCallId'] ?? row['callId'] ?? row['id']) as String?;
+        if (callId == null || callId.isEmpty) {
+          i++;
+          continue;
+        }
+
+        if (role == 'toolCall') {
+          handled = true;
+          parsedMessages.add({
+            'id': '${message.id}_ro$i',
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': row['toolName'] ?? row['name'] ?? 'unknown',
+            'input':
+                WireParsers.asMap(row['arguments']) ??
+                WireParsers.asMap(row['args']) ??
+                WireParsers.asMap(row['input']) ??
+                <String, dynamic>{},
+            'toolUseId': callId,
+            'state': _webSearchState(row['status'] as String?),
+            'content': row,
+            'raw': outerContent,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': callId,
+            'parentUuid': ?dataParentUuid,
+          });
+        } else if (role == 'toolResult') {
+          handled = true;
+          parsedResults.add({
+            'toolUseId': callId,
+            'result': row['content'] ?? row['output'] ?? row['result'],
+            'isError': row['isError'] == true || row['is_error'] == true,
+            'createdAt': createdAt,
+            if (isSidechain) 'isSidechain': true,
+            'uuid': callId,
+            'parentUuid': ?dataParentUuid,
+          });
+        }
+        i++;
+      }
+
+      if (handled) return (parsedMessages, parsedResults);
+      return ([], []);
     }
 
     if (dataType == 'user') {

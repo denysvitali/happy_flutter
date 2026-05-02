@@ -255,6 +255,86 @@ void _processOutputContent({
     return;
   }
 
+  // pi/codex result envelope. Some backends send tool calls/results as
+  // `data.output[]` entries with `role: toolCall/toolResult` instead of
+  // `data.toolResults`.
+  if (dataType == 'result') {
+    var handled = false;
+
+    final batchedResults = WireParsers.asList(data['toolResults']) ?? const [];
+    for (final item in batchedResults) {
+      final tr = WireParsers.asMap(item);
+      if (tr == null) continue;
+      final toolUseId = (tr['toolCallId'] ?? tr['tool_use_id']) as String?;
+      if (toolUseId == null || toolUseId.isEmpty) continue;
+      handled = true;
+      toolResults.add({
+        'toolUseId': toolUseId,
+        'result': tr['content'],
+        'isError': tr['isError'] == true || tr['is_error'] == true,
+        'createdAt': createdAt,
+        if (meta.isSidechain) 'isSidechain': true,
+        'uuid': ?meta.uuid,
+        'parentUuid': ?meta.parentUuid,
+      });
+    }
+
+    final outputItems = WireParsers.asList(data['output']) ?? const [];
+    var i = 0;
+    for (final item in outputItems) {
+      final row = WireParsers.asMap(item);
+      if (row == null) {
+        i++;
+        continue;
+      }
+
+      final role = row['role'] as String?;
+      final callId =
+          (row['toolCallId'] ?? row['callId'] ?? row['id']) as String?;
+
+      if (role == 'toolCall' && callId != null && callId.isNotEmpty) {
+        handled = true;
+        messages.add({
+          'id': '${id}_ro$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': row['toolName'] ?? row['name'] ?? 'unknown',
+          'input':
+              WireParsers.asMap(row['arguments']) ??
+              WireParsers.asMap(row['args']) ??
+              WireParsers.asMap(row['input']) ??
+              <String, dynamic>{},
+          'toolUseId': callId,
+          'state': _webSearchState(row['status'] as String?),
+          'content': row,
+          'raw': outerContent,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': callId,
+          'parentUuid': ?meta.parentUuid,
+        });
+      } else if (role == 'toolResult' &&
+          callId != null &&
+          callId.isNotEmpty) {
+        handled = true;
+        toolResults.add({
+          'toolUseId': callId,
+          'result': row['content'] ?? row['output'] ?? row['result'],
+          'isError': row['isError'] == true || row['is_error'] == true,
+          'createdAt': createdAt,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': callId,
+          'parentUuid': ?meta.parentUuid,
+        });
+      }
+      i++;
+    }
+
+    if (handled) return;
+  }
+
   if (dataType == 'user') {
     if (meta.isSidechain) {
       final userMessage = WireParsers.asMap(data['message']);

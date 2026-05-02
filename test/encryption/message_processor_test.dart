@@ -319,6 +319,53 @@ void main() {
         expect(result.toolResults.first['isError'], false);
       });
 
+      test('processes result envelope output toolCall/toolResult rows', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'result',
+                  'output': [
+                    {
+                      'role': 'toolCall',
+                      'toolCallId': 'call_function_2',
+                      'toolName': 'bash',
+                      'arguments': {'command': 'ls'},
+                      'status': 'completed',
+                    },
+                    {
+                      'role': 'toolResult',
+                      'toolCallId': 'call_function_2',
+                      'content': [
+                        {'type': 'text', 'text': 'ok'},
+                      ],
+                      'isError': false,
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'tool-call');
+        expect(result.messages.first['name'], 'bash');
+        expect(result.messages.first['toolUseId'], 'call_function_2');
+        expect(result.messages.first['state'], 'completed');
+
+        expect(result.toolResults, hasLength(1));
+        expect(result.toolResults.first['toolUseId'], 'call_function_2');
+        expect(result.toolResults.first['isError'], false);
+      });
+
       test('processes thinking blocks', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
