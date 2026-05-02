@@ -45,6 +45,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final activeAgentCount = AgentsListSheet.countActiveAgents(sessionId);
     return AppBar(
+      automaticallyImplyLeading: onBackTap == null,
       leading: onBackTap == null
           ? null
           : IconButton(

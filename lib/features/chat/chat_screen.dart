@@ -916,7 +916,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             // Using !didPop guards on the actual current text, not the
             // build-time value that may have changed between keystrokes.
             return PopScope(
-              canPop: value.text.trim().isEmpty,
+              // Also allow the pop when onBack is set — the custom handler
+              // (tablet in-place selection) should consume back presses, not
+              // swallow them and leave the user appearing stuck.
+              canPop: value.text.trim().isEmpty || widget.onBack != null,
               onPopInvokedWithResult: (didPop, _) {
                 if (!didPop && _controller.text.trim().isNotEmpty) {
                   showUnsentMessageDialog(
