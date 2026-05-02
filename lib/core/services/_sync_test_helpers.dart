@@ -98,6 +98,19 @@ extension SyncTestHelpers on Sync {
     _groupSidechainMessages(sessionId);
   }
 
+  /// Test helper: invoke orphan absorption directly without waiting
+  /// for the 300ms deferred sweep timer.  Returns true if any orphans
+  /// were absorbed into synthetic Task placeholders.
+  @visibleForTesting
+  bool testAbsorbOrphansIntoSyntheticTasks(String sessionId) {
+    return _absorbOrphansIntoSyntheticTasks(sessionId);
+  }
+
+  @visibleForTesting
+  List<Map<String, dynamic>> testGetSessionMessages(String sessionId) {
+    return _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];
+  }
+
   @visibleForTesting
   void testApplyToolResults(
     String sessionId,

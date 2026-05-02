@@ -172,7 +172,19 @@ class SidechainGrouper {
 
     walkAndIndex(messages, null);
 
-    if (taskIdToTask.isEmpty) return null;
+    if (taskIdToTask.isEmpty) {
+      // No Tasks indexed but sidechain messages may still be present
+      // (e.g. cache restore where parent Tasks were truncated, or a
+      // session whose Task lives outside the loaded message window).
+      // Return hasOrphans:true so the deferred sweep is scheduled and
+      // can absorb the stuck sidechains into a synthetic Task —
+      // otherwise they remain invisible: the chat hides isSidechain
+      // entries and the AgentsListSheet only enumerates Tasks.
+      final hasOrphans = messages.any((m) => m['isSidechain'] == true);
+      return hasOrphans
+          ? (messages: messages, hasOrphans: true)
+          : null;
+    }
 
     // Pass 2: Combined pass to find sidechain roots and group
     // child messages in a single iteration.  Operates on the

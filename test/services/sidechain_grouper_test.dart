@@ -367,6 +367,37 @@ void main() {
       expect(identical(result.messages, messages), isTrue);
     });
 
+    test('reports hasOrphans when sidechains exist but no Tasks '
+        'are indexed', () {
+      // Cache restore / message-window scenario: the parent
+      // Task lives outside the loaded message window so the
+      // grouper indexes zero Tasks, but isSidechain entries are
+      // present in the list.  Pre-fix the grouper short-circuited
+      // and returned null, so the caller never scheduled a
+      // deferred sweep — orphans stayed invisible forever.
+      final messages = [
+        _textMsg(id: 'm1'),
+        _sidechainChild(
+          id: 'orphan-1',
+          uuid: 'orph-1-uuid',
+          parentUuid: 'missing-task-uuid',
+        ),
+        _sidechainChild(
+          id: 'orphan-2',
+          uuid: 'orph-2-uuid',
+          parentUuid: 'missing-task-uuid',
+        ),
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull,
+          reason: 'must not short-circuit when orphans are '
+              'present even if no Tasks are indexed');
+      expect(result!.hasOrphans, isTrue);
+      expect(identical(result.messages, messages), isTrue);
+    });
+
     test('attaches new children to a nested sub-agent Task', () {
       // Regression: sub-agent-of-a-sub-agent.  Outer Task A
       // has been grouped previously and its children include

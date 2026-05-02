@@ -465,6 +465,18 @@ extension SyncMessagingMerge on Sync {
       // Clear the flag so onSessionVisible doesn't retry grouping
       // for these stuck orphans during the suppression window.
       _sessionsNeedingVisibleRegroup.remove(sessionId);
+      // Absorb the stuck orphans into synthetic Task placeholders so
+      // they become visible (as Task rows in the chat list and in
+      // AgentsListSheet) instead of being silently hidden by the
+      // chat's isSidechain filter.  The synthetic Task's uuid is
+      // set to the orphan group's parentUuid so any future sidechain
+      // for that parent attaches naturally on the next sweep.
+      final absorbed = _absorbOrphansIntoSyntheticTasks(sessionId);
+      if (absorbed) {
+        _scheduleSaveMessages(sessionId);
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged({SyncDomain.messages});
+      }
       return;
     }
 
@@ -500,6 +512,101 @@ extension SyncMessagingMerge on Sync {
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages});
     }
+  }
+
+  /// Absorb stuck orphan sidechain messages into synthetic Task
+  /// placeholders so they become visible in the UI.
+  ///
+  /// Called from [_runDeferredRegroupSweep] once it confirms a set of
+  /// orphans cannot be matched to any real Task in the message list
+  /// (parent never arrived, was truncated from cache, or lives outside
+  /// the loaded window).  Without this, the chat's isSidechain filter
+  /// drops them silently and the AgentsListSheet — which enumerates
+  /// only top-level Task tool-calls — never sees them either.
+  ///
+  /// Orphans are grouped by their parentUuid (one synthetic per group;
+  /// orphans without a parentUuid share a single bucket).  The
+  /// synthetic Task is inserted at the position of the first orphan in
+  /// its group; remaining orphans are removed from the top-level list.
+  /// Setting the synthetic's uuid to the orphan parentUuid lets any
+  /// future sidechain for that parent attach naturally on the next
+  /// grouper pass.
+  ///
+  /// Returns `true` when at least one orphan was absorbed.
+  bool _absorbOrphansIntoSyntheticTasks(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return false;
+
+    final orphansByParent = <String, List<Map<String, dynamic>>>{};
+    final orphanIds = <String>{};
+    for (final m in messages) {
+      if (m['isSidechain'] != true) continue;
+      final parentUuid = (m['parentUuid'] as String?) ?? '';
+      orphansByParent.putIfAbsent(parentUuid, () => []).add(m);
+      final id = m['id'] as String?;
+      if (id != null) orphanIds.add(id);
+    }
+    if (orphansByParent.isEmpty) return false;
+
+    final syntheticByParent = <String, Map<String, dynamic>>{};
+    orphansByParent.forEach((parentUuid, children) {
+      var minSeq = (children.first['seq'] as int?) ?? 0;
+      var minCreatedAt = (children.first['createdAt'] as int?) ?? 0;
+      for (final c in children) {
+        final s = c['seq'] as int? ?? minSeq;
+        final ca = c['createdAt'] as int? ?? minCreatedAt;
+        if (s < minSeq) minSeq = s;
+        if (ca < minCreatedAt) minCreatedAt = ca;
+      }
+      final syntheticId = parentUuid.isEmpty
+          ? 'orphan-recovery-seq-$minSeq'
+          : 'orphan-recovery-$parentUuid';
+      syntheticByParent[parentUuid] = <String, dynamic>{
+        'id': syntheticId,
+        if (parentUuid.isNotEmpty) 'uuid': parentUuid,
+        'kind': 'tool-call',
+        'name': 'Task',
+        'role': 'agent',
+        'state': 'completed',
+        'input': <String, dynamic>{
+          'description': 'Subagent output (recovered)',
+          'prompt': '${children.length} message(s) — '
+              'parent Task missing from history',
+        },
+        'seq': minSeq,
+        'createdAt': minCreatedAt,
+        'children': List<Map<String, dynamic>>.from(children),
+        '_orphanRecovery': true,
+      };
+    });
+
+    final result = <Map<String, dynamic>>[];
+    final inserted = <String>{};
+    for (final m in messages) {
+      final id = m['id'] as String?;
+      if (m['isSidechain'] == true &&
+          id != null &&
+          orphanIds.contains(id)) {
+        final parentUuid = (m['parentUuid'] as String?) ?? '';
+        if (!inserted.contains(parentUuid)) {
+          result.add(syntheticByParent[parentUuid]!);
+          inserted.add(parentUuid);
+        }
+        continue;
+      }
+      result.add(m);
+    }
+
+    _sessionMessages[sessionId] = result;
+    _sessionMessagesCache = null;
+    _sessionMessagesViewCache.remove(sessionId);
+
+    logger.info(
+      '[sidechain] absorbed ${orphanIds.length} orphan(s) into '
+      '${syntheticByParent.length} synthetic Task(s) '
+      'for session=$sessionId',
+    );
+    return true;
   }
 
   /// Delegates to [SidechainGrouper] and updates session message
