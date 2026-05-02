@@ -567,6 +567,8 @@ extension SyncSocketEvents on Sync {
       _sessionsNeedingFetchProbe.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _sessionSpawnedProfile.remove(sessionId);
+      _sessionSpawnedModel.remove(sessionId);
+      _sessionSpawnedAgent.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);
       _pendingToolResults.remove(sessionId);
       // Clean up per-session collections that were missed

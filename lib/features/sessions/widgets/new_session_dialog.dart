@@ -355,6 +355,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         path: sessionPath,
         profileId: profileId,
         modelMode: modelMode,
+        agent: _selectedAgent,
       );
       // Persist the profile so auto-restore reads correct env vars.
       if (profileId != null) {

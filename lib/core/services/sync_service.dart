@@ -416,6 +416,10 @@ what you have, you must use the options mode.
   // sessionId → modelMode used when spawning. Lets _resolveSendTargetSession
   // detect model changes and kill+respawn the session automatically.
   final Map<String, String?> _sessionSpawnedModel = {};
+  // sessionId → agent used when spawning. Used as fallback when
+  // session.metadata?.flavor is null (e.g., metadata decryption failed)
+  // so auto-restore uses the correct agent instead of defaulting to 'claude'.
+  final Map<String, String> _sessionSpawnedAgent = {};
   // machineId → epoch-ms of last offline warning. Deduplicates the
   // "Machine appears offline" warning that fires on every createSession().
   final Map<String, int> _machineOfflineWarnedAtMs = {};
@@ -586,6 +590,7 @@ what you have, you must use the options mode.
     _sessionSpawnedAt.clear();
     _sessionSpawnedProfile.clear();
     _sessionSpawnedModel.clear();
+    _sessionSpawnedAgent.clear();
   }
 
   /// Clears pending socket-message session set.

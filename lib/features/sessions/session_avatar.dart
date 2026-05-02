@@ -231,7 +231,7 @@ class SessionAvatar extends StatelessWidget {
       'claude' => 'assets/images/icon-claude.png',
       'codex' => 'assets/images/icon-gpt.png',
       'gemini' => 'assets/images/icon-gemini.png',
-      'pi' => 'assets/images/icon-claude.png', // TODO: add pi icon asset
+      'pi' => 'assets/images/icon-pi.png',
       _ => 'assets/images/icon-claude.png',
     };
   }
@@ -241,7 +241,7 @@ class SessionAvatar extends StatelessWidget {
       'claude' => Icons.auto_awesome,
       'codex' => Icons.code,
       'gemini' => Icons.auto_awesome,
-      'pi' => Icons.auto_awesome,
+      'pi' => Icons.psychology_alt_outlined,
       _ => Icons.auto_awesome,
     };
   }

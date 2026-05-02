@@ -233,11 +233,15 @@ extension SyncMessagingRpc on Sync {
     try {
       // Resolve profile env vars for this session before spawning.
       final spawnResult = await _getSpawnEnvVarsForSession(sessionId);
+      final sessionAgent =
+          session.metadata?.flavor ??
+          _sessionSpawnedAgent[sessionId] ??
+          'claude';
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
-        agent: session.metadata?.flavor ?? 'claude',
+        agent: sessionAgent,
         permissionMode: session.permissionMode,
         model: _getModelOverride(profile: spawnResult.profile),
         environmentVariables: spawnResult.envVars,

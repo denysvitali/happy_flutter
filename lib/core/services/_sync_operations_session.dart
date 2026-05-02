@@ -15,6 +15,13 @@ extension SyncSessionOperations on Sync {
     required String path,
     bool approvedNewDirectoryCreation = false,
 
+    /// Explicit agent type for this session. Takes precedence over
+    /// [_settingsSnapshot.lastUsedAgent]. Should always be passed when creating
+    /// a session so the correct agent is used, rather than relying on
+    /// [lastUsedAgent] which can change between applySettings and createSession
+    /// due to async settings sync reloads.
+    required String agent,
+
     /// Explicit profile ID for this session. Takes precedence over
     /// [_settingsSnapshot.lastUsedProfile]. Should be passed when creating a
     /// session so the correct profile env vars are used, rather than relying
@@ -92,8 +99,8 @@ extension SyncSessionOperations on Sync {
         ? resolveAbsolutePath(path, homeDir: machine.metadata!.homeDir)
         : path;
 
-    // Derive agent type and environment variables from the profile.
-    final agent = _settingsSnapshot.lastUsedAgent;
+    // Agent is explicitly passed as a parameter to avoid race conditions with
+    // async settings sync reloads overwriting _settingsSnapshot.lastUsedAgent.
     // Use explicit profileId if provided, otherwise fall back to the
     // profile last used for this agent.
     final effectiveProfileId =
@@ -179,10 +186,11 @@ extension SyncSessionOperations on Sync {
       _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
       _sessionSpawnedProfile[sessionId] = effectiveProfileId;
       _sessionSpawnedModel[sessionId] = normalizedModelMode;
+      _sessionSpawnedAgent[sessionId] = agent;
       logger.info(
         '[createSession] Registered session $sessionId '
         'in _sessionSpawnedAt '
-        '(profile=$effectiveProfileId, model=$normalizedModelMode)',
+        '(profile=$effectiveProfileId, model=$normalizedModelMode, agent=$agent)',
       );
 
       await _hydrateSpawnedSession(
@@ -246,6 +254,7 @@ extension SyncSessionOperations on Sync {
         machineId: machineId,
         path: resolvedPath,
         approvedNewDirectoryCreation: true,
+        agent: agent,
       );
     }
 
@@ -933,6 +942,7 @@ PY
         _sessionSpawnedAt.remove(sessionId);
         _sessionSpawnedProfile.remove(sessionId);
         _sessionSpawnedModel.remove(sessionId);
+        _sessionSpawnedAgent.remove(sessionId);
         try {
           await killSession(sessionId);
         } catch (e, st) {
@@ -1029,14 +1039,18 @@ PY
         sessionId,
         profileIdOverride: profileId,
       );
+      final sessionAgent =
+          session.metadata?.flavor ??
+          _sessionSpawnedAgent[sessionId] ??
+          'claude';
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
-        agent: session.metadata?.flavor ?? 'claude',
+        agent: sessionAgent,
         permissionMode: effectivePermissionMode,
         model: _getModelOverride(
-          agent: session.metadata?.flavor ?? 'claude',
+          agent: sessionAgent,
           profile: spawnResult.profile,
           modelMode: modelMode,
         ),

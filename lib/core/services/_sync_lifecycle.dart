@@ -589,6 +589,8 @@ extension SyncLifecycle on Sync {
     _sessionGitStatus.clear();
     _sessionSpawnedAt.clear();
     _sessionSpawnedProfile.clear();
+    _sessionSpawnedModel.clear();
+    _sessionSpawnedAgent.clear();
     _machineOfflineWarnedAtMs.clear();
     _autoRestoreInFlight.clear();
     _autoRestoreCompleters.clear();
