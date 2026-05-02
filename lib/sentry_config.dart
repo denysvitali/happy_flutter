@@ -31,6 +31,17 @@ const sentryCaptureWarnings = false;
 bool get sentryEnableDioInterceptor => sentryTracesSampleRate > 0;
 bool get sentryEnableNavigationObserver => sentryTracesSampleRate > 0;
 
+const _defaultSentryDropReasons =
+    'background_anr,transient_network,non_actionable,session_restart';
+
+const sentryDropReasons = String.fromEnvironment(
+  'SENTRY_DROP_REASONS',
+  defaultValue: _defaultSentryDropReasons,
+);
+
+final Set<String> sentryDropReasonSet =
+    _parseSentryDropReasons(sentryDropReasons);
+
 /// Kill switch for local validation: set
 /// `--dart-define=SENTRY_FILTER_NON_ACTIONABLE=false`
 /// to bypass all non-actionable/transient beforeSend filtering.
@@ -38,3 +49,34 @@ const sentryFilterNonActionable = bool.fromEnvironment(
   'SENTRY_FILTER_NON_ACTIONABLE',
   defaultValue: true,
 );
+
+bool shouldDropSentryReason(String reason) {
+  return sentryDropReasonSet.contains(reason.toLowerCase().trim());
+}
+
+Set<String> _parseSentryDropReasons(String input) {
+  final cleaned = input.trim().toLowerCase();
+  if (cleaned.isEmpty || cleaned == 'none') {
+    return <String>{};
+  }
+
+  if (cleaned == 'all') {
+    return Set<String>.from(
+      _defaultSentryDropReasons.split(',').map((value) => value.trim()),
+    );
+  }
+
+  final parsed = input
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .toSet();
+
+  if (parsed.contains('all')) {
+    return Set<String>.from(
+      _defaultSentryDropReasons.split(',').map((value) => value.trim()),
+    );
+  }
+
+  return parsed;
+}

@@ -221,7 +221,8 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   // Drop background ANRs — on Android these are almost always
   // false positives caused by the OS deprioritising the app.
   for (final exception in event.exceptions ?? <SentryException>[]) {
-    if (exception.type == 'ApplicationNotResponding' &&
+    if (shouldDropSentryReason('background_anr') &&
+        exception.type == 'ApplicationNotResponding' &&
         (exception.value?.toLowerCase().contains('background') ?? false)) {
       _logDroppedSentryEvent('background_anr', event);
       return null;
@@ -230,14 +231,16 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
 
   // Drop transient network errors (DNS, timeout, etc.) — these
   // are expected when the device briefly loses connectivity.
-  if (_isTransientNetworkEvent(event)) {
+  if (shouldDropSentryReason('transient_network') &&
+      _isTransientNetworkEvent(event)) {
     _logDroppedSentryEvent('transient_network', event);
     return null;
   }
 
   // Drop non-actionable native errors (clipboard overflow, expected
   // RPC failures, server 500s, machine offline, etc.).
-  if (_isNonActionableNativeEvent(event)) {
+  if (shouldDropSentryReason('non_actionable') &&
+      _isNonActionableNativeEvent(event)) {
     _logDroppedSentryEvent('non_actionable', event);
     return null;
   }
@@ -245,8 +248,9 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   // Drop expected permission-expiry events (session restarted while user
   // was approving/denying — the agent re-requests automatically).
   for (final exception in event.exceptions ?? <SentryException>[]) {
-    if ((exception.value?.toLowerCase().contains('session was restarted')) ??
-        false) {
+    if (shouldDropSentryReason('session_restart') &&
+        (exception.value?.toLowerCase().contains('session was restarted') ??
+            false)) {
       _logDroppedSentryEvent('session_restart', event);
       return null;
     }

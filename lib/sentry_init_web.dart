@@ -153,14 +153,16 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
 
   // Drop transient network errors (DNS, timeout, etc.) — these
   // are expected when the device briefly loses connectivity.
-  if (_isTransientNetworkEvent(event)) {
+  if (shouldDropSentryReason('transient_network') &&
+      _isTransientNetworkEvent(event)) {
     _logDroppedSentryEvent('transient_network', event);
     return null;
   }
 
   // Drop non-actionable web errors (framework quirks, storage
   // limits, expected RPC failures, server 500s, etc.).
-  if (_isNonActionableWebEvent(event)) {
+  if (shouldDropSentryReason('non_actionable') &&
+      _isNonActionableWebEvent(event)) {
     _logDroppedSentryEvent('non_actionable', event);
     return null;
   }
