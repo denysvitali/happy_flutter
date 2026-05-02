@@ -766,7 +766,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (isTablet) {
       setState(() => _selectedSessionId = sessionId);
     } else {
-      router.goNamed('chat', pathParameters: {'sessionId': sessionId});
+      unawaited(
+        router.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
+      );
     }
   }
 }
