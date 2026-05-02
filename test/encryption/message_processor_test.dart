@@ -214,6 +214,42 @@ void main() {
         expect(result.messages.first['toolUseId'], 'tu1');
       });
 
+      test('processes agent output with toolCall blocks', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u1',
+                  'message': {
+                    'content': [
+                      {
+                        'type': 'toolCall',
+                        'id': 'call_function_1',
+                        'name': 'read',
+                        'arguments': {'path': '/test'},
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'tool-call');
+        expect(result.messages.first['name'], 'read');
+        expect(result.messages.first['toolUseId'], 'call_function_1');
+      });
+
       test('processes tool results', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
@@ -247,6 +283,39 @@ void main() {
         expect(result.toolResults, hasLength(1));
         expect(result.toolResults.first['toolUseId'], 'tu1');
         expect(result.toolResults.first['result'], 'result data');
+        expect(result.toolResults.first['isError'], false);
+      });
+
+      test('processes result envelope toolResults list', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'result',
+                  'toolResults': [
+                    {
+                      'toolCallId': 'call_function_1',
+                      'content': [
+                        {'type': 'text', 'text': 'ok'},
+                      ],
+                      'isError': false,
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.toolResults, hasLength(1));
+        expect(result.toolResults.first['toolUseId'], 'call_function_1');
         expect(result.toolResults.first['isError'], false);
       });
 

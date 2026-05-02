@@ -165,6 +165,7 @@ void _processPiContent({
           'parentUuid': ?meta.parentUuid,
         });
       } else if (type == 'tool_use' ||
+          type == 'toolCall' ||
           type == 'server_tool_use' ||
           type == 'mcp_tool_use' ||
           type == 'code_execution_tool_use') {
@@ -177,7 +178,10 @@ void _processPiContent({
           'role': 'agent',
           'kind': 'tool-call',
           'name': block['name'] ?? block['server_name'] ?? type,
-          'input': WireParsers.asMap(block['input']) ?? <String, dynamic>{},
+          'input':
+              WireParsers.asMap(block['input']) ??
+              WireParsers.asMap(block['arguments']) ??
+              <String, dynamic>{},
           'toolUseId': toolUseId,
           'state': 'running',
           'content': block,
@@ -205,6 +209,26 @@ void _processPiContent({
         }
       }
       i++;
+    }
+    return;
+  }
+
+  if (dataType == 'result') {
+    final batchedResults = WireParsers.asList(data['toolResults']) ?? const [];
+    for (final item in batchedResults) {
+      final tr = WireParsers.asMap(item);
+      if (tr == null) continue;
+      final toolUseId = (tr['toolCallId'] ?? tr['tool_use_id']) as String?;
+      if (toolUseId == null || toolUseId.isEmpty) continue;
+      toolResults.add({
+        'toolUseId': toolUseId,
+        'result': tr['content'],
+        'isError': tr['isError'] == true || tr['is_error'] == true,
+        'createdAt': createdAt,
+        if (meta.isSidechain) 'isSidechain': true,
+        'uuid': ?meta.uuid,
+        'parentUuid': ?meta.parentUuid,
+      });
     }
     return;
   }

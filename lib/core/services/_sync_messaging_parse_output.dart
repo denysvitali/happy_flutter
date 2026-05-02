@@ -288,6 +288,7 @@ extension SyncMessagingParseOutput on Sync {
             'parentUuid': ?dataParentUuid,
           });
         } else if (type == 'tool_use' ||
+            type == 'toolCall' ||
             type == 'server_tool_use' ||
             type == 'mcp_tool_use' ||
             type == 'code_execution_tool_use') {
@@ -299,7 +300,10 @@ extension SyncMessagingParseOutput on Sync {
             'role': 'agent',
             'kind': 'tool-call',
             'name': c['name'] ?? c['server_name'] ?? type,
-            'input': WireParsers.asMap(c['input']) ?? <String, dynamic>{},
+            'input':
+                WireParsers.asMap(c['input']) ??
+                WireParsers.asMap(c['arguments']) ??
+                <String, dynamic>{},
             'toolUseId': c['id'],
             'state': 'running',
             'content': c,
@@ -385,6 +389,29 @@ extension SyncMessagingParseOutput on Sync {
         );
       }
       return ([], []);
+    }
+
+    // pi/codex result envelope with batched tool results.
+    if (dataType == 'result') {
+      final toolResults = WireParsers.asList(data['toolResults']) ?? const [];
+      if (toolResults.isEmpty) return ([], []);
+      final parsed = <Map<String, dynamic>>[];
+      for (final item in toolResults) {
+        final tr = WireParsers.asMap(item);
+        if (tr == null) continue;
+        final toolUseId = (tr['toolCallId'] ?? tr['tool_use_id']) as String?;
+        if (toolUseId == null || toolUseId.isEmpty) continue;
+        parsed.add({
+          'toolUseId': toolUseId,
+          'result': tr['content'],
+          'isError': tr['isError'] == true || tr['is_error'] == true,
+          'createdAt': createdAt,
+          if (isSidechain) 'isSidechain': true,
+          'uuid': ?dataUuid,
+          'parentUuid': ?dataParentUuid,
+        });
+      }
+      return ([], parsed);
     }
 
     if (dataType == 'user') {
