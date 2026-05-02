@@ -808,6 +808,7 @@ PY
     final compatibility = profile.compatibility;
     if (compatibility.codex && !compatibility.claude) return 'codex';
     if (compatibility.gemini && !compatibility.claude) return 'gemini';
+    if (compatibility.pi && !compatibility.claude) return 'pi';
     return 'claude';
   }
 

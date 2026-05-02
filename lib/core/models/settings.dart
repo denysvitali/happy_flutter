@@ -303,6 +303,7 @@ String normalizeAgentKey(String? agent) {
   return switch (agent) {
     'codex' => 'codex',
     'gemini' => 'gemini',
+    'pi' => 'pi',
     _ => 'claude',
   };
 }

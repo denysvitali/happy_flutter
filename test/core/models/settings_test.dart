@@ -115,4 +115,116 @@ void main() {
       expect(restored.folders, ['Work', 'Personal']);
     });
   });
+
+  group('Pi agent profile bucketing', () {
+    test('normalizeAgentKey routes pi to its own bucket', () {
+      expect(normalizeAgentKey('pi'), 'pi');
+      expect(normalizeAgentKey('claude'), 'claude');
+      expect(normalizeAgentKey('codex'), 'codex');
+      expect(normalizeAgentKey('gemini'), 'gemini');
+      expect(normalizeAgentKey(null), 'claude');
+    });
+
+    test('lastUsedProfileForAgent returns pi-scoped profile, not claude', () {
+      final settings = Settings()
+        ..lastUsedProfilesByAgent = {
+          'pi': 'profile-x',
+          'claude': 'profile-claude',
+        };
+
+      expect(settings.lastUsedProfileForAgent('pi'), 'profile-x');
+      expect(settings.lastUsedProfileForAgent('claude'), 'profile-claude');
+    });
+
+    test('lastUsedProfileForAgent does not leak pi profile to claude', () {
+      final settings = Settings()
+        ..lastUsedProfilesByAgent = {'pi': 'profile-x'};
+
+      expect(settings.lastUsedProfileForAgent('pi'), 'profile-x');
+      expect(settings.lastUsedProfileForAgent('claude'), isNull);
+    });
+
+    test('lastUsedProfilesWithAgent buckets pi under the pi key', () {
+      final settings = Settings();
+
+      final next = settings.lastUsedProfilesWithAgent('pi', 'profile-y');
+
+      expect(next['pi'], 'profile-y');
+      expect(next.containsKey('claude'), isFalse);
+    });
+
+    test('lastUsedProfilesWithAgent removes pi entry when null is passed', () {
+      final settings = Settings()
+        ..lastUsedProfilesByAgent = {'pi': 'profile-y'};
+
+      final next = settings.lastUsedProfilesWithAgent('pi', null);
+
+      expect(next.containsKey('pi'), isFalse);
+    });
+
+    test(
+      'resolveSelectedProfileIdForAgent prefers pi-only profile for pi agent',
+      () {
+        final piOnly = AIBackendProfile(
+          id: 'pi-only',
+          name: 'Pi only',
+          compatibility: const ProfileCompatibility(
+            claude: false,
+            codex: false,
+            gemini: false,
+            pi: true,
+          ),
+        );
+        final claudeOnly = AIBackendProfile(
+          id: 'claude-only',
+          name: 'Claude only',
+          compatibility: const ProfileCompatibility(
+            claude: true,
+            codex: false,
+            gemini: false,
+            pi: false,
+          ),
+        );
+
+        final settings = Settings()
+          ..profiles = [piOnly, claudeOnly]
+          ..lastUsedProfilesByAgent = {
+            'pi': 'pi-only',
+            'claude': 'claude-only',
+          };
+
+        expect(resolveSelectedProfileIdForAgent(settings, 'pi'), 'pi-only');
+        expect(
+          resolveSelectedProfileIdForAgent(settings, 'claude'),
+          'claude-only',
+        );
+      },
+    );
+
+    test(
+      'resolveSelectedProfileIdForAgent rejects claude-only profile for pi',
+      () {
+        final claudeOnly = AIBackendProfile(
+          id: 'claude-only',
+          name: 'Claude only',
+          compatibility: const ProfileCompatibility(
+            claude: true,
+            codex: false,
+            gemini: false,
+            pi: false,
+          ),
+        );
+
+        // Simulate the pre-fix bug input: caller provides agent 'pi' but the
+        // settings have a Claude profile selected. After the fix, the agent
+        // bucket is correctly distinct, so a Claude-only profile must not
+        // satisfy a pi agent request.
+        final settings = Settings()
+          ..profiles = [claudeOnly]
+          ..lastUsedProfilesByAgent = {'pi': 'claude-only'};
+
+        expect(resolveSelectedProfileIdForAgent(settings, 'pi'), isNull);
+      },
+    );
+  });
 }
