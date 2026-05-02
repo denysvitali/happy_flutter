@@ -130,17 +130,17 @@ Future<void> _pingSentry() async {
 /// Patterns that indicate a transient network error (DNS failure,
 /// connection timeout, etc.) — not actionable and expected on mobile.
 const _transientNetworkPatterns = [
-  'ERR_NAME_NOT_RESOLVED',
-  'ERR_CONNECTION_TIMED_OUT',
-  'ERR_CONNECTION_ABORTED',
-  'ERR_CONNECTION_RESET',
-  'ERR_NETWORK_CHANGED',
-  'ERR_INTERNET_DISCONNECTED',
-  'ERR_ADDRESS_UNREACHABLE',
-  'Failed host lookup',
-  'No address associated',
-  'Connection closed',
-  'Software caused connection abort',
+  'err_name_not_resolved',
+  'err_connection_timed_out',
+  'err_connection_aborted',
+  'err_connection_reset',
+  'err_network_changed',
+  'err_internet_disconnected',
+  'err_address_unreachable',
+  'failed host lookup',
+  'no address associated',
+  'connection closed',
+  'software caused connection abort',
 ];
 
 /// Patterns that indicate a non-actionable error on native.
@@ -148,72 +148,82 @@ const _transientNetworkPatterns = [
 /// that do not represent app bugs.
 const _nonActionableNativePatterns = [
   // Android clipboard overflow when copying large text.
-  'TransactionTooLargeException',
+  'transactiontoolargeexception',
   'data parcel size',
   // Expected RPC failures when machine/session is transiently
   // unavailable (daemon reconnecting, handler not yet registered).
-  'Machine encryption not found',
-  'Session encryption not found',
-  'RPC handler',
+  'machine encryption not found',
+  'session encryption not found',
+  'rpc handler',
   'is not registered',
   'operation has timed out',
-  'RPC call',
-  'forwarded via Redis',
+  'rpc call',
+  'forwarded via redis',
   'no replica responded',
-  'Machine RPC',
-  'Session RPC',
+  'machine rpc',
+  'session rpc',
   // Session was restarted while user was acting on a permission.
-  'Session was restarted',
+  'session was restarted',
   // Machine offline warnings (already logged at warning level).
-  'Machine is offline',
-  'Machine appears offline',
+  'machine is offline',
+  'machine appears offline',
   // Server-side errors not actionable in the client.
-  'SessionsApiException: Failed to fetch sessions: 500',
-  'SessionsApiException: Failed to archive session: 500',
-  'Failed to send message: 500',
-  '[sendMessage] FAILED: status=500',
+  'sessionsapiexception: failed to fetch sessions: 500',
+  'sessionsapiexception: failed to archive session: 500',
+  'failed to send message: 500',
+  '[sendmessage] failed: status=500',
   // Riverpod lifecycle: widget unmounted while async work in flight.
-  'Using "ref" when a widget is about to or has been unmounted',
+  'using "ref" when a widget is about to or has been unmounted',
   // Legacy NaCl decryption failures — expected on key rotation or
   // corrupt historical ciphertext; rate-limited in code but still
   // leaks through when many distinct keys are involved.
-  'CryptoSecretBox.decrypt failed',
+  'cryptosecretbox.decrypt failed',
 ];
 
+const _transientNetworkPatternsLower = _transientNetworkPatterns;
+const _nonActionableNativePatternsLower = _nonActionableNativePatterns;
+
 bool _isTransientNetworkEvent(SentryEvent event) {
+  final patterns = _transientNetworkPatterns;
   for (final exception in event.exceptions ?? <SentryException>[]) {
-    final value = exception.value ?? '';
-    for (final pattern in _transientNetworkPatterns) {
+    final value = (exception.value ?? '').toLowerCase();
+    for (final pattern in patterns) {
       if (value.contains(pattern)) return true;
     }
   }
-  final message = event.message?.formatted ?? '';
-  for (final pattern in _transientNetworkPatterns) {
+  final message = (event.message?.formatted ?? '').toLowerCase();
+  for (final pattern in patterns) {
     if (message.contains(pattern)) return true;
   }
   return false;
 }
 
 bool _isNonActionableNativeEvent(SentryEvent event) {
+  const patterns = _nonActionableNativePatternsLower;
   for (final exception in event.exceptions ?? <SentryException>[]) {
-    final value = exception.value ?? '';
-    for (final pattern in _nonActionableNativePatterns) {
+    final value = (exception.value ?? '').toLowerCase();
+    for (final pattern in patterns) {
       if (value.contains(pattern)) return true;
     }
   }
-  final message = event.message?.formatted ?? '';
-  for (final pattern in _nonActionableNativePatterns) {
+  final message = (event.message?.formatted ?? '').toLowerCase();
+  for (final pattern in patterns) {
     if (message.contains(pattern)) return true;
   }
   return false;
 }
 
 FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
+  if (!sentryFilterNonActionable) return event;
+
+  if (event.level == SentryLevel.fatal) return event;
+
   // Drop background ANRs — on Android these are almost always
   // false positives caused by the OS deprioritising the app.
   for (final exception in event.exceptions ?? <SentryException>[]) {
     if (exception.type == 'ApplicationNotResponding' &&
-        (exception.value?.contains('Background') ?? false)) {
+        (exception.value?.toLowerCase().contains('background') ?? false)) {
+      _logDroppedSentryEvent('background_anr', event);
       return null;
     }
   }
@@ -221,24 +231,41 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   // Drop transient network errors (DNS, timeout, etc.) — these
   // are expected when the device briefly loses connectivity.
   if (_isTransientNetworkEvent(event)) {
+    _logDroppedSentryEvent('transient_network', event);
     return null;
   }
 
   // Drop non-actionable native errors (clipboard overflow, expected
   // RPC failures, server 500s, machine offline, etc.).
   if (_isNonActionableNativeEvent(event)) {
+    _logDroppedSentryEvent('non_actionable', event);
     return null;
   }
 
   // Drop expected permission-expiry events (session restarted while user
   // was approving/denying — the agent re-requests automatically).
   for (final exception in event.exceptions ?? <SentryException>[]) {
-    if (exception.value?.contains('Session was restarted') ?? false) {
+    if ((exception.value?.toLowerCase().contains('session was restarted')) ??
+        false) {
+      _logDroppedSentryEvent('session_restart', event);
       return null;
     }
   }
 
   return event;
+}
+
+final _droppedSentryEventReasonCounts = <String, int>{};
+
+void _logDroppedSentryEvent(String reason, SentryEvent event) {
+  final count = (_droppedSentryEventReasonCounts[reason] ?? 0) + 1;
+  _droppedSentryEventReasonCounts[reason] = count;
+  if (count == 1 || count == 5 || count % 25 == 0) {
+    final eventId = event.eventId.toString();
+    logger.warning(
+      '[Sentry] beforeSend dropped event as "$reason" (#$count) id=$eventId',
+    );
+  }
 }
 
 Breadcrumb? _beforeBreadcrumb(Breadcrumb? breadcrumb, Hint hint) {

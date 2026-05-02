@@ -49,17 +49,17 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
 
 /// Patterns that indicate a transient network error.
 const _transientNetworkPatterns = [
-  'ERR_NAME_NOT_RESOLVED',
-  'ERR_CONNECTION_TIMED_OUT',
-  'ERR_CONNECTION_ABORTED',
-  'ERR_CONNECTION_RESET',
-  'ERR_NETWORK_CHANGED',
-  'ERR_INTERNET_DISCONNECTED',
-  'ERR_ADDRESS_UNREACHABLE',
-  'Failed host lookup',
-  'No address associated',
-  'Connection closed',
-  'Software caused connection abort',
+  'err_name_not_resolved',
+  'err_connection_timed_out',
+  'err_connection_aborted',
+  'err_connection_reset',
+  'err_network_changed',
+  'err_internet_disconnected',
+  'err_address_unreachable',
+  'failed host lookup',
+  'no address associated',
+  'connection closed',
+  'software caused connection abort',
 ];
 
 /// Patterns that indicate a non-actionable error on web.
@@ -68,93 +68,117 @@ const _transientNetworkPatterns = [
 const _nonActionableWebPatterns = [
   // Flutter web: accessing a RenderBox before layout completes.
   // Non-actionable — the framework recovers on the next frame.
-  'RenderBox was not laid out',
+  'renderbox was not laid out',
   // Web localStorage / IndexedDB quota exceeded. The app already
   // falls back to in-memory storage and logs a warning.
-  'QuotaExceededError',
+  'quotaexceedederror',
   // Platform._version is unavailable on web. Already guarded by
   // conditional exports, but some build configs may still hit it.
-  'Unsupported operation: Platform',
-  'Platform._version',
+  'unsupported operation: platform',
+  'platform._version',
   // Web crypto: corrupted or legacy ciphertext.
-  'IllegalBlockSizeException',
+  'illegalblocksizeexception',
   // Riverpod lifecycle: widget unmounted while async work in flight.
-  'Using "ref" when a widget is about to or has been unmounted',
+  'using "ref" when a widget is about to or has been unmounted',
   // Server-side 503 / WebSocket not upgraded.
   'was not upgraded to websocket',
-  'HTTP status code: 503',
+  'http status code: 503',
   // Socket.IO transport errors on web (expected during reconnect).
-  'TransportError',
+  'transporterror',
   // Server 500 errors — not actionable in the client.
-  'SessionsApiException: Failed to fetch sessions: 500',
-  'SessionsApiException: Failed to archive session: 500',
-  'Failed to send message: 500',
-  '[sendMessage] FAILED: status=500',
+  'sessionsapiexception: failed to fetch sessions: 500',
+  'sessionsapiexception: failed to archive session: 500',
+  'failed to send message: 500',
+  '[sendmessage] failed: status=500',
   // Expected RPC failures when machine/session is transiently
   // unavailable (daemon reconnecting, handler not yet registered).
-  'Machine encryption not found',
-  'Session encryption not found',
-  'RPC handler',
+  'machine encryption not found',
+  'session encryption not found',
+  'rpc handler',
   'is not registered',
   'operation has timed out',
-  'RPC call',
-  'forwarded via Redis',
+  'rpc call',
+  'forwarded via redis',
   'no replica responded',
-  'Machine RPC',
-  'Session RPC',
+  'machine rpc',
+  'session rpc',
   // Session was restarted while user was acting on a permission.
-  'Session was restarted',
+  'session was restarted',
   // Machine offline warnings (already logged at warning level).
-  'Machine is offline',
-  'Machine appears offline',
+  'machine is offline',
+  'machine appears offline',
   // Legacy NaCl decryption failures — expected on key rotation or
   // corrupt historical ciphertext; rate-limited in code but still
   // leaks through when many distinct keys are involved.
-  'CryptoSecretBox.decrypt failed',
+  'cryptosecretbox.decrypt failed',
 ];
 
+const _transientNetworkPatternsLower = _transientNetworkPatterns;
+const _nonActionableWebPatternsLower = _nonActionableWebPatterns;
+
 bool _isTransientNetworkEvent(SentryEvent event) {
+  final patterns = _transientNetworkPatternsLower;
   for (final exception in event.exceptions ?? <SentryException>[]) {
-    final value = exception.value ?? '';
-    for (final pattern in _transientNetworkPatterns) {
+    final value = (exception.value ?? '').toLowerCase();
+    for (final pattern in patterns) {
       if (value.contains(pattern)) return true;
     }
   }
-  final message = event.message?.formatted ?? '';
-  for (final pattern in _transientNetworkPatterns) {
+  final message = (event.message?.formatted ?? '').toLowerCase();
+  for (final pattern in patterns) {
     if (message.contains(pattern)) return true;
   }
   return false;
 }
 
 bool _isNonActionableWebEvent(SentryEvent event) {
+  final patterns = _nonActionableWebPatternsLower;
   for (final exception in event.exceptions ?? <SentryException>[]) {
-    final value = exception.value ?? '';
-    for (final pattern in _nonActionableWebPatterns) {
+    final value = (exception.value ?? '').toLowerCase();
+    for (final pattern in patterns) {
       if (value.contains(pattern)) return true;
     }
   }
-  final message = event.message?.formatted ?? '';
-  for (final pattern in _nonActionableWebPatterns) {
+  final message = (event.message?.formatted ?? '').toLowerCase();
+  for (final pattern in patterns) {
     if (message.contains(pattern)) return true;
   }
   return false;
 }
 
 FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
+  if (!sentryFilterNonActionable) return event;
+
+  if (event.level == SentryLevel.fatal) return event;
+
   // Drop transient network errors (DNS, timeout, etc.) — these
   // are expected when the device briefly loses connectivity.
   if (_isTransientNetworkEvent(event)) {
+    _logDroppedSentryEvent('transient_network', event);
     return null;
   }
 
   // Drop non-actionable web errors (framework quirks, storage
   // limits, expected RPC failures, server 500s, etc.).
   if (_isNonActionableWebEvent(event)) {
+    _logDroppedSentryEvent('non_actionable', event);
     return null;
   }
 
   return event;
+}
+
+final _droppedSentryEventReasonCounts = <String, int>{};
+
+void _logDroppedSentryEvent(String reason, SentryEvent event) {
+  final count = (_droppedSentryEventReasonCounts[reason] ?? 0) + 1;
+  _droppedSentryEventReasonCounts[reason] = count;
+  if (count == 1 || count == 5 || count % 25 == 0) {
+    final eventId = event.eventId.toString();
+    logger.warning(
+      '[Sentry] beforeSend dropped event as "$reason" (#$count) id=$eventId',
+    );
+  }
 }
 
 Breadcrumb? _beforeBreadcrumb(Breadcrumb? breadcrumb, Hint hint) {
