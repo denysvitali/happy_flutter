@@ -170,6 +170,21 @@ void _processPiContent({
           type == 'mcp_tool_use' ||
           type == 'code_execution_tool_use') {
         final toolUseId = block['id'] as String?;
+        final rawName = block['name'] ?? block['server_name'];
+        final toolName = rawName?.toString().trim() ?? '';
+        final input =
+            WireParsers.asMap(block['input']) ??
+            WireParsers.asMap(block['arguments']) ??
+            <String, dynamic>{};
+        final inputText = block['inputText']?.toString().trim() ?? '';
+        final isPlaceholder =
+            toolName.isEmpty &&
+            input.isEmpty &&
+            (inputText.isEmpty || inputText == '(map[])');
+        if (isPlaceholder) {
+          i++;
+          continue;
+        }
         messages.add({
           'id': '${id}_u$i',
           'localId': localId,
@@ -177,11 +192,8 @@ void _processPiContent({
           'createdAt': createdAt,
           'role': 'agent',
           'kind': 'tool-call',
-          'name': block['name'] ?? block['server_name'] ?? type,
-          'input':
-              WireParsers.asMap(block['input']) ??
-              WireParsers.asMap(block['arguments']) ??
-              <String, dynamic>{},
+          'name': toolName.isEmpty ? type : toolName,
+          'input': input,
           'toolUseId': toolUseId,
           'state': 'running',
           'content': block,
@@ -214,12 +226,14 @@ void _processPiContent({
   }
 
   if (dataType == 'result') {
+    var handled = false;
     final batchedResults = WireParsers.asList(data['toolResults']) ?? const [];
     for (final item in batchedResults) {
       final tr = WireParsers.asMap(item);
       if (tr == null) continue;
       final toolUseId = (tr['toolCallId'] ?? tr['tool_use_id']) as String?;
       if (toolUseId == null || toolUseId.isEmpty) continue;
+      handled = true;
       toolResults.add({
         'toolUseId': toolUseId,
         'result': tr['content'],
@@ -229,6 +243,64 @@ void _processPiContent({
         'uuid': ?meta.uuid,
         'parentUuid': ?meta.parentUuid,
       });
+    }
+    final outputItems = WireParsers.asList(data['output']) ?? const [];
+    var i = 0;
+    for (final item in outputItems) {
+      final row = WireParsers.asMap(item);
+      if (row == null) {
+        i++;
+        continue;
+      }
+      final role = row['role'] as String?;
+      final callId =
+          (row['toolCallId'] ?? row['callId'] ?? row['id']) as String?;
+      if (callId == null || callId.isEmpty) {
+        i++;
+        continue;
+      }
+      if (role == 'toolCall') {
+        handled = true;
+        messages.add({
+          'id': '${id}_ro$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': row['toolName'] ?? row['name'] ?? 'unknown',
+          'input':
+              WireParsers.asMap(row['arguments']) ??
+              WireParsers.asMap(row['args']) ??
+              WireParsers.asMap(row['input']) ??
+              <String, dynamic>{},
+          'toolUseId': callId,
+          'state': _webSearchState(row['status'] as String?),
+          'content': row,
+          'raw': outerContent,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': callId,
+          'parentUuid': ?meta.parentUuid,
+        });
+      } else if (role == 'toolResult') {
+        handled = true;
+        toolResults.add({
+          'toolUseId': callId,
+          'result': row['content'] ?? row['output'] ?? row['result'],
+          'isError': row['isError'] == true || row['is_error'] == true,
+          'createdAt': createdAt,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': callId,
+          'parentUuid': ?meta.parentUuid,
+        });
+      }
+      i++;
+    }
+    if (!handled) {
+      droppedReasons?.add(
+        'pi result with no tool rows '
+        '(keys=${data.keys.toList()})',
+      );
     }
     return;
   }

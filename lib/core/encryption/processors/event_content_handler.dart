@@ -11,7 +11,12 @@ void _processEventContent({
 }) {
   final data = nestedContent['data'];
   if (data is! Map<String, dynamic>) return;
-  if (data['type'] == 'ready') return;
+  final dataType = data['type'] as String?;
+  if (dataType == 'ready' ||
+      dataType == 'thinking' ||
+      dataType == 'tool-execution-update') {
+    return;
+  }
 
   messages.add({
     'id': id,

@@ -177,6 +177,34 @@ void main() {
         expect(result.messages.first['content'], 'alt field');
       });
 
+      test('skips event thinking and tool-execution-update rows', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'event',
+                'data': {'type': 'thinking', 'content': 'part 1'},
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'event',
+                'data': {'type': 'tool-execution-update'},
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+            {'id': 'm2', 'seq': 2, 'createdAt': 1001},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+      });
+
       test('processes agent output with tool_use', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
@@ -867,6 +895,42 @@ void main() {
             },
           },
         );
+      });
+    });
+
+    group('pi content', () {
+      test('skips placeholder tool_use rows with empty name/input', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'pi',
+                'data': {
+                  'type': 'assistant',
+                  'id': 'pi-msg-1',
+                  'message': {
+                    'content': [
+                      {
+                        'id': 'pi_1_1',
+                        'type': 'tool_use',
+                        'name': '',
+                        'input': null,
+                        'inputText': '(map[])',
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
       });
     });
 
