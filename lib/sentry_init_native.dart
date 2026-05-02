@@ -85,6 +85,11 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
 
   // Fire-and-forget: verify Sentry connectivity.
   unawaited(_pingSentry());
+
+  logger.info(
+    '[Sentry] filterNonActionable=$sentryFilterNonActionable '
+    'dropReasons=${sentryDropReasonSet.join(',')}',
+  );
 }
 
 Future<void> _pingSentry() async {

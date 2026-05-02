@@ -44,7 +44,10 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..beforeSend = _beforeSend;
   }, appRunner: appRunner != null ? () => appRunner() : null);
 
-  logger.info('[Sentry] Web SDK initialized');
+  logger.info(
+    '[Sentry] Web SDK initialized (filterNonActionable='
+    '$sentryFilterNonActionable, dropReasons=${sentryDropReasonSet.join(',')})',
+  );
 }
 
 /// Patterns that indicate a transient network error.
