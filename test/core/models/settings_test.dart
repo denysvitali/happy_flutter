@@ -153,6 +153,16 @@ void main() {
       expect(next.containsKey('claude'), isFalse);
     });
 
+    test('lastUsedProfilesWithAgent writes survive a read-back via '
+        'lastUsedProfileForAgent', () {
+      final settings = Settings()
+        ..lastUsedProfilesByAgent = Settings()
+            .lastUsedProfilesWithAgent('pi', 'profile-z');
+
+      expect(settings.lastUsedProfileForAgent('pi'), 'profile-z');
+      expect(settings.lastUsedProfileForAgent('claude'), isNull);
+    });
+
     test('lastUsedProfilesWithAgent removes pi entry when null is passed', () {
       final settings = Settings()
         ..lastUsedProfilesByAgent = {'pi': 'profile-y'};

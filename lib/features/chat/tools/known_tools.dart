@@ -506,6 +506,82 @@ class KnownTools {
       minimal: true,
       noStatus: true,
     ),
+    // Pi-specific lowercase tools. Pi emits tool names in lowercase, so
+    // mirror the Title-case Claude entries to keep icon/title parity.
+    'bash': ToolDefinition(
+      icon: bashIcon,
+      title: 'Terminal',
+      minimal: true,
+      hideDefaultError: true,
+      isMutable: true,
+      extractSubtitle: (tool, _) => tool['input']?['command'] as String?,
+      extractDescription: (tool, _) {
+        final cmd = tool['input']?['command'] as String?;
+        if (cmd == null) return null;
+        final firstWord = cmd.split(' ').first;
+        if ([
+          'cd',
+          'ls',
+          'pwd',
+          'mkdir',
+          'rm',
+          'cp',
+          'mv',
+          'npm',
+          'yarn',
+          'git',
+        ].contains(firstWord)) {
+          return '$firstWord command';
+        }
+        return cmd.length > 20 ? '${cmd.substring(0, 20)}...' : cmd;
+      },
+    ),
+    'write': ToolDefinition(
+      icon: editIcon,
+      title: 'Write File',
+      isMutable: true,
+      extractSubtitle: (tool, metadata) {
+        final filePath = tool['input']?['file_path'] as String?;
+        if (filePath != null) {
+          return resolvePath(filePath, metadata);
+        }
+        return null;
+      },
+    ),
+    'grep': ToolDefinition(
+      icon: searchIcon,
+      title: 'Search Content',
+      minimal: true,
+      extractDescription: (tool, _) {
+        final pattern = tool['input']?['pattern'] as String?;
+        if (pattern == null) return null;
+        final truncated = pattern.length > 20
+            ? '${pattern.substring(0, 20)}...'
+            : pattern;
+        return 'grep($truncated)';
+      },
+    ),
+    'find': ToolDefinition(
+      icon: searchIcon,
+      title: 'Search Files',
+      minimal: true,
+      extractDescription: (tool, _) {
+        final pattern = tool['input']?['pattern'] as String?;
+        return pattern != null ? 'Pattern: $pattern' : null;
+      },
+    ),
+    'ls': ToolDefinition(
+      icon: searchIcon,
+      title: 'List Files',
+      minimal: true,
+      extractDescription: (tool, metadata) {
+        final path = tool['input']?['path'] as String?;
+        if (path == null) return null;
+        final resolvedPath = resolvePath(path, metadata);
+        final basename = resolvedPath.split('/').lastOrNull ?? resolvedPath;
+        return basename;
+      },
+    ),
     // Codex tools
     'CodexBash': ToolDefinition(
       icon: bashIcon,
