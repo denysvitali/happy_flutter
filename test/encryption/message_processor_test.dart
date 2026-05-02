@@ -351,6 +351,220 @@ void main() {
       });
     });
 
+    group('pi content', () {
+      test('processes pi assistant with tool_use block', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'pi',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u1',
+                  'message': {
+                    'content': [
+                      {
+                        'type': 'tool_use',
+                        'id': 'tu1',
+                        'name': 'bash',
+                        'input': {'command': 'echo hello'},
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'tool-call');
+        expect(result.messages.first['name'], 'bash');
+        expect(result.messages.first['state'], 'running');
+        expect(result.messages.first['toolUseId'], 'tu1');
+        expect(result.messages.first['input']['command'], 'echo hello');
+      });
+
+      test('processes pi assistant with text block', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'pi',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u1',
+                  'message': {
+                    'content': [
+                      {'type': 'text', 'text': 'Hello, how can I help?'},
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'text');
+        expect(result.messages.first['content'], 'Hello, how can I help?');
+        expect(result.messages.first['isThinking'], isNull);
+      });
+
+      test('processes pi assistant with thinking block', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'pi',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u1',
+                  'message': {
+                    'content': [
+                      {
+                        'type': 'thinking',
+                        'thinking':
+                            'The user wants me to check something',
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['isThinking'], true);
+        expect(
+          result.messages.first['content'],
+          contains('The user wants me to check something'),
+        );
+      });
+
+      test('processes pi assistant with tool_result block', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'pi',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u1',
+                  'message': {
+                    'content': [
+                      {
+                        'type': 'tool_result',
+                        'tool_use_id': 'tu1',
+                        'content': 'output of tool',
+                        'is_error': false,
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+        expect(result.toolResults, hasLength(1));
+        expect(result.toolResults.first['toolUseId'], 'tu1');
+        expect(result.toolResults.first['result'], 'output of tool');
+        expect(result.toolResults.first['isError'], false);
+      });
+
+      test('processes pi assistant with mixed content blocks', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'pi',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u1',
+                  'message': {
+                    'content': [
+                      {'type': 'thinking', 'thinking': 'Let me think...'},
+                      {
+                        'type': 'tool_use',
+                        'id': 'tu1',
+                        'name': 'readFile',
+                        'input': {'path': '/test.txt'},
+                      },
+                      {'type': 'text', 'text': 'I read the file for you.'},
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        // 3 blocks: thinking, tool_use, text
+        expect(result.messages, hasLength(3));
+        expect(result.messages[0]['isThinking'], true);
+        expect(result.messages[1]['kind'], 'tool-call');
+        expect(result.messages[1]['name'], 'readFile');
+        expect(result.messages[2]['kind'], 'text');
+        expect(result.messages[2]['content'], 'I read the file for you.');
+      });
+
+      test('drops pi assistant with unhandled dataType (legacy tool-call)', () {
+        // The old 'tool-call' dataType path should still work
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'pi',
+                'data': {
+                  'type': 'tool-call',
+                  'toolName': 'bash',
+                  'args': {'command': 'ls'},
+                  'callId': 'call1',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'tool-call');
+        expect(result.messages.first['name'], 'bash');
+      });
+    });
+
     group('event content', () {
       test('processes non-ready events', () {
         final result = processDecryptedMessages(

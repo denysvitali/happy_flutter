@@ -103,6 +103,112 @@ void _processPiContent({
     return;
   }
 
+  // pi's anthropic-messages API emits 'assistant' with a message.content
+  // list (text, thinking, tool_use blocks) — same shape as output/assistant.
+  if (dataType == 'assistant') {
+    final effectiveUuid = (meta.uuid != null && meta.uuid!.isNotEmpty)
+        ? meta.uuid!
+        : id;
+
+    final agentMsg = WireParsers.asMap(data['message']);
+    if (agentMsg == null) return;
+
+    final agentContentList = agentMsg['content'];
+    if (agentContentList is! List) return;
+
+    var i = 0;
+    for (final c in agentContentList) {
+      final block = WireParsers.asMap(c);
+      if (block == null) {
+        i++;
+        continue;
+      }
+      final type = block['type'] as String?;
+
+      if (type == 'text') {
+        final text = block['text']?.toString() ?? '';
+        if (text.isEmpty) {
+          i++;
+          continue;
+        }
+        messages.add({
+          'id': '${id}_t$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'content': text,
+          'raw': outerContent,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': effectiveUuid,
+          'parentUuid': ?meta.parentUuid,
+        });
+      } else if (type == 'thinking') {
+        final thinking = block['thinking']?.toString() ?? '';
+        if (thinking.isEmpty) {
+          i++;
+          continue;
+        }
+        messages.add({
+          'id': '${id}_k$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'isThinking': true,
+          'content': '*Thinking...*\n\n*$thinking*',
+          'raw': outerContent,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': effectiveUuid,
+          'parentUuid': ?meta.parentUuid,
+        });
+      } else if (type == 'tool_use' ||
+          type == 'server_tool_use' ||
+          type == 'mcp_tool_use' ||
+          type == 'code_execution_tool_use') {
+        final toolUseId = block['id'] as String?;
+        messages.add({
+          'id': '${id}_u$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': block['name'] ?? block['server_name'] ?? type,
+          'input': WireParsers.asMap(block['input']) ?? <String, dynamic>{},
+          'toolUseId': toolUseId,
+          'state': 'running',
+          'content': block,
+          'raw': outerContent,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': toolUseId ?? effectiveUuid,
+          'parentUuid': ?meta.parentUuid,
+        });
+      } else if (type == 'tool_result' ||
+          type == 'web_search_tool_result' ||
+          type == 'server_tool_result' ||
+          type == 'mcp_tool_result' ||
+          type == 'code_execution_tool_result') {
+        final toolUseId = block['tool_use_id'] as String?;
+        if (toolUseId != null && toolUseId.isNotEmpty) {
+          toolResults.add({
+            'toolUseId': toolUseId,
+            'result': block['content'],
+            'isError': block['is_error'] == true,
+            'createdAt': createdAt,
+            if (meta.isSidechain) 'isSidechain': true,
+            'uuid': effectiveUuid,
+            'parentUuid': ?meta.parentUuid,
+          });
+        }
+      }
+      i++;
+    }
+    return;
+  }
+
   // Unrecognized pi dataType
   droppedReasons?.add(
     'pi dataType=$dataType not handled '
