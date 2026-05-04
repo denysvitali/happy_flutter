@@ -76,5 +76,52 @@ void main() {
       expect(summary.credits!.unlimited, isTrue);
       expect(summary.credits!.balance, isNull);
     });
+
+    test('parses Spark limits from dedicated key', () {
+      final summary = CodexUsageSummary.fromJson({
+        'email': 'spark@example.com',
+        'plan_type': 'team',
+        'spark': {
+          'allowed': true,
+          'limit_reached': false,
+          'primary_window': {
+            'used_percent': 50,
+            'limit_window_seconds': 3600,
+            'reset_after_seconds': 120,
+            'reset_at': 1700000100,
+          },
+          'secondary_window': {
+            'used_percent': 70,
+            'limit_window_seconds': 86400,
+            'reset_after_seconds': 860,
+            'reset_at': 1700000999,
+          },
+        },
+      });
+
+      expect(summary.sparkRateLimit, isNotNull);
+      expect(summary.sparkRateLimit!.allowed, isTrue);
+      expect(summary.sparkRateLimit!.limitReached, isFalse);
+      expect(summary.sparkRateLimit!.primaryWindow, isNotNull);
+      expect(summary.sparkRateLimit!.primaryWindow!.usedPercent, 50);
+      expect(summary.sparkRateLimit!.primaryWindow!.resetAt, 1700000100);
+      expect(summary.sparkRateLimit!.secondaryWindow, isNotNull);
+      expect(summary.sparkRateLimit!.secondaryWindow!.usedPercent, 70);
+    });
+
+    test('parses Spark limits from nested rate_limit key', () {
+      final summary = CodexUsageSummary.fromJson({
+        'spark_rate_limit': {
+          'rate_limit': {
+            'allowed': false,
+            'limit_reached': true,
+          },
+        },
+      });
+
+      expect(summary.sparkRateLimit, isNotNull);
+      expect(summary.sparkRateLimit!.allowed, isFalse);
+      expect(summary.sparkRateLimit!.limitReached, isTrue);
+    });
   });
 }

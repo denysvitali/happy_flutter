@@ -512,7 +512,7 @@ extension SyncSessionOperations on Sync {
   }) async {
     final machine = _machines[machineId];
     final cwd = machine?.metadata?.homeDir ?? '/';
-    const command = r"""
+    const codexUsageBashScript = r"""
 python3 <<'PY'
 import json
 import os
@@ -590,37 +590,100 @@ print(json.dumps({'success': True, 'data': payload}))
 PY
 """;
 
-    final response = await machineBash(
-      machineId: machineId,
-      command: command,
-      cwd: cwd,
-    );
-
-    if (!response.success) {
+    CodexUsageSummaryResponse parseRpcResponse(Map<String, dynamic> raw) {
+      final data = raw['data'];
       return CodexUsageSummaryResponse(
-        success: false,
-        error: response.stderr.isNotEmpty ? response.stderr : response.error,
+        success: raw['success'] == true,
+        data: data is Map<String, dynamic>
+            ? CodexUsageSummary.fromJson(data)
+            : data is Map
+                ? CodexUsageSummary.fromJson(Map<String, dynamic>.from(data))
+                : null,
+        error: raw['error'] as String?,
       );
+    }
+
+    Future<CodexUsageSummaryResponse> fetchFromBash() async {
+      final response = await machineBash(
+        machineId: machineId,
+        command: codexUsageBashScript,
+        cwd: cwd,
+      );
+
+      if (!response.success) {
+        return CodexUsageSummaryResponse(
+          success: false,
+          error: response.stderr.isNotEmpty ? response.stderr : response.error,
+        );
+      }
+
+      try {
+        final raw = jsonDecode(response.stdout) as Map<String, dynamic>;
+        final success = raw['success'] == true;
+        final data = raw['data'];
+        if (!success) {
+          return CodexUsageSummaryResponse(
+            success: false,
+            error: raw['error'] as String?,
+          );
+        }
+        return CodexUsageSummaryResponse(
+          success: true,
+          data: data is Map<String, dynamic>
+              ? CodexUsageSummary.fromJson(data)
+              : data is Map
+                  ? CodexUsageSummary.fromJson(Map<String, dynamic>.from(data))
+                  : null,
+          error: raw['error'] as String?,
+        );
+      } catch (error, stackTrace) {
+        logger.error('machineGetCodexUsage parse error', error, stackTrace);
+        return const CodexUsageSummaryResponse(
+          success: false,
+          error: 'Failed to parse Codex usage response',
+        );
+      }
     }
 
     try {
-      final raw = jsonDecode(response.stdout) as Map<String, dynamic>;
-      final success = raw['success'] == true;
-      final data = raw['data'];
-      return CodexUsageSummaryResponse(
-        success: success,
-        data: success && data is Map<String, dynamic>
-            ? CodexUsageSummary.fromJson(data)
-            : null,
-        error: raw['error'] as String?,
+      final response = await _typedMachineRPC(
+        machineId,
+        'get-codex-usage',
+        <String, dynamic>{},
+        parseRpcResponse,
+        timeout: const Duration(seconds: 20),
       );
+      if (!response.success) {
+        return response;
+      }
+      if (response.data == null) {
+        return const CodexUsageSummaryResponse(
+          success: false,
+          error: 'Codex usage data missing',
+        );
+      }
+      return response;
     } catch (error, stackTrace) {
-      logger.error('machineGetCodexUsage parse error', error, stackTrace);
-      return const CodexUsageSummaryResponse(
-        success: false,
-        error: 'Failed to parse Codex usage response',
-      );
+      if (error is StateError && error.message.contains('not connected')) {
+        logger.info('machineGetCodexUsage: machine offline');
+        return const CodexUsageSummaryResponse(
+          success: false,
+          error: 'machine offline',
+        );
+      } else if (Sync._isRpcMethodNotAvailable(error)) {
+        logger.info(
+          'machineGetCodexUsage: RPC method not available '
+          '(daemon too old); falling back to machineBash',
+        );
+      } else if (Sync._isTransientConnectionError(error) ||
+          Sync._isRpcReplicaTimeout(error)) {
+        logger.info('machineGetCodexUsage: transient RPC failure — $error');
+      } else {
+        logger.error('machineGetCodexUsage RPC error', error, stackTrace);
+      }
     }
+
+    return fetchFromBash();
   }
 
   /// Create a git worktree on a machine under `.dev/worktree/<name>`

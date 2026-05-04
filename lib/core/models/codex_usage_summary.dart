@@ -36,6 +36,28 @@ CodexUsageSummaryRateLimit? _rateLimitFromJson(dynamic value) {
   return null;
 }
 
+CodexUsageSummaryRateLimit? _extractRateLimit(dynamic value) {
+  if (value == null) return null;
+  if (value is Map<String, dynamic>) {
+    if (value.containsKey('rate_limit') && value['rate_limit'] is Map) {
+      return CodexUsageSummaryRateLimit.fromJson(
+        Map<String, dynamic>.from(value['rate_limit'] as Map),
+      );
+    }
+    return CodexUsageSummaryRateLimit.fromJson(value);
+  }
+  if (value is Map) {
+    final map = Map<String, dynamic>.from(value);
+    if (map.containsKey('rate_limit') && map['rate_limit'] is Map) {
+      return CodexUsageSummaryRateLimit.fromJson(
+        Map<String, dynamic>.from(map['rate_limit'] as Map),
+      );
+    }
+    return CodexUsageSummaryRateLimit.fromJson(map);
+  }
+  return null;
+}
+
 CodexUsageSummaryCredits? _creditsFromJson(dynamic value) {
   if (value is Map<String, dynamic>) {
     return CodexUsageSummaryCredits.fromJson(value);
@@ -119,6 +141,7 @@ class CodexUsageSummary {
     required this.rateLimit,
     required this.codeReviewRateLimit,
     required this.credits,
+    this.sparkRateLimit,
   });
 
   factory CodexUsageSummary.fromJson(Map<String, dynamic> json) {
@@ -128,6 +151,9 @@ class CodexUsageSummary {
       rateLimit: _rateLimitFromJson(json['rate_limit']),
       codeReviewRateLimit: _rateLimitFromJson(json['code_review_rate_limit']),
       credits: _creditsFromJson(json['credits']),
+      sparkRateLimit: _extractRateLimit(json['spark_rate_limit']) ??
+          _extractRateLimit(json['spark']) ??
+          _extractRateLimit(json['codex_spark']),
     );
   }
 
@@ -136,6 +162,7 @@ class CodexUsageSummary {
   final CodexUsageSummaryRateLimit? rateLimit;
   final CodexUsageSummaryRateLimit? codeReviewRateLimit;
   final CodexUsageSummaryCredits? credits;
+  final CodexUsageSummaryRateLimit? sparkRateLimit;
 }
 
 class CodexUsageSummaryResponse {

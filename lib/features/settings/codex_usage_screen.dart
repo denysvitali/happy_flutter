@@ -222,6 +222,34 @@ class _CodexUsageBody extends StatelessWidget {
             ],
           ),
         ],
+        if (report.sparkRateLimit != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          SettingsSection(
+            title: 'Spark',
+            children: [
+              _CodexUsageBooleanRow(
+                icon: Icons.auto_awesome,
+                title: l10n.codexUsageCreditsAvailable,
+                value: report.sparkRateLimit!.allowed,
+                iconColor: AppColors.info,
+              ),
+              if (report.sparkRateLimit!.primaryWindow != null)
+                _CodexUsageWindowRow(
+                  icon: Icons.schedule,
+                  title: l10n.codexUsagePrimaryWindow,
+                  window: report.sparkRateLimit!.primaryWindow!,
+                  iconColor: AppColors.warning,
+                ),
+              if (report.sparkRateLimit!.secondaryWindow != null)
+                _CodexUsageWindowRow(
+                  icon: Icons.date_range_outlined,
+                  title: l10n.codexUsageSecondaryWindow,
+                  window: report.sparkRateLimit!.secondaryWindow!,
+                  iconColor: AppColors.success,
+                ),
+            ],
+          ),
+        ],
         if (report.credits != null) ...[
           const SizedBox(height: AppSpacing.lg),
           SettingsSection(
