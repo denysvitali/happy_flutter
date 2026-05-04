@@ -55,14 +55,7 @@ jobs:
         with:
           channel: stable
           version: 3.38.7
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
+          cache: true
 
       - name: Get dependencies
         run: flutter pub get
@@ -88,14 +81,7 @@ jobs:
         with:
           channel: stable
           version: 3.38.7
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
+          cache: true
 
       - name: Get dependencies
         run: flutter pub get
@@ -190,14 +176,7 @@ jobs:
         with:
           channel: stable
           version: 3.38.7
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
+          cache: true
 
       - name: Get dependencies
         run: flutter pub get
@@ -259,20 +238,21 @@ jobs:
         with:
           channel: stable
           version: 3.38.7
+          cache: true
+
+      - name: Cache Android NDK
+        id: ndk-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+          key: ${{ runner.os }}-android-ndk-28.2.13676358
 
       - name: Setup Android NDK
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "ndk;28.2.13676358"
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
 
       - name: Cache Gradle
         uses: actions/cache@v5
@@ -286,13 +266,6 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Stabilize Kotlin compiler
-        run: |
-          mkdir -p ~/.gradle
-          {
-            echo 'kotlin.compiler.execution.strategy=in-process'
-          } >> ~/.gradle/gradle.properties
 
       - name: Determine flavor
         id: flavor
@@ -386,22 +359,22 @@ jobs:
         with:
           channel: stable
           version: 3.38.7
+          cache: true
+
+      - name: Cache Android NDK
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        id: ndk-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
+          key: ${{ runner.os }}-android-ndk-28.2.13676358
 
       - name: Setup Android NDK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' && steps.ndk-cache.outputs.cache-hit != 'true' }}
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "ndk;28.2.13676358"
-
-      - name: Cache pub dependencies
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
 
       - name: Cache Gradle
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
@@ -417,14 +390,6 @@ jobs:
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: flutter pub get
-
-      - name: Stabilize Kotlin compiler
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: |
-          mkdir -p ~/.gradle
-          {
-            echo 'kotlin.compiler.execution.strategy=in-process'
-          } >> ~/.gradle/gradle.properties
 
       - name: Determine flavor
         id: flavor
@@ -516,14 +481,7 @@ jobs:
         with:
           channel: stable
           version: 3.38.7
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
+          cache: true
 
       - name: Get dependencies
         run: flutter pub get
