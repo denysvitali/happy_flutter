@@ -88,6 +88,12 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         _smallFastModelCtrl.text = 'MiniMax-M2.7';
         _timeoutCtrl.text = '3000000';
         break;
+      case 'xiaomi-mimo':
+        _baseUrlCtrl.text = 'https://token-plan-sgp.xiaomimimo.com/anthropic';
+        _modelCtrl.text = 'mimo-v2.5-pro';
+        _smallFastModelCtrl.text = 'mimo-v2.5-pro';
+        _timeoutCtrl.text = '3000000';
+        break;
       case 'openrouter':
         _baseUrlCtrl.text = 'https://openrouter.ai/api';
         _modelCtrl.text = 'anthropic/claude-opus-4.6';
@@ -238,6 +244,45 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
             );
           break;
         case 'minimax':
+          envVars
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_MODEL',
+                value: _modelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_SMALL_FAST_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+                value: _modelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+                value: _smallFastModelCtrl.text,
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+                value: '1',
+              ),
+            );
+          break;
+        case 'xiaomi-mimo':
           envVars
             ..add(
               EnvironmentVariable(

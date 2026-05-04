@@ -61,6 +61,14 @@ ProfileSetupOption? _profileSetupOptionForId(String id) {
         icon: Icons.memory,
         apiKeyLabel: 'MiniMax API Key',
       );
+    case 'xiaomi-mimo':
+      return const ProfileSetupOption(
+        id: 'xiaomi-mimo',
+        label: 'Xiaomi MiMo',
+        shortDescription: 'MiMo-V2.5-Pro',
+        icon: Icons.rocket_launch,
+        apiKeyLabel: 'Xiaomi MiMo API Key',
+      );
     case 'openrouter':
       return const ProfileSetupOption(
         id: 'openrouter',
@@ -205,6 +213,47 @@ AIBackendProfile? profileSetupTemplate(String id) {
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
             value: 'MiniMax-M2.7',
+          ),
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '3000000'),
+          EnvironmentVariable(
+            name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+            value: '1',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          gemini: false,
+        ),
+      );
+    case 'xiaomi-mimo':
+      return AIBackendProfile(
+        id: 'xiaomi-mimo',
+        name: 'Xiaomi MiMo (Token Plan)',
+        description:
+            'Xiaomi MiMo Token Plan via Anthropic-compatible interface',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value: 'https://token-plan-sgp.xiaomimimo.com/anthropic',
+          ),
+          EnvironmentVariable(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
+          EnvironmentVariable(name: 'ANTHROPIC_MODEL', value: 'mimo-v2.5-pro'),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_SMALL_FAST_MODEL',
+            value: 'mimo-v2.5-pro',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+            value: 'mimo-v2.5-pro',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+            value: 'mimo-v2.5-pro',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+            value: 'mimo-v2.5-pro',
           ),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '3000000'),
           EnvironmentVariable(

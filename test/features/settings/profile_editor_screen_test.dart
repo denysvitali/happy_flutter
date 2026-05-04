@@ -76,6 +76,7 @@ void main() {
           'deepseek' => 'DeepSeek',
           'zai' => 'Z.AI GLM',
           'minimax' => 'MiniMax',
+          'xiaomi-mimo' => 'Xiaomi MiMo',
           'openai' => 'OpenAI',
           _ => profile.name,
         };

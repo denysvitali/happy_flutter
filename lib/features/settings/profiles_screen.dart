@@ -592,6 +592,8 @@ IconData _iconForProfile(String id) {
       return Icons.bolt;
     case 'minimax':
       return Icons.memory;
+    case 'xiaomi-mimo':
+      return Icons.rocket_launch;
     case 'openrouter':
       return Icons.hub;
     case 'openai':

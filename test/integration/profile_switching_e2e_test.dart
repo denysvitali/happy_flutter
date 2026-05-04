@@ -1258,8 +1258,8 @@ void main() {
       expect(result, isNull);
     });
 
-    test('builtInProfiles returns all 7 profiles', () {
-      expect(builtInProfiles.length, 7);
+    test('builtInProfiles returns all 8 profiles', () {
+      expect(builtInProfiles.length, 8);
       final ids = builtInProfiles.map((p) => p.id).toSet();
       expect(
         ids,
@@ -1268,6 +1268,7 @@ void main() {
           'deepseek',
           'zai',
           'minimax',
+          'xiaomi-mimo',
           'openrouter',
           'openai',
           'azure-openai',

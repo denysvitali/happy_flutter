@@ -128,6 +128,8 @@ Color colorForProfile(String id) {
       return const Color(0xFF6366F1);
     case 'minimax':
       return const Color(0xFFFF6B35);
+    case 'xiaomi-mimo':
+      return const Color(0xFFFF6900);
     case 'openrouter':
       return const Color(0xFF6D28D9);
     case 'openai':

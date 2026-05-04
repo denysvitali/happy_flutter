@@ -11,6 +11,7 @@ const _builtInIds = [
   'deepseek',
   'zai',
   'minimax',
+  'xiaomi-mimo',
   'openrouter',
   'openai',
   'azure-openai',
@@ -170,6 +171,62 @@ AIBackendProfile? getBuiltInProfile(String id) {
           EnvironmentVariable(
             name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
             value: r'${MINIMAX_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          gemini: false,
+          pi: true,
+        ),
+      );
+
+    case 'xiaomi-mimo':
+      return AIBackendProfile(
+        id: 'xiaomi-mimo',
+        name: 'Xiaomi MiMo (Token Plan)',
+        description:
+            'Xiaomi MiMo Token Plan via Anthropic-compatible interface',
+        isBuiltIn: true,
+        defaultModelMode: 'mimo-v2.5-pro',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value:
+                r'${XIAOMI_MIMO_BASE_URL:-https://token-plan-sgp.xiaomimimo.com/anthropic}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_AUTH_TOKEN',
+            value: r'${XIAOMI_MIMO_API_KEY:-}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_MODEL',
+            value: r'${XIAOMI_MIMO_MODEL:-mimo-v2.5-pro}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_SMALL_FAST_MODEL',
+            value: r'${XIAOMI_MIMO_SMALL_FAST_MODEL:-mimo-v2.5-pro}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+            value: r'${XIAOMI_MIMO_OPUS_MODEL:-mimo-v2.5-pro}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+            value: r'${XIAOMI_MIMO_SONNET_MODEL:-mimo-v2.5-pro}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+            value: r'${XIAOMI_MIMO_HAIKU_MODEL:-mimo-v2.5-pro}',
+          ),
+          EnvironmentVariable(
+            name: 'API_TIMEOUT_MS',
+            value: r'${XIAOMI_MIMO_API_TIMEOUT_MS:-3000000}',
+          ),
+          EnvironmentVariable(
+            name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+            value:
+                r'${XIAOMI_MIMO_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
           ),
         ],
         compatibility: const ProfileCompatibility(
