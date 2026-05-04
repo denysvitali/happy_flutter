@@ -276,6 +276,13 @@ extension _ChatScreenBuilders on _ChatScreenState {
   }) {
     if (!hideToolCalls || message['kind'] != 'tool-call') return false;
 
+    // Task/Agent tool calls always show — they represent
+    // agent sub-conversations and must render as TaskView
+    // with their inline children, never be collapsed into
+    // the hidden-tool-summary.
+    final toolName = message['name'] as String?;
+    if (toolName == 'Task' || toolName == 'Agent') return false;
+
     if (message['state'] == 'error') return false;
 
     final permission = WireParsers.asMap(message['permission']);
