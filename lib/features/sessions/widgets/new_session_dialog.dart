@@ -22,6 +22,8 @@ enum NewSessionCreateBlocker {
   syncNotReady,
 }
 
+const _agentIds = ['claude', 'codex', 'gemini', 'pi', 'opencode'];
+
 NewSessionCreateBlocker? newSessionCreateBlocker({
   required Machine? machine,
   required bool machineOnline,
@@ -66,7 +68,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   void initState() {
     super.initState();
     final settings = ref.read(settingsNotifierProvider);
-    _selectedAgent = settings.lastUsedAgent ?? 'claude';
+    final lastUsedAgent = settings.lastUsedAgent;
+    _selectedAgent = _agentIds.contains(lastUsedAgent)
+        ? lastUsedAgent!
+        : 'claude';
     _selectedMachine = widget.initialMachineId;
     _selectedPath = widget.initialPath;
     Future<void>.microtask(
@@ -238,21 +243,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             },
           ),
           const SizedBox(height: AppSpacing.lg),
-          SegmentedButton<String>(
-            segments: [
-              ButtonSegment(value: 'claude', label: Text(l10n.sessionsClaude)),
-              ButtonSegment(value: 'codex', label: Text(l10n.sessionsCodex)),
-              ButtonSegment(value: 'gemini', label: Text(l10n.sessionsGemini)),
-              ButtonSegment(value: 'pi', label: Text(l10n.sessionsPi)),
-              ButtonSegment(
-                value: 'opencode',
-                label: Text(l10n.sessionsOpencode),
-              ),
-            ],
-            selected: {_selectedAgent},
-            onSelectionChanged: (selection) {
-              setState(() => _selectedAgent = selection.first);
-            },
+          _AgentPicker(
+            selectedAgent: _selectedAgent,
+            onSelected: (agent) => setState(() => _selectedAgent = agent),
           ),
           if (createBlocker != null) ...[
             const SizedBox(height: AppSpacing.md),
@@ -383,6 +376,116 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   }
 }
 
+class _AgentPicker extends StatelessWidget {
+  const _AgentPicker({required this.selectedAgent, required this.onSelected});
+
+  final String selectedAgent;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.sessionsAgent,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: _agentIds
+              .map((agent) {
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: agent == _agentIds.last ? 0 : AppSpacing.sm,
+                    ),
+                    child: _AgentOption(
+                      label: _agentLabel(l10n, agent),
+                      icon: _agentIcon(agent),
+                      selected: agent == selectedAgent,
+                      onTap: () => onSelected(agent),
+                    ),
+                  ),
+                );
+              })
+              .toList(growable: false),
+        ),
+      ],
+    );
+  }
+}
+
+class _AgentOption extends StatelessWidget {
+  const _AgentOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final borderColor = selected ? cs.primary : cs.outlineVariant;
+    final iconColor = selected ? cs.primary : cs.onSurfaceVariant;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? cs.primaryContainer.withValues(alpha: AppOpacity.subtle)
+                : cs.surface,
+            border: Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: iconColor),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: selected ? cs.primary : cs.onSurfaceVariant,
+                  fontSize: AppFontSize.xs,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DialogRequirementStatus extends StatelessWidget {
   const _DialogRequirementStatus({
     required this.blocker,
@@ -425,6 +528,26 @@ class _DialogRequirementStatus extends StatelessWidget {
       ],
     );
   }
+}
+
+String _agentLabel(AppLocalizations l10n, String agent) {
+  return switch (agent) {
+    'codex' => l10n.sessionsCodex,
+    'gemini' => l10n.sessionsGemini,
+    'pi' => l10n.sessionsPi,
+    'opencode' => l10n.sessionsOpencode,
+    _ => l10n.sessionsClaude,
+  };
+}
+
+IconData _agentIcon(String agent) {
+  return switch (agent) {
+    'codex' => Icons.terminal_rounded,
+    'gemini' => Icons.auto_awesome_rounded,
+    'pi' => Icons.memory_rounded,
+    'opencode' => Icons.code_rounded,
+    _ => Icons.psychology_alt_rounded,
+  };
 }
 
 String _dialogRequirementText(
