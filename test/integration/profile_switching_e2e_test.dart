@@ -118,6 +118,7 @@ void main() {
         agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
+        profileId: 'openai',
       );
 
       expect(capturedParams, isNotNull);
@@ -165,6 +166,7 @@ void main() {
         agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
+        profileId: 'azure-openai',
       );
 
       expect(capturedParams, isNotNull);
@@ -846,6 +848,7 @@ void main() {
         agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project-a',
+        profileId: 'deepseek',
       );
 
       // Switch to OpenAI
@@ -854,6 +857,7 @@ void main() {
         agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project-b',
+        profileId: 'openai',
       );
 
       final env1 =

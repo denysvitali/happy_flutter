@@ -66,7 +66,7 @@ void main() {
     });
 
     test('adds a truncation marker when it fits', () async {
-      final text = 'abcdefghijklmnopqrstuvwxyz';
+      final text = 'abcdefghijklmnopqrstuvwxyz0123456789';
       final result = await setClipboardTextSafely(text, maxBytes: 32);
 
       expect(result.success, isTrue);
