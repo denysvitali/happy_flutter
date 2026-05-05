@@ -591,14 +591,16 @@ PY
 """;
 
     CodexUsageSummaryResponse parseRpcResponse(Map<String, dynamic> raw) {
-      final data = raw['data'];
+      final data = raw.containsKey('data') ? raw['data'] : raw;
+      final summary = data is Map<String, dynamic>
+          ? CodexUsageSummary.fromJson(data)
+          : data is Map
+          ? CodexUsageSummary.fromJson(Map<String, dynamic>.from(data))
+          : null;
+      final hasSummary = summary?.hasUsageData ?? false;
       return CodexUsageSummaryResponse(
-        success: raw['success'] == true,
-        data: data is Map<String, dynamic>
-            ? CodexUsageSummary.fromJson(data)
-            : data is Map
-                ? CodexUsageSummary.fromJson(Map<String, dynamic>.from(data))
-                : null,
+        success: raw['success'] == true || hasSummary,
+        data: hasSummary ? summary : null,
         error: raw['error'] as String?,
       );
     }
@@ -620,7 +622,13 @@ PY
       try {
         final raw = jsonDecode(response.stdout) as Map<String, dynamic>;
         final success = raw['success'] == true;
-        final data = raw['data'];
+        final data = raw['data'] ?? raw;
+        final summary = data is Map<String, dynamic>
+            ? CodexUsageSummary.fromJson(data)
+            : data is Map
+            ? CodexUsageSummary.fromJson(Map<String, dynamic>.from(data))
+            : null;
+        final hasSummary = summary?.hasUsageData ?? false;
         if (!success) {
           return CodexUsageSummaryResponse(
             success: false,
@@ -629,11 +637,7 @@ PY
         }
         return CodexUsageSummaryResponse(
           success: true,
-          data: data is Map<String, dynamic>
-              ? CodexUsageSummary.fromJson(data)
-              : data is Map
-                  ? CodexUsageSummary.fromJson(Map<String, dynamic>.from(data))
-                  : null,
+          data: hasSummary ? summary : null,
           error: raw['error'] as String?,
         );
       } catch (error, stackTrace) {

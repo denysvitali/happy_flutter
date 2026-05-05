@@ -222,33 +222,19 @@ class _CodexUsageBody extends StatelessWidget {
             ],
           ),
         ],
-        if (report.sparkRateLimit != null) ...[
-          const SizedBox(height: AppSpacing.lg),
-          SettingsSection(
-            title: 'Spark',
-            children: [
-              _CodexUsageBooleanRow(
-                icon: Icons.auto_awesome,
-                title: l10n.codexUsageCreditsAvailable,
-                value: report.sparkRateLimit!.allowed,
-                iconColor: AppColors.info,
+        for (final additionalLimit in report.additionalRateLimits) ...[
+          if (additionalLimit.rateLimit != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _CodexUsageRateLimitSection(
+              title: additionalLimit.displayName,
+              rateLimit: additionalLimit.rateLimit!,
+              windowTitles: _CodexUsageWindowTitles(
+                primary: l10n.codexUsagePrimaryWindow,
+                secondary: l10n.codexUsageSecondaryWindow,
               ),
-              if (report.sparkRateLimit!.primaryWindow != null)
-                _CodexUsageWindowRow(
-                  icon: Icons.schedule,
-                  title: l10n.codexUsagePrimaryWindow,
-                  window: report.sparkRateLimit!.primaryWindow!,
-                  iconColor: AppColors.warning,
-                ),
-              if (report.sparkRateLimit!.secondaryWindow != null)
-                _CodexUsageWindowRow(
-                  icon: Icons.date_range_outlined,
-                  title: l10n.codexUsageSecondaryWindow,
-                  window: report.sparkRateLimit!.secondaryWindow!,
-                  iconColor: AppColors.success,
-                ),
-            ],
-          ),
+              leadingIcon: Icons.auto_awesome,
+            ),
+          ],
         ],
         if (report.credits != null) ...[
           const SizedBox(height: AppSpacing.lg),
@@ -272,6 +258,61 @@ class _CodexUsageBody extends StatelessWidget {
             ],
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _CodexUsageWindowTitles {
+  const _CodexUsageWindowTitles({
+    required this.primary,
+    required this.secondary,
+  });
+
+  final String primary;
+  final String secondary;
+}
+
+class _CodexUsageRateLimitSection extends StatelessWidget {
+  const _CodexUsageRateLimitSection({
+    required this.title,
+    required this.rateLimit,
+    required this.windowTitles,
+    required this.leadingIcon,
+  });
+
+  final String title;
+  final CodexUsageSummaryRateLimit rateLimit;
+  final _CodexUsageWindowTitles windowTitles;
+  final IconData leadingIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
+    return SettingsSection(
+      title: title,
+      children: [
+        _CodexUsageBooleanRow(
+          icon: leadingIcon,
+          title: l10n.codexUsageCreditsAvailable,
+          value: rateLimit.allowed,
+          iconColor: AppColors.info,
+        ),
+        if (rateLimit.primaryWindow != null)
+          _CodexUsageWindowRow(
+            icon: Icons.schedule,
+            title: windowTitles.primary,
+            window: rateLimit.primaryWindow!,
+            iconColor: AppColors.warning,
+          ),
+        if (rateLimit.secondaryWindow != null)
+          _CodexUsageWindowRow(
+            icon: Icons.date_range_outlined,
+            title: windowTitles.secondary,
+            window: rateLimit.secondaryWindow!,
+            iconColor: AppColors.success,
+          ),
       ],
     );
   }
@@ -533,8 +574,7 @@ class _CodexUsageWindowRow extends StatelessWidget {
               value: fraction,
               minHeight: 6,
               backgroundColor: cs.surfaceContainerHighest,
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(barColor),
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
           if (resetsIn != null) ...[

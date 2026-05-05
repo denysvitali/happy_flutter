@@ -109,13 +109,149 @@ void main() {
       expect(summary.sparkRateLimit!.secondaryWindow!.usedPercent, 70);
     });
 
+    test('parses dynamic additional rate limits', () {
+      final summary = CodexUsageSummary.fromJson({
+        'additional_rate_limits': [
+          {
+            'limit_name': 'GPT-5.3-Codex-Spark',
+            'metered_feature': 'codex_bengalfox',
+            'rate_limit': {
+              'allowed': true,
+              'limit_reached': false,
+              'primary_window': {
+                'used_percent': 15,
+                'limit_window_seconds': 18000,
+                'reset_after_seconds': 10792,
+                'reset_at': 1777977286,
+              },
+              'secondary_window': {
+                'used_percent': 85,
+                'limit_window_seconds': 604800,
+                'reset_after_seconds': 370390,
+                'reset_at': 1778336883,
+              },
+            },
+          },
+          {
+            'limit_name': 'GPT-5.4-Codex',
+            'metered_feature': 'codex_future',
+            'rate_limit': {'allowed': false, 'limit_reached': true},
+          },
+          {'limit_name': 'Ignored without rate limit'},
+        ],
+      });
+
+      expect(summary.additionalRateLimits, hasLength(2));
+      expect(
+        summary.additionalRateLimits.first.displayName,
+        'GPT-5.3-Codex-Spark',
+      );
+      expect(
+        summary.additionalRateLimits.first.meteredFeature,
+        'codex_bengalfox',
+      );
+      expect(summary.additionalRateLimits.first.rateLimit, isNotNull);
+      expect(summary.additionalRateLimits.first.rateLimit!.allowed, isTrue);
+      expect(
+        summary.additionalRateLimits.first.rateLimit!.primaryWindow,
+        isNotNull,
+      );
+      expect(
+        summary
+            .additionalRateLimits
+            .first
+            .rateLimit!
+            .primaryWindow!
+            .usedPercent,
+        15,
+      );
+      expect(
+        summary.additionalRateLimits.first.rateLimit!.secondaryWindow,
+        isNotNull,
+      );
+      expect(
+        summary
+            .additionalRateLimits
+            .first
+            .rateLimit!
+            .secondaryWindow!
+            .usedPercent,
+        85,
+      );
+      expect(
+        summary.sparkRateLimit,
+        summary.additionalRateLimits.first.rateLimit,
+      );
+      expect(summary.additionalRateLimits.last.displayName, 'GPT-5.4-Codex');
+      expect(summary.additionalRateLimits.last.rateLimit!.allowed, isFalse);
+    });
+
+    test('parses Codex payload from happy usage command output', () {
+      final summary = CodexUsageSummary.fromJson({
+        'exitCode': 0,
+        'status': 'completed',
+        'stdout': '''
+Machine Usage
+Machine ID: machine-1
+
+Codex
+  {
+    "data": {
+      "additional_rate_limits": [
+        {
+          "limit_name": "GPT-5.3-Codex-Spark",
+          "rate_limit": {
+            "allowed": true,
+            "limit_reached": false,
+            "primary_window": {
+              "limit_window_seconds": 18000,
+              "reset_after_seconds": 10792,
+              "reset_at": 1777977286,
+              "used_percent": 15
+            }
+          }
+        }
+      ],
+      "email": "dev@example.com",
+      "plan_type": "prolite",
+      "rate_limit": {
+        "allowed": true,
+        "limit_reached": false
+      }
+    },
+    "provider": "codex",
+    "success": true
+  }
+
+Claude
+  {"provider": "claude", "success": false}
+''',
+      });
+
+      expect(summary.hasUsageData, isTrue);
+      expect(summary.email, 'dev@example.com');
+      expect(summary.planType, 'prolite');
+      expect(summary.rateLimit, isNotNull);
+      expect(summary.additionalRateLimits, hasLength(1));
+      expect(
+        summary.additionalRateLimits.single.displayName,
+        'GPT-5.3-Codex-Spark',
+      );
+      expect(
+        summary
+            .additionalRateLimits
+            .single
+            .rateLimit!
+            .primaryWindow!
+            .usedPercent,
+        15,
+      );
+    });
+
     test('parses Spark limits from nested rate_limit key', () {
       final summary = CodexUsageSummary.fromJson({
         'spark_rate_limit': {
-          'rate_limit': {
-            'allowed': false,
-            'limit_reached': true,
-          },
+          'rate_limit': {'allowed': false, 'limit_reached': true},
         },
       });
 
