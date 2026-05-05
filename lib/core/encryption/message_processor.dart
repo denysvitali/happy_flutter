@@ -317,6 +317,16 @@ ProcessedMessages processDecryptedMessages({
           sessionId: sessionId,
           outerContent: content,
           nestedContent: nestedContent,
+        );
+      } else if (contentType == 'opencode') {
+        _processOpenCodeContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          sessionId: sessionId,
+          outerContent: content,
+          nestedContent: nestedContent,
           messages: messages,
           toolResults: toolResults,
           usageUpdates: usageUpdates,
