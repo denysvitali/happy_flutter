@@ -244,7 +244,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               ButtonSegment(value: 'codex', label: Text(l10n.sessionsCodex)),
               ButtonSegment(value: 'gemini', label: Text(l10n.sessionsGemini)),
               ButtonSegment(value: 'pi', label: Text(l10n.sessionsPi)),
-              ButtonSegment(value: 'opencode', label: Text(l10n.sessionsOpencode)),
+              ButtonSegment(
+                value: 'opencode',
+                label: Text(l10n.sessionsOpencode),
+              ),
             ],
             selected: {_selectedAgent},
             onSelectionChanged: (selection) {
