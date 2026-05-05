@@ -21,7 +21,7 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/wire_parsers.dart';
-import '../../core/widgets/offline_banner.dart';
+import '../../core/widgets/sync_progress_bar.dart';
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
@@ -1109,7 +1109,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }) {
     return Column(
       children: [
-        const OfflineBanner(),
+        const SyncProgressBar(),
         Expanded(
           child: ValueListenableBuilder<int>(
             valueListenable: _messagePaneRevision,
