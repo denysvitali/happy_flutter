@@ -271,11 +271,10 @@ extension SyncSocketEvents on Sync {
     // active AI response floods the logger and triggers hundreds of
     // wasteful fetchMessages calls that immediately skip.
     //
-    // Keys are added to _pendingInlineMessageKeys BEFORE processing and
-    // moved to _recentInlineMessageKeys AFTER success.  This allows
-    // retry on failure: if processing throws, the key stays pending so
-    // the HTTP fallback can re-process the message without it being
-    // incorrectly deduped as "already seen".
+    // Keys are added to _pendingInlineMessageKeys before processing and
+    // moved to _recentInlineMessageKeys only after a successful inline
+    // upsert/apply. Fallback paths release the pending key so socket
+    // re-delivery can retry instead of being suppressed forever.
     final embeddedMessage = WireParsers.asMap(data['message']);
     if (embeddedMessage != null) {
       final msgId = embeddedMessage['id'] as String?;
@@ -408,8 +407,9 @@ extension SyncSocketEvents on Sync {
 
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
-      // Leave key in _pendingInlineMessageKeys so retry can re-enter
-      // inline path once encryption is initialized.
+      if (dedupKey != null) {
+        _pendingInlineMessageKeys.remove(dedupKey);
+      }
       messagesSync[sessionId]?.invalidate();
       _notifySessionMessagesChanged(sessionId);
       return;
@@ -430,6 +430,9 @@ extension SyncSocketEvents on Sync {
           for (final reason in processed.droppedReasons) {
             logger.warning('[inline] dropped: $reason');
           }
+        }
+        if (dedupKey != null) {
+          _pendingInlineMessageKeys.remove(dedupKey);
         }
         messagesSync[sessionId]?.invalidate();
         _notifySessionMessagesChanged(sessionId);
@@ -509,21 +512,15 @@ extension SyncSocketEvents on Sync {
 
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
-      // Remove the completed Future from the queue so new messages can
-      // start fresh processing without chaining onto a resolved Future.
-      // The queue entry is also removed on error (below) for symmetry.
-      _inlineProcessor.clearSession(sessionId);
     } catch (error, stack) {
       logger.warning(
         'Inline message processing failed — HTTP fetch will retry',
         error,
         stack,
       );
-      // Leave key in _pendingInlineMessageKeys so retry can re-process.
-      // Remove the failed Future from the queue so subsequent messages
-      // can re-enter the inline fast path instead of being silently
-      // dropped by chaining onto a rejected Future.
-      _inlineProcessor.clearSession(sessionId);
+      if (dedupKey != null) {
+        _pendingInlineMessageKeys.remove(dedupKey);
+      }
       messagesSync[sessionId]?.invalidate();
       _notifySessionMessagesChanged(sessionId);
     }

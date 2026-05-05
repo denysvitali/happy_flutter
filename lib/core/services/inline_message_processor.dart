@@ -19,10 +19,7 @@ class InlineMessageProcessor {
   /// the new task will execute after the current one
   /// completes (serial chaining). Cross-session tasks
   /// execute concurrently.
-  void enqueue(
-    String sessionId,
-    Future<void> Function() process,
-  ) {
+  void enqueue(String sessionId, Future<void> Function() process) {
     final previous = _queue[sessionId];
     // Wrap in a try-catch so a failed task doesn't break
     // the chain and block subsequent tasks.
@@ -34,12 +31,15 @@ class InlineMessageProcessor {
       }
     }
 
-    if (previous != null) {
-      _queue[sessionId] =
-          previous.then((_) => safeProcess());
-    } else {
-      _queue[sessionId] = safeProcess();
-    }
+    late final Future<void> current;
+    current = (previous ?? Future<void>.value())
+        .then((_) => safeProcess())
+        .whenComplete(() {
+          if (identical(_queue[sessionId], current)) {
+            _queue.remove(sessionId);
+          }
+        });
+    _queue[sessionId] = current;
   }
 
   /// Clear the queue for [sessionId].
@@ -53,8 +53,7 @@ class InlineMessageProcessor {
   }
 
   /// Whether a queue entry exists for [sessionId].
-  bool contains(String sessionId) =>
-      _queue.containsKey(sessionId);
+  bool contains(String sessionId) => _queue.containsKey(sessionId);
 
   /// The number of sessions with active queues.
   @visibleForTesting
