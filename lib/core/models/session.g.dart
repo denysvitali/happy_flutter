@@ -22,6 +22,7 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   hostPid: _asApiIntNullable(json['hostPid']),
   flavor: _asApiStringNullable(json['flavor']),
   lifecycleState: _asApiStringNullable(json['lifecycleState']),
+  lifecycleStateError: _asApiStringNullable(json['lifecycleStateError']),
   lifecycleStateSince: _asApiIntNullable(json['lifecycleStateSince']),
   sandboxEnabled: _sandboxEnabledFromJson(json['sandbox']),
 );
@@ -42,6 +43,7 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'hostPid': instance.hostPid,
   'flavor': instance.flavor,
   'lifecycleState': instance.lifecycleState,
+  'lifecycleStateError': instance.lifecycleStateError,
   'lifecycleStateSince': instance.lifecycleStateSince,
   'sandbox': _sandboxEnabledToJson(instance.sandboxEnabled),
 };

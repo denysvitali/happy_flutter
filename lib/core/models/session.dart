@@ -128,6 +128,7 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiIntNullable) int? hostPid,
     @JsonKey(fromJson: _asApiStringNullable) String? flavor,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,
+    @JsonKey(fromJson: _asApiStringNullable) String? lifecycleStateError,
     @JsonKey(fromJson: _asApiIntNullable) int? lifecycleStateSince,
     // sandbox field is stored as {enabled: bool} but we keep bool? in model
     @JsonKey(
@@ -343,8 +344,7 @@ abstract class Session with _$Session {
 
     /// Local-only: the folder this session belongs to.
     /// Not synced to the server.
-    @JsonKey(includeFromJson: false, includeToJson: false)
-    String? folder,
+    @JsonKey(includeFromJson: false, includeToJson: false) String? folder,
   }) = _Session;
 
   const Session._();
@@ -357,13 +357,15 @@ abstract class Session with _$Session {
 
   /// Returns `true` when presence is the string `'online'`.
   bool get isOnline => presence == 'online';
+
+  /// Returns `true` when the backend has marked the local agent process as
+  /// failed. Sends to this session may be stored but cannot be processed.
+  bool get hasLifecycleError => metadata?.lifecycleState == 'errored';
 }
 
 String _sessionIdFromJson(dynamic value) {
   if (value is String) return value;
-  throw FormatException(
-    'Expected String for id, got ${value.runtimeType}',
-  );
+  throw FormatException('Expected String for id, got ${value.runtimeType}');
 }
 
 @freezed

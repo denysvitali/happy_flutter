@@ -406,6 +406,47 @@ void main() {
       expect(find.text('Last seen 5m ago'), findsOneWidget);
     });
 
+    testWidgets('shows stopped-process feedback and blocks sends', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession().copyWith(
+        metadata: const Metadata(
+          host: 'workspace',
+          lifecycleState: 'errored',
+          lifecycleStateError:
+              'daemon started without a live local process for this '
+              'running session',
+        ),
+      );
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Agent failed'), findsOneWidget);
+      expect(find.text('Session process stopped'), findsOneWidget);
+      expect(
+        find.textContaining('No live local process is attached'),
+        findsOneWidget,
+      );
+
+      await tester.enterText(find.byType(TextField), 'continue');
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.pump();
+
+      expect(
+        find.textContaining('This session cannot respond'),
+        findsOneWidget,
+      );
+      expect(sync.messagesForSession('session_1'), isEmpty);
+      expect(find.text('continue'), findsOneWidget);
+    });
+
     testWidgets(
       'does not duplicate delivered state in the header for sent messages',
       (tester) async {
@@ -699,7 +740,8 @@ void main() {
         expect(
           find.byIcon(Icons.expand_less),
           findsOneWidget,
-          reason: 'Group should remain expanded after a new hidden tool '
+          reason:
+              'Group should remain expanded after a new hidden tool '
               'call arrives.',
         );
       },

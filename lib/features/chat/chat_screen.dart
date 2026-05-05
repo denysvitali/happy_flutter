@@ -62,6 +62,18 @@ enum _ChatDetailKind {
   fileViewer,
 }
 
+class _SessionSendIssue {
+  const _SessionSendIssue({
+    required this.title,
+    required this.message,
+    required this.snackBarText,
+  });
+
+  final String title;
+  final String message;
+  final String snackBarText;
+}
+
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({required this.sessionId, this.onBack, super.key});
@@ -717,6 +729,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return l10n.chatLastSeenDays(diff.inDays);
   }
 
+  _SessionSendIssue? get _sessionSendIssue {
+    final session = _session;
+    if (session == null || !session.hasLifecycleError) return null;
+    final detail = _formatLifecycleError(session.metadata?.lifecycleStateError);
+    final message = detail == null
+        ? 'The local agent process is gone for this session. '
+              'New messages would be saved, but there is no process '
+              'to answer them.'
+        : 'The local agent process is gone for this session. '
+              '$detail';
+    return _SessionSendIssue(
+      title: 'Session process stopped',
+      message: message,
+      snackBarText:
+          'This session cannot respond because its local '
+          'agent process stopped. Start a new session to continue.',
+    );
+  }
+
+  String? _formatLifecycleError(String? error) {
+    final trimmed = error?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    if (trimmed.contains('without a live local process')) {
+      return 'No live local process is attached to it.';
+    }
+    const maxLength = 140;
+    if (trimmed.length <= maxLength) return 'Reason: $trimmed';
+    return 'Reason: ${trimmed.substring(0, maxLength)}...';
+  }
+
+  void _showSendBlockedSnackBar(_SessionSendIssue issue) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(issue.snackBarText)));
+  }
+
   Map<String, dynamic>? _latestUserMessageWithStatus() {
     for (var i = _messages.length - 1; i >= 0; i--) {
       final message = _messages[i];
@@ -745,8 +794,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         !isReady &&
         lifecycleIsRecent &&
         (lifecycleState == 'starting' || lifecycleState == 'running');
+    final sendIssue = _sessionSendIssue;
 
-    if (isReady) {
+    if (sendIssue != null) {
+      chips.add(
+        const ChatAppBarStatusChip(
+          text: 'Agent failed',
+          color: AppColors.error,
+          icon: Icons.error_outline_rounded,
+        ),
+      );
+    } else if (isReady) {
       chips.add(
         const ChatAppBarStatusChip(
           text: 'Online',
@@ -1121,6 +1179,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             },
           ),
         ),
+        if (_sessionSendIssue case final issue?)
+          _SessionIssueBanner(issue: issue),
         ChatInput(
           sessionId: widget.sessionId,
           controller: _controller,
@@ -1152,5 +1212,66 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       machinesNotifierProvider.select((machines) => machines[machineId]),
     );
     return ChatMachineVitals.fromDaemonState(machine?.daemonState);
+  }
+}
+
+class _SessionIssueBanner extends StatelessWidget {
+  const _SessionIssueBanner({required this.issue});
+
+  final _SessionSendIssue issue;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: cs.errorContainer.withValues(alpha: 0.65),
+        border: Border(
+          top: BorderSide(color: cs.error.withValues(alpha: 0.22)),
+          bottom: BorderSide(color: cs.error.withValues(alpha: 0.22)),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 18,
+              color: cs.onErrorContainer,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    issue.title,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: cs.onErrorContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    issue.message,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onErrorContainer,
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

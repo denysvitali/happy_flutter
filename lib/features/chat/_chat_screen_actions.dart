@@ -480,6 +480,11 @@ extension _ChatScreenActions on _ChatScreenState {
 
   Future<void> _onOptionPress(String option) async {
     if (_isSending) return;
+    final sendIssue = _sessionSendIssue;
+    if (sendIssue != null) {
+      _showSendBlockedSnackBar(sendIssue);
+      return;
+    }
     try {
       final sentSessionId = await ref
           .read(chatActionNotifierProvider.notifier)
@@ -534,6 +539,11 @@ extension _ChatScreenActions on _ChatScreenState {
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
+    final sendIssue = _sessionSendIssue;
+    if (sendIssue != null) {
+      _showSendBlockedSnackBar(sendIssue);
+      return;
+    }
     final localId = sync.createLocalMessageId();
 
     unawaited(TtsService().stop());
