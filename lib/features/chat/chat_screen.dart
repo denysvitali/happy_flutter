@@ -124,6 +124,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
   int _lastLoadMoreMs = 0;
+  bool _canTriggerHistoryLoad = true;
+  bool _isAdjustingHistoryScroll = false;
+  double? _lastScrollMaxExtent;
+  double? _lastScrollPixels;
+  static const double _historyLoadThreshold = 300;
 
   // Cached slicing / index data for _buildMessageList.
   List<Map<String, dynamic>>? _cachedVisibleMessages;
@@ -587,6 +592,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!_scrollController.hasClients) return;
     final pos = _scrollController.position;
 
+    _preserveHistoryEdgeOnExtentGrowth(pos);
+
     final nearBottom = pos.pixels <= _autoScrollThreshold;
     if (nearBottom != _autoScroll) {
       // Updating the ValueNotifier directly — no setState needed,
@@ -594,21 +601,65 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _autoScroll = nearBottom;
     }
 
-    // In a reverse ListView (reverse: true), index 0 (oldest message) is at
-    // the BOTTOM and the last index (newest message) is at the TOP.
-    // At pixels = 0 (minScrollExtent): at the TOP, viewing newest messages.
-    // At pixels = maxScrollExtent: at the BOTTOM, viewing oldest messages.
+    // In this reverse ListView, index 0 is the newest message and is laid out
+    // at the visual bottom.
+    // At pixels = 0 (minScrollExtent): viewing newest messages.
+    // At pixels = maxScrollExtent: viewing oldest messages at history top.
     //
-    // Older messages are at the BOTTOM (index 0 direction), so we load older
-    // messages when the user scrolls to the BOTTOM — near maxScrollExtent.
-    final atBottom = pos.pixels >= pos.maxScrollExtent - 300;
-    if (atBottom) {
+    // Older messages are loaded when the user scrolls near maxScrollExtent.
+    final atHistoryEdge =
+        pos.pixels >= pos.maxScrollExtent - _historyLoadThreshold;
+    if (!atHistoryEdge) {
+      _canTriggerHistoryLoad = true;
+    }
+
+    if (atHistoryEdge &&
+        _canTriggerHistoryLoad &&
+        pos.isScrollingNotifier.value) {
       final now = DateTime.now().millisecondsSinceEpoch;
       if (now - _lastLoadMoreMs >= 200) {
         _lastLoadMoreMs = now;
+        _canTriggerHistoryLoad = false;
         _loadMore();
       }
     }
+
+    _rememberScrollMetrics(pos);
+  }
+
+  void _preserveHistoryEdgeOnExtentGrowth(ScrollPosition pos) {
+    if (_isAdjustingHistoryScroll || _isLoadingMore) return;
+
+    final previousMax = _lastScrollMaxExtent;
+    final previousPixels = _lastScrollPixels;
+    if (previousMax == null || previousPixels == null) return;
+
+    final extentDelta = pos.maxScrollExtent - previousMax;
+    if (extentDelta <= 1) return;
+
+    final wasNearHistoryEdge =
+        previousPixels >= previousMax - _historyLoadThreshold;
+    if (!wasNearHistoryEdge) return;
+
+    final previousDistance = (previousMax - previousPixels)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+    final target = (pos.maxScrollExtent - previousDistance)
+        .clamp(pos.minScrollExtent, pos.maxScrollExtent)
+        .toDouble();
+    if ((target - pos.pixels).abs() <= 1) return;
+
+    _isAdjustingHistoryScroll = true;
+    try {
+      pos.jumpTo(target);
+    } finally {
+      _isAdjustingHistoryScroll = false;
+    }
+  }
+
+  void _rememberScrollMetrics(ScrollPosition pos) {
+    _lastScrollMaxExtent = pos.maxScrollExtent;
+    _lastScrollPixels = pos.pixels;
   }
 
   void _loadMore() {
@@ -621,8 +672,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _messages.length,
       );
       _visibleCount = targetCount;
-      _isLoadingMore = false;
       _bumpMessagePaneRevision();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _isLoadingMore = false;
+      });
       return;
     }
 
