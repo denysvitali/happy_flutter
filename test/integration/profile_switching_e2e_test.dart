@@ -69,6 +69,7 @@ void main() {
       await sync.applySettings({'lastUsedProfile': 'deepseek'});
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -114,6 +115,7 @@ void main() {
       await sync.applySettings({'lastUsedProfile': 'openai'});
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -160,6 +162,7 @@ void main() {
       await sync.applySettings({'lastUsedProfile': 'azure-openai'});
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -195,6 +198,7 @@ void main() {
       await sync.applySettings({'lastUsedProfile': 'minimax'});
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -240,6 +244,7 @@ void main() {
       await sync.applySettings({'lastUsedProfile': 'zai'});
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -282,6 +287,7 @@ void main() {
 
       // No profile set — lastUsedProfile is null by default
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -318,6 +324,7 @@ void main() {
       await sync.applySettings({'lastUsedProfile': 'anthropic'});
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -354,6 +361,7 @@ void main() {
 
       // But pass DeepSeek explicitly
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
         profileId: 'deepseek',
@@ -431,6 +439,7 @@ void main() {
         });
 
         await sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
         );
@@ -491,6 +500,7 @@ void main() {
       });
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -535,6 +545,7 @@ void main() {
         });
 
         await sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
         );
@@ -582,6 +593,7 @@ void main() {
         });
 
         await sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
         );
@@ -623,6 +635,7 @@ void main() {
       });
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -663,6 +676,7 @@ void main() {
       });
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -710,6 +724,7 @@ void main() {
       });
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -759,6 +774,7 @@ void main() {
       });
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -827,6 +843,7 @@ void main() {
       // First session with DeepSeek
       await sync.applySettings({'lastUsedProfile': 'deepseek'});
       final session1 = await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project-a',
       );
@@ -834,6 +851,7 @@ void main() {
       // Switch to OpenAI
       await sync.applySettings({'lastUsedProfile': 'openai'});
       final session2 = await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project-b',
       );
@@ -877,6 +895,7 @@ void main() {
       // First session with DeepSeek
       await sync.applySettings({'lastUsedProfile': 'deepseek'});
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -884,6 +903,7 @@ void main() {
       // Switch to no profile
       await sync.applySettings({'lastUsedProfile': null});
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project-2',
       );
@@ -1177,6 +1197,7 @@ void main() {
       });
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -1211,6 +1232,7 @@ void main() {
         });
 
         await sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
         );

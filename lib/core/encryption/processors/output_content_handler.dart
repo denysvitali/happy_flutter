@@ -171,6 +171,7 @@ void _processOutputContent({
           'parentUuid': ?meta.parentUuid,
         });
       } else if (type == 'tool_use' ||
+          type == 'toolCall' ||
           type == 'server_tool_use' ||
           type == 'mcp_tool_use' ||
           type == 'code_execution_tool_use') {

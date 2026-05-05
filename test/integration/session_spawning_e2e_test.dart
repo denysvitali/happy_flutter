@@ -64,6 +64,7 @@ void main() {
       };
 
       final result = await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -102,6 +103,7 @@ void main() {
       await sync.applySettings({'lastUsedAgent': 'claude'});
 
       final result = await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -153,6 +155,7 @@ void main() {
         };
 
         await sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
         );
@@ -185,6 +188,7 @@ void main() {
       };
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -211,6 +215,7 @@ void main() {
         };
 
         await sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
           message: 'Fix the login bug',
@@ -245,6 +250,7 @@ void main() {
       };
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -265,7 +271,7 @@ void main() {
     test('createSession throws when not initialized', () {
       sync.testIsInitialized = false;
       expect(
-        () => sync.createSession(machineId: 'm', path: '/p'),
+        () => sync.createSession(agent: 'claude', machineId: 'm', path: '/p'),
         throwsA(
           isA<StateError>().having(
             (e) => e.message,
@@ -279,7 +285,7 @@ void main() {
     test('createSession throws when socket not connected', () {
       sync.testSocketConnectedOverride = false;
       expect(
-        () => sync.createSession(machineId: 'm', path: '/p'),
+        () => sync.createSession(agent: 'claude', machineId: 'm', path: '/p'),
         throwsA(
           isA<StateError>().having(
             (e) => e.message,
@@ -300,7 +306,7 @@ void main() {
       };
 
       expect(
-        () => sync.createSession(machineId: 'm', path: '/p'),
+        () => sync.createSession(agent: 'claude', machineId: 'm', path: '/p'),
         throwsA(
           isA<StateError>().having(
             (e) => e.message,
@@ -338,6 +344,7 @@ void main() {
       );
 
       final result = await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -370,6 +377,7 @@ void main() {
 
       expect(
         () => sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
         ),
@@ -388,6 +396,7 @@ void main() {
       };
 
       await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -451,7 +460,7 @@ void main() {
           },
         );
 
-        await sync.createSession(machineId: 'machine-1', path: '/p');
+        await sync.createSession(agent: 'claude', machineId: 'machine-1', path: '/p');
         expect(
           sync.sessions.containsKey(sessionId),
           isTrue,
@@ -1293,6 +1302,7 @@ void main() {
       );
 
       final createdId = await sync.createSession(
+        agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
       );
@@ -1352,6 +1362,7 @@ void main() {
         };
 
         await sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
         );
@@ -1410,6 +1421,7 @@ void main() {
         };
 
         await sync.createSession(
+          agent: 'claude',
           machineId: 'machine-1',
           path: '/home/user/project',
         );
@@ -1453,7 +1465,7 @@ void main() {
         }
       };
 
-      await sync.createSession(machineId: 'machine-1', path: '/project');
+      await sync.createSession(agent: 'claude', machineId: 'machine-1', path: '/project');
 
       // Phase 2: Make the session look stale (expired spawn timestamp)
       sync.testSetSessionSpawnedAt(
