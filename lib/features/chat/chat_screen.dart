@@ -1118,7 +1118,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }) {
     return Column(
       children: [
-        const SyncProgressBar(),
         Expanded(
           child: ValueListenableBuilder<int>(
             valueListenable: _messagePaneRevision,
@@ -1182,6 +1181,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         );
                       },
                     ),
+                  ),
+                  const Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(child: SyncProgressBar()),
                   ),
                 ],
               );

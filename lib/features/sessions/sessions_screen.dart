@@ -218,12 +218,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         body: SafeArea(
           top: appBar == null,
           bottom: false,
-          child: Column(
-            children: [
-              const SyncProgressBar(),
-              Expanded(child: _buildCurrentTabContent()),
-            ],
-          ),
+          child: isSessionsTabOnTablet
+              ? _buildCurrentTabContent()
+              : SyncProgressOverlay(child: _buildCurrentTabContent()),
         ),
         bottomNavigationBar: isTabletDetail
             ? null
@@ -492,14 +489,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             width: AppBreakpoint.sidebarMax.toDouble(),
             child: Scaffold(
               appBar: _buildSessionsAppBar(context, context.l10n),
-              body: SessionsListContent(
-                selectionNotifier: _selectionNotifier,
-                folderNotifier: _folderNotifier,
-                searchQuery: _searchController.text,
-                onClearSearch: _clearSearch,
-                onSessionTap: (sessionId) {
-                  setState(() => _selectedSessionId = sessionId);
-                },
+              body: SyncProgressOverlay(
+                child: SessionsListContent(
+                  selectionNotifier: _selectionNotifier,
+                  folderNotifier: _folderNotifier,
+                  searchQuery: _searchController.text,
+                  onClearSearch: _clearSearch,
+                  onSessionTap: (sessionId) {
+                    setState(() => _selectedSessionId = sessionId);
+                  },
+                ),
               ),
             ),
           ),

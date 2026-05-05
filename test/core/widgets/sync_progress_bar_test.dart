@@ -108,6 +108,52 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Syncing'), findsNothing);
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
+  testWidgets('overlay does not shift child layout when status is visible', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          networkNotifierProvider.overrideWith(
+            () => _StubNetworkNotifier(true),
+          ),
+          connectionNotifierProvider.overrideWith(
+            () => _StubConnectionNotifier(ConnectionStatus.connected),
+          ),
+          syncStateNotifierProvider.overrideWith(
+            () => _StubSyncStateNotifier(
+              const SyncState(
+                isSyncing: true,
+                progress: SyncProgress(
+                  label: 'Fetching conversations',
+                  completed: 12,
+                  total: 40,
+                ),
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SyncProgressOverlay(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Text('Pinned content'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Syncing'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Pinned content')).dy,
+      moreOrLessEquals(0),
+    );
   });
 }

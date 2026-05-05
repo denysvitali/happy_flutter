@@ -105,20 +105,45 @@ class SyncProgressBar extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    SizedBox(
-                      height: 2,
-                      child: LinearProgressIndicator(
-                        value: status.progressValue,
-                        backgroundColor: Colors.transparent,
-                        color: status.foregroundColor(cs),
-                        minHeight: 2,
+                    if (status.showProgressLine)
+                      SizedBox(
+                        height: 2,
+                        child: LinearProgressIndicator(
+                          value: status.progressValue,
+                          backgroundColor: Colors.transparent,
+                          color: status.foregroundColor(cs),
+                          minHeight: 2,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               )
             : const SizedBox.shrink(key: ValueKey('idle')),
       ),
+    );
+  }
+}
+
+/// Paints [SyncProgressBar] over [child] so transient sync/connection
+/// states do not change page layout height.
+class SyncProgressOverlay extends StatelessWidget {
+  const SyncProgressOverlay({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        const Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(child: SyncProgressBar()),
+        ),
+      ],
     );
   }
 }
@@ -141,6 +166,8 @@ class _StatusBarState {
   final _StatusBarKind kind;
   final double? progressValue;
   final bool showSpinner;
+
+  bool get showProgressLine => kind == _StatusBarKind.sync;
 
   static _StatusBarState? resolve({
     required bool isOnline,
@@ -165,7 +192,6 @@ class _StatusBarState {
         detail: 'Retrying the live update connection',
         icon: Icons.error_outline_rounded,
         kind: _StatusBarKind.warning,
-        showSpinner: true,
       );
     }
 
@@ -180,7 +206,6 @@ class _StatusBarState {
             : 'Restoring live updates',
         icon: Icons.sync_rounded,
         kind: _StatusBarKind.warning,
-        showSpinner: true,
       );
     }
 
