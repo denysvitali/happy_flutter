@@ -77,19 +77,7 @@ extension SyncMessagingRpc on Sync {
     }
     // Log the failure reason if available
     final errorMsg = result is Map ? result['error'] : result;
-    final error = StateError('Machine RPC $method failed: $errorMsg');
-    if (Sync._isRpcReplicaTimeout(error)) {
-      final machine = _machines[machineId];
-      if (machine != null) {
-        _machines[machineId] = machine.copyWith(
-          active: false,
-          activeAt: DateTime.now().millisecondsSinceEpoch - 120000,
-        );
-        _notifyDataChanged({SyncDomain.machines});
-      }
-      throw StateError('Machine is offline');
-    }
-    throw error;
+    throw StateError('Machine RPC $method failed: $errorMsg');
   }
 
   /// RPC call for sessions - uses session-specific encryption.
