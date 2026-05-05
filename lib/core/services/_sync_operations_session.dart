@@ -1088,7 +1088,14 @@ PY
         );
         final pendingCompleter = _autoRestoreCompleters[sessionId];
         if (pendingCompleter != null) {
-          return pendingCompleter.future;
+          final pending = await pendingCompleter.future;
+          if (lifecycleErrored && pending.session.hasLifecycleError) {
+            throw StateError(
+              'Could not restore stopped session $sessionId: '
+              'restore failed',
+            );
+          }
+          return pending;
         }
       } else {
         logger.info(
@@ -1114,10 +1121,6 @@ PY
             SessionEncryption sessionEncryption,
           })
         >();
-    // The completer is shared with concurrent senders. Attach a passive error
-    // listener so completing it with an error for stopped sessions does not
-    // become an unhandled async error when there are no concurrent waiters.
-    unawaited(completer.future.catchError((_) => fallback));
     _autoRestoreCompleters[sessionId] = completer;
     _autoRestoreProfileIds[sessionId] = profileId;
     try {
@@ -1197,6 +1200,20 @@ PY
         seedSession: session,
         result: result,
       );
+      if (lifecycleErrored && restoredSessionId == sessionId) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final restoredInPlace = _sessions[restoredSessionId];
+        if (restoredInPlace != null) {
+          final metadata = restoredInPlace.metadata;
+          _sessions[restoredSessionId] = restoredInPlace.copyWith(
+            metadata: (metadata ?? const Metadata(host: '')).copyWith(
+              lifecycleState: 'starting',
+              lifecycleStateError: null,
+              lifecycleStateSince: now,
+            ),
+          );
+        }
+      }
       _sessionSpawnedProfile[restoredSessionId] = spawnResult.profile?.id;
       _sessionSpawnedModel[restoredSessionId] = modelMode;
       if (restoredSessionId != sessionId) {
@@ -1299,7 +1316,7 @@ PY
                 'Could not restore stopped session $sessionId: $error',
               );
         if (!completer.isCompleted) {
-          completer.completeError(restoreError, stack);
+          completer.complete(fallback);
         }
         Error.throwWithStackTrace(restoreError, stack);
       }
