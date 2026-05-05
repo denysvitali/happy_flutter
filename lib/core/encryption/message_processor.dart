@@ -318,47 +318,7 @@ ProcessedMessages processDecryptedMessages({
           outerContent: content,
           nestedContent: nestedContent,
         );
-      } else if (contentType == 'opencode') {
-        _processOpenCodeContent(
-          id: id,
-          localId: localId,
-          seq: seq,
-          createdAt: createdAt,
-          sessionId: sessionId,
-          outerContent: content,
-          nestedContent: nestedContent,
-          messages: messages,
-          toolResults: toolResults,
-          usageUpdates: usageUpdates,
-          droppedReasons: droppedReasons,
-        );
-      } else if (contentType == 'acp') {
-        _processAcpContent(
-          id: id,
-          localId: localId,
-          seq: seq,
-          createdAt: createdAt,
-          outerContent: content,
-          nestedContent: nestedContent,
-          messages: messages,
-          toolResults: toolResults,
-          droppedReasons: droppedReasons,
-        );
-      } else if (_looksLikeSessionEnvelope(nestedContent) ||
-          contentType == 'session') {
-        _processSessionContent(
-          id: id,
-          localId: localId,
-          seq: seq,
-          createdAt: createdAt,
-          outerContent: content,
-          nestedContent: nestedContent,
-          messages: messages,
-          toolResults: toolResults,
-          droppedReasons: droppedReasons,
-        );
-      } else {
-        final fallback = _extractAgentFallbackText(nestedContent);
+      final fallback = _extractAgentFallbackText(nestedContent);
         if (fallback != null && fallback.isNotEmpty) {
           messages.add({
             'id': id,

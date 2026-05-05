@@ -24,62 +24,35 @@ extension SyncMessagingParse on Sync {
         ),
       ),
       sessionId,
+    );
+  }
+
+  ///
+  /// Returns a tuple of (displayMessages, toolResults).
+  /// Display messages are added to the session message list.
+  /// Tool results are used to update existing tool-call message states.
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
+  _processDecryptedMessage(DecryptedMessage message, String sessionId) {
+    final createdAt = message.createdAt.millisecondsSinceEpoch;
+    final content = message.content;
+
+    if (content is! Map<String, dynamic>) {
+      // Fallback for non-map content
+      return (
+        [
+          {
+            'id': message.id,
+            'localId': message.localId,
+            'seq': message.seq,
+            'createdAt': createdAt,
+            'kind': 'text',
+            'content': content?.toString() ?? '',
+            'raw': content,
+          },
+        ],
+        [],
       );
     }
-  }
-
-  // OpenCode (ACP) content processor for sync path
-  List<Map<String, dynamic>> msgs = [];
-  List<Map<String, dynamic>> tools = [];
-
-  final data = nestedContent['data'] as Map<String, dynamic>? ?? {};
-  final update = data['update'] as Map<String, dynamic>? ?? data;
-  final sessionUpdate = update['sessionUpdate'] as String?;
-
-  switch (sessionUpdate) {
-    case 'message':
-    case 'text':
-      final text = (update['text'] ?? update['content'] ?? '').toString();
-      msgs.add({
-        'id': message.id,
-        'localId': message.localId,
-        'seq': message.seq,
-        'createdAt': createdAt,
-        'role': 'agent',
-        'kind': 'text',
-        'content': text,
-        'meta': {'agent': 'opencode'},
-      });
-      break;
-    case 'tool_call':
-    case 'tool_call_update':
-      tools.add({
-        'id': message.id,
-        'seq': message.seq,
-        'createdAt': createdAt,
-        'kind': 'tool-call',
-        'name': update['title'] ?? update['kind'] ?? 'tool',
-        'toolCallId': update['toolCallId'],
-        'state': update['status'] ?? 'running',
-        'meta': {'agent': 'opencode'},
-      });
-      break;
-    default:
-      msgs.add({
-        'id': message.id,
-        'seq': message.seq,
-        'createdAt': createdAt,
-        'role': 'agent',
-        'kind': 'text',
-        'content': '[opencode] ${update.toString()}',
-        'meta': {'agent': 'opencode', 'raw': true},
-      });
-  }
-
-  return (msgs, tools);
-}
-
-}
 
     final role = content['role'] as String?;
     final nestedContent = content['content'];
@@ -205,9 +178,9 @@ extension SyncMessagingParse on Sync {
         );
       }
 
-      // OpenCode (ACP) type
+      // OpenCode uses the same ACP wire format
       if (contentType == 'opencode') {
-        return _processOpenCodeContentSync(
+        return _processAcpContent(
           message, nestedContent, createdAt, content, sessionId,
         );
       }
