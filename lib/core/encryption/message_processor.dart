@@ -107,6 +107,48 @@ String? _extractAgentFallbackText(dynamic nestedContent) {
   return null;
 }
 
+bool _isToolResultEnvelope(Map<String, dynamic> data) {
+  final dataType = data['type'] ?? data['dataType'];
+  if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+    return true;
+  }
+
+  return dataType == null &&
+      _extractToolResultCallId(data) != null &&
+      (data.containsKey('output') ||
+          data.containsKey('result') ||
+          data.containsKey('content') ||
+          data.containsKey('isError') ||
+          data.containsKey('is_error'));
+}
+
+String? _extractToolResultCallId(Map<String, dynamic> data) {
+  final value =
+      data['callId'] ?? data['toolCallId'] ?? data['tool_use_id'] ?? data['id'];
+  return value is String && value.isNotEmpty ? value : null;
+}
+
+void _addToolResultEnvelope({
+  required Map<String, dynamic> data,
+  required int createdAt,
+  required List<Map<String, dynamic>> toolResults,
+  required ({bool isSidechain, String? uuid, String? parentUuid}) meta,
+}) {
+  final callId = _extractToolResultCallId(data);
+  if (callId == null) return;
+
+  toolResults.add({
+    'toolUseId': callId,
+    'result': data['result'] ?? data['output'] ?? data['content'],
+    'isError': data['isError'] == true || data['is_error'] == true,
+    'createdAt': createdAt,
+    'permissions': ?data['permissions'],
+    if (meta.isSidechain) 'isSidechain': true,
+    'uuid': meta.uuid ?? callId,
+    'parentUuid': ?meta.parentUuid,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------

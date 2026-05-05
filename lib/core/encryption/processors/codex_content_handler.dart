@@ -83,21 +83,13 @@ void _processCodexContent({
     return;
   }
 
-  if (dataType == 'tool-result' ||
-      dataType == 'tool-call-result' ||
-      data['dataType'] == 'tool-result' ||
-      data['dataType'] == 'tool-call-result') {
-    // Handle old format (output) and new format (result) from happy-cli-go.
-    final result = data['result'] ?? data['output'] ?? data['content'];
-    toolResults.add({
-      'toolUseId': data['callId'],
-      'result': result,
-      'isError': data['isError'] == true || data['is_error'] == true,
-      'createdAt': createdAt,
-      if (meta.isSidechain) 'isSidechain': true,
-      'uuid': ?meta.uuid,
-      'parentUuid': ?meta.parentUuid,
-    });
+  if (_isToolResultEnvelope(data)) {
+    _addToolResultEnvelope(
+      data: data,
+      createdAt: createdAt,
+      toolResults: toolResults,
+      meta: meta,
+    );
     return;
   }
 
