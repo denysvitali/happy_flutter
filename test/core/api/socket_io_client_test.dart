@@ -37,6 +37,19 @@ void main() {
         );
       },
     );
+
+    test('disconnect advances callback generation', () {
+      final before = socketIoClient.testConnectionGeneration;
+
+      socketIoClient.disconnect(preserveConnectionHistory: true);
+
+      expect(
+        socketIoClient.testConnectionGeneration,
+        greaterThan(before),
+        reason:
+            'Late callbacks from a disposed lifecycle socket must be ignored',
+      );
+    });
   });
 
   group('onReconnectExhausted', () {

@@ -84,6 +84,7 @@ class SocketIoClient {
   String? _authToken;
   String? _clientType;
   bool _hasConnectedOnce = false;
+  int _connectionGeneration = 0;
   int? _lastConnectStartedAtMs;
   int? _lastDisconnectAtMs;
 
@@ -152,6 +153,7 @@ class SocketIoClient {
     _authToken = token;
     _clientType = clientType;
     _lastConnectStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+    final generation = ++_connectionGeneration;
     _updateStatus(ConnectionStatus.connecting);
 
     _socket = sio.io(
@@ -179,12 +181,16 @@ class SocketIoClient {
           .build(),
     );
 
-    _setupEventHandlers();
+    _setupEventHandlers(generation);
     _socket!.connect();
   }
 
-  void _setupEventHandlers() {
+  bool _isCurrentGeneration(int generation) =>
+      generation == _connectionGeneration;
+
+  void _setupEventHandlers(int generation) {
     _socket!.onConnect((_) async {
+      if (!_isCurrentGeneration(generation)) return;
       logger.info('Socket.IO connected');
       powerDiagnostics.recordSocketStatus(ConnectionStatus.connected);
       _resetErrorThrottle();
@@ -229,6 +235,7 @@ class SocketIoClient {
     });
 
     _socket!.onDisconnect((_) async {
+      if (!_isCurrentGeneration(generation)) return;
       logger.info('Socket.IO disconnected');
       powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
       _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
@@ -248,6 +255,7 @@ class SocketIoClient {
     });
 
     _socket!.onConnectError((error) async {
+      if (!_isCurrentGeneration(generation)) return;
       _updateStatus(ConnectionStatus.error);
 
       final errorStr = error.toString();
@@ -297,6 +305,7 @@ class SocketIoClient {
     });
 
     _socket!.onError((error) async {
+      if (!_isCurrentGeneration(generation)) return;
       _updateStatus(ConnectionStatus.error);
 
       final errorStr = error.toString();
@@ -346,6 +355,7 @@ class SocketIoClient {
     });
 
     _socket!.onReconnectFailed((_) {
+      if (!_isCurrentGeneration(generation)) return;
       powerDiagnostics.recordSocketError('reconnect_failed');
       logger.warning('Socket.IO reconnection attempts exhausted');
       unawaited(
@@ -364,6 +374,7 @@ class SocketIoClient {
     });
 
     _socket!.onAny((event, data) {
+      if (!_isCurrentGeneration(generation)) return;
       String? updateType;
       if (data is Map<String, dynamic>) {
         updateType = data['t'] as String?;
@@ -416,6 +427,7 @@ class SocketIoClient {
   /// preserve the history so the next foreground connect still runs
   /// reconnection recovery.
   void disconnect({bool preserveConnectionHistory = false}) {
+    _connectionGeneration++;
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
@@ -600,6 +612,9 @@ class SocketIoClient {
 
   @visibleForTesting
   set testHasConnectedOnce(bool value) => _hasConnectedOnce = value;
+
+  @visibleForTesting
+  int get testConnectionGeneration => _connectionGeneration;
 
   /// Dispose resources
   void dispose() {

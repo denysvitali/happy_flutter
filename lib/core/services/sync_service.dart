@@ -89,6 +89,32 @@ enum SyncDomain {
   gitStatus,
 }
 
+class SyncProgress {
+  const SyncProgress({required this.label, this.completed, this.total});
+
+  final String label;
+  final int? completed;
+  final int? total;
+
+  double? get fraction {
+    final totalValue = total;
+    final completedValue = completed;
+    if (totalValue == null || totalValue <= 0 || completedValue == null) {
+      return null;
+    }
+    return (completedValue / totalValue).clamp(0.0, 1.0);
+  }
+
+  String get displayText {
+    final totalValue = total;
+    final completedValue = completed;
+    if (totalValue == null || completedValue == null || totalValue <= 0) {
+      return label;
+    }
+    return '$label $completedValue/$totalValue';
+  }
+}
+
 // Global singleton instance
 class Sync {
   factory Sync() => _instance;
@@ -334,6 +360,8 @@ what you have, you must use the options mode.
   Timer? _deferredResumeInvalidationTimer;
   Timer? _reconnectWatchdogTimer;
   Timer? _resumeBatchTimer;
+  int _resumeConversationRefreshTotal = 0;
+  int _resumeConversationRefreshCompleted = 0;
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _socialSyncsDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;
@@ -351,6 +379,7 @@ what you have, you must use the options mode.
   final _paginationErrorController = StreamController<String>.broadcast();
   final _syncStateController = StreamController<void>.broadcast();
   int _activeSyncCount = 0;
+  SyncProgress? _syncProgress;
   Timer? _dataChangeDebounceTimer;
   final Map<SyncDomain, Timer> _domainChangeDebounceTimers = {};
   final Map<String, Timer> _sessionMessageDebounceTimers = {};
@@ -792,12 +821,29 @@ what you have, you must use the options mode.
   /// Whether any sync operation is currently running.
   bool get isSyncing => _activeSyncCount > 0;
 
+  /// Human-readable sync progress for status UI.
+  SyncProgress? get syncProgress => _syncProgress;
+
+  void _setSyncProgress(SyncProgress? progress) {
+    final current = _syncProgress;
+    if (current?.label == progress?.label &&
+        current?.completed == progress?.completed &&
+        current?.total == progress?.total) {
+      return;
+    }
+    _syncProgress = progress;
+    _syncStateController.add(null);
+  }
+
   void _onSyncRunningChanged(bool isRunning) {
     if (isRunning) {
       _activeSyncCount++;
     } else {
       _activeSyncCount--;
       if (_activeSyncCount < 0) _activeSyncCount = 0;
+      if (_activeSyncCount == 0) {
+        _syncProgress = null;
+      }
     }
     _syncStateController.add(null);
   }

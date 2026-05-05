@@ -37,6 +37,8 @@ extension SyncLifecycle on Sync {
     _reconnectWatchdogTimer = null;
     _resumeBatchTimer?.cancel();
     _resumeBatchTimer = null;
+    _resumeConversationRefreshTotal = 0;
+    _resumeConversationRefreshCompleted = 0;
 
     // Set backgrounded flag FIRST — this prevents any in-flight
     // InvalidateSync operations from performing network I/O while
@@ -274,6 +276,14 @@ extension SyncLifecycle on Sync {
         }
 
         final sessionsToRefresh = <String>{};
+        final resumeConversationIds = <String>{
+          ..._sessionsWithPendingSocketMessages,
+        };
+        final visibleSessionId = _visibleSessionId;
+        if (visibleSessionId != null) {
+          resumeConversationIds.add(visibleSessionId);
+        }
+        _startResumeConversationProgress(resumeConversationIds.length);
 
         // Invalidate sessions that had pending socket messages before
         // suspend.  Process in staggered batches to avoid launching
@@ -341,6 +351,7 @@ extension SyncLifecycle on Sync {
                 _sessionsNeedingFetchProbe.add(sessionId);
                 messagesSync[sessionId]?.invalidate();
               }
+              _advanceResumeConversationProgress(sessionsToRefresh.length);
             }),
           );
         } else if (shouldRefreshSessions) {
@@ -348,6 +359,39 @@ extension SyncLifecycle on Sync {
         }
       },
     );
+  }
+
+  void _startResumeConversationProgress(int total) {
+    if (total <= 0) return;
+    _resumeConversationRefreshTotal = total;
+    _resumeConversationRefreshCompleted = 0;
+    _setSyncProgress(
+      SyncProgress(
+        label: 'Fetching conversations',
+        completed: _resumeConversationRefreshCompleted,
+        total: _resumeConversationRefreshTotal,
+      ),
+    );
+  }
+
+  void _advanceResumeConversationProgress(int count) {
+    if (_resumeConversationRefreshTotal <= 0 || count <= 0) return;
+    _resumeConversationRefreshCompleted = min(
+      _resumeConversationRefreshCompleted + count,
+      _resumeConversationRefreshTotal,
+    );
+    _setSyncProgress(
+      SyncProgress(
+        label: 'Fetching conversations',
+        completed: _resumeConversationRefreshCompleted,
+        total: _resumeConversationRefreshTotal,
+      ),
+    );
+    if (_resumeConversationRefreshCompleted >=
+        _resumeConversationRefreshTotal) {
+      _resumeConversationRefreshTotal = 0;
+      _resumeConversationRefreshCompleted = 0;
+    }
   }
 
   /// Process the next batch of sessions from
@@ -384,6 +428,7 @@ extension SyncLifecycle on Sync {
         _sessionsNeedingFetchProbe.add(sessionId);
         messagesSync[sessionId]?.invalidate();
       }
+      _advanceResumeConversationProgress(batch.length);
 
       logger.info(
         '[Sync] resume batch: fetched ${batch.length} sessions, '
@@ -467,6 +512,9 @@ extension SyncLifecycle on Sync {
     _reconnectWatchdogTimer = null;
     _resumeBatchTimer?.cancel();
     _resumeBatchTimer = null;
+    _resumeConversationRefreshTotal = 0;
+    _resumeConversationRefreshCompleted = 0;
+    _setSyncProgress(null);
     _reconnectCursorSnapshot = null;
     _sessionsRefreshDebounceTimer?.cancel();
     _socialSyncsDebounceTimer?.cancel();

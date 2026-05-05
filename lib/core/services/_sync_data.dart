@@ -20,6 +20,15 @@ extension SyncData on Sync {
         'fetchSessions: received ${allSessions.length} sessions '
         '(changedSince=$changedSince)',
       );
+      if (allSessions.isNotEmpty) {
+        _setSyncProgress(
+          SyncProgress(
+            label: 'Fetching conversations',
+            completed: 0,
+            total: allSessions.length,
+          ),
+        );
+      }
 
       if (allSessions.isEmpty) {
         if (changedSince != null) {
@@ -112,6 +121,15 @@ extension SyncData on Sync {
 
       final decryptedSessions = <Session>[];
       for (var i = 0; i < allSessions.length; i++) {
+        if (i == 0 || (i + 1) % 10 == 0 || i == allSessions.length - 1) {
+          _setSyncProgress(
+            SyncProgress(
+              label: 'Fetching conversations',
+              completed: i + 1,
+              total: allSessions.length,
+            ),
+          );
+        }
         if (i > 0 && i % 10 == 0) {
           await Future<void>.delayed(Duration.zero);
         }
