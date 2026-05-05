@@ -385,6 +385,118 @@ void main() {
         expect(result, restoredId);
       },
     );
+
+    test('errored session restores before sending', () async {
+      const sessionId = 'errored-restorable';
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        machineId: 'machine-1',
+        path: '/project',
+        lifecycleState: 'errored',
+      );
+
+      var rpcCalled = false;
+      const restoredId = 'errored-restored';
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        rpcCalled = true;
+        expect(machineId, 'machine-1');
+        expect(method, 'spawn-happy-session');
+        final now = DateTime.now().millisecondsSinceEpoch;
+        sync.testSessions[restoredId] = _makeSession(
+          restoredId,
+          presence: 'online',
+          machineId: machineId,
+          path: '/project',
+          lifecycleState: 'running',
+          lifecycleStateSince: now,
+        );
+        sync.testSetLastEphemeralAt(restoredId, now);
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': restoredId,
+          'dataEncryptionKey': null,
+        };
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      final result = await sync.sendMessage(sessionId, 'hello');
+      await sync.lastCompleteSendFuture;
+
+      expect(rpcCalled, isTrue);
+      expect(result, restoredId);
+      expect(
+        sync.testSessionMessages(sessionId),
+        isNull,
+        reason: 'the stopped session must not receive the outbound message',
+      );
+      expect(sync.testSessionMessages(restoredId), isNotNull);
+    });
+
+    test('errored session fails send when auto-restore RPC fails', () async {
+      const sessionId = 'errored-restore-fail';
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        machineId: 'machine-1',
+        path: '/project',
+        lifecycleState: 'errored',
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        return <String, dynamic>{
+          'type': 'error',
+          'errorMessage': 'machine unavailable',
+        };
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      await expectLater(
+        sync.sendMessage(sessionId, 'hello'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Could not restore stopped session'),
+          ),
+        ),
+      );
+      expect(
+        sync.testSessionMessages(sessionId),
+        isNull,
+        reason: 'failed restore must not fall back to the stopped session',
+      );
+    });
+
+    test('errored session without restore target fails before send', () async {
+      const sessionId = 'errored-no-restore-target';
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        lifecycleState: 'errored',
+      );
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      var rpcCalled = false;
+      sync.testMachineRPCOverride = (_, __, ___) async {
+        rpcCalled = true;
+        return <String, dynamic>{};
+      };
+
+      await expectLater(
+        sync.sendMessage(sessionId, 'hello'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('missing machineId/path'),
+          ),
+        ),
+      );
+      expect(rpcCalled, isFalse);
+      expect(
+        sync.testSessionMessages(sessionId),
+        isNull,
+        reason: 'stopped sessions without restore metadata cannot be sent to',
+      );
+    });
   });
 }
 

@@ -481,7 +481,7 @@ extension _ChatScreenActions on _ChatScreenState {
   Future<void> _onOptionPress(String option) async {
     if (_isSending) return;
     final sendIssue = _sessionSendIssue;
-    if (sendIssue != null) {
+    if (sendIssue != null && sendIssue.blocksSend) {
       _showSendBlockedSnackBar(sendIssue);
       return;
     }
@@ -540,7 +540,7 @@ extension _ChatScreenActions on _ChatScreenState {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
     final sendIssue = _sessionSendIssue;
-    if (sendIssue != null) {
+    if (sendIssue != null && sendIssue.blocksSend) {
       _showSendBlockedSnackBar(sendIssue);
       return;
     }

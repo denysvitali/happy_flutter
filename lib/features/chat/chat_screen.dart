@@ -18,6 +18,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/message_cache_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
+import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/wire_parsers.dart';
@@ -67,11 +68,13 @@ class _SessionSendIssue {
     required this.title,
     required this.message,
     required this.snackBarText,
+    required this.blocksSend,
   });
 
   final String title;
   final String message;
   final String snackBarText;
+  final bool blocksSend;
 }
 
 /// Chat screen for a session
@@ -733,18 +736,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final session = _session;
     if (session == null || !session.hasLifecycleError) return null;
     final detail = _formatLifecycleError(session.metadata?.lifecycleStateError);
-    final message = detail == null
-        ? 'The local agent process is gone for this session. '
-              'New messages would be saved, but there is no process '
-              'to answer them.'
-        : 'The local agent process is gone for this session. '
-              '$detail';
+    final canRestore = session.canAttemptLifecycleRestore;
+    final detailText = detail == null ? '' : ' $detail';
+    final message = canRestore
+        ? 'The local agent process is gone for this session.$detailText '
+              'Sending a message will try to restart it before delivery.'
+        : 'The local agent process is gone for this session.$detailText '
+              'No restore target is available, so new messages cannot '
+              'be delivered.';
     return _SessionSendIssue(
       title: 'Session process stopped',
       message: message,
       snackBarText:
           'This session cannot respond because its local '
-          'agent process stopped. Start a new session to continue.',
+          'agent process stopped and no restore target is available. '
+          'Start a new session to continue.',
+      blocksSend: !canRestore,
     );
   }
 
@@ -798,10 +805,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (sendIssue != null) {
       chips.add(
-        const ChatAppBarStatusChip(
-          text: 'Agent failed',
-          color: AppColors.error,
-          icon: Icons.error_outline_rounded,
+        ChatAppBarStatusChip(
+          text: sendIssue.blocksSend ? 'Agent failed' : 'Will restart',
+          color: sendIssue.blocksSend ? AppColors.error : AppColors.warning,
+          icon: sendIssue.blocksSend
+              ? Icons.error_outline_rounded
+              : Icons.restart_alt_rounded,
         ),
       );
     } else if (isReady) {
@@ -1224,12 +1233,22 @@ class _SessionIssueBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final appColors = theme.extension<AppColorScheme>();
+    final containerColor = issue.blocksSend
+        ? cs.errorContainer
+        : appColors?.warningContainer ?? cs.tertiaryContainer;
+    final borderColor = issue.blocksSend
+        ? cs.error
+        : appColors?.warning ?? AppColors.warning;
+    final foregroundColor = issue.blocksSend
+        ? cs.onErrorContainer
+        : appColors?.onWarning ?? cs.onTertiaryContainer;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: cs.errorContainer.withValues(alpha: 0.65),
+        color: containerColor.withValues(alpha: 0.65),
         border: Border(
-          top: BorderSide(color: cs.error.withValues(alpha: 0.22)),
-          bottom: BorderSide(color: cs.error.withValues(alpha: 0.22)),
+          top: BorderSide(color: borderColor.withValues(alpha: 0.22)),
+          bottom: BorderSide(color: borderColor.withValues(alpha: 0.22)),
         ),
       ),
       child: Padding(
@@ -1241,9 +1260,11 @@ class _SessionIssueBanner extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              Icons.error_outline_rounded,
+              issue.blocksSend
+                  ? Icons.error_outline_rounded
+                  : Icons.restart_alt_rounded,
               size: 18,
-              color: cs.onErrorContainer,
+              color: foregroundColor,
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
@@ -1254,7 +1275,7 @@ class _SessionIssueBanner extends StatelessWidget {
                   Text(
                     issue.title,
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: cs.onErrorContainer,
+                      color: foregroundColor,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1262,7 +1283,7 @@ class _SessionIssueBanner extends StatelessWidget {
                   Text(
                     issue.message,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onErrorContainer,
+                      color: foregroundColor,
                       height: 1.25,
                     ),
                   ),

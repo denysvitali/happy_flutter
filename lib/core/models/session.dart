@@ -361,6 +361,15 @@ abstract class Session with _$Session {
   /// Returns `true` when the backend has marked the local agent process as
   /// failed. Sends to this session may be stored but cannot be processed.
   bool get hasLifecycleError => metadata?.lifecycleState == 'errored';
+
+  /// Returns `true` when a failed local agent process has enough metadata for
+  /// the daemon to restart it in the same project path.
+  bool get canAttemptLifecycleRestore {
+    final meta = metadata;
+    return hasLifecycleError &&
+        (meta?.machineId?.isNotEmpty ?? false) &&
+        (meta?.path?.isNotEmpty ?? false);
+  }
 }
 
 String _sessionIdFromJson(dynamic value) {

@@ -979,6 +979,7 @@ PY
     final onlineTrusted = health.isOnlineTrusted;
 
     final lifecycleState = session.metadata?.lifecycleState;
+    final lifecycleErrored = lifecycleState == 'errored';
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
@@ -1035,6 +1036,12 @@ PY
         machineId.isEmpty ||
         path == null ||
         path.isEmpty) {
+      if (lifecycleErrored) {
+        throw StateError(
+          'Could not restore stopped session $sessionId: '
+          'missing machineId/path',
+        );
+      }
       return (
         sessionId: sessionId,
         session: session,
@@ -1049,6 +1056,12 @@ PY
         '[sendMessage] machine=$machineId is offline, '
         'skipping auto-restore',
       );
+      if (lifecycleErrored) {
+        throw StateError(
+          'Could not restore stopped session $sessionId: '
+          'machine $machineId is offline',
+        );
+      }
       return (
         sessionId: sessionId,
         session: session,
@@ -1088,6 +1101,11 @@ PY
       // a profileId), fall through to start our own auto-restore.
     }
     _autoRestoreInFlight.add(sessionId);
+    final fallback = (
+      sessionId: sessionId,
+      session: session,
+      sessionEncryption: sessionEncryption,
+    );
     final completer =
         Completer<
           ({
@@ -1096,6 +1114,10 @@ PY
             SessionEncryption sessionEncryption,
           })
         >();
+    // The completer is shared with concurrent senders. Attach a passive error
+    // listener so completing it with an error for stopped sessions does not
+    // become an unhandled async error when there are no concurrent waiters.
+    unawaited(completer.future.catchError((_) => fallback));
     _autoRestoreCompleters[sessionId] = completer;
     _autoRestoreProfileIds[sessionId] = profileId;
     try {
@@ -1145,14 +1167,17 @@ PY
           'error=$errorMsg '
           'isPermanent=$isPermanent',
         );
-        if (isPermanent) {
+        if (isPermanent || lifecycleErrored) {
+          final reason = errorMsg.isEmpty
+              ? result.type ?? 'unknown restore failure'
+              : errorMsg;
+          if (lifecycleErrored) {
+            throw StateError(
+              'Could not restore stopped session $sessionId: $reason',
+            );
+          }
           throw StateError('Session not found: $sessionId — $errorMsg');
         }
-        final fallback = (
-          sessionId: sessionId,
-          session: session,
-          sessionEncryption: sessionEncryption,
-        );
         completer.complete(fallback);
         return fallback;
       }
@@ -1250,6 +1275,13 @@ PY
           '[sendMessage] auto-restore failed ($reason) '
           'session=$sessionId: $error',
         );
+      } else if (lifecycleErrored) {
+        logger.warning(
+          '[sendMessage] auto-restore failed for stopped '
+          'session=$sessionId',
+          error,
+          stack,
+        );
       } else {
         logger.error(
           '[sendMessage] auto-restore failed for '
@@ -1258,11 +1290,19 @@ PY
           stack,
         );
       }
-      final fallback = (
-        sessionId: sessionId,
-        session: session,
-        sessionEncryption: sessionEncryption,
-      );
+      if (lifecycleErrored) {
+        final restoreError =
+            error is StateError &&
+                error.message.startsWith('Could not restore stopped session')
+            ? error
+            : StateError(
+                'Could not restore stopped session $sessionId: $error',
+              );
+        if (!completer.isCompleted) {
+          completer.completeError(restoreError, stack);
+        }
+        Error.throwWithStackTrace(restoreError, stack);
+      }
       if (!completer.isCompleted) {
         completer.complete(fallback);
       }
