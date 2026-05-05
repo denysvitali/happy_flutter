@@ -99,8 +99,10 @@ class SidechainGrouper {
 
     void walkAndIndex(
       List<dynamic> msgs,
-      String? ancestorTaskId,
-    ) {
+      String? ancestorTaskId, {
+      int depth = 0,
+    }) {
+      if (depth >= _maxNestingDepth) return;
       for (final m in msgs) {
         if (m is! Map<String, dynamic>) continue;
         if (!visitedWalk.add(m)) continue;
@@ -166,7 +168,9 @@ class SidechainGrouper {
           }
         }
         final children = m['children'] as List<dynamic>?;
-        if (children != null) walkAndIndex(children, nextAncestorId);
+        if (children != null) {
+          walkAndIndex(children, nextAncestorId, depth: depth + 1);
+        }
       }
     }
 
@@ -342,6 +346,11 @@ class SidechainGrouper {
     return (messages: filtered, hasOrphans: hasOrphans);
   }
 
+  /// Maximum nesting depth for regroupNestedTasks recursion.
+  /// Defence-in-depth against malformed payloads that produce very
+  /// deep (but non-cyclic) children trees.
+  static const int _maxNestingDepth = 20;
+
   /// Recursively regroup sidechain children so nested
   /// Task tool-calls within a children array get their
   /// own children sub-arrays.
@@ -351,10 +360,16 @@ class SidechainGrouper {
   /// that left `msg['children']` containing `msg`) cannot blow the
   /// stack.  Callers at the top level can omit it; internal
   /// recursion threads the same set through each descent.
+  ///
+  /// [depth] is the current recursion depth.  When it exceeds
+  /// [_maxNestingDepth] the method returns early to prevent stack
+  /// overflow on pathological payloads.
   void regroupNestedTasks(
     List<Map<String, dynamic>> children, {
     Set<Map<String, dynamic>>? visited,
+    int depth = 0,
   }) {
+    if (depth >= _maxNestingDepth) return;
     visited ??= <Map<String, dynamic>>{};
     // Filter to unvisited maps to prevent infinite recursion when
     // a cycle exists in the tree.  We mutate `children` below
@@ -536,10 +551,15 @@ class SidechainGrouper {
             regroupNestedTasks(
               existing.cast<Map<String, dynamic>>(),
               visited: visited,
+              depth: depth + 1,
             );
           } else {
             child['children'] = entry.value;
-            regroupNestedTasks(entry.value, visited: visited);
+            regroupNestedTasks(
+              entry.value,
+              visited: visited,
+              depth: depth + 1,
+            );
           }
           break;
         }

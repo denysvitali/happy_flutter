@@ -16,9 +16,7 @@ void _processOutputContent({
   final data = WireParsers.asMap(nestedContent['data']);
   if (data == null) {
     droppedReasons?.add(
-      'seq=$seq id=$id: output data is '
-      '${nestedContent['data']?.runtimeType ?? 'null'}, '
-      'expected Map',
+      'seq=$seq id=$id: output data is not a Map',
     );
     return;
   }
@@ -85,9 +83,7 @@ void _processOutputContent({
         });
       } else {
         droppedReasons?.add(
-          'seq=$seq id=$id: assistant message field is '
-          '${rawAgentMsg?.runtimeType ?? 'null'}, expected Map or '
-          'non-empty String',
+          'seq=$seq id=$id: assistant message field unexpected type',
         );
       }
       return;
@@ -123,9 +119,7 @@ void _processOutputContent({
         });
       } else {
         droppedReasons?.add(
-          'seq=$seq id=$id: assistant content is '
-          '${agentContentList?.runtimeType ?? 'null'}, '
-          'expected List or non-empty String',
+          'seq=$seq id=$id: assistant content unexpected type',
         );
       }
       return;
@@ -219,9 +213,10 @@ void _processOutputContent({
           });
         }
       } else if (type != null) {
+        // Omit type and index so GlitchTip groups all unrecognized
+        // content blocks into a single issue instead of one per variant.
         droppedReasons?.add(
-          'seq=$seq id=$id: unrecognized content block type=$type '
-          'at index $i',
+          'seq=$seq id=$id: unrecognized output content block',
         );
       }
       i++;
@@ -460,33 +455,21 @@ void _processOutputContent({
   // (same shape the ACP handler processes).
   // Check both `data['type']` and `data['dataType']` since different
   // server responses use different field names.
-  if (dataType == 'tool-result' ||
-      dataType == 'tool-call-result' ||
-      data['dataType'] == 'tool-result' ||
-      data['dataType'] == 'tool-call-result') {
-    final result = data['output'] ?? data['content'];
-    final callId = data['callId'] as String?;
-    if (callId != null && callId.isNotEmpty) {
-      toolResults.add({
-        'toolUseId': callId,
-        'result': result,
-        'isError': data['isError'] == true || data['is_error'] == true,
-        'createdAt': createdAt,
-        if (meta.isSidechain) 'isSidechain': true,
-        'uuid': ?meta.uuid,
-        'parentUuid': ?meta.parentUuid,
-      });
-    }
+  if (_isToolResultEnvelope(data)) {
+    _addToolResultEnvelope(
+      data: data,
+      createdAt: createdAt,
+      toolResults: toolResults,
+      meta: meta,
+    );
     return;
   }
 
   // Unrecognized dataType -- log to help diagnose silent drops.
-  // Omit seq/id from the reason so GlitchTip groups by dataType,
-  // not per-message.
-  droppedReasons?.add(
-    'output dataType=$dataType not handled '
-    '(keys=${data.keys.toList()})',
-  );
+  // Omit seq, id, dataType, and keys from the reason so GlitchTip
+  // groups all unrecognized output data types into a single issue
+  // instead of one per variant.
+  droppedReasons?.add('output data type not handled');
 }
 
 String _webSearchState(String? status) {

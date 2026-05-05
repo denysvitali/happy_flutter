@@ -233,6 +233,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // ── Local-first: Load cached messages instantly (0ms delay) ──
     final cached = MessageCacheService().getMessages(widget.sessionId);
     if (cached.isNotEmpty) {
+      // Cap initial render window to _pageSize so sessions with large
+      // caches (up to _maxCachedMessages=200) don't build all widgets
+      // in the first frame.
+      final initialVisible = cached.length < _pageSize
+          ? cached.length
+          : _pageSize;
       setState(() {
         _messages = cached;
         _isLoadingMessages = false;
@@ -241,7 +247,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _seenMessageIds.add(_messageKey(m));
         }
         _prevSeenLength = cached.length;
-        _visibleCount = cached.length;
+        _visibleCount = initialVisible;
       });
       logger.debug(
         '[ChatScreen] Loaded ${cached.length} cached messages for '
@@ -426,14 +432,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         // adjustment is correct (prevMessagesLength is only set inside the
         // messagesChanged block below, so it must be set here too).
         _prevMessagesLength = latestMessages.length;
-        // When _prevMessagesLength was 0 (cold start), the messagesChanged
-        // adjustment above could not run
-        // (_prevMessagesLength > 0 guard failed).
-        // Sync _visibleCount here so all loaded messages
-        // are visible immediately.
-        if (_visibleCount < latestMessages.length) {
-          _visibleCount = latestMessages.length;
-        }
+        _visibleCount = _clampVisibleCount(latestMessages.length);
       }
 
       if (messagesChanged) {
@@ -528,6 +527,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     for (var i = start; i < end; i++) {
       _seenMessageIds.add(_messageKey(messages[i]));
     }
+  }
+
+  int _initialVisibleCount(int messageCount) =>
+      messageCount < _pageSize ? messageCount : _pageSize;
+
+  int _clampVisibleCount(int messageCount) {
+    if (messageCount == 0) return _pageSize;
+    final minVisible = _initialVisibleCount(messageCount);
+    return _visibleCount.clamp(minVisible, messageCount).toInt();
   }
 
   /// Invalidates the neighbor cache. Call when the messages list changes.

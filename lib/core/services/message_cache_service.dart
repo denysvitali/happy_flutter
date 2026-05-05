@@ -20,9 +20,10 @@ class MessageCacheService {
   static final MessageCacheService _instance = MessageCacheService._();
 
   /// Maximum number of messages to cache per session.
-  /// Matches the in-memory cap (3000) so cold starts don't lose
-  /// messages that were visible before the app was killed.
-  static const int _maxCachedMessages = 3000;
+  /// Keep the persisted copy bounded to the recent window used by the
+  /// sync save path so cold-start JSON decode and initial rendering stay
+  /// predictable.
+  static const int _maxCachedMessages = 200;
 
   /// Maximum number of sessions to keep in cache on web.
   ///
@@ -34,6 +35,10 @@ class MessageCacheService {
   /// LRU order for cached sessions on web. The last entry is the most
   /// recently used.
   final List<String> _webSessionLru = [];
+
+  /// Per-session content hash of the last persisted tail. Used to skip
+  /// redundant MMKV writes when the message list hasn't changed.
+  final Map<String, int> _lastSavedHash = {};
 
   /// Get cached messages for a session synchronously.
   ///
@@ -123,6 +128,19 @@ class MessageCacheService {
         ? messages.sublist(messages.length - _maxCachedMessages)
         : messages;
 
+    // Skip write when the tail hash is unchanged — avoids repeated
+    // MMKV serialization of the same message list (e.g. 1200-message
+    // saves taking ~131ms each).
+    final hash = _computeTailHash(toSave);
+    final prevHash = _lastSavedHash[sessionId];
+    if (prevHash == hash && prevHash != null) {
+      logger.debug(
+        '[MessageCache] Skipping save for session $sessionId '
+        '(hash unchanged: $hash)',
+      );
+      return;
+    }
+
     // On web, evict stale sessions before writing so we never exceed
     // the quota guard.
     if (kIsWeb) {
@@ -131,6 +149,7 @@ class MessageCacheService {
 
     try {
       MMKVStorage().saveSessionMessages(sessionId, toSave);
+      _lastSavedHash[sessionId] = hash;
       final elapsedMs = stopwatch.elapsedMilliseconds;
       logger.debug(
         '[MessageCache] Saved ${toSave.length} messages for session '
@@ -164,12 +183,39 @@ class MessageCacheService {
     }
   }
 
+  /// Compute a lightweight hash of the last few messages to detect
+  /// content changes without hashing the entire list.
+  static int _computeTailHash(List<Map<String, dynamic>> messages) {
+    if (messages.isEmpty) return 0;
+    var hash = messages.length;
+    const tailSize = 5;
+    final start = messages.length < tailSize
+        ? 0
+        : messages.length - tailSize;
+    for (var i = start; i < messages.length; i++) {
+      final m = messages[i];
+      final id = m['id'];
+      final seq = m['seq'];
+      final state = m['state'];
+      final sendStatus = m['sendStatus'];
+      final content = m['content'];
+      final contentHash = switch (content) {
+        final String text => text.length ^ text.hashCode,
+        final List<dynamic> list => list.length,
+        _ => content?.hashCode ?? 0,
+      };
+      hash = Object.hash(hash, id, seq, state, sendStatus, contentHash);
+    }
+    return hash;
+  }
+
   /// Clear cached messages for a session.
   ///
   /// Call when a session is deleted or cleared.
   void clearMessages(String sessionId) {
     try {
       MMKVStorage().clearSessionMessages(sessionId);
+      _lastSavedHash.remove(sessionId);
       logger.debug('[MessageCache] Cleared cache for session $sessionId');
     } catch (e) {
       logger.warning('[MessageCache] Failed to clear cache for $sessionId: $e');
