@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 
 import '../services/logger_service.dart' show logger;
+
+const int defaultClipboardMaxBytes = 128 * 1024;
 
 class ClipboardWriteResult {
   const ClipboardWriteResult({
@@ -20,12 +24,13 @@ class ClipboardWriteResult {
 
 Future<ClipboardWriteResult> setClipboardTextSafely(
   String text, {
-  int maxCharacters = 256 * 1024,
+  int maxBytes = defaultClipboardMaxBytes,
 }) async {
   final originalCharacters = text.length;
-  final truncated = originalCharacters > maxCharacters;
+  final originalBytes = utf8.encode(text).length;
+  final truncated = originalBytes > maxBytes;
   final clipboardText = truncated
-      ? _truncateForClipboard(text, maxCharacters)
+      ? _truncateForClipboard(text, maxBytes)
       : text;
   try {
     await Clipboard.setData(ClipboardData(text: clipboardText));
@@ -47,10 +52,34 @@ Future<ClipboardWriteResult> setClipboardTextSafely(
   }
 }
 
-String _truncateForClipboard(String text, int maxCharacters) {
+String _truncateForClipboard(String text, int maxBytes) {
   const suffix = '\n\n[truncated for clipboard]';
-  if (maxCharacters <= suffix.length) {
-    return text.substring(0, maxCharacters);
+  if (maxBytes <= 0) {
+    return '';
   }
-  return text.substring(0, maxCharacters - suffix.length) + suffix;
+  if (utf8.encode(text).length <= maxBytes) {
+    return text;
+  }
+
+  final suffixBytes = utf8.encode(suffix).length;
+  if (maxBytes <= suffixBytes) {
+    return _truncateToUtf8Bytes(text, maxBytes);
+  }
+
+  return _truncateToUtf8Bytes(text, maxBytes - suffixBytes) + suffix;
+}
+
+String _truncateToUtf8Bytes(String text, int maxBytes) {
+  final buffer = StringBuffer();
+  var bytesUsed = 0;
+  for (final rune in text.runes) {
+    final character = String.fromCharCode(rune);
+    final characterBytes = utf8.encode(character).length;
+    if (bytesUsed + characterBytes > maxBytes) {
+      break;
+    }
+    buffer.write(character);
+    bytesUsed += characterBytes;
+  }
+  return buffer.toString();
 }

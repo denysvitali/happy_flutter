@@ -1,5 +1,47 @@
 part of 'sync_service.dart';
 
+void _accumulateDroppedReasons(
+  Map<String, int> counts,
+  List<String> reasons,
+) {
+  for (final reason in reasons) {
+    final normalized = _normalizeDroppedReason(reason);
+    counts[normalized] = (counts[normalized] ?? 0) + 1;
+  }
+}
+
+int _droppedReasonTotal(Map<String, int> counts) =>
+    counts.values.fold(0, (sum, count) => sum + count);
+
+void _logDroppedReasonSummary(
+  String context,
+  Map<String, int> counts,
+) {
+  if (counts.isEmpty) return;
+
+  final total = _droppedReasonTotal(counts);
+  final topReasons = counts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  final summary = topReasons
+      .take(5)
+      .map((entry) => '${entry.value}x ${entry.key}')
+      .join('; ');
+  final remaining = topReasons.length > 5
+      ? '; +${topReasons.length - 5} more reason(s)'
+      : '';
+
+  logger.warning('$context dropped $total item(s): $summary$remaining');
+}
+
+String _normalizeDroppedReason(String reason) {
+  var normalized = reason
+      .replaceFirst(RegExp(r'^seq=\d+ id=[^:]+:\s*'), '')
+      .replaceAll(RegExp(r'\bseq=\d+\b'), 'seq=?')
+      .replaceAll(RegExp(r'\bid=[^:\s,]+'), 'id=?');
+  normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return normalized.isEmpty ? 'unknown' : normalized;
+}
+
 extension SyncMessaging on Sync {
   /// Fetch messages for a session.
   ///
@@ -298,6 +340,7 @@ extension SyncMessaging on Sync {
       var totalToolResults = 0;
       var totalUsageUpdates = 0;
       var totalPagesFetched = 0;
+      final droppedReasonCounts = <String, int>{};
       while (true) {
         // ── Check visibility ──
         // Continue fetching even when the session is no longer visible so
@@ -500,9 +543,14 @@ extension SyncMessaging on Sync {
           'maxSeq=${processed.maxSeq}',
         );
         if (processed.droppedReasons.isNotEmpty) {
-          for (final reason in processed.droppedReasons) {
-            logger.warning('[fetchMessages] dropped: $reason');
-          }
+          _accumulateDroppedReasons(
+            droppedReasonCounts,
+            processed.droppedReasons,
+          );
+          pageSpan.setData(
+            'droppedItems',
+            _droppedReasonTotal(droppedReasonCounts),
+          );
         }
 
         // ── Yield before main-thread merge/group work ──
@@ -681,6 +729,7 @@ extension SyncMessaging on Sync {
         await finalizeSpan.finish();
       }
       // Finish the fetch span successfully
+      _logDroppedReasonSummary('[fetchMessages] $sessionId', droppedReasonCounts);
       fetchSpan
         ..setData('pagesFetched', totalPagesFetched)
         ..setData('totalFetchedMessages', totalFetchedMessages)
@@ -688,6 +737,7 @@ extension SyncMessaging on Sync {
         ..setData('totalSkippedMessages', totalSkippedMessages)
         ..setData('totalToolResults', totalToolResults)
         ..setData('totalUsageUpdates', totalUsageUpdates)
+        ..setData('totalDroppedItems', _droppedReasonTotal(droppedReasonCounts))
         ..setData('mutatedMessages', didMutateMessages)
         ..setData('regroupOnVisible', shouldRegroupWhenVisible)
         ..setData('completedVisible', isVisibleAtCompletion)
@@ -937,11 +987,10 @@ extension SyncMessaging on Sync {
         'processedMsgs=${processed.messages.length} '
         'toolResults=${processed.toolResults.length}',
       );
-      if (processed.droppedReasons.isNotEmpty) {
-        for (final reason in processed.droppedReasons) {
-          logger.warning('[fetchOlderMessages] $sessionId dropped: $reason');
-        }
-      }
+      _logDroppedReasons(
+        '[fetchOlderMessages] $sessionId dropped',
+        processed.droppedReasons,
+      );
 
       // Yield before main-thread merge work
       await Future<void>.delayed(Duration.zero);
@@ -1091,4 +1140,12 @@ extension SyncMessaging on Sync {
     _scheduleSessionsRefresh();
     _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
   }
+}
+
+void _logDroppedReasons(String prefix, List<String> reasons) {
+  if (reasons.isEmpty) return;
+
+  final counts = <String, int>{};
+  _accumulateDroppedReasons(counts, reasons);
+  _logDroppedReasonSummary(prefix, counts);
 }

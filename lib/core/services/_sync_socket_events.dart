@@ -426,11 +426,7 @@ extension SyncSocketEvents on Sync {
         // (below) to be skipped by fetchMessages' "already caught up"
         // guard, permanently losing the message.  Keeping the cursor
         // unchanged lets the fetch retrieve the message from the server.
-        if (processed.droppedReasons.isNotEmpty) {
-          for (final reason in processed.droppedReasons) {
-            logger.warning('[inline] dropped: $reason');
-          }
-        }
+        _logDroppedReasons('[inline] dropped', processed.droppedReasons);
         if (dedupKey != null) {
           _pendingInlineMessageKeys.remove(dedupKey);
         }

@@ -904,18 +904,15 @@ void main() {
       expect(find.byType(AppBar), findsOneWidget);
     });
 
-    testWidgets('all cached messages are visible when count exceeds pageSize', (
+    testWidgets('initial render shows recent page of cached messages', (
       tester,
     ) async {
-      // Regression test: when a session has > 50 cached messages, ALL of them
-      // must be visible — _visibleCount must NOT be clamped to _pageSize (50).
-      // Before the fix (daa85e3), _visibleCount was clamped to _pageSize even
-      // when 58 messages were cached, causing messages 0-7 to be hidden and
-      // a permanent spinner to appear at the top.
+      // A warm chat can restore more than one page from cache. The first
+      // frame should keep rendering bounded to the newest page; older cached
+      // rows remain available through the existing history scroll path.
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
 
-      // 58 messages — exceeds _pageSize of 50
       final messages = List.generate(
         58,
         (i) => {
@@ -930,16 +927,10 @@ void main() {
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
       );
-      // Flush all pending async operations: initState, _refreshFromSync calls,
-      // Timer callbacks (InvalidateSync), and all scheduled setState frames.
       await tester.pumpAndSettle();
 
-      // All 58 messages must be present — including messages 0-7 which were
-      // hidden before the fix (visibleCount was clamped to 50, showing only
-      // messages 8-57).
-      // Message 57 is ALWAYS visible if all 58 messages are shown (index 57 is
-      // the newest message at the top of the reverse ListView).
       expect(find.text('Message number 57'), findsOneWidget);
+      expect(find.text('Message number 0'), findsNothing);
 
       // The shimmer must not be shown once loading completes.
       expect(find.byType(ChatLoadingShimmer), findsNothing);

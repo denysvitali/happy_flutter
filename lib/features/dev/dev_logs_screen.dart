@@ -175,12 +175,20 @@ class DevLogsScreen extends ConsumerWidget {
 
     if (context.mounted) {
       final message = result.success
-          ? l10n.devLogsCopied(logs.length)
+          ? _copySuccessMessage(
+              l10n.devLogsCopied(logs.length),
+              result.truncated,
+            )
           : l10n.textSelectionFailedToCopy;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+
+  String _copySuccessMessage(String message, bool truncated) {
+    if (!truncated) return message;
+    return '$message (truncated)';
   }
 
   Future<void> _showClearConfirmDialog(

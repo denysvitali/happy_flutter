@@ -314,6 +314,66 @@ void main() {
         expect(result.toolResults.first['isError'], false);
       });
 
+      test('processes top-level tool-result envelope with id field', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'tool-result',
+                  'id': 'call_function_1',
+                  'output': 'done',
+                  'isError': false,
+                  'parentUuid': 'parent-1',
+                  'permissions': {'mode': 'read'},
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+        expect(result.droppedReasons, isEmpty);
+        expect(result.toolResults, hasLength(1));
+        expect(result.toolResults.first['toolUseId'], 'call_function_1');
+        expect(result.toolResults.first['result'], 'done');
+        expect(result.toolResults.first['isError'], false);
+        expect(result.toolResults.first['parentUuid'], 'parent-1');
+        expect(result.toolResults.first['permissions'], {'mode': 'read'});
+      });
+
+      test('ignores incomplete top-level tool-result envelope', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'tool-result',
+                  'output': 'missing call id',
+                  'isError': true,
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+        expect(result.toolResults, isEmpty);
+        expect(result.droppedReasons, isEmpty);
+      });
+
       test('processes result envelope toolResults list', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [

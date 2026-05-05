@@ -232,6 +232,7 @@ class SessionAvatar extends StatelessWidget {
       'codex' => 'assets/images/icon-gpt.png',
       'gemini' => 'assets/images/icon-gemini.png',
       'pi' => 'assets/images/icon-pi.png',
+      'opencode' => 'assets/images/icon-gpt.png',
       _ => 'assets/images/icon-claude.png',
     };
   }
@@ -242,6 +243,7 @@ class SessionAvatar extends StatelessWidget {
       'codex' => Icons.code,
       'gemini' => Icons.auto_awesome,
       'pi' => Icons.psychology_alt_outlined,
+      'opencode' => Icons.smart_toy_outlined,
       _ => Icons.auto_awesome,
     };
   }

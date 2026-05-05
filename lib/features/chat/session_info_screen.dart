@@ -195,19 +195,29 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (flavor == 'gpt' || flavor == 'openai') return 'Codex';
     if (flavor == 'gemini') return 'Gemini';
     if (flavor == 'pi') return 'pi';
+    if (flavor == 'opencode') return 'OpenCode';
     return flavor;
   }
 
   Future<void> _copyToClipboard(String text, {String? message}) async {
-    await setClipboardTextSafely(text);
+    final result = await setClipboardTextSafely(text);
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
+    final copiedMessage = message ?? l10n.sessionInfoCopied;
+    final snackBarMessage = result.success
+        ? _clipboardSuccessMessage(copiedMessage, result.truncated)
+        : l10n.textSelectionFailedToCopy;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message ?? l10n.sessionInfoCopied),
+        content: Text(snackBarMessage),
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  String _clipboardSuccessMessage(String message, bool truncated) {
+    if (!truncated) return message;
+    return '$message (truncated)';
   }
 
   void _showError(String message) {
@@ -224,6 +234,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
   Future<void> _handleArchiveSession() async {
     final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
+    final sessionId = widget.session.id;
+    final embedded = widget.embedded;
+    final api = SessionsApi();
+    final syncService = sync;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -250,19 +264,20 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() => _isArchiving = true);
     try {
-      await SessionsApi().setSessionArchived(widget.session.id, true);
-      sync.markSessionArchived(widget.session.id);
+      await api.setSessionArchived(sessionId, true);
+      syncService.markSessionArchived(sessionId);
       if (!mounted) return;
-      if (!widget.embedded) {
+      if (!embedded) {
         Navigator.of(context).pop();
       }
     } catch (e, st) {
       logger.error(
         'Failed to archive session from info screen: '
-        'sessionId=${widget.session.id}',
+        'sessionId=$sessionId',
         e,
         st,
       );
@@ -274,6 +289,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
   Future<void> _handleDeleteSession() async {
     final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
+    final sessionId = widget.session.id;
+    final embedded = widget.embedded;
+    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -300,14 +318,13 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
     setState(() => _isDeleting = true);
-    final deleted = await ref
-        .read(sessionsNotifierProvider.notifier)
-        .optimisticDelete(widget.session.id);
+    final deleted = await sessionsNotifier.optimisticDelete(sessionId);
     if (!mounted) return;
     setState(() => _isDeleting = false);
     if (deleted) {
-      if (!widget.embedded) {
+      if (!embedded) {
         Navigator.of(context).pop();
       }
     } else {
