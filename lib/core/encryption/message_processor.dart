@@ -317,8 +317,38 @@ ProcessedMessages processDecryptedMessages({
           sessionId: sessionId,
           outerContent: content,
           nestedContent: nestedContent,
+          messages: messages,
+          toolResults: toolResults,
+          usageUpdates: usageUpdates,
+          droppedReasons: droppedReasons,
         );
-      final fallback = _extractAgentFallbackText(nestedContent);
+      } else if (contentType == 'acp' || contentType == 'opencode') {
+        _processAcpContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          outerContent: content,
+          nestedContent: nestedContent,
+          messages: messages,
+          toolResults: toolResults,
+          droppedReasons: droppedReasons,
+        );
+      } else if (_looksLikeSessionEnvelope(nestedContent) ||
+          contentType == 'session') {
+        _processSessionContent(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          outerContent: content,
+          nestedContent: nestedContent,
+          messages: messages,
+          toolResults: toolResults,
+          droppedReasons: droppedReasons,
+        );
+      } else {
+        final fallback = _extractAgentFallbackText(nestedContent);
         if (fallback != null && fallback.isNotEmpty) {
           messages.add({
             'id': id,
