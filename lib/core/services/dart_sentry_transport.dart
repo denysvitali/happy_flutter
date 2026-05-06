@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'logger_service.dart';
+
 /// Sends Sentry envelopes through Dart HTTP.
 ///
 /// On mobile, sentry_flutter defaults to FileSystemTransport, which hands Dart
@@ -31,6 +33,7 @@ class DartSentryTransport implements Transport {
     try {
       response = await _client.send(request).then(http.Response.fromStream);
     } catch (error, stackTrace) {
+      logger.warning('[Sentry] Dart transport send failed: $error');
       _options.log(
         SentryLevel.error,
         'Failed to send Sentry envelope with Dart transport',
@@ -41,9 +44,14 @@ class DartSentryTransport implements Transport {
     }
 
     if (response.statusCode == 200) {
-      return _eventIdFrom(response.body) ?? envelope.header.eventId;
+      final eventId = _eventIdFrom(response.body) ?? envelope.header.eventId;
+      logger.info('[Sentry] Dart transport sent envelope id=$eventId');
+      return eventId;
     }
 
+    logger.warning(
+      '[Sentry] Dart transport send failed: status=${response.statusCode}',
+    );
     _options.log(
       SentryLevel.error,
       'Failed to send Sentry envelope with Dart transport: '

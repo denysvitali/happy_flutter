@@ -6,6 +6,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -127,10 +128,20 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                     try {
                       throw StateError('Sentry test exception');
                     } catch (e, st) {
+                      logger.info('[Sentry] test exception capture started');
                       final eventId = await Sentry.captureException(
                         e,
                         stackTrace: st,
                       );
+                      if (eventId == const SentryId.empty()) {
+                        logger.warning(
+                          '[Sentry] test exception capture returned empty id',
+                        );
+                      } else {
+                        logger.info(
+                          '[Sentry] test exception captured id=$eventId',
+                        );
+                      }
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
