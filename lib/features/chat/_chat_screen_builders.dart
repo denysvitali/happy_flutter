@@ -151,7 +151,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
       },
     );
     stopwatch.stop();
-    if (stopwatch.elapsedMilliseconds >= 8) {
+    if (stopwatch.elapsedMilliseconds >= 8 &&
+        logger.shouldLog(LogLevel.debug)) {
       logger.debug(
         '[Perf] buildMessageList '
         'session=${widget.sessionId} '

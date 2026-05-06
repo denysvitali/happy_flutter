@@ -103,14 +103,7 @@ class LoggerService {
     dynamic error,
     StackTrace? stackTrace,
   }) {
-    // Skip if below minimum level
-    if (level.index < _minLevel.index) {
-      return;
-    }
-
-    // In release mode, only process errors unless developer mode is enabled
-    // (developer mode allows seeing all logs in DevLogsScreen for debugging)
-    if (kReleaseMode && !_developerModeEnabled && level != LogLevel.error) {
+    if (!shouldLog(level)) {
       return;
     }
 
@@ -159,6 +152,20 @@ class LoggerService {
         }
       }
     }
+  }
+
+  bool shouldLog(LogLevel level) {
+    if (level.index < _minLevel.index) {
+      return false;
+    }
+
+    // In release mode, only process errors unless developer mode is enabled
+    // (developer mode allows seeing all logs in DevLogsScreen for debugging)
+    if (kReleaseMode && !_developerModeEnabled && level != LogLevel.error) {
+      return false;
+    }
+
+    return true;
   }
 
   /// Forward warnings and errors to Sentry.

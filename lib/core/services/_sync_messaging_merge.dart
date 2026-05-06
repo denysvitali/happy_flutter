@@ -570,7 +570,8 @@ extension SyncMessagingMerge on Sync {
         'state': 'completed',
         'input': <String, dynamic>{
           'description': 'Subagent output (recovered)',
-          'prompt': '${children.length} message(s) — '
+          'prompt':
+              '${children.length} message(s) — '
               'parent Task missing from history',
         },
         'seq': minSeq,
@@ -584,9 +585,7 @@ extension SyncMessagingMerge on Sync {
     final inserted = <String>{};
     for (final m in messages) {
       final id = m['id'] as String?;
-      if (m['isSidechain'] == true &&
-          id != null &&
-          orphanIds.contains(id)) {
+      if (m['isSidechain'] == true && id != null && orphanIds.contains(id)) {
         final parentUuid = (m['parentUuid'] as String?) ?? '';
         if (!inserted.contains(parentUuid)) {
           result.add(syntheticByParent[parentUuid]!);
@@ -817,7 +816,9 @@ extension SyncMessagingMerge on Sync {
     List<Map<String, dynamic>> messages,
   ) {
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
-    const maxMessages = 3000;
+    final maxMessages = sessionId == _visibleSessionId
+        ? Sync._maxVisibleSessionMessages
+        : Sync._maxBackgroundSessionMessages;
 
     if (_canAppendMessagesFastPath(existing, messages)) {
       final appended = <Map<String, dynamic>>[...existing, ...messages];
@@ -825,7 +826,7 @@ extension SyncMessagingMerge on Sync {
           ? appended.sublist(appended.length - maxMessages)
           : appended;
       _sessionMessages[sessionId] = trimmed;
-      if (sessionId == _visibleSessionId) {
+      if (sessionId == _visibleSessionId && logger.shouldLog(LogLevel.debug)) {
         final afterCount = _sessionMessages[sessionId]?.length ?? 0;
         logger.debug(
           '[messages] upsert session=$sessionId '
@@ -978,7 +979,9 @@ extension SyncMessagingMerge on Sync {
         ? sorted.sublist(sorted.length - maxMessages)
         : sorted;
     _rebuildSessionContentSignatures(sessionId);
-    if (sessionId == _visibleSessionId && messages.isNotEmpty) {
+    if (sessionId == _visibleSessionId &&
+        messages.isNotEmpty &&
+        logger.shouldLog(LogLevel.debug)) {
       final afterCount = _sessionMessages[sessionId]?.length ?? 0;
       logger.debug(
         '[messages] upsert session=$sessionId '

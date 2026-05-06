@@ -629,13 +629,15 @@ extension SyncMessagingRpc on Sync {
         _sessionMessages.containsKey(sessionId) &&
         (_sessionMessages[sessionId]?.isNotEmpty ?? false);
 
-    logger.debug(
-      '[onSessionVisible] sessionId=$sessionId '
-      'hasPendingSocketMessages=$hasPendingSocketMessages '
-      'hasMessagesInMemory=$hasMessages '
-      'cursorSeq=${_sessionLastSeq[sessionId] ?? 0} '
-      'serverLastSeq=${_sessions[sessionId]?.lastSeq ?? 0}',
-    );
+    if (logger.shouldLog(LogLevel.debug)) {
+      logger.debug(
+        '[onSessionVisible] sessionId=$sessionId '
+        'hasPendingSocketMessages=$hasPendingSocketMessages '
+        'hasMessagesInMemory=$hasMessages '
+        'cursorSeq=${_sessionLastSeq[sessionId] ?? 0} '
+        'serverLastSeq=${_sessions[sessionId]?.lastSeq ?? 0}',
+      );
+    }
 
     if (!hasMessages) {
       // Restore from MMKV cache so the UI shows messages immediately
@@ -645,11 +647,13 @@ extension SyncMessagingRpc on Sync {
       // of a loading spinner for 5-15s while the server fetch runs.
       // The incremental delta fetch will fill in any missing messages.
       final cached = MessageCacheService().getMessages(sessionId);
-      logger.debug(
-        '[onSessionVisible] cacheRestore: ${cached.length} '
-        'cached messages '
-        '(hasPendingSocket=$hasPendingSocketMessages)',
-      );
+      if (logger.shouldLog(LogLevel.debug)) {
+        logger.debug(
+          '[onSessionVisible] cacheRestore: ${cached.length} '
+          'cached messages '
+          '(hasPendingSocket=$hasPendingSocketMessages)',
+        );
+      }
       if (cached.isNotEmpty) {
         _sessionMessages[sessionId] = cached;
         _sessionMessagesCache = null;
@@ -677,11 +681,13 @@ extension SyncMessagingRpc on Sync {
       // them with the cache.
       if (!hasMessages) {
         _requestTailRefresh(sessionId);
-        logger.debug(
-          '[onSessionVisible] tailRefresh requested '
-          '(hasMessages=$hasMessages '
-          'hasPendingSocket=$hasPendingSocketMessages)',
-        );
+        if (logger.shouldLog(LogLevel.debug)) {
+          logger.debug(
+            '[onSessionVisible] tailRefresh requested '
+            '(hasMessages=$hasMessages '
+            'hasPendingSocket=$hasPendingSocketMessages)',
+          );
+        }
       }
     } else {
       // Messages are in memory (from cache or previous load). Check if the
@@ -692,19 +698,23 @@ extension SyncMessagingRpc on Sync {
       final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
       final hadPendingUpdates = _sessionsWithPendingUpdates.remove(sessionId);
 
-      logger.debug(
-        '[onSessionVisible] hasMessages path: cursorSeq=$cursorSeq '
-        'serverLastSeq=$serverLastSeq hadPendingUpdates=$hadPendingUpdates',
-      );
+      if (logger.shouldLog(LogLevel.debug)) {
+        logger.debug(
+          '[onSessionVisible] hasMessages path: cursorSeq=$cursorSeq '
+          'serverLastSeq=$serverLastSeq hadPendingUpdates=$hadPendingUpdates',
+        );
+      }
 
       // Check for gap: server is ahead of our cursor
       if (cursorSeq > 0 && serverLastSeq > cursorSeq) {
         // Server has messages we haven't seen. Let fetchMessages handle it
         // via the normal incremental delta path (or gapTooLarge tail-load).
-        logger.debug(
-          '[onSessionVisible] gap detected: '
-          'server($serverLastSeq) > cursor($cursorSeq) — will fetch delta',
-        );
+        if (logger.shouldLog(LogLevel.debug)) {
+          logger.debug(
+            '[onSessionVisible] gap detected: '
+            'server($serverLastSeq) > cursor($cursorSeq) — will fetch delta',
+          );
+        }
       } else if (hadPendingUpdates) {
         // Socket events arrived while session was non-visible, but cursor
         // appears caught up or ahead.  Only tail-refresh when cursor data
@@ -714,10 +724,12 @@ extension SyncMessagingRpc on Sync {
         // would unnecessarily wipe and re-download messages.
         if (cursorSeq <= 0 || serverLastSeq <= 0) {
           _requestTailRefresh(sessionId);
-          logger.debug(
-            '[onSessionVisible] tailRefresh '
-            '(pending updates, invalid cursor)',
-          );
+          if (logger.shouldLog(LogLevel.debug)) {
+            logger.debug(
+              '[onSessionVisible] tailRefresh '
+              '(pending updates, invalid cursor)',
+            );
+          }
         }
       }
     }

@@ -125,6 +125,8 @@ class Sync {
   static const int sessionReadyTimeoutMs = 3000;
   static const int _visibleMessageFetchPageLimit = 8;
   static const int _backgroundMessageFetchPageLimit = 1;
+  static const int _maxVisibleSessionMessages = 1000;
+  static const int _maxBackgroundSessionMessages = 200;
   static const Duration _messageFetchConnectTimeout = Duration(seconds: 8);
   static const Duration _messageFetchReceiveTimeout = Duration(seconds: 8);
   static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);

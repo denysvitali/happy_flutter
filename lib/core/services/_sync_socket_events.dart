@@ -314,7 +314,9 @@ extension SyncSocketEvents on Sync {
         _sessionsNeedingFetchProbe.add(sessionId);
         messagesSync[sessionId]?.invalidate();
       }
-      logger.debug('New message received: $sessionId');
+      if (logger.shouldLog(LogLevel.debug)) {
+        logger.debug('New message received: $sessionId');
+      }
     } else {
       // Non-visible session: decrypt and store the embedded message
       // inline so it is available immediately when the user navigates
@@ -371,20 +373,22 @@ extension SyncSocketEvents on Sync {
         newUnread = current;
       }
 
-      Sentry.addBreadcrumb(
-        Breadcrumb(
-          message: 'Background message received',
-          category: 'chat.background',
-          level: SentryLevel.info,
-          data: <String, dynamic>{
-            'sessionId': sessionId,
-            'msgSeq': msgSeq,
-            'unreadCount': newUnread,
-            'hasEmbedded': embeddedMessage != null,
-            'isFirstPending': isNew,
-          },
-        ),
-      );
+      if (isNew) {
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'Background message received',
+            category: 'chat.background',
+            level: SentryLevel.info,
+            data: <String, dynamic>{
+              'sessionId': sessionId,
+              'msgSeq': msgSeq,
+              'unreadCount': newUnread,
+              'hasEmbedded': embeddedMessage != null,
+              'isFirstPending': true,
+            },
+          ),
+        );
+      }
     }
   }
 

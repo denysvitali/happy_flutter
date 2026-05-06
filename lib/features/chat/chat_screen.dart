@@ -14,7 +14,7 @@ import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
-import '../../core/services/logger_service.dart' show logger;
+import '../../core/services/logger_service.dart' show LogLevel, logger;
 import '../../core/services/message_cache_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
@@ -249,11 +249,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _prevSeenLength = cached.length;
         _visibleCount = initialVisible;
       });
-      logger.debug(
-        '[ChatScreen] Loaded ${cached.length} cached messages for '
-        'session ${widget.sessionId} '
-        'visibleCount=$_visibleCount',
-      );
+      if (logger.shouldLog(LogLevel.debug)) {
+        logger.debug(
+          '[ChatScreen] Loaded ${cached.length} cached messages for '
+          'session ${widget.sessionId} '
+          'visibleCount=$_visibleCount',
+        );
+      }
       Sentry.addBreadcrumb(
         Breadcrumb(
           message: 'ChatScreen: initState cache hit',
@@ -378,17 +380,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       messagesChanged = true;
     }
 
-    logger.debug(
-      '[ChatScreen] _refreshFromSync '
-      'session=${widget.sessionId} '
-      'markLoaded=$markLoaded '
-      'loadFailed=$loadFailed '
-      'sessionChanged=$sessionChanged '
-      'messagesChanged=$messagesChanged '
-      'latestMsgs=${latestMessages.length} '
-      'currentMsgs=${_messages.length} '
-      'visibleCount=$_visibleCount',
-    );
+    if (logger.shouldLog(LogLevel.debug)) {
+      logger.debug(
+        '[ChatScreen] _refreshFromSync '
+        'session=${widget.sessionId} '
+        'markLoaded=$markLoaded '
+        'loadFailed=$loadFailed '
+        'sessionChanged=$sessionChanged '
+        'messagesChanged=$messagesChanged '
+        'latestMsgs=${latestMessages.length} '
+        'currentMsgs=${_messages.length} '
+        'visibleCount=$_visibleCount',
+      );
+    }
 
     if (!sessionChanged && !messagesChanged && !markLoaded && !loadFailed) {
       return;
