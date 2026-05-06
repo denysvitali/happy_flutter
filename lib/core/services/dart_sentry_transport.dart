@@ -62,14 +62,23 @@ class DartSentryTransport implements Transport {
       return SentryId.empty();
     }
 
+    final responseContext = _responseContext(response);
     if (response.statusCode == 200) {
-      final eventId = _eventIdFrom(response.body) ?? envelope.header.eventId;
+      final parsedEventId = _eventIdFrom(response.body);
+      if (parsedEventId == null) {
+        logger.warning(
+          '[Sentry] Dart transport got 200 without response event id '
+          '$responseContext',
+        );
+      }
+      final eventId = parsedEventId ?? envelope.header.eventId;
       logger.info('[Sentry] Dart transport sent envelope id=$eventId');
       return eventId;
     }
 
     logger.warning(
-      '[Sentry] Dart transport send failed: status=${response.statusCode}',
+      '[Sentry] Dart transport send failed: status=${response.statusCode} '
+      '$responseContext',
     );
     _options.log(
       SentryLevel.error,
@@ -77,6 +86,15 @@ class DartSentryTransport implements Transport {
       'statusCode=${response.statusCode}',
     );
     return SentryId.empty();
+  }
+
+  String _responseContext(http.Response response) {
+    final contentType = response.headers['content-type'] ?? '-';
+    final server = response.headers['server'] ?? '-';
+    final body = response.body.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final snippet = body.length <= 180 ? body : '${body.substring(0, 180)}...';
+    return 'contentType=$contentType server=$server '
+        'bodyLen=${response.body.length} body="$snippet"';
   }
 
   Future<Uint8List> _envelopeBytes(SentryEnvelope envelope) async {
