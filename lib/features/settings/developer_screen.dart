@@ -129,10 +129,19 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                       throw StateError('Sentry test exception');
                     } catch (e, st) {
                       logger.info('[Sentry] test exception capture started');
-                      final eventId = await Sentry.captureException(
-                        e,
-                        stackTrace: st,
-                      );
+                      final eventId =
+                          await Sentry.captureException(
+                            e,
+                            stackTrace: st,
+                          ).timeout(
+                            const Duration(seconds: 12),
+                            onTimeout: () {
+                              logger.warning(
+                                '[Sentry] test exception capture timed out',
+                              );
+                              return const SentryId.empty();
+                            },
+                          );
                       if (eventId == const SentryId.empty()) {
                         logger.warning(
                           '[Sentry] test exception capture returned empty id',

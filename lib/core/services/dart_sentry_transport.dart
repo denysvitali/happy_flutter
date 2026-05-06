@@ -1,9 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../../sentry_config.dart';
 import 'logger_service.dart';
+
+const _sentrySendTimeout = Duration(seconds: 10);
 
 /// Sends Sentry envelopes through Dart HTTP.
 ///
@@ -13,7 +19,7 @@ import 'logger_service.dart';
 /// fail after the SDK returns a non-empty event id.
 class DartSentryTransport implements Transport {
   DartSentryTransport(this._options, {http.Client? client})
-    : _client = client ?? http.Client(),
+    : _client = client ?? IOClient(_sentryHttpClient()),
       _dsn = Dsn.parse(_options.dsn ?? '');
 
   final SentryOptions _options;
@@ -23,15 +29,31 @@ class DartSentryTransport implements Transport {
   @override
   Future<SentryId?> send(SentryEnvelope envelope) async {
     envelope.header.sentAt = DateTime.now().toUtc();
+    final envelopeId = envelope.header.eventId;
+    logger.info('[Sentry] Dart transport sending envelope id=$envelopeId');
 
     final request = http.StreamedRequest('POST', _dsn.postUri);
     request.headers.addAll(_headers());
-    await request.sink.addStream(envelope.envelopeStream(_options));
-    await request.sink.close();
 
     final http.Response response;
     try {
-      response = await _client.send(request).then(http.Response.fromStream);
+      await request.sink
+          .addStream(envelope.envelopeStream(_options))
+          .timeout(_sentrySendTimeout);
+      await request.sink.close().timeout(_sentrySendTimeout);
+      response = await _client
+          .send(request)
+          .then(http.Response.fromStream)
+          .timeout(_sentrySendTimeout);
+    } on TimeoutException catch (error, stackTrace) {
+      logger.warning('[Sentry] Dart transport timed out for id=$envelopeId');
+      _options.log(
+        SentryLevel.error,
+        'Timed out sending Sentry envelope with Dart transport',
+        exception: error,
+        stackTrace: stackTrace,
+      );
+      return SentryId.empty();
     } catch (error, stackTrace) {
       logger.warning('[Sentry] Dart transport send failed: $error');
       _options.log(
@@ -92,4 +114,10 @@ class DartSentryTransport implements Transport {
     }
     return null;
   }
+}
+
+HttpClient _sentryHttpClient() {
+  return HttpClient()
+    ..connectionTimeout = _sentrySendTimeout
+    ..badCertificateCallback = (cert, host, port) => host == sentryHost;
 }
