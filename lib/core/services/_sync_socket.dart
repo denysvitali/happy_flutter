@@ -623,17 +623,15 @@ extension SyncSocket on Sync {
   /// start. Yielding to the event loop between batches keeps the UI
   /// isolate responsive while still warming previews quickly.
   static const int _coldStartMessageCacheBatchSize = 20;
+  static const int _maxColdStartMessageCacheWarmSessions = 20;
 
-  /// Restores cached messages for sessions from MMKV into
+  /// Restores cached messages for the most recent sessions from MMKV into
   /// [_sessionMessages]. Deferred off the synchronous [_init] critical path.
   ///
   /// Sessions are processed in [_coldStartMessageCacheBatchSize]-sized
   /// batches, ordered by [Session.updatedAt] desc, with a microtask yield
-  /// between batches. After each batch the messages and sessions domains
-  /// are notified so the sessions list rebuilds with last-message previews
-  /// and timestamps as they become available — without this, sessions
-  /// past the first batch fall back to [Session.updatedAt] (rendering as
-  /// "Just now") with no preview until the user opens the chat.
+  /// between batches. Only [_maxColdStartMessageCacheWarmSessions] sessions
+  /// are warmed at startup; older sessions lazy-load their cache when opened.
   Future<void> _restoreRecentCachedMessagesAsync() async {
     await Future<void>.delayed(Duration.zero);
     if (!isInitialized) return;
@@ -642,13 +640,16 @@ extension SyncSocket on Sync {
     final entries = _sessions.entries.toList()
       ..sort((a, b) => b.value.updatedAt.compareTo(a.value.updatedAt));
     if (entries.isEmpty) return;
+    final entriesToWarm = entries
+        .take(_maxColdStartMessageCacheWarmSessions)
+        .toList(growable: false);
 
     var totalRestored = 0;
     var batchRestored = 0;
     var batchFirstLoadedChanged = false;
     var processedInBatch = 0;
 
-    for (final entry in entries) {
+    for (final entry in entriesToWarm) {
       if (!isInitialized) return;
       final sessionId = entry.key;
       if (!_sessionMessages.containsKey(sessionId)) {
@@ -702,8 +703,9 @@ extension SyncSocket on Sync {
     );
 
     logger.debug(
-      '[MessageCache] Warmed $totalRestored/${entries.length} session caches '
-      'in ${stopwatch.elapsedMilliseconds}ms',
+      '[MessageCache] Warmed $totalRestored/${entriesToWarm.length} recent '
+      'session caches in ${stopwatch.elapsedMilliseconds}ms '
+      '(skipped ${entries.length - entriesToWarm.length})',
     );
   }
 
