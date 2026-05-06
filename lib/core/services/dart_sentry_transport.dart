@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
-import '../../sentry_config.dart';
 import 'logger_service.dart';
 
 const _sentrySendTimeout = Duration(seconds: 10);
@@ -14,9 +13,9 @@ const _sentrySendTimeout = Duration(seconds: 10);
 /// Sends Sentry envelopes through Dart HTTP.
 ///
 /// On mobile, sentry_flutter defaults to FileSystemTransport, which hands Dart
-/// envelopes to the native SDK. That native sender does not respect Dart
-/// HttpOverrides, so self-hosted/private-CA GlitchTip endpoints can silently
-/// fail after the SDK returns a non-empty event id.
+/// envelopes to the native SDK. This transport keeps Dart-originated delivery
+/// observable in app logs and bounded by explicit timeouts while still relying
+/// on the platform trust store for TLS validation.
 class DartSentryTransport implements Transport {
   DartSentryTransport(this._options, {http.Client? client})
     : _client = client ?? IOClient(_sentryHttpClient()),
@@ -117,7 +116,5 @@ class DartSentryTransport implements Transport {
 }
 
 HttpClient _sentryHttpClient() {
-  return HttpClient()
-    ..connectionTimeout = _sentrySendTimeout
-    ..badCertificateCallback = (cert, host, port) => host == sentryHost;
+  return HttpClient()..connectionTimeout = _sentrySendTimeout;
 }

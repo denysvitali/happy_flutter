@@ -16,27 +16,6 @@ import 'sentry_config.dart';
 // local builds where --dart-define is not passed.
 const _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 
-/// Trusts the self-hosted Sentry server certificate.
-///
-/// The server presents a leaf cert signed by "K2 Cluster Root CA",
-/// a private CA absent from platform trust stores. This override
-/// lets dart:io [HttpClient] — used by the Sentry SDK transport —
-/// accept that certificate for [sentryHost] only.
-class _SentryHttpOverrides extends HttpOverrides {
-  _SentryHttpOverrides(this._previous);
-  final HttpOverrides? _previous;
-
-  @override
-  HttpClient createHttpClient(SecurityContext? context) {
-    final prev = _previous;
-    final client = prev != null
-        ? prev.createHttpClient(context)
-        : super.createHttpClient(context);
-    return client
-      ..badCertificateCallback = (cert, host, port) => host == sentryHost;
-  }
-}
-
 Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
   if (!sentryEnabled) {
     logger.warning('[Sentry] SDK disabled by sentryEnabled=false');
@@ -45,10 +24,6 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
     }
     return;
   }
-
-  // Trust the self-hosted Sentry certificate before the SDK
-  // creates its internal HTTP transport.
-  HttpOverrides.global = _SentryHttpOverrides(HttpOverrides.current);
 
   await SentryFlutter.init((options) {
     options
@@ -79,9 +54,9 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..replay.onErrorSampleRate = sentryReplayOnErrorSampleRate
       // Print Sentry diagnostics to console in debug builds.
       ..debug = kDebugMode
-      // Use Dart HTTP for Dart-originated events so the private-CA
-      // HttpOverrides above are honored. The native SDK's queued sender does
-      // not use Dart's certificate override.
+      // Use Dart HTTP for Dart-originated events so delivery is observable
+      // and bounded by explicit timeouts. TLS still relies on the platform
+      // trust store; do not bypass certificate validation here.
       ..transport = DartSentryTransport(options)
       // ── Filter noisy events ──
       ..beforeBreadcrumb = _beforeBreadcrumb
@@ -99,8 +74,8 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
 
 Future<void> _pingSentry() async {
   // ── Step 1: raw HTTP check (bypasses Sentry SDK) ──
-  // Verifies TLS override + server reachability before we
-  // trust the SDK to deliver events.
+  // Verifies platform trust-store configuration + server reachability before
+  // we trust the SDK to deliver events.
   final client = HttpClient();
   int? statusCode;
   try {
@@ -111,8 +86,7 @@ Future<void> _pingSentry() async {
     statusCode = response.statusCode;
   } on HandshakeException catch (e) {
     logger.warning(
-      '[Sentry] TLS handshake failed — '
-      'HttpOverrides may not be active: $e',
+      '[Sentry] TLS handshake failed — check the user trust store: $e',
     );
     return;
   } on SocketException catch (e) {
