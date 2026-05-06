@@ -1,0 +1,87 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+/// Sends Sentry envelopes through Dart HTTP.
+///
+/// On mobile, sentry_flutter defaults to FileSystemTransport, which hands Dart
+/// envelopes to the native SDK. That native sender does not respect Dart
+/// HttpOverrides, so self-hosted/private-CA GlitchTip endpoints can silently
+/// fail after the SDK returns a non-empty event id.
+class DartSentryTransport implements Transport {
+  DartSentryTransport(this._options, {http.Client? client})
+    : _client = client ?? http.Client(),
+      _dsn = Dsn.parse(_options.dsn ?? '');
+
+  final SentryOptions _options;
+  final http.Client _client;
+  final Dsn _dsn;
+
+  @override
+  Future<SentryId?> send(SentryEnvelope envelope) async {
+    envelope.header.sentAt = DateTime.now().toUtc();
+
+    final request = http.StreamedRequest('POST', _dsn.postUri);
+    request.headers.addAll(_headers());
+    await request.sink.addStream(envelope.envelopeStream(_options));
+    await request.sink.close();
+
+    final http.Response response;
+    try {
+      response = await _client.send(request).then(http.Response.fromStream);
+    } catch (error, stackTrace) {
+      _options.log(
+        SentryLevel.error,
+        'Failed to send Sentry envelope with Dart transport',
+        exception: error,
+        stackTrace: stackTrace,
+      );
+      return SentryId.empty();
+    }
+
+    if (response.statusCode == 200) {
+      return _eventIdFrom(response.body) ?? envelope.header.eventId;
+    }
+
+    _options.log(
+      SentryLevel.error,
+      'Failed to send Sentry envelope with Dart transport: '
+      'statusCode=${response.statusCode}',
+    );
+    return SentryId.empty();
+  }
+
+  Map<String, String> _headers() {
+    var auth =
+        'Sentry sentry_version=7, '
+        'sentry_client=${_options.sentryClientName}, '
+        'sentry_key=${_dsn.publicKey}';
+    final secretKey = _dsn.secretKey;
+    if (secretKey != null) {
+      auth += ', sentry_secret=$secretKey';
+    }
+
+    return <String, String>{
+      'Content-Type': 'application/x-sentry-envelope',
+      'User-Agent': _options.sentryClientName,
+      'X-Sentry-Auth': auth,
+    };
+  }
+
+  SentryId? _eventIdFrom(String body) {
+    try {
+      final decoded = json.decode(body);
+      if (decoded is Map<String, Object?>) {
+        final id = decoded['id'];
+        if (id is String && id.isNotEmpty) {
+          return SentryId.fromId(id);
+        }
+      }
+    } catch (_) {
+      // Older/self-hosted Sentry-compatible servers may return an empty body
+      // for accepted envelopes; the envelope header still has the event id.
+    }
+    return null;
+  }
+}

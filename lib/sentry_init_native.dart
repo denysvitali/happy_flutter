@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import 'core/services/dart_sentry_transport.dart';
 import 'core/services/logger_service.dart';
 import 'sentry_config.dart';
 
@@ -78,6 +79,10 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..replay.onErrorSampleRate = sentryReplayOnErrorSampleRate
       // Print Sentry diagnostics to console in debug builds.
       ..debug = kDebugMode
+      // Use Dart HTTP for Dart-originated events so the private-CA
+      // HttpOverrides above are honored. The native SDK's queued sender does
+      // not use Dart's certificate override.
+      ..transport = DartSentryTransport(options)
       // ── Filter noisy events ──
       ..beforeBreadcrumb = _beforeBreadcrumb
       ..beforeSend = _beforeSend;
