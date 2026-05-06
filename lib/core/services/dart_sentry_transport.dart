@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -31,15 +32,12 @@ class DartSentryTransport implements Transport {
     final envelopeId = envelope.header.eventId;
     logger.info('[Sentry] Dart transport sending envelope id=$envelopeId');
 
-    final request = http.StreamedRequest('POST', _dsn.postUri);
-    request.headers.addAll(_headers());
-
     final http.Response response;
     try {
-      await request.sink
-          .addStream(envelope.envelopeStream(_options))
-          .timeout(_sentrySendTimeout);
-      await request.sink.close().timeout(_sentrySendTimeout);
+      final body = await _envelopeBytes(envelope);
+      final request = http.Request('POST', _dsn.postUri)
+        ..headers.addAll(_headers())
+        ..bodyBytes = body;
       response = await _client
           .send(request)
           .then(http.Response.fromStream)
@@ -79,6 +77,15 @@ class DartSentryTransport implements Transport {
       'statusCode=${response.statusCode}',
     );
     return SentryId.empty();
+  }
+
+  Future<Uint8List> _envelopeBytes(SentryEnvelope envelope) async {
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk
+        in envelope.envelopeStream(_options).timeout(_sentrySendTimeout)) {
+      bytes.add(chunk);
+    }
+    return bytes.takeBytes();
   }
 
   Map<String, String> _headers() {
