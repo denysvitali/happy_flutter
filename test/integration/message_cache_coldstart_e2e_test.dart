@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -280,6 +281,63 @@ void main() {
         reason: 'Cache messages should be preserved when server is current',
       );
     });
+
+    test(
+      'cold-start visible session probes messages after sessions refresh',
+      () async {
+        const sessionId = 'sess-cold-start-probe';
+        final sessionsCompleter = Completer<void>();
+
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 5);
+        sync.testSetSessionMessages(sessionId, [
+          for (var i = 1; i <= 5; i++) _makePlainMessage('msg-$i', seq: i),
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 5);
+        sync.sessionsSync = InvalidateSync(() async {
+          await sessionsCompleter.future;
+          sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 8);
+        });
+        sync.sessionsSync.invalidate();
+
+        final capturedAfterSeqs = <int>[];
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          capturedAfterSeqs.add(afterSeq);
+          return _buildResponse([
+            for (var i = 6; i <= 8; i++)
+              _makeEncryptedMessage('msg-$i', seq: i, content: 'Msg $i'),
+          ]);
+        };
+
+        sync.onSessionVisible(sessionId);
+        await sync.messagesSync[sessionId]?.awaitQueue();
+
+        expect(
+          capturedAfterSeqs,
+          isEmpty,
+          reason:
+              'The first fetch sees stale cursor==lastSeq and skips HTTP, '
+              'matching the cold-start race.',
+        );
+
+        sessionsCompleter.complete();
+        await sync.sessionsSync.awaitQueue();
+        await sync.messagesSync[sessionId]?.awaitQueue();
+
+        expect(
+          capturedAfterSeqs,
+          [5],
+          reason:
+              'After sessions refresh, the visible chat should force one '
+              'delta probe from the cached cursor.',
+        );
+
+        final seqs = sync
+            .testSessionMessages(sessionId)!
+            .map((m) => m['seq'] as int?)
+            .toSet();
+        expect(seqs, containsAll([1, 2, 3, 4, 5, 6, 7, 8]));
+      },
+    );
   });
 
   // -------------------------------------------------------------------------

@@ -620,6 +620,7 @@ extension SyncMessagingRpc on Sync {
     final hasPendingSocketMessages = _sessionsWithPendingSocketMessages.remove(
       sessionId,
     );
+    final shouldProbeAfterSessionsRefresh = sessionsSync.isPending;
 
     // Only tail-refresh when we have no messages in memory for this session
     // (first open or after restart).  When messages are already loaded the
@@ -742,6 +743,22 @@ extension SyncMessagingRpc on Sync {
       );
     }
     messagesSync[sessionId]?.invalidate();
+
+    // On cold start the chat can restore cached rows and run fetchMessages()
+    // before the startup sessions sync has refreshed Session.lastSeq. If the
+    // stale cached cursor equals the stale cached lastSeq, fetchMessages()
+    // skips the HTTP request and messages that arrived while the app was
+    // closed stay hidden. Probe once after the sessions sync settles so the
+    // message API is authoritative for the visible chat.
+    if (shouldProbeAfterSessionsRefresh) {
+      unawaited(
+        sessionsSync.awaitQueue().then((_) {
+          if (!isInitialized || _visibleSessionId != sessionId) return;
+          _sessionsNeedingFetchProbe.add(sessionId);
+          messagesSync[sessionId]?.invalidate();
+        }),
+      );
+    }
   }
 
   void _requestTailRefresh(String sessionId) {
