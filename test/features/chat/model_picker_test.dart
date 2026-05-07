@@ -12,6 +12,12 @@ void main() {
     WidgetTester tester, {
     required List<ChatModelMode> models,
   }) async {
+    // The Claude picker now has up to 13 tiles (default + sonnet/opus +
+    // 5 efforts each). Use a tall viewport so every tile is hit-testable.
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -106,6 +112,10 @@ void main() {
   testWidgets('claude effort selection emits the wire-format string', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     String? selected;
     await tester.pumpWidget(
       MaterialApp(

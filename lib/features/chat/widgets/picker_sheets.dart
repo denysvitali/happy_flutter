@@ -205,75 +205,70 @@ class _GroupedModelPickerContentState
     }
     final selectedModels = grouped[_selectedSlug] ?? const [];
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            0,
-            AppSpacing.lg,
-            AppSpacing.sm,
-          ),
-          child: Text(
-            'Model',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        if (defaultModel.isNotEmpty)
-          _buildModelTile(
-            context,
-            defaultModel.first,
-            widget.current,
-            theme,
-            widget.onChanged,
-          ),
-        Flexible(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              for (final entry in grouped.entries)
-                _buildGroupedModelRow(
-                  context,
-                  entry.value.first,
-                  displayName: _displayNameForSlug(entry.value),
-                  selected: entry.key == _selectedSlug,
-                ),
-            ],
-          ),
-        ),
-        if (selectedModels.isNotEmpty) ...[
-          Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              AppSpacing.md,
+              0,
               AppSpacing.lg,
-              AppSpacing.xs,
+              AppSpacing.sm,
             ),
             child: Text(
-              'Effort',
+              'Model',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          for (final model in selectedModels)
+          if (defaultModel.isNotEmpty)
             _buildModelTile(
               context,
-              model,
+              defaultModel.first,
               widget.current,
               theme,
               widget.onChanged,
-              labelOverride: model.hasEffort
-                  ? model.reasoningEffortLabel
-                  : 'Auto',
             ),
+          for (final entry in grouped.entries)
+            _buildGroupedModelRow(
+              context,
+              entry.value.first,
+              displayName: _displayNameForSlug(entry.value),
+              selected: entry.key == _selectedSlug,
+            ),
+          if (selectedModels.isNotEmpty) ...[
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xs,
+              ),
+              child: Text(
+                'Effort',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final model in selectedModels)
+              _buildModelTile(
+                context,
+                model,
+                widget.current,
+                theme,
+                widget.onChanged,
+                labelOverride: model.hasEffort
+                    ? model.reasoningEffortLabel
+                    : 'Auto',
+              ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
