@@ -62,20 +62,23 @@ void main() {
     expect(find.text('GPT-5.5'), findsOneWidget);
     expect(find.text('GPT-5.4 Mini'), findsOneWidget);
     expect(find.text('Effort'), findsOneWidget);
-    expect(find.text('GPT-5.5 Low'), findsOneWidget);
-    expect(find.text('GPT-5.5 Medium'), findsOneWidget);
-    expect(find.text('GPT-5.4 Mini Medium'), findsNothing);
+    // Effort sub-list shows just the effort label.
+    expect(find.text('Low'), findsOneWidget);
+    expect(find.text('Medium'), findsOneWidget);
+    expect(find.text('High'), findsNothing);
 
     await tester.tap(find.text('GPT-5.4 Mini'));
     await tester.pumpAndSettle();
 
-    expect(find.text('GPT-5.4 Mini Medium'), findsOneWidget);
-    expect(find.text('GPT-5.4 Mini High'), findsOneWidget);
+    expect(find.text('Medium'), findsOneWidget);
+    expect(find.text('High'), findsOneWidget);
     expect(find.text('Sonnet'), findsNothing);
     expect(find.text('Opus'), findsNothing);
   });
 
-  testWidgets('claude sessions still show sonnet and opus', (tester) async {
+  testWidgets('claude sessions show sonnet, opus, and effort levels', (
+    tester,
+  ) async {
     await pumpPickerHost(
       tester,
       models: ChatModelMode.availableForFlavor('claude'),
@@ -84,5 +87,55 @@ void main() {
     expect(find.text('Default'), findsOneWidget);
     expect(find.text('Sonnet'), findsOneWidget);
     expect(find.text('Opus'), findsOneWidget);
+    expect(find.text('Effort'), findsOneWidget);
+    // Sonnet is the first slug — its effort sub-list should be visible.
+    expect(find.text('Auto'), findsOneWidget);
+    expect(find.text('Low'), findsOneWidget);
+    expect(find.text('Medium'), findsOneWidget);
+    expect(find.text('High'), findsOneWidget);
+    expect(find.text('XHigh'), findsOneWidget);
+    expect(find.text('Max'), findsOneWidget);
+
+    // Tap Opus to switch to its effort sub-list.
+    await tester.tap(find.text('Opus'));
+    await tester.pumpAndSettle();
+    expect(find.text('Auto'), findsOneWidget);
+    expect(find.text('Max'), findsOneWidget);
+  });
+
+  testWidgets('claude effort selection emits the wire-format string', (
+    tester,
+  ) async {
+    String? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: TextButton(
+                onPressed: () {
+                  showModelPickerSheet(
+                    context,
+                    ChatModelMode.defaultModel,
+                    ChatModelMode.availableForFlavor('claude'),
+                    (m) => selected = m.modeString,
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Opus'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('High'));
+    await tester.pumpAndSettle();
+    expect(selected, 'opus:high');
   });
 }

@@ -53,9 +53,9 @@ class ModelChip extends StatelessWidget {
               Icon(
                 model.isCodex
                     ? Icons.psychology_alt_outlined
-                    : model == ChatModelMode.opus
+                    : model.modelSlug == 'opus'
                     ? Icons.diamond_outlined
-                    : model == ChatModelMode.sonnet
+                    : model.modelSlug == 'sonnet'
                     ? Icons.auto_awesome_outlined
                     : Icons.smart_toy_outlined,
                 size: 11,

@@ -10,13 +10,22 @@ import 'model_mode.dart';
 // Model picker bottom sheet
 // ---------------------------------------------------------------------------
 
+IconData iconForModel(ChatModelMode model) {
+  if (model.isCodex) return Icons.psychology_alt_outlined;
+  if (model.modelSlug == 'opus') return Icons.diamond_outlined;
+  if (model.modelSlug == 'sonnet') return Icons.auto_awesome_outlined;
+  if (model == ChatModelMode.defaultModel) return Icons.smart_toy_outlined;
+  return Icons.smart_toy_outlined;
+}
+
 Widget _buildModelTile(
   BuildContext ctx,
   ChatModelMode model,
   ChatModelMode current,
   ThemeData theme,
-  ValueChanged<ChatModelMode> onChanged,
-) {
+  ValueChanged<ChatModelMode> onChanged, {
+  String? labelOverride,
+}) {
   final cs = theme.colorScheme;
   final isSelected = model == current;
 
@@ -43,13 +52,7 @@ Widget _buildModelTile(
               shape: BoxShape.circle,
             ),
             child: Icon(
-              model.isCodex
-                  ? Icons.psychology_alt_outlined
-                  : model == ChatModelMode.opus
-                  ? Icons.diamond_outlined
-                  : model == ChatModelMode.sonnet
-                  ? Icons.auto_awesome_outlined
-                  : Icons.smart_toy_outlined,
+              iconForModel(model),
               size: 16,
               color: isSelected ? cs.primary : cs.onSurfaceVariant,
             ),
@@ -57,7 +60,7 @@ Widget _buildModelTile(
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
-              model.label,
+              labelOverride ?? model.label,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected ? cs.primary : cs.onSurface,
@@ -81,7 +84,7 @@ void showModelPickerSheet(
 ) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
-  final codexModels = models.where((model) => model.isCodex).toList();
+  final hasGroupedModels = models.any((m) => m.modelSlug != null);
 
   showModalBottomSheet<void>(
     context: context,
@@ -100,7 +103,7 @@ void showModelPickerSheet(
             top: AppSpacing.sm,
             bottom: AppSpacing.xs,
           ),
-          child: codexModels.isEmpty
+          child: !hasGroupedModels
               ? Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,7 +139,7 @@ void showModelPickerSheet(
                     ),
                   ],
                 )
-              : _CodexModelPickerContent(
+              : _GroupedModelPickerContent(
                   current: current,
                   models: models,
                   onChanged: onChanged,
@@ -147,8 +150,8 @@ void showModelPickerSheet(
   );
 }
 
-class _CodexModelPickerContent extends StatefulWidget {
-  const _CodexModelPickerContent({
+class _GroupedModelPickerContent extends StatefulWidget {
+  const _GroupedModelPickerContent({
     required this.current,
     required this.models,
     required this.onChanged,
@@ -159,11 +162,12 @@ class _CodexModelPickerContent extends StatefulWidget {
   final ValueChanged<ChatModelMode> onChanged;
 
   @override
-  State<_CodexModelPickerContent> createState() =>
-      _CodexModelPickerContentState();
+  State<_GroupedModelPickerContent> createState() =>
+      _GroupedModelPickerContentState();
 }
 
-class _CodexModelPickerContentState extends State<_CodexModelPickerContent> {
+class _GroupedModelPickerContentState
+    extends State<_GroupedModelPickerContent> {
   late String? _selectedSlug = widget.current.modelSlug ?? _firstSlug;
 
   String? get _firstSlug {
@@ -171,6 +175,21 @@ class _CodexModelPickerContentState extends State<_CodexModelPickerContent> {
       if (model.modelSlug != null) return model.modelSlug;
     }
     return null;
+  }
+
+  String _displayNameForSlug(List<ChatModelMode> variants) {
+    // Prefer a labelled effort variant so we can strip its effort suffix.
+    final withEffort = variants.firstWhere(
+      (m) => m.hasEffort,
+      orElse: () => variants.first,
+    );
+    if (withEffort.hasEffort) {
+      return withEffort.label.replaceFirst(
+        RegExp(' ${withEffort.reasoningEffortLabel}\$'),
+        '',
+      );
+    }
+    return withEffort.label;
   }
 
   @override
@@ -181,7 +200,7 @@ class _CodexModelPickerContentState extends State<_CodexModelPickerContent> {
         .where((model) => model == ChatModelMode.defaultModel)
         .toList();
     final grouped = <String, List<ChatModelMode>>{};
-    for (final model in widget.models.where((model) => model.isCodex)) {
+    for (final model in widget.models.where((m) => m.modelSlug != null)) {
       grouped.putIfAbsent(model.modelSlug!, () => []).add(model);
     }
     final selectedModels = grouped[_selectedSlug] ?? const [];
@@ -217,9 +236,10 @@ class _CodexModelPickerContentState extends State<_CodexModelPickerContent> {
             shrinkWrap: true,
             children: [
               for (final entry in grouped.entries)
-                _buildCodexModelRow(
+                _buildGroupedModelRow(
                   context,
                   entry.value.first,
+                  displayName: _displayNameForSlug(entry.value),
                   selected: entry.key == _selectedSlug,
                 ),
             ],
@@ -248,15 +268,19 @@ class _CodexModelPickerContentState extends State<_CodexModelPickerContent> {
               widget.current,
               theme,
               widget.onChanged,
+              labelOverride: model.hasEffort
+                  ? model.reasoningEffortLabel
+                  : 'Auto',
             ),
         ],
       ],
     );
   }
 
-  Widget _buildCodexModelRow(
+  Widget _buildGroupedModelRow(
     BuildContext context,
     ChatModelMode model, {
+    required String displayName,
     required bool selected,
   }) {
     final theme = Theme.of(context);
@@ -274,17 +298,14 @@ class _CodexModelPickerContentState extends State<_CodexModelPickerContent> {
         child: Row(
           children: [
             Icon(
-              Icons.psychology_alt_outlined,
+              iconForModel(model),
               size: 18,
               color: selected ? cs.primary : cs.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
-                model.label.replaceFirst(
-                  RegExp(' ${model.reasoningEffortLabel}\$'),
-                  '',
-                ),
+                displayName,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: selected ? cs.primary : cs.onSurface,

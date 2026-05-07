@@ -7,6 +7,7 @@ class ChatModelMode {
     required this.modeString,
     this.modelSlug,
     this.reasoningEffort,
+    this.flavor,
   });
 
   factory ChatModelMode.fromCodexModel({
@@ -20,6 +21,22 @@ class ChatModelMode {
       modeString: '$slug:$effort',
       modelSlug: slug,
       reasoningEffort: effort,
+      flavor: 'codex',
+    );
+  }
+
+  factory ChatModelMode.fromClaudeModel({
+    required String tier,
+    required String displayName,
+    required String effort,
+  }) {
+    final effortLabel = _capitalizeEffort(effort);
+    return ChatModelMode._(
+      label: '$displayName $effortLabel',
+      modeString: '$tier:$effort',
+      modelSlug: tier,
+      reasoningEffort: effort,
+      flavor: 'claude',
     );
   }
 
@@ -29,22 +46,64 @@ class ChatModelMode {
     modeString: 'default',
   );
 
-  /// Sonnet-class mode for Claude-compatible sessions.
-  static const sonnet = ChatModelMode._(label: 'Sonnet', modeString: 'sonnet');
+  /// Sonnet-class mode (no effort override).
+  static const sonnet = ChatModelMode._(
+    label: 'Sonnet',
+    modeString: 'sonnet',
+    modelSlug: 'sonnet',
+    flavor: 'claude',
+  );
 
-  /// Opus-class mode for Claude-compatible sessions.
-  static const opus = ChatModelMode._(label: 'Opus', modeString: 'opus');
+  /// Opus-class mode (no effort override).
+  static const opus = ChatModelMode._(
+    label: 'Opus',
+    modeString: 'opus',
+    modelSlug: 'opus',
+    flavor: 'claude',
+  );
+
+  /// Effort levels supported by the `claude` CLI's `--effort` flag.
+  static const claudeEfforts = ['low', 'medium', 'high', 'xhigh', 'max'];
+
+  static List<ChatModelMode> _buildClaudeModels() {
+    final list = <ChatModelMode>[defaultModel, sonnet];
+    for (final effort in claudeEfforts) {
+      list.add(
+        ChatModelMode.fromClaudeModel(
+          tier: 'sonnet',
+          displayName: 'Sonnet',
+          effort: effort,
+        ),
+      );
+    }
+    list.add(opus);
+    for (final effort in claudeEfforts) {
+      list.add(
+        ChatModelMode.fromClaudeModel(
+          tier: 'opus',
+          displayName: 'Opus',
+          effort: effort,
+        ),
+      );
+    }
+    return list;
+  }
 
   static const values = [defaultModel, sonnet, opus];
 
-  static const claudeModels = [defaultModel, sonnet, opus];
+  static final List<ChatModelMode> claudeModels = _buildClaudeModels();
 
   final String label;
   final String modeString;
   final String? modelSlug;
   final String? reasoningEffort;
+  final String? flavor;
 
-  bool get isCodex => modelSlug != null && reasoningEffort != null;
+  bool get isCodex => flavor == 'codex';
+
+  bool get isClaude => flavor == 'claude';
+
+  bool get hasEffort => reasoningEffort != null;
 
   bool get isDefault => modeString == defaultModel.modeString;
 
@@ -63,7 +122,7 @@ class ChatModelMode {
     return switch (value) {
       'sonnet' => sonnet,
       'opus' => opus,
-      final raw? when raw.contains(':') => _fromCodexSelection(raw),
+      final raw? when raw.contains(':') => _fromColonSelection(raw),
       final raw? when raw.isNotEmpty && raw != 'default' => ChatModelMode._(
         label: raw,
         modeString: raw,
@@ -129,13 +188,20 @@ class ChatModelMode {
     return defaultModel;
   }
 
-  static ChatModelMode _fromCodexSelection(String raw) {
+  static ChatModelMode _fromColonSelection(String raw) {
     final separator = raw.lastIndexOf(':');
     if (separator <= 0 || separator == raw.length - 1) {
       return ChatModelMode._(label: raw, modeString: raw);
     }
     final slug = raw.substring(0, separator);
     final effort = raw.substring(separator + 1);
+    if (slug == 'opus' || slug == 'sonnet') {
+      return ChatModelMode.fromClaudeModel(
+        tier: slug,
+        displayName: slug == 'opus' ? 'Opus' : 'Sonnet',
+        effort: effort,
+      );
+    }
     return ChatModelMode.fromCodexModel(
       slug: slug,
       displayName: _displayNameFromSlug(slug),
