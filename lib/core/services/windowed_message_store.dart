@@ -1,26 +1,24 @@
-/// Windowed message store with keyset pagination.
-///
-/// Targets the `fetchMessages p95 = 54s` outlier from `ROADMAP.md` —
-/// a handful of sessions have message histories so large that the
-/// existing whole-page fetch + in-memory list mutate is the bottleneck.
-///
-/// Design:
-///
-///   - Bounded ~500-message window kept in memory per visible session.
-///   - Older messages are paged in via a `(timestamp, id)` cursor —
-///     the standard keyset-pagination pattern.  Avoids OFFSET-based
-///     scans and survives concurrent writes.
-///   - A future SQLite backend can persist the full history; the
-///     in-memory window stays the same shape so the UI layer never
-///     observes the swap.
-///
-/// Status:
-///
-///   This file scaffolds the API surface plus a paginated fetcher.
-///   It is **not** integrated into [ChatScreen] yet — that's deliberate
-///   to avoid colliding with the architecture branch's parallel work
-///   on `_sync_messaging*`.  Tests cover the cursor algebra and window
-///   trim semantics so future integration is straightforward.
+// Windowed message store with keyset pagination.
+//
+// Targets the `fetchMessages p95 = 54s` outlier from `ROADMAP.md` —
+// a handful of sessions have message histories so large that the
+// existing whole-page fetch + in-memory list mutate is the bottleneck.
+//
+// Design:
+//
+//   - Bounded ~500-message window kept in memory per visible session.
+//   - Older messages are paged in via a `(timestamp, id)` cursor —
+//     the standard keyset-pagination pattern.  Avoids OFFSET-based
+//     scans and survives concurrent writes.
+//   - A future SQLite backend can persist the full history; the
+//     in-memory window stays the same shape so the UI layer never
+//     observes the swap.
+//
+// Status: scaffold + paginated fetcher only — NOT integrated into
+// `ChatScreen`.  Integration is intentionally deferred so the
+// architecture branch (also rewriting `_sync_messaging*`) doesn't
+// conflict with this work.
+
 import 'dart:collection';
 
 /// Composite cursor used for keyset pagination.  Two messages are

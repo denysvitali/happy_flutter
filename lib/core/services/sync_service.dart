@@ -53,15 +53,15 @@ import '../services/sessions_cache_storage.dart';
 import '../types/identity_types.dart';
 // ignore: unused_import
 import '../types/message_state.dart';
+import '../utils/invalidate_sync.dart';
+import '../utils/parse_token.dart';
+import '../utils/path_utils.dart' show resolveAbsolutePath;
+import '../utils/wire_parsers.dart';
 // Canary mode — runtime invariant assertions.  No-ops when kCanary
 // is false, so the part files can call CanaryAssert.* freely without
 // production overhead.
 // ignore: unused_import
 import 'canary_mode.dart';
-import '../utils/invalidate_sync.dart';
-import '../utils/parse_token.dart';
-import '../utils/path_utils.dart' show resolveAbsolutePath;
-import '../utils/wire_parsers.dart';
 import 'inline_message_processor.dart';
 import 'logger_service.dart';
 import 'message_cursor_manager.dart';

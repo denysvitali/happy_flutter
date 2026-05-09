@@ -1,0 +1,68 @@
+# Maestro chaos flow for happy_flutter.
+#
+# Run locally with the chaos proxy in another terminal:
+#
+#     dart run test_chaos/chaos_proxy.dart \
+#         --listen=8080 --upstream=https://staging.happy.engineering \
+#         --profile=noisy --seed=42
+#
+# Then point the dev build at the proxy and run this flow:
+#
+#     APP_BASE_URL=http://10.0.2.2:8080 \
+#         maestro test test_chaos/maestro_flow.yaml
+#
+# CI does NOT run this — Maestro requires a real device or emulator.
+# This file is intentionally checked in so the chaos run is
+# reproducible across teammates.
+
+appId: com.denysvitali.happy_flutter.dev
+---
+# Wait for the QR auth screen and dismiss any onboarding.
+- launchApp:
+    clearState: true
+
+- assertVisible:
+    text: 'Happy'
+
+# Drive a session-creation flow that sends three identical messages
+# in quick succession.  The proxy will randomly latency / drop /
+# duplicate the underlying POSTs, which forces the messaging
+# contract to hold under realistic mobile-network conditions:
+#
+#   - one tap → one logical message  (no duplicate rows after dup POST)
+#   - one canonical localId          (retries reuse the original id)
+#   - repeated text is never identity ("continue" must produce 3 rows)
+#   - optimistic replacement by id    (no merging by text similarity)
+
+- tapOn:
+    text: 'New session'
+
+- inputText: 'continue'
+- tapOn:
+    id: 'send-button'
+
+- inputText: 'continue'
+- tapOn:
+    id: 'send-button'
+
+- inputText: 'continue'
+- tapOn:
+    id: 'send-button'
+
+# Wait for the chat to settle, then assert that exactly three user
+# bubbles are visible.  The chaos profile may delay or duplicate the
+# REST calls, but the UI invariants must still hold.
+- assertVisible:
+    text: 'continue'
+    count: 3
+
+# Background and resume to exercise the suspend / resume code path
+# while the outbox may still be retrying.
+- pressKey: HOME
+- waitForAnimationToEnd:
+    timeout: 3000
+- launchApp
+
+- assertVisible:
+    text: 'continue'
+    count: 3

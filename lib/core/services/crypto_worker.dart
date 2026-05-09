@@ -1,31 +1,25 @@
-/// Long-lived background isolate for crypto, JSON parse, and merge.
-///
-/// Targets two metrics in `ROADMAP.md`:
-///
-///   - Cold start `4.6s avg / 9.3s p95 → < 3s avg`
-///   - 120fps under bursts of decrypt + parse work
-///
-/// Existing code uses `Isolate.run` for one-shot AES batch decrypts
-/// (`encryption/encryptor.dart`).  Spawning a fresh isolate per
-/// decrypt costs ~10-30ms on Android and stalls the first frame.
-/// A long-lived worker amortises spawn cost across the session.
-///
-/// Design:
-///
-///   - `CryptoWorker.spawn()` starts a single isolate at app boot
-///     (after the splash transitions to the auth gate).
-///   - Each request sends `(requestId, op, payload)` to the worker
-///     via a `SendPort`; the worker replies on a private port.
-///   - Operations are typed (`CryptoOp` enum) so the worker can
-///     dispatch without parsing strings.
-///   - The worker is *additive* — call sites continue to use
-///     `Isolate.run` until they explicitly opt in via the worker.
-///
-/// Status:
-///
-///   This file ships the worker plus a self-test that proves NaCl
-///   `crypto_secretbox_easy_open` runs off the UI isolate.  Wiring
-///   it through every decrypt call site is intentionally deferred.
+// Long-lived background isolate for crypto, JSON parse, and merge.
+//
+// Targets two metrics in `ROADMAP.md`:
+//
+//   - Cold start `4.6s avg / 9.3s p95 → < 3s avg`
+//   - 120fps under bursts of decrypt + parse work
+//
+// Existing code uses `Isolate.run` for one-shot AES batch decrypts
+// (`encryption/encryptor.dart`).  Spawning a fresh isolate per
+// decrypt costs ~10-30ms on Android and stalls the first frame.
+// A long-lived worker amortises spawn cost across the session.
+//
+// Design:
+//
+//   - `CryptoWorker.spawn()` starts a single isolate at app boot.
+//   - Each request sends `(requestId, op, payload)` to the worker
+//     via a `SendPort`; the worker replies on a private port.
+//   - Operations are typed (`CryptoOp` enum) so the worker can
+//     dispatch without parsing strings.
+//   - The worker is *additive* — call sites continue to use
+//     `Isolate.run` until they explicitly opt in via the worker.
+
 import 'dart:async';
 import 'dart:convert' as dart_convert;
 import 'dart:isolate';

@@ -1,16 +1,17 @@
-/// Canary mode — runtime invariant assertions for messaging code.
-///
-/// `kCanary` is a build-time flag (`--dart-define=kCanary=true`).
-/// When on, every transition in the messaging pipeline calls into
-/// [CanaryAssert] which logs and forwards to Sentry on violation.
-/// When off, the assertions are no-ops and the call sites compile to
-/// dead code (Dart's tree-shaker eliminates them when the flag is
-/// const-false).
-///
-/// Why not `assert()`?  Because `assert()` is stripped in release
-/// builds — but we want the canary track to run in production
-/// release builds for a small fraction of users.  See
-/// `ROADMAP.md` "Invariant telemetry" task.
+// Canary mode — runtime invariant assertions for messaging code.
+//
+// `kCanary` is a build-time flag (`--dart-define=kCanary=true`).
+// When on, every transition in the messaging pipeline calls into
+// [CanaryAssert] which logs and forwards to Sentry on violation.
+// When off, the assertions are no-ops and the call sites compile to
+// dead code (Dart's tree-shaker eliminates them when the flag is
+// const-false).
+//
+// Why not `assert()`?  Because `assert()` is stripped in release
+// builds — but we want the canary track to run in production
+// release builds for a small fraction of users.  See
+// `ROADMAP.md` "Invariant telemetry" task.
+
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'logger_service.dart';

@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 
 import '../utils/wire_parsers.dart';
 import 'logger_service.dart';
-import 'message_outbox.dart' show OutboxEntry, OutboxDeliverFn, OutboxStatusChangedFn;
+import 'message_outbox.dart'
+    show OutboxEntry, OutboxDeliverFn, OutboxStatusChangedFn;
 
 /// Build flag controlling adoption of the SQLite-backed outbox.
 ///
@@ -41,7 +42,8 @@ const bool kUseSqliteOutbox = bool.fromEnvironment(
 ///   ts_ms       INTEGER NOT NULL,
 ///   local_id    TEXT NOT NULL,
 ///   session_id  TEXT NOT NULL,
-///   kind        TEXT NOT NULL,           -- 'add' | 'retry' | 'sent' | 'failed'
+///   kind        TEXT NOT NULL,
+///                              -- 'add'|'retry'|'sent'|'failed'
 ///   payload     TEXT                     -- JSON, only for 'add'
 /// );
 /// CREATE INDEX outbox_events_local_id ON outbox_events(local_id);
