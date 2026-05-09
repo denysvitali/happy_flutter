@@ -54,13 +54,7 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
   };
 
   for (final session in sessions) {
-    // Use the last message timestamp (when available) so the date group
-    // matches what the card displays. Falling back to session.updatedAt
-    // alone caused sessions to land in "Yesterday" while the card showed
-    // a fresh time, until opening the chat refreshed updatedAt.
-    final effectiveTs =
-        getLastMessageTimestamp?.call(session.id) ?? session.updatedAt;
-    final sessionDate = DateTime.fromMillisecondsSinceEpoch(effectiveTs);
+    final sessionDate = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
     final dateOnly = DateTime(
       sessionDate.year,
       sessionDate.month,
