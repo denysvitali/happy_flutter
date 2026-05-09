@@ -664,14 +664,152 @@ extension SyncMessagingMerge on Sync {
     return true;
   }
 
+  /// Dissolve any `_orphanRecovery: true` synthetic Task whose chain
+  /// can now reach a real Task in the message list — flatten its
+  /// children back to the top level so the regular grouper pass can
+  /// re-attach them to the genuine Task.
+  ///
+  /// Runs before [_groupSidechainMessages] delegates to the grouper.
+  /// Without this, a synthetic that absorbed orphans during a
+  /// cache-restore window stays in place forever; the real Task that
+  /// arrives later via fetchMessages adds itself as a separate tile
+  /// while the synthetic ghost continues to hold the children.
+  ///
+  /// Resolution is conservative: we only dissolve a synthetic when
+  /// some real Task uuid/toolUseId is present anywhere in the
+  /// orphan's chain (via the synthetic's children or top-level
+  /// sidechain peers).  A synthetic with no resolvable chain is
+  /// left alone — that case still legitimately needs the placeholder.
+  ///
+  /// Returns true when at least one synthetic was dissolved.
+  bool _dissolveStaleOrphanSynthetics(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return false;
+
+    final realTaskKeys = <String>{};
+    for (final m in messages) {
+      if (m['_orphanRecovery'] == true) continue;
+      if (m['kind'] != 'tool-call') continue;
+      final name = m['name'];
+      if (name != 'Task' && name != 'Agent') continue;
+      final id = m['id'] as String?;
+      if (id != null && id.isNotEmpty) realTaskKeys.add(id);
+      final uuid = m['uuid'] as String?;
+      if (uuid != null && uuid.isNotEmpty) realTaskKeys.add(uuid);
+      final toolUseId = m['toolUseId'] as String?;
+      if (toolUseId != null && toolUseId.isNotEmpty) {
+        realTaskKeys.add(toolUseId);
+      }
+    }
+    if (realTaskKeys.isEmpty) return false;
+
+    // Index every sidechain message that is currently NOT inside a
+    // synthetic (top-level isSidechain entries) by uuid, so we can
+    // walk parentUuid chains across the synthetic boundary.
+    final peerByUuid = <String, Map<String, dynamic>>{};
+    for (final m in messages) {
+      if (m['isSidechain'] != true) continue;
+      final uuid = m['uuid'] as String?;
+      if (uuid != null && uuid.isNotEmpty) peerByUuid[uuid] = m;
+    }
+
+    final toDissolve = <Map<String, dynamic>>[];
+    for (final m in messages) {
+      if (m['_orphanRecovery'] != true) continue;
+      // Quick win: synthetic uuid (the chain root) IS a real Task key.
+      final syntheticUuid = m['uuid'] as String?;
+      if (syntheticUuid != null && realTaskKeys.contains(syntheticUuid)) {
+        toDissolve.add(m);
+        continue;
+      }
+      // Check children: walk each child's parentUuid up through
+      // siblings and synthetic.children to see if it hits a real
+      // Task key.  If any child resolves, the whole synthetic is
+      // stale.
+      final children = m['children'] as List<dynamic>?;
+      if (children == null || children.isEmpty) continue;
+      // Index synthetic's own children by uuid for chain walking.
+      final innerByUuid = <String, Map<String, dynamic>>{};
+      for (final c in children) {
+        if (c is Map<String, dynamic>) {
+          final cu = c['uuid'] as String?;
+          if (cu != null && cu.isNotEmpty) innerByUuid[cu] = c;
+        }
+      }
+      var resolvable = false;
+      outer: for (final c in children) {
+        if (c is! Map<String, dynamic>) continue;
+        var current = (c['parentUuid'] as String?) ?? '';
+        final visited = <String>{};
+        while (current.isNotEmpty && visited.add(current)) {
+          if (realTaskKeys.contains(current)) {
+            resolvable = true;
+            break outer;
+          }
+          final next = innerByUuid[current] ?? peerByUuid[current];
+          if (next == null) break;
+          current = (next['parentUuid'] as String?) ?? '';
+        }
+      }
+      if (resolvable) toDissolve.add(m);
+    }
+    if (toDissolve.isEmpty) return false;
+
+    // Re-flatten dissolved synthetics' children back into the
+    // top-level list at the synthetic's old position, preserving
+    // wire order for downstream sort stability.
+    final dissolveSet = Set<Map<String, dynamic>>.identity()
+      ..addAll(toDissolve);
+    final result = <Map<String, dynamic>>[];
+    var dissolvedCount = 0;
+    var reattachedCount = 0;
+    for (final m in messages) {
+      if (dissolveSet.contains(m)) {
+        dissolvedCount++;
+        final children = m['children'] as List<dynamic>?;
+        if (children != null) {
+          for (final c in children) {
+            if (c is Map<String, dynamic>) {
+              // Defensive: ensure child still claims sidechain
+              // status so the grouper picks it up.
+              if (c['isSidechain'] != true) c['isSidechain'] = true;
+              result.add(c);
+              reattachedCount++;
+            }
+          }
+        }
+        continue;
+      }
+      result.add(m);
+    }
+
+    _sessionMessages[sessionId] = result;
+    _sessionMessagesCache = null;
+    _sessionMessagesViewCache.remove(sessionId);
+    // Lift any orphan suppression so the grouper re-runs immediately.
+    _orphanSuppressedUntilMs.remove(sessionId);
+
+    logger.info(
+      '[sidechain] dissolved $dissolvedCount stale synthetic Task(s); '
+      're-attached $reattachedCount sidechain message(s) '
+      'for session=$sessionId',
+    );
+    return true;
+  }
+
   /// Delegates to [SidechainGrouper] and updates session message
   /// state when grouping modifies the list.
   void _groupSidechainMessages(String sessionId, {Set<String>? changedIds}) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
 
+    // Reconcile any stale orphan-recovery synthetics whose real
+    // parent Task has since arrived.  Must happen BEFORE grouping
+    // so the released children participate in the same pass.
+    _dissolveStaleOrphanSynthetics(sessionId);
+
     final result = _sidechainGrouper.groupMessages(
-      messages,
+      _sessionMessages[sessionId] ?? messages,
       changedIds: changedIds,
     );
 

@@ -106,6 +106,14 @@ extension SyncTestHelpers on Sync {
     return _absorbOrphansIntoSyntheticTasks(sessionId);
   }
 
+  /// Test helper: invoke synthetic dissolution directly.  Returns
+  /// true when at least one stale `_orphanRecovery` synthetic was
+  /// flattened back to top-level isSidechain messages.
+  @visibleForTesting
+  bool testDissolveStaleOrphanSynthetics(String sessionId) {
+    return _dissolveStaleOrphanSynthetics(sessionId);
+  }
+
   @visibleForTesting
   List<Map<String, dynamic>> testGetSessionMessages(String sessionId) {
     return _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];
