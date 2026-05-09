@@ -524,32 +524,80 @@ extension SyncMessagingMerge on Sync {
   /// drops them silently and the AgentsListSheet — which enumerates
   /// only top-level Task tool-calls — never sees them either.
   ///
-  /// Orphans are grouped by their parentUuid (one synthetic per group;
-  /// orphans without a parentUuid share a single bucket).  The
-  /// synthetic Task is inserted at the position of the first orphan in
-  /// its group; remaining orphans are removed from the top-level list.
-  /// Setting the synthetic's uuid to the orphan parentUuid lets any
-  /// future sidechain for that parent attach naturally on the next
-  /// grouper pass.
+  /// Orphans are grouped by **chain root** — the earliest ancestor
+  /// uuid reachable by walking parentUuid through the orphan set
+  /// itself.  Subagent transcripts chain via the prior message's
+  /// uuid, so naively bucketing by `parentUuid` produces one
+  /// synthetic per turn (each turn has a distinct parentUuid),
+  /// fragmenting one logical subagent run into many "Subagent
+  /// output (recovered)" tiles.  Chain-root coalescing yields one
+  /// synthetic per logical subagent.
+  ///
+  /// The synthetic Task is inserted at the position of the first
+  /// orphan in its chain; remaining orphans are removed from the
+  /// top-level list.  Setting the synthetic's uuid to the chain
+  /// root lets any future sidechain for that parent attach
+  /// naturally on the next grouper pass.
   ///
   /// Returns `true` when at least one orphan was absorbed.
   bool _absorbOrphansIntoSyntheticTasks(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return false;
 
-    final orphansByParent = <String, List<Map<String, dynamic>>>{};
-    final orphanIds = <String>{};
+    // Index orphans by uuid so we can walk chains within the orphan
+    // set itself.  Each orphan's parentUuid either resolves inside
+    // this set (intra-chain link) or terminates outside it (true
+    // chain root from the absorber's perspective).
+    final orphanByUuid = <String, Map<String, dynamic>>{};
+    final orphans = <Map<String, dynamic>>[];
     for (final m in messages) {
       if (m['isSidechain'] != true) continue;
-      final parentUuid = (m['parentUuid'] as String?) ?? '';
-      orphansByParent.putIfAbsent(parentUuid, () => []).add(m);
+      orphans.add(m);
+      final uuid = m['uuid'] as String?;
+      if (uuid != null && uuid.isNotEmpty) {
+        orphanByUuid[uuid] = m;
+      }
+    }
+    if (orphans.isEmpty) return false;
+
+    // Walk each orphan's parentUuid chain through the orphan set
+    // until it terminates at a uuid not present in the set.  That
+    // terminal value is the "chain root" — every orphan with the
+    // same root belongs to the same logical subagent transcript.
+    String chainRootFor(Map<String, dynamic> orphan) {
+      var current = (orphan['parentUuid'] as String?) ?? '';
+      final visited = <String>{};
+      while (current.isNotEmpty && visited.add(current)) {
+        final next = orphanByUuid[current];
+        if (next == null) return current;
+        final np = next['parentUuid'] as String?;
+        if (np == null || np.isEmpty) {
+          final nu = next['uuid'] as String?;
+          return (nu != null && nu.isNotEmpty) ? nu : current;
+        }
+        current = np;
+      }
+      return current;
+    }
+
+    final orphansByRoot = <String, List<Map<String, dynamic>>>{};
+    final orphanIds = <String>{};
+    for (final m in orphans) {
+      final root = chainRootFor(m);
+      orphansByRoot.putIfAbsent(root, () => []).add(m);
       final id = m['id'] as String?;
       if (id != null) orphanIds.add(id);
     }
-    if (orphansByParent.isEmpty) return false;
 
-    final syntheticByParent = <String, Map<String, dynamic>>{};
-    orphansByParent.forEach((parentUuid, children) {
+    final syntheticByRoot = <String, Map<String, dynamic>>{};
+    orphansByRoot.forEach((rootUuid, children) {
+      // Sort children by seq so the synthetic transcript reads in
+      // wire order even if orphans arrived out of seq.
+      children.sort((a, b) {
+        final sa = a['seq'] as int? ?? 0;
+        final sb = b['seq'] as int? ?? 0;
+        return sa.compareTo(sb);
+      });
       var minSeq = (children.first['seq'] as int?) ?? 0;
       var minCreatedAt = (children.first['createdAt'] as int?) ?? 0;
       for (final c in children) {
@@ -558,12 +606,12 @@ extension SyncMessagingMerge on Sync {
         if (s < minSeq) minSeq = s;
         if (ca < minCreatedAt) minCreatedAt = ca;
       }
-      final syntheticId = parentUuid.isEmpty
+      final syntheticId = rootUuid.isEmpty
           ? 'orphan-recovery-seq-$minSeq'
-          : 'orphan-recovery-$parentUuid';
-      syntheticByParent[parentUuid] = <String, dynamic>{
+          : 'orphan-recovery-$rootUuid';
+      syntheticByRoot[rootUuid] = <String, dynamic>{
         'id': syntheticId,
-        if (parentUuid.isNotEmpty) 'uuid': parentUuid,
+        if (rootUuid.isNotEmpty) 'uuid': rootUuid,
         'kind': 'tool-call',
         'name': 'Task',
         'role': 'agent',
@@ -581,15 +629,23 @@ extension SyncMessagingMerge on Sync {
       };
     });
 
+    final orphanIdToRoot = <String, String>{};
+    orphansByRoot.forEach((rootUuid, children) {
+      for (final c in children) {
+        final id = c['id'] as String?;
+        if (id != null) orphanIdToRoot[id] = rootUuid;
+      }
+    });
+
     final result = <Map<String, dynamic>>[];
     final inserted = <String>{};
     for (final m in messages) {
       final id = m['id'] as String?;
       if (m['isSidechain'] == true && id != null && orphanIds.contains(id)) {
-        final parentUuid = (m['parentUuid'] as String?) ?? '';
-        if (!inserted.contains(parentUuid)) {
-          result.add(syntheticByParent[parentUuid]!);
-          inserted.add(parentUuid);
+        final root = orphanIdToRoot[id] ?? '';
+        if (!inserted.contains(root)) {
+          result.add(syntheticByRoot[root]!);
+          inserted.add(root);
         }
         continue;
       }
@@ -602,7 +658,7 @@ extension SyncMessagingMerge on Sync {
 
     logger.info(
       '[sidechain] absorbed ${orphanIds.length} orphan(s) into '
-      '${syntheticByParent.length} synthetic Task(s) '
+      '${syntheticByRoot.length} synthetic Task(s) (chain-root coalesce) '
       'for session=$sessionId',
     );
     return true;
