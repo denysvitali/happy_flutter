@@ -826,10 +826,10 @@ extension SyncMessagingMerge on Sync {
     // and trigger the warning again on every subsequent deferred regroup
     // sweep call — creating an infinite warning loop.
     _sessionMessages[sessionId] = result.messages;
-    if (!identical(result.messages, messages)) {
-      _sessionMessagesCache = null;
-      _sessionMessagesViewCache.remove(sessionId);
-    }
+    // Always invalidate cache after assigning — the list reference may be
+    // identical even when the list contents changed (hasOrphans path).
+    _sessionMessagesCache = null;
+    _sessionMessagesViewCache.remove(sessionId);
   }
 
   /// Apply tool results to existing tool-call messages in a session.
