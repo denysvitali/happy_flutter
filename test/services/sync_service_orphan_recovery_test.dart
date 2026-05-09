@@ -561,5 +561,245 @@ void main() {
             reason: 'no-op path must avoid allocation');
       });
     });
+
+    // ── Sweep-count delay before absorb (fix #2) ──
+    group('delays absorb until multiple no-progress sweeps', () {
+      test('does NOT absorb after first no-progress sweep', () {
+        // Orphans present with no parent Task.  After one sweep with
+        // no progress, absorb must NOT run — we need 2 consecutive
+        // sweeps before absorbing.
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 2,
+          },
+          <String, dynamic>{
+            'id': 'orph-2',
+            'isSidechain': true,
+            'uuid': 'u2',
+            'parentUuid': 'u1',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'seq': 3,
+          },
+        ]);
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 0);
+
+        // First sweep — still orphan but count < 2, no absorb.
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
+
+        // Still no absorb — orphans should remain at top level.
+        final after1 = sync.testGetSessionMessages('s1');
+        final orphanCount1 = after1
+            .where((m) => m['isSidechain'] == true)
+            .length;
+        expect(orphanCount1, 2,
+            reason: 'absorb must not have run after only 1 no-progress sweep');
+
+        // No synthetic Task created.
+        expect(
+          after1.where((m) => m['_orphanRecovery'] == true),
+          isEmpty,
+        );
+      });
+
+      test('absorbs after second consecutive no-progress sweep', () {
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 2,
+          },
+        ]);
+        // First sweep — no progress.
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
+
+        // Second sweep with same orphans — now absorb should fire.
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 2);
+
+        final after = sync.testGetSessionMessages('s1');
+        // One synthetic Task for the chain-root.
+        final synthetics = after.where((m) => m['_orphanRecovery'] == true);
+        expect(synthetics, hasLength(1));
+        expect(synthetics.first['uuid'], 'task-A');
+        // Children absorbed.
+        expect(
+          after.where((m) => m['isSidechain'] == true),
+          isEmpty,
+        );
+      });
+
+      test('new message resets sweep count before absorb threshold', () {
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 2,
+          },
+        ]);
+        // First sweep — no progress, count = 1.
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
+
+        // Simulate a new message arriving (resets counter).
+        sync.testResetSidechainRegroupSweepCount('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 0);
+
+        // Second sweep should NOT absorb yet (count reset to 0).
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
+
+        final after = sync.testGetSessionMessages('s1');
+        expect(after.where((m) => m['_orphanRecovery'] == true),
+            isEmpty,
+            reason: 'reset mid-flight must prevent absorb on second sweep');
+      });
+
+      test('dissolve of stale synthetic resets sweep count', () {
+        // Pre-state: synthetic from a prior absorb is present, and
+        // a real Task has just arrived (will dissolve the synthetic).
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'real-task',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'role': 'agent',
+            'uuid': 'task-A',
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'orphan-recovery-task-A',
+            '_orphanRecovery': true,
+            'kind': 'tool-call',
+            'name': 'Task',
+            'uuid': 'task-A',
+            'children': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'c1',
+                'isSidechain': true,
+                'uuid': 'cu1',
+                'parentUuid': 'task-A',
+                'seq': 2,
+              },
+            ],
+            'seq': 2,
+          },
+        ]);
+
+        // Simulate prior failed sweeps (count = 1).
+        // Note: _groupSidechainMessages calls _dissolveStaleOrphanSynthetics
+        // first, which will dissolve the synthetic and reset count.
+        sync.testRunDeferredRegroupSweep('s1');
+
+        final after = sync.testGetSessionMessages('s1');
+        // Synthetic dissolved; children back at top level.
+        expect(after.where((m) => m['_orphanRecovery'] == true),
+            isEmpty);
+        final isSidechainChildren =
+            after.where((m) => m['isSidechain'] == true).toList();
+        expect(isSidechainChildren, hasLength(1));
+        expect(isSidechainChildren.first['id'], 'c1');
+      });
+    });
+
+    // ── End-to-end: all three fixes working together ──
+    group('end-to-end: sweep delay + chain-root coalesce + dissolve', () {
+      test('real Task backfill after sweep-delay absorbs and then '
+          'dissolves correctly', () {
+        // Cold-start: only orphans in cache, no parent Task.
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'c1',
+            'isSidechain': true,
+            'uuid': 'cu1',
+            'parentUuid': 'task-A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 2,
+          },
+          <String, dynamic>{
+            'id': 'c2',
+            'isSidechain': true,
+            'uuid': 'cu2',
+            'parentUuid': 'cu1',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 3,
+          },
+        ]);
+
+        // Sweep 1: no absorb yet.
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
+        expect(sync.testGetSessionMessages('s1')
+                .where((m) => m['_orphanRecovery'] == true),
+            isEmpty,
+            reason: 'absorb must not fire on first sweep');
+
+        // Sweep 2: now we absorb — chain-root coalesce produces ONE
+        // synthetic Task (not two per-orphan).
+        sync.testRunDeferredRegroupSweep('s1');
+        final afterAbsorb = sync.testGetSessionMessages('s1');
+        final synthetics = afterAbsorb
+            .where((m) => m['_orphanRecovery'] == true)
+            .toList();
+        expect(synthetics, hasLength(1));
+        expect(synthetics.first['uuid'], 'task-A');
+        expect(
+          (synthetics.first['children'] as List).length,
+          2,
+          reason: 'both orphans must be in the single synthetic',
+        );
+
+        // Now the real Task backfills via fetchMessages.
+        final state = sync.testGetSessionMessages('s1');
+        final withReal = <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'real-task',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'role': 'agent',
+            'uuid': 'task-A',
+            'toolUseId': 'toolu_A',
+            'seq': 1,
+          },
+          ...state,
+        ];
+        sync.testSetSessionMessages('s1', withReal);
+
+        // Next grouping pass must dissolve the synthetic and re-attach
+        // children to the real Task.
+        sync.testGroupSidechainMessages('s1');
+
+        final afterDissolve = sync.testGetSessionMessages('s1');
+        // Synthetic gone.
+        expect(afterDissolve.where((m) => m['_orphanRecovery'] == true),
+            isEmpty);
+        // Real Task has both children.
+        final realTask = afterDissolve
+            .firstWhere((m) => m['id'] == 'real-task');
+        final children = (realTask['children'] as List?)
+            ?.cast<Map<String, dynamic>>() ?? const [];
+        expect(children.map((c) => c['id']).toList(),
+            ['c1', 'c2']);
+      });
+    });
   });
 }

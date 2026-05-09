@@ -417,6 +417,14 @@ extension SyncMessagingMerge on Sync {
     );
   }
 
+  /// Called from message-processing hot paths whenever a message
+  /// belonging to a session arrives.  Resets the consecutive-sweep
+  /// failure counter so we don't absorb orphans while the server may
+  /// still be delivering the parent Task message.
+  void _resetSidechainRegroupSweepCount(String sessionId) {
+    _sidechainRegroupSweepCount.remove(sessionId);
+  }
+
   void _runDeferredRegroupSweep(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
@@ -429,6 +437,12 @@ extension SyncMessagingMerge on Sync {
         .map((m) => m['id'] as String?)
         .whereType<String>()
         .toSet();
+    // A new message arrived for this session — reset the failure
+    // counter.  Any successful grouping or dissolve already cleared
+    // these above; this catches the case where new socket messages
+    // or REST batches arrive between sweeps without triggering absorb.
+    _resetSidechainRegroupSweepCount(sessionId);
+
     if (beforeOrphans.isEmpty) return;
 
     logger.debug(
@@ -449,66 +463,49 @@ extension SyncMessagingMerge on Sync {
             .toSet() ??
         const <String>{};
 
-    // If the exact same orphans persist, the sweep made no progress.
-    // Cancel any pending regroup timer to prevent an infinite loop of
-    // sweeps that would log the same warning every ~300 ms.
-    // Also suppress the fetchMessages catch-up path for 30 seconds so
-    // it stops re-running the O(4n) grouper for stuck orphans.
-    if (afterOrphans.isNotEmpty &&
-        afterOrphans.length == beforeOrphans.length &&
-        afterOrphans.containsAll(beforeOrphans)) {
-      _sidechainRegroupTimers[sessionId]?.cancel();
-      _sidechainRegroupTimers.remove(sessionId);
-      _sidechainRegroupFirstRequestMs.remove(sessionId);
-      _orphanSuppressedUntilMs[sessionId] =
-          DateTime.now().millisecondsSinceEpoch + 30000;
-      // Clear the flag so onSessionVisible doesn't retry grouping
-      // for these stuck orphans during the suppression window.
-      _sessionsNeedingVisibleRegroup.remove(sessionId);
-      // Absorb the stuck orphans into synthetic Task placeholders so
-      // they become visible (as Task rows in the chat list and in
-      // AgentsListSheet) instead of being silently hidden by the
-      // chat's isSidechain filter.  The synthetic Task's uuid is
-      // set to the orphan group's parentUuid so any future sidechain
-      // for that parent attaches naturally on the next sweep.
-      final absorbed = _absorbOrphansIntoSyntheticTasks(sessionId);
-      if (absorbed) {
-        _scheduleSaveMessages(sessionId);
+    // Progress was made — orphans were attached to real Tasks or
+    // dissolved synthetics.  Reset counter and let normal flow continue.
+    if (afterOrphans.isEmpty || afterOrphans.length < beforeOrphans.length) {
+      _sidechainRegroupSweepCount.remove(sessionId);
+      final messagesUpdated = !identical(beforeMessages, after);
+      if (messagesUpdated) {
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages});
       }
       return;
     }
 
-    // Surface persistent orphans. If sidechain messages remain after
-    // the sweep, the grouper could not find a matching Task tool-call.
-    // These messages are invisible in the chat UI (ChatScreen filters
-    // all isSidechain entries), so silent loss is the default. Log a
-    // warning so we learn about the gap and can fix linkage.
-    if (afterOrphans.isNotEmpty) {
-      final orphans = after!.where((m) => m['isSidechain'] == true).toList();
-      final sample = orphans
-          .take(3)
-          .map((m) {
-            return '${m['kind'] ?? m['role'] ?? 'unknown'}'
-                ' uuid=${m['uuid']}'
-                ' parentUuid=${m['parentUuid']}';
-          })
-          .join(' | ');
-      logger.warning(
-        '[sidechain] ${orphans.length} orphan message(s) '
-        'remain in session=$sessionId after deferred sweep — '
-        'they are hidden by the chat list filter. Sample: $sample',
+    // Same orphans persist — increment failure counter.
+    final sweepCount = (_sidechainRegroupSweepCount[sessionId] ?? 0) + 1;
+    _sidechainRegroupSweepCount[sessionId] = sweepCount;
+
+    // Require at least 2 consecutive no-progress sweeps before
+    // absorbing.  This prevents premature absorption when a parent
+    // Task is still in-flight (e.g. in a REST batch or socket burst).
+    // With the 300ms debounce, 2 sweeps = ~600ms minimum; the burst
+    // cap at 2s would fire immediately if needed.
+    const kMinSweepsBeforeAbsorb = 2;
+    if (sweepCount < kMinSweepsBeforeAbsorb) {
+      logger.debug(
+        '[sidechain] $sweepCount/$kMinSweepsBeforeAbsorb no-progress '
+        'sweeps for session=$sessionId — deferring absorb',
       );
+      return;
     }
 
-    // Only notify if _sessionMessages was actually updated. When the
-    // grouper returns the same list object (nothing to filter), the
-    // ChatScreen would see no meaningful change and refreshFromSync
-    // would return early anyway, but avoiding the notification cuts
-    // CPU overhead from repeated setState + full tree rebuilds.
-    final messagesUpdated = !identical(beforeMessages, after);
-    if (messagesUpdated) {
+    // Confident the orphans are genuinely stuck.  Cancel timers and
+    // suppress further catch-up fetches for 30 seconds so we stop
+    // burning CPU on re-group attempts.
+    _sidechainRegroupTimers[sessionId]?.cancel();
+    _sidechainRegroupTimers.remove(sessionId);
+    _sidechainRegroupFirstRequestMs.remove(sessionId);
+    _orphanSuppressedUntilMs[sessionId] =
+        DateTime.now().millisecondsSinceEpoch + 30000;
+    _sessionsNeedingVisibleRegroup.remove(sessionId);
+
+    final absorbed = _absorbOrphansIntoSyntheticTasks(sessionId);
+    if (absorbed) {
+      _scheduleSaveMessages(sessionId);
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages});
     }

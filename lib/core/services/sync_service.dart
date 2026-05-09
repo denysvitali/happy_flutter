@@ -268,6 +268,12 @@ what you have, you must use the options mode.
   /// rapid streaming keeps cancelling the debounce timer and the sweep
   /// never fires while an agent is active.
   final Map<String, int> _sidechainRegroupFirstRequestMs = {};
+
+  /// How many consecutive regroup sweeps have failed to make progress
+  /// for each session. Used to delay orphan absorption until we are
+  /// confident the parent Task is genuinely absent (not just delayed
+  /// by an in-flight socket message or REST batch).
+  final Map<String, int> _sidechainRegroupSweepCount = {};
   late InvalidateSync settingsSync;
   late InvalidateSync profileSync;
   late InvalidateSync purchasesSync;

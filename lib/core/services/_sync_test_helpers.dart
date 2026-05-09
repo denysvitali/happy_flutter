@@ -78,6 +78,7 @@ extension SyncTestHelpers on Sync {
     _sessionMessagesViewCache.remove(sessionId);
     _previewCache.remove(sessionId);
     _previewCacheVersion.remove(sessionId);
+    _sidechainRegroupSweepCount.remove(sessionId);
   }
 
   @visibleForTesting
@@ -96,6 +97,30 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testGroupSidechainMessages(String sessionId) {
     _groupSidechainMessages(sessionId);
+  }
+
+  /// Test helper: directly invoke the deferred regroup sweep.  This
+  /// bypasses the 300ms debounce timer and runs the full sweep
+  /// including orphan detection, chain-root coalescing, and (if
+  /// configured) absorb into synthetic Task placeholders.
+  @visibleForTesting
+  void testRunDeferredRegroupSweep(String sessionId) {
+    _runDeferredRegroupSweep(sessionId);
+  }
+
+  /// Test helper: get the current consecutive no-progress sweep count
+  /// for a session.  Used to verify that premature absorb is blocked
+  /// until the minimum sweep threshold is reached.
+  @visibleForTesting
+  int testGetSidechainRegroupSweepCount(String sessionId) {
+    return _sidechainRegroupSweepCount[sessionId] ?? 0;
+  }
+
+  /// Test helper: reset the consecutive sweep counter for a session.
+  /// Simulates a new message arriving to interrupt a stuck grouping.
+  @visibleForTesting
+  void testResetSidechainRegroupSweepCount(String sessionId) {
+    _resetSidechainRegroupSweepCount(sessionId);
   }
 
   /// Test helper: invoke orphan absorption directly without waiting

@@ -23,6 +23,9 @@ class AgentsListSheet extends StatelessWidget {
     final messages = sync.sessionMessages[sessionId] ?? [];
     var count = 0;
     for (final msg in messages) {
+      // Skip sidechain children — they are rendered as children of
+      // their parent Task/Agent, not as standalone agents.
+      if (msg['isSidechain'] == true) continue;
       final kind = msg['kind'] as String?;
       if (kind == 'tool-call') {
         final name = msg['name'] as String?;
@@ -42,6 +45,9 @@ class AgentsListSheet extends StatelessWidget {
     final messages = sync.sessionMessages[sessionId] ?? [];
     final agents = <Map<String, dynamic>>[];
     for (final msg in messages) {
+      // Skip sidechain children — they appear inside their parent
+      // Task/Agent in the conversation view, not as separate entries.
+      if (msg['isSidechain'] == true) continue;
       final kind = msg['kind'] as String?;
       if (kind == 'tool-call') {
         final name = msg['name'] as String?;
