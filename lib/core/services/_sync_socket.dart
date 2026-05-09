@@ -609,10 +609,29 @@ extension SyncSocket on Sync {
       // (after this cold-start full fetch completes) use incremental sync
       // instead of re-fetching everything.
       _lastSessionsFetchedAt = WireParsers.parseInt(cache['lastFetchedAt']);
+
+      // If any cached session has messages on the server (lastSeq > 0)
+      // but no lastMessageAt locally, the cache predates the field and
+      // the inbox would render stale times for those sessions until the
+      // server-side updated_at advances again (which is throttled per
+      // session). Force one full fetch so the inbox picks up
+      // lastMessage.createdAt for every session immediately.
+      final cacheMissingLastMessageAt = _sessions.values.any(
+        (s) => s.lastMessageAt == null && (s.lastSeq ?? 0) > 0,
+      );
+      if (cacheMissingLastMessageAt) {
+        logger.info(
+          'Cached sessions are missing lastMessageAt — forcing full fetch '
+          'on first sync to refresh inbox timestamps',
+        );
+        _forceFullFetchNext = true;
+      }
+
       if (_sessions.isNotEmpty) {
         logger.info(
           'Restored ${_sessions.length} cached sessions '
-          '(lastSessionsFetchedAt=$_lastSessionsFetchedAt)',
+          '(lastSessionsFetchedAt=$_lastSessionsFetchedAt, '
+          'forceFullFetchNext=$_forceFullFetchNext)',
         );
       }
     } catch (error, stack) {
