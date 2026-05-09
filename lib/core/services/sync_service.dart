@@ -45,6 +45,14 @@ import '../services/performance_context_service.dart';
 import '../services/power_diagnostics_service.dart';
 import '../services/server_config.dart';
 import '../services/sessions_cache_storage.dart';
+// Compile-time identity types — see ROADMAP P0 "one canonical localId".
+// Imported once at the part-file root so every `_sync_messaging*` part can
+// reference [LocalId], [ServerMessageId], [SessionId], and the sealed
+// [MessageSendState] hierarchy without an explicit import.
+// ignore: unused_import
+import '../types/identity_types.dart';
+// ignore: unused_import
+import '../types/message_state.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/parse_token.dart';
 import '../utils/path_utils.dart' show resolveAbsolutePath;

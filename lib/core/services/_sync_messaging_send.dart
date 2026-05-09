@@ -3,12 +3,25 @@ part of 'sync_service.dart';
 extension SyncMessagingSend on Sync {
   /// Create a stable client-side message id that can be shared across
   /// optimistic UI, REST persistence, socket forwarding, and retries.
-  String createLocalMessageId() {
+  ///
+  /// Returns a raw [String] for backwards compatibility with the many
+  /// existing call sites in the codebase.  The same id is also exposed
+  /// as a [LocalId] via [createLocalId] for new code that wants the
+  /// type-safe variant.
+  String createLocalMessageId() => createLocalId().value;
+
+  /// Type-safe variant of [createLocalMessageId] returning a [LocalId].
+  ///
+  /// Prefer this in new code so the compiler can prevent accidental
+  /// mixing with [ServerMessageId] or unrelated [String] values.
+  LocalId createLocalId() {
     try {
-      return encryption.generateId();
+      return LocalId(encryption.generateId());
     } catch (_) {
-      return '${DateTime.now().microsecondsSinceEpoch}-'
-          '${Random().nextInt(1 << 32)}';
+      return LocalId(
+        '${DateTime.now().microsecondsSinceEpoch}-'
+        '${Random().nextInt(1 << 32)}',
+      );
     }
   }
 
