@@ -16,6 +16,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show LogLevel, logger;
 import '../../core/services/message_cache_service.dart';
+import '../../core/services/session_activity_coordinator.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_color_scheme.dart';
@@ -292,6 +293,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _autoScrollNotifier.dispose();
     _messagePaneRevision.dispose();
     TtsService().stop();
+    // Allow the session activity notification to surface again now
+    // that the user has left the chat screen.
+    unawaited(sessionActivityCoordinator.setVisibleSession(null));
     super.dispose();
   }
 

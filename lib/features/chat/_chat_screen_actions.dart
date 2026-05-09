@@ -214,6 +214,9 @@ extension _ChatScreenActions on _ChatScreenState {
         description: 'Mark session as visible',
       );
       sync.onSessionVisible(sessionId);
+      // Suppress the live "session activity" notification while the
+      // user is looking at the session in-app.
+      unawaited(sessionActivityCoordinator.setVisibleSession(sessionId));
       unawaited(visibleSpan.finish());
 
       // Show cached messages immediately instead of

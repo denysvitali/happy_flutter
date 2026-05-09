@@ -53,6 +53,7 @@ import 'inline_message_processor.dart';
 import 'logger_service.dart';
 import 'message_cursor_manager.dart';
 import 'notification_service.dart';
+import 'session_activity_coordinator.dart';
 import 'sidechain_grouper.dart';
 import 'tool_result_processor.dart';
 
@@ -1037,6 +1038,7 @@ Future<void> syncCreate(AuthCredentials credentials) async {
 
   final encryption = await Encryption.create(secretKey);
   await sync.create(credentials, encryption);
+  sessionActivityCoordinator.attach(sync);
 }
 
 /// Restore sync engine from disk
@@ -1055,6 +1057,7 @@ Future<void> syncRestore(AuthCredentials credentials) async {
 
   final encryption = await Encryption.create(secretKey);
   await sync.restore(credentials, encryption);
+  sessionActivityCoordinator.attach(sync);
 }
 
 /// Shutdown sync engine and clear in-memory state.
@@ -1062,5 +1065,6 @@ Future<void> syncShutdown() async {
   if (!sync.isInitialized) {
     return;
   }
+  await sessionActivityCoordinator.detach();
   await sync.shutdown();
 }
