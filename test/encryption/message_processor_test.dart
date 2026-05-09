@@ -240,6 +240,15 @@ void main() {
         expect(result.messages.first['name'], 'Read');
         expect(result.messages.first['state'], 'running');
         expect(result.messages.first['toolUseId'], 'tu1');
+        // Regression: tool_use messages must keep the JSONL message
+        // uuid (`u1`) — NOT the toolu_* block id — so descendant
+        // sidechain messages chaining via `parentUuid==<JSONL uuid>`
+        // can resolve through this message.  Storing the toolu_*
+        // there fragmented long subagent runs into many "Subagent
+        // output (recovered)" placeholders.
+        expect(result.messages.first['uuid'], 'u1',
+            reason: 'tool-call uuid must be the JSONL message uuid '
+                "to preserve sidechain chain resolution");
       });
 
       test('processes agent output with toolCall blocks', () {

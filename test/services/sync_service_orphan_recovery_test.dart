@@ -223,5 +223,343 @@ void main() {
       expect(synthetic['kind'], 'tool-call');
       expect(synthetic['name'], 'Task');
     });
+
+    // ── Chain-root coalescing (regression: subagent fragmentation) ──
+    test('chain-root coalesce: orphans whose parentUuids form a chain '
+        'collapse into ONE synthetic Task per logical subagent', () {
+      // Subagent transcripts chain via the previous message uuid.
+      // Pre-fix this produced one synthetic per turn (3 here);
+      // post-fix it produces one synthetic per logical subagent
+      // (the chain root is "task-A" — which is not present in the
+      // orphan set, so all three orphans coalesce under it).
+      sync.testSetSessionMessages('s1', [
+        <String, dynamic>{
+          'id': 'orph-1',
+          'isSidechain': true,
+          'uuid': 'u1',
+          'parentUuid': 'task-A',
+          'kind': 'text',
+          'role': 'agent',
+          'seq': 10,
+        },
+        <String, dynamic>{
+          'id': 'orph-2',
+          'isSidechain': true,
+          'uuid': 'u2',
+          'parentUuid': 'u1',
+          'kind': 'text',
+          'role': 'agent',
+          'seq': 11,
+        },
+        <String, dynamic>{
+          'id': 'orph-3',
+          'isSidechain': true,
+          'uuid': 'u3',
+          'parentUuid': 'u2',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'role': 'agent',
+          'seq': 12,
+        },
+      ]);
+
+      final absorbed = sync.testAbsorbOrphansIntoSyntheticTasks('s1');
+      expect(absorbed, isTrue);
+
+      final messages = sync.testGetSessionMessages('s1');
+      // ONE synthetic Task — not three.
+      expect(messages, hasLength(1));
+      final task = messages.first;
+      expect(task['_orphanRecovery'], isTrue);
+      expect(task['uuid'], 'task-A',
+          reason: 'synthetic uuid is the chain root, not an intermediate');
+      final children =
+          (task['children'] as List).cast<Map<String, dynamic>>();
+      expect(children.map((c) => c['id']),
+          ['orph-1', 'orph-2', 'orph-3']);
+    });
+
+    test('chain-root coalesce: two independent subagent chains '
+        'produce two synthetics', () {
+      sync.testSetSessionMessages('s1', [
+        // Chain A: rootA → uA1 → uA2
+        <String, dynamic>{
+          'id': 'a1',
+          'isSidechain': true,
+          'uuid': 'uA1',
+          'parentUuid': 'rootA',
+          'seq': 1,
+        },
+        <String, dynamic>{
+          'id': 'a2',
+          'isSidechain': true,
+          'uuid': 'uA2',
+          'parentUuid': 'uA1',
+          'seq': 2,
+        },
+        // Chain B: rootB → uB1
+        <String, dynamic>{
+          'id': 'b1',
+          'isSidechain': true,
+          'uuid': 'uB1',
+          'parentUuid': 'rootB',
+          'seq': 3,
+        },
+      ]);
+
+      sync.testAbsorbOrphansIntoSyntheticTasks('s1');
+
+      final messages = sync.testGetSessionMessages('s1');
+      expect(messages, hasLength(2));
+      final taskRoots = messages.map((m) => m['uuid']).toSet();
+      expect(taskRoots, {'rootA', 'rootB'});
+    });
+
+    // ── Synthetic dissolution (fix #4) ──
+    group('dissolve stale synthetics on real Task arrival', () {
+      test('dissolves synthetic when its uuid matches a real Task uuid',
+          () {
+        // Post-absorb state: synthetic with uuid=task-A holds two
+        // children.  Then a real Task with the same uuid arrives.
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'real-task',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'role': 'agent',
+            'uuid': 'task-A',
+            'toolUseId': 'toolu_real',
+            'seq': 5,
+          },
+          <String, dynamic>{
+            'id': 'orphan-recovery-task-A',
+            '_orphanRecovery': true,
+            'kind': 'tool-call',
+            'name': 'Task',
+            'uuid': 'task-A',
+            'children': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'c1',
+                'isSidechain': true,
+                'uuid': 'u1',
+                'parentUuid': 'task-A',
+                'seq': 6,
+              },
+              <String, dynamic>{
+                'id': 'c2',
+                'isSidechain': true,
+                'uuid': 'u2',
+                'parentUuid': 'u1',
+                'seq': 7,
+              },
+            ],
+            'seq': 6,
+          },
+        ]);
+
+        final dissolved = sync.testDissolveStaleOrphanSynthetics('s1');
+        expect(dissolved, isTrue);
+
+        final after = sync.testGetSessionMessages('s1');
+        // Real Task remains; synthetic is gone; children flattened.
+        expect(after.where((m) => m['_orphanRecovery'] == true),
+            isEmpty);
+        expect(after.where((m) => m['id'] == 'real-task'), hasLength(1));
+        final flattenedIds = after.where((m) => m['isSidechain'] == true)
+            .map((m) => m['id'])
+            .toList();
+        expect(flattenedIds, ['c1', 'c2']);
+      });
+
+      test('dissolves synthetic when a child chain resolves to a real '
+          'Task toolUseId', () {
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'real-task',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'role': 'agent',
+            'uuid': 'real-uuid',
+            'toolUseId': 'toolu_xyz',
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'orphan-recovery-toolu_xyz',
+            '_orphanRecovery': true,
+            'kind': 'tool-call',
+            'name': 'Task',
+            'uuid': 'toolu_xyz',
+            'children': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'c1',
+                'isSidechain': true,
+                'uuid': 'cu1',
+                'parentUuid': 'toolu_xyz',
+                'seq': 2,
+              },
+            ],
+            'seq': 2,
+          },
+        ]);
+
+        expect(sync.testDissolveStaleOrphanSynthetics('s1'), isTrue);
+        final after = sync.testGetSessionMessages('s1');
+        expect(after.where((m) => m['_orphanRecovery'] == true),
+            isEmpty);
+      });
+
+      test('does NOT dissolve synthetic when no real Task can resolve '
+          'its chain', () {
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'orphan-recovery-mystery',
+            '_orphanRecovery': true,
+            'kind': 'tool-call',
+            'name': 'Task',
+            'uuid': 'mystery',
+            'children': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'c1',
+                'isSidechain': true,
+                'uuid': 'cu1',
+                'parentUuid': 'mystery',
+                'seq': 1,
+              },
+            ],
+            'seq': 1,
+          },
+        ]);
+
+        expect(sync.testDissolveStaleOrphanSynthetics('s1'), isFalse);
+        final after = sync.testGetSessionMessages('s1');
+        expect(after, hasLength(1));
+        expect(after.first['_orphanRecovery'], isTrue);
+      });
+
+      test('grouping pass dissolves stale synthetic and re-attaches '
+          'children to real Task end-to-end', () {
+        // Cold-start scenario: cache had only sidechain children
+        // (parent Task was truncated).  Absorb -> synthetic.  Then
+        // fetchMessages backfills the real Task.  testGroupSidechainMessages
+        // must dissolve the synthetic and re-attach its children to
+        // the real Task as Task.children.
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'c1',
+            'isSidechain': true,
+            'uuid': 'cu1',
+            'parentUuid': 'task-real',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 2,
+          },
+          <String, dynamic>{
+            'id': 'c2',
+            'isSidechain': true,
+            'uuid': 'cu2',
+            'parentUuid': 'cu1',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 3,
+          },
+        ]);
+        sync.testAbsorbOrphansIntoSyntheticTasks('s1');
+
+        // Backfill the real Task and trigger grouping.
+        final state = sync.testGetSessionMessages('s1');
+        final withReal = <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'real-task',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'role': 'agent',
+            'uuid': 'task-real',
+            'toolUseId': 'toolu_real',
+            'seq': 1,
+          },
+          ...state,
+        ];
+        sync.testSetSessionMessages('s1', withReal);
+        sync.testGroupSidechainMessages('s1');
+
+        final after = sync.testGetSessionMessages('s1');
+        // No synthetic remains.
+        expect(after.where((m) => m['_orphanRecovery'] == true),
+            isEmpty);
+        // Real Task picked up the children.
+        final realTask = after.firstWhere(
+            (m) => m['id'] == 'real-task');
+        final children = (realTask['children'] as List?)
+            ?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+        expect(children.map((c) => c['id']).toList(), ['c1', 'c2']);
+      });
+    });
+
+    // ── Cache strip on save (fix #5) ──
+    group('strip orphan synthetics on cache save', () {
+      test('replaces synthetic Tasks with flattened sidechain children',
+          () {
+        final input = <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'real-1',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'role': 'agent',
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'orphan-recovery-X',
+            '_orphanRecovery': true,
+            'kind': 'tool-call',
+            'name': 'Task',
+            'uuid': 'X',
+            'children': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'c1',
+                'isSidechain': true,
+                'uuid': 'u1',
+                'parentUuid': 'X',
+                'seq': 2,
+              },
+              <String, dynamic>{
+                'id': 'c2',
+                'isSidechain': true,
+                'uuid': 'u2',
+                'parentUuid': 'u1',
+                'seq': 3,
+              },
+            ],
+            'seq': 2,
+          },
+          <String, dynamic>{
+            'id': 'real-2',
+            'kind': 'text',
+            'role': 'agent',
+            'seq': 4,
+          },
+        ];
+
+        final stripped = SyncTestHelpers.testStripOrphanSynthetics(input);
+        // Real messages preserved; synthetic replaced with its 2 children.
+        expect(stripped.map((m) => m['id']).toList(),
+            ['real-1', 'c1', 'c2', 'real-2']);
+        // Children are reset to top-level isSidechain entries.
+        expect(stripped[1]['isSidechain'], isTrue);
+        expect(stripped[2]['isSidechain'], isTrue);
+        // No synthetics remain.
+        expect(stripped.where((m) => m['_orphanRecovery'] == true),
+            isEmpty);
+      });
+
+      test('returns the same list when no synthetics are present', () {
+        final input = <Map<String, dynamic>>[
+          <String, dynamic>{'id': 'a', 'kind': 'text', 'seq': 1},
+          <String, dynamic>{'id': 'b', 'kind': 'text', 'seq': 2},
+        ];
+        final stripped = SyncTestHelpers.testStripOrphanSynthetics(input);
+        expect(identical(stripped, input), isTrue,
+            reason: 'no-op path must avoid allocation');
+      });
+    });
   });
 }

@@ -114,6 +114,18 @@ extension SyncTestHelpers on Sync {
     return _dissolveStaleOrphanSynthetics(sessionId);
   }
 
+  /// Test helper: invoke the cache-write transformation that strips
+  /// `_orphanRecovery: true` synthetic Tasks before MMKV save.
+  /// Synthetics are replaced with their flattened sidechain children
+  /// so a future cold-start gets a clean slate rather than restoring
+  /// the synthetic shape.
+  @visibleForTesting
+  static List<Map<String, dynamic>> testStripOrphanSynthetics(
+    List<Map<String, dynamic>> messages,
+  ) {
+    return SyncSocket._stripOrphanSynthetics(messages);
+  }
+
   @visibleForTesting
   List<Map<String, dynamic>> testGetSessionMessages(String sessionId) {
     return _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];

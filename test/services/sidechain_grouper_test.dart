@@ -361,6 +361,84 @@ void main() {
       expect(children, hasLength(chainLength));
     });
 
+    test('inner sidechain Task whose uuid (JSONL) differs from '
+        'toolUseId attaches descendants chained via either', () {
+      // Regression for the "subagent (recovered)" fragmentation
+      // bug: inner Task tool_uses live inside another sidechain
+      // message whose JSONL uuid (e.g. 41047909-...) is distinct
+      // from the Anthropic-assigned toolUseId (e.g. toolu_01...).
+      // Pre-fix the encryption pipeline overwrote the inner Task's
+      // uuid with the toolu_*, so any descendant that chained via
+      // parentUuid==<JSONL uuid> (the assistant message wrapping
+      // the tool_use) failed to resolve.  Now both uuid (JSONL)
+      // and toolUseId are indexed.
+      final messages = [
+        _taskMsg(
+          id: 'outer-task',
+          uuid: 'outer-uuid',
+          toolUseId: 'toolu_outer',
+        ),
+        _sidechainRoot(
+          id: 'outer-root',
+          uuid: 'outer-root-uuid',
+          parentUuid: 'toolu_outer',
+        ),
+        // Inner Task — its uuid is the JSONL message uuid (post-fix);
+        // its toolUseId is the Anthropic block id.
+        <String, dynamic>{
+          'id': 'inner-task',
+          'kind': 'tool-call',
+          'name': 'Agent',
+          'uuid': 'inner-jsonl-uuid',
+          'toolUseId': 'toolu_inner',
+          'isSidechain': true,
+          'parentUuid': 'outer-root-uuid',
+        },
+        // Chain head: chains directly via toolUseId.
+        _sidechainChild(
+          id: 'inner-root',
+          uuid: 'inner-root-uuid',
+          parentUuid: 'toolu_inner',
+        ),
+        // Subsequent: chains via JSONL uuid of inner-task itself.
+        _sidechainChild(
+          id: 'inner-child-via-jsonl',
+          uuid: 'icj-uuid',
+          parentUuid: 'inner-jsonl-uuid',
+        ),
+        // Deeper descendant chains via the prior child's uuid.
+        _sidechainChild(
+          id: 'inner-grandchild',
+          uuid: 'igc-uuid',
+          parentUuid: 'icj-uuid',
+        ),
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isFalse,
+          reason: 'JSONL-uuid and toolUseId chains must both '
+              'resolve to the inner Task');
+      // Outer Task remains at top level.
+      expect(result.messages, hasLength(1));
+      final outer = result.messages[0];
+      final outerChildren =
+          (outer['children'] as List).cast<Map<String, dynamic>>();
+      // Inner Task got moved into outer Task's children list.
+      final innerTask = outerChildren.firstWhere(
+        (c) => c['id'] == 'inner-task',
+      );
+      final innerChildren = (innerTask['children'] as List)
+          .cast<Map<String, dynamic>>();
+      final innerChildIds = innerChildren.map((c) => c['id']).toSet();
+      expect(innerChildIds, containsAll([
+        'inner-root',
+        'inner-child-via-jsonl',
+        'inner-grandchild',
+      ]));
+    });
+
     test('persists _sidechainRootUuids on Task for recovery',
         () {
       final messages = [
