@@ -163,18 +163,23 @@ extension SyncData on Sync {
         // throw TypeError on null/wrong type and the session would be
         // silently dropped.
         try {
-          // Safe casts with defaults for required fields
-          final seq = _asSessionInt(session['seq']) ?? 0;
+          // Safe casts with defaults for required fields. For delta
+          // fetches the server omits unchanged fields, so preserve any
+          // existing in-memory timestamps before falling back to 0.
+          // Defaulting to DateTime.now() here would stamp every delta
+          // payload as "active just now", incorrectly promoting old
+          // sessions to the top of the list until they were re-fetched
+          // individually (e.g. by opening the chat).
+          final existing = _sessions[sessionId];
+          final seq = _asSessionInt(session['seq']) ?? existing?.seq ?? 0;
           final createdAt =
-              _asSessionInt(session['createdAt']) ??
-              DateTime.now().millisecondsSinceEpoch;
+              _asSessionInt(session['createdAt']) ?? existing?.createdAt ?? 0;
           final updatedAt =
-              _asSessionInt(session['updatedAt']) ??
-              DateTime.now().millisecondsSinceEpoch;
-          final active = _asSessionBool(session['active']) ?? false;
+              _asSessionInt(session['updatedAt']) ?? existing?.updatedAt ?? 0;
+          final active =
+              _asSessionBool(session['active']) ?? existing?.active ?? false;
           final activeAt =
-              _asSessionInt(session['activeAt']) ??
-              DateTime.now().millisecondsSinceEpoch;
+              _asSessionInt(session['activeAt']) ?? existing?.activeAt ?? 0;
           final metadataVersion =
               _asSessionInt(session['metadataVersion']) ?? 0;
           final agentStateVersion =
@@ -492,20 +497,22 @@ extension SyncData on Sync {
         }
       }
 
+      // Single-session fetch may also be partial — preserve any
+      // in-memory timestamps before falling back to 0 to avoid stamping
+      // a session as "active just now" when the server omits the field.
+      final existing = _sessions[sessionId];
       final session = Session(
         id: sessionId,
-        seq: _asSessionInt(raw['seq']) ?? 0,
+        seq: _asSessionInt(raw['seq']) ?? existing?.seq ?? 0,
         createdAt:
-            _asSessionInt(raw['createdAt']) ??
-            DateTime.now().millisecondsSinceEpoch,
+            _asSessionInt(raw['createdAt']) ?? existing?.createdAt ?? 0,
         updatedAt:
-            _asSessionInt(raw['updatedAt']) ??
-            DateTime.now().millisecondsSinceEpoch,
-        active: _asSessionBool(raw['active']) ?? false,
-        archived: _asSessionBool(raw['archived']) ?? false,
+            _asSessionInt(raw['updatedAt']) ?? existing?.updatedAt ?? 0,
+        active: _asSessionBool(raw['active']) ?? existing?.active ?? false,
+        archived:
+            _asSessionBool(raw['archived']) ?? existing?.archived ?? false,
         activeAt:
-            _asSessionInt(raw['activeAt']) ??
-            DateTime.now().millisecondsSinceEpoch,
+            _asSessionInt(raw['activeAt']) ?? existing?.activeAt ?? 0,
         metadata: parsedMetadata,
         metadataVersion: metadataVersion,
         agentState: parsedAgentState,

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 
 class _FakeSessionEncryption implements SessionEncryption {
@@ -140,6 +141,85 @@ void main() {
         expect(session?.metadata?.host, '');
         expect(session?.metadata?.summary, isNull);
         expect(session?.metadata?.tools, <String>['bash']);
+      },
+    );
+
+    test(
+      'delta fetch preserves existing timestamps when server omits them',
+      () async {
+        // Seed an existing session with known older timestamps. This
+        // simulates a session that hasn't been touched in a while.
+        const oldTimestamp = 1700000000000; // 2023-11-14
+        instance.testSessions['delta-session'] = Session(
+          id: 'delta-session',
+          seq: 5,
+          createdAt: oldTimestamp,
+          updatedAt: oldTimestamp,
+          active: false,
+          activeAt: oldTimestamp,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'offline',
+        );
+        // Mark a delta-fetch baseline so the next fetch is incremental.
+        instance.testLastSessionsFetchedAt = oldTimestamp + 1;
+
+        ApiClient().testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              if (options.path == '/v2/sessions') {
+                // Server returns a delta payload that omits the
+                // timestamp fields entirely (only the fields that
+                // changed are sent on the wire).
+                handler.resolve(
+                  Response<dynamic>(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: <String, dynamic>{
+                      'sessions': <Map<String, dynamic>>[
+                        <String, dynamic>{
+                          'id': 'delta-session',
+                          'seq': 6,
+                          // No createdAt / updatedAt / activeAt here —
+                          // the server only sends fields that changed.
+                          'metadata': 'opaque-payload',
+                          'metadataVersion': 1,
+                          'agentState': null,
+                          'agentStateVersion': 1,
+                          'dataEncryptionKey': null,
+                          'lastSeq': 6,
+                        },
+                      ],
+                      'hasNext': false,
+                      'nextCursor': null,
+                    },
+                  ),
+                );
+                return;
+              }
+
+              handler.resolve(
+                Response<dynamic>(
+                  requestOptions: options,
+                  statusCode: 404,
+                  data: <String, dynamic>{},
+                ),
+              );
+            },
+          ),
+        );
+
+        await instance.fetchSessions();
+
+        final session = instance.sessions['delta-session'];
+        expect(session, isNotNull);
+        // Critical: timestamps must not be stamped with DateTime.now().
+        // If they were, the session would jump to the top of the list
+        // and show "just now" until re-fetched individually.
+        expect(session?.createdAt, oldTimestamp);
+        expect(session?.updatedAt, oldTimestamp);
+        expect(session?.activeAt, oldTimestamp);
       },
     );
 
