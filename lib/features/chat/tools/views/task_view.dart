@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/wire_parsers.dart';
-import '../../markdown/markdown_view.dart';
 import '../known_tools.dart';
 import '../tool_status_indicator.dart';
 import '../tool_view.dart' show parseToolState;
@@ -48,10 +47,6 @@ class TaskView extends StatelessWidget {
     final toolState =
         tool['state'] as String? ?? 'pending';
     final parsedState = _parseState(toolState);
-
-    // Show prompt detail when description is separate
-    final showPromptDetail =
-        description != null && prompt != null;
 
     final children = WireParsers.asList(tool['children']);
     final toolCalls = _extractToolCalls(children);
@@ -145,20 +140,6 @@ class TaskView extends StatelessWidget {
                 ),
               ],
             ),
-            // Prompt detail (when description is the
-            // short summary and prompt has the full task)
-            if (showPromptDetail) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Padding(
-                padding:
-                    const EdgeInsets.only(left: 24),
-                child: MarkdownView(
-                  markdown: prompt,
-                  textColor:
-                      theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
             // Inline tool call list
             if (shownTools.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xsm),
@@ -203,15 +184,22 @@ class TaskView extends StatelessWidget {
                   ),
                 ),
             ],
-            // Most recent text message from the sub-agent
+            // Most recent text message from the sub-agent.
+            // Rendered as a fixed-line, truncated preview so the inline
+            // card height stays stable while the agent streams output.
             if (_extractLastTextMessage(children) case final lastText?
                 when lastText.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xsm),
               Padding(
                 padding: const EdgeInsets.only(left: 24),
-                child: MarkdownView(
-                  markdown: lastText,
-                  textColor: theme.colorScheme.onSurfaceVariant,
+                child: Text(
+                  lastText,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

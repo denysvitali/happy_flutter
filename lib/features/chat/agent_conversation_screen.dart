@@ -13,6 +13,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/wire_parsers.dart';
 import 'markdown/markdown.dart';
+import 'markdown/markdown_view.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart';
 import 'widgets/agent_event_widget.dart';
@@ -228,10 +229,10 @@ class _AgentConversationScreenState
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final input = WireParsers.asMap(_taskMsg?['input']);
+    final descriptionRaw = input?['description'] as String?;
+    final promptRaw = input?['prompt'] as String?;
     final description =
-        input?['description'] as String? ??
-        input?['prompt'] as String? ??
-        l10n.agentFallbackDescription;
+        descriptionRaw ?? promptRaw ?? l10n.agentFallbackDescription;
     final subagentType = input?['subagent_type'] as String?;
     final state = _taskMsg?['state'] as String? ?? 'pending';
     final isRunning = state == 'running';
@@ -241,7 +242,11 @@ class _AgentConversationScreenState
         )?.whereType<Map<String, dynamic>>().toList() ??
         [];
 
-    final body = children.isEmpty
+    final showPrompt = promptRaw != null &&
+        promptRaw.isNotEmpty &&
+        promptRaw != descriptionRaw;
+
+    final messagesView = children.isEmpty
         ? Center(
             child: isRunning
                 ? const CircularProgressIndicator()
@@ -267,6 +272,16 @@ class _AgentConversationScreenState
               key: ValueKey(children[i]['id'] ?? i),
             ),
           );
+
+    final body = showPrompt
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _PromptSection(prompt: promptRaw),
+              Expanded(child: messagesView),
+            ],
+          )
+        : messagesView;
 
     if (!widget.embedded) {
       return Scaffold(
@@ -733,6 +748,105 @@ class _ErrorRow extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(AppLocalizations.of(ctx).commonClose),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------
+// Prompt section (collapsible — shown above the agent feed)
+// ----------------------------------------------------------
+
+class _PromptSection extends StatefulWidget {
+  const _PromptSection({required this.prompt});
+
+  final String prompt;
+
+  @override
+  State<_PromptSection> createState() => _PromptSectionState();
+}
+
+class _PromptSectionState extends State<_PromptSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        0,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.smd),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(AppRadius.smd),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Prompt',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: AppDuration.normal,
+            curve: AppCurve.standard,
+            child: _expanded
+                ? Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      0,
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                    ),
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: SingleChildScrollView(
+                      child: MarkdownView(
+                        markdown: widget.prompt,
+                        textColor: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
