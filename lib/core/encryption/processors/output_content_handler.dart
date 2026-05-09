@@ -175,9 +175,19 @@ void _processOutputContent({
           type == 'server_tool_use' ||
           type == 'mcp_tool_use' ||
           type == 'code_execution_tool_use') {
-        final toolUseUuid = (block['id'] as String?)?.isNotEmpty ?? false
-            ? block['id'] as String
-            : effectiveUuid;
+        // Use the JSONL message uuid (effectiveUuid) — NOT the
+        // tool_use block id (toolu_*).  Sibling content blocks (text,
+        // thinking, other tool_uses) in the same assistant message
+        // all share the JSONL uuid; descendant sidechain messages
+        // chain back via parentUuid==<that JSONL uuid>.  When the
+        // tool-call message instead stored the toolu_* as its uuid,
+        // any descendant whose chain ran through the assistant
+        // message containing only this tool_use (no text sibling
+        // carrying the JSONL uuid) failed to resolve, fragmenting
+        // long subagent transcripts into many "Subagent output
+        // (recovered)" placeholders.  toolUseId still holds toolu_*
+        // for the first sidechain root that chains via parentUuid==
+        // toolu_*; the grouper indexes both fields.
         messages.add({
           'id': '${id}_u$i',
           'localId': localId,
@@ -193,7 +203,7 @@ void _processOutputContent({
           'raw': outerContent,
           'model': ?agentModel,
           if (meta.isSidechain) 'isSidechain': true,
-          'uuid': toolUseUuid,
+          'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
         });
       } else if (type == 'tool_result' ||

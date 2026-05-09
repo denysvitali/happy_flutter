@@ -192,7 +192,7 @@ void _processPiContent({
           'content': block,
           'raw': outerContent,
           if (meta.isSidechain) 'isSidechain': true,
-          'uuid': toolUseId ?? effectiveUuid,
+          'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
         });
       } else if (type == 'tool_result' ||
