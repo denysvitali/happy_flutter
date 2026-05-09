@@ -642,6 +642,46 @@ void main() {
         );
       });
 
+      test('repeated no-progress sweeps terminate (no infinite loop)', () {
+        // Regression for production log showing a session pinned in
+        // "1/2 no-progress sweeps — deferring absorb" forever, every
+        // ~300ms, because the sweep counter was reset at the top of
+        // _runDeferredRegroupSweep on every invocation.  The counter
+        // must persist across consecutive no-progress sweeps so the
+        // absorb path is reached within a bounded number of attempts.
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 2,
+          },
+        ]);
+
+        // Simulate the timer firing repeatedly with no new data and
+        // no message-arrival reset.  Absorb must run within a small
+        // bounded number of sweeps; remaining sweeps must be no-ops
+        // because there are no orphans left.
+        for (var i = 0; i < 20; i++) {
+          sync.testRunDeferredRegroupSweep('s1');
+        }
+
+        final after = sync.testGetSessionMessages('s1');
+        expect(
+          after.where((m) => m['isSidechain'] == true),
+          isEmpty,
+          reason: 'orphan must be absorbed within bounded sweeps — '
+              'production hit "1/2 no-progress" forever',
+        );
+        expect(
+          after.where((m) => m['_orphanRecovery'] == true),
+          hasLength(1),
+        );
+      });
+
       test('new message resets sweep count before absorb threshold', () {
         sync.testSetSessionMessages('s1', [
           <String, dynamic>{
@@ -672,9 +712,14 @@ void main() {
             reason: 'reset mid-flight must prevent absorb on second sweep');
       });
 
-      test('dissolve of stale synthetic resets sweep count', () {
+      test('dissolve of stale synthetic releases children to top level', () {
         // Pre-state: synthetic from a prior absorb is present, and
-        // a real Task has just arrived (will dissolve the synthetic).
+        // a real Task has just arrived.  The dissolver releases the
+        // synthetic's children back to the top-level list with their
+        // isSidechain flag intact, so the next grouping pass can
+        // re-attach them to the real Task.  This test isolates the
+        // dissolve step; the grouping pass is covered by the e2e
+        // test below.
         sync.testSetSessionMessages('s1', [
           <String, dynamic>{
             'id': 'real-task',
@@ -703,10 +748,9 @@ void main() {
           },
         ]);
 
-        // Simulate prior failed sweeps (count = 1).
-        // Note: _groupSidechainMessages calls _dissolveStaleOrphanSynthetics
-        // first, which will dissolve the synthetic and reset count.
-        sync.testRunDeferredRegroupSweep('s1');
+        final dissolved = sync.testDissolveStaleOrphanSynthetics('s1');
+        expect(dissolved, isTrue,
+            reason: 'real Task uuid matches synthetic uuid → must dissolve');
 
         final after = sync.testGetSessionMessages('s1');
         // Synthetic dissolved; children back at top level.

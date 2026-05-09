@@ -437,13 +437,12 @@ extension SyncMessagingMerge on Sync {
         .map((m) => m['id'] as String?)
         .whereType<String>()
         .toSet();
-    // A new message arrived for this session — reset the failure
-    // counter.  Any successful grouping or dissolve already cleared
-    // these above; this catches the case where new socket messages
-    // or REST batches arrive between sweeps without triggering absorb.
-    _resetSidechainRegroupSweepCount(sessionId);
 
-    if (beforeOrphans.isEmpty) return;
+    if (beforeOrphans.isEmpty) {
+      // No orphans left — clear any leftover counter state.
+      _sidechainRegroupSweepCount.remove(sessionId);
+      return;
+    }
 
     logger.debug(
       '[sidechain] running deferred re-group sweep '
