@@ -26,6 +26,10 @@ class AgentsListSheet extends StatelessWidget {
       // Skip sidechain children — they are rendered as children of
       // their parent Task/Agent, not as standalone agents.
       if (msg['isSidechain'] == true) continue;
+      // Skip orphan-recovery synthetic Tasks — they are placeholders
+      // for sidechain messages whose real parent never arrived; they
+      // are not actual subagent invocations.
+      if (msg['_orphanRecovery'] == true) continue;
       final kind = msg['kind'] as String?;
       if (kind == 'tool-call') {
         final name = msg['name'] as String?;
@@ -48,6 +52,12 @@ class AgentsListSheet extends StatelessWidget {
       // Skip sidechain children — they appear inside their parent
       // Task/Agent in the conversation view, not as separate entries.
       if (msg['isSidechain'] == true) continue;
+      // Skip orphan-recovery synthetic Tasks.  They were created by
+      // _absorbOrphansIntoSyntheticTasks to make stuck sidechain
+      // messages visible inline in chat, but they are not real
+      // subagent invocations and would otherwise flood this list
+      // when many chains end up orphaned.
+      if (msg['_orphanRecovery'] == true) continue;
       final kind = msg['kind'] as String?;
       if (kind == 'tool-call') {
         final name = msg['name'] as String?;

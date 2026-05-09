@@ -101,6 +101,34 @@ void main() {
         expect(AgentsListSheet.countActiveAgents('test-session'), 1);
       });
 
+      test('countActiveAgents skips _orphanRecovery synthetic Tasks', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'task-real',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'isSidechain': false,
+            'seq': 1,
+          },
+          // Synthetic placeholder created by orphan absorption — has
+          // state=completed so it would already be excluded from active
+          // count by state filter, but assert explicitly so the rule
+          // can't regress.
+          <String, dynamic>{
+            'id': 'orphan-recovery-X',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'isSidechain': false,
+            '_orphanRecovery': true,
+            'seq': 2,
+          },
+        ]);
+
+        expect(AgentsListSheet.countActiveAgents('test-session'), 1);
+      });
+
       test('10 parallel agents with interleaved sidechain children: count=10',
           () {
         // Simulate the c471/c471 session pattern: 10 Agent tool_calls
