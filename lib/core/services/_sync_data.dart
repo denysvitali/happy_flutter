@@ -189,6 +189,24 @@ extension SyncData on Sync {
             _sessions[sessionId]?.lastSeq ?? 0,
           );
 
+          // Pull `lastMessage.createdAt` out of the wire payload. The
+          // server includes it on every session in /v2/sessions; this
+          // is the only fallback we have for inbox time/sort/grouping
+          // when the local message cache is empty (session not opened
+          // yet). Preserve any newer in-memory value so a delta fetch
+          // that omits lastMessage doesn't regress to null.
+          final wireLastMessage = session['lastMessage'];
+          int? lastMessageAt;
+          if (wireLastMessage is Map) {
+            final created = _asSessionInt(wireLastMessage['createdAt']);
+            if (created != null) lastMessageAt = created;
+          }
+          final existingLm = existing?.lastMessageAt;
+          if (existingLm != null &&
+              (lastMessageAt == null || existingLm > lastMessageAt)) {
+            lastMessageAt = existingLm;
+          }
+
           Map<String, dynamic>? metadata;
           Map<String, dynamic>? agentState;
 
@@ -267,6 +285,7 @@ extension SyncData on Sync {
                     ? 'online'
                     : 'offline'),
             lastSeq: lastSeq,
+            lastMessageAt: lastMessageAt,
           );
 
           decryptedSessions.add(processedSession);
@@ -523,6 +542,18 @@ extension SyncData on Sync {
           _asSessionInt(raw['lastSeq']) ?? 0,
           _sessions[sessionId]?.lastSeq ?? 0,
         ),
+        lastMessageAt: () {
+          final wireLastMessage = raw['lastMessage'];
+          int? lm;
+          if (wireLastMessage is Map) {
+            lm = _asSessionInt(wireLastMessage['createdAt']);
+          }
+          final existingLm = existing?.lastMessageAt;
+          if (existingLm != null && (lm == null || existingLm > lm)) {
+            return existingLm;
+          }
+          return lm;
+        }(),
       );
 
       _sessions[sessionId] = session;

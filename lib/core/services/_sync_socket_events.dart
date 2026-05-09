@@ -326,12 +326,31 @@ extension SyncSocketEvents on Sync {
       // completed — or permanently if the fetch was interrupted.
       //
       // Update session.lastSeq so the delta-fetch path in fetchMessages
-      // can detect any remaining gap.
+      // can detect any remaining gap. Also bump lastMessageAt from the
+      // embedded message's createdAt so the inbox time/sort/grouping
+      // reflects the new message even before the user opens the chat
+      // (the local message cache may not include this message until
+      // inline decryption finishes, and the next fetchSessions hasn't
+      // run yet).
       final msgSeq = embeddedMessage?['seq'] as int?;
-      if (msgSeq != null) {
-        final session = _sessions[sessionId];
-        if (session != null && (session.lastSeq ?? 0) < msgSeq) {
-          _sessions[sessionId] = session.copyWith(lastSeq: msgSeq);
+      final msgCreatedAt = embeddedMessage?['createdAt'] is int
+          ? embeddedMessage!['createdAt'] as int
+          : null;
+      final session = _sessions[sessionId];
+      if (session != null) {
+        final newLastSeq = msgSeq != null && (session.lastSeq ?? 0) < msgSeq
+            ? msgSeq
+            : session.lastSeq;
+        final newLastMessageAt = msgCreatedAt != null &&
+                (session.lastMessageAt ?? 0) < msgCreatedAt
+            ? msgCreatedAt
+            : session.lastMessageAt;
+        if (newLastSeq != session.lastSeq ||
+            newLastMessageAt != session.lastMessageAt) {
+          _sessions[sessionId] = session.copyWith(
+            lastSeq: newLastSeq,
+            lastMessageAt: newLastMessageAt,
+          );
         }
       }
 
