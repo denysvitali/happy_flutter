@@ -651,14 +651,36 @@ extension SyncMessagingSend on Sync {
   ) {
     final msgs = _sessionMessages[sessionId];
     if (msgs == null) return;
+    var matchCount = 0;
+    var firstIdx = -1;
     for (var i = 0; i < msgs.length; i++) {
       final m = msgs[i];
       if (m['localId'] == localId || m['id'] == localId) {
-        msgs[i] = {...m, 'sendStatus': status};
-        _sessionMessagesCache = null;
-        _sessionMessagesViewCache.remove(sessionId);
-        break;
+        matchCount++;
+        if (firstIdx == -1) firstIdx = i;
       }
+    }
+    // Canary invariant #1: exactly one logical message per LocalId.
+    // No-op when kCanary is false.
+    CanaryAssert.noDuplicateLocalId(
+      localId: localId,
+      rowCount: matchCount,
+      sessionId: sessionId,
+    );
+    // Canary invariant #2: a `'sent'` ack must have found a matching
+    // optimistic placeholder.  If matchCount == 0 the merge code lost
+    // the localId↔id mapping somewhere upstream.
+    if (status == 'sent') {
+      CanaryAssert.ackMatchedOptimistic(
+        localId: localId,
+        optimisticFound: matchCount > 0,
+        sessionId: sessionId,
+      );
+    }
+    if (firstIdx >= 0) {
+      msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
+      _sessionMessagesCache = null;
+      _sessionMessagesViewCache.remove(sessionId);
     }
   }
 
@@ -697,6 +719,17 @@ extension SyncMessagingSend on Sync {
       );
       return;
     }
+
+    // Canary invariant #3: retry MUST reuse the original LocalId.
+    // The current code always passes the same `localId` argument
+    // through, but this assert guards future refactors where the
+    // retry path could accidentally mint a new id.  No-op when
+    // kCanary is false.
+    final observedLocalId = failedMessage['localId'] as String? ?? localId;
+    CanaryAssert.retryPreservesLocalId(
+      expected: localId,
+      observed: observedLocalId,
+    );
 
     final text =
         failedMessage['text'] as String? ??
