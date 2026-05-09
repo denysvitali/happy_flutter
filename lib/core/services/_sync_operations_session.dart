@@ -962,11 +962,20 @@ PY
     // the user's last explicit choice. This mirrors _getSpawnEnvVarsForSession
     // and lets us detect "user switched to Default" (MMKV cleared) as a real
     // change, while still ignoring no-op sends from callers that don't care.
-    final effectiveProfileIdForChange =
-        profileId ?? await MMKVStorage().getSessionProfile(sessionId);
+    final mmkvProfileId = await MMKVStorage().getSessionProfile(sessionId);
+    final effectiveProfileIdForChange = profileId ?? mmkvProfileId;
     final spawnedProfileKnown = _sessionSpawnedProfile.containsKey(sessionId);
+    // For just-spawned sessions, MMKV may not have been written yet even
+    // though _sessionSpawnedProfile was registered. Treat absence-of-MMKV +
+    // recently-spawned as "no information" rather than "user wants Default",
+    // otherwise we kill freshly-created sessions on their first send.
+    final spawnedProfileId = _sessionSpawnedProfile[sessionId];
+    final mmkvUnknownForFreshSpawn =
+        recentlySpawned && profileId == null && mmkvProfileId == null;
     final profileChanged = spawnedProfileKnown
-        ? _sessionSpawnedProfile[sessionId] != effectiveProfileIdForChange
+        ? (mmkvUnknownForFreshSpawn
+              ? false
+              : spawnedProfileId != effectiveProfileIdForChange)
         : effectiveProfileIdForChange != null;
 
     final modelChanged =
@@ -1011,16 +1020,22 @@ PY
         _sessionSpawnedProfile.remove(sessionId);
         _sessionSpawnedModel.remove(sessionId);
         _sessionSpawnedAgent.remove(sessionId);
-        try {
-          await killSession(sessionId);
-        } catch (e, st) {
-          logger.warning(
-            '[sendMessage] killSession failed during profile/model '
-            'switch for session=$sessionId: $e',
-            e,
-            st,
-          );
-        }
+        // Fire-and-forget: the kill is best-effort (spawned data is already
+        // cleared, so auto-restore handles offline outcomes). Awaiting blocked
+        // the user's send for ~10s when the server-side Redis RPC dispatcher
+        // timed out waiting for a replica.
+        unawaited(() async {
+          try {
+            await killSession(sessionId).timeout(const Duration(seconds: 3));
+          } catch (e, st) {
+            logger.warning(
+              '[sendMessage] killSession failed during profile/model '
+              'switch for session=$sessionId: $e',
+              e,
+              st,
+            );
+          }
+        }());
       }
     } else if (looksReady || recentlySpawned) {
       return (
