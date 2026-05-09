@@ -1,5 +1,6 @@
 import 'package:riverpod/riverpod.dart';
 
+import '../crdt/settings_crdt.dart';
 import '../models/settings.dart';
 import '../models/settings_update.dart';
 import '../services/logger_service.dart' show logger;
@@ -8,6 +9,14 @@ import '../services/sync_service.dart';
 
 class SettingsNotifier extends Notifier<Settings> {
   final _storage = SettingsStorage();
+  // CRDT state for the settings domain (item #3 of the architecture
+  // overhaul). Replaces the pessimistic apply-then-await round-trip
+  // with an LWW-Map: writes are immediate locally, the wire payload
+  // carries an (timestamp, replicaId) tag, and inbound updates merge
+  // commutatively in [applyRemoteSettingPatch].
+  late final SettingsCrdt _crdt = SettingsCrdt(
+    replicaId: 'local-${DateTime.now().microsecondsSinceEpoch}',
+  );
   int _lastDataChangeCounter = -1;
 
   @override
@@ -66,6 +75,11 @@ class SettingsNotifier extends Notifier<Settings> {
     // a window where `ref.read(settingsNotifierProvider)` still returns
     // the old value — e.g. NewSessionScreen reading `lastUsedProfile`.
     state = SettingsUpdate.copyWithUpdated(state, key, value);
+    // Stamp the CRDT cell so that concurrent edits across replicas
+    // converge. The wire patch is unused on the existing `applySettings`
+    // path (the server still expects the bare value) but is available
+    // to callers that want to ship LWW-tagged updates today.
+    _crdt.updateSetting(key, value);
     await _storage.updateSetting(key, value);
 
     // Sync developer mode to logger so DevLogsScreen can capture all logs
@@ -78,6 +92,26 @@ class SettingsNotifier extends Notifier<Settings> {
       final syncValue = SettingsUpdate.toSyncValue(key, value);
       await sync.applySettings({key: syncValue});
     }
+  }
+
+  /// Applies a remote LWW-tagged settings patch (item #3). Idempotent
+  /// and commutative; safe to call from socket pushes that arrive out
+  /// of order. Returns whether anything changed.
+  bool applyRemoteSettingsPatch(Map<String, Object?> patch) {
+    final beforeSnapshot = _crdt.snapshot();
+    _crdt.applyRemote(patch);
+    final afterSnapshot = _crdt.snapshot();
+    var changed = false;
+    final next = state;
+    Settings updated = next;
+    for (final entry in afterSnapshot.entries) {
+      if (beforeSnapshot[entry.key] == entry.value) continue;
+      changed = true;
+      updated = SettingsUpdate.copyWithUpdated(
+          updated, entry.key, entry.value);
+    }
+    if (changed) state = updated;
+    return changed;
   }
 }
 
