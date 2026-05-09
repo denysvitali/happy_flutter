@@ -168,8 +168,9 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       buildTimestampBadges(
-                        timestamp:
-                            widget.lastMessageTimestamp ?? session.updatedAt,
+                        timestamp: widget.lastMessageTimestamp ??
+                            session.lastMessageAt ??
+                            session.updatedAt,
                         theme: theme,
                         cs: cs,
                         unreadCount: widget.unreadCount,

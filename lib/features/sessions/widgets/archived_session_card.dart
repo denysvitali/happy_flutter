@@ -227,7 +227,9 @@ class _SessionCardState extends State<SessionCard> {
                         children: [
                           Text(
                             formatTimestamp(
-                              widget.lastMessageTimestamp ?? session.updatedAt,
+                              widget.lastMessageTimestamp ??
+                                  session.lastMessageAt ??
+                                  session.updatedAt,
                               relative: true,
                             ),
                             style: theme.textTheme.labelSmall?.copyWith(

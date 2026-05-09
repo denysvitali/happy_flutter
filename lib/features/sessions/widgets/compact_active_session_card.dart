@@ -197,6 +197,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                           buildTimestampBadges(
                             timestamp:
                                 widget.lastMessageTimestamp ??
+                                session.lastMessageAt ??
                                 session.updatedAt,
                             theme: theme,
                             cs: cs,

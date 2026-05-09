@@ -122,6 +122,7 @@ _Session _$SessionFromJson(Map<String, dynamic> json) => _Session(
   modelMode: _asApiStringNullable(json['modelMode']),
   latestUsage: _usageDataFromJson(json['latestUsage']),
   lastSeq: _asApiIntNullable(json['lastSeq']),
+  lastMessageAt: _lastMessageAtFromJson(json['lastMessage']),
 );
 
 Map<String, dynamic> _$SessionToJson(_Session instance) => <String, dynamic>{
@@ -145,6 +146,7 @@ Map<String, dynamic> _$SessionToJson(_Session instance) => <String, dynamic>{
   'modelMode': instance.modelMode,
   'latestUsage': instance.latestUsage?.toJson(),
   'lastSeq': instance.lastSeq,
+  'lastMessage': instance.lastMessageAt,
 };
 
 _UsageData _$UsageDataFromJson(Map<String, dynamic> json) => _UsageData(

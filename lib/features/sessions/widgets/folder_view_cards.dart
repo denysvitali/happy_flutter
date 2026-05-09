@@ -186,7 +186,9 @@ class FolderSessionRow extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   buildTimestampBadges(
-                    timestamp: lastMessageTimestamp ?? session.updatedAt,
+                    timestamp: lastMessageTimestamp ??
+                        session.lastMessageAt ??
+                        session.updatedAt,
                     theme: theme,
                     cs: cs,
                     unreadCount: unreadCount,

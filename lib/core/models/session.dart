@@ -85,6 +85,28 @@ Metadata? _metadataFromJson(dynamic value) {
   return null;
 }
 
+/// Extracts the `createdAt` of the last message embedded in a session
+/// list response (`lastMessage: { createdAt, ... }`).
+///
+/// The server-side `/v2/sessions` endpoint includes the most recent
+/// message for every session, so the inbox knows the true last-activity
+/// time even before the chat is opened and its message cache is
+/// populated. Without this the inbox would fall back to
+/// `session.updatedAt`, which can lag behind during agent streaming
+/// (the activity flush is throttled per session) and look wrong until
+/// the user opens the chat and triggers a refetch.
+int? _lastMessageAtFromJson(dynamic value) {
+  // Wire format from /v2/sessions: { id, createdAt, ... }.
+  if (value is Map) {
+    final created = value is Map<String, dynamic>
+        ? value['createdAt']
+        : value['createdAt'];
+    return _asApiIntNullable(created);
+  }
+  // Roundtrip from our own toJson: a plain int.
+  return _asApiIntNullable(value);
+}
+
 AgentState? _agentStateFromJson(dynamic value) {
   if (value is Map<String, dynamic>) return AgentState.fromJson(value);
   return null;
@@ -335,6 +357,13 @@ abstract class Session with _$Session {
     /// The highest message seq number in the session, as reported by the
     /// server. Used for lazy tail-loading to avoid fetching all history.
     @JsonKey(fromJson: _asApiIntNullable) int? lastSeq,
+
+    /// `createdAt` of the most recent message, taken from the
+    /// server-provided `lastMessage` field on the session response.
+    /// Used as a fallback for inbox sorting / grouping / time display
+    /// when the local message cache is empty (session not yet opened).
+    @JsonKey(name: 'lastMessage', fromJson: _lastMessageAtFromJson)
+    int? lastMessageAt,
 
     /// Local-only: whether this session is pinned for quick access.
     /// Not synced to the server.

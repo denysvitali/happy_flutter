@@ -110,13 +110,17 @@ SortedSessions computeSortedSessions(
     final aOnline = a.presence == 'online' ? 0 : 1;
     final bOnline = b.presence == 'online' ? 0 : 1;
     if (aOnline != bOnline) return aOnline.compareTo(bOnline);
-    final aTs = getLastMessageTimestamp(a.id) ?? a.activeAt;
-    final bTs = getLastMessageTimestamp(b.id) ?? b.activeAt;
+    final aTs =
+        getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.activeAt;
+    final bTs =
+        getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.activeAt;
     return bTs.compareTo(aTs);
   });
   inactive.sort((a, b) {
-    final aTs = getLastMessageTimestamp(a.id) ?? a.updatedAt;
-    final bTs = getLastMessageTimestamp(b.id) ?? b.updatedAt;
+    final aTs =
+        getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.updatedAt;
+    final bTs =
+        getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.updatedAt;
     return bTs.compareTo(aTs);
   });
   final result = SortedSessions(
@@ -153,6 +157,7 @@ int _computeSortedSessionsSignature(
       session.presence,
       session.activeAt,
       session.updatedAt,
+      session.lastMessageAt,
       session.metadata?.name,
       session.metadata?.path,
       session.metadata?.summary?.text,

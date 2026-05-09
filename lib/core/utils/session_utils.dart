@@ -54,7 +54,15 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
   };
 
   for (final session in sessions) {
-    final sessionDate = DateTime.fromMillisecondsSinceEpoch(session.updatedAt);
+    // Use the same effective last-activity time the card displays so the
+    // group header (Today/Yesterday/...) matches the timestamp on the
+    // card. Falling back to session.updatedAt alone caused sessions to
+    // land in the wrong group when the local message cache or
+    // server-provided lastMessage was newer.
+    final effectiveTs = getLastMessageTimestamp?.call(session.id) ??
+        session.lastMessageAt ??
+        session.updatedAt;
+    final sessionDate = DateTime.fromMillisecondsSinceEpoch(effectiveTs);
     final dateOnly = DateTime(
       sessionDate.year,
       sessionDate.month,
@@ -81,11 +89,11 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
     ..forEach((_, sessions) {
       sessions.sort((a, b) {
         final aTs = getLastMessageTimestamp != null
-            ? getLastMessageTimestamp(a.id) ?? a.updatedAt
-            : a.updatedAt;
+            ? getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.updatedAt
+            : a.lastMessageAt ?? a.updatedAt;
         final bTs = getLastMessageTimestamp != null
-            ? getLastMessageTimestamp(b.id) ?? b.updatedAt
-            : b.updatedAt;
+            ? getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.updatedAt
+            : b.lastMessageAt ?? b.updatedAt;
         return bTs.compareTo(aTs);
       });
     });
@@ -546,8 +554,8 @@ List<SessionFolderItem> groupSessionsByFolder(
   final sortedKeys = groups.keys.toList()
     ..sort((a, b) {
       int ts(Session s) => getLastMessageTimestamp != null
-          ? getLastMessageTimestamp(s.id) ?? s.updatedAt
-          : s.updatedAt;
+          ? getLastMessageTimestamp(s.id) ?? s.lastMessageAt ?? s.updatedAt
+          : s.lastMessageAt ?? s.updatedAt;
       final aLatest = groups[a]!.map(ts).reduce(math.max);
       final bLatest = groups[b]!.map(ts).reduce(math.max);
       return bLatest.compareTo(aLatest);
@@ -557,11 +565,11 @@ List<SessionFolderItem> groupSessionsByFolder(
   for (final key in sortedKeys) {
     groups[key]!.sort((a, b) {
       final aTs = getLastMessageTimestamp != null
-          ? getLastMessageTimestamp(a.id) ?? a.updatedAt
-          : a.updatedAt;
+          ? getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.updatedAt
+          : a.lastMessageAt ?? a.updatedAt;
       final bTs = getLastMessageTimestamp != null
-          ? getLastMessageTimestamp(b.id) ?? b.updatedAt
-          : b.updatedAt;
+          ? getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.updatedAt
+          : b.lastMessageAt ?? b.updatedAt;
       return bTs.compareTo(aTs);
     });
   }
@@ -587,8 +595,10 @@ List<SessionFolderItem> groupSessionsByFolder(
     final latestActivityAt = groupSessions
         .map(
           (session) => getLastMessageTimestamp != null
-              ? getLastMessageTimestamp(session.id) ?? session.updatedAt
-              : session.updatedAt,
+              ? getLastMessageTimestamp(session.id) ??
+                    session.lastMessageAt ??
+                    session.updatedAt
+              : session.lastMessageAt ?? session.updatedAt,
         )
         .reduce(math.max);
 
@@ -644,8 +654,10 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
   }
 
   int activityTs(Session session) => getLastMessageTimestamp != null
-      ? getLastMessageTimestamp(session.id) ?? session.updatedAt
-      : session.updatedAt;
+      ? getLastMessageTimestamp(session.id) ??
+            session.lastMessageAt ??
+            session.updatedAt
+      : session.lastMessageAt ?? session.updatedAt;
 
   final keys = {...groupedActive.keys, ...groupedInactive.keys}.toList()
     ..sort((a, b) {
