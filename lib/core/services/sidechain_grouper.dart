@@ -190,6 +190,60 @@ class SidechainGrouper {
           : null;
     }
 
+    // Pass 1.5: Index every sidechain message in the flat list
+    // by its uuid so Pass 2 can walk parentUuid chains
+    // transitively.  Subagent transcripts chain via the
+    // *previous sidechain message's* uuid — not the parent
+    // Task's uuid.  Without transitive walking, Pass 2
+    // resolution is iteration-order-sensitive: a chain message
+    // whose direct parent (the prior sidechain message) hasn't
+    // been processed yet stays orphaned, even though the chain
+    // ultimately terminates at an indexed Task.  In production
+    // this manifests as long subagent runs fragmenting into
+    // many singleton "Subagent output (recovered)" tiles via
+    // _absorbOrphansIntoSyntheticTasks.
+    final sidechainByUuid = <String, Map<String, dynamic>>{};
+    for (final msg in messages) {
+      if (msg['isSidechain'] == true ||
+          msg['kind'] == 'sidechain-root') {
+        final uuid = msg['uuid'] as String?;
+        if (uuid != null && uuid.isNotEmpty) {
+          sidechainByUuid[uuid] = msg;
+        }
+      }
+    }
+
+    // Walk parentUuid up through unresolved sidechain ancestors
+    // until we hit one whose uuid is in [uuidToSidechainId]
+    // (meaning it transitively belongs to an indexed Task).
+    // Returns the Task id when found, or null if the chain
+    // dead-ends.  Memoizes intermediate uuids so a future
+    // lookup short-circuits.
+    String? walkChainToTaskId(String? startParentUuid) {
+      if (startParentUuid == null || startParentUuid.isEmpty) {
+        return null;
+      }
+      final walked = <String>[];
+      var current = startParentUuid;
+      final visited = <String>{};
+      while (current.isNotEmpty && visited.add(current)) {
+        final mapped = uuidToSidechainId[current];
+        if (mapped != null) {
+          for (final w in walked) {
+            uuidToSidechainId[w] = mapped;
+          }
+          return mapped;
+        }
+        walked.add(current);
+        final ancestor = sidechainByUuid[current];
+        if (ancestor == null) return null;
+        final next = ancestor['parentUuid'] as String?;
+        if (next == null || next.isEmpty) return null;
+        current = next;
+      }
+      return null;
+    }
+
     // Pass 2: Combined pass to find sidechain roots and group
     // child messages in a single iteration.  Operates on the
     // flat top-level list only — sidechain messages for
@@ -203,10 +257,17 @@ class SidechainGrouper {
         final prompt = msg['prompt'] as String?;
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
-        final sidechainId = (parentUuid != null &&
+        // Sidechain-root usually points directly at the Task.
+        // Fall back to chain walking for the rare case where the
+        // root's parent is itself a (yet-unresolved) sidechain
+        // message — happens after partial regroups where the
+        // original root was attached but a later root chains
+        // off an intermediate sidechain.
+        var sidechainId = (parentUuid != null &&
                 uuidToTaskId.containsKey(parentUuid))
             ? uuidToTaskId[parentUuid]
             : (prompt != null ? promptToTaskId[prompt] : null);
+        sidechainId ??= walkChainToTaskId(parentUuid);
         if (sidechainId != null) {
           if (uuid != null) {
             uuidToSidechainId[uuid] = sidechainId;
@@ -239,15 +300,25 @@ class SidechainGrouper {
             ? promptInput['prompt'] as String?
             : null;
 
-        // First try uuidToSidechainId (nearest-ancestor index),
-        // then fall back to promptToTaskId like sidechain-root does.
+        // Resolution order:
+        //   1. Direct uuidToSidechainId hit (parent already
+        //      indexed — either a Task or a prior chain step).
+        //   2. Transitive chain walk through other unresolved
+        //      sidechain messages — fixes order-sensitivity
+        //      when chain[i+1] is iterated before chain[i].
+        //   3. Prompt fallback (matches by Task input.prompt).
         String? sidechainId;
         if (parentUuid != null) {
           final p = parentUuid;
           if (uuidToSidechainId.containsKey(p)) {
             sidechainId = uuidToSidechainId[p];
-          } else if (prompt != null && promptToTaskId.containsKey(prompt)) {
-            sidechainId = promptToTaskId[prompt];
+          } else {
+            sidechainId = walkChainToTaskId(p);
+            if (sidechainId == null &&
+                prompt != null &&
+                promptToTaskId.containsKey(prompt)) {
+              sidechainId = promptToTaskId[prompt];
+            }
           }
         } else if (prompt != null && promptToTaskId.containsKey(prompt)) {
           sidechainId = promptToTaskId[prompt];

@@ -263,6 +263,104 @@ void main() {
       );
     });
 
+    test('resolves out-of-order chain via transitive '
+        'parentUuid walk', () {
+      // Regression: subagent transcripts chain via the previous
+      // sidechain message's uuid (not the parent Task uuid).
+      // When a chain message is iterated before its direct
+      // ancestor (e.g. due to seq/createdAt tie-breaks or
+      // re-ordering after merge), the per-step memoization in
+      // uuidToSidechainId hasn't seen the ancestor yet and the
+      // child stays orphaned.  Pre-fix this fragmented one
+      // subagent run into many singleton "Subagent output
+      // (recovered)" tiles via _absorbOrphansIntoSyntheticTasks.
+      //
+      // Here the flat list deliberately presents child-3 first,
+      // then child-2, then child-1, then the root. The grouper
+      // must walk the parentUuid chain transitively through
+      // sidechainByUuid to find the indexed Task.
+      final messages = [
+        _taskMsg(id: 'task-1', uuid: 'task-uuid'),
+        _sidechainChild(
+          id: 'child-3',
+          uuid: 'c3-uuid',
+          parentUuid: 'c2-uuid',
+        ),
+        _sidechainChild(
+          id: 'child-2',
+          uuid: 'c2-uuid',
+          parentUuid: 'c1-uuid',
+        ),
+        _sidechainChild(
+          id: 'child-1',
+          uuid: 'c1-uuid',
+          parentUuid: 'root-uuid',
+        ),
+        _sidechainRoot(
+          id: 'root-1',
+          uuid: 'root-uuid',
+          parentUuid: 'task-uuid',
+        ),
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isFalse,
+          reason: 'every chain link must transitively '
+              'resolve to the indexed Task');
+      expect(result.messages, hasLength(1));
+      final children = result.messages[0]['children']
+          as List<Map<String, dynamic>>;
+      final ids = children.map((c) => c['id']).toSet();
+      expect(ids, {'child-1', 'child-2', 'child-3'});
+    });
+
+    test('long chain (50 messages) does not fragment into '
+        'orphans', () {
+      // Production symptom: a single subagent run with many
+      // chained messages produced N "Subagent output
+      // (recovered)" synthetic Tasks (one per orphan
+      // parentUuid bucket).  This guards the long-chain
+      // resolution when timestamps are equal and order is
+      // partially reversed.
+      const chainLength = 50;
+      final chain = <Map<String, dynamic>>[];
+      for (var i = 0; i < chainLength; i++) {
+        final parent = i == 0 ? 'root-uuid' : 'c${i - 1}-uuid';
+        chain.add(_sidechainChild(
+          id: 'child-$i',
+          uuid: 'c$i-uuid',
+          parentUuid: parent,
+        ));
+      }
+      // Reverse half the chain to break iteration order.
+      final shuffled = [
+        ...chain.sublist(chainLength ~/ 2).reversed,
+        ...chain.sublist(0, chainLength ~/ 2),
+      ];
+      final messages = [
+        _taskMsg(id: 'task-1', uuid: 'task-uuid'),
+        _sidechainRoot(
+          id: 'root-1',
+          uuid: 'root-uuid',
+          parentUuid: 'task-uuid',
+        ),
+        ...shuffled,
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isFalse,
+          reason: 'long out-of-order chain must fully '
+              'resolve to the single indexed Task');
+      expect(result.messages, hasLength(1));
+      final children = result.messages[0]['children']
+          as List<Map<String, dynamic>>;
+      expect(children, hasLength(chainLength));
+    });
+
     test('persists _sidechainRootUuids on Task for recovery',
         () {
       final messages = [
