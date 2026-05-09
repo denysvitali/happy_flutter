@@ -16,14 +16,35 @@ const _kActionAllow = 'permission_allow';
 /// Notification action ID for denying a permission request.
 const _kActionDeny = 'permission_deny';
 
+/// Notification action ID for an inline-reply.
+///
+/// Used both on permission notifications (so the user can answer the
+/// agent's question without unlocking the phone) and on the live
+/// "agent thinking" activity notification.
+const _kActionReply = 'inline_reply';
+
 /// Android notification channel for permission requests.
 const _kPermissionChannelId = 'happy_permissions';
 const _kPermissionChannelName = 'Permission Requests';
 const _kPermissionChannelDesc =
     'Notifications when Claude needs permission to proceed';
 
+/// Android notification channel for the live session activity
+/// (ongoing notification that shows the running tool + elapsed time).
+const _kActivityChannelId = 'happy_session_activity';
+const _kActivityChannelName = 'Session Activity';
+const _kActivityChannelDesc =
+    'Ongoing notification while a Claude session is running';
+
 /// iOS notification category for permission requests.
 const _kPermissionCategory = 'permission_request';
+
+/// iOS notification category for inline-reply on session activity.
+const _kActivityCategory = 'session_activity';
+
+/// Reserved Android notification ID base for activity notifications.
+/// Each session occupies a slot derived from `sessionId.hashCode`.
+const int _kActivityIdBase = 0x5A50_0000;
 
 /// Top-level background message handler — must be a top-level function.
 @pragma('vm:entry-point')
@@ -32,6 +53,54 @@ Future<void> firebaseMessagingBackgroundHandler(
 ) async {
   // Background messages are handled by the system notification tray.
   // No additional processing needed.
+}
+
+/// Result of parsing an inline-reply notification action.
+///
+/// Exposed so tests can verify payload/input parsing without spinning up
+/// the full plugin or hitting the Sync singleton.
+class InlineReplyData {
+  const InlineReplyData({
+    required this.sessionId,
+    required this.text,
+    this.permissionId,
+  });
+
+  final String sessionId;
+  final String text;
+
+  /// Set when the reply originated from a permission notification —
+  /// the caller should auto-deny the original permission so the agent
+  /// isn't left blocked.
+  final String? permissionId;
+}
+
+/// Parses a notification payload + inline-reply input into a structured
+/// result, returning `null` when the payload is missing/invalid or the
+/// input is empty.
+///
+/// This function is intentionally pure so it can be exercised by unit
+/// tests with no plugin/storage dependencies.
+InlineReplyData? parseReplyAction({
+  required String? payload,
+  required String? input,
+}) {
+  if (payload == null) return null;
+  final trimmed = (input ?? '').trim();
+  if (trimmed.isEmpty) return null;
+  try {
+    final data = json.decode(payload) as Map<String, dynamic>;
+    final sessionId = data['sessionId'] as String?;
+    if (sessionId == null || sessionId.isEmpty) return null;
+    final permissionId = data['permissionId'] as String?;
+    return InlineReplyData(
+      sessionId: sessionId,
+      text: trimmed,
+      permissionId: permissionId,
+    );
+  } catch (_) {
+    return null;
+  }
 }
 
 class NotificationService {
@@ -76,6 +145,23 @@ class NotificationService {
                   DarwinNotificationActionOption.destructive,
                 },
               ),
+              DarwinNotificationAction.text(
+                _kActionReply,
+                'Reply',
+                buttonTitle: 'Send',
+                placeholder: 'Reply to agent…',
+              ),
+            ],
+          ),
+          DarwinNotificationCategory(
+            _kActivityCategory,
+            actions: <DarwinNotificationAction>[
+              DarwinNotificationAction.text(
+                _kActionReply,
+                'Reply',
+                buttonTitle: 'Send',
+                placeholder: 'Reply to agent…',
+              ),
             ],
           ),
         ],
@@ -108,11 +194,21 @@ class NotificationService {
         importance: Importance.max,
       );
 
+      // Create the live "session activity" channel — low importance so
+      // the ongoing notification doesn't make a sound every update.
+      const activityChannel = AndroidNotificationChannel(
+        _kActivityChannelId,
+        _kActivityChannelName,
+        description: _kActivityChannelDesc,
+        importance: Importance.low,
+      );
+
       final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
       await androidPlugin?.createNotificationChannel(defaultChannel);
       await androidPlugin?.createNotificationChannel(permissionChannel);
+      await androidPlugin?.createNotificationChannel(activityChannel);
 
       // Set up FCM message handlers
       _foregroundSub =
@@ -193,6 +289,17 @@ class NotificationService {
         showsUserInterface: false,
         cancelNotification: true,
       ),
+      AndroidNotificationAction(
+        _kActionReply,
+        'Reply',
+        showsUserInterface: false,
+        cancelNotification: true,
+        inputs: <AndroidNotificationActionInput>[
+          AndroidNotificationActionInput(
+            label: 'Reply to agent…',
+          ),
+        ],
+      ),
     ];
 
     const androidDetails = AndroidNotificationDetails(
@@ -232,6 +339,113 @@ class NotificationService {
   }
 
   // -----------------------------------------------------------
+  // Session activity notifications (live progress + inline reply)
+  // -----------------------------------------------------------
+
+  int _activityIdFor(String sessionId) =>
+      _kActivityIdBase ^ (sessionId.hashCode & 0xFFFF);
+
+  /// Show or update an ongoing notification reflecting an active
+  /// agent session. The notification is silent (importance.low) and
+  /// stays pinned (`ongoing: true`) until [cancelSessionActivityNotification]
+  /// is called or the session leaves the running state.
+  ///
+  /// On Android this becomes a foreground-style ongoing notification with
+  /// progress bar + Reply action. On iOS it surfaces as a regular
+  /// notification with the inline-reply category. (True iOS Live Activities
+  /// require a Swift target — see `LiveActivityService` for that stub.)
+  Future<void> showSessionActivityNotification({
+    required String sessionId,
+    required String toolName,
+    required DateTime startedAt,
+    String? sessionName,
+    int? progressPercent,
+  }) async {
+    if (!_initialized) return;
+
+    final elapsed = DateTime.now().difference(startedAt);
+    final elapsedLabel = _formatElapsed(elapsed);
+    final title = sessionName != null
+        ? 'Running — $sessionName'
+        : 'Agent running';
+    final body = '$toolName • $elapsedLabel';
+
+    final payload = json.encode(<String, String>{
+      'type': 'activity',
+      'sessionId': sessionId,
+    });
+
+    const androidActions = <AndroidNotificationAction>[
+      AndroidNotificationAction(
+        _kActionReply,
+        'Reply',
+        showsUserInterface: false,
+        cancelNotification: false,
+        inputs: <AndroidNotificationActionInput>[
+          AndroidNotificationActionInput(
+            label: 'Reply to agent…',
+          ),
+        ],
+      ),
+    ];
+
+    final androidDetails = AndroidNotificationDetails(
+      _kActivityChannelId,
+      _kActivityChannelName,
+      channelDescription: _kActivityChannelDesc,
+      importance: Importance.low,
+      priority: Priority.low,
+      ongoing: true,
+      onlyAlertOnce: true,
+      silent: true,
+      showProgress: progressPercent != null,
+      maxProgress: 100,
+      progress: progressPercent ?? 0,
+      indeterminate: progressPercent == null,
+      category: AndroidNotificationCategory.progress,
+      actions: androidActions,
+    );
+
+    const darwinDetails = DarwinNotificationDetails(
+      categoryIdentifier: _kActivityCategory,
+      // Default interruption — don't preempt while running.
+      presentSound: false,
+      presentBanner: false,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+
+    await _localNotifications.show(
+      id: _activityIdFor(sessionId),
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: payload,
+    );
+  }
+
+  /// Cancel the ongoing session activity notification (e.g. when the
+  /// agent stops thinking or the user opens the chat screen).
+  Future<void> cancelSessionActivityNotification(String sessionId) async {
+    if (!_initialized) return;
+    await _localNotifications.cancel(id: _activityIdFor(sessionId));
+  }
+
+  static String _formatElapsed(Duration d) {
+    if (d.inSeconds < 60) return '${d.inSeconds}s';
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    if (minutes < 60) return '${minutes}m ${seconds}s';
+    final hours = d.inHours;
+    final mins = minutes % 60;
+    return '${hours}h ${mins}m';
+  }
+
+  // -----------------------------------------------------------
   // FCM handlers
   // -----------------------------------------------------------
 
@@ -268,6 +482,12 @@ class NotificationService {
 
   void _onNotificationResponse(NotificationResponse response) {
     final actionId = response.actionId;
+
+    // Inline reply action carries an `input` value.
+    if (actionId == _kActionReply) {
+      _handleReplyAction(response.payload, response.input);
+      return;
+    }
 
     // Action button tapped (Allow / Deny).
     if (actionId != null && actionId.isNotEmpty) {
@@ -332,6 +552,58 @@ class NotificationService {
     } catch (e) {
       logger.warning(
         'Permission action from notification failed: $e',
+      );
+    }
+  }
+
+  /// Handle an inline-reply notification action.
+  ///
+  /// The reply text is sent through [Sync.sendMessage] which produces
+  /// exactly one canonical `localId` for the message — preserving the
+  /// `one tap → one localId` invariant required by the chat send path.
+  Future<void> _handleReplyAction(
+    String? payload,
+    String? input,
+  ) async {
+    final result = parseReplyAction(payload: payload, input: input);
+    if (result == null) {
+      logger.warning(
+        'Inline reply received without a session/text payload',
+      );
+      return;
+    }
+    try {
+      // Sync.sendMessage creates a fresh canonical localId when none
+      // is supplied — exactly one localId for this notification tap.
+      await Sync().sendMessage(
+        result.sessionId,
+        result.text,
+        displayText: result.text,
+      );
+      logger.info(
+        'Inline reply sent via notification: '
+        'session=${result.sessionId} chars=${result.text.length}',
+      );
+      // For permission notifications, also auto-deny so the agent isn't
+      // blocked waiting on the original prompt — the user replied
+      // instead. (Allow would risk running the un-approved tool.)
+      final permissionId = result.permissionId;
+      if (permissionId != null) {
+        try {
+          await Sync().sessionDeny(result.sessionId, permissionId);
+        } on StateError {
+          // Permission expired — that's fine.
+        }
+      }
+    } on StateError catch (e) {
+      logger.warning(
+        'Inline reply send aborted (sync not initialized): $e',
+      );
+    } catch (e, st) {
+      logger.warning(
+        'Inline reply send failed: $e',
+        e,
+        st,
       );
     }
   }
