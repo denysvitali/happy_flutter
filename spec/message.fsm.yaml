@@ -1,0 +1,52 @@
+# Finite-state machine for a single chat message, used by the
+# scaffolded codegen at tools/fsm_codegen.dart to emit a sealed
+# Dart hierarchy at lib/core/fsm/message_state.g.dart.
+#
+# This mirrors the same lifecycle that spec/messaging.tla models —
+# the codegen output is the runtime artifact; the TLA spec is the
+# correctness artifact.
+
+name: MessageState
+description: |
+  Lifecycle of a single chat message keyed by localId.
+
+states:
+  - name: Draft
+    fields:
+      - { name: localId, type: String }
+      - { name: text, type: String }
+  - name: Sending
+    fields:
+      - { name: localId, type: String }
+      - { name: text, type: String }
+      - { name: attempt, type: int, default: 1 }
+  - name: Sent
+    fields:
+      - { name: localId, type: String }
+      - { name: serverId, type: String }
+      - { name: seq, type: int }
+  - name: Pending
+    fields:
+      - { name: localId, type: String }
+      - { name: reason, type: String }
+  - name: Failed
+    fields:
+      - { name: localId, type: String }
+      - { name: reason, type: String }
+      - { name: attempt, type: int, default: 1 }
+  - name: Merged
+    fields:
+      - { name: localId, type: String }
+      - { name: serverId, type: String }
+      - { name: seq, type: int }
+      - { name: text, type: String }
+
+transitions:
+  - { from: Draft,   on: send,    to: Sending }
+  - { from: Sending, on: ack,     to: Sent }
+  - { from: Sending, on: fail,    to: Failed }
+  - { from: Sending, on: pending, to: Pending }
+  - { from: Pending, on: ack,     to: Sent }
+  - { from: Pending, on: fail,    to: Failed }
+  - { from: Failed,  on: retry,   to: Sending }
+  - { from: Sent,    on: merge,   to: Merged }
