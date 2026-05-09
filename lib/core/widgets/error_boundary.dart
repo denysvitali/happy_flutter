@@ -50,6 +50,41 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
   Object? _error;
   StackTrace? _stackTrace;
 
+  // Dedupe identical errors so a widget that throws on every frame does
+  // not generate one logger entry + one Sentry envelope per failed
+  // subtree per frame. Without this, a single null-unwrap in a tool
+  // view list locks up the UI isolate on log + envelope serialization.
+  static final Map<String, DateTime> _lastReportedAt = {};
+  static const Duration _reportWindow = Duration(seconds: 1);
+
+  static String _fingerprint(Object error, StackTrace? stack) {
+    final type = error.runtimeType.toString();
+    final firstFrame = stack
+        ?.toString()
+        .split('\n')
+        .firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
+    return '$type|$firstFrame';
+  }
+
+  /// True when this error fingerprint has not been reported in the
+  /// last [_reportWindow]. Side-effect: stamps the key on accept.
+  static bool _shouldReport(Object error, StackTrace? stack) {
+    final key = _fingerprint(error, stack);
+    final now = DateTime.now();
+    final last = _lastReportedAt[key];
+    if (last != null && now.difference(last) < _reportWindow) {
+      return false;
+    }
+    _lastReportedAt[key] = now;
+    // Light-weight GC so the map does not grow unbounded.
+    if (_lastReportedAt.length > 64) {
+      _lastReportedAt.removeWhere(
+        (_, t) => now.difference(t) > _reportWindow * 5,
+      );
+    }
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -62,23 +97,26 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
     _previousOnError = FlutterError.onError;
     FlutterError.onError = (details) {
       _handleError(details);
-      // Forward to previous handler (e.g. Sentry).
-      _previousOnError?.call(details);
+      // Forward to previous handler (e.g. Sentry) only when this
+      // fingerprint passes the dedupe window — see _shouldReport in
+      // _handleError. We must NOT forward unconditionally, otherwise
+      // Sentry receives one envelope per failed widget per frame.
     };
 
     // Replace the default red error widget with our own.
     _previousErrorWidgetBuilder = ErrorWidget.builder;
     ErrorWidget.builder = (details) {
-      // Log but don't setState here — build may be in progress.
-      logger.error(
-        'ErrorWidget built for error',
-        details.exception,
-        details.stack,
-      );
-      widget.onError?.call(
-        details.exception,
-        details.stack ?? StackTrace.empty,
-      );
+      if (_shouldReport(details.exception, details.stack)) {
+        logger.error(
+          'ErrorWidget built for error',
+          details.exception,
+          details.stack,
+        );
+        widget.onError?.call(
+          details.exception,
+          details.stack ?? StackTrace.empty,
+        );
+      }
       return _ErrorWidgetFallback(details: details);
     };
   }
@@ -88,10 +126,19 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
 
   void _handleError(FlutterErrorDetails errorDetails) {
     if (!mounted) return;
-    setState(() {
-      _error = errorDetails.exception;
-      _stackTrace = errorDetails.stack;
-    });
+    final shouldReport = _shouldReport(
+      errorDetails.exception,
+      errorDetails.stack,
+    );
+
+    if (_error == null) {
+      setState(() {
+        _error = errorDetails.exception;
+        _stackTrace = errorDetails.stack;
+      });
+    }
+
+    if (!shouldReport) return;
 
     logger.error(
       'ErrorBoundary caught error',
@@ -103,6 +150,8 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
       errorDetails.exception,
       errorDetails.stack ?? StackTrace.empty,
     );
+
+    _previousOnError?.call(errorDetails);
   }
 
   @override

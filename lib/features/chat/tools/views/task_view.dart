@@ -370,10 +370,9 @@ class _InlineToolRow extends StatelessWidget {
 
     final knownTool = KnownTools.get(toolName);
     var title = toolName;
-    if (knownTool?.extractDescription != null) {
-      title =
-          knownTool!.extractDescription!(tool, metadata)
-              ?? toolName;
+    final extractDescription = knownTool?.extractDescription;
+    if (extractDescription != null) {
+      title = extractDescription(tool, metadata) ?? toolName;
     } else if (knownTool?.title is String) {
       title = knownTool!.title as String;
     }

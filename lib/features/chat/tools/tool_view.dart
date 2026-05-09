@@ -387,16 +387,20 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
       }
     }
 
-    // Extract status text
+    // Extract status text. Capture the function reference locally so we
+    // do not re-read the public field after the null guard — Dart's flow
+    // analysis cannot promote public fields, and `!.` on an instance
+    // field is a runtime null-unwrap that explodes if the value is null.
     String? status;
-    if (knownTool?.extractStatus != null) {
-      status = knownTool!.extractStatus!(widget.tool, widget.metadata);
+    final extractStatus = knownTool?.extractStatus;
+    if (extractStatus != null) {
+      status = extractStatus(widget.tool, widget.metadata);
     }
 
-    // Extract subtitle
     String? subtitle;
-    if (knownTool?.extractSubtitle != null) {
-      subtitle = knownTool!.extractSubtitle!(widget.tool, widget.metadata);
+    final extractSubtitle = knownTool?.extractSubtitle;
+    if (extractSubtitle != null) {
+      subtitle = extractSubtitle(widget.tool, widget.metadata);
     }
 
     // Determine minimal mode
