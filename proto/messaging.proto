@@ -1,0 +1,46 @@
+// Schema-first wire protocol for messaging (item #5 of the
+// architecture overhaul).
+//
+// Today the chat path serialises every message as ad-hoc JSON inside
+// Socket.IO frames; field shapes drift between the server and client
+// and must be defended with WireParsers helpers. Moving the hot path
+// to Protobuf gives us:
+//
+//   * One source of truth for field types
+//   * Forward/backward compatibility via field numbers
+//   * Smaller frames over the same Socket.IO transport
+//
+// Scope of the scaffolded commit
+// ------------------------------
+// Only [MessageEnvelope] is generated/used today. The rest of the
+// message hierarchy still flows over JSON. The matching Dart impl
+// lives at lib/core/wire/message_envelope.dart and is hand-rolled
+// to avoid pulling in protoc + the protobuf runtime in this commit.
+// Once we adopt the runtime, this file becomes the sole source.
+//
+// Compatibility note: never reuse a field number, never change the
+// type of an existing field. Add new fields with a new number, mark
+// removed fields with `reserved`.
+
+syntax = "proto3";
+
+package happy_flutter.messaging;
+
+// One chat message as it travels over Socket.IO. Mirrors the visible
+// columns of `_sessionMessages` and the canonical fields documented
+// in CLAUDE.md.
+message MessageEnvelope {
+  // Server-assigned id. Empty until the server acks.
+  string server_id = 1;
+  // Local id minted by the client when the user tapped Send. This is
+  // the canonical identity (CLAUDE.md core invariant).
+  string local_id = 2;
+  // Lamport-ish counter from the server; ordering key.
+  int64 seq = 3;
+  // Author role: 'user' | 'agent' | 'system' | 'session'.
+  string role = 4;
+  // Plaintext content.
+  string content = 5;
+  // Unix epoch milliseconds.
+  int64 created_at = 6;
+}
