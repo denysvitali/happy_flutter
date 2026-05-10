@@ -3,9 +3,9 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:archive/archive.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
@@ -116,7 +116,7 @@ class OfflineTtsService {
   Object? _lastError;
 
   AudioPlayer? _player;
-  StreamSubscription<void>? _completeSub;
+  StreamSubscription<PlayerState>? _stateSub;
   Future<_ResolvedModelFiles>? _filesFuture;
   int _generationGen = 0;
 
@@ -209,8 +209,8 @@ class OfflineTtsService {
   /// next session doesn't have to download again.
   Future<void> dispose() async {
     await stop();
-    await _completeSub?.cancel();
-    _completeSub = null;
+    await _stateSub?.cancel();
+    _stateSub = null;
     final player = _player;
     _player = null;
     if (player != null) {
@@ -420,16 +420,25 @@ class OfflineTtsService {
     if (player == null) {
       player = AudioPlayer();
       _player = player;
-      _completeSub = player.onPlayerComplete.listen((_) {
-        _currentToken.value = null;
-        // Clean up temp file in the background.
-        unawaited(_cleanupOldWavs());
+      // just_audio emits a stream of PlayerState; we react to the
+      // `completed` processing-state by clearing the token so the
+      // chat playback bar collapses.
+      _stateSub = player.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed) {
+          _currentToken.value = null;
+          unawaited(_cleanupOldWavs());
+        }
       });
     } else {
-      await player.stop();
+      try {
+        await player.stop();
+      } catch (_) {/* best effort */}
     }
     _currentToken.value = token;
-    await player.play(DeviceFileSource(path));
+    await player.setFilePath(path);
+    // Don't await play(); it returns when playback finishes which
+    // we don't want to block the caller on.
+    unawaited(player.play());
   }
 
   Future<void> _cleanupOldWavs() async {

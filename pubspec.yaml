@@ -67,8 +67,11 @@ dependencies:
   # webview_flutter removed — zero Dart imports, native plugin bloat
   flutter_tts: ^4.2.0
   # Offline TTS playback (sherpa_onnx generates Float32 PCM; we wrap
-  # in WAV and hand to audioplayers).
-  audioplayers: ^6.5.0
+  # in WAV via sherpa.writeWave and hand the file to just_audio).
+  # We use just_audio rather than audioplayers because the latter's
+  # Android plugin drags an old android-junit5 Gradle plugin into the
+  # buildscript classpath, which 403s through the CI's Maven proxy.
+  just_audio: ^0.10.4
   url_launcher: ^6.3.1
   qr: ^3.0.2
   web: ^1.1.1
