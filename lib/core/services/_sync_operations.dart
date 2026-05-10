@@ -148,9 +148,18 @@ extension SyncOperations on Sync {
     }
   }
 
-  /// Fetch native app update status
+  /// Fetch native app update status.
+  ///
+  /// The deferred-sync fan-out fires this on every invalidation cycle
+  /// (cold start, resume, reconnect) but the upstream `/v1/version`
+  /// response only changes when a new build is published — at most
+  /// daily. We rate-limit to one call per
+  /// [_nativeUpdateFreshnessMs] window to avoid the per-launch HTTP
+  /// + downstream connection-pool contention that GlitchTip flagged
+  /// (avg 787ms / p95 1599ms across 944 events). A successful fetch
+  /// stamps the timestamp; failures don't, so an offline cold start
+  /// still retries on the next resume.
   Future<void> fetchNativeUpdate() async {
-    logger.info('Fetching native update...');
     if (kIsWeb) {
       _nativeUpdateUrl = null;
       return;
@@ -165,6 +174,21 @@ extension SyncOperations on Sync {
       _nativeUpdateUrl = null;
       return;
     }
+
+    final lastFetched = _lastNativeUpdateFetchedAt;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (lastFetched != null &&
+        nowMs - lastFetched < Sync._nativeUpdateFreshnessMs) {
+      // Cache fresh — short-circuit so the InvalidateSync transaction
+      // resolves in microseconds instead of waiting on the HTTP queue.
+      logger.debug(
+        'Skipping native update fetch '
+        '(${(nowMs - lastFetched) ~/ 1000}s since last)',
+      );
+      return;
+    }
+
+    logger.info('Fetching native update...');
 
     try {
       final apiClient = ApiClient();
@@ -193,6 +217,7 @@ extension SyncOperations on Sync {
       _nativeUpdateUrl = updateUrl != null && updateUrl.isNotEmpty
           ? updateUrl
           : null;
+      _lastNativeUpdateFetchedAt = nowMs;
     } catch (error, stack) {
       if (Sync._isTransientConnectionError(error)) {
         logger.info('Native update fetch aborted (transient): $error');

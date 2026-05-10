@@ -338,6 +338,14 @@ what you have, you must use the options mode.
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
 
+  /// Wall-clock timestamp of the last successful `/v1/version` poll.
+  /// Used to skip redundant native-update checks on cold start /
+  /// resume / reconnect — the upstream URL changes at most once a
+  /// day, but the deferred-sync fan-out fires this on every
+  /// invalidation cycle.
+  int? _lastNativeUpdateFetchedAt;
+  static const _nativeUpdateFreshnessMs = 6 * 60 * 60 * 1000;
+
   /// Timestamp of the last reconnect session enumeration.  Used to debounce
   /// the per-session pending-message queue during rapid reconnect cycling.
   int? _lastReconnectSessionEnumerationMs;
