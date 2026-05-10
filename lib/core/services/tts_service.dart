@@ -7,6 +7,11 @@ import 'logger_service.dart' show logger;
 ///
 /// Strips markdown formatting before speaking so the user hears
 /// clean, natural text.
+///
+/// Exposes [currentToken] as a [ValueListenable] so the chat
+/// playback bar can listen for start/stop transitions: callers tag
+/// each [speak] with a `token` (typically the message id), and
+/// listeners read [currentToken] to render appropriate UI controls.
 class TtsService {
   factory TtsService() => _instance;
   TtsService._();
@@ -14,6 +19,24 @@ class TtsService {
 
   FlutterTts? _tts;
   bool _initialized = false;
+  final ValueNotifier<String?> _currentToken = ValueNotifier<String?>(null);
+
+  /// Identifier of the speech currently in progress (the token last
+  /// passed to [speak]), or `null` when the engine is idle.
+  ///
+  /// Note: this reflects what the *caller* asked for. The engine
+  /// itself fires start/completion events asynchronously; the token
+  /// is set when [speak] is invoked and cleared on
+  /// completion/cancel/error/stop.
+  ValueListenable<String?> get currentToken => _currentToken;
+
+  /// Whether speech is currently in progress.
+  bool get isSpeaking => _currentToken.value != null;
+
+  void _setCurrentToken(String? token) {
+    if (_currentToken.value == token) return;
+    _currentToken.value = token;
+  }
 
   /// Initialise the TTS engine. Safe to call multiple times.
   Future<void> init({String? language, String? engine}) async {
@@ -35,9 +58,15 @@ class TtsService {
       });
       _tts!.setCompletionHandler(() {
         logger.info('[TTS] Speech completed');
+        _setCurrentToken(null);
+      });
+      _tts!.setCancelHandler(() {
+        logger.info('[TTS] Speech cancelled');
+        _setCurrentToken(null);
       });
       _tts!.setErrorHandler((msg) {
         logger.error('[TTS] Error: $msg');
+        _setCurrentToken(null);
       });
       _initialized = true;
       logger.info('[TTS] Engine initialized');
@@ -105,7 +134,12 @@ class TtsService {
   }
 
   /// Speak the given markdown text after stripping formatting.
-  Future<void> speak(String markdown) async {
+  ///
+  /// [token] is an opaque identifier (typically a message id) that
+  /// listeners can use to map the currently-playing speech back to a
+  /// source message — for example, to highlight it in the UI or to
+  /// drive prev/next playback controls.
+  Future<void> speak(String markdown, {String? token}) async {
     if (kIsWeb) {
       logger.warning('[TTS] speak skipped: kIsWeb');
       return;
@@ -134,15 +168,18 @@ class TtsService {
     } catch (e) {
       _tts = null;
       _initialized = false;
+      _setCurrentToken(null);
       logger.warning('[TTS] speak skipped: $e');
       return;
     }
+    _setCurrentToken(token);
     final result = await _tts!.speak(clean);
     logger.info('[TTS] speak() returned: $result');
   }
 
   /// Stop any in-progress speech.
   Future<void> stop() async {
+    _setCurrentToken(null);
     if (kIsWeb || _tts == null) return;
     try {
       await _tts!.stop();
@@ -154,6 +191,7 @@ class TtsService {
 
   /// Release engine resources.
   Future<void> dispose() async {
+    _setCurrentToken(null);
     if (_tts != null) {
       try {
         await _tts!.stop();

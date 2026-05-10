@@ -27,6 +27,7 @@ import '../../core/widgets/sync_progress_bar.dart';
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
+import 'chat_tts_gate.dart';
 import 'helpers/chat_dialogs.dart';
 import 'message_detail_screen.dart';
 import 'message_widget.dart';
@@ -41,6 +42,7 @@ import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
+import 'widgets/tts_playback_bar.dart';
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
 // because Dart's library-private (`_`) visibility is required for
@@ -159,6 +161,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   bool _initialLoadComplete = false;
   final Set<String> _seenMessageIds = {};
+  final ChatTtsGate _ttsGate = ChatTtsGate();
 
   // ── Tablet master-detail state (desktop-width only) ──────────────────────
   // Tracks which detail pane is currently selected when the chat screen is
@@ -436,6 +439,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (markLoaded) {
         _isLoadingMessages = false;
         _initialLoadComplete = true;
+        // Seed the TTS baseline so the first server fetch doesn't replay
+        // the most recent historical reply on entry.
+        _ttsGate.markInitialLoadComplete(latestMessages);
         // Always sync _prevMessagesLength so the next messagesChanged
         // adjustment is correct (prevMessagesLength is only set inside the
         // messagesChanged block below, so it must be set here too).
@@ -510,18 +516,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _scrollToBottom();
     }
 
-    if (messagesChanged && latestMessages.isNotEmpty) {
-      final last = latestMessages.last;
-      final role = last['role'] as String? ?? '';
-      final kind = last['kind'] as String?;
-      if (role == 'assistant' && kind != 'tool-call') {
-        final ttsOn = ref.read(settingsNotifierProvider).ttsEnabled;
-        if (ttsOn) {
-          final text = (last['content'] ?? last['text'] ?? '').toString();
-          if (text.isNotEmpty) {
-            unawaited(TtsService().speak(text));
-          }
-        }
+    if (messagesChanged) {
+      final speech = _ttsGate.evaluate(
+        messages: latestMessages,
+        ttsEnabled: ref.read(settingsNotifierProvider).ttsEnabled,
+      );
+      if (speech != null) {
+        unawaited(
+          TtsService().speak(
+            speech,
+            token: _ttsGate.lastSpokenMessageId,
+          ),
+        );
       }
     }
   }
@@ -1211,6 +1217,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         if (_sessionSendIssue case final issue?)
           _SessionIssueBanner(issue: issue),
+        TtsPlaybackBar(
+          onPrev: _ttsPrev,
+          onStop: _ttsStop,
+          onNext: _ttsNext,
+          canGoPrev: _ttsCanGoPrev(),
+          canGoNext: _ttsCanGoNext(),
+        ),
         ChatInput(
           sessionId: widget.sessionId,
           controller: _controller,

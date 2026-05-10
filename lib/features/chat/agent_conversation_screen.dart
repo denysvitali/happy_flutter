@@ -12,6 +12,7 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/wire_parsers.dart';
+import 'chat_tts_gate.dart';
 import 'markdown/markdown.dart';
 import 'markdown/markdown_view.dart';
 import 'tools/tool_status_indicator.dart';
@@ -62,8 +63,14 @@ class _AgentConversationScreenState
   final ScrollController _scroll = ScrollController();
   StreamSubscription<String>? _messageSubscription;
   Map<String, dynamic>? _taskMsg;
-  int _prevChildCount = 0;
   int _prevChildFingerprint = 0;
+  // Sub-agent children carry no `role` field (they're sidechain
+  // messages), so the predicate matches the original agent-screen
+  // behavior: any text item that isn't a thinking placeholder.
+  final ChatTtsGate _ttsGate = ChatTtsGate(
+    isSpeakable: (m) =>
+        (m['kind'] as String?) == 'text' && m['isThinking'] != true,
+  );
 
   @override
   void initState() {
@@ -147,15 +154,17 @@ class _AgentConversationScreenState
       'kinds=$mergedChildKinds',
     );
     final mergedChildren = WireParsers.asList(merged['children']);
-    final mergedCount = mergedChildren?.length ?? 0;
     final fingerprint = _computeChildrenFingerprint(mergedChildren);
     final childrenChanged = fingerprint != _prevChildFingerprint;
-    if (childrenChanged && mergedCount > _prevChildCount) {
+    if (!_ttsGate.isInitialLoadComplete) {
+      // Seed the baseline from the first batch of children we see so
+      // the existing tail isn't replayed when entering the screen.
+      _ttsGate.markInitialLoadCompleteDynamic(mergedChildren);
+    } else if (childrenChanged) {
       _speakNewMessages(mergedChildren);
     }
     setState(() {
       _taskMsg = merged;
-      _prevChildCount = mergedCount;
       _prevChildFingerprint = fingerprint;
     });
     if (childrenChanged) {
@@ -201,18 +210,12 @@ class _AgentConversationScreenState
   }
 
   void _speakNewMessages(List<dynamic>? children) {
-    final settings = ref.read(settingsNotifierProvider);
-    if (!settings.ttsEnabled || children == null || children.isEmpty) {
-      return;
-    }
-    final latestChild = children.last;
-    if (latestChild is Map<String, dynamic>) {
-      final kind = latestChild['kind'] as String?;
-      final content = latestChild['content'] as String? ?? '';
-      final isThinking = latestChild['isThinking'] == true;
-      if (kind == 'text' && content.isNotEmpty && !isThinking) {
-        unawaited(TtsService().speak(content));
-      }
+    final speech = _ttsGate.evaluateDynamic(
+      items: children,
+      ttsEnabled: ref.read(settingsNotifierProvider).ttsEnabled,
+    );
+    if (speech != null) {
+      unawaited(TtsService().speak(speech));
     }
   }
 

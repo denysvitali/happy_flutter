@@ -677,6 +677,72 @@ extension _ChatScreenActions on _ChatScreenState {
     }
   }
 
+  // ─── TTS playback navigation ───────────────────────────────────────────────
+
+  /// Returns the agent text messages currently in the chat buffer
+  /// that the TTS engine could speak, in chronological order.
+  List<Map<String, dynamic>> _ttsSpeakableMessages() {
+    return _messages.where((m) {
+      if ((m['role'] as String? ?? '') != 'agent') return false;
+      if ((m['kind'] as String?) != 'text') return false;
+      if (m['isThinking'] == true) return false;
+      final text = (m['content'] ?? m['text'] ?? '').toString();
+      return text.isNotEmpty;
+    }).toList(growable: false);
+  }
+
+  int _ttsCurrentIndex(List<Map<String, dynamic>> speakable) {
+    final id = TtsService().currentToken.value;
+    if (id == null) return -1;
+    return speakable.indexWhere((m) => m['id']?.toString() == id);
+  }
+
+  bool _ttsCanGoPrev() {
+    final speakable = _ttsSpeakableMessages();
+    if (speakable.isEmpty) return false;
+    final idx = _ttsCurrentIndex(speakable);
+    // -1 (engine idle) → can jump to the latest. >0 → can step back.
+    return idx == -1 ? speakable.length > 1 : idx > 0;
+  }
+
+  bool _ttsCanGoNext() {
+    final speakable = _ttsSpeakableMessages();
+    if (speakable.isEmpty) return false;
+    final idx = _ttsCurrentIndex(speakable);
+    return idx >= 0 && idx < speakable.length - 1;
+  }
+
+  void _ttsPrev() {
+    final speakable = _ttsSpeakableMessages();
+    if (speakable.isEmpty) return;
+    final idx = _ttsCurrentIndex(speakable);
+    final target = idx == -1 ? speakable.length - 2 : idx - 1;
+    if (target < 0 || target >= speakable.length) return;
+    _ttsSpeakAt(speakable[target]);
+  }
+
+  void _ttsNext() {
+    final speakable = _ttsSpeakableMessages();
+    if (speakable.isEmpty) return;
+    final idx = _ttsCurrentIndex(speakable);
+    if (idx == -1 || idx >= speakable.length - 1) return;
+    _ttsSpeakAt(speakable[idx + 1]);
+  }
+
+  void _ttsStop() {
+    unawaited(TtsService().stop());
+  }
+
+  void _ttsSpeakAt(Map<String, dynamic> message) {
+    final id = message['id']?.toString();
+    final text = (message['content'] ?? message['text'] ?? '').toString();
+    if (text.isEmpty) return;
+    // Keep the live gate in sync so the next streamed reply doesn't
+    // get treated as a duplicate of whatever was last spoken.
+    _ttsGate.recordSpoken(id);
+    unawaited(TtsService().speak(text, token: id));
+  }
+
   bool _followRedirectedSession(String sentSessionId) {
     if (!mounted || sentSessionId == widget.sessionId) {
       return false;
