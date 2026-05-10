@@ -162,6 +162,10 @@ class OfflineTtsService {
     final clean = text.trim();
     if (clean.isEmpty) return;
 
+    logger.info(
+      '[OfflineTTS] speak: ${clean.length} chars, token=$token',
+    );
+
     final files = await _ensureFilesOnce();
 
     // Increment the generation counter; if a newer call arrives
@@ -178,21 +182,35 @@ class OfflineTtsService {
       tokens: files.tokens,
       dataDir: files.dataDir,
     );
+    final swGen = Stopwatch()..start();
     final samples = await Isolate.run(() => _generateInWorker(ttsReq));
+    swGen.stop();
     if (gen != _generationGen) {
       logger.info('[OfflineTTS] superseded generation $gen, dropping audio');
       return;
     }
     if (samples.samples.isEmpty || samples.sampleRate <= 0) {
-      logger.warning('[OfflineTTS] generation produced no audio');
+      logger.error(
+        '[OfflineTTS] generate produced no audio '
+        '(samples=${samples.samples.length}, '
+        'sampleRate=${samples.sampleRate})',
+      );
       return;
     }
+    logger.info(
+      '[OfflineTTS] generate: ${samples.samples.length} samples '
+      '@ ${samples.sampleRate}Hz '
+      '(${(samples.samples.length / samples.sampleRate).toStringAsFixed(2)}s '
+      'audio in ${swGen.elapsedMilliseconds}ms)',
+    );
 
     final wavPath = await _writeWavTempFile(
       samples.samples,
       samples.sampleRate,
     );
     if (gen != _generationGen) return;
+    final wavSize = await File(wavPath).length();
+    logger.info('[OfflineTTS] wrote WAV: $wavPath ($wavSize bytes)');
     await _playFile(wavPath, token: token);
   }
 
@@ -433,21 +451,56 @@ class OfflineTtsService {
       // `completed` processing-state by clearing the token so the
       // chat playback bar collapses.
       _stateSub = player.playerStateStream.listen((state) {
+        logger.info(
+          '[OfflineTTS] player state: playing=${state.playing} '
+          'processing=${state.processingState.name}',
+        );
         if (state.processingState == ProcessingState.completed) {
           _currentToken.value = null;
           unawaited(_cleanupOldWavs());
         }
       });
+      // The playback-event stream surfaces engine errors that
+      // setFilePath()/play() don't always raise synchronously
+      // (codec mismatches, audio focus failures, etc.).
+      player.playbackEventStream.listen(
+        (_) {/* state changes are handled above */},
+        onError: (Object e, StackTrace st) {
+          logger.error('[OfflineTTS] playback engine error: $e', e, st);
+          _currentToken.value = null;
+        },
+      );
     } else {
       try {
         await player.stop();
       } catch (_) {/* best effort */}
     }
     _currentToken.value = token;
-    await player.setFilePath(path);
-    // Don't await play(); it returns when playback finishes which
-    // we don't want to block the caller on.
-    unawaited(player.play());
+    try {
+      final dur = await player.setFilePath(path);
+      logger.info(
+        '[OfflineTTS] setFilePath ok, duration=${dur?.inMilliseconds}ms',
+      );
+    } catch (e, st) {
+      logger.error('[OfflineTTS] setFilePath failed: $e', e, st);
+      _currentToken.value = null;
+      rethrow;
+    }
+    try {
+      // Don't await play(); it returns when playback finishes which
+      // we don't want to block the caller on. We still capture
+      // errors via .catchError so a failed play doesn't go silent.
+      unawaited(
+        player.play().catchError((Object e, StackTrace st) {
+          logger.error('[OfflineTTS] play() failed: $e', e, st);
+          _currentToken.value = null;
+        }),
+      );
+    } catch (e, st) {
+      logger.error('[OfflineTTS] play() throw: $e', e, st);
+      _currentToken.value = null;
+      rethrow;
+    }
   }
 
   Future<void> _cleanupOldWavs() async {

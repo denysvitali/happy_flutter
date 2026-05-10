@@ -199,8 +199,11 @@ class TtsService {
         await OfflineTtsService().speak(clean, token: token);
         return;
       } catch (e, st) {
-        logger.warning(
-          '[TTS] offline speak failed, falling back to system engine',
+        // Use error level so the failure is visible under the dev
+        // logs error filter; without this the fallback to system
+        // TTS is silent and impossible to diagnose.
+        logger.error(
+          '[TTS] offline speak failed, falling back to system engine: $e',
           e,
           st,
         );
