@@ -326,6 +326,10 @@ class TtsService {
   ValueListenable<OfflineTtsStatus> get offlineStatus =>
       OfflineTtsService().status;
 
+  /// Last error from the offline model download/extract pipeline,
+  /// or `null` if the pipeline never failed in this process.
+  Object? get offlineLastError => OfflineTtsService().lastError;
+
   /// Whether the offline backend is supported on this platform
   /// (false on web).
   bool get isOfflineSupported => OfflineTtsService().isSupported;

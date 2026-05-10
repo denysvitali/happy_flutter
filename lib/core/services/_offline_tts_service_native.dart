@@ -233,6 +233,9 @@ class OfflineTtsService {
         onError: (Object e, StackTrace st) {
           _lastError = e;
           if (identical(_filesFuture, future)) _filesFuture = null;
+          // Use error level so the failure shows up under the dev
+          // logs "errors" filter and gets forwarded to Sentry.
+          logger.error('[OfflineTTS] ensureReady failed: $e', e, st);
           _setStatus(OfflineTtsStatus.failed);
         },
       ),
@@ -241,6 +244,7 @@ class OfflineTtsService {
   }
 
   Future<_ResolvedModelFiles> _ensureFiles() async {
+    logger.info('[OfflineTTS] ensureFiles: model=${_model.id}');
     final supportDir = await getApplicationSupportDirectory();
     final modelDir = Directory(
       p.join(supportDir.path, 'speech', 'tts', _model.id),
@@ -248,18 +252,42 @@ class OfflineTtsService {
     await modelDir.create(recursive: true);
     final resolved = _resolve(modelDir);
     if (resolved.allExist) {
+      logger.info(
+        '[OfflineTTS] ensureFiles: cache hit at ${modelDir.path}',
+      );
       _setStatus(OfflineTtsStatus.ready);
       return resolved;
     }
 
+    logger.info(
+      '[OfflineTTS] ensureFiles: cache miss; '
+      'will download into ${modelDir.path}',
+    );
     _setStatus(OfflineTtsStatus.downloading);
     await _downloadAndExtract(modelDir);
     final after = _resolve(modelDir);
     if (!after.allExist) {
-      throw const OfflineTtsException(
-        'Offline TTS model download is incomplete',
+      // Enumerate what's missing so the dev-log breadcrumb is
+      // actionable rather than a blanket "incomplete".
+      final missing = <String>[];
+      if (!File(after.model).existsSync()) {
+        missing.add('model:${after.model}');
+      }
+      if (!File(after.tokens).existsSync()) {
+        missing.add('tokens:${after.tokens}');
+      }
+      if (after.dataDir.isNotEmpty &&
+          !Directory(after.dataDir).existsSync()) {
+        missing.add('dataDir:${after.dataDir}');
+      }
+      throw OfflineTtsException(
+        'Offline TTS model is incomplete after extract: '
+        '${missing.join(", ")}',
       );
     }
+    logger.info(
+      '[OfflineTTS] ensureFiles: ready at ${modelDir.path}',
+    );
     return after;
   }
 
@@ -278,6 +306,15 @@ class OfflineTtsService {
     final archive = File(p.join(tempDir.path, '${_model.id}.tar.bz2'));
     try {
       await _downloadArchive(archive);
+      logger.info(
+        '[OfflineTTS] extract: starting from '
+        '${archive.path} (${archive.lengthSync()} bytes) '
+        'into ${modelDir.path}',
+      );
+      // The isolate worker rethrows as a plain string-bearing
+      // Exception so the message survives the isolate boundary
+      // intact (custom exception types don't always serialize
+      // cleanly through Isolate.run).
       await Isolate.run(
         () => _verifyAndExtractInWorker(_ExtractRequest(
           archivePath: archive.path,
@@ -286,8 +323,13 @@ class OfflineTtsService {
           expectedSha256: _model.archiveSha256,
         )),
       );
+      logger.info('[OfflineTTS] extract: completed');
     } catch (e, st) {
-      logger.warning('[OfflineTTS] model download failed', e, st);
+      logger.error(
+        '[OfflineTTS] download/extract failed: $e',
+        e,
+        st,
+      );
       rethrow;
     } finally {
       if (archive.existsSync()) {
@@ -299,17 +341,54 @@ class OfflineTtsService {
   }
 
   Future<void> _downloadArchive(File target) async {
+    logger.info(
+      '[OfflineTTS] download: GET ${_model.archiveUrl} -> ${target.path}',
+    );
     final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 30);
+      ..connectionTimeout = const Duration(seconds: 30)
+      ..userAgent = 'happy_flutter/offline-tts';
     try {
-      final request = await client.getUrl(Uri.parse(_model.archiveUrl));
+      final request = await client.getUrl(Uri.parse(_model.archiveUrl))
+        // Default already, but make explicit so a future Dart change
+        // doesn't silently break GitHub release redirects.
+        ..followRedirects = true
+        ..maxRedirects = 5;
       final response = await request.close();
+      logger.info(
+        '[OfflineTTS] download: status=${response.statusCode} '
+        'contentLength=${response.contentLength}',
+      );
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw OfflineTtsException(
-          'TTS model download failed (${response.statusCode})',
+          'TTS model download failed: HTTP ${response.statusCode} '
+          'from ${_model.archiveUrl}',
         );
       }
-      await response.pipe(target.openWrite());
+
+      final sink = target.openWrite();
+      var written = 0;
+      var lastLogged = 0;
+      try {
+        await for (final chunk in response) {
+          sink.add(chunk);
+          written += chunk.length;
+          // Log roughly every 8MB so the dev log shows progress
+          // for users investigating a stuck download.
+          if (written - lastLogged >= 8 * 1024 * 1024) {
+            lastLogged = written;
+            logger.info(
+              '[OfflineTTS] download: progress '
+              '${(written / (1024 * 1024)).toStringAsFixed(1)}MB',
+            );
+          }
+        }
+      } finally {
+        await sink.close();
+      }
+      logger.info(
+        '[OfflineTTS] download: completed '
+        '${(written / (1024 * 1024)).toStringAsFixed(1)}MB',
+      );
     } finally {
       client.close(force: true);
     }
@@ -454,29 +533,54 @@ class _ExtractRequest {
 }
 
 Future<void> _verifyAndExtractInWorker(_ExtractRequest req) async {
+  // Throws plain Exception instances so messages survive the
+  // Isolate.run boundary on every Dart version.
   final bytes = await File(req.archivePath).readAsBytes();
   final actualSha = sha256.convert(bytes).toString();
   if (actualSha != req.expectedSha256) {
-    throw const OfflineTtsException(
-      'Offline TTS model checksum mismatch',
+    throw Exception(
+      'Offline TTS model checksum mismatch '
+      '(expected ${req.expectedSha256}, got $actualSha)',
     );
   }
 
-  final tarBytes = BZip2Decoder().decodeBytes(bytes, verify: true);
-  final archive = TarDecoder().decodeBytes(tarBytes);
-  final rootPrefix = '${req.archiveRoot}/';
+  final List<int> tarBytes;
+  try {
+    tarBytes = BZip2Decoder().decodeBytes(bytes, verify: true);
+  } catch (e) {
+    throw Exception('Offline TTS bzip2 decode failed: $e');
+  }
 
-  for (final file in archive) {
-    final name = file.name;
+  final Archive entries;
+  try {
+    entries = TarDecoder().decodeBytes(tarBytes);
+  } catch (e) {
+    throw Exception('Offline TTS tar decode failed: $e');
+  }
+
+  final rootPrefix = '${req.archiveRoot}/';
+  var fileCount = 0;
+  for (final entry in entries.files) {
+    final name = entry.name;
     if (!name.startsWith(rootPrefix)) continue;
     final rel = name.substring(rootPrefix.length);
     if (rel.isEmpty) continue;
     final outPath = p.join(req.modelDirPath, rel);
-    if (file.isFile) {
+    if (entry.isFile) {
       await File(outPath).parent.create(recursive: true);
-      await File(outPath).writeAsBytes(file.content as List<int>, flush: true);
+      await File(outPath).writeAsBytes(
+        entry.content as List<int>,
+        flush: true,
+      );
+      fileCount++;
     } else {
       await Directory(outPath).create(recursive: true);
     }
+  }
+  if (fileCount == 0) {
+    throw Exception(
+      'Offline TTS archive contained no entries under '
+      '"$rootPrefix"',
+    );
   }
 }

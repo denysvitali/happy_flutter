@@ -229,22 +229,37 @@ class _VoiceSettingsScreenState
 /// Row shown under the "Use offline voice" toggle that surfaces the
 /// model download status and lets the user trigger a download.
 class _OfflineModelRow extends StatelessWidget {
+  Future<void> _trigger(BuildContext context) async {
+    try {
+      await TtsService().ensureOfflineReady();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Offline voice ready.')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Offline voice download failed: $e'),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return ValueListenableBuilder<OfflineTtsStatus>(
       valueListenable: TtsService().offlineStatus,
       builder: (context, status, _) {
+        final lastError = TtsService().offlineLastError;
         final (icon, title, subtitle, action) = switch (status) {
           OfflineTtsStatus.notDownloaded => (
             Icons.cloud_download_outlined,
             'Download offline voice',
             'Piper en_US Amy (~67MB). One-time download.',
-            () async {
-              try {
-                await TtsService().ensureOfflineReady();
-              } catch (_) {/* status flips to failed */}
-            },
+            () => _trigger(context),
           ),
           OfflineTtsStatus.downloading => (
             Icons.downloading,
@@ -262,13 +277,14 @@ class _OfflineModelRow extends StatelessWidget {
           ),
           OfflineTtsStatus.failed => (
             Icons.error_outline,
-            'Download failed',
-            'Tap to retry. (${TtsService().offlineStatus.value.name})',
-            () async {
-              try {
-                await TtsService().ensureOfflineReady();
-              } catch (_) {/* surface stays failed */}
-            },
+            'Download failed — tap to retry',
+            lastError == null
+                ? 'Tap to retry.'
+                : '${lastError.toString().substring(
+                      0,
+                      lastError.toString().length.clamp(0, 240),
+                    )} — tap to retry.',
+            () => _trigger(context),
           ),
         };
         return SettingsRow(
