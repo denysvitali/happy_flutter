@@ -236,23 +236,54 @@ extension _ChatScreenActions on _ChatScreenState {
       _refreshFromSync(markLoaded: hasCached);
       unawaited(refreshSpan.finish());
 
-      // Span for awaiting message sync queue
+      // Span for the message sync queue. When the cache is hot we
+      // fire-and-forget so the transaction reflects what the user
+      // actually perceived (cached content already on screen),
+      // letting the background refresh continue via the data-change
+      // stream. When there's no cache, we still need to await so
+      // the spinner clears on real content rather than vanishing
+      // into an empty list.
       final awaitSpan = transaction.startChild(
         'chat.sync.await',
         description: 'Await message sync queue',
-      );
-      try {
-        await sync.messagesSync[sessionId]?.awaitQueue().timeout(
-          const Duration(seconds: 5),
-        );
-        awaitSpan.setData('timedOut', false);
-      } catch (e) {
-        success = false;
-        awaitSpan
-          ..setData('timedOut', true)
-          ..setData('error', e.toString());
+      )..setData('hasCached', hasCached);
+      final queueFuture = sync.messagesSync[sessionId]?.awaitQueue();
+      if (hasCached) {
+        awaitSpan.setData('mode', 'background');
+        if (queueFuture != null) {
+          unawaited(
+            queueFuture
+                .timeout(const Duration(seconds: 5))
+                .catchError((Object e, StackTrace st) {
+                  // Real refresh fail — surface as a breadcrumb but
+                  // don't fail the transaction; the user already sees
+                  // cached data.
+                  logger.warning(
+                    '[ChatScreen] background messagesSync awaitQueue failed '
+                    'session=$sessionId',
+                    e,
+                    st,
+                  );
+                  return;
+                })
+                .whenComplete(awaitSpan.finish),
+          );
+        } else {
+          unawaited(awaitSpan.finish());
+        }
+      } else {
+        awaitSpan.setData('mode', 'blocking');
+        try {
+          await queueFuture?.timeout(const Duration(seconds: 5));
+          awaitSpan.setData('timedOut', false);
+        } catch (e) {
+          success = false;
+          awaitSpan
+            ..setData('timedOut', true)
+            ..setData('error', e.toString());
+        }
+        unawaited(awaitSpan.finish());
       }
-      unawaited(awaitSpan.finish());
     } catch (error, stack) {
       success = false;
       logger.error(
