@@ -172,46 +172,59 @@ class OfflineTtsService {
     // before this one finishes generating, we'll bail out instead of
     // playing stale audio over the latest request.
     final gen = ++_generationGen;
+    final wavPath = await _allocateWavPath(gen);
 
     // Build the request before spawning the isolate so the closure
     // captures only this sendable object — never `this`, which has
     // an unsendable AudioPlayer / Future field.
+    //
+    // The worker generates samples AND writes the WAV file inside
+    // the same isolate. Doing the WAV write in the worker matters:
+    // sherpa-onnx's bindings are isolate-local, and calling
+    // `sherpa.writeWave` from the main isolate would throw
+    // "Please initialize sherpa-onnx first" because the main
+    // isolate never bound the FFI symbols.
     final ttsReq = _TtsRequest(
       text: clean,
       model: files.model,
       tokens: files.tokens,
       dataDir: files.dataDir,
+      outputWavPath: wavPath,
     );
     final swGen = Stopwatch()..start();
-    final samples = await Isolate.run(() => _generateInWorker(ttsReq));
+    final result = await Isolate.run(() => _generateInWorker(ttsReq));
     swGen.stop();
     if (gen != _generationGen) {
       logger.info('[OfflineTTS] superseded generation $gen, dropping audio');
       return;
     }
-    if (samples.samples.isEmpty || samples.sampleRate <= 0) {
+    if (result.sampleCount == 0 || result.sampleRate <= 0) {
       logger.error(
         '[OfflineTTS] generate produced no audio '
-        '(samples=${samples.samples.length}, '
-        'sampleRate=${samples.sampleRate})',
+        '(samples=${result.sampleCount}, '
+        'sampleRate=${result.sampleRate})',
       );
       return;
     }
+    final wavSize =
+        File(wavPath).existsSync() ? await File(wavPath).length() : 0;
     logger.info(
-      '[OfflineTTS] generate: ${samples.samples.length} samples '
-      '@ ${samples.sampleRate}Hz '
-      '(${(samples.samples.length / samples.sampleRate).toStringAsFixed(2)}s '
-      'audio in ${swGen.elapsedMilliseconds}ms)',
+      '[OfflineTTS] generate: ${result.sampleCount} samples '
+      '@ ${result.sampleRate}Hz '
+      '(${(result.sampleCount / result.sampleRate).toStringAsFixed(2)}s '
+      'audio in ${swGen.elapsedMilliseconds}ms, WAV $wavSize bytes)',
     );
-
-    final wavPath = await _writeWavTempFile(
-      samples.samples,
-      samples.sampleRate,
-    );
-    if (gen != _generationGen) return;
-    final wavSize = await File(wavPath).length();
-    logger.info('[OfflineTTS] wrote WAV: $wavPath ($wavSize bytes)');
     await _playFile(wavPath, token: token);
+  }
+
+  Future<String> _allocateWavPath(int gen) async {
+    final tempDir = await getTemporaryDirectory();
+    final wavDir = Directory(p.join(tempDir.path, 'tts_wav'));
+    await wavDir.create(recursive: true);
+    return p.join(
+      wavDir.path,
+      'tts_${DateTime.now().millisecondsSinceEpoch}_$gen.wav',
+    );
   }
 
   /// Stop any in-progress playback and clear the current token.
@@ -421,27 +434,6 @@ class OfflineTtsService {
     }
   }
 
-  Future<String> _writeWavTempFile(Float32List samples, int sampleRate) async {
-    final tempDir = await getTemporaryDirectory();
-    final wavDir = Directory(p.join(tempDir.path, 'tts_wav'));
-    await wavDir.create(recursive: true);
-    // Use a generation-tagged filename so concurrent speak() calls
-    // never clobber each other's files mid-playback.
-    final wavPath = p.join(
-      wavDir.path,
-      'tts_${DateTime.now().millisecondsSinceEpoch}_$_generationGen.wav',
-    );
-    final ok = sherpa.writeWave(
-      filename: wavPath,
-      samples: samples,
-      sampleRate: sampleRate,
-    );
-    if (!ok) {
-      throw const OfflineTtsException('Failed to write generated WAV');
-    }
-    return wavPath;
-  }
-
   Future<void> _playFile(String path, {String? token}) async {
     var player = _player;
     if (player == null) {
@@ -554,20 +546,24 @@ class _TtsRequest {
     required this.model,
     required this.tokens,
     required this.dataDir,
+    required this.outputWavPath,
   });
   final String text;
   final String model;
   final String tokens;
   final String dataDir;
+  final String outputWavPath;
 }
 
 class _TtsResult {
-  const _TtsResult({required this.samples, required this.sampleRate});
-  final Float32List samples;
+  const _TtsResult({required this.sampleCount, required this.sampleRate});
+  final int sampleCount;
   final int sampleRate;
 }
 
 _TtsResult _generateInWorker(_TtsRequest req) {
+  // Bindings are isolate-local; this also enables `sherpa.writeWave`
+  // below to find the FFI symbols.
   sherpa.initBindings();
   final config = sherpa.OfflineTtsConfig(
     model: sherpa.OfflineTtsModelConfig(
@@ -584,7 +580,23 @@ _TtsResult _generateInWorker(_TtsRequest req) {
   final tts = sherpa.OfflineTts(config);
   try {
     final audio = tts.generate(text: req.text);
-    return _TtsResult(samples: audio.samples, sampleRate: audio.sampleRate);
+    if (audio.samples.isEmpty || audio.sampleRate <= 0) {
+      return _TtsResult(sampleCount: 0, sampleRate: audio.sampleRate);
+    }
+    final ok = sherpa.writeWave(
+      filename: req.outputWavPath,
+      samples: audio.samples,
+      sampleRate: audio.sampleRate,
+    );
+    if (!ok) {
+      throw Exception(
+        'sherpa.writeWave returned false for ${req.outputWavPath}',
+      );
+    }
+    return _TtsResult(
+      sampleCount: audio.samples.length,
+      sampleRate: audio.sampleRate,
+    );
   } finally {
     tts.free();
   }
