@@ -89,7 +89,7 @@ class _VoiceSettingsScreenState
                     .updateSetting('ttsUseOffline', value),
               ),
               if (ttsUseOffline && TtsService().isOfflineSupported)
-                _OfflineModelRow(),
+                const _OfflineVoicesNavRow(),
               SettingsNavRow(
                 icon: Icons.play_arrow,
                 title: l10n.voiceTestTts,
@@ -103,6 +103,8 @@ class _VoiceSettingsScreenState
                   await tts.speak(
                     'Hello! Text to speech is working.',
                     useOffline: ttsUseOffline,
+                    offlineVoiceId:
+                        ref.read(settingsNotifierProvider).ttsVoiceId,
                   );
                 },
               ),
@@ -226,73 +228,68 @@ class _VoiceSettingsScreenState
   }
 }
 
-/// Row shown under the "Use offline voice" toggle that surfaces the
-/// model download status and lets the user trigger a download.
-class _OfflineModelRow extends StatelessWidget {
-  Future<void> _trigger(BuildContext context) async {
-    try {
-      await TtsService().ensureOfflineReady();
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Offline voice ready.')),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Offline voice download failed: $e'),
-          duration: const Duration(seconds: 6),
-        ),
-      );
-    }
+/// Row that opens the offline-voice manager. Shows the active voice
+/// and a quick status (downloaded / not downloaded / downloading).
+class _OfflineVoicesNavRow extends ConsumerStatefulWidget {
+  const _OfflineVoicesNavRow();
+
+  @override
+  ConsumerState<_OfflineVoicesNavRow> createState() =>
+      _OfflineVoicesNavRowState();
+}
+
+class _OfflineVoicesNavRowState
+    extends ConsumerState<_OfflineVoicesNavRow> {
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() {
+      TtsService().refreshOfflineVoiceStatuses();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return ValueListenableBuilder<OfflineTtsStatus>(
-      valueListenable: TtsService().offlineStatus,
-      builder: (context, status, _) {
-        final lastError = TtsService().offlineLastError;
-        final (icon, title, subtitle, action) = switch (status) {
-          OfflineTtsStatus.notDownloaded => (
-            Icons.cloud_download_outlined,
-            'Download offline voice',
-            'Piper en_US Amy (~67MB). One-time download.',
-            () => _trigger(context),
-          ),
-          OfflineTtsStatus.downloading => (
-            Icons.downloading,
-            'Downloading…',
-            'Fetching the offline voice model. '
-                'You can keep using the app — system TTS is used '
-                'in the meantime.',
-            null,
-          ),
-          OfflineTtsStatus.ready => (
-            Icons.check_circle_outline,
-            'Offline voice ready',
-            'Piper en_US Amy is installed.',
-            null,
-          ),
-          OfflineTtsStatus.failed => (
-            Icons.error_outline,
-            'Download failed — tap to retry',
-            lastError == null
-                ? 'Tap to retry.'
-                : '${lastError.toString().substring(
-                      0,
-                      lastError.toString().length.clamp(0, 240),
-                    )} — tap to retry.',
-            () => _trigger(context),
-          ),
-        };
-        return SettingsRow(
-          icon: icon,
-          iconColor: status == OfflineTtsStatus.ready ? cs.primary : null,
-          title: title,
-          subtitle: subtitle,
-          onTap: action,
+    final voices = TtsService().offlineVoices;
+    if (voices.isEmpty) return const SizedBox.shrink();
+    final selectedId = ref.watch(
+      settingsNotifierProvider.select((s) => s.ttsVoiceId),
+    );
+    final active = voices.firstWhere(
+      (v) => v.id == selectedId,
+      orElse: () => voices.first,
+    );
+
+    return ValueListenableBuilder<Map<String, OfflineTtsStatus>>(
+      valueListenable: TtsService().offlineVoiceStatuses,
+      builder: (context, statuses, _) {
+        final status = statuses[active.id] ?? OfflineTtsStatus.notDownloaded;
+        final readyCount = statuses.values
+            .where((s) => s == OfflineTtsStatus.ready)
+            .length;
+        final subtitle = StringBuffer(active.displayName);
+        switch (status) {
+          case OfflineTtsStatus.ready:
+            subtitle.write(' · ready');
+            break;
+          case OfflineTtsStatus.downloading:
+            subtitle.write(' · downloading…');
+            break;
+          case OfflineTtsStatus.failed:
+            subtitle.write(' · download failed');
+            break;
+          case OfflineTtsStatus.notDownloaded:
+            subtitle.write(' · not downloaded');
+            break;
+        }
+        if (readyCount > 0) {
+          subtitle.write(' · $readyCount installed');
+        }
+        return SettingsNavRow(
+          icon: Icons.library_music_outlined,
+          title: 'Offline voices',
+          subtitle: subtitle.toString(),
+          onTap: () => context.pushNamed('voice-offline'),
         );
       },
     );

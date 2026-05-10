@@ -528,6 +528,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             speech,
             token: _ttsGate.lastSpokenMessageId,
             useOffline: settings.ttsUseOffline,
+            offlineVoiceId: settings.ttsVoiceId,
           ),
         );
       }

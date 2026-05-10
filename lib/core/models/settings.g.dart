@@ -34,6 +34,7 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..ttsUseOffline = json['ttsUseOffline'] as bool? ?? true
   ..voiceAssistantLanguage = json['voiceAssistantLanguage'] as String?
   ..ttsEngine = json['ttsEngine'] as String?
+  ..ttsVoiceId = json['ttsVoiceId'] as String?
   ..preferredLanguage = json['preferredLanguage'] as String?
   ..usagePeriod = json['usagePeriod'] as String
   ..recentMachinePaths = (json['recentMachinePaths'] as List<dynamic>)
@@ -89,6 +90,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'ttsUseOffline': instance.ttsUseOffline,
   'voiceAssistantLanguage': instance.voiceAssistantLanguage,
   'ttsEngine': instance.ttsEngine,
+  'ttsVoiceId': instance.ttsVoiceId,
   'preferredLanguage': instance.preferredLanguage,
   'usagePeriod': instance.usagePeriod,
   'recentMachinePaths': instance.recentMachinePaths

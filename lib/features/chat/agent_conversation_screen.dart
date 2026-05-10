@@ -217,7 +217,11 @@ class _AgentConversationScreenState
     );
     if (speech != null) {
       unawaited(
-        TtsService().speak(speech, useOffline: settings.ttsUseOffline),
+        TtsService().speak(
+          speech,
+          useOffline: settings.ttsUseOffline,
+          offlineVoiceId: settings.ttsVoiceId,
+        ),
       );
     }
   }

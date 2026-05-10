@@ -55,6 +55,7 @@ class Settings {
   bool ttsUseOffline = true;
   String? voiceAssistantLanguage;
   String? ttsEngine;
+  String? ttsVoiceId;
   String? preferredLanguage;
   String usagePeriod = 'thirtyDays';
 
@@ -107,6 +108,7 @@ class Settings {
           ttsUseOffline == other.ttsUseOffline &&
           voiceAssistantLanguage == other.voiceAssistantLanguage &&
           ttsEngine == other.ttsEngine &&
+          ttsVoiceId == other.ttsVoiceId &&
           preferredLanguage == other.preferredLanguage &&
           usagePeriod == other.usagePeriod &&
           lastUsedAgent == other.lastUsedAgent &&
@@ -212,6 +214,7 @@ class Settings {
     bool? ttsUseOffline,
     Object? voiceAssistantLanguage = _unset,
     Object? ttsEngine = _unset,
+    Object? ttsVoiceId = _unset,
     Object? preferredLanguage = _unset,
     String? usagePeriod,
     List<RecentMachinePath>? recentMachinePaths,
@@ -266,6 +269,9 @@ class Settings {
       ..ttsEngine = identical(ttsEngine, _unset)
           ? this.ttsEngine
           : ttsEngine as String?
+      ..ttsVoiceId = identical(ttsVoiceId, _unset)
+          ? this.ttsVoiceId
+          : ttsVoiceId as String?
       ..preferredLanguage = identical(preferredLanguage, _unset)
           ? this.preferredLanguage
           : preferredLanguage as String?

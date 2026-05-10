@@ -14,28 +14,57 @@ import 'logger_service.dart' show logger;
 
 /// Identifies a sherpa-onnx TTS voice model.
 ///
-/// The default ([piperEnUsAmyLow]) is a small (~30MB) English VITS
-/// voice from rhasspy/piper. Adding new voices is a matter of
-/// recording the archive URL, expected SHA-256, and the relative
-/// paths of the model files inside the archive.
+/// Each entry points at a Piper-style archive (`.tar.bz2`) hosted on
+/// the k2-fsa/sherpa-onnx releases page. After extraction the layout
+/// is the same for every voice: an `.onnx` file, a `tokens.txt` and
+/// an `espeak-ng-data/` directory.
+///
+/// [archiveSha256] is optional. If provided, the downloaded archive
+/// is verified against it; if empty, only TLS-level integrity is
+/// relied upon. The default Amy voice keeps a pinned hash; new
+/// voices added in bulk leave it empty so users can sample them
+/// without us having to pre-fetch every archive.
 class OfflineTtsModel {
   const OfflineTtsModel({
     required this.id,
+    required this.displayName,
+    required this.locale,
+    required this.gender,
+    required this.quality,
     required this.archiveUrl,
-    required this.archiveSha256,
+    required this.approximateBytes,
     required this.archiveRoot,
     required this.modelRelPath,
     required this.tokensRelPath,
     required this.dataDirRelPath,
+    this.archiveSha256 = '',
     this.expectedSampleRate = 22050,
   });
 
-  /// Stable identifier used for the local cache directory. Bumping
-  /// this when changing the file layout safely invalidates old
-  /// downloads.
+  /// Stable identifier used for the local cache directory and the
+  /// `ttsVoiceId` setting. Bump the suffix when changing the file
+  /// layout to safely invalidate old downloads.
   final String id;
+
+  /// Human-readable label shown in the voice picker.
+  final String displayName;
+
+  /// BCP-47-ish locale code (`en_US`, `de_DE`, …) used for grouping.
+  final String locale;
+
+  /// `'F'`, `'M'` or `'?'`. Surfaced in the picker for context.
+  final String gender;
+
+  /// Piper quality tier: `low`, `medium`, `high`, `x_low`. Higher
+  /// quality is larger and slower but sounds better.
+  final String quality;
+
   final String archiveUrl;
   final String archiveSha256;
+
+  /// Approximate compressed archive size in bytes — used to render a
+  /// rough size hint in the UI before download starts.
+  final int approximateBytes;
 
   /// The folder name at the root of the .tar.bz2 archive.
   final String archiveRoot;
@@ -54,8 +83,18 @@ class OfflineTtsModel {
   /// taken from the engine's [sherpa.GeneratedAudio.sampleRate].
   final int expectedSampleRate;
 
+  String get sizeLabel {
+    if (approximateBytes <= 0) return '';
+    final mb = approximateBytes / (1024 * 1024);
+    return '~${mb < 10 ? mb.toStringAsFixed(1) : mb.round()}MB';
+  }
+
   static const piperEnUsAmyLow = OfflineTtsModel(
     id: 'vits-piper-en_US-amy-low-v1',
+    displayName: 'Amy (US English)',
+    locale: 'en_US',
+    gender: 'F',
+    quality: 'low',
     archiveUrl:
         'https://github.com/k2-fsa/sherpa-onnx/releases/download/'
         'tts-models/vits-piper-en_US-amy-low.tar.bz2',
@@ -63,11 +102,180 @@ class OfflineTtsModel {
     // ever republishes the asset, this will need to be refreshed.
     archiveSha256:
         'c70f5284a09a7fd4ed203b39b2ff51cac1432b422b852eb647b481dade3cf639',
+    approximateBytes: 30 * 1024 * 1024,
     archiveRoot: 'vits-piper-en_US-amy-low',
     modelRelPath: 'en_US-amy-low.onnx',
     tokensRelPath: 'tokens.txt',
     dataDirRelPath: 'espeak-ng-data',
   );
+}
+
+/// Curated catalog of Piper voices the user can download from the
+/// in-app voice picker. All entries follow the k2-fsa/sherpa-onnx
+/// `tts-models` release naming convention; the picker is the only
+/// place that lists them, so adding a new voice is a single-list
+/// edit.
+class OfflineTtsCatalog {
+  const OfflineTtsCatalog._();
+
+  static OfflineTtsModel _piper({
+    required String locale,
+    required String voice,
+    required String quality,
+    required String displayName,
+    required String gender,
+    required int approxMb,
+    String sha256 = '',
+  }) {
+    final base = 'vits-piper-$locale-$voice-$quality';
+    return OfflineTtsModel(
+      id: '$base-v1',
+      displayName: displayName,
+      locale: locale,
+      gender: gender,
+      quality: quality,
+      archiveUrl:
+          'https://github.com/k2-fsa/sherpa-onnx/releases/download/'
+          'tts-models/$base.tar.bz2',
+      archiveSha256: sha256,
+      approximateBytes: approxMb * 1024 * 1024,
+      archiveRoot: base,
+      modelRelPath: '$locale-$voice-$quality.onnx',
+      tokensRelPath: 'tokens.txt',
+      dataDirRelPath: 'espeak-ng-data',
+    );
+  }
+
+  /// All voices, in the order they should appear in the picker.
+  ///
+  /// First entry is the default selection. Sizes are approximate;
+  /// the picker shows them so users with limited storage can pick
+  /// accordingly.
+  static final List<OfflineTtsModel> all = <OfflineTtsModel>[
+    OfflineTtsModel.piperEnUsAmyLow,
+    _piper(
+      locale: 'en_US',
+      voice: 'lessac',
+      quality: 'medium',
+      displayName: 'Lessac (US English, medium)',
+      gender: 'F',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'en_US',
+      voice: 'ryan',
+      quality: 'medium',
+      displayName: 'Ryan (US English, medium)',
+      gender: 'M',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'en_US',
+      voice: 'libritts_r',
+      quality: 'medium',
+      displayName: 'LibriTTS-R (US English, medium)',
+      gender: 'F',
+      approxMb: 78,
+    ),
+    _piper(
+      locale: 'en_GB',
+      voice: 'alan',
+      quality: 'medium',
+      displayName: 'Alan (UK English, medium)',
+      gender: 'M',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'en_GB',
+      voice: 'jenny_dioco',
+      quality: 'medium',
+      displayName: 'Jenny (UK English, medium)',
+      gender: 'F',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'de_DE',
+      voice: 'thorsten',
+      quality: 'medium',
+      displayName: 'Thorsten (German, medium)',
+      gender: 'M',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'fr_FR',
+      voice: 'siwis',
+      quality: 'medium',
+      displayName: 'Siwis (French, medium)',
+      gender: 'F',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'es_ES',
+      voice: 'mls_10246',
+      quality: 'low',
+      displayName: 'MLS 10246 (Spanish, low)',
+      gender: 'M',
+      approxMb: 30,
+    ),
+    _piper(
+      locale: 'it_IT',
+      voice: 'riccardo',
+      quality: 'x_low',
+      displayName: 'Riccardo (Italian, x-low)',
+      gender: 'M',
+      approxMb: 18,
+    ),
+    _piper(
+      locale: 'pt_BR',
+      voice: 'faber',
+      quality: 'medium',
+      displayName: 'Faber (Brazilian Portuguese, medium)',
+      gender: 'M',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'nl_NL',
+      voice: 'mls_5809',
+      quality: 'low',
+      displayName: 'MLS 5809 (Dutch, low)',
+      gender: 'M',
+      approxMb: 30,
+    ),
+    _piper(
+      locale: 'pl_PL',
+      voice: 'gosia',
+      quality: 'medium',
+      displayName: 'Gosia (Polish, medium)',
+      gender: 'F',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'ru_RU',
+      voice: 'irina',
+      quality: 'medium',
+      displayName: 'Irina (Russian, medium)',
+      gender: 'F',
+      approxMb: 63,
+    ),
+    _piper(
+      locale: 'ca_ES',
+      voice: 'upc_ona',
+      quality: 'medium',
+      displayName: 'Ona (Catalan, medium)',
+      gender: 'F',
+      approxMb: 63,
+    ),
+  ];
+
+  static OfflineTtsModel get defaultModel => all.first;
+
+  static OfflineTtsModel? byId(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final m in all) {
+      if (m.id == id) return m;
+    }
+    return null;
+  }
 }
 
 class OfflineTtsException implements Exception {
@@ -87,73 +295,166 @@ enum OfflineTtsStatus {
   /// Files are present on disk and ready for use.
   ready,
 
-  /// Download or extraction failed. [OfflineTtsService.lastError] has
+  /// Download or extraction failed. [OfflineTtsService.errorFor] has
   /// the cause.
   failed,
 }
 
 /// Sherpa-onnx-backed offline text-to-speech service.
 ///
-/// Mirrors [OfflineDictationService] in spirit: an opt-in heavyweight
-/// engine guarded behind a one-time model download. The first call
-/// to [ensureReady] kicks off the archive download; subsequent calls
-/// are no-ops once the files are on disk.
-///
+/// Manages a *catalog* of voices: any number can be downloaded and
+/// kept on disk, but only the [selectedVoiceId] is used by [speak].
 /// All sherpa interaction happens on a background isolate so the UI
-/// thread stays responsive. Generated WAV files are persisted to the
-/// app cache and played through [AudioPlayer]; [currentToken] tracks
-/// what's playing so the chat playback bar can react.
+/// thread stays responsive.
 class OfflineTtsService {
   factory OfflineTtsService() => _instance;
-  OfflineTtsService._();
+  OfflineTtsService._() {
+    _statuses = ValueNotifier<Map<String, OfflineTtsStatus>>(
+      _initialStatuses(),
+    );
+    _selectedStatus = ValueNotifier<OfflineTtsStatus>(
+      OfflineTtsStatus.notDownloaded,
+    );
+  }
   static final OfflineTtsService _instance = OfflineTtsService._();
 
-  final OfflineTtsModel _model = OfflineTtsModel.piperEnUsAmyLow;
+  String _selectedVoiceId = OfflineTtsCatalog.defaultModel.id;
 
-  final ValueNotifier<OfflineTtsStatus> _status =
-      ValueNotifier<OfflineTtsStatus>(OfflineTtsStatus.notDownloaded);
+  late final ValueNotifier<Map<String, OfflineTtsStatus>> _statuses;
+  late final ValueNotifier<OfflineTtsStatus> _selectedStatus;
   final ValueNotifier<String?> _currentToken = ValueNotifier<String?>(null);
-  Object? _lastError;
+  final Map<String, Object?> _errors = <String, Object?>{};
+  final Map<String, Future<_ResolvedModelFiles>> _inflight =
+      <String, Future<_ResolvedModelFiles>>{};
 
   AudioPlayer? _player;
   StreamSubscription<PlayerState>? _stateSub;
-  Future<_ResolvedModelFiles>? _filesFuture;
   int _generationGen = 0;
 
   /// Listenable for the currently-playing token (caller-supplied id,
   /// usually a message id).
   ValueListenable<String?> get currentToken => _currentToken;
 
-  /// Listenable for the model availability status.
-  ValueListenable<OfflineTtsStatus> get status => _status;
+  /// Per-voice download status (map snapshot is replaced atomically
+  /// on every transition so [ValueListenableBuilder] re-renders).
+  ValueListenable<Map<String, OfflineTtsStatus>> get statuses => _statuses;
 
-  Object? get lastError => _lastError;
+  /// Convenience listenable that always reflects the [selectedVoiceId]
+  /// status — kept for backward compatibility with the previous
+  /// single-voice API.
+  ValueListenable<OfflineTtsStatus> get status => _selectedStatus;
+
+  /// Last error from the *selected* voice's download/extract pipeline,
+  /// or `null` if the pipeline never failed in this process.
+  Object? get lastError => _errors[_selectedVoiceId];
+
+  Object? errorFor(String voiceId) => _errors[voiceId];
 
   bool get isSpeaking => _currentToken.value != null;
 
   /// Whether the offline engine is usable on this platform.
   bool get isSupported => !kIsWeb;
 
-  /// Trigger a download/extract if needed. Safe to call repeatedly;
-  /// concurrent callers share the same future.
-  Future<void> ensureReady() async {
+  /// All voices the user can choose from.
+  List<OfflineTtsModel> get voices =>
+      List<OfflineTtsModel>.unmodifiable(OfflineTtsCatalog.all);
+
+  String get selectedVoiceId => _selectedVoiceId;
+
+  OfflineTtsModel get selectedVoice =>
+      OfflineTtsCatalog.byId(_selectedVoiceId) ??
+      OfflineTtsCatalog.defaultModel;
+
+  /// Switch the active voice. Persisting the choice is the caller's
+  /// responsibility (typically the [Settings] layer).
+  void selectVoice(String voiceId) {
+    final resolved = OfflineTtsCatalog.byId(voiceId)?.id ??
+        OfflineTtsCatalog.defaultModel.id;
+    if (_selectedVoiceId == resolved) return;
+    _selectedVoiceId = resolved;
+    _refreshSelectedStatus();
+  }
+
+  OfflineTtsStatus statusFor(String voiceId) {
+    return _statuses.value[voiceId] ?? OfflineTtsStatus.notDownloaded;
+  }
+
+  /// Walk the cache directory once and update every voice's status
+  /// based on what's already extracted. Cheap; safe to call on
+  /// startup and after disk-affecting operations.
+  Future<void> refreshStatuses() async {
+    if (!isSupported) return;
+    final supportDir = await getApplicationSupportDirectory();
+    final next = <String, OfflineTtsStatus>{};
+    for (final voice in OfflineTtsCatalog.all) {
+      // Preserve in-progress / failed states — disk presence alone
+      // doesn't tell us whether a download is mid-flight.
+      final current = _statuses.value[voice.id];
+      if (current == OfflineTtsStatus.downloading ||
+          current == OfflineTtsStatus.failed) {
+        next[voice.id] = current!;
+        continue;
+      }
+      final dir = Directory(
+        p.join(supportDir.path, 'speech', 'tts', voice.id),
+      );
+      final resolved = _resolveFor(voice, dir);
+      next[voice.id] = resolved.allExist
+          ? OfflineTtsStatus.ready
+          : OfflineTtsStatus.notDownloaded;
+    }
+    _setStatuses(next);
+  }
+
+  /// Trigger a download/extract for the *selected* voice if needed.
+  Future<void> ensureReady() => ensureVoice(_selectedVoiceId);
+
+  /// Trigger a download/extract for [voiceId]. Safe to call
+  /// repeatedly; concurrent callers share the same future.
+  Future<void> ensureVoice(String voiceId) async {
     if (!isSupported) {
       throw const OfflineTtsException(
         'Offline TTS is not supported on this platform',
       );
     }
-    await _ensureFilesOnce();
+    final voice = OfflineTtsCatalog.byId(voiceId);
+    if (voice == null) {
+      throw OfflineTtsException('Unknown offline voice: $voiceId');
+    }
+    await _ensureFilesOnce(voice);
   }
 
-  /// Generate speech for [text] and play it.
+  /// Remove an extracted voice from disk. No-op if it isn't present.
+  /// Refuses to delete a voice while it's being downloaded.
+  Future<void> deleteVoice(String voiceId) async {
+    if (!isSupported) return;
+    if (_inflight.containsKey(voiceId)) {
+      throw const OfflineTtsException(
+        'Cannot delete a voice while it is downloading',
+      );
+    }
+    final supportDir = await getApplicationSupportDirectory();
+    final dir = Directory(
+      p.join(supportDir.path, 'speech', 'tts', voiceId),
+    );
+    if (dir.existsSync()) {
+      try {
+        await dir.delete(recursive: true);
+      } catch (e, st) {
+        logger.warning('[OfflineTTS] delete failed for $voiceId: $e', e, st);
+        rethrow;
+      }
+    }
+    _errors.remove(voiceId);
+    _setStatusFor(voiceId, OfflineTtsStatus.notDownloaded);
+  }
+
+  /// Generate speech for [text] and play it using [voiceId] (or the
+  /// currently selected voice if omitted).
   ///
   /// [token] is forwarded to listeners via [currentToken]; the chat
   /// playback bar uses it to map back to a source message id.
-  ///
-  /// Returns once playback has been *started*. The completion event
-  /// arrives asynchronously via [currentToken] flipping back to
-  /// `null`.
-  Future<void> speak(String text, {String? token}) async {
+  Future<void> speak(String text, {String? token, String? voiceId}) async {
     if (!isSupported) {
       throw const OfflineTtsException(
         'Offline TTS is not supported on this platform',
@@ -162,11 +463,17 @@ class OfflineTtsService {
     final clean = text.trim();
     if (clean.isEmpty) return;
 
+    if (voiceId != null && voiceId.isNotEmpty) {
+      selectVoice(voiceId);
+    }
+    final voice = selectedVoice;
+
     logger.info(
-      '[OfflineTTS] speak: ${clean.length} chars, token=$token',
+      '[OfflineTTS] speak: ${clean.length} chars, voice=${voice.id}, '
+      'token=$token',
     );
 
-    final files = await _ensureFilesOnce();
+    final files = await _ensureFilesOnce(voice);
 
     // Increment the generation counter; if a newer call arrives
     // before this one finishes generating, we'll bail out instead of
@@ -240,8 +547,8 @@ class OfflineTtsService {
     }
   }
 
-  /// Release the audio engine. The model files stay on disk so the
-  /// next session doesn't have to download again.
+  /// Release the audio engine. Model files stay on disk so the next
+  /// session doesn't have to download again.
   Future<void> dispose() async {
     await stop();
     await _stateSub?.cancel();
@@ -257,40 +564,48 @@ class OfflineTtsService {
     }
   }
 
-  Future<_ResolvedModelFiles> _ensureFilesOnce() {
-    final existing = _filesFuture;
+  Future<_ResolvedModelFiles> _ensureFilesOnce(OfflineTtsModel voice) {
+    final existing = _inflight[voice.id];
     if (existing != null) return existing;
-    final future = _ensureFiles();
-    _filesFuture = future;
+    final future = _ensureFiles(voice);
+    _inflight[voice.id] = future;
     unawaited(
       future.then<void>(
-        (_) => _setStatus(OfflineTtsStatus.ready),
+        (_) {
+          _inflight.remove(voice.id);
+          _errors.remove(voice.id);
+          _setStatusFor(voice.id, OfflineTtsStatus.ready);
+        },
         onError: (Object e, StackTrace st) {
-          _lastError = e;
-          if (identical(_filesFuture, future)) _filesFuture = null;
+          _inflight.remove(voice.id);
+          _errors[voice.id] = e;
           // Use error level so the failure shows up under the dev
           // logs "errors" filter and gets forwarded to Sentry.
-          logger.error('[OfflineTTS] ensureReady failed: $e', e, st);
-          _setStatus(OfflineTtsStatus.failed);
+          logger.error(
+            '[OfflineTTS] ensureReady failed for ${voice.id}: $e',
+            e,
+            st,
+          );
+          _setStatusFor(voice.id, OfflineTtsStatus.failed);
         },
       ),
     );
     return future;
   }
 
-  Future<_ResolvedModelFiles> _ensureFiles() async {
-    logger.info('[OfflineTTS] ensureFiles: model=${_model.id}');
+  Future<_ResolvedModelFiles> _ensureFiles(OfflineTtsModel voice) async {
+    logger.info('[OfflineTTS] ensureFiles: model=${voice.id}');
     final supportDir = await getApplicationSupportDirectory();
     final modelDir = Directory(
-      p.join(supportDir.path, 'speech', 'tts', _model.id),
+      p.join(supportDir.path, 'speech', 'tts', voice.id),
     );
     await modelDir.create(recursive: true);
-    final resolved = _resolve(modelDir);
+    final resolved = _resolveFor(voice, modelDir);
     if (resolved.allExist) {
       logger.info(
         '[OfflineTTS] ensureFiles: cache hit at ${modelDir.path}',
       );
-      _setStatus(OfflineTtsStatus.ready);
+      _setStatusFor(voice.id, OfflineTtsStatus.ready);
       return resolved;
     }
 
@@ -298,9 +613,9 @@ class OfflineTtsService {
       '[OfflineTTS] ensureFiles: cache miss; '
       'will download into ${modelDir.path}',
     );
-    _setStatus(OfflineTtsStatus.downloading);
-    await _downloadAndExtract(modelDir);
-    final after = _resolve(modelDir);
+    _setStatusFor(voice.id, OfflineTtsStatus.downloading);
+    await _downloadAndExtract(voice, modelDir);
+    final after = _resolveFor(voice, modelDir);
     if (!after.allExist) {
       // Enumerate what's missing so the dev-log breadcrumb is
       // actionable rather than a blanket "incomplete".
@@ -326,21 +641,24 @@ class OfflineTtsService {
     return after;
   }
 
-  _ResolvedModelFiles _resolve(Directory modelDir) {
+  _ResolvedModelFiles _resolveFor(OfflineTtsModel voice, Directory modelDir) {
     return _ResolvedModelFiles(
-      model: p.join(modelDir.path, _model.modelRelPath),
-      tokens: p.join(modelDir.path, _model.tokensRelPath),
-      dataDir: _model.dataDirRelPath.isEmpty
+      model: p.join(modelDir.path, voice.modelRelPath),
+      tokens: p.join(modelDir.path, voice.tokensRelPath),
+      dataDir: voice.dataDirRelPath.isEmpty
           ? ''
-          : p.join(modelDir.path, _model.dataDirRelPath),
+          : p.join(modelDir.path, voice.dataDirRelPath),
     );
   }
 
-  Future<void> _downloadAndExtract(Directory modelDir) async {
+  Future<void> _downloadAndExtract(
+    OfflineTtsModel voice,
+    Directory modelDir,
+  ) async {
     final tempDir = await getTemporaryDirectory();
-    final archive = File(p.join(tempDir.path, '${_model.id}.tar.bz2'));
+    final archive = File(p.join(tempDir.path, '${voice.id}.tar.bz2'));
     try {
-      await _downloadArchive(archive);
+      await _downloadArchive(voice, archive);
       logger.info(
         '[OfflineTTS] extract: starting from '
         '${archive.path} (${archive.lengthSync()} bytes) '
@@ -348,9 +666,7 @@ class OfflineTtsService {
       );
       // Build the request from local variables so the Isolate.run
       // closure doesn't implicitly capture `this` (the singleton's
-      // _filesFuture / AudioPlayer aren't sendable, and a captured
-      // `_model.field` reference would drag them into the
-      // serialized message → "object is unsendable" Future).
+      // _filesFuture / AudioPlayer aren't sendable).
       //
       // The isolate worker rethrows as a plain string-bearing
       // Exception so the message survives the isolate boundary
@@ -359,8 +675,10 @@ class OfflineTtsService {
       final extractReq = _ExtractRequest(
         archivePath: archive.path,
         modelDirPath: modelDir.path,
-        archiveRoot: _model.archiveRoot,
-        expectedSha256: _model.archiveSha256,
+        archiveRoot: voice.archiveRoot,
+        // Empty SHA means "skip integrity check" — relied on for the
+        // bulk of the catalog where we don't pin checksums.
+        expectedSha256: voice.archiveSha256,
       );
       await Isolate.run(() => _verifyAndExtractInWorker(extractReq));
       logger.info('[OfflineTTS] extract: completed');
@@ -380,15 +698,15 @@ class OfflineTtsService {
     }
   }
 
-  Future<void> _downloadArchive(File target) async {
+  Future<void> _downloadArchive(OfflineTtsModel voice, File target) async {
     logger.info(
-      '[OfflineTTS] download: GET ${_model.archiveUrl} -> ${target.path}',
+      '[OfflineTTS] download: GET ${voice.archiveUrl} -> ${target.path}',
     );
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 30)
       ..userAgent = 'happy_flutter/offline-tts';
     try {
-      final request = await client.getUrl(Uri.parse(_model.archiveUrl))
+      final request = await client.getUrl(Uri.parse(voice.archiveUrl))
         // Default already, but make explicit so a future Dart change
         // doesn't silently break GitHub release redirects.
         ..followRedirects = true
@@ -398,10 +716,17 @@ class OfflineTtsService {
         '[OfflineTTS] download: status=${response.statusCode} '
         'contentLength=${response.contentLength}',
       );
+      if (response.statusCode == 404) {
+        throw OfflineTtsException(
+          'Voice "${voice.displayName}" is not available on the upstream '
+          'mirror (HTTP 404 from ${voice.archiveUrl}). '
+          'Pick a different voice.',
+        );
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw OfflineTtsException(
           'TTS model download failed: HTTP ${response.statusCode} '
-          'from ${_model.archiveUrl}',
+          'from ${voice.archiveUrl}',
         );
       }
 
@@ -513,9 +838,30 @@ class OfflineTtsService {
     } catch (_) {/* best effort */}
   }
 
-  void _setStatus(OfflineTtsStatus next) {
-    if (_status.value == next) return;
-    _status.value = next;
+  Map<String, OfflineTtsStatus> _initialStatuses() {
+    return <String, OfflineTtsStatus>{
+      for (final voice in OfflineTtsCatalog.all)
+        voice.id: OfflineTtsStatus.notDownloaded,
+    };
+  }
+
+  void _setStatuses(Map<String, OfflineTtsStatus> next) {
+    _statuses.value = Map<String, OfflineTtsStatus>.unmodifiable(next);
+    _refreshSelectedStatus();
+  }
+
+  void _setStatusFor(String voiceId, OfflineTtsStatus status) {
+    final current = _statuses.value;
+    if (current[voiceId] == status) return;
+    final next = Map<String, OfflineTtsStatus>.from(current);
+    next[voiceId] = status;
+    _setStatuses(next);
+  }
+
+  void _refreshSelectedStatus() {
+    final s = _statuses.value[_selectedVoiceId] ??
+        OfflineTtsStatus.notDownloaded;
+    if (_selectedStatus.value != s) _selectedStatus.value = s;
   }
 }
 
@@ -619,12 +965,14 @@ Future<void> _verifyAndExtractInWorker(_ExtractRequest req) async {
   // Throws plain Exception instances so messages survive the
   // Isolate.run boundary on every Dart version.
   final bytes = await File(req.archivePath).readAsBytes();
-  final actualSha = sha256.convert(bytes).toString();
-  if (actualSha != req.expectedSha256) {
-    throw Exception(
-      'Offline TTS model checksum mismatch '
-      '(expected ${req.expectedSha256}, got $actualSha)',
-    );
+  if (req.expectedSha256.isNotEmpty) {
+    final actualSha = sha256.convert(bytes).toString();
+    if (actualSha != req.expectedSha256) {
+      throw Exception(
+        'Offline TTS model checksum mismatch '
+        '(expected ${req.expectedSha256}, got $actualSha)',
+      );
+    }
   }
 
   final List<int> tarBytes;

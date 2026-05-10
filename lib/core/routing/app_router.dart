@@ -34,6 +34,7 @@ import '../../features/settings/features_settings_screen.dart';
 import '../../features/settings/link_device_screen.dart';
 import '../../features/settings/linked_devices_screen.dart';
 import '../../features/settings/machines_screen.dart';
+import '../../features/settings/offline_voices_screen.dart';
 import '../../features/settings/profile_editor_screen.dart';
 import '../../features/settings/profile_wizard_screen.dart';
 import '../../features/settings/profiles_screen.dart';
@@ -596,6 +597,14 @@ GoRouter createRouter(String? initialDeepLink) {
         name: 'voice-language',
         pageBuilder: (context, state) => _slidePage(
           const AuthGate(child: VoiceLanguageSettingsScreen()),
+          state,
+        ),
+      ),
+      GoRoute(
+        path: '/settings/voice/offline',
+        name: 'voice-offline',
+        pageBuilder: (context, state) => _slidePage(
+          const AuthGate(child: OfflineVoicesScreen()),
           state,
         ),
       ),

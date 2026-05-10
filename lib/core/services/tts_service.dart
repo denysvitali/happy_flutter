@@ -166,6 +166,7 @@ class TtsService {
     String markdown, {
     String? token,
     bool useOffline = false,
+    String? offlineVoiceId,
   }) async {
     if (kIsWeb) {
       logger.warning('[TTS] speak skipped: kIsWeb');
@@ -196,7 +197,11 @@ class TtsService {
       _activeBackend = _Backend.offline;
       _setCurrentToken(token);
       try {
-        await OfflineTtsService().speak(clean, token: token);
+        await OfflineTtsService().speak(
+          clean,
+          token: token,
+          voiceId: offlineVoiceId,
+        );
         return;
       } catch (e, st) {
         // Use error level so the failure is visible under the dev
@@ -322,6 +327,33 @@ class TtsService {
   /// Trigger a download of the offline TTS model (no-op if already
   /// present). Surfaces the error if the download fails.
   Future<void> ensureOfflineReady() => OfflineTtsService().ensureReady();
+
+  /// Trigger a download of a specific offline voice.
+  Future<void> ensureOfflineVoice(String voiceId) =>
+      OfflineTtsService().ensureVoice(voiceId);
+
+  /// Remove an offline voice from disk.
+  Future<void> deleteOfflineVoice(String voiceId) =>
+      OfflineTtsService().deleteVoice(voiceId);
+
+  /// Select which offline voice [speak] uses when `useOffline: true`.
+  void selectOfflineVoice(String voiceId) =>
+      OfflineTtsService().selectVoice(voiceId);
+
+  /// Walk the cache directory and refresh per-voice statuses.
+  Future<void> refreshOfflineVoiceStatuses() =>
+      OfflineTtsService().refreshStatuses();
+
+  /// All offline voices the user can choose from.
+  List<OfflineTtsModel> get offlineVoices => OfflineTtsService().voices;
+
+  /// Per-voice download status snapshot.
+  ValueListenable<Map<String, OfflineTtsStatus>> get offlineVoiceStatuses =>
+      OfflineTtsService().statuses;
+
+  /// Last error for a given voice (or `null`).
+  Object? offlineVoiceError(String voiceId) =>
+      OfflineTtsService().errorFor(voiceId);
 
   /// Listenable for the offline model availability status. Used by
   /// the voice settings screen to drive a "Download offline voice"
