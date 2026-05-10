@@ -210,12 +210,15 @@ class _AgentConversationScreenState
   }
 
   void _speakNewMessages(List<dynamic>? children) {
+    final settings = ref.read(settingsNotifierProvider);
     final speech = _ttsGate.evaluateDynamic(
       items: children,
-      ttsEnabled: ref.read(settingsNotifierProvider).ttsEnabled,
+      ttsEnabled: settings.ttsEnabled,
     );
     if (speech != null) {
-      unawaited(TtsService().speak(speech));
+      unawaited(
+        TtsService().speak(speech, useOffline: settings.ttsUseOffline),
+      );
     }
   }
 

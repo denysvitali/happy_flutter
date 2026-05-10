@@ -740,7 +740,8 @@ extension _ChatScreenActions on _ChatScreenState {
     // Keep the live gate in sync so the next streamed reply doesn't
     // get treated as a duplicate of whatever was last spoken.
     _ttsGate.recordSpoken(id);
-    unawaited(TtsService().speak(text, token: id));
+    final useOffline = ref.read(settingsNotifierProvider).ttsUseOffline;
+    unawaited(TtsService().speak(text, token: id, useOffline: useOffline));
   }
 
   bool _followRedirectedSession(String sentSessionId) {

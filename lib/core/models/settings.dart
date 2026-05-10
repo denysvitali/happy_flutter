@@ -52,6 +52,7 @@ class Settings {
   bool reviewPromptAnswered = false;
   bool? reviewPromptLikedApp;
   bool ttsEnabled = false;
+  bool ttsUseOffline = true;
   String? voiceAssistantLanguage;
   String? ttsEngine;
   String? preferredLanguage;
@@ -103,6 +104,7 @@ class Settings {
           sessionsViewStyle == other.sessionsViewStyle &&
           hideInactiveSessions == other.hideInactiveSessions &&
           ttsEnabled == other.ttsEnabled &&
+          ttsUseOffline == other.ttsUseOffline &&
           voiceAssistantLanguage == other.voiceAssistantLanguage &&
           ttsEngine == other.ttsEngine &&
           preferredLanguage == other.preferredLanguage &&
@@ -207,6 +209,7 @@ class Settings {
     bool? reviewPromptAnswered,
     Object? reviewPromptLikedApp = _unset,
     bool? ttsEnabled,
+    bool? ttsUseOffline,
     Object? voiceAssistantLanguage = _unset,
     Object? ttsEngine = _unset,
     Object? preferredLanguage = _unset,
@@ -256,6 +259,7 @@ class Settings {
           ? this.reviewPromptLikedApp
           : reviewPromptLikedApp as bool?
       ..ttsEnabled = ttsEnabled ?? this.ttsEnabled
+      ..ttsUseOffline = ttsUseOffline ?? this.ttsUseOffline
       ..voiceAssistantLanguage = identical(voiceAssistantLanguage, _unset)
           ? this.voiceAssistantLanguage
           : voiceAssistantLanguage as String?

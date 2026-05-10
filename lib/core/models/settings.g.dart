@@ -31,6 +31,7 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..reviewPromptAnswered = json['reviewPromptAnswered'] as bool
   ..reviewPromptLikedApp = json['reviewPromptLikedApp'] as bool?
   ..ttsEnabled = json['ttsEnabled'] as bool
+  ..ttsUseOffline = json['ttsUseOffline'] as bool? ?? true
   ..voiceAssistantLanguage = json['voiceAssistantLanguage'] as String?
   ..ttsEngine = json['ttsEngine'] as String?
   ..preferredLanguage = json['preferredLanguage'] as String?
@@ -85,6 +86,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'reviewPromptAnswered': instance.reviewPromptAnswered,
   'reviewPromptLikedApp': instance.reviewPromptLikedApp,
   'ttsEnabled': instance.ttsEnabled,
+  'ttsUseOffline': instance.ttsUseOffline,
   'voiceAssistantLanguage': instance.voiceAssistantLanguage,
   'ttsEngine': instance.ttsEngine,
   'preferredLanguage': instance.preferredLanguage,

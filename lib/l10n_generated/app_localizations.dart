@@ -4475,15 +4475,15 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'pi'**
-   String get sessionsPi;
+  String get sessionsPi;
 
-   /// No description provided for @sessionsOpencode.
-   ///
-   /// In en, this message translates to:
-   /// **'OpenCode'**
-   String get sessionsOpencode;
+  /// No description provided for @sessionsOpencode.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenCode'**
+  String get sessionsOpencode;
 
-   /// No description provided for @sessionsType.
+  /// No description provided for @sessionsType.
   ///
   /// In en, this message translates to:
   /// **'Type'**

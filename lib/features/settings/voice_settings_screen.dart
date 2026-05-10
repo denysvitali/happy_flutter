@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/offline_tts_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -44,6 +45,9 @@ class _VoiceSettingsScreenState
     final ttsEnabled = ref.watch(
       settingsNotifierProvider.select((s) => s.ttsEnabled),
     );
+    final ttsUseOffline = ref.watch(
+      settingsNotifierProvider.select((s) => s.ttsUseOffline),
+    );
     final ttsEngine = ref.watch(
       settingsNotifierProvider.select((s) => s.ttsEngine),
     );
@@ -72,6 +76,20 @@ class _VoiceSettingsScreenState
                     .read(settingsNotifierProvider.notifier)
                     .updateSetting('ttsEnabled', value),
               ),
+              SettingsToggleRow(
+                icon: Icons.cloud_off_outlined,
+                title: 'Use offline voice',
+                subtitle:
+                    'High-quality on-device TTS via sherpa-onnx. '
+                    'Falls back to system TTS while the model '
+                    'downloads or if generation fails.',
+                value: ttsUseOffline,
+                onChanged: (value) => ref
+                    .read(settingsNotifierProvider.notifier)
+                    .updateSetting('ttsUseOffline', value),
+              ),
+              if (ttsUseOffline && TtsService().isOfflineSupported)
+                _OfflineModelRow(),
               SettingsNavRow(
                 icon: Icons.play_arrow,
                 title: l10n.voiceTestTts,
@@ -84,6 +102,7 @@ class _VoiceSettingsScreenState
                   );
                   await tts.speak(
                     'Hello! Text to speech is working.',
+                    useOffline: ttsUseOffline,
                   );
                 },
               ),
@@ -203,6 +222,63 @@ class _VoiceSettingsScreenState
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
+    );
+  }
+}
+
+/// Row shown under the "Use offline voice" toggle that surfaces the
+/// model download status and lets the user trigger a download.
+class _OfflineModelRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ValueListenableBuilder<OfflineTtsStatus>(
+      valueListenable: TtsService().offlineStatus,
+      builder: (context, status, _) {
+        final (icon, title, subtitle, action) = switch (status) {
+          OfflineTtsStatus.notDownloaded => (
+            Icons.cloud_download_outlined,
+            'Download offline voice',
+            'Piper en_US Amy (~67MB). One-time download.',
+            () async {
+              try {
+                await TtsService().ensureOfflineReady();
+              } catch (_) {/* status flips to failed */}
+            },
+          ),
+          OfflineTtsStatus.downloading => (
+            Icons.downloading,
+            'Downloading…',
+            'Fetching the offline voice model. '
+                'You can keep using the app — system TTS is used '
+                'in the meantime.',
+            null,
+          ),
+          OfflineTtsStatus.ready => (
+            Icons.check_circle_outline,
+            'Offline voice ready',
+            'Piper en_US Amy is installed.',
+            null,
+          ),
+          OfflineTtsStatus.failed => (
+            Icons.error_outline,
+            'Download failed',
+            'Tap to retry. (${TtsService().offlineStatus.value.name})',
+            () async {
+              try {
+                await TtsService().ensureOfflineReady();
+              } catch (_) {/* surface stays failed */}
+            },
+          ),
+        };
+        return SettingsRow(
+          icon: icon,
+          iconColor: status == OfflineTtsStatus.ready ? cs.primary : null,
+          title: title,
+          subtitle: subtitle,
+          onTap: action,
+        );
+      },
     );
   }
 }

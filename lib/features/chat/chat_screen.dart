@@ -517,15 +517,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     if (messagesChanged) {
+      final settings = ref.read(settingsNotifierProvider);
       final speech = _ttsGate.evaluate(
         messages: latestMessages,
-        ttsEnabled: ref.read(settingsNotifierProvider).ttsEnabled,
+        ttsEnabled: settings.ttsEnabled,
       );
       if (speech != null) {
         unawaited(
           TtsService().speak(
             speech,
             token: _ttsGate.lastSpokenMessageId,
+            useOffline: settings.ttsUseOffline,
           ),
         );
       }

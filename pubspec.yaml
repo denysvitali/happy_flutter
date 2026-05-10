@@ -66,6 +66,9 @@ dependencies:
   google_fonts: ^8.0.2
   # webview_flutter removed — zero Dart imports, native plugin bloat
   flutter_tts: ^4.2.0
+  # Offline TTS playback (sherpa_onnx generates Float32 PCM; we wrap
+  # in WAV and hand to audioplayers).
+  audioplayers: ^6.5.0
   url_launcher: ^6.3.1
   qr: ^3.0.2
   web: ^1.1.1
