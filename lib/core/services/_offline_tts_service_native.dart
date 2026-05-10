@@ -169,12 +169,16 @@ class OfflineTtsService {
     // playing stale audio over the latest request.
     final gen = ++_generationGen;
 
-    final samples = await Isolate.run(() => _generateInWorker(_TtsRequest(
-          text: clean,
-          model: files.model,
-          tokens: files.tokens,
-          dataDir: files.dataDir,
-        )));
+    // Build the request before spawning the isolate so the closure
+    // captures only this sendable object — never `this`, which has
+    // an unsendable AudioPlayer / Future field.
+    final ttsReq = _TtsRequest(
+      text: clean,
+      model: files.model,
+      tokens: files.tokens,
+      dataDir: files.dataDir,
+    );
+    final samples = await Isolate.run(() => _generateInWorker(ttsReq));
     if (gen != _generationGen) {
       logger.info('[OfflineTTS] superseded generation $gen, dropping audio');
       return;
@@ -311,18 +315,23 @@ class OfflineTtsService {
         '${archive.path} (${archive.lengthSync()} bytes) '
         'into ${modelDir.path}',
       );
+      // Build the request from local variables so the Isolate.run
+      // closure doesn't implicitly capture `this` (the singleton's
+      // _filesFuture / AudioPlayer aren't sendable, and a captured
+      // `_model.field` reference would drag them into the
+      // serialized message → "object is unsendable" Future).
+      //
       // The isolate worker rethrows as a plain string-bearing
       // Exception so the message survives the isolate boundary
       // intact (custom exception types don't always serialize
       // cleanly through Isolate.run).
-      await Isolate.run(
-        () => _verifyAndExtractInWorker(_ExtractRequest(
-          archivePath: archive.path,
-          modelDirPath: modelDir.path,
-          archiveRoot: _model.archiveRoot,
-          expectedSha256: _model.archiveSha256,
-        )),
+      final extractReq = _ExtractRequest(
+        archivePath: archive.path,
+        modelDirPath: modelDir.path,
+        archiveRoot: _model.archiveRoot,
+        expectedSha256: _model.archiveSha256,
       );
+      await Isolate.run(() => _verifyAndExtractInWorker(extractReq));
       logger.info('[OfflineTTS] extract: completed');
     } catch (e, st) {
       logger.error(
