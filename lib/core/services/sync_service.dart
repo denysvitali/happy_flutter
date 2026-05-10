@@ -944,10 +944,20 @@ what you have, you must use the options mode.
   /// cascades that block the UI and saturate the network.
   static const int _maxResumeMessageSyncs = 5;
 
-  /// Phases for selective sync invalidation to prevent thundering herd
+  /// Phases for selective sync invalidation to prevent thundering herd.
+  ///
+  ///   * 0: Critical — needed for the default sessions tab. Fires
+  ///        immediately.
+  ///   * 1: Tab-needed — machines/settings/profile. Fires ~1s in so
+  ///        cold-start fetchSessions finishes uncontested first.
+  ///   * 2: Background — purchases / push token / native update /
+  ///        friend requests / git status. Fires ~3s in. None of these
+  ///        block any user-visible screen.
   static const _criticalSyncPhase = 0;
   static const _deferredSyncPhase = 1;
+  static const _backgroundSyncPhase = 2;
   Timer? _deferredSyncsTimer;
+  Timer? _backgroundSyncsTimer;
 
   bool _dataChangePendingTrailing = false;
 

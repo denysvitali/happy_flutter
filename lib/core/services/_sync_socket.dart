@@ -243,9 +243,9 @@ extension SyncSocket on Sync {
       logger.info('Invalidated critical syncs (sessions)');
     }
 
-    // Phase 1: Deferred syncs.
-    // These are non-critical for the initial sessions screen and can load
-    // shortly after first paint or on-demand when the user opens a tab.
+    // Phase 1: Deferred syncs needed when the user navigates to a
+    // chat / settings tab — fire ~1s in, after fetchSessions has
+    // had its uncontested moment on the wire.
     if (phase == null || phase == Sync._deferredSyncPhase) {
       _deferredSyncsTimer?.cancel();
       _deferredSyncsTimer = Timer(const Duration(seconds: 1), () {
@@ -253,19 +253,35 @@ extension SyncSocket on Sync {
         // errors after logout/dispose
         if (!isInitialized) return;
         logger.debug(
-          'Invalidating background deferred syncs '
-          '(machines, settings, profile, purchases, push token, '
-          'native update, friend requests, git status)',
+          'Invalidating deferred syncs '
+          '(machines, settings, profile)',
         );
         machinesSync.invalidate();
         settingsSync.invalidate();
         profileSync.invalidate();
+        powerDiagnostics.recordSyncInvalidation('deferredSyncs');
+      });
+    }
+
+    // Phase 2: Truly-background syncs — none feed a screen the user
+    // is likely on within the first few seconds of cold start. Run
+    // them ~3s in so they don't compete for the connection pool /
+    // event loop with phases 0+1.
+    if (phase == null || phase == Sync._backgroundSyncPhase) {
+      _backgroundSyncsTimer?.cancel();
+      _backgroundSyncsTimer = Timer(const Duration(seconds: 3), () {
+        if (!isInitialized) return;
+        logger.debug(
+          'Invalidating background syncs '
+          '(purchases, push token, native update, '
+          'friend requests, git status)',
+        );
         purchasesSync.invalidate();
         pushTokenSync.invalidate();
         nativeUpdateSync.invalidate();
-        powerDiagnostics.recordSyncInvalidation('deferredSyncs');
         friendRequestsSync.invalidate();
         sessionGitStatusSync.invalidate();
+        powerDiagnostics.recordSyncInvalidation('backgroundSyncs');
       });
     }
   }

@@ -104,9 +104,12 @@ extension SyncLifecycle on Sync {
     _sessionUnreadCounts.clear();
     _sessionUnreadLastIncrementMs.clear();
 
-    // Cancel deferred syncs timer (non-critical data syncs)
+    // Cancel deferred + background syncs timers (non-critical data
+    // syncs). Both are restarted by the next _invalidateAllSyncs.
     _deferredSyncsTimer?.cancel();
     _deferredSyncsTimer = null;
+    _backgroundSyncsTimer?.cancel();
+    _backgroundSyncsTimer = null;
 
     // Cancel all presence timers (per-session 60s timers)
     for (final timer in _presenceTimers.values) {
