@@ -59,6 +59,7 @@ final class SettingsUpdate {
         reviewPromptLikedApp: value as bool?,
       ),
       'ttsEnabled' => settings.copyWith(ttsEnabled: value as bool),
+      'ttsUseOffline' => settings.copyWith(ttsUseOffline: value as bool),
       'voiceAssistantLanguage' => settings.copyWith(
         voiceAssistantLanguage: value as String?,
       ),
@@ -129,6 +130,7 @@ final class SettingsUpdate {
       ..reviewPromptAnswered = updated.reviewPromptAnswered
       ..reviewPromptLikedApp = updated.reviewPromptLikedApp
       ..ttsEnabled = updated.ttsEnabled
+      ..ttsUseOffline = updated.ttsUseOffline
       ..voiceAssistantLanguage = updated.voiceAssistantLanguage
       ..ttsEngine = updated.ttsEngine
       ..preferredLanguage = updated.preferredLanguage
