@@ -217,7 +217,7 @@ class _AgentConversationScreenState
     );
     if (speech != null) {
       unawaited(
-        TtsService().speak(
+        TtsService().enqueueSpeak(
           speech,
           useOffline: settings.ttsUseOffline,
           offlineVoiceId: settings.ttsVoiceId,

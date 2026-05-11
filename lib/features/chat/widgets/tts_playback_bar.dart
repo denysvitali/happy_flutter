@@ -7,10 +7,12 @@ import '../../../core/theme/app_tokens.dart';
 /// Compact playback bar shown above the chat input while TTS speech
 /// is in progress.
 ///
-/// The bar is intentionally minimal — three large tap targets for
-/// previous, stop, and next — so a user who isn't looking at the
-/// screen (the user described listening on a phone) can navigate
-/// between agent replies by feel.
+/// The bar shows a one-line preview of the message being spoken, plus
+/// three large tap targets for previous / stop / next so a user who
+/// isn't looking at the screen can navigate between agent replies by
+/// feel. When extra replies have been queued (e.g. new replies arrived
+/// while an earlier one was still playing) a "+N" pill is shown next
+/// to the preview text.
 ///
 /// The widget watches [TtsService.currentToken] and animates itself
 /// in/out based on whether a speech token is set. It is purely
@@ -90,43 +92,45 @@ class _Bar extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Material(
-      color: cs.surfaceContainerHighest,
+      // Subtle primary tint so the bar reads as an active, persistent
+      // control rather than blending into the chat surface.
+      color: Color.alphaBlend(
+        cs.primary.withValues(alpha: 0.08),
+        cs.surfaceContainerHighest,
+      ),
       child: SafeArea(
         top: false,
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.sm,
+            AppSpacing.sm,
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.volume_up_rounded,
-                size: AppSpacing.lg,
-                color: cs.primary,
-                semanticLabel: 'Speaking',
-              ),
+              _PulsingSpeaker(color: cs.primary),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text(
-                  'Speaking…',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
+                child: ValueListenableBuilder<String?>(
+                  valueListenable: TtsService().currentText,
+                  builder: (context, text, _) => _PreviewText(
+                    text: text,
+                    onSurfaceVariant: cs.onSurfaceVariant,
+                    onSurface: cs.onSurface,
+                    textTheme: textTheme,
                   ),
                 ),
               ),
+              const _QueueBadge(),
+              const SizedBox(width: AppSpacing.xs),
               _NavButton(
                 icon: Icons.skip_previous_rounded,
                 tooltip: 'Previous reply',
                 onPressed: canGoPrev ? onPrev : null,
               ),
-              _NavButton(
-                icon: Icons.stop_rounded,
-                tooltip: 'Stop speaking',
-                onPressed: onStop,
-                isPrimary: true,
-              ),
+              _StopButton(onPressed: onStop, color: cs.primary),
               _NavButton(
                 icon: Icons.skip_next_rounded,
                 tooltip: 'Next reply',
@@ -140,25 +144,172 @@ class _Bar extends StatelessWidget {
   }
 }
 
+class _PreviewText extends StatelessWidget {
+  const _PreviewText({
+    required this.text,
+    required this.onSurfaceVariant,
+    required this.onSurface,
+    required this.textTheme,
+  });
+
+  final String? text;
+  final Color onSurfaceVariant;
+  final Color onSurface;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasText = text != null && text!.trim().isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Speaking',
+          style: textTheme.labelSmall?.copyWith(
+            color: onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: 1),
+        Text(
+          hasText ? text!.replaceAll(RegExp(r'\s+'), ' ').trim() : '…',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.bodyMedium?.copyWith(
+            color: onSurface,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QueueBadge extends StatelessWidget {
+  const _QueueBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    // Watching `currentText` ensures the bar (and so this badge)
+    // rebuilds whenever a queued item starts playing — `queuedCount`
+    // isn't a listenable itself, so we piggy-back on the existing
+    // listener cadence.
+    return ValueListenableBuilder<String?>(
+      valueListenable: TtsService().currentText,
+      builder: (context, _, _) {
+        final n = TtsService().queuedCount;
+        if (n == 0) return const SizedBox.shrink();
+        final cs = Theme.of(context).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.only(right: AppSpacing.xs),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+            ),
+            child: Text(
+              '+$n',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: cs.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PulsingSpeaker extends StatefulWidget {
+  const _PulsingSpeaker({required this.color});
+
+  final Color color;
+
+  @override
+  State<_PulsingSpeaker> createState() => _PulsingSpeakerState();
+}
+
+class _PulsingSpeakerState extends State<_PulsingSpeaker>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final t = _ctrl.value;
+        return SizedBox(
+          width: 32,
+          height: 32,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 24 + 8 * t,
+                height: 24 + 8 * t,
+                decoration: BoxDecoration(
+                  color: widget.color.withValues(
+                    alpha: (0.20 * (1 - t)).clamp(0.0, 1.0),
+                  ),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: widget.color.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.graphic_eq_rounded,
+                  size: 16,
+                  color: widget.color,
+                  semanticLabel: 'Speaking',
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _NavButton extends StatelessWidget {
   const _NavButton({
     required this.icon,
     required this.tooltip,
     required this.onPressed,
-    this.isPrimary = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onPressed;
-  final bool isPrimary;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final color = onPressed == null
         ? cs.onSurface.withValues(alpha: AppOpacity.medium)
-        : (isPrimary ? cs.primary : cs.onSurface);
+        : cs.onSurface;
     return SizedBox(
       width: AppTouchTarget.comfortable,
       height: AppTouchTarget.comfortable,
@@ -167,6 +318,42 @@ class _NavButton extends StatelessWidget {
         tooltip: tooltip,
         onPressed: onPressed,
         iconSize: AppSpacing.xl,
+      ),
+    );
+  }
+}
+
+/// Primary stop button — filled pill so it reads as the most
+/// prominent action in the bar.
+class _StopButton extends StatelessWidget {
+  const _StopButton({required this.onPressed, required this.color});
+
+  final VoidCallback onPressed;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
+      child: Tooltip(
+        message: 'Stop speaking',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          onTap: onPressed,
+          child: Container(
+            width: AppTouchTarget.comfortable,
+            height: AppTouchTarget.comfortable,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.stop_rounded,
+              color: Theme.of(context).colorScheme.onPrimary,
+              size: AppSpacing.lg,
+            ),
+          ),
+        ),
       ),
     );
   }

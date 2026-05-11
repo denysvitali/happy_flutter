@@ -1,6 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/providers/app_providers.dart';
+import '../../../core/services/tts_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/utils/wire_parsers.dart';
@@ -36,6 +40,12 @@ void showMessageDetailSheet(
   // Capture now once when the sheet is opened, not on every rebuild.
   final now = DateTime.now();
 
+  final messageId = messageData['id']?.toString();
+  final messageText =
+      (messageData['content'] ?? messageData['text'] ?? '').toString();
+  final canSpeak =
+      !kIsWeb && messageText.trim().isNotEmpty && messageId != null;
+
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: cs.surface,
@@ -52,6 +62,12 @@ void showMessageDetailSheet(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (canSpeak)
+              _SpeakRow(
+                messageId: messageId,
+                messageText: messageText,
+                onTriggered: () => Navigator.of(ctx).maybePop(),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg,
@@ -258,6 +274,95 @@ class _MessageInfoRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Speak this message" / "Stop speaking" row shown at the top of the
+/// detail sheet. Mirrors the play state of [TtsService] so tapping
+/// while the message is already playing stops it.
+class _SpeakRow extends ConsumerWidget {
+  const _SpeakRow({
+    required this.messageId,
+    required this.messageText,
+    required this.onTriggered,
+  });
+
+  final String messageId;
+  final String messageText;
+  final VoidCallback onTriggered;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    return ValueListenableBuilder<String?>(
+      valueListenable: TtsService().currentToken,
+      builder: (context, currentToken, _) {
+        final isPlaying = currentToken == messageId;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            onTap: () {
+              if (isPlaying) {
+                TtsService().stop();
+              } else {
+                final settings = ref.read(settingsNotifierProvider);
+                TtsService().speak(
+                  messageText,
+                  token: messageId,
+                  useOffline: settings.ttsUseOffline,
+                  offlineVoiceId: settings.ttsVoiceId,
+                );
+              }
+              onTriggered();
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isPlaying
+                          ? Icons.stop_rounded
+                          : Icons.volume_up_rounded,
+                      size: 18,
+                      color: cs.primary,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      isPlaying ? 'Stop speaking' : 'Speak this message',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

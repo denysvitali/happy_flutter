@@ -23,8 +23,12 @@ class TtsService {
   FlutterTts? _tts;
   bool _initialized = false;
   final ValueNotifier<String?> _currentToken = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> _currentText = ValueNotifier<String?>(null);
   bool _offlineListenerAttached = false;
+  bool _selfListenerAttached = false;
   _Backend _activeBackend = _Backend.system;
+  final List<_QueuedSpeech> _queue = <_QueuedSpeech>[];
+  bool _draining = false;
 
   void _attachOfflineListenerIfNeeded() {
     if (_offlineListenerAttached) return;
@@ -32,9 +36,45 @@ class TtsService {
     OfflineTtsService().currentToken.addListener(_onOfflineTokenChanged);
   }
 
+  void _attachSelfListenerIfNeeded() {
+    if (_selfListenerAttached) return;
+    _selfListenerAttached = true;
+    _currentToken.addListener(_maybeDrainQueue);
+  }
+
   void _onOfflineTokenChanged() {
     if (_activeBackend != _Backend.offline) return;
     _setCurrentToken(OfflineTtsService().currentToken.value);
+    if (OfflineTtsService().currentToken.value == null) {
+      _currentText.value = null;
+    }
+  }
+
+  void _maybeDrainQueue() {
+    if (_currentToken.value != null) return;
+    if (_queue.isEmpty) return;
+    if (_draining) return;
+    // Defer to a microtask so the listener returns before we trigger
+    // another speak (which may flip the token back and forth).
+    Future<void>.microtask(_drainQueue);
+  }
+
+  Future<void> _drainQueue() async {
+    if (_draining) return;
+    if (_currentToken.value != null) return;
+    if (_queue.isEmpty) return;
+    _draining = true;
+    try {
+      final next = _queue.removeAt(0);
+      await _speakInternal(
+        next.markdown,
+        token: next.token,
+        useOffline: next.useOffline,
+        offlineVoiceId: next.offlineVoiceId,
+      );
+    } finally {
+      _draining = false;
+    }
   }
 
   /// Identifier of the speech currently in progress (the token last
@@ -46,8 +86,18 @@ class TtsService {
   /// completion/cancel/error/stop.
   ValueListenable<String?> get currentToken => _currentToken;
 
+  /// Clean (markdown-stripped) text of the message currently being
+  /// spoken, or `null` when the engine is idle. The chat playback bar
+  /// uses this to show a one-line preview of what's playing.
+  ValueListenable<String?> get currentText => _currentText;
+
   /// Whether speech is currently in progress.
   bool get isSpeaking => _currentToken.value != null;
+
+  /// Number of speech requests currently waiting in the queue behind
+  /// the actively-speaking one. Used by the playback bar to surface a
+  /// "+N queued" hint.
+  int get queuedCount => _queue.length;
 
   void _setCurrentToken(String? token) {
     if (_currentToken.value == token) return;
@@ -75,14 +125,17 @@ class TtsService {
       _tts!.setCompletionHandler(() {
         logger.info('[TTS] Speech completed');
         _setCurrentToken(null);
+        _currentText.value = null;
       });
       _tts!.setCancelHandler(() {
         logger.info('[TTS] Speech cancelled');
         _setCurrentToken(null);
+        _currentText.value = null;
       });
       _tts!.setErrorHandler((msg) {
         logger.error('[TTS] Error: $msg');
         _setCurrentToken(null);
+        _currentText.value = null;
       });
       _initialized = true;
       logger.info('[TTS] Engine initialized');
@@ -168,6 +221,56 @@ class TtsService {
     bool useOffline = false,
     String? offlineVoiceId,
   }) async {
+    // User-initiated speech: clear any queued auto-speech so prev/next
+    // and per-message taps respond immediately instead of being held
+    // up behind queued auto-replies.
+    _queue.clear();
+    return _speakInternal(
+      markdown,
+      token: token,
+      useOffline: useOffline,
+      offlineVoiceId: offlineVoiceId,
+    );
+  }
+
+  /// Queue [markdown] to be spoken after the current speech finishes.
+  /// If nothing is currently playing, behaves like [speak].
+  ///
+  /// Used by the live chat gate so a new agent reply doesn't interrupt
+  /// an earlier reply the user is still listening to.
+  Future<void> enqueueSpeak(
+    String markdown, {
+    String? token,
+    bool useOffline = false,
+    String? offlineVoiceId,
+  }) async {
+    _attachSelfListenerIfNeeded();
+    if (_currentToken.value == null && _queue.isEmpty) {
+      return _speakInternal(
+        markdown,
+        token: token,
+        useOffline: useOffline,
+        offlineVoiceId: offlineVoiceId,
+      );
+    }
+    _queue.add(
+      _QueuedSpeech(
+        markdown: markdown,
+        token: token,
+        useOffline: useOffline,
+        offlineVoiceId: offlineVoiceId,
+      ),
+    );
+    logger.info('[TTS] enqueued speech (queue size=${_queue.length})');
+  }
+
+  Future<void> _speakInternal(
+    String markdown, {
+    String? token,
+    bool useOffline = false,
+    String? offlineVoiceId,
+  }) async {
+    _attachSelfListenerIfNeeded();
     if (kIsWeb) {
       logger.warning('[TTS] speak skipped: kIsWeb');
       return;
@@ -196,6 +299,7 @@ class TtsService {
       }
       _activeBackend = _Backend.offline;
       _setCurrentToken(token);
+      _currentText.value = clean;
       try {
         await OfflineTtsService().speak(
           clean,
@@ -223,6 +327,7 @@ class TtsService {
         '(call init() first)',
       );
       _setCurrentToken(null);
+      _currentText.value = null;
       return;
     }
     _activeBackend = _Backend.system;
@@ -232,17 +337,21 @@ class TtsService {
       _tts = null;
       _initialized = false;
       _setCurrentToken(null);
+      _currentText.value = null;
       logger.warning('[TTS] speak skipped: $e');
       return;
     }
     _setCurrentToken(token);
+    _currentText.value = clean;
     final result = await _tts!.speak(clean);
     logger.info('[TTS] speak() returned: $result');
   }
 
   /// Stop any in-progress speech (across both backends).
   Future<void> stop() async {
+    _queue.clear();
     _setCurrentToken(null);
+    _currentText.value = null;
     // Stop the offline backend best-effort even if it's not the
     // currently active one — better to over-stop than to leave
     // audio playing after a session change.
@@ -260,7 +369,9 @@ class TtsService {
 
   /// Release engine resources.
   Future<void> dispose() async {
+    _queue.clear();
     _setCurrentToken(null);
+    _currentText.value = null;
     try {
       await OfflineTtsService().dispose();
     } catch (_) {/* ignore */}
@@ -388,4 +499,18 @@ class TtsService {
     final value = entry.toString();
     return <String, String>{'name': '$fallbackName $value', stringKey: value};
   }
+}
+
+class _QueuedSpeech {
+  const _QueuedSpeech({
+    required this.markdown,
+    required this.token,
+    required this.useOffline,
+    required this.offlineVoiceId,
+  });
+
+  final String markdown;
+  final String? token;
+  final bool useOffline;
+  final String? offlineVoiceId;
 }

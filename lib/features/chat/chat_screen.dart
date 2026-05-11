@@ -523,8 +523,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ttsEnabled: settings.ttsEnabled,
       );
       if (speech != null) {
+        // Use enqueueSpeak so a new reply arriving while the user is
+        // still listening to an earlier one doesn't interrupt — the
+        // newer reply plays after the current one finishes.
         unawaited(
-          TtsService().speak(
+          TtsService().enqueueSpeak(
             speech,
             token: _ttsGate.lastSpokenMessageId,
             useOffline: settings.ttsUseOffline,
