@@ -89,14 +89,6 @@ Future<void> _runApp() async {
   // the package never attempts HTTP requests for font files at runtime.
   GoogleFonts.config.allowRuntimeFetching = false;
 
-  final otelSpan = startupTransaction.startChild(
-    'app.startup.opentelemetry',
-    description: 'Initialize OpenTelemetry',
-  );
-  await OpenTelemetryService().initialize().whenComplete(() {
-    unawaited(otelSpan.finish());
-  });
-
   // Register background FCM handler before any Firebase calls.
   if (!kIsWeb) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -113,8 +105,10 @@ Future<void> _runApp() async {
   });
   unawaited(sodiumSingleton); // FFI load overlaps with storage/network
 
-  // Defer Android user certificates and Firebase past first frame —
-  // they provide zero value before the user sees the first screen.
+  // Defer Android user certificates, Firebase, OpenTelemetry,
+  // and NetworkMonitorService past first frame — none of them are
+  // needed to render the first frame, and each adds ~50–400ms to the
+  // critical path on cold start.
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(_deferredInit());
     // Start tracking janky frames for Sentry/GlitchTip visibility.
@@ -123,7 +117,9 @@ Future<void> _runApp() async {
     }
   });
 
-  // Await essentials: storage + network (server URL is needed for network).
+  // Await essentials: storage + API client. NetworkMonitor is deferred
+  // to _deferredInit; its callers (Sync.resume, networkNotifier) all
+  // tolerate a not-yet-initialized service.
   final storageSpan = startupTransaction.startChild(
     'app.startup.storage',
     description: 'Initialize storage',
@@ -131,27 +127,13 @@ Future<void> _runApp() async {
   await storage.Storage().initialize();
   await storageSpan.finish();
   final serverUrl = getServerUrl();
-  final servicesSpan = startupTransaction.startChild(
-    'app.startup.services',
-    description: 'Initialize network and API client',
-  );
-  final networkSpan = servicesSpan.startChild(
-    'app.startup.networkMonitor',
-    description: 'Initialize network monitor',
-  );
-  final apiSpan = servicesSpan.startChild(
+  final apiSpan = startupTransaction.startChild(
     'app.startup.apiClient',
     description: 'Initialize API client',
   );
-  await Future.wait([
-    NetworkMonitorService().initialize().whenComplete(() {
-      unawaited(networkSpan.finish());
-    }),
-    ApiClient().initialize(serverUrl: serverUrl).whenComplete(() {
-      unawaited(apiSpan.finish());
-    }),
-  ]);
-  await servicesSpan.finish();
+  await ApiClient().initialize(serverUrl: serverUrl).whenComplete(() {
+    unawaited(apiSpan.finish());
+  });
 
   final deepLink = await deepLinkFuture;
 
@@ -180,9 +162,49 @@ Future<void> _deferredInit() async {
     'app.load.deferred',
     bindToScope: false,
   );
-  // Run Android certs and Firebase init in parallel — they are
-  // independent and each can take 500ms+.
+  // Run Android certs, Firebase, OpenTelemetry, and NetworkMonitor
+  // init in parallel — they are all independent and each can take
+  // 100–500ms+. None are needed to render the first frame.
   final futures = <Future<void>>[];
+
+  // OpenTelemetry — gRPC tracer init. Off the critical path; the
+  // GoRouter observer list tolerates a null routeObserver until init
+  // completes (see app_router.dart `?OpenTelemetryService().routeObserver`).
+  futures.add(() async {
+    final otelSpan = transaction.startChild(
+      'app.deferredInit.opentelemetry',
+      description: 'Initialize OpenTelemetry',
+    );
+    try {
+      await OpenTelemetryService().initialize();
+    } catch (e) {
+      otelSpan
+        ..status = const SpanStatus.internalError()
+        ..setData('error', e.toString());
+    } finally {
+      await otelSpan.finish();
+    }
+  }());
+
+  // NetworkMonitor — `Connectivity.checkConnectivity()` is a platform
+  // channel round-trip (~50–150ms warm, more on cold). The service is
+  // only consumed once the user authenticates and Sync resumes; all
+  // callers (suspend/resume, networkNotifier) tolerate not-yet-init.
+  futures.add(() async {
+    final networkSpan = transaction.startChild(
+      'app.deferredInit.networkMonitor',
+      description: 'Initialize network monitor',
+    );
+    try {
+      await NetworkMonitorService().initialize();
+    } catch (e) {
+      networkSpan
+        ..status = const SpanStatus.internalError()
+        ..setData('error', e.toString());
+    } finally {
+      await networkSpan.finish();
+    }
+  }());
 
   // Android user certificates — JNI calls + ASN.1 parsing.
   if (!kIsWeb && isAndroid) {
