@@ -15,20 +15,36 @@ class AgentEventWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final label = _eventLabel(event);
     if (label == null) return const SizedBox.shrink();
+    final isUnrendered =
+        event is Map<String, dynamic> && event['type'] == 'unrendered';
+    final color = isUnrendered
+        ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55)
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.sm,
       ),
       child: Center(
-        child: Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant.withValues(
-              alpha: 0.6,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isUnrendered) ...[
+              Icon(
+                Icons.help_outline_rounded,
+                size: 12,
+                color: color,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(color: color),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-          textAlign: TextAlign.center,
+          ],
         ),
       ),
     );
@@ -45,6 +61,8 @@ class AgentEventWidget extends StatelessWidget {
         return event['message'] as String?;
       case 'limit-reached':
         return event['message'] as String? ?? 'Usage limit reached';
+      case 'unrendered':
+        return event['message'] as String? ?? 'Unsupported agent message';
       default:
         return null;
     }

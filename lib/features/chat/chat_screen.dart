@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -885,13 +886,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       );
     } else if (session.thinking) {
+      // When the agent has been "thinking" for a while with no new visible
+      // (non-sidechain) message, surface that the work is likely happening
+      // inside sub-tasks. Without this signal the chat looks paused — see
+      // the long-running session diagnosis on c8400ba… where 2000+ server
+      // messages produced almost no visible bubbles.
+      const subTaskSwitchMs = 30000;
+      var lastVisibleCreatedAt = 0;
+      for (var i = _messages.length - 1; i >= 0; i--) {
+        if (_messages[i]['isSidechain'] == true) continue;
+        final ts = _messages[i]['createdAt'];
+        if (ts is int) {
+          lastVisibleCreatedAt = ts;
+          break;
+        }
+      }
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final stale =
+          lastVisibleCreatedAt > 0 &&
+          nowMs - lastVisibleCreatedAt > subTaskSwitchMs;
       chips.add(
         ChatAppBarStatusChip(
-          text: 'Thinking',
+          text: stale ? 'Working on sub-tasks' : 'Thinking',
           color: colorScheme.primary,
-          showDot: true,
+          showDot: !stale,
+          icon: Icons.account_tree_outlined,
         ),
       );
+    }
+
+    // Debug-only seq watermark — proves the session is alive when the
+    // visible chat looks idle. Highest seq we have decrypted (incl.
+    // sidechain). The user requested this after observing seq=2000+ with
+    // few visible messages.
+    if (kDebugMode) {
+      var maxSeq = -1;
+      for (final m in _messages) {
+        final s = m['seq'];
+        if (s is int && s > maxSeq) maxSeq = s;
+      }
+      if (maxSeq >= 0) {
+        chips.add(
+          ChatAppBarStatusChip(
+            text: 'seq=$maxSeq',
+            color: colorScheme.outline,
+            icon: Icons.bug_report_outlined,
+          ),
+        );
+      }
     }
 
     final latestUserMessage = _latestUserMessageWithStatus();

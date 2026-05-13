@@ -1,5 +1,33 @@
 part of '../message_processor.dart';
 
+/// Emits a visible `agent-event` for content the handler cannot render.
+///
+/// Replaces silent drops so the user sees that *something* arrived from
+/// the agent — looking at an empty chat while the server seq advances
+/// gives the impression the session is paused. The `droppedReasons`
+/// telemetry still fires for Sentry grouping.
+void _emitUnrenderedAgentEvent({
+  required String id,
+  required String suffix,
+  required int seq,
+  required int createdAt,
+  required String label,
+  required ({bool isSidechain, String? uuid, String? parentUuid}) meta,
+  required List<Map<String, dynamic>> messages,
+}) {
+  messages.add({
+    'id': '${id}_$suffix',
+    'seq': seq,
+    'createdAt': createdAt,
+    'role': 'agent',
+    'kind': 'agent-event',
+    'event': {'type': 'unrendered', 'message': label},
+    if (meta.isSidechain) 'isSidechain': true,
+    'uuid': ?meta.uuid,
+    'parentUuid': ?meta.parentUuid,
+  });
+}
+
 void _processOutputContent({
   required String id,
   required String? localId,
@@ -17,6 +45,15 @@ void _processOutputContent({
   if (data == null) {
     droppedReasons?.add(
       'seq=$seq id=$id: output data is not a Map',
+    );
+    _emitUnrenderedAgentEvent(
+      id: id,
+      suffix: 'ud',
+      seq: seq,
+      createdAt: createdAt,
+      label: 'Unsupported agent message',
+      meta: (isSidechain: false, uuid: null, parentUuid: null),
+      messages: messages,
     );
     return;
   }
@@ -85,6 +122,15 @@ void _processOutputContent({
         droppedReasons?.add(
           'seq=$seq id=$id: assistant message field unexpected type',
         );
+        _emitUnrenderedAgentEvent(
+          id: id,
+          suffix: 'amf',
+          seq: seq,
+          createdAt: createdAt,
+          label: 'Unsupported agent message',
+          meta: meta,
+          messages: messages,
+        );
       }
       return;
     }
@@ -121,11 +167,23 @@ void _processOutputContent({
         droppedReasons?.add(
           'seq=$seq id=$id: assistant content unexpected type',
         );
+        _emitUnrenderedAgentEvent(
+          id: id,
+          suffix: 'act',
+          seq: seq,
+          createdAt: createdAt,
+          label: 'Unsupported agent message',
+          meta: meta,
+          messages: messages,
+        );
       }
       return;
     }
 
     if (agentContentList.isEmpty) {
+      // Truly empty content carries no information to render. Keep silent
+      // (just log to telemetry) — emitting an "unrendered" chip here would
+      // create noise for legitimately empty acks.
       droppedReasons?.add('seq=$seq id=$id: assistant content list is empty');
       return;
     }
@@ -228,6 +286,15 @@ void _processOutputContent({
         // content blocks into a single issue instead of one per variant.
         droppedReasons?.add(
           'seq=$seq id=$id: unrecognized output content block',
+        );
+        _emitUnrenderedAgentEvent(
+          id: id,
+          suffix: 'ub$i',
+          seq: seq,
+          createdAt: createdAt,
+          label: 'Unsupported content block ($type)',
+          meta: meta,
+          messages: messages,
         );
       }
       i++;
@@ -454,6 +521,15 @@ void _processOutputContent({
           });
         } else if (type != null) {
           droppedReasons?.add('user content block type=$type not handled');
+          _emitUnrenderedAgentEvent(
+            id: id,
+            suffix: 'uu$i',
+            seq: seq,
+            createdAt: createdAt,
+            label: 'Unsupported content block ($type)',
+            meta: meta,
+            messages: messages,
+          );
         }
         i++;
       }
@@ -481,6 +557,17 @@ void _processOutputContent({
   // groups all unrecognized output data types into a single issue
   // instead of one per variant.
   droppedReasons?.add('output data type not handled');
+  _emitUnrenderedAgentEvent(
+    id: id,
+    suffix: 'udt',
+    seq: seq,
+    createdAt: createdAt,
+    label: dataType != null && dataType.isNotEmpty
+        ? 'Unsupported message ($dataType)'
+        : 'Unsupported agent message',
+    meta: meta,
+    messages: messages,
+  );
 }
 
 String _webSearchState(String? status) {
