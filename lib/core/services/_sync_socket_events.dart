@@ -103,9 +103,16 @@ extension SyncSocketEvents on Sync {
       if (_visibleSessionId != null) {
         unawaited(
           sessionsSync.awaitQueue().then((_) {
-            if (_visibleSessionId != null) {
-              _sessionsNeedingFetchProbe.add(_visibleSessionId!);
-              messagesSync[_visibleSessionId]?.invalidate();
+            // Snapshot once: `_visibleSessionId` can be cleared by a
+            // delete-session event or chat-dispose between the null
+            // check and the `!`, even though those happen in the same
+            // turn — the `.then()` callback runs after an await gap so
+            // any code that mutated `_visibleSessionId` while the
+            // sessions fetch was in flight has already landed.
+            final vid = _visibleSessionId;
+            if (vid != null) {
+              _sessionsNeedingFetchProbe.add(vid);
+              messagesSync[vid]?.invalidate();
             }
           }),
         );

@@ -317,12 +317,16 @@ extension SyncData on Sync {
         for (final entry in _sessionSpawnedAt.entries) {
           final sid = entry.key;
           final spawnedAt = entry.value;
-          if (!newSessions.containsKey(sid) &&
-              _sessions.containsKey(sid) &&
-              now - spawnedAt < 60000) {
-            newSessions[sid] = _sessions[sid]!;
-            preservedSessions.add(sid);
-          }
+          if (newSessions.containsKey(sid)) continue;
+          if (now - spawnedAt >= 60000) continue;
+          // Read once into a local to avoid any chance of a racing
+          // mutation between the containsKey check and the `!` deref —
+          // socket events / delete-session can mutate _sessions while
+          // fetchSessions has yielded for awaits on the same iteration.
+          final preserved = _sessions[sid];
+          if (preserved == null) continue;
+          newSessions[sid] = preserved;
+          preservedSessions.add(sid);
         }
         if (preservedSessions.isNotEmpty) {
           logger.info(

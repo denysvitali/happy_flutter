@@ -640,8 +640,22 @@ extension SyncMessagingMerge on Sync {
       if (m['isSidechain'] == true && id != null && orphanIds.contains(id)) {
         final root = orphanIdToRoot[id] ?? '';
         if (!inserted.contains(root)) {
-          result.add(syntheticByRoot[root]!);
-          inserted.add(root);
+          // Defensive null guard. By construction every orphan id maps to
+          // an entry in syntheticByRoot, but a future refactor or an
+          // out-of-order mutation must not be able to surface a
+          // "Null check operator used on a null value" crash on the
+          // sessions cold path.
+          final synthetic = syntheticByRoot[root];
+          if (synthetic != null) {
+            result.add(synthetic);
+            inserted.add(root);
+          } else {
+            logger.warning(
+              '[sidechain] missing synthetic root entry for orphan id=$id '
+              'root="$root" — keeping orphan as-is',
+            );
+            result.add(m);
+          }
         }
         continue;
       }
