@@ -160,6 +160,21 @@ void main() {
       testSync.isInitialized = true;
     });
 
+    Future<void> pumpDialog(
+      WidgetTester tester,
+      Widget widget,
+    ) async {
+      // The dialog's intrinsic height exceeds the default 600px test
+      // viewport when the offline banner expands; give it room to lay
+      // out so the test does not fail on a 4px RenderFlex overflow.
+      tester.view.physicalSize = const Size(1024, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(widget);
+      await tester.pump();
+    }
+
     Widget buildHarness({
       required Map<String, Machine> machines,
       String? initialMachineId,
@@ -198,13 +213,13 @@ void main() {
         active: false,
         activeAtMs: stale,
       );
-      await tester.pumpWidget(
+      await pumpDialog(
+        tester,
         buildHarness(
           machines: {'m-offline': offlineMachine},
           initialMachineId: 'm-offline',
         ),
       );
-      await tester.pump();
 
       // The requirement banner must mention the offline state.
       expect(
@@ -233,13 +248,13 @@ void main() {
         active: true,
         activeAtMs: now,
       );
-      await tester.pumpWidget(
+      await pumpDialog(
+        tester,
         buildHarness(
           machines: {'m-online': onlineMachine},
           initialMachineId: 'm-online',
         ),
       );
-      await tester.pump();
 
       final createButton = tester.widget<ElevatedButton>(
         find.widgetWithText(ElevatedButton, 'Create'),
