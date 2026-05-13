@@ -358,4 +358,34 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   Future<bool> testDeliverOutboxEntry(OutboxEntry entry) =>
       _deliverOutboxEntry(entry);
+
+  /// Test helper: start the resume conversation progress with [total]
+  /// pending sessions. Mirrors what `resume()` calls internally.
+  @visibleForTesting
+  void testStartResumeConversationProgress(int total) =>
+      _startResumeConversationProgress(total);
+
+  /// Test helper: advance the resume conversation progress by [count]
+  /// completed sessions. Mirrors what `resume()` calls after a batch.
+  @visibleForTesting
+  void testAdvanceResumeConversationProgress(int count) =>
+      _advanceResumeConversationProgress(count);
+
+  /// Test helper: read the current resume-progress totals (completed,
+  /// total). Returns `(0, 0)` when the progress indicator is idle.
+  @visibleForTesting
+  (int, int) get testResumeConversationProgress => (
+        _resumeConversationRefreshCompleted,
+        _resumeConversationRefreshTotal,
+      );
+
+  /// Test helper: whether the safety timer is currently scheduled.
+  @visibleForTesting
+  bool get testResumeConversationProgressSafetyTimerActive =>
+      _resumeConversationProgressSafetyTimer != null;
+
+  /// Test helper: read [_syncProgress] directly (vs the public getter,
+  /// which is identical but kept symmetrical with the other helpers).
+  @visibleForTesting
+  SyncProgress? get testSyncProgress => _syncProgress;
 }

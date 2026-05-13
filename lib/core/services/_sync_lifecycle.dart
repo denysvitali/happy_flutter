@@ -37,6 +37,8 @@ extension SyncLifecycle on Sync {
     _reconnectWatchdogTimer = null;
     _resumeBatchTimer?.cancel();
     _resumeBatchTimer = null;
+    _resumeConversationProgressSafetyTimer?.cancel();
+    _resumeConversationProgressSafetyTimer = null;
     _resumeConversationRefreshTotal = 0;
     _resumeConversationRefreshCompleted = 0;
 
@@ -352,13 +354,56 @@ extension SyncLifecycle on Sync {
           // same sessionsSync queue).
           sessionsSync.invalidate();
           unawaited(
-            sessionsSync.awaitQueue().then((_) {
-              for (final sessionId in sessionsToRefresh) {
-                _sessionsNeedingFetchProbe.add(sessionId);
-                messagesSync[sessionId]?.invalidate();
-              }
-              _advanceResumeConversationProgress(sessionsToRefresh.length);
-            }),
+            sessionsSync
+                .awaitQueue()
+                .then((_) {
+                  for (final sessionId in sessionsToRefresh) {
+                    _sessionsNeedingFetchProbe.add(sessionId);
+                    try {
+                      messagesSync[sessionId]?.invalidate();
+                    } on Object catch (e, st) {
+                      logger.warning(
+                        '[Sync] resume: messagesSync[$sessionId].invalidate() '
+                        'threw — continuing to advance progress: $e',
+                      );
+                      unawaited(
+                        Sentry.captureException(
+                          e,
+                          stackTrace: st,
+                          hint: Hint.withMap(<String, dynamic>{
+                            'where':
+                                'resume.advance.messagesSync.invalidate',
+                            'sessionId': sessionId,
+                          }),
+                        ),
+                      );
+                    }
+                  }
+                })
+                .catchError((Object e, StackTrace st) {
+                  logger.warning(
+                    '[Sync] resume: sessionsSync.awaitQueue() failed — '
+                    'forcing resume conversation progress to clear: $e',
+                  );
+                  unawaited(
+                    Sentry.captureException(
+                      e,
+                      stackTrace: st,
+                      hint: Hint.withMap(<String, dynamic>{
+                        'where': 'resume.awaitQueue',
+                        'pendingSessions': sessionsToRefresh.length,
+                      }),
+                    ),
+                  );
+                })
+                .whenComplete(() {
+                  // ALWAYS advance — even on failure — so the
+                  // "Fetching conversations" bar never hangs at
+                  // "0 of N complete".
+                  _advanceResumeConversationProgress(
+                    sessionsToRefresh.length,
+                  );
+                }),
           );
         } else if (shouldRefreshSessions) {
           sessionsSync.invalidate();
@@ -368,7 +413,20 @@ extension SyncLifecycle on Sync {
   }
 
   void _startResumeConversationProgress(int total) {
-    if (total <= 0) return;
+    // Always cancel any in-flight safety timer first — even if `total`
+    // is 0 or negative — so we never leak a timer from a previous
+    // resume cycle.
+    _resumeConversationProgressSafetyTimer?.cancel();
+    _resumeConversationProgressSafetyTimer = null;
+    if (total <= 0) {
+      // A new resume cycle that needs no conversations should also
+      // clear any stale totals from a previous cycle. Otherwise a
+      // subsequent advance() call could re-show a "Fetching
+      // conversations" bar against the prior cycle's count.
+      _resumeConversationRefreshTotal = 0;
+      _resumeConversationRefreshCompleted = 0;
+      return;
+    }
     _resumeConversationRefreshTotal = total;
     _resumeConversationRefreshCompleted = 0;
     _setSyncProgress(
@@ -377,6 +435,12 @@ extension SyncLifecycle on Sync {
         completed: _resumeConversationRefreshCompleted,
         total: _resumeConversationRefreshTotal,
       ),
+    );
+    _resumeConversationProgressSafetyTimer = Timer(
+      const Duration(
+        milliseconds: Sync._resumeConversationProgressTimeoutMs,
+      ),
+      _onResumeConversationProgressTimeout,
     );
   }
 
@@ -395,9 +459,43 @@ extension SyncLifecycle on Sync {
     );
     if (_resumeConversationRefreshCompleted >=
         _resumeConversationRefreshTotal) {
-      _resumeConversationRefreshTotal = 0;
-      _resumeConversationRefreshCompleted = 0;
+      _clearResumeConversationProgress();
     }
+  }
+
+  /// Force-clears the resume conversation progress indicator and any
+  /// pending safety timer. Safe to call repeatedly; idempotent.
+  void _clearResumeConversationProgress() {
+    _resumeConversationProgressSafetyTimer?.cancel();
+    _resumeConversationProgressSafetyTimer = null;
+    _resumeConversationRefreshTotal = 0;
+    _resumeConversationRefreshCompleted = 0;
+    _setSyncProgress(null);
+  }
+
+  void _onResumeConversationProgressTimeout() {
+    _resumeConversationProgressSafetyTimer = null;
+    if (_resumeConversationRefreshTotal <= 0) return;
+    final completed = _resumeConversationRefreshCompleted;
+    final total = _resumeConversationRefreshTotal;
+    logger.warning(
+      '[Sync] resume conversation progress timed out after '
+      '${Sync._resumeConversationProgressTimeoutMs}ms — '
+      'completed $completed of $total; forcing UI clear',
+    );
+    unawaited(
+      Sentry.captureMessage(
+        'Sync resume conversation progress timeout '
+        '(completed $completed of $total)',
+        level: SentryLevel.warning,
+        hint: Hint.withMap(<String, dynamic>{
+          'completed': completed,
+          'total': total,
+          'timeoutMs': Sync._resumeConversationProgressTimeoutMs,
+        }),
+      ),
+    );
+    _clearResumeConversationProgress();
   }
 
   /// Process the next batch of sessions from
@@ -420,20 +518,39 @@ extension SyncLifecycle on Sync {
           .toList();
       for (final sessionId in batch) {
         _sessionsWithPendingSocketMessages.remove(sessionId);
-        if (_shouldForceTailRefreshForPendingSession(sessionId)) {
-          _sessionsNeedingTailRefresh.add(sessionId);
-        }
-        if (!messagesSync.containsKey(sessionId)) {
-          messagesSync[sessionId] = InvalidateSync(
-            () => fetchMessages(sessionId),
-            minInterval: Sync._messagesSyncMinInterval,
-            name: 'fetchMessages',
-            onRunningChanged: _onSyncRunningChanged,
+        try {
+          if (_shouldForceTailRefreshForPendingSession(sessionId)) {
+            _sessionsNeedingTailRefresh.add(sessionId);
+          }
+          if (!messagesSync.containsKey(sessionId)) {
+            messagesSync[sessionId] = InvalidateSync(
+              () => fetchMessages(sessionId),
+              minInterval: Sync._messagesSyncMinInterval,
+              name: 'fetchMessages',
+              onRunningChanged: _onSyncRunningChanged,
+            );
+          }
+          _sessionsNeedingFetchProbe.add(sessionId);
+          messagesSync[sessionId]?.invalidate();
+        } on Object catch (e, st) {
+          logger.warning(
+            '[Sync] resume batch: failed to schedule fetch for '
+            '$sessionId — continuing: $e',
+          );
+          unawaited(
+            Sentry.captureException(
+              e,
+              stackTrace: st,
+              hint: Hint.withMap(<String, dynamic>{
+                'where': 'resumeBatch.invalidate',
+                'sessionId': sessionId,
+              }),
+            ),
           );
         }
-        _sessionsNeedingFetchProbe.add(sessionId);
-        messagesSync[sessionId]?.invalidate();
       }
+      // ALWAYS advance — even if one or more sessions in the batch
+      // threw — so the "Fetching conversations" bar never hangs.
       _advanceResumeConversationProgress(batch.length);
 
       logger.info(
@@ -522,6 +639,8 @@ extension SyncLifecycle on Sync {
     _reconnectWatchdogTimer = null;
     _resumeBatchTimer?.cancel();
     _resumeBatchTimer = null;
+    _resumeConversationProgressSafetyTimer?.cancel();
+    _resumeConversationProgressSafetyTimer = null;
     _resumeConversationRefreshTotal = 0;
     _resumeConversationRefreshCompleted = 0;
     _setSyncProgress(null);
