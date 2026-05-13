@@ -122,15 +122,20 @@ void _processOutputContent({
         droppedReasons?.add(
           'seq=$seq id=$id: assistant message field unexpected type',
         );
-        _emitUnrenderedAgentEvent(
-          id: id,
-          suffix: 'amf',
-          seq: seq,
-          createdAt: createdAt,
-          label: 'Unsupported agent message',
-          meta: meta,
-          messages: messages,
-        );
+        // Only surface a placeholder when the field carries unparseable
+        // *data* — a null/missing message is just an empty signal and
+        // should stay silent so legitimate acks do not spam the chat.
+        if (rawAgentMsg != null) {
+          _emitUnrenderedAgentEvent(
+            id: id,
+            suffix: 'amf',
+            seq: seq,
+            createdAt: createdAt,
+            label: 'Unsupported agent message',
+            meta: meta,
+            messages: messages,
+          );
+        }
       }
       return;
     }
@@ -167,15 +172,20 @@ void _processOutputContent({
         droppedReasons?.add(
           'seq=$seq id=$id: assistant content unexpected type',
         );
-        _emitUnrenderedAgentEvent(
-          id: id,
-          suffix: 'act',
-          seq: seq,
-          createdAt: createdAt,
-          label: 'Unsupported agent message',
-          meta: meta,
-          messages: messages,
-        );
+        // Same rationale as the message-field branch above: null/missing
+        // content stays silent (no information). Genuinely weird types
+        // (numbers, maps, etc.) surface the placeholder.
+        if (agentContentList != null) {
+          _emitUnrenderedAgentEvent(
+            id: id,
+            suffix: 'act',
+            seq: seq,
+            createdAt: createdAt,
+            label: 'Unsupported agent message',
+            meta: meta,
+            messages: messages,
+          );
+        }
       }
       return;
     }
@@ -281,6 +291,9 @@ void _processOutputContent({
             'parentUuid': ?meta.parentUuid,
           });
         }
+      } else if (type == 'redacted_thinking') {
+        // Anthropic's encrypted thinking blob — deliberately invisible
+        // to the user. No telemetry, no placeholder.
       } else if (type != null) {
         // Omit type and index so GlitchTip groups all unrecognized
         // content blocks into a single issue instead of one per variant.
