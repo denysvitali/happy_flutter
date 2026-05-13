@@ -671,10 +671,16 @@ class Storage {
   final sessionPermissionModesStorage = SessionPermissionModesStorage();
   final profileStorage = ProfileStorage();
 
-  /// Initialize all storage
+  /// Initialize all storage.
+  ///
+  /// MMKVStorage and ServerConfigStorage are independent (each calls the
+  /// idempotent `MMKV.initialize()` itself) so we run them in parallel to
+  /// shave a few hundred ms off cold start.
   Future<void> initialize() async {
-    await MMKVStorage.initialize();
-    await ServerConfigStorage.initialize();
+    await Future.wait<void>([
+      MMKVStorage.initialize(),
+      ServerConfigStorage.initialize(),
+    ]);
   }
 
   /// Clear all storage (except server config which persists across logouts)
