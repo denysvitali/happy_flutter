@@ -13,6 +13,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/safe_pop.dart';
 import '../../core/utils/session_utils.dart';
 import 'widgets/session_info_widgets.dart';
 
@@ -272,7 +273,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       syncService.markSessionArchived(sessionId);
       if (!mounted) return;
       if (!embedded) {
-        Navigator.of(context).pop();
+        safePop<void>(context);
       }
     } catch (e, st) {
       logger.error(
@@ -325,7 +326,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     setState(() => _isDeleting = false);
     if (deleted) {
       if (!embedded) {
-        Navigator.of(context).pop();
+        safePop<void>(context);
       }
     } else {
       _showError(failedDeleteMsg);

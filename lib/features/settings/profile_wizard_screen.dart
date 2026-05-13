@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/safe_pop.dart';
 import 'profile_setup_catalog.dart';
 
 /// Multi-step wizard for creating a new AI profile.
@@ -398,7 +398,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
               profile.id,
             ),
           );
-      if (mounted) context.pop();
+      if (mounted) safePop<void>(context, fallbackRouteName: 'profiles');
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(failedToSaveMsg)));
     }
@@ -433,7 +433,8 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         title: Text(l10n.profilesWizardTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
+          onPressed: () =>
+              safePop<void>(context, fallbackRouteName: 'profiles'),
         ),
       ),
       body: Stepper(
@@ -455,7 +456,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           if (_currentStep > 0) {
             setState(() => _currentStep--);
           } else {
-            context.pop();
+            safePop<void>(context, fallbackRouteName: 'profiles');
           }
         },
         onStepTapped: (step) {

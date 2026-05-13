@@ -11,6 +11,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/safe_pop.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Screen showing detail view for a single artifact.
@@ -176,7 +177,7 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
         if (widget.embedded) {
           widget.onClose?.call();
         } else {
-          context.pop();
+          safePop<void>(context, fallbackRouteName: 'artifacts');
         }
       } catch (e, st) {
         logger.warning(

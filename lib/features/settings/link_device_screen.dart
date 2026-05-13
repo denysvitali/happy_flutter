@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/i18n/app_localizations.dart';
@@ -12,6 +11,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/safe_pop.dart';
 import '../auth/widgets/qr_code_display.dart';
 
 /// The three modes of the device linking screen.
@@ -99,7 +99,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
               content: Text(context.l10n.authDeviceLinkedSuccess),
             ),
           );
-          context.pop();
+          if (mounted) safePop<void>(context);
         }
       }
     } catch (e, st) {
@@ -131,7 +131,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
             content: Text(context.l10n.authDeviceLinkedSuccess),
           ),
         );
-        context.pop();
+        if (mounted) safePop<void>(context);
       }
     } catch (e, st) {
       logger.warning('Failed to approve linking request: $e', e, st);
@@ -202,7 +202,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         title: Text(l10n.accountLinkDevice),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
+          onPressed: () => safePop<void>(context),
         ),
       ),
       body: SafeArea(
@@ -396,7 +396,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
             child: OutlinedButton(
               onPressed: !_isPolling && _error != null
                   ? _startLinking
-                  : () => context.pop(),
+                  : () => safePop<void>(context),
               child: Text(
                 !_isPolling && _error != null
                     ? l10n.authTryAgain

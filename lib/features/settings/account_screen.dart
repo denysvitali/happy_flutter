@@ -7,6 +7,7 @@ import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/safe_pop.dart';
 import 'helpers/account_dialogs.dart';
 import 'widgets/connected_accounts_section.dart';
 
@@ -21,7 +22,7 @@ class AccountScreen extends ConsumerWidget {
         title: Text(context.l10n.accountAccountSettings),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => safePop<void>(context),
         ),
       ),
       body: ListView(

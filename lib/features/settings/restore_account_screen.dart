@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
@@ -11,6 +10,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
+import '../../core/utils/safe_pop.dart';
 
 /// Account restoration screen
 class RestoreAccountScreen extends ConsumerStatefulWidget {
@@ -41,7 +41,7 @@ class _RestoreAccountScreenState
         title: Text(context.l10n.accountRestoreAccount),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => safePop<void>(context),
         ),
       ),
       body: Padding(
@@ -169,12 +169,14 @@ class _RestoreAccountScreenState
           ref.read(authStateNotifierProvider.notifier).checkAuth(),
         );
         if (mounted) {
-          context.pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.accountRestoredSuccess),
-            ),
-          );
+          safePop<void>(context);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.l10n.accountRestoredSuccess),
+              ),
+            );
+          }
         }
       }
     } catch (e) {
