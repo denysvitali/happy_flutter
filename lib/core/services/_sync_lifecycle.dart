@@ -298,7 +298,7 @@ extension SyncLifecycle on Sync {
         if (_sessionsWithPendingSocketMessages.isNotEmpty) {
           // Remove the visible session — it's added unconditionally
           // below, so it doesn't count against the batch.
-          _sessionsWithPendingSocketMessages.remove(_visibleSessionId);
+          _sessionsWithPendingSocketMessages.remove(visibleSessionId);
           final batch = _sessionsWithPendingSocketMessages
               .take(Sync._maxResumeMessageSyncs)
               .toList();
@@ -319,9 +319,12 @@ extension SyncLifecycle on Sync {
           }
         }
 
-        // Always invalidate the visible session.
-        if (_visibleSessionId != null) {
-          sessionsToRefresh.add(_visibleSessionId!);
+        // Always invalidate the visible session — use the snapshot we
+        // captured above so a concurrent delete-session / sign-out path
+        // that clears `_visibleSessionId` between the null-check and the
+        // deref cannot trip a "null check operator" crash.
+        if (visibleSessionId != null) {
+          sessionsToRefresh.add(visibleSessionId);
         }
 
         if (sessionsToRefresh.isNotEmpty) {
@@ -496,11 +499,15 @@ extension SyncLifecycle on Sync {
         _invalidateAllSyncs(force: true);
 
         // If the visible session has a message sync, kick it too.
+        // Snapshot inside the awaited callback to avoid a null-deref
+        // if the visible session was cleared while waiting on the
+        // queue.
         if (_visibleSessionId != null) {
           unawaited(
             sessionsSync.awaitQueue().then((_) {
-              if (_visibleSessionId != null) {
-                messagesSync[_visibleSessionId]?.invalidate();
+              final vid = _visibleSessionId;
+              if (vid != null) {
+                messagesSync[vid]?.invalidate();
               }
             }),
           );
