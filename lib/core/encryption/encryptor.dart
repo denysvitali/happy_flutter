@@ -121,7 +121,11 @@ class AES256Encryption implements Encryptor {
         );
         results.add(decrypted);
       } catch (e, stack) {
-        logger.error('AES256Encryption.decrypt failed', e, stack);
+        // Recoverable failure (corrupt ciphertext, key mismatch on legacy
+        // payloads, etc). Returning null lets the caller fall through to
+        // legacy/NaCl decryption or treat the message as undecryptable
+        // without crashing.
+        logger.warning('AES256Encryption.decrypt failed', e, stack);
         results.add(null);
       }
     }

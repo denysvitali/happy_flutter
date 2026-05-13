@@ -53,7 +53,12 @@ class MachineEncryption {
       _cache.setCachedMachineMetadata(_machineId, version, data);
       return data;
     } catch (e, stack) {
-      logger.error('MachineEncryption.decryptMetadata failed', e, stack);
+      // Recoverable: caller treats null as "no metadata yet".
+      logger.warning(
+        'MachineEncryption.decryptMetadata failed machine=$_machineId',
+        e,
+        stack,
+      );
       return null;
     }
   }
@@ -89,7 +94,12 @@ class MachineEncryption {
       _cache.setCachedDaemonState(_machineId, version, result);
       return result;
     } catch (e, stack) {
-      logger.error('MachineEncryption.decryptDaemonState failed', e, stack);
+      // Recoverable: caller treats null as "no daemon state yet".
+      logger.warning(
+        'MachineEncryption.decryptDaemonState failed machine=$_machineId',
+        e,
+        stack,
+      );
       // Cache null to avoid repeated decryption attempts
       _cache.setCachedDaemonState(_machineId, version, null);
       return null;
@@ -109,7 +119,12 @@ class MachineEncryption {
       final decrypted = await _decryptor.decrypt([encryptedData]);
       return decrypted[0];
     } catch (e, stack) {
-      logger.error('MachineEncryption.decryptRaw failed', e, stack);
+      // Recoverable: caller treats null as "no decrypted content".
+      logger.warning(
+        'MachineEncryption.decryptRaw failed machine=$_machineId',
+        e,
+        stack,
+      );
       return null;
     }
   }

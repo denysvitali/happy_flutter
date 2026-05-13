@@ -536,6 +536,15 @@ class MMKVStorage {
     return _profilesStore.remove(sessionId);
   }
 
+  /// Get every persisted (sessionId -> profileId) mapping. Used by the
+  /// stale-profile sweep when a profile is deleted from settings — we
+  /// scan all entries, find the ones pointing at the removed id, and
+  /// drop them so future ChatScreen loads do not look up a ghost.
+  Future<Map<String, String>> getAllSessionProfiles() async {
+    await _ensureInitialized();
+    return _profilesStore.getAll();
+  }
+
   // ── Session last-seq (delegates to _IntCursorStore) ─────────────
 
   /// Get all persisted session last-seq cursors (synchronous)

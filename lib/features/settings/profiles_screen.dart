@@ -9,6 +9,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/draft_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/shell_script_parser.dart';
@@ -472,6 +473,11 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                   'lastUsedProfilesByAgent',
                   updatedLastUsedProfiles,
                 );
+                // Sweep DraftStorage so per-session profile mappings do not
+                // outlive the profile itself. Without this, ChatScreen
+                // _loadInitialSettings hits the firstWhere fallback every
+                // time the user opens an affected session.
+                unawaited(DraftStorage().sweepProfileReferences(profile.id));
                 Navigator.pop(context);
               },
               child: Text(l10n.commonDelete),

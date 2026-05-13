@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
 
 /// Service for managing draft message persistence
@@ -62,6 +63,45 @@ class DraftStorage {
     await removeDraft(sessionId);
     await _storage.removeSessionPermissionMode(sessionId);
     await _storage.removeSessionProfile(sessionId);
+  }
+
+  /// Remove every per-session profile mapping that points at [profileId].
+  ///
+  /// Called when an AI backend profile is deleted from settings so that
+  /// future ChatScreen loads do not look up a ghost reference and trip
+  /// the `firstWhere` fallback (which previously produced 9 warning-level
+  /// events per day in production).
+  ///
+  /// Returns the session IDs whose stored profile mapping was cleared.
+  Future<List<String>> sweepProfileReferences(String profileId) async {
+    if (profileId.isEmpty) return const [];
+    final all = await _storage.getAllSessionProfiles();
+    final stale = computeStaleSessions(all, profileId);
+    for (final sessionId in stale) {
+      await _storage.removeSessionProfile(sessionId);
+    }
+    if (stale.isNotEmpty) {
+      logger.info(
+        '[DraftStorage] swept ${stale.length} stale references to '
+        'deleted profile $profileId',
+      );
+    }
+    return stale;
+  }
+
+  /// Pure helper that picks out every session whose stored profile id
+  /// matches [profileId]. Extracted so it can be unit-tested without
+  /// touching MMKV.
+  static List<String> computeStaleSessions(
+    Map<String, String> entries,
+    String profileId,
+  ) {
+    if (profileId.isEmpty) return const [];
+    final stale = <String>[];
+    entries.forEach((sessionId, mappedProfileId) {
+      if (mappedProfileId == profileId) stale.add(sessionId);
+    });
+    return stale;
   }
 }
 

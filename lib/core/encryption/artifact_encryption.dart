@@ -50,8 +50,22 @@ class ArtifactEncryption {
 
       return Map<String, dynamic>.from(header);
     } catch (e, stack) {
-      logger.error('ArtifactEncryption.decryptHeader failed', e, stack);
-      unawaited(Sentry.captureException(e, stackTrace: stack));
+      // Recoverable: caller treats null as "decryption unavailable". Surface
+      // as a warning + tagged Sentry capture so the rate is visible without
+      // contributing to the fatal/error budget.
+      logger.warning('ArtifactEncryption.decryptHeader failed', e, stack);
+      unawaited(
+        Sentry.captureException(
+          e,
+          stackTrace: stack,
+          withScope: (scope) {
+            scope
+              ..level = SentryLevel.warning
+              ..setTag('decrypt_surface', 'artifact_header')
+              ..setTag('decrypt_reason', e.runtimeType.toString());
+          },
+        ),
+      );
       return null;
     }
   }
@@ -80,8 +94,21 @@ class ArtifactEncryption {
         'body': body['body'] as String?,
       };
     } catch (e, stack) {
-      logger.error('ArtifactEncryption.decryptBody failed', e, stack);
-      unawaited(Sentry.captureException(e, stackTrace: stack));
+      // Recoverable: caller treats null as "decryption unavailable". See
+      // decryptHeader for the rationale on warning vs error.
+      logger.warning('ArtifactEncryption.decryptBody failed', e, stack);
+      unawaited(
+        Sentry.captureException(
+          e,
+          stackTrace: stack,
+          withScope: (scope) {
+            scope
+              ..level = SentryLevel.warning
+              ..setTag('decrypt_surface', 'artifact_body')
+              ..setTag('decrypt_reason', e.runtimeType.toString());
+          },
+        ),
+      );
       return null;
     }
   }
