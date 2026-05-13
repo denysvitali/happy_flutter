@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -34,6 +36,18 @@ class TtsService {
     if (_offlineListenerAttached) return;
     _offlineListenerAttached = true;
     OfflineTtsService().currentToken.addListener(_onOfflineTokenChanged);
+  }
+
+  /// Returns `true` when the requested offline [voiceId] (or the
+  /// selected one, if unspecified) is not yet known to be `ready`
+  /// — used to decide whether to fall back to the system engine
+  /// while [OfflineTtsService.initialize] is still running.
+  bool _offlineVoiceNotReady(String? voiceId) {
+    final id = (voiceId != null && voiceId.isNotEmpty)
+        ? voiceId
+        : OfflineTtsService().selectedVoiceId;
+    if (id.isEmpty) return true;
+    return OfflineTtsService().statusFor(id) != OfflineTtsStatus.ready;
   }
 
   void _attachSelfListenerIfNeeded() {
@@ -108,6 +122,13 @@ class TtsService {
   Future<void> init({String? language, String? engine}) async {
     if (kIsWeb) return; // TTS not supported on web
     logger.info('[TTS] init called (initialized=$_initialized)');
+    // Kick off the offline engine's one-shot bootstrap eagerly so a
+    // later user tap on "Speak this message" doesn't race the FFI
+    // binding. Fire-and-forget: the system engine init below must
+    // not block on a sherpa native probe.
+    if (OfflineTtsService().isSupported) {
+      unawaited(OfflineTtsService().initialize());
+    }
     _tts ??= FlutterTts();
     if (!_initialized) {
       try {
@@ -289,35 +310,54 @@ class TtsService {
     );
 
     if (useOffline && OfflineTtsService().isSupported) {
-      _attachOfflineListenerIfNeeded();
-      // Cancel any system-engine speech before switching backends so
-      // the two engines don't speak over each other.
-      if (_initialized && _tts != null) {
-        try {
-          await _tts!.stop();
-        } catch (_) {/* ignore */}
-      }
-      _activeBackend = _Backend.offline;
-      _setCurrentToken(token);
-      _currentText.value = clean;
-      try {
-        await OfflineTtsService().speak(
-          clean,
-          token: token,
-          voiceId: offlineVoiceId,
+      // If the offline engine's one-shot init hasn't completed yet
+      // AND the requested voice isn't already extracted on disk,
+      // skip offline this round and use the system engine so the
+      // user-initiated tap responds immediately instead of blocking
+      // on a sherpa probe (or, worse, racing past it). The next tap
+      // — by which time `initialize()` has resolved — will use the
+      // offline engine as configured.
+      if (!OfflineTtsService().isReady &&
+          _offlineVoiceNotReady(offlineVoiceId)) {
+        logger.warning(
+          '[TTS] offline engine not initialised yet; '
+          'falling back to system TTS for this request',
         );
-        return;
-      } catch (e, st) {
-        // Use error level so the failure is visible under the dev
-        // logs error filter; without this the fallback to system
-        // TTS is silent and impossible to diagnose.
-        logger.error(
-          '[TTS] offline speak failed, falling back to system engine: $e',
-          e,
-          st,
-        );
-        _activeBackend = _Backend.system;
+        // Fire-and-forget kick to make sure init keeps progressing
+        // for subsequent calls.
+        unawaited(OfflineTtsService().initialize());
         // fall through to flutter_tts
+      } else {
+        _attachOfflineListenerIfNeeded();
+        // Cancel any system-engine speech before switching backends so
+        // the two engines don't speak over each other.
+        if (_initialized && _tts != null) {
+          try {
+            await _tts!.stop();
+          } catch (_) {/* ignore */}
+        }
+        _activeBackend = _Backend.offline;
+        _setCurrentToken(token);
+        _currentText.value = clean;
+        try {
+          await OfflineTtsService().speak(
+            clean,
+            token: token,
+            voiceId: offlineVoiceId,
+          );
+          return;
+        } catch (e, st) {
+          // Use error level so the failure is visible under the dev
+          // logs error filter; without this the fallback to system
+          // TTS is silent and impossible to diagnose.
+          logger.error(
+            '[TTS] offline speak failed, falling back to system engine: $e',
+            e,
+            st,
+          );
+          _activeBackend = _Backend.system;
+          // fall through to flutter_tts
+        }
       }
     }
 

@@ -331,6 +331,24 @@ class OfflineTtsService {
   StreamSubscription<PlayerState>? _stateSub;
   int _generationGen = 0;
 
+  /// One-shot lazy initialisation: probes the sherpa-onnx native
+  /// library and walks the on-disk voice cache so [statuses] reflect
+  /// reality before any caller invokes [speak]. Every offline op
+  /// awaits this before touching sherpa, so a user tapping
+  /// "Speak this message" right after launch can't race past the
+  /// FFI symbol binding and trip "Please initialize sherpa-onnx first".
+  Future<void>? _readyFuture;
+
+  /// `true` once [_doInitialize] has completed successfully. Callers
+  /// (TtsService) use this to decide whether to fall back to system
+  /// TTS instead of paying the init cost on a user-initiated tap.
+  bool _ready = false;
+
+  /// Whether the offline engine has finished its one-shot
+  /// initialisation. `false` until [initialize] resolves; once true,
+  /// stays true for the lifetime of the process.
+  bool get isReady => _ready;
+
   /// Listenable for the currently-playing token (caller-supplied id,
   /// usually a message id).
   ValueListenable<String?> get currentToken => _currentToken;
@@ -379,6 +397,46 @@ class OfflineTtsService {
     return _statuses.value[voiceId] ?? OfflineTtsStatus.notDownloaded;
   }
 
+  /// One-shot bootstrap. Safe to call repeatedly; concurrent callers
+  /// share the same future. Must complete before any FFI call into
+  /// sherpa-onnx so we don't trip "Please initialize sherpa-onnx
+  /// first" on first speak.
+  ///
+  /// Performs two things:
+  /// 1. Probes [sherpa.initBindings] inside a worker isolate so a
+  ///    broken native library surfaces *now* (logged + cached) rather
+  ///    than mid-speak.
+  /// 2. Walks the cache directory so [statuses] is populated.
+  Future<void> initialize() => _readyFuture ??= _doInitialize();
+
+  Future<void> _doInitialize() async {
+    if (!isSupported) {
+      _ready = true;
+      return;
+    }
+    try {
+      // Run a tiny probe in a worker isolate to bind FFI symbols and
+      // catch missing/incompatible libraries up front. We don't keep
+      // the bindings — they're per-isolate — but a successful probe
+      // means subsequent generate workers will succeed too.
+      await Isolate.run(_initBindingsProbe);
+    } catch (e, st) {
+      logger.warning(
+        '[OfflineTTS] initialize: sherpa-onnx probe failed: $e',
+        e,
+        st,
+      );
+      // Still walk the disk so the UI can show statuses even when the
+      // engine isn't usable on this device.
+    }
+    try {
+      await refreshStatuses();
+    } catch (e, st) {
+      logger.warning('[OfflineTTS] initialize: refreshStatuses failed', e, st);
+    }
+    _ready = true;
+  }
+
   /// Walk the cache directory once and update every voice's status
   /// based on what's already extracted. Cheap; safe to call on
   /// startup and after disk-affecting operations.
@@ -421,6 +479,9 @@ class OfflineTtsService {
     if (voice == null) {
       throw OfflineTtsException('Unknown offline voice: $voiceId');
     }
+    // Wait for the one-shot init so subsequent isolate workers don't
+    // race the FFI binding step.
+    await initialize();
     await _ensureFilesOnce(voice);
   }
 
@@ -467,6 +528,14 @@ class OfflineTtsService {
       selectVoice(voiceId);
     }
     final voice = selectedVoice;
+
+    // Block until the one-shot init resolves. This guarantees the
+    // sherpa-onnx native library has been probed and the per-voice
+    // status map is populated before we spawn the generation worker.
+    // Without this, a fast tap on "Speak this message" right after
+    // launch can hit the worker before its isolate-local FFI symbols
+    // are usable and surface "Please initialize sherpa-onnx first".
+    await initialize();
 
     logger.info(
       '[OfflineTTS] speak: ${clean.length} chars, voice=${voice.id}, '
@@ -905,6 +974,14 @@ class _TtsResult {
   const _TtsResult({required this.sampleCount, required this.sampleRate});
   final int sampleCount;
   final int sampleRate;
+}
+
+/// Worker that just binds the sherpa-onnx FFI symbols. Run from
+/// [OfflineTtsService._doInitialize] as a fail-fast probe — if the
+/// native library is missing or incompatible for this device's ABI
+/// the exception fires here, well before a user-initiated speak.
+void _initBindingsProbe() {
+  sherpa.initBindings();
 }
 
 _TtsResult _generateInWorker(_TtsRequest req) {

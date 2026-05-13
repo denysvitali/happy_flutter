@@ -71,11 +71,13 @@ class OfflineTtsService {
   Object? errorFor(String _) => null;
   bool get isSpeaking => false;
   bool get isSupported => false;
+  bool get isReady => true;
   List<OfflineTtsModel> get voices => const <OfflineTtsModel>[];
   String get selectedVoiceId => '';
   OfflineTtsModel? get selectedVoice => null;
   void selectVoice(String _) {}
   OfflineTtsStatus statusFor(String _) => OfflineTtsStatus.notDownloaded;
+  Future<void> initialize() async {}
   Future<void> refreshStatuses() async {}
 
   Future<void> ensureReady() async {
