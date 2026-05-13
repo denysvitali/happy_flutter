@@ -211,6 +211,52 @@ void main() {
         }
       },
     );
+
+    // Regression for GlitchTip HAPPY_FLUTTER-3C5 (2026-05-10):
+    // "Illegal argument in isolate message: object is unsendable —
+    // Library:'dart:async' Class: _Future"
+    //
+    // The cause was the `Isolate.run(() => AesGcmEncryption.decryptBatch(
+    // stripped, _secretKey))` closure capturing `this`, dragging an
+    // unsendable Future into the isolate message. The fix hoists
+    // `_secretKey` into a local before the closure so only sendable
+    // Uint8Lists are captured. This test asserts a concurrent fan-out
+    // of `decryptInIsolate` calls (the access pattern introduced by
+    // `_preDecryptSessions` in `_sync_data.dart`) completes without
+    // throwing ArgumentError.
+    test(
+      'concurrent decryptInIsolate fan-out does not throw ArgumentError',
+      () async {
+        final key = _generateKey();
+        final enc = AES256Encryption(key);
+
+        final inputs = List<Map<String, dynamic>>.generate(
+          8,
+          (i) => {'seq': i, 'kind': 'metadata', 'value': 'session_$i'},
+        );
+        final ciphertexts = await enc.encrypt(inputs);
+
+        final batches = List<List<Uint8List>>.generate(
+          8,
+          (i) => [ciphertexts[i]],
+        );
+
+        final futures = batches.map(enc.decryptInIsolate).toList();
+        final results = await Future.wait(futures);
+
+        expect(results.length, 8);
+        for (var i = 0; i < results.length; i++) {
+          expect(results[i].length, 1);
+          expect(
+            results[i][0],
+            equals(inputs[i]),
+            reason:
+                'concurrent decryptInIsolate must roundtrip the value for '
+                'session $i without isolate-message errors',
+          );
+        }
+      },
+    );
   });
 }
 

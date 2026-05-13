@@ -153,11 +153,17 @@ class OfflineDictationService {
   Future<String> transcribe({required String audioPath}) async {
     try {
       final files = await _ensureModelFilesOnce();
-      final text = await Isolate.run(
-        () => _transcribeInWorker(
-          _OfflineTranscriptionRequest(audioPath: audioPath, files: files),
-        ),
+      // Build the request before spawning the isolate so the closure
+      // captures only this sendable object — never `this`, which has
+      // a `Future<_MoonshineModelFiles>? _modelFilesFuture` field
+      // that would surface as
+      // "Illegal argument in isolate message: object is unsendable
+      // Library:'dart:async' Class: _Future".
+      final req = _OfflineTranscriptionRequest(
+        audioPath: audioPath,
+        files: files,
       );
+      final text = await Isolate.run(() => _transcribeInWorker(req));
       if (text.isEmpty) {
         throw const OfflineDictationException('No speech was transcribed');
       }
@@ -252,15 +258,18 @@ class OfflineDictationService {
 
   Future<String> _transcribeSamples(Float32List samples, int sampleRate) async {
     final files = await _ensureModelFilesOnce();
-    return Isolate.run(
-      () => _transcribeInWorker(
-        _OfflineTranscriptionRequest(
-          files: files,
-          samples: samples,
-          sampleRate: sampleRate,
-        ),
-      ),
+    // Build the request before spawning the isolate so the closure
+    // captures only this sendable object — never `this`, which has a
+    // `Future<_MoonshineModelFiles>? _modelFilesFuture` field that
+    // would surface as
+    // "Illegal argument in isolate message: object is unsendable
+    // Library:'dart:async' Class: _Future" on production builds.
+    final req = _OfflineTranscriptionRequest(
+      files: files,
+      samples: samples,
+      sampleRate: sampleRate,
     );
+    return Isolate.run(() => _transcribeInWorker(req));
   }
 
   Future<_MoonshineModelFiles> _ensureModelFilesOnce() {
@@ -324,10 +333,16 @@ class OfflineDictationService {
 
     try {
       await _downloadModelArchive(archiveFile);
+      // Hoist plain-string paths into locals so the closure captures
+      // only sendable Strings — never `this`, which has a
+      // `Future<_MoonshineModelFiles>? _modelFilesFuture` field that
+      // is not sendable across an isolate boundary.
+      final archivePath = archiveFile.path;
+      final modelDirPath = modelDir.path;
       await Isolate.run(
         () => _verifyAndExtractModelArchive(
-          archivePath: archiveFile.path,
-          modelDirPath: modelDir.path,
+          archivePath: archivePath,
+          modelDirPath: modelDirPath,
         ),
       );
     } on OfflineDictationException {

@@ -154,10 +154,21 @@ class AES256Encryption implements Encryptor {
     }
     List<dynamic> isolateResults;
     try {
+      // Hoist `_secretKey` into a local so the closure captures only
+      // sendable Uint8Lists — never `this`. Dart's closure-capture
+      // analysis would otherwise pull `this` (an `AES256Encryption`)
+      // plus any caller-scope state the compiler infers it depends on
+      // into the isolate message; depending on how the call site holds
+      // the decryptor (e.g. via a `SessionEncryption` that itself
+      // holds Futures), that capture has shown up as
+      // "Illegal argument in isolate message: object is unsendable
+      // Library:'dart:async' Class: _Future" on production builds.
+      // Mirrors the fix applied to `_offline_tts_service_native.dart`.
+      final keyLocal = _secretKey;
       isolateResults = await Isolate.run(
         () => AesGcmEncryption.decryptBatch(
           stripped,
-          _secretKey,
+          keyLocal,
         ),
       );
     } catch (e, stack) {
