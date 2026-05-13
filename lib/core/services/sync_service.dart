@@ -392,6 +392,16 @@ what you have, you must use the options mode.
   Timer? _resumeBatchTimer;
   int _resumeConversationRefreshTotal = 0;
   int _resumeConversationRefreshCompleted = 0;
+
+  /// Safety timer that clears the "Fetching conversations" progress
+  /// indicator if the resume conversation refresh hasn't completed within
+  /// [_resumeConversationProgressTimeoutMs]. This guarantees the UI never
+  /// hangs on a stale "0 of N complete" state when an upstream
+  /// `sessionsSync` cycle or batched `messagesSync.invalidate()` fails or
+  /// is silently dropped (e.g. fatal exceptions inside
+  /// `awaitQueue().then(...)`).
+  Timer? _resumeConversationProgressSafetyTimer;
+  static const int _resumeConversationProgressTimeoutMs = 30 * 1000;
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _socialSyncsDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;
