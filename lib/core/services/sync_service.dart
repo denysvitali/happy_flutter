@@ -137,12 +137,33 @@ class Sync {
 
   // Constants
   static const int sessionReadyTimeoutMs = 3000;
-  static const int _visibleMessageFetchPageLimit = 8;
+  static const int _visibleMessageFetchPageLimit = 12;
   static const int _backgroundMessageFetchPageLimit = 1;
   static const int _maxVisibleSessionMessages = 1000;
   static const int _maxBackgroundSessionMessages = 200;
   static const Duration _messageFetchConnectTimeout = Duration(seconds: 8);
   static const Duration _messageFetchReceiveTimeout = Duration(seconds: 8);
+
+  /// Per-page fetch size for [/v3/sessions/:id/messages].
+  ///
+  /// Previously 1000 — which on outlier sessions with large encrypted
+  /// payloads regularly hit the server-side filter slow path and pushed
+  /// `sync.invalidate.fetchMessages` p95 to ~54s (multiple pages × slow
+  /// server responses serialized back-to-back, sometimes timing out
+  /// against the Dio receive timeout).  Smaller pages let the server
+  /// stream a useful response within the 8s timeout and let the UI
+  /// paint partial results sooner via the per-page
+  /// [_notifySessionMessagesChanged] hook.  The page-limit was bumped
+  /// in step (8 → 12) so the worst-case crawl still covers
+  /// 12 × 200 = 2400 messages — well above the visible cap of 1000.
+  static const int _messageFetchPageSize = 200;
+
+  /// Soft budget for a single [fetchMessages] cycle.  When the elapsed
+  /// time exceeds this, we stop crawling forward pages and let the
+  /// next invalidate-cycle resume from the advanced cursor.  Any
+  /// already-merged messages stay in memory, so the user sees the
+  /// freshest tail load even if a slow server tries to bury us.
+  static const Duration _messageFetchBudget = Duration(seconds: 15);
   static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);
 
   /// Number of recent messages to load on first open of a session.
