@@ -1,9 +1,31 @@
 import 'settings.dart';
 
+/// Thrown by [SettingsUpdate.copyWithUpdated] when [key] is not part of
+/// the current `Settings` schema.
+///
+/// Callers that read keys from untrusted sources (persisted JSON on
+/// disk, server echoes, socket pushes from older or newer app versions)
+/// should catch this and treat it as a forward/backward compatibility
+/// signal rather than a programmer error — see
+/// `SettingsNotifier.applyRemoteSettingsPatch` and
+/// `SettingsStorage.updateSetting`.
+class UnknownSettingsKeyException implements Exception {
+  const UnknownSettingsKeyException(this.key);
+
+  final String key;
+
+  @override
+  String toString() =>
+      'UnknownSettingsKeyException: Unknown settings key: "$key"';
+}
+
 /// Shared settings mutation helpers used by providers and storage.
 ///
-/// Keeping this mapping in one place prevents provider/storage drift and
-/// ensures unknown keys fail loudly instead of being ignored.
+/// Keeping this mapping in one place prevents provider/storage drift.
+/// Unknown keys throw [UnknownSettingsKeyException]; callers handling
+/// untrusted input (e.g. legacy persisted JSON, server echoes) catch it
+/// and drop the offending key so a renamed/removed setting never
+/// crashes the app on startup.
 final class SettingsUpdate {
   const SettingsUpdate._();
 
@@ -100,8 +122,26 @@ final class SettingsUpdate {
       'dismissedCLIWarnings' => settings.copyWith(
         dismissedCLIWarnings: value as DismissedCLIWarnings,
       ),
-      _ => throw ArgumentError.value(key, 'key', 'Unknown settings key'),
+      _ => throw UnknownSettingsKeyException(key),
     };
+  }
+
+  /// Returns true when [key] is part of the current `Settings` schema and
+  /// can be passed to [copyWithUpdated] / [applyMutable] without throwing
+  /// [UnknownSettingsKeyException]. Callers that load persisted JSON or
+  /// remote patches can use this to skip legacy keys defensively.
+  static bool isKnownKey(String key) {
+    try {
+      copyWithUpdated(Settings(), key, null);
+      return true;
+    } on UnknownSettingsKeyException {
+      return false;
+    } on TypeError {
+      // The dispatcher casts `value` to its expected runtime type, so
+      // passing `null` for a non-nullable field throws TypeError. That
+      // still confirms the key itself is known.
+      return true;
+    }
   }
 
   static void applyMutable(Settings settings, String key, Object? value) {

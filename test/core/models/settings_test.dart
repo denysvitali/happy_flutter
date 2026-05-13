@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/models/settings_update.dart';
 
 void main() {
   group('Settings last-used profiles', () {
@@ -234,6 +235,62 @@ void main() {
           ..lastUsedProfilesByAgent = {'pi': 'claude-only'};
 
         expect(resolveSelectedProfileIdForAgent(settings, 'pi'), isNull);
+      },
+    );
+  });
+
+  group('Settings legacy/unknown key handling', () {
+    test(
+      'Settings.fromJson silently drops persisted legacy keys '
+      '(regression: HAPPY_FLUTTER-3C6 ttsUseOffline crash)',
+      () {
+        // Simulate a Settings JSON persisted by a previous build that
+        // included the legacy ttsUseOffline key. Loading it on a build
+        // where the key has been removed must not throw — unknown JSON
+        // fields are simply not deserialized.
+        final baseline = Settings().toJson();
+        final legacyJson = <String, dynamic>{
+          ...baseline,
+          // Pretend ttsUseOffline is no longer part of the schema.
+          'someRemovedLegacyKey': true,
+        };
+
+        expect(() => Settings.fromJson(legacyJson), returnsNormally);
+      },
+    );
+
+    test(
+      'SettingsUpdate.copyWithUpdated throws a typed exception for '
+      'unknown keys so callers can drop them',
+      () {
+        final settings = Settings();
+
+        expect(
+          () => SettingsUpdate.copyWithUpdated(
+            settings,
+            'someRemovedLegacyKey',
+            true,
+          ),
+          throwsA(
+            isA<UnknownSettingsKeyException>().having(
+              (e) => e.key,
+              'key',
+              'someRemovedLegacyKey',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'SettingsUpdate.isKnownKey reports current schema membership',
+      () {
+        // Pick any field that is unambiguously part of the schema today
+        // and assert positive identification, then a synthetic missing
+        // key for the negative case.
+        expect(SettingsUpdate.isKnownKey('themeMode'), isTrue);
+        expect(SettingsUpdate.isKnownKey('ttsEnabled'), isTrue);
+        expect(SettingsUpdate.isKnownKey('someRemovedLegacyKey'), isFalse);
       },
     );
   });

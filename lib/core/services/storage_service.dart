@@ -360,7 +360,18 @@ class SettingsStorage {
       return;
     }
 
-    SettingsUpdate.applyMutable(current, key, value);
+    try {
+      SettingsUpdate.applyMutable(current, key, value);
+    } on UnknownSettingsKeyException catch (e) {
+      // Forward/backward compatibility: a settings key that no longer
+      // exists in this build (e.g. renamed/removed in a newer version,
+      // or echoed back by the server for an older client) must not
+      // crash the app. Drop the key and continue.
+      logger.warning(
+        'Dropping unknown settings key "${e.key}" from storage write',
+      );
+      return;
+    }
     final updated = current;
 
     // Cancel existing debounce timer and start a new one
@@ -671,10 +682,16 @@ class Storage {
   final sessionPermissionModesStorage = SessionPermissionModesStorage();
   final profileStorage = ProfileStorage();
 
-  /// Initialize all storage
+  /// Initialize all storage.
+  ///
+  /// MMKVStorage and ServerConfigStorage are independent (each calls the
+  /// idempotent `MMKV.initialize()` itself) so we run them in parallel to
+  /// shave a few hundred ms off cold start.
   Future<void> initialize() async {
-    await MMKVStorage.initialize();
-    await ServerConfigStorage.initialize();
+    await Future.wait<void>([
+      MMKVStorage.initialize(),
+      ServerConfigStorage.initialize(),
+    ]);
   }
 
   /// Clear all storage (except server config which persists across logouts)

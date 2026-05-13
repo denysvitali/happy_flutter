@@ -74,7 +74,17 @@ class SettingsNotifier extends Notifier<Settings> {
     // this, callers that use `unawaited(updateSetting(...))` would leave
     // a window where `ref.read(settingsNotifierProvider)` still returns
     // the old value — e.g. NewSessionScreen reading `lastUsedProfile`.
-    state = SettingsUpdate.copyWithUpdated(state, key, value);
+    try {
+      state = SettingsUpdate.copyWithUpdated(state, key, value);
+    } on UnknownSettingsKeyException catch (e) {
+      // Direct local writes shouldn't hit this path in production
+      // (call sites are all hard-coded), but if a future rename leaves
+      // a stale identifier behind we'd rather log loudly than crash.
+      logger.warning(
+        'Dropping unknown settings key "${e.key}" from local update',
+      );
+      return;
+    }
     // Stamp the CRDT cell so that concurrent edits across replicas
     // converge. The wire patch is unused on the existing `applySettings`
     // path (the server still expects the bare value) but is available
@@ -106,9 +116,19 @@ class SettingsNotifier extends Notifier<Settings> {
     Settings updated = next;
     for (final entry in afterSnapshot.entries) {
       if (beforeSnapshot[entry.key] == entry.value) continue;
+      try {
+        updated = SettingsUpdate.copyWithUpdated(
+            updated, entry.key, entry.value);
+      } on UnknownSettingsKeyException catch (e) {
+        // Remote CRDT patches may carry keys this build no longer
+        // knows about (renamed or removed in a newer/older app
+        // version). Drop them instead of crashing the merge.
+        logger.warning(
+          'Dropping unknown settings key "${e.key}" from remote patch',
+        );
+        continue;
+      }
       changed = true;
-      updated = SettingsUpdate.copyWithUpdated(
-          updated, entry.key, entry.value);
     }
     if (changed) state = updated;
     return changed;
