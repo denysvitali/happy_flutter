@@ -308,7 +308,12 @@ class SessionEncryption {
       final decrypted = await _decryptor.decrypt([encryptedData]);
       return decrypted[0];
     } catch (e, stack) {
-      logger.error('SessionEncryption.decryptRaw failed', e, stack);
+      // Recoverable: caller handles null as "no decrypted content".
+      logger.warning(
+        'SessionEncryption.decryptRaw failed session=$_sessionId',
+        e,
+        stack,
+      );
       return null;
     }
   }
@@ -331,7 +336,17 @@ class SessionEncryption {
     }
 
     // Decrypt
-    final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
+    Uint8List encryptedData;
+    try {
+      encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
+    } on FormatException catch (e) {
+      logger.warning(
+        'SessionEncryption.decryptMetadata base64 decode failed '
+        'session=$_sessionId version=$version len=${encrypted.length}',
+        e,
+      );
+      return null;
+    }
     final decrypted = await _decryptor.decrypt([encryptedData]);
     if (decrypted[0] == null) {
       return null;
@@ -365,7 +380,17 @@ class SessionEncryption {
     }
 
     // Decrypt
-    final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
+    Uint8List encryptedData;
+    try {
+      encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
+    } on FormatException catch (e) {
+      logger.warning(
+        'SessionEncryption.decryptAgentState base64 decode failed '
+        'session=$_sessionId version=$version len=${encrypted.length}',
+        e,
+      );
+      return {};
+    }
     final decrypted = await _decryptor.decrypt([encryptedData]);
     if (decrypted[0] == null) {
       return {};

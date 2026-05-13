@@ -444,6 +444,21 @@ class MMKVStorage {
     }
   }
 
+  /// Get every persisted (sessionId -> profileId) mapping. Used by the
+  /// stale-profile sweep when a profile is deleted from settings.
+  Future<Map<String, String>> getAllSessionProfiles() async {
+    try {
+      final json = _cache[_Keys.sessionProfiles];
+      if (json != null) {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        return map.map((k, v) => MapEntry(k, v as String));
+      }
+    } catch (e) {
+      logger.warning('WebStorage: failed to get all session profiles: $e');
+    }
+    return {};
+  }
+
   // ── Synchronous seq cursors (backed by in-memory cache) ───────────────
 
   /// Returns the in-memory last-seq map.
