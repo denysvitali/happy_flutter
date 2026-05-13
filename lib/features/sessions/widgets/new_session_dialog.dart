@@ -86,18 +86,29 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final now = DateTime.now().millisecondsSinceEpoch;
     const onlineThresholdMs = 120 * 1000;
     final allMachines = ref.watch(machinesNotifierProvider);
-    final machines = allMachines.values
-        .where((m) => m.active && now - m.activeAt < onlineThresholdMs)
-        .toList();
+    // Sort machines: online first, then offline. Show all so users can see
+    // (and understand) which machines are unavailable rather than silently
+    // hiding them.
+    bool isMachineOnline(Machine m) =>
+        m.active && now - m.activeAt < onlineThresholdMs;
+    final machines = allMachines.values.toList()
+      ..sort((a, b) {
+        final aOnline = isMachineOnline(a) ? 0 : 1;
+        final bOnline = isMachineOnline(b) ? 0 : 1;
+        if (aOnline != bOnline) return aOnline.compareTo(bOnline);
+        final aName =
+            a.metadata?.displayName ?? a.metadata?.host ?? a.id;
+        final bName =
+            b.metadata?.displayName ?? b.metadata?.host ?? b.id;
+        return aName.compareTo(bName);
+      });
 
     // Check whether the currently selected machine is still online.
     final selectedMachineObj = _selectedMachine != null
         ? allMachines[_selectedMachine]
         : null;
     final selectedMachineOffline =
-        selectedMachineObj != null &&
-        (now - selectedMachineObj.activeAt >= onlineThresholdMs ||
-            !selectedMachineObj.active);
+        selectedMachineObj != null && !isMachineOnline(selectedMachineObj);
     final createBlocker = newSessionCreateBlocker(
       machine: selectedMachineObj,
       machineOnline: selectedMachineObj != null && !selectedMachineOffline,
@@ -106,6 +117,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       connectionStatus: connectionStatus,
       syncInitialized: sync.isInitialized,
     );
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     return AlertDialog(
       title: Text(l10n.newSessionTitle),
@@ -138,17 +151,24 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   value: null,
                   child: Text(l10n.sessionSelectMachine),
                 ),
-                ...machines.map(
-                  (machine) => DropdownMenuItem(
+                ...machines.map((machine) {
+                  final online = isMachineOnline(machine);
+                  // Disable offline items so the user cannot select a
+                  // machine that will fail at session creation time.
+                  return DropdownMenuItem(
                     value: machine.id,
+                    enabled: online,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         AppStatusDot(
-                          color: machine.active
+                          color: online
                               ? AppColors.success
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                              : cs.onSurfaceVariant,
                           size: 8,
+                          semanticLabel: online
+                              ? l10n.machineOnline
+                              : l10n.machineOffline,
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         Flexible(
@@ -157,14 +177,48 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                 machine.metadata?.host ??
                                 machine.id,
                             overflow: TextOverflow.ellipsis,
+                            style: online
+                                ? null
+                                : theme.textTheme.bodyMedium?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
                           ),
                         ),
+                        if (!online) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.xxs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.xs,
+                              ),
+                            ),
+                            child: Text(
+                              l10n.machineOffline,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                  ),
-                ),
+                  );
+                }),
               ],
               onChanged: (value) {
+                // Guard against selecting an offline machine even if a
+                // disabled DropdownMenuItem is somehow tapped.
+                if (value != null) {
+                  final m = allMachines[value];
+                  if (m != null && !isMachineOnline(m)) {
+                    return;
+                  }
+                }
                 setState(() {
                   if (_selectedMachine != value) {
                     _selectedPath = null;
@@ -253,6 +307,19 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               blocker: createBlocker,
               selectedMachineOffline: selectedMachineOffline,
             ),
+            if (selectedMachineOffline ||
+                createBlocker == NewSessionCreateBlocker.offlineMachine) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.xl),
+                child: Text(
+                  l10n.machineOfflineHelp,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
           ],
           if (createBlocker == null) ...[
             const SizedBox(height: AppSpacing.md),
@@ -277,17 +344,15 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(l10n.commonCancel),
         ),
-        ElevatedButton(
+        _CreateButton(
+          isCreating: _isCreating,
           onPressed: createBlocker == null
               ? () => _createSession(context)
               : null,
-          child: _isCreating
-              ? const SizedBox(
-                  width: AppSpacing.lg,
-                  height: AppSpacing.lg,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(l10n.commonCreate),
+          label: l10n.commonCreate,
+          tooltip: createBlocker == null
+              ? null
+              : _dialogRequirementText(l10n, createBlocker),
         ),
       ],
     );
@@ -548,6 +613,37 @@ IconData _agentIcon(String agent) {
     'opencode' => Icons.code_rounded,
     _ => Icons.psychology_alt_rounded,
   };
+}
+
+class _CreateButton extends StatelessWidget {
+  const _CreateButton({
+    required this.isCreating,
+    required this.onPressed,
+    required this.label,
+    required this.tooltip,
+  });
+
+  final bool isCreating;
+  final VoidCallback? onPressed;
+  final String label;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = ElevatedButton(
+      onPressed: onPressed,
+      child: isCreating
+          ? const SizedBox(
+              width: AppSpacing.lg,
+              height: AppSpacing.lg,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(label),
+    );
+    final tip = tooltip;
+    if (tip == null || tip.isEmpty) return button;
+    return Tooltip(message: tip, child: button);
+  }
 }
 
 String _dialogRequirementText(
