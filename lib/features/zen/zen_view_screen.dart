@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/components/components.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -10,6 +9,7 @@ import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/safe_pop.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 import 'zen_priority.dart';
 
@@ -127,7 +127,7 @@ class _ZenViewBodyState
     if (widget.embedded) {
       widget.onClose?.call();
     } else {
-      context.pop();
+      safePop<void>(context, fallbackRouteName: 'zen');
     }
   }
 

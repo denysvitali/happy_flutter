@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -10,6 +9,7 @@ import '../../core/models/profile.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/safe_pop.dart';
 
 /// Linked devices screen
 class LinkedDevicesScreen extends ConsumerStatefulWidget {
@@ -98,7 +98,7 @@ class _LinkedDevicesScreenState
         title: Text(l10n.accountLinkedDevices),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => safePop<void>(context),
         ),
       ),
       body: _isLoading

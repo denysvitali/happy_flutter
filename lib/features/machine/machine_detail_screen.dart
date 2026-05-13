@@ -17,6 +17,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
     show AppFontSize, AppSpacing, AppTouchTarget;
+import '../../core/utils/safe_pop.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 
 /// Detail screen for a single machine.
@@ -114,7 +115,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
       if (ApiClient().isSuccess(response)) {
         ref.read(machinesNotifierProvider.notifier).remove(machineId);
         sync.machinesSync.invalidate();
-        context.pop();
+        safePop<void>(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
