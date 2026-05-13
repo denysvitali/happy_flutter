@@ -332,7 +332,9 @@ extension SyncMessaging on Sync {
         ..setData('forceProbe', forceProbe)
         ..setData('gapTooLarge', gapTooLarge)
         ..setData('cursorSeq', cursorSeq)
-        ..setData('serverLastSeq', serverLastSeq);
+        ..setData('serverLastSeq', serverLastSeq)
+        ..setData('pageSize', Sync._messageFetchPageSize)
+        ..setData('budgetMs', Sync._messageFetchBudget.inMilliseconds);
 
       var totalFetchedMessages = 0;
       var totalDecryptedMessages = 0;
@@ -340,6 +342,9 @@ extension SyncMessaging on Sync {
       var totalToolResults = 0;
       var totalUsageUpdates = 0;
       var totalPagesFetched = 0;
+      var totalDecryptMs = 0;
+      var totalHttpMs = 0;
+      var hitBudget = false;
       final droppedReasonCounts = <String, int>{};
       while (true) {
         // ── Check visibility ──
@@ -373,7 +378,7 @@ extension SyncMessaging on Sync {
           final overrideResult = await testFetchMessagesOverride!(
             sessionId,
             afterSeq,
-            100,
+            Sync._messageFetchPageSize,
           );
           // Synthesize a minimal Response to satisfy the rest of the logic.
           response = Response(
@@ -384,7 +389,10 @@ extension SyncMessaging on Sync {
         } else {
           response = await apiClient.get(
             '/v3/sessions/$sessionId/messages',
-            queryParameters: {'after_seq': afterSeq, 'limit': 1000},
+            queryParameters: {
+              'after_seq': afterSeq,
+              'limit': Sync._messageFetchPageSize,
+            },
             options: Options(
               extra: const {'bypassCache': true},
               connectTimeout: Sync._messageFetchConnectTimeout,
@@ -393,6 +401,7 @@ extension SyncMessaging on Sync {
           );
         }
         final fetchMs = fetchStart.elapsedMilliseconds;
+        totalHttpMs += fetchMs;
         httpSpan
           ..setData('httpMs', fetchMs)
           ..setData('statusCode', response.statusCode ?? 0);
@@ -502,6 +511,7 @@ extension SyncMessaging on Sync {
           sessionId,
         );
         final decryptMs = decryptStart.elapsedMilliseconds;
+        totalDecryptMs += decryptMs;
         final skippedCount = messages.length - newMessages.length;
         totalSkippedMessages += skippedCount;
         totalDecryptedMessages += newMessages.length;
@@ -681,6 +691,28 @@ extension SyncMessaging on Sync {
           break;
         }
 
+        // Soft elapsed-time budget: if the cycle has already spent
+        // more than [Sync._messageFetchBudget] on this session, stop
+        // here and let the next invalidate-cycle continue from the
+        // advanced cursor.  This prevents a single slow session from
+        // pinning fetchMessages for ~60s (the Dio receive-timeout
+        // ceiling × maxPages) and gives the UI a chance to render the
+        // tail messages it already merged on earlier pages.
+        if (fetchStopwatch.elapsed >= Sync._messageFetchBudget) {
+          hitBudget = true;
+          final budgetSec = Sync._messageFetchBudget.inSeconds;
+          logger.info(
+            '[fetchMessages] $sessionId hit ${budgetSec}s budget '
+            '(page=$page afterSeq=$afterSeq httpMs=$totalHttpMs '
+            'decryptMs=$totalDecryptMs) '
+            '— deferring remaining pages to next cycle',
+          );
+          messagesSync[sessionId]?.invalidate();
+          pageSpan.setData('hitBudget', true);
+          await pageSpan.finish();
+          break;
+        }
+
         // ── Yield between pages ──
         await Future<void>.delayed(Duration.zero);
         await pageSpan.finish();
@@ -738,11 +770,36 @@ extension SyncMessaging on Sync {
         ..setData('totalToolResults', totalToolResults)
         ..setData('totalUsageUpdates', totalUsageUpdates)
         ..setData('totalDroppedItems', _droppedReasonTotal(droppedReasonCounts))
+        ..setData('totalHttpMs', totalHttpMs)
+        ..setData('totalDecryptMs', totalDecryptMs)
+        ..setData('hitBudget', hitBudget)
         ..setData('mutatedMessages', didMutateMessages)
         ..setData('regroupOnVisible', shouldRegroupWhenVisible)
         ..setData('completedVisible', isVisibleAtCompletion)
         ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
       unawaited(fetchSpan.finish());
+      // Breadcrumb summarizes the cycle so the next outlier in GlitchTip
+      // shows page size, decrypt time, and budget status alongside the
+      // existing transaction.  Cheap to emit, only fires once per call.
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'fetchMessages: summary',
+            category: 'sync.messages',
+            data: {
+              'sessionId': sessionId,
+              'pageSize': Sync._messageFetchPageSize,
+              'pagesFetched': totalPagesFetched,
+              'fetched': totalFetchedMessages,
+              'decrypted': totalDecryptedMessages,
+              'httpMs': totalHttpMs,
+              'decryptMs': totalDecryptMs,
+              'elapsedMs': fetchStopwatch.elapsedMilliseconds,
+              'hitBudget': hitBudget,
+            },
+          ),
+        ),
+      );
     } on DioException catch (e) {
       // If the server returns 404, the session was deleted. Clean up
       // local state instead of retrying (which would produce 2 more

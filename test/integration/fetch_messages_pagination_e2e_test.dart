@@ -589,8 +589,8 @@ void main() {
 
         expect(
           callCount,
-          8,
-          reason: 'Should stop after 8 pages (maxPages)',
+          12,
+          reason: 'Should stop after 12 pages (maxPages)',
         );
         // The messagesSync should have been invalidated so a
         // follow-up cycle is scheduled.
