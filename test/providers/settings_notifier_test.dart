@@ -254,14 +254,21 @@ void main() {
       expect(settings.dismissedCLIWarnings.perMachine, isEmpty);
     });
 
-    test('unknown setting key throws instead of failing silently', () async {
+    test('unknown setting key throws typed exception from dispatcher',
+        () async {
       final c = makeContainer();
       addTearDown(c.dispose);
       final notifier = c.read(settingsNotifierProvider.notifier);
 
+      // The test stub bypasses the production catch-and-warn behavior and
+      // calls `SettingsUpdate.copyWithUpdated` directly, so dev typos still
+      // surface as a typed exception. Production callers
+      // (SettingsNotifier.updateSetting, applyRemoteSettingsPatch,
+      // SettingsStorage.updateSetting) catch this and log a warning so
+      // legacy/forward-compat keys do not crash the app.
       expect(
         () => notifier.updateSetting('notARealSetting', true),
-        throwsArgumentError,
+        throwsA(isA<UnknownSettingsKeyException>()),
       );
     });
   });

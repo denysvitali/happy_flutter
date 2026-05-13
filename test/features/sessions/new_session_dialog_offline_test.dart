@@ -157,7 +157,7 @@ void main() {
       // sync readiness; flip it to true so the offline blocker (not the
       // sync-not-ready blocker) is what disables the button.
       final testSync = createTestSync();
-      testSync.testIsInitialized = true;
+      testSync.isInitialized = true;
     });
 
     Widget buildHarness({
