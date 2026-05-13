@@ -478,6 +478,42 @@ extension SyncMessagingMerge on Sync {
     final sweepCount = (_sidechainRegroupSweepCount[sessionId] ?? 0) + 1;
     _sidechainRegroupSweepCount[sessionId] = sweepCount;
 
+    // Before giving up on the orphan set, try pulling one older page.
+    // In practice the parent Task is often just below the loaded window
+    // (e.g. long subagent run started before the initial tail-load),
+    // and a single extra fetch lets the next grouper pass re-attach the
+    // children naturally — no synthetic placeholder needed.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final lastFetchAttempt = _orphanFetchOlderAttemptedMs[sessionId] ?? 0;
+    final canRetryFetch = nowMs - lastFetchAttempt > 60000;
+    if (canRetryFetch &&
+        hasOlderMessages(sessionId) &&
+        !isLoadingOlderMessages(sessionId)) {
+      _orphanFetchOlderAttemptedMs[sessionId] = nowMs;
+      logger.info(
+        '[sidechain] orphans persist for session=$sessionId — '
+        'attempting fetchOlderMessages to locate parent Task',
+      );
+      unawaited(
+        fetchOlderMessages(sessionId).then((_) {
+          // The fetch path upserts and notifies; the next grouper pass
+          // will rerun automatically. Reset the no-progress counter so
+          // we get a fresh shot at converging before falling back to
+          // synthetic absorption.
+          _sidechainRegroupSweepCount.remove(sessionId);
+          _scheduleSidechainRegroup(sessionId);
+        }).catchError((Object error, StackTrace stack) {
+          logger.warning(
+            '[sidechain] fetchOlderMessages failed for session=$sessionId '
+            'during orphan recovery',
+            error,
+            stack,
+          );
+        }),
+      );
+      return;
+    }
+
     // Require at least 2 consecutive no-progress sweeps before
     // absorbing.  This prevents premature absorption when a parent
     // Task is still in-flight (e.g. in a REST batch or socket burst).
@@ -498,16 +534,59 @@ extension SyncMessagingMerge on Sync {
     _sidechainRegroupTimers[sessionId]?.cancel();
     _sidechainRegroupTimers.remove(sessionId);
     _sidechainRegroupFirstRequestMs.remove(sessionId);
-    _orphanSuppressedUntilMs[sessionId] =
-        DateTime.now().millisecondsSinceEpoch + 30000;
+    _orphanSuppressedUntilMs[sessionId] = nowMs + 30000;
     _sessionsNeedingVisibleRegroup.remove(sessionId);
 
+    final orphanCount = afterOrphans.length;
     final absorbed = _absorbOrphansIntoSyntheticTasks(sessionId);
     if (absorbed) {
+      _reportOrphanAbsorbToSentry(
+        sessionId: sessionId,
+        orphanCount: orphanCount,
+        triedFetchOlder: lastFetchAttempt > 0,
+        hasMoreOlder: hasOlderMessages(sessionId),
+      );
       _scheduleSaveMessages(sessionId);
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages});
     }
+  }
+
+  /// Emits a loud Sentry warning whenever the synthetic "Subagent
+  /// output (recovered)" tile is created because the parent Task could
+  /// not be found in history. Throttled per-session to avoid drowning
+  /// the project quota when a single session has a missing parent.
+  void _reportOrphanAbsorbToSentry({
+    required String sessionId,
+    required int orphanCount,
+    required bool triedFetchOlder,
+    required bool hasMoreOlder,
+  }) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final lastReportedAt = _orphanAbsorbReportedAtMs[sessionId] ?? 0;
+    if (nowMs - lastReportedAt < 5 * 60 * 1000) return;
+    _orphanAbsorbReportedAtMs[sessionId] = nowMs;
+
+    final messages = _sessionMessages[sessionId];
+    final messageCount = messages?.length ?? 0;
+    final firstLoadedSeq = _sessionFirstLoadedSeq[sessionId] ?? 0;
+    final isVisible = sessionId == _visibleSessionId;
+
+    Sentry.captureMessage(
+      'Sidechain orphans absorbed into synthetic Task '
+      '(parent Task missing from history)',
+      level: SentryLevel.warning,
+      params: [sessionId],
+      hint: Hint.withMap({
+        'sessionId': sessionId,
+        'orphanCount': orphanCount,
+        'messageCount': messageCount,
+        'firstLoadedSeq': firstLoadedSeq,
+        'isVisibleSession': isVisible,
+        'triedFetchOlder': triedFetchOlder,
+        'hasMoreOlderAfterFetch': hasMoreOlder,
+      }),
+    );
   }
 
   /// Absorb stuck orphan sidechain messages into synthetic Task
