@@ -12,7 +12,11 @@ extension SyncMessagingParseOutput on Sync {
     final data = nestedContent['data'];
     if (data is! Map<String, dynamic>) return ([], []);
 
-    // Sidechain metadata for sub-agent grouping
+    // Sidechain metadata for sub-agent grouping. The authoritative
+    // parent identifier — `parent_tool_use_id` — is attached uniformly
+    // by `_attachParentToolUseId` in `_sync_messaging_parse.dart` so
+    // every sidechain emission below carries it without each call
+    // site having to thread the field manually.
     final isSidechain =
         data['isSidechain'] == true || data['is_sidechain'] == true;
     final dataUuid = (data['uuid'] ?? data['id']) as String?;

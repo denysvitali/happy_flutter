@@ -647,6 +647,13 @@ extension SyncMessagingMerge on Sync {
     // terminal value is the "chain root" — every orphan with the
     // same root belongs to the same logical subagent transcript.
     String chainRootFor(Map<String, dynamic> orphan) {
+      // Authoritative path for Claude orphans: parent_tool_use_id is
+      // stamped on every message in a subagent run and identifies
+      // the spawning Task/Agent directly. Coalesce by it whenever
+      // available so one logical subagent never fragments into many
+      // synthetic tiles even when the parentUuid chain is broken.
+      final ptu = orphan['parentToolUseId'] as String?;
+      if (ptu != null && ptu.isNotEmpty) return ptu;
       var current = (orphan['parentUuid'] as String?) ?? '';
       final visited = <String>{};
       while (current.isNotEmpty && visited.add(current)) {
@@ -833,18 +840,31 @@ extension SyncMessagingMerge on Sync {
         }
       }
       var resolvable = false;
-      outer: for (final c in children) {
+      // Fast-path: if any child carries parentToolUseId (Claude
+      // `parent_tool_use_id`) and it matches a real Task key, the
+      // whole synthetic is stale — no chain walking required.
+      outerPtu: for (final c in children) {
         if (c is! Map<String, dynamic>) continue;
-        var current = (c['parentUuid'] as String?) ?? '';
-        final visited = <String>{};
-        while (current.isNotEmpty && visited.add(current)) {
-          if (realTaskKeys.contains(current)) {
-            resolvable = true;
-            break outer;
+        final ptu = c['parentToolUseId'] as String?;
+        if (ptu != null && ptu.isNotEmpty && realTaskKeys.contains(ptu)) {
+          resolvable = true;
+          break outerPtu;
+        }
+      }
+      if (!resolvable) {
+        outer: for (final c in children) {
+          if (c is! Map<String, dynamic>) continue;
+          var current = (c['parentUuid'] as String?) ?? '';
+          final visited = <String>{};
+          while (current.isNotEmpty && visited.add(current)) {
+            if (realTaskKeys.contains(current)) {
+              resolvable = true;
+              break outer;
+            }
+            final next = innerByUuid[current] ?? peerByUuid[current];
+            if (next == null) break;
+            current = (next['parentUuid'] as String?) ?? '';
           }
-          final next = innerByUuid[current] ?? peerByUuid[current];
-          if (next == null) break;
-          current = (next['parentUuid'] as String?) ?? '';
         }
       }
       if (resolvable) toDissolve.add(m);

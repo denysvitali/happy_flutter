@@ -1208,6 +1208,65 @@ void main() {
       );
     });
 
+    test('resolves Claude sidechain via parentToolUseId even when '
+        'parentUuid chain is broken', () {
+      // Authoritative regression for "parent Task missing from
+      // history": Claude stamps `parent_tool_use_id` on every
+      // sidechain message and it always equals the spawning Task /
+      // Agent tool_use id. The parser surfaces this as
+      // `parentToolUseId`. Even with NO sidechain-root and NO chain
+      // continuity, every child must attach to the parent Agent.
+      final toolUseId = 'toolu_01K6rTRAN6RrHfZ8cGQu37Ji';
+      final agentTask = <String, dynamic>{
+        'id': 'msg_u0',
+        'kind': 'tool-call',
+        'name': 'Agent',
+        'uuid': 'A1', // assistant message uuid
+        'toolUseId': toolUseId,
+      };
+      Map<String, dynamic> _claudeChild({
+        required String id,
+        required String uuid,
+        required String parentUuid,
+      }) => <String, dynamic>{
+        'id': id,
+        'isSidechain': true,
+        'uuid': uuid,
+        'parentUuid': parentUuid,
+        'parentToolUseId': toolUseId,
+      };
+
+      final messages = <Map<String, dynamic>>[
+        agentTask,
+        // No sidechain-root, no chain continuity — only the
+        // authoritative parent_tool_use_id.
+        _claudeChild(
+          id: 'a2',
+          uuid: 'A2',
+          parentUuid: 'broken-link-1',
+        ),
+        _claudeChild(
+          id: 'a3',
+          uuid: 'A3',
+          parentUuid: 'broken-link-2',
+        ),
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isFalse,
+          reason: 'parent_tool_use_id must resolve every child');
+      expect(result.messages, hasLength(1));
+      final children =
+          (result.messages.first['children'] as List)
+              .cast<Map<String, dynamic>>();
+      expect(
+        children.map((c) => c['id']).toList(),
+        ['a2', 'a3'],
+      );
+    });
+
     test('unresolved sidechain-link does not count as a visible '
         'orphan (no synthetic placeholder)', () {
       // When a chain-link arrives before the parent Task is in

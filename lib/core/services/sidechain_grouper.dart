@@ -266,13 +266,20 @@ class SidechainGrouper {
         final prompt = msg['prompt'] as String?;
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
+        final parentToolUseId = msg['parentToolUseId'] as String?;
         // Sidechain-root usually points directly at the Task.
         // Fall back to chain walking for the rare case where the
         // root's parent is itself a (yet-unresolved) sidechain
         // message — happens after partial regroups where the
         // original root was attached but a later root chains
         // off an intermediate sidechain.
-        var sidechainId = (parentUuid != null &&
+        String? sidechainId;
+        if (parentToolUseId != null &&
+            parentToolUseId.isNotEmpty &&
+            uuidToTaskId.containsKey(parentToolUseId)) {
+          sidechainId = uuidToTaskId[parentToolUseId];
+        }
+        sidechainId ??= (parentUuid != null &&
                 uuidToTaskId.containsKey(parentUuid))
             ? uuidToTaskId[parentUuid]
             : (prompt != null ? promptToTaskId[prompt] : null);
@@ -298,9 +305,11 @@ class SidechainGrouper {
           sidechainMsgIds.add(msg['id'] as String);
         }
       } else if (msg['isSidechain'] == true ||
-          ((msg['parentUuid'] as String?)?.isNotEmpty ?? false)) {
+          ((msg['parentUuid'] as String?)?.isNotEmpty ?? false) ||
+          ((msg['parentToolUseId'] as String?)?.isNotEmpty ?? false)) {
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
+        final parentToolUseId = msg['parentToolUseId'] as String?;
         final kind = msg['kind'] as String?;
         // Hidden bridge entries (sidechain-link) exist only so
         // walkChainToTaskId can step through user-tool_result
@@ -318,6 +327,10 @@ class SidechainGrouper {
             : null;
 
         // Resolution order:
+        //   0. parentToolUseId (Claude `parent_tool_use_id`) — the
+        //      most authoritative key: the CLI stamps it on every
+        //      sidechain message and it points directly at the
+        //      spawning Task/Agent tool_use, with no chain to walk.
         //   1. Direct uuidToSidechainId hit (parent already
         //      indexed — either a Task or a prior chain step).
         //   2. Transitive chain walk through other unresolved
@@ -325,7 +338,11 @@ class SidechainGrouper {
         //      when chain[i+1] is iterated before chain[i].
         //   3. Prompt fallback (matches by Task input.prompt).
         String? sidechainId;
-        if (parentUuid != null) {
+        if (parentToolUseId != null &&
+            parentToolUseId.isNotEmpty &&
+            uuidToSidechainId.containsKey(parentToolUseId)) {
+          sidechainId = uuidToSidechainId[parentToolUseId];
+        } else if (parentUuid != null) {
           final p = parentUuid;
           if (uuidToSidechainId.containsKey(p)) {
             sidechainId = uuidToSidechainId[p];

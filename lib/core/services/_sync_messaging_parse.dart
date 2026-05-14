@@ -125,12 +125,15 @@ extension SyncMessagingParse on Sync {
 
       // Output type: Claude/assistant messages
       if (contentType == 'output') {
-        return _processOutputContent(
-          message,
+        return _attachParentToolUseId(
+          _processOutputContent(
+            message,
+            nestedContent,
+            createdAt,
+            content,
+            sessionId,
+          ),
           nestedContent,
-          createdAt,
-          content,
-          sessionId,
         );
       }
 
@@ -162,26 +165,35 @@ extension SyncMessagingParse on Sync {
 
       // Codex type: Codex agent messages
       if (contentType == 'codex') {
-        return _processCodexContent(
-          message,
+        return _attachParentToolUseId(
+          _processCodexContent(
+            message,
+            nestedContent,
+            createdAt,
+            content,
+            sessionId,
+          ),
           nestedContent,
-          createdAt,
-          content,
-          sessionId,
         );
       }
 
       // ACP type: unified agent communication protocol
       if (contentType == 'acp') {
-        return _processAcpContent(
-          message, nestedContent, createdAt, content, sessionId,
+        return _attachParentToolUseId(
+          _processAcpContent(
+            message, nestedContent, createdAt, content, sessionId,
+          ),
+          nestedContent,
         );
       }
 
       // OpenCode uses the same ACP wire format
       if (contentType == 'opencode') {
-        return _processAcpContent(
-          message, nestedContent, createdAt, content, sessionId,
+        return _attachParentToolUseId(
+          _processAcpContent(
+            message, nestedContent, createdAt, content, sessionId,
+          ),
+          nestedContent,
         );
       }
 
@@ -289,4 +301,39 @@ extension SyncMessagingParse on Sync {
     return null;
   }
 
+  /// Attach `parentToolUseId` to every sidechain entry returned from
+  /// the underlying parser. The Claude CLI stamps `parent_tool_use_id`
+  /// on every message inside a subagent run; that id matches the
+  /// parent Agent/Task tool_use directly, so SidechainGrouper can
+  /// resolve children with no parentUuid chain walking. We thread it
+  /// through here uniformly so all per-provider parsers (Claude
+  /// output, codex, acp/opencode) get the metadata without each
+  /// emission site having to copy a field around.
+  (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
+  _attachParentToolUseId(
+    (List<Map<String, dynamic>>, List<Map<String, dynamic>>) result,
+    Map<String, dynamic> nestedContent,
+  ) {
+    final data = nestedContent['data'];
+    if (data is! Map<String, dynamic>) return result;
+    final parentToolUseId =
+        (data['parent_tool_use_id'] ??
+                data['parentToolUseId'] ??
+                data['parent_toolUseId'])
+            as String?;
+    if (parentToolUseId == null || parentToolUseId.isEmpty) {
+      return result;
+    }
+    for (final m in result.$1) {
+      if (m['isSidechain'] == true && m['parentToolUseId'] == null) {
+        m['parentToolUseId'] = parentToolUseId;
+      }
+    }
+    for (final m in result.$2) {
+      if (m['isSidechain'] == true && m['parentToolUseId'] == null) {
+        m['parentToolUseId'] = parentToolUseId;
+      }
+    }
+    return result;
+  }
 }
