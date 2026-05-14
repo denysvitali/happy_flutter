@@ -526,7 +526,35 @@ extension SyncMessagingParseOutput on Sync {
           }
         }
       }
-      return ([], toolResults);
+
+      // Sidechain chain bridge. In a Claude subagent transcript every
+      // turn is: assistant(uuid=A) → user-with-tool_result(uuid=U,
+      // parent=A) → assistant(uuid=A', parent=U) → ...  The user
+      // tool_result message itself produces no visible display, so
+      // without an explicit bridge entry SidechainGrouper has no way
+      // to walk parentUuid through U and the next assistant looks
+      // orphaned ("parent Task missing from history"). Emit a hidden
+      // sidechain-link carrying (uuid, parentUuid) so the grouper can
+      // index it in sidechainByUuid and bridge the chain. The
+      // grouper filters it out of visible children.
+      final hasChainAnchors =
+          dataUuid != null && dataUuid.isNotEmpty &&
+          dataParentUuid != null && dataParentUuid.isNotEmpty;
+      final emitChainLink = isSidechain && hasChainAnchors;
+      final extras = emitChainLink
+          ? <Map<String, dynamic>>[
+              {
+                'id': '${message.id}_lk',
+                'seq': message.seq,
+                'createdAt': createdAt,
+                'kind': 'sidechain-link',
+                'isSidechain': true,
+                'uuid': dataUuid,
+                'parentUuid': dataParentUuid,
+              },
+            ]
+          : const <Map<String, dynamic>>[];
+      return (extras, toolResults);
     }
 
     // Streamlined text: replaces full assistant message in streamlined mode.

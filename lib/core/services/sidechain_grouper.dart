@@ -1,5 +1,16 @@
 import '../utils/wire_parsers.dart';
 
+/// Returns true for messages that should count as visible orphans
+/// (i.e. would render as their own subagent tile if not grouped).
+/// Hidden chain-bridge entries (kind == 'sidechain-link') exist only
+/// so the grouper can walk parentUuid through user-tool_result
+/// messages that produce no visible display; they must not contribute
+/// to orphan detection or trigger synthetic Task absorption.
+bool isVisibleSidechainOrphan(Map<String, dynamic> m) {
+  if (m['isSidechain'] != true) return false;
+  return m['kind'] != 'sidechain-link';
+}
+
 /// Sidechain message grouping logic.
 ///
 /// Groups sidechain messages (Task/Agent tool-call children) into
@@ -59,9 +70,7 @@ class SidechainGrouper {
         // Fast path: the changed messages aren't
         // sidechain-relevant, but there may still be orphans
         // in the list from previous sidechain batches.
-        final hasOrphans = messages.any(
-          (m) => m['isSidechain'] == true,
-        );
+        final hasOrphans = messages.any(isVisibleSidechainOrphan);
         return hasOrphans
             ? (messages: messages, hasOrphans: true)
             : null;
@@ -184,7 +193,7 @@ class SidechainGrouper {
       // can absorb the stuck sidechains into a synthetic Task —
       // otherwise they remain invisible: the chat hides isSidechain
       // entries and the AgentsListSheet only enumerates Tasks.
-      final hasOrphans = messages.any((m) => m['isSidechain'] == true);
+      final hasOrphans = messages.any(isVisibleSidechainOrphan);
       return hasOrphans
           ? (messages: messages, hasOrphans: true)
           : null;
@@ -292,6 +301,14 @@ class SidechainGrouper {
           ((msg['parentUuid'] as String?)?.isNotEmpty ?? false)) {
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
+        final kind = msg['kind'] as String?;
+        // Hidden bridge entries (sidechain-link) exist only so
+        // walkChainToTaskId can step through user-tool_result
+        // messages that produce no visible display. Remove them
+        // from the top-level list once their containing chain is
+        // anchored to a Task, but never attach them as visible
+        // children.
+        final isChainLink = kind == 'sidechain-link';
         // Try prompt fallback for isSidechain children: if the parent
         // couldn't be found by uuid, the message's prompt field (from
         // WireParsers.asMap(input)['prompt']) might match a Task.
@@ -344,16 +361,18 @@ class SidechainGrouper {
           if (toolUseId != null && toolUseId.isNotEmpty) {
             uuidToSidechainId[toolUseId] = sidechainId;
           }
-          sidechainChildren
-              .putIfAbsent(sidechainId, () => [])
-              .add(msg);
+          if (!isChainLink) {
+            sidechainChildren
+                .putIfAbsent(sidechainId, () => [])
+                .add(msg);
+          }
           sidechainMsgIds.add(msg['id'] as String);
         }
       }
     }
 
     if (sidechainMsgIds.isEmpty) {
-      final hasOrphans = messages.any((m) => m['isSidechain'] == true);
+      final hasOrphans = messages.any(isVisibleSidechainOrphan);
       return hasOrphans
           ? (messages: messages, hasOrphans: true)
           : null;
@@ -411,9 +430,7 @@ class SidechainGrouper {
       }
     }
 
-    final hasOrphans = filtered.any(
-      (m) => m['isSidechain'] == true,
-    );
+    final hasOrphans = filtered.any(isVisibleSidechainOrphan);
     return (messages: filtered, hasOrphans: hasOrphans);
   }
 

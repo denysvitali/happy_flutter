@@ -1132,5 +1132,108 @@ void main() {
         returnsNormally,
       );
     });
+
+    test('sidechain-link bridges parentUuid chain through '
+        'invisible user-tool_result messages (Claude format)', () {
+      // Regression: Claude subagent transcripts interleave
+      // assistant/user messages — every tool call generates a
+      // user-with-tool_result that produces NO visible display.
+      // Without an explicit chain bridge, the next assistant
+      // message's parentUuid points at the invisible user uuid,
+      // walkChainToTaskId hits a dead end and the assistant
+      // message ends up as an orphan → synthetic "parent Task
+      // missing from history" placeholder.
+      //
+      // Wire shape (one Task turn):
+      //   assistant(uuid=A1)               ← contains Task tool_use
+      //   sidechain user(uuid=U1, parent=A1, text="prompt")
+      //   sidechain assistant(uuid=A2, parent=U1, tool_use)
+      //   sidechain user(uuid=U2, parent=A2, tool_result)  ← no display
+      //   sidechain assistant(uuid=A3, parent=U2, tool_use)
+      //   sidechain user(uuid=U3, parent=A3, tool_result)  ← no display
+      //   sidechain assistant(uuid=A4, parent=U3, text)
+      //
+      // The parse layer emits a hidden sidechain-link for U2 and
+      // U3 so the grouper can step through their uuids while
+      // walking chain ancestry.
+      Map<String, dynamic> _link({
+        required String id,
+        required String uuid,
+        required String parentUuid,
+      }) => <String, dynamic>{
+        'id': id,
+        'kind': 'sidechain-link',
+        'isSidechain': true,
+        'uuid': uuid,
+        'parentUuid': parentUuid,
+      };
+
+      final messages = <Map<String, dynamic>>[
+        _taskMsg(id: 'task-1', uuid: 'A1', toolUseId: 'toolu_1'),
+        _sidechainRoot(
+          id: 'root-1',
+          uuid: 'U1',
+          parentUuid: 'A1',
+          prompt: 'audit auth flow',
+        ),
+        _sidechainChild(id: 'a2', uuid: 'A2', parentUuid: 'U1'),
+        _link(id: 'lk-1', uuid: 'U2', parentUuid: 'A2'),
+        _sidechainChild(id: 'a3', uuid: 'A3', parentUuid: 'U2'),
+        _link(id: 'lk-2', uuid: 'U3', parentUuid: 'A3'),
+        _sidechainChild(id: 'a4', uuid: 'A4', parentUuid: 'U3'),
+      ];
+
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      expect(
+        result!.hasOrphans, isFalse,
+        reason: 'every sidechain message must resolve to the Task',
+      );
+      expect(result.messages, hasLength(1));
+      final task = result.messages.first;
+      expect(task['id'], 'task-1');
+      final children =
+          (task['children'] as List).cast<Map<String, dynamic>>();
+      // The bridge entries must NOT appear as visible children;
+      // only the real assistant sidechain messages should.
+      expect(
+        children.map((c) => c['id']).toList(),
+        ['a2', 'a3', 'a4'],
+      );
+      // Defensive: no sidechain-link kind anywhere in the output.
+      expect(
+        children.any((c) => c['kind'] == 'sidechain-link'),
+        isFalse,
+      );
+    });
+
+    test('unresolved sidechain-link does not count as a visible '
+        'orphan (no synthetic placeholder)', () {
+      // When a chain-link arrives before the parent Task is in
+      // the loaded window, it stays in the flat list with
+      // isSidechain=true. It must NOT be treated as a visible
+      // orphan — otherwise it would trigger
+      // _absorbOrphansIntoSyntheticTasks and produce a fake
+      // "Subagent output (recovered)" tile carrying the
+      // "parent Task missing from history" prompt.
+      final messages = <Map<String, dynamic>>[
+        _taskMsg(id: 'task-1', uuid: 'A1'),
+        <String, dynamic>{
+          'id': 'lk-only',
+          'kind': 'sidechain-link',
+          'isSidechain': true,
+          'uuid': 'U-orphan',
+          'parentUuid': 'A-missing',
+        },
+      ];
+
+      final result = grouper.groupMessages(messages);
+      // No real sidechain messages, only a stray link → grouper
+      // should not flag orphans.
+      if (result != null) {
+        expect(result.hasOrphans, isFalse);
+      }
+    });
   });
 }

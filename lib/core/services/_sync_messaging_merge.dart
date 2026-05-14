@@ -433,7 +433,7 @@ extension SyncMessagingMerge on Sync {
     // sitting in the main list (a normal message list has no
     // isSidechain entries after successful grouping).
     final beforeOrphans = messages
-        .where((m) => m['isSidechain'] == true)
+        .where(isVisibleSidechainOrphan)
         .map((m) => m['id'] as String?)
         .whereType<String>()
         .toSet();
@@ -456,7 +456,7 @@ extension SyncMessagingMerge on Sync {
     final after = _sessionMessages[sessionId];
     final afterOrphans =
         after
-            ?.where((m) => m['isSidechain'] == true)
+            ?.where(isVisibleSidechainOrphan)
             .map((m) => m['id'] as String?)
             .whereType<String>()
             .toSet() ??
@@ -625,8 +625,15 @@ extension SyncMessagingMerge on Sync {
     // chain root from the absorber's perspective).
     final orphanByUuid = <String, Map<String, dynamic>>{};
     final orphans = <Map<String, dynamic>>[];
+    // Hidden chain-bridge entries (sidechain-link) are not real
+    // messages; they exist only so the grouper can walk parentUuid
+    // through user-tool_result messages. Even if their resolution
+    // failed (no anchor Task in window) we never want to absorb them
+    // into a visible synthetic Task — they would render as empty
+    // "Subagent output (recovered)" tiles and trigger the
+    // "parent Task missing from history" warning.
     for (final m in messages) {
-      if (m['isSidechain'] != true) continue;
+      if (!isVisibleSidechainOrphan(m)) continue;
       orphans.add(m);
       final uuid = m['uuid'] as String?;
       if (uuid != null && uuid.isNotEmpty) {
