@@ -1267,6 +1267,144 @@ void main() {
       );
     });
 
+    test('async background Agent: full task_started + sidechain '
+        'run resolves with parent_tool_use_id only', () {
+      // Mirrors the wire shape produced by the Claude SDK for an
+      // async background Agent invocation (run_in_background:true,
+      // task_type:local_agent). The parent_tool_use_id is the
+      // authoritative key; parentUuid chains may be broken across
+      // the user-tool_result envelope in the middle.
+      final toolUseId = 'toolu_01LDrJUjc24um21rFSymQ2A9';
+      final taskId = 'a4c0eb91a27812cf1';
+      final agentTask = <String, dynamic>{
+        'id': 'msg_seq38_u0',
+        'kind': 'tool-call',
+        'name': 'Agent',
+        'uuid': 'JSONL-seq38',
+        'toolUseId': toolUseId,
+        'input': <String, dynamic>{
+          'description': 'A1 McRAPTOR Pareto core',
+          'run_in_background': true,
+          'subagent_type': 'general-purpose',
+        },
+      };
+      final taskStartedEvent = <String, dynamic>{
+        'id': 'msg_seq39_te',
+        'kind': 'agent-event',
+        'isSidechain': true,
+        'uuid': 'JSONL-seq39',
+        'parentUuid': toolUseId,
+        // _processOutputContent now stamps both:
+        'parentToolUseId': toolUseId,
+        'agentId': taskId,
+        'event': <String, dynamic>{
+          'type': 'message',
+          'message': 'A1 McRAPTOR Pareto core',
+        },
+      };
+      final sidechainAssistant1 = <String, dynamic>{
+        'id': 'msg_seq42',
+        'kind': 'text',
+        'isSidechain': true,
+        'uuid': 'JSONL-seq42',
+        'parentUuid': 'broken-after-tool-result',
+        'parentToolUseId': toolUseId,
+        'agentId': taskId,
+        'content': "I'll start by exploring the existing router code.",
+      };
+      final sidechainAssistant2 = <String, dynamic>{
+        'id': 'msg_seq45',
+        'kind': 'text',
+        'isSidechain': true,
+        'uuid': 'JSONL-seq45',
+        'parentUuid': 'JSONL-seq44',
+        'parentToolUseId': toolUseId,
+        'agentId': taskId,
+        'content': 'Reading router.go now.',
+      };
+
+      final result = grouper.groupMessages(<Map<String, dynamic>>[
+        agentTask,
+        taskStartedEvent,
+        sidechainAssistant1,
+        sidechainAssistant2,
+      ]);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isFalse,
+          reason: 'async Agent run must resolve via parent_tool_use_id');
+      expect(result.messages, hasLength(1),
+          reason: 'only the Agent tool-call remains at top level');
+      final task = result.messages.first;
+      expect(task['name'], 'Agent');
+      final children =
+          (task['children'] as List).cast<Map<String, dynamic>>();
+      expect(
+        children.map((c) => c['id']).toList(),
+        ['msg_seq39_te', 'msg_seq42', 'msg_seq45'],
+        reason: 'task_started event AND assistant turns attach as children',
+      );
+      // No "Subagent output (recovered)" synthetic was produced —
+      // grouping does not create those tiles itself, but assert
+      // there is no extra Task message in the result.
+      expect(
+        result.messages.where((m) => m['kind'] == 'tool-call').length,
+        1,
+      );
+    });
+
+    test('agentId fallback attaches legacy children missing '
+        'parent_tool_use_id', () {
+      // Legacy cached entries from before parent_tool_use_id was
+      // threaded by _attachParentToolUseId would lack that field.
+      // The grouper must still attach them via agentId — derived
+      // from a sibling that DOES carry parent_tool_use_id.
+      final toolUseId = 'toolu_legacy_01';
+      final taskId = 'agent_legacy_01';
+      final agentTask = <String, dynamic>{
+        'id': 'task-legacy',
+        'kind': 'tool-call',
+        'name': 'Agent',
+        'uuid': 'A-legacy',
+        'toolUseId': toolUseId,
+      };
+      // This child resolved fine via parent_tool_use_id — provides
+      // the bridge that lets the grouper learn (agentId → taskId).
+      final freshChild = <String, dynamic>{
+        'id': 'child-fresh',
+        'isSidechain': true,
+        'uuid': 'C-fresh',
+        'parentUuid': 'broken-1',
+        'parentToolUseId': toolUseId,
+        'agentId': taskId,
+      };
+      // Legacy cached: only agentId survived, no parent_tool_use_id.
+      final legacyChild = <String, dynamic>{
+        'id': 'child-legacy',
+        'isSidechain': true,
+        'uuid': 'C-legacy',
+        'parentUuid': 'broken-2',
+        'agentId': taskId,
+      };
+
+      final result = grouper.groupMessages(<Map<String, dynamic>>[
+        agentTask,
+        freshChild,
+        legacyChild,
+      ]);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isFalse);
+      final children =
+          (result.messages.first['children'] as List)
+              .cast<Map<String, dynamic>>();
+      expect(
+        children.map((c) => c['id']).toSet(),
+        {'child-fresh', 'child-legacy'},
+        reason: 'agentId fallback must attach the legacy child',
+      );
+    });
+
     test('unresolved sidechain-link does not count as a visible '
         'orphan (no synthetic placeholder)', () {
       // When a chain-link arrives before the parent Task is in

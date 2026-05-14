@@ -100,6 +100,12 @@ class SidechainGrouper {
     final uuidToTaskId = <String, String>{};
     final promptToTaskId = <String, String>{};
     final uuidToSidechainId = <String, String>{};
+    // Async background agents stamp `agentId` (the SDK-assigned task
+    // id) on every sidechain message and on `task_started` events.
+    // Building this map lets us coalesce orphan runs whose
+    // `parent_tool_use_id` is missing (e.g. legacy cached entries
+    // that pre-date the parent_tool_use_id propagation fix).
+    final agentIdToTaskId = <String, String>{};
 
     // Identity-based visited set guards against cycles in the
     // children graph (e.g. msg['children'] contains msg itself).
@@ -222,6 +228,31 @@ class SidechainGrouper {
       }
     }
 
+    // Pass 1.7: derive (agentId → taskId) by walking every
+    // sidechain message that already resolves via parentToolUseId
+    // or parentUuid.  This is the source of truth for
+    // agentId-based fallback in Pass 2.
+    for (final msg in messages) {
+      final agentId = msg['agentId'] as String?;
+      if (agentId == null || agentId.isEmpty) continue;
+      if (agentIdToTaskId.containsKey(agentId)) continue;
+      final ptu = msg['parentToolUseId'] as String?;
+      if (ptu != null && ptu.isNotEmpty) {
+        final taskId = uuidToTaskId[ptu];
+        if (taskId != null) {
+          agentIdToTaskId[agentId] = taskId;
+          continue;
+        }
+      }
+      final pu = msg['parentUuid'] as String?;
+      if (pu != null && pu.isNotEmpty) {
+        final taskId = uuidToTaskId[pu];
+        if (taskId != null) {
+          agentIdToTaskId[agentId] = taskId;
+        }
+      }
+    }
+
     // Walk parentUuid up through unresolved sidechain ancestors
     // until we hit one whose uuid is in [uuidToSidechainId]
     // (meaning it transitively belongs to an indexed Task).
@@ -284,6 +315,13 @@ class SidechainGrouper {
             ? uuidToTaskId[parentUuid]
             : (prompt != null ? promptToTaskId[prompt] : null);
         sidechainId ??= walkChainToTaskId(parentUuid);
+        // agentId fallback — see Pass 1.7 commentary.
+        if (sidechainId == null) {
+          final agentId = msg['agentId'] as String?;
+          if (agentId != null && agentId.isNotEmpty) {
+            sidechainId = agentIdToTaskId[agentId];
+          }
+        }
         if (sidechainId != null) {
           if (uuid != null) {
             uuidToSidechainId[uuid] = sidechainId;
@@ -356,6 +394,15 @@ class SidechainGrouper {
           }
         } else if (prompt != null && promptToTaskId.containsKey(prompt)) {
           sidechainId = promptToTaskId[prompt];
+        }
+        // agentId fallback — last-resort lookup for sidechain
+        // messages from async background agents that lost their
+        // parent_tool_use_id (legacy cached entries).
+        if (sidechainId == null) {
+          final agentId = msg['agentId'] as String?;
+          if (agentId != null && agentId.isNotEmpty) {
+            sidechainId = agentIdToTaskId[agentId];
+          }
         }
 
         if (sidechainId != null) {

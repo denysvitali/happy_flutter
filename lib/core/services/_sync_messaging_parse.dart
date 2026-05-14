@@ -309,6 +309,10 @@ extension SyncMessagingParse on Sync {
   /// through here uniformly so all per-provider parsers (Claude
   /// output, codex, acp/opencode) get the metadata without each
   /// emission site having to copy a field around.
+  ///
+  /// Also threads `agentId` (assigned by the SDK for async background
+  /// agents) so the grouper has a secondary resolution key when
+  /// `parent_tool_use_id` is missing (e.g. legacy cached entries).
   (List<Map<String, dynamic>>, List<Map<String, dynamic>>)
   _attachParentToolUseId(
     (List<Map<String, dynamic>>, List<Map<String, dynamic>>) result,
@@ -321,18 +325,32 @@ extension SyncMessagingParse on Sync {
                 data['parentToolUseId'] ??
                 data['parent_toolUseId'])
             as String?;
-    if (parentToolUseId == null || parentToolUseId.isEmpty) {
-      return result;
+    // Async background agents stamp `agentId` on every sidechain
+    // message; for `task_started` system events the same id is on
+    // `task_id`.  Either form is acceptable.
+    final agentId =
+        (data['agentId'] ?? data['agent_id'] ?? data['task_id']) as String?;
+    final hasParent = parentToolUseId != null && parentToolUseId.isNotEmpty;
+    final hasAgentId = agentId != null && agentId.isNotEmpty;
+    if (!hasParent && !hasAgentId) return result;
+    void stamp(Map<String, dynamic> m) {
+      // Drop the previous isSidechain==true gate: any entry whose
+      // source wire payload carried parent_tool_use_id/agentId is
+      // inside a subagent run by definition.  Stamping
+      // unconditionally lets the grouper anchor entries the meta
+      // layer forgot to flag (the seq-287 class of bug).
+      if (hasParent && m['parentToolUseId'] == null) {
+        m['parentToolUseId'] = parentToolUseId;
+      }
+      if (hasAgentId && m['agentId'] == null) {
+        m['agentId'] = agentId;
+      }
     }
     for (final m in result.$1) {
-      if (m['isSidechain'] == true && m['parentToolUseId'] == null) {
-        m['parentToolUseId'] = parentToolUseId;
-      }
+      stamp(m);
     }
     for (final m in result.$2) {
-      if (m['isSidechain'] == true && m['parentToolUseId'] == null) {
-        m['parentToolUseId'] = parentToolUseId;
-      }
+      stamp(m);
     }
     return result;
   }

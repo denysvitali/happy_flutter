@@ -197,7 +197,7 @@ class _ToolDetailView extends StatelessWidget {
     final messages = WireParsers.asList(data['messages']);
 
     final knownTool = KnownTools.get(toolName);
-    final isTask = toolName == 'Task';
+    final isTask = toolName == 'Task' || toolName == 'Agent';
 
     var toolTitle = toolName;
     if (knownTool != null) {

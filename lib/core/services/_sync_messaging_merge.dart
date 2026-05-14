@@ -572,20 +572,32 @@ extension SyncMessagingMerge on Sync {
     final firstLoadedSeq = _sessionFirstLoadedSeq[sessionId] ?? 0;
     final isVisible = sessionId == _visibleSessionId;
 
+    // Surface the diagnostic fields as event tags and context so they
+    // are visible on the GlitchTip event detail. `Hint.withMap` is a
+    // sink for SDK hooks and does NOT propagate to the wire event —
+    // we lost orphanCount/triedFetchOlder/etc. for the whole life of
+    // issue #3497 before this change.
     Sentry.captureMessage(
       'Sidechain orphans absorbed into synthetic Task '
       '(parent Task missing from history)',
       level: SentryLevel.warning,
       params: [sessionId],
-      hint: Hint.withMap({
-        'sessionId': sessionId,
-        'orphanCount': orphanCount,
-        'messageCount': messageCount,
-        'firstLoadedSeq': firstLoadedSeq,
-        'isVisibleSession': isVisible,
-        'triedFetchOlder': triedFetchOlder,
-        'hasMoreOlderAfterFetch': hasMoreOlder,
-      }),
+      withScope: (scope) {
+        scope
+          ..setTag('sessionId', sessionId)
+          ..setTag('orphanCount', orphanCount.toString())
+          ..setTag('triedFetchOlder', triedFetchOlder.toString())
+          ..setTag('hasMoreOlderAfterFetch', hasMoreOlder.toString())
+          ..setContexts('orphan_absorb', {
+            'sessionId': sessionId,
+            'orphanCount': orphanCount,
+            'messageCount': messageCount,
+            'firstLoadedSeq': firstLoadedSeq,
+            'isVisibleSession': isVisible,
+            'triedFetchOlder': triedFetchOlder,
+            'hasMoreOlderAfterFetch': hasMoreOlder,
+          });
+      },
     );
   }
 

@@ -43,6 +43,14 @@ extension SyncMessagingParseOutput on Sync {
           final summary = data['summary'] as String?;
           final status = data['status'] as String?;
           final label = description ?? summary ?? 'Task $subtype';
+          // The lifecycle event's `tool_use_id` is the spawning
+          // Agent/Task tool_use id — the authoritative parent key.
+          // `task_id` is the SDK-assigned agentId for async runs.
+          // Stamp both so the grouper can attach the event regardless
+          // of whether the wire payload also carries
+          // `parent_tool_use_id`.
+          final toolUseId = data['tool_use_id'] as String?;
+          final taskId = data['task_id'] as String?;
 
           // task_notification with status 'completed' or 'failed' can
           // carry a summary for display.
@@ -60,6 +68,9 @@ extension SyncMessagingParseOutput on Sync {
                   if (isSidechain) 'isSidechain': true,
                   'uuid': dataUuid,
                   'parentUuid': ?dataParentUuid,
+                  if (toolUseId != null && toolUseId.isNotEmpty)
+                    'parentToolUseId': toolUseId,
+                  if (taskId != null && taskId.isNotEmpty) 'agentId': taskId,
                 },
               ],
               [],
@@ -78,6 +89,9 @@ extension SyncMessagingParseOutput on Sync {
                 if (isSidechain) 'isSidechain': true,
                 'uuid': dataUuid,
                 'parentUuid': ?dataParentUuid,
+                if (toolUseId != null && toolUseId.isNotEmpty)
+                  'parentToolUseId': toolUseId,
+                if (taskId != null && taskId.isNotEmpty) 'agentId': taskId,
               },
             ],
             [],
