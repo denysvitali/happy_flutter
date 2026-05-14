@@ -936,6 +936,38 @@ void main() {
       expect(find.byType(ChatLoadingShimmer), findsNothing);
     });
 
+    testWidgets('scrollback continues through local cached pages at top', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.sessionsSync = InvalidateSync(() async {});
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+
+      final messages = List.generate(
+        120,
+        (i) => {
+          'id': 'msg_$i',
+          'role': i.isEven ? 'user' : 'assistant',
+          'content': 'Message number $i',
+        },
+      );
+      sync.testSetSessionMessages('session_1', messages);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Message number 119'), findsOneWidget);
+      expect(find.text('Message number 0'), findsNothing);
+
+      await tester.drag(find.byType(ListView), const Offset(0, 5000));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Message number 0'), findsOneWidget);
+    });
+
     testWidgets('PopScope handles unsent message dialog', (tester) async {
       sync.testSetSessionMessages('session_1', const []);
 

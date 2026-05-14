@@ -706,11 +706,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _lastScrollPixels = pos.pixels;
   }
 
+  bool _isAtHistoryEdge() {
+    if (!_scrollController.hasClients) return false;
+    final pos = _scrollController.position;
+    return pos.pixels >= pos.maxScrollExtent - _historyLoadThreshold;
+  }
+
+  void _continueLocalHistoryLoadIfStillAtEdge() {
+    if (!mounted || _isLoadingMore || !_isAtHistoryEdge()) return;
+    if (_visibleCount >= _messages.length) return;
+    _canTriggerHistoryLoad = true;
+    _loadMore();
+  }
+
   void _loadMore() {
     if (_isLoadingMore) return;
 
     if (_visibleCount < _messages.length) {
       _isLoadingMore = true;
+      final keepAtHistoryEdge = _isAtHistoryEdge();
       final targetCount = (_visibleCount + _pageSize).clamp(
         0,
         _messages.length,
@@ -718,7 +732,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _visibleCount = targetCount;
       _bumpMessagePaneRevision();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _isLoadingMore = false;
+        if (!mounted) return;
+        if (keepAtHistoryEdge && _scrollController.hasClients) {
+          _isAdjustingHistoryScroll = true;
+          try {
+            _scrollController.jumpTo(
+              _scrollController.position.maxScrollExtent,
+            );
+          } finally {
+            _isAdjustingHistoryScroll = false;
+          }
+        }
+        _isLoadingMore = false;
+        _continueLocalHistoryLoadIfStillAtEdge();
       });
       return;
     }
