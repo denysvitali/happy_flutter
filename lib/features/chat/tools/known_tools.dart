@@ -353,6 +353,13 @@ class KnownTools {
       minimal: false,
       extractDescription: _extractWebSearchDescription,
     ),
+    // Codex emits web_search / web_search_preview. We deliberately do not
+    // special-case these (no custom title, icon, or description) so the
+    // tool renders as a generic raw tool call with INPUT / OUTPUT JSON.
+    // Registering bare entries here just forces non-minimal mode so the
+    // body actually renders.
+    'web_search': ToolDefinition(icon: defaultIcon, minimal: false),
+    'web_search_preview': ToolDefinition(icon: defaultIcon, minimal: false),
     'ToolSearch': ToolDefinition(
       icon: searchIcon,
       title: 'Tool Search',

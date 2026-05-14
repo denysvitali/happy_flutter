@@ -81,12 +81,10 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               children: [
                 SettingsToggleRow(
                   icon: Icons.handyman,
-                  title: 'Tool Call Debug Mode',
+                  title: 'Tool Call Debug',
                   subtitle: isToolCallDebug
-                      ? 'Tool calls render as raw JSON, bypassing '
-                            'specialized views'
-                      : 'Show raw JSON for every tool call instead of '
-                            'specialized views',
+                      ? 'Tool calls render as raw JSON'
+                      : 'Render every tool call as raw JSON',
                   value: isToolCallDebug,
                   onChanged: (value) {
                     ref
