@@ -44,6 +44,7 @@ class Settings {
   bool alwaysShowContextSize = false;
   bool agentInputEnterToSend = false;
   bool developerModeEnabled = false;
+  bool toolCallDebugEnabled = false;
   String avatarStyle = 'brutalist';
   bool showFlavorIcons = false;
   bool compactSessionView = false;
@@ -99,6 +100,7 @@ class Settings {
           alwaysShowContextSize == other.alwaysShowContextSize &&
           agentInputEnterToSend == other.agentInputEnterToSend &&
           developerModeEnabled == other.developerModeEnabled &&
+          toolCallDebugEnabled == other.toolCallDebugEnabled &&
           avatarStyle == other.avatarStyle &&
           showFlavorIcons == other.showFlavorIcons &&
           compactSessionView == other.compactSessionView &&
@@ -203,6 +205,7 @@ class Settings {
     bool? alwaysShowContextSize,
     bool? agentInputEnterToSend,
     bool? developerModeEnabled,
+    bool? toolCallDebugEnabled,
     String? avatarStyle,
     bool? showFlavorIcons,
     bool? compactSessionView,
@@ -252,6 +255,8 @@ class Settings {
       ..agentInputEnterToSend =
           agentInputEnterToSend ?? this.agentInputEnterToSend
       ..developerModeEnabled = developerModeEnabled ?? this.developerModeEnabled
+      ..toolCallDebugEnabled =
+          toolCallDebugEnabled ?? this.toolCallDebugEnabled
       ..avatarStyle = avatarStyle ?? this.avatarStyle
       ..showFlavorIcons = showFlavorIcons ?? this.showFlavorIcons
       ..compactSessionView = compactSessionView ?? this.compactSessionView

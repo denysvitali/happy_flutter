@@ -47,6 +47,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
     final isDeveloperMode = ref.watch(
       settingsNotifierProvider.select((s) => s.developerModeEnabled),
     );
+    final isToolCallDebug = ref.watch(
+      settingsNotifierProvider.select((s) => s.toolCallDebugEnabled),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.developerTitle)),
@@ -76,6 +79,21 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
             SettingsSection(
               title: l10n.developerSectionDebugTools,
               children: [
+                SettingsToggleRow(
+                  icon: Icons.handyman,
+                  title: 'Tool Call Debug Mode',
+                  subtitle: isToolCallDebug
+                      ? 'Tool calls render as raw JSON, bypassing '
+                            'specialized views'
+                      : 'Show raw JSON for every tool call instead of '
+                            'specialized views',
+                  value: isToolCallDebug,
+                  onChanged: (value) {
+                    ref
+                        .read(settingsNotifierProvider.notifier)
+                        .updateSetting('toolCallDebugEnabled', value);
+                  },
+                ),
                 SettingsNavRow(
                   icon: Icons.network_check,
                   title: l10n.developerNetworkInspector,

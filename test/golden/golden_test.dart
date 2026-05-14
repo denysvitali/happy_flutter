@@ -533,17 +533,19 @@ void main() {
 
   group('Tool View', () {
     Widget _toolApp(Map<String, dynamic> tool, {bool dark = false}) {
-      return MaterialApp(
-        theme: _testLightTheme(),
-        darkTheme: _testDarkTheme(),
-        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ToolView(tool: tool, sessionId: 's1'),
+      return ProviderScope(
+        child: MaterialApp(
+          theme: _testLightTheme(),
+          darkTheme: _testDarkTheme(),
+          themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ToolView(tool: tool, sessionId: 's1'),
+              ),
             ),
           ),
         ),

@@ -63,6 +63,9 @@ final class SettingsUpdate {
       'developerModeEnabled' => settings.copyWith(
         developerModeEnabled: value as bool,
       ),
+      'toolCallDebugEnabled' => settings.copyWith(
+        toolCallDebugEnabled: value as bool,
+      ),
       'avatarStyle' => settings.copyWith(avatarStyle: value as String),
       'showFlavorIcons' => settings.copyWith(showFlavorIcons: value as bool),
       'compactSessionView' => settings.copyWith(
@@ -163,6 +166,7 @@ final class SettingsUpdate {
       ..alwaysShowContextSize = updated.alwaysShowContextSize
       ..agentInputEnterToSend = updated.agentInputEnterToSend
       ..developerModeEnabled = updated.developerModeEnabled
+      ..toolCallDebugEnabled = updated.toolCallDebugEnabled
       ..avatarStyle = updated.avatarStyle
       ..showFlavorIcons = updated.showFlavorIcons
       ..compactSessionView = updated.compactSessionView

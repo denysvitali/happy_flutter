@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 
@@ -6,15 +7,19 @@ Widget _wrap(Widget child) {
   // The expanded ToolView with both INPUT and OUTPUT sections is taller than
   // the default 800x600 test viewport, so wrap the body in a scroll view to
   // avoid RenderFlex overflow assertions in tests.
-  return MaterialApp(
-    home: Scaffold(body: SingleChildScrollView(child: child)),
+  return ProviderScope(
+    child: MaterialApp(
+      home: Scaffold(body: SingleChildScrollView(child: child)),
+    ),
   );
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('web_search uses normal tool call sections', (tester) async {
+  testWidgets('web_search renders as raw tool call (no special case)', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         ToolView(
@@ -41,8 +46,11 @@ void main() {
       ),
     );
 
-    expect(find.text('Web Search'), findsOneWidget);
-    await tester.tap(find.text('Web Search'));
+    // Codex web_search no longer has a special "Web Search" title —
+    // the header shows the raw tool name.
+    expect(find.text('Web Search'), findsNothing);
+    expect(find.text('web_search'), findsOneWidget);
+    await tester.tap(find.text('web_search'));
     await tester.pumpAndSettle();
 
     // Input/output payloads are rendered through JsonTreeViewer, which
@@ -62,9 +70,7 @@ void main() {
     expect(find.text('OUTPUT'), findsOneWidget);
   });
 
-  testWidgets('web_search_preview alias uses normal tool call sections', (
-    tester,
-  ) async {
+  testWidgets('web_search_preview renders as raw tool call', (tester) async {
     await tester.pumpWidget(
       _wrap(
         ToolView(
@@ -78,7 +84,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Web Search'), findsOneWidget);
+    expect(find.text('Web Search'), findsNothing);
+    expect(find.text('web_search_preview'), findsOneWidget);
     expect(
       find.textContaining('"weather today"', findRichText: true),
       findsWidgets,

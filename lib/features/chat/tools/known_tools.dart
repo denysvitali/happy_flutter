@@ -353,18 +353,6 @@ class KnownTools {
       minimal: false,
       extractDescription: _extractWebSearchDescription,
     ),
-    'web_search': ToolDefinition(
-      icon: webFetchIcon,
-      title: 'Web Search',
-      minimal: false,
-      extractDescription: _extractWebSearchDescription,
-    ),
-    'web_search_preview': ToolDefinition(
-      icon: webFetchIcon,
-      title: 'Web Search',
-      minimal: false,
-      extractDescription: _extractWebSearchDescription,
-    ),
     'ToolSearch': ToolDefinition(
       icon: searchIcon,
       title: 'Tool Search',

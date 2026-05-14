@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
 import '../../../core/utils/tool_error_parser.dart';
@@ -54,7 +56,7 @@ export 'tool_view_minimal.dart' show ToolViewMinimal;
 /// - Tool-specific content view (collapsible with AnimatedSize)
 /// - Green checkmark flash when transitioning running -> completed
 /// - Permission footer (if applicable)
-class ToolView extends StatefulWidget {
+class ToolView extends ConsumerStatefulWidget {
   /// Creates a [ToolView].
   const ToolView({
     required this.tool,
@@ -85,10 +87,11 @@ class ToolView extends StatefulWidget {
   final PermissionActionDelegate? permissionActionDelegate;
 
   @override
-  State<ToolView> createState() => _ToolViewState();
+  ConsumerState<ToolView> createState() => _ToolViewState();
 }
 
-class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
+class _ToolViewState extends ConsumerState<ToolView>
+    with TickerProviderStateMixin {
   bool _expanded = true;
   bool _showCheckFlash = false;
   ToolState? _prevState;
@@ -643,7 +646,12 @@ class _ToolViewState extends State<ToolView> with TickerProviderStateMixin {
     Map<String, dynamic>? permission,
   ) {
     final toolName = widget.tool['name'] as String? ?? '';
-    final specificView = _getToolViewComponent(toolName);
+    final toolCallDebug = ref.watch(
+      settingsNotifierProvider.select((s) => s.toolCallDebugEnabled),
+    );
+    final specificView = toolCallDebug
+        ? null
+        : _getToolViewComponent(toolName);
 
     if (specificView != null) {
       return Padding(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
@@ -10,15 +11,17 @@ Widget _wrapToolView({
   Map<String, dynamic>? metadata,
   PermissionActionDelegate? permissionActionDelegate,
 }) {
-  return MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(
-      body: ToolView(
-        tool: tool,
-        sessionId: sessionId,
-        metadata: metadata,
-        permissionActionDelegate: permissionActionDelegate,
+  return ProviderScope(
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: ToolView(
+          tool: tool,
+          sessionId: sessionId,
+          metadata: metadata,
+          permissionActionDelegate: permissionActionDelegate,
+        ),
       ),
     ),
   );
@@ -104,13 +107,14 @@ void main() {
       var onPressCalled = false;
 
       await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: ToolView(
-              tool: <String, dynamic>{
-                'name': 'list_mcp_resources',
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: ToolView(
+                tool: <String, dynamic>{
+                  'name': 'list_mcp_resources',
                 'state': 'completed',
                 'toolUseId': 'mcp-1',
                 'input': <String, dynamic>{
@@ -126,6 +130,7 @@ void main() {
               sessionId: 's1',
               metadata: <String, dynamic>{'flavor': 'codex'},
               onPress: () => onPressCalled = true,
+              ),
             ),
           ),
         ),

@@ -23,6 +23,7 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..alwaysShowContextSize = json['alwaysShowContextSize'] as bool
   ..agentInputEnterToSend = json['agentInputEnterToSend'] as bool
   ..developerModeEnabled = json['developerModeEnabled'] as bool
+  ..toolCallDebugEnabled = json['toolCallDebugEnabled'] as bool
   ..avatarStyle = json['avatarStyle'] as String
   ..showFlavorIcons = json['showFlavorIcons'] as bool
   ..compactSessionView = json['compactSessionView'] as bool
@@ -79,6 +80,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'alwaysShowContextSize': instance.alwaysShowContextSize,
   'agentInputEnterToSend': instance.agentInputEnterToSend,
   'developerModeEnabled': instance.developerModeEnabled,
+  'toolCallDebugEnabled': instance.toolCallDebugEnabled,
   'avatarStyle': instance.avatarStyle,
   'showFlavorIcons': instance.showFlavorIcons,
   'compactSessionView': instance.compactSessionView,
