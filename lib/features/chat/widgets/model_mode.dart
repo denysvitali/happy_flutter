@@ -188,6 +188,18 @@ class ChatModelMode {
     return defaultModel;
   }
 
+  /// Normalize a stored raw model string for a session flavor while preserving
+  /// provider-owned strings that the app cannot parse into picker options.
+  static String normalizeRawForFlavor(String value, String? flavor) {
+    final parsed = fromString(value);
+    final normalized = normalizeForFlavor(parsed, flavor);
+    final parsedFlavor = parsed.flavor;
+    if (normalized.isDefault && parsedFlavor != null) {
+      return normalized.modeString;
+    }
+    return value;
+  }
+
   static ChatModelMode _fromColonSelection(String raw) {
     final separator = raw.lastIndexOf(':');
     if (separator <= 0 || separator == raw.length - 1) {

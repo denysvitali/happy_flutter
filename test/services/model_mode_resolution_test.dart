@@ -75,6 +75,14 @@ void main() {
         sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet'),
         isNull,
       );
+      expect(
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'opus:max'),
+        isNull,
+      );
+      expect(
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet:high'),
+        isNull,
+      );
     });
 
     test('drops explicit Claude alias for Codex-only profiles', () {
@@ -114,6 +122,14 @@ void main() {
     test('normalizes stale Claude aliases away from Codex', () {
       expect(sync.testNormalizeModelModeForAgent('opus', 'codex'), 'default');
       expect(sync.testNormalizeModelModeForAgent('sonnet', 'codex'), 'default');
+      expect(
+        sync.testNormalizeModelModeForAgent('opus:max', 'codex'),
+        'default',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent('sonnet:high', 'codex'),
+        'default',
+      );
     });
 
     test('preserves non-Claude model names for Codex profiles', () {
@@ -146,23 +162,14 @@ void main() {
     });
 
     test('preserves Claude aliases for Claude sessions', () {
-      expect(
-        sync.testNormalizeModelModeForAgent('opus', 'claude'),
-        'opus',
-      );
-      expect(
-        sync.testNormalizeModelModeForAgent('sonnet', 'claude'),
-        'sonnet',
-      );
+      expect(sync.testNormalizeModelModeForAgent('opus', 'claude'), 'opus');
+      expect(sync.testNormalizeModelModeForAgent('sonnet', 'claude'), 'sonnet');
     });
 
     test('preserves Claude-compatible custom model names', () {
       // GLM, MiniMax, etc. are Claude-API-compatible providers — their
       // model identifiers must not be stripped.
-      expect(
-        sync.testNormalizeModelModeForAgent('GLM-5', 'claude'),
-        'GLM-5',
-      );
+      expect(sync.testNormalizeModelModeForAgent('GLM-5', 'claude'), 'GLM-5');
       expect(
         sync.testNormalizeModelModeForAgent('MiniMax-Text-01', 'claude'),
         'MiniMax-Text-01',

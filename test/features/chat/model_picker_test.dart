@@ -148,4 +148,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(selected, 'opus:high');
   });
+
+  test('raw model normalization drops Claude effort modes for Codex', () {
+    expect(ChatModelMode.normalizeRawForFlavor('opus:max', 'codex'), 'default');
+    expect(
+      ChatModelMode.normalizeRawForFlavor('sonnet:high', 'codex'),
+      'default',
+    );
+  });
+
+  test('raw model normalization preserves provider-owned strings', () {
+    expect(ChatModelMode.normalizeRawForFlavor('GLM-5', 'claude'), 'GLM-5');
+    expect(
+      ChatModelMode.normalizeRawForFlavor('MiniMax-Text-01', 'claude'),
+      'MiniMax-Text-01',
+    );
+  });
 }

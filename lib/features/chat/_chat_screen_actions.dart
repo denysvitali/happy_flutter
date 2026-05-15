@@ -86,19 +86,28 @@ extension _ChatScreenActions on _ChatScreenState {
     // Priority: saved draft > session model > profile default
     // > settings default
     if (savedModelMode != null) {
-      rawModelModeString = savedModelMode;
+      rawModelModeString = ChatModelMode.normalizeRawForFlavor(
+        savedModelMode,
+        flavor,
+      );
       modelMode = ChatModelMode.normalizeForFlavor(
         ChatModelMode.fromString(savedModelMode),
         flavor,
       );
     } else if (session?.modelMode case final sessionModelMode?) {
-      rawModelModeString = sessionModelMode;
+      rawModelModeString = ChatModelMode.normalizeRawForFlavor(
+        sessionModelMode,
+        flavor,
+      );
       modelMode = ChatModelMode.normalizeForFlavor(
         ChatModelMode.fromString(sessionModelMode),
         flavor,
       );
     } else if (selectedProfile?.defaultModelMode case final profileModelMode?) {
-      rawModelModeString = profileModelMode;
+      rawModelModeString = ChatModelMode.normalizeRawForFlavor(
+        profileModelMode,
+        flavor,
+      );
       modelMode = ChatModelMode.normalizeForFlavor(
         ChatModelMode.fromString(profileModelMode),
         flavor,
@@ -422,7 +431,12 @@ extension _ChatScreenActions on _ChatScreenState {
             _session?.metadata?.flavor,
           )
         : ChatModelMode.defaultModel;
-    final rawModelString = profileDefaultModelMode ?? newModel.modeString;
+    final rawModelString = profileDefaultModelMode != null
+        ? ChatModelMode.normalizeRawForFlavor(
+            profileDefaultModelMode,
+            _session?.metadata?.flavor,
+          )
+        : newModel.modeString;
 
     // Apply the profile's default permission mode (consistent with
     // how NewSessionScreen applies it on session creation).
