@@ -60,10 +60,6 @@ extension SyncLifecycle on Sync {
     pushTokenSync.suspend();
     nativeUpdateSync.suspend();
     artifactsSync.suspend();
-    friendsSync.suspend();
-    friendRequestsSync.suspend();
-    feedSync.suspend();
-    todosSync.suspend();
     sessionGitStatusSync.suspend();
     for (final sync in messagesSync.values) {
       sync.suspend();
@@ -87,7 +83,6 @@ extension SyncLifecycle on Sync {
     _orphanSuppressedUntilMs.clear();
     _inlineProcessor.clear();
     _sessionsRefreshDebounceTimer?.cancel();
-    _socialSyncsDebounceTimer?.cancel();
     _artifactsSyncDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer?.cancel();
@@ -646,7 +641,6 @@ extension SyncLifecycle on Sync {
     _setSyncProgress(null);
     _reconnectCursorSnapshot = null;
     _sessionsRefreshDebounceTimer?.cancel();
-    _socialSyncsDebounceTimer?.cancel();
     _artifactsSyncDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
@@ -729,10 +723,6 @@ extension SyncLifecycle on Sync {
     pushTokenSync.dispose();
     nativeUpdateSync.dispose();
     artifactsSync.dispose();
-    friendsSync.dispose();
-    friendRequestsSync.dispose();
-    feedSync.dispose();
-    todosSync.dispose();
     sessionGitStatusSync.dispose();
 
     for (final timer in _presenceTimers.values) {
@@ -744,10 +734,6 @@ extension SyncLifecycle on Sync {
     _sessionEncryptedDataKeys.clear();
     _machineDataKeys.clear();
     _artifactDataKeys.clear();
-    _todoLists.clear();
-    _friends.clear();
-    _friendRequests.clear();
-    _feedItems.clear();
     _artifacts.clear();
     for (final timer in _saveMsgsDebounceTimers.values) {
       timer.cancel();

@@ -11,7 +11,6 @@ import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../api/api_client.dart';
-import '../api/kv_api.dart';
 import '../api/push_api.dart';
 import '../api/sessions_api.dart';
 import '../api/socket_io_client.dart';
@@ -27,15 +26,12 @@ import '../models/artifact.dart';
 import '../models/auth.dart';
 import '../models/built_in_profiles.dart';
 import '../models/codex_usage_summary.dart';
-import '../models/feed.dart';
-import '../models/friend.dart';
 import '../models/machine.dart';
 import '../models/message.dart';
 import '../models/profile.dart';
 import '../models/purchases.dart';
 import '../models/session.dart';
 import '../models/settings.dart';
-import '../models/todo.dart';
 import '../rpc/rpc_types.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
@@ -73,7 +69,6 @@ import 'tool_result_processor.dart';
 part '_sync_data.dart';
 part '_sync_data_artifacts.dart';
 part '_sync_data_machines.dart';
-part '_sync_data_social.dart';
 part '_sync_health.dart';
 part '_sync_isolate_helpers.dart';
 part '_sync_lifecycle.dart';
@@ -96,9 +91,6 @@ enum SyncDomain {
   machines,
   settings,
   profile,
-  friends,
-  feed,
-  todos,
   artifacts,
   gitStatus,
 }
@@ -316,10 +308,6 @@ what you have, you must use the options mode.
   late InvalidateSync pushTokenSync;
   late InvalidateSync nativeUpdateSync;
   late InvalidateSync artifactsSync;
-  late InvalidateSync friendsSync;
-  late InvalidateSync friendRequestsSync;
-  late InvalidateSync feedSync;
-  late InvalidateSync todosSync;
   late InvalidateSync sessionGitStatusSync;
 
   // State tracking
@@ -332,10 +320,6 @@ what you have, you must use the options mode.
 
   // Pending settings
   Map<String, dynamic> pendingSettings = {};
-  final Map<String?, TodoList> _todoLists = <String?, TodoList>{};
-  final List<UserProfile> _friends = <UserProfile>[];
-  final List<FriendRequest> _friendRequests = <FriendRequest>[];
-  final List<FeedItem> _feedItems = <FeedItem>[];
   final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   final Map<String, Map<String, String?>> _sessionContentSignatures = {};
@@ -424,7 +408,6 @@ what you have, you must use the options mode.
   Timer? _resumeConversationProgressSafetyTimer;
   static const int _resumeConversationProgressTimeoutMs = 30 * 1000;
   Timer? _sessionsRefreshDebounceTimer;
-  Timer? _socialSyncsDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
   final Map<String, Machine> _machines = <String, Machine>{};
@@ -564,10 +547,6 @@ what you have, you must use the options mode.
   @visibleForTesting
   Future<void>? lastCompleteSendFuture;
 
-  Map<String?, TodoList> get todoLists => Map.unmodifiable(_todoLists);
-  List<UserProfile> get friends => List.unmodifiable(_friends);
-  List<FriendRequest> get friendRequests => List.unmodifiable(_friendRequests);
-  List<FeedItem> get feedItems => List.unmodifiable(_feedItems);
   List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
 
   /// Get usage data for a session (contextSize, inputTokens, outputTokens).
@@ -994,7 +973,7 @@ what you have, you must use the options mode.
   ///   * 1: Tab-needed — machines/settings/profile. Fires ~1s in so
   ///        cold-start fetchSessions finishes uncontested first.
   ///   * 2: Background — purchases / push token / native update /
-  ///        friend requests / git status. Fires ~3s in. None of these
+  ///        git status. Fires ~3s in. None of these
   ///        block any user-visible screen.
   static const _criticalSyncPhase = 0;
   static const _deferredSyncPhase = 1;

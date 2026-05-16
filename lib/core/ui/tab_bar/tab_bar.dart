@@ -10,7 +10,6 @@ import '../../theme/app_tokens.dart';
 
 /// Tab type for the app
 enum AppTab {
-  inbox,
   sessions,
   settings,
 }
@@ -31,47 +30,6 @@ class AppTabInfo {
   final IconData icon;
   final IconData activeIcon;
   final String label;
-}
-
-// ─── _TabBadge ───────────────────────────────────────────────────────────────
-
-/// Red notification count badge, positioned over the top-right of an icon.
-class _TabBadge extends StatelessWidget {
-  const _TabBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final label = count > 99 ? '99+' : count.toString();
-    final isMultiDigit = count > 9;
-    return Container(
-      height: AppSpacing.md + AppSpacing.xs,
-      constraints: BoxConstraints(
-        minWidth: isMultiDigit ? AppSpacing.md + AppSpacing.xsm : AppSpacing.md,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: isMultiDigit ? AppSpacing.xs : 0,
-      ),
-      decoration: BoxDecoration(
-        color: cs.error,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: AppFontSize.xxs,
-          color: cs.onError,
-          fontWeight: FontWeight.w600,
-          height: AppLineHeight.tight,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
 }
 
 // ─── _TabIndicator ───────────────────────────────────────────────────────────
@@ -125,23 +83,19 @@ class _TabIndicator extends StatelessWidget {
 
 // ─── _TabItem ────────────────────────────────────────────────────────────────
 
-/// A single tab button: icon stacked above label, with optional badge.
+/// A single tab button: icon stacked above label.
 class _TabItem extends StatelessWidget {
   const _TabItem({
     required this.tab,
     required this.isActive,
     required this.label,
     required this.onTap,
-    this.badgeCount,
-    this.showDot = false,
   });
 
   final AppTabInfo tab;
   final bool isActive;
   final String label;
   final VoidCallback onTap;
-  final int? badgeCount;
-  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -166,60 +120,29 @@ class _TabItem extends StatelessWidget {
               onTap();
             },
             child: SizedBox(
-          height: double.infinity,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Icon with optional badge
-              Stack(
-                clipBehavior: Clip.none,
+              height: double.infinity,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     isActive ? tab.activeIcon : tab.icon,
                     size: AppSpacing.xxxl - AppSpacing.lg,
                     color: itemColor,
                   ),
-                  // Count badge
-                  if (tab.key == AppTab.inbox &&
-                      badgeCount != null &&
-                      badgeCount! > 0)
-                    Positioned(
-                      top: -AppSpacing.sm - AppSpacing.xs,
-                      right: -AppSpacing.lg - AppSpacing.md,
-                      child: _TabBadge(count: badgeCount!),
+                  const SizedBox(height: AppSpacing.xsm),
+                  Text(
+                    label,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: itemColor,
+                      fontWeight: isActive
+                          ? FontWeight.w700
+                          : FontWeight.normal,
                     ),
-                  // Dot badge (unread but no count)
-                  if (tab.key == AppTab.inbox &&
-                      showDot &&
-                      (badgeCount == null || badgeCount! == 0))
-                    Positioned(
-                      top: -AppSpacing.sm,
-                      right: -AppSpacing.xs,
-                      child: Container(
-                        width: AppSpacing.xs + AppSpacing.xs,
-                        height: AppSpacing.xs + AppSpacing.xs,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.error,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xsm),
-              Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: itemColor,
-                  fontWeight: isActive
-                      ? FontWeight.w700
-                      : FontWeight.normal,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-        ),
         ),
       ),
     );
@@ -230,12 +153,6 @@ class _TabItem extends StatelessWidget {
 
 /// Canonical tab definition list shared by [TabBar] and [CompactTabBar].
 const _kAppTabs = <AppTabInfo>[
-  AppTabInfo(
-    key: AppTab.inbox,
-    icon: Icons.inbox_outlined,
-    activeIcon: Icons.inbox,
-    label: 'Inbox',
-  ),
   AppTabInfo(
     key: AppTab.sessions,
     icon: Icons.chat_bubble_outline,
@@ -257,8 +174,6 @@ class TabBar extends StatefulWidget {
   const TabBar({
     required this.activeTab,
     required this.onTabPress,
-    this.inboxBadgeCount,
-    this.showInboxBadge = false,
     this.height = 60,
     this.backgroundColor,
     this.selectedItemColor,
@@ -269,8 +184,6 @@ class TabBar extends StatefulWidget {
 
   final AppTab activeTab;
   final void Function(AppTab tab) onTabPress;
-  final int? inboxBadgeCount;
-  final bool showInboxBadge;
   final double height;
   final Color? backgroundColor;
   final Color? selectedItemColor;
@@ -290,7 +203,6 @@ class _TabBarState extends State<TabBar> {
 
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
-      AppTab.inbox => l10n.tabsInbox,
       AppTab.sessions => l10n.sessionHistoryTitle,
       AppTab.settings => l10n.tabsSettings,
     };
@@ -345,11 +257,6 @@ class _TabBarState extends State<TabBar> {
                     isActive: isActive,
                     label: _labelForTab(tab.key, l10n),
                     onTap: () => widget.onTabPress(tab.key),
-                    badgeCount: tab.key == AppTab.inbox
-                        ? widget.inboxBadgeCount
-                        : null,
-                    showDot: tab.key == AppTab.inbox &&
-                        widget.showInboxBadge,
                   );
                 }).toList(),
               ),
@@ -385,7 +292,6 @@ class CompactTabBar extends StatelessWidget {
 
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
-      AppTab.inbox => l10n.tabsInbox,
       AppTab.sessions => l10n.sessionHistoryTitle,
       AppTab.settings => l10n.tabsSettings,
     };

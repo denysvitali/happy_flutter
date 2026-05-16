@@ -22,9 +22,6 @@ class FeaturesSettingsScreen extends ConsumerWidget {
     final compactSessionView = ref.watch(
       settingsNotifierProvider.select((s) => s.compactSessionView),
     );
-    final experiments = ref.watch(
-      settingsNotifierProvider.select((s) => s.experiments),
-    );
     final showLineNumbers = ref.watch(
       settingsNotifierProvider.select((s) => s.showLineNumbers),
     );
@@ -66,20 +63,6 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 value: compactSessionView,
                 onChanged: (v) =>
                     notifier.updateSetting('compactSessionView', v),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SettingsSection(
-            title: l10n.zenTitle,
-            children: [
-              SettingsToggleRow(
-                icon: Icons.science_outlined,
-                title: l10n.commandZenModeTitle,
-                subtitle: l10n.commandZenModeSubtitle,
-                value: experiments,
-                onChanged: (v) =>
-                    notifier.updateSetting('experiments', v),
               ),
             ],
           ),

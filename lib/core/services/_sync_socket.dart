@@ -132,26 +132,6 @@ extension SyncSocket on Sync {
       name: 'fetchArtifactsList',
       onRunningChanged: _onSyncRunningChanged,
     );
-    friendsSync = InvalidateSync(
-      fetchFriends,
-      name: 'fetchFriends',
-      onRunningChanged: _onSyncRunningChanged,
-    );
-    friendRequestsSync = InvalidateSync(
-      fetchFriendRequests,
-      name: 'fetchFriendRequests',
-      onRunningChanged: _onSyncRunningChanged,
-    );
-    feedSync = InvalidateSync(
-      fetchFeed,
-      name: 'fetchFeed',
-      onRunningChanged: _onSyncRunningChanged,
-    );
-    todosSync = InvalidateSync(
-      fetchTodos,
-      name: 'fetchTodos',
-      onRunningChanged: _onSyncRunningChanged,
-    );
     sessionGitStatusSync = InvalidateSync(
       _fetchSessionGitStatus,
       name: 'fetchSessionGitStatus',
@@ -273,13 +253,11 @@ extension SyncSocket on Sync {
         if (!isInitialized) return;
         logger.debug(
           'Invalidating background syncs '
-          '(purchases, push token, native update, '
-          'friend requests, git status)',
+          '(purchases, push token, native update, git status)',
         );
         purchasesSync.invalidate();
         pushTokenSync.invalidate();
         nativeUpdateSync.invalidate();
-        friendRequestsSync.invalidate();
         sessionGitStatusSync.invalidate();
         powerDiagnostics.recordSyncInvalidation('backgroundSyncs');
       });

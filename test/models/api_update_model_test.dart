@@ -283,23 +283,4 @@ void main() {
     });
   });
 
-  group('ApiRelationshipUpdated', () {
-    test('stores data', () {
-      const update = ApiRelationshipUpdated(data: {'status': 'friend'});
-      expect(update.data, {'status': 'friend'});
-    });
-  });
-
-  group('ApiKvBatchUpdate', () {
-    test('stores data', () {
-      const update = ApiKvBatchUpdate(
-        data: {
-          'keys': ['a', 'b'],
-        },
-      );
-      expect(update.data, {
-        'keys': ['a', 'b'],
-      });
-    });
-  });
 }

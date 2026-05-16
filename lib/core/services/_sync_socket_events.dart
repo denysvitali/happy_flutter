@@ -189,9 +189,6 @@ extension SyncSocketEvents on Sync {
         case 'update-machine':
           _handleUpdateMachine(update.data);
           break;
-        case 'relationship-updated':
-          _handleRelationshipUpdated(update.data);
-          break;
         case 'new-artifact':
           _handleNewArtifact(update.data);
           break;
@@ -200,12 +197,6 @@ extension SyncSocketEvents on Sync {
           break;
         case 'delete-artifact':
           _handleDeleteArtifact(update.data);
-          break;
-        case 'new-feed-post':
-          _handleNewFeedPost(update.data);
-          break;
-        case 'kv-batch-update':
-          _handleKvBatchUpdate(update.data);
           break;
       }
     } catch (error, stack) {
@@ -578,7 +569,6 @@ extension SyncSocketEvents on Sync {
       _invalidatePreviewCache(sessionId);
       _sessionMessagesCache = null;
       _sessionMessagesViewCache.remove(sessionId);
-      _todoLists.remove(sessionId);
       _sessions.remove(sessionId);
       _sessionsNeedingVisibleRegroup.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();

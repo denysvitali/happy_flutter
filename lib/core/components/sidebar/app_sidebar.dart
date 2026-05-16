@@ -20,8 +20,6 @@ class AppSidebar extends StatefulWidget {
     required this.onTabPress,
     required this.isCollapsed,
     required this.onToggleCollapsed,
-    this.inboxBadgeCount,
-    this.showInboxBadge = false,
     super.key,
   });
 
@@ -37,12 +35,6 @@ class AppSidebar extends StatefulWidget {
   /// Called when the user taps the expand/collapse toggle button.
   final VoidCallback onToggleCollapsed;
 
-  /// Numeric badge count for the Inbox tab.
-  final int? inboxBadgeCount;
-
-  /// Whether to show an unread dot on the Inbox tab.
-  final bool showInboxBadge;
-
   /// Width when fully expanded.
   static const double expandedWidth = 200;
 
@@ -55,12 +47,6 @@ class AppSidebar extends StatefulWidget {
 
 class _AppSidebarState extends State<AppSidebar> {
   static const _kTabs = <AppTabInfo>[
-    AppTabInfo(
-      key: AppTab.inbox,
-      icon: Icons.inbox_outlined,
-      activeIcon: Icons.inbox,
-      label: 'Inbox',
-    ),
     AppTabInfo(
       key: AppTab.sessions,
       icon: Icons.chat_bubble_outline,
@@ -77,7 +63,6 @@ class _AppSidebarState extends State<AppSidebar> {
 
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
-      AppTab.inbox => l10n.tabsInbox,
       AppTab.sessions => l10n.sessionHistoryTitle,
       AppTab.settings => l10n.tabsSettings,
     };
@@ -116,11 +101,6 @@ class _AppSidebarState extends State<AppSidebar> {
                   label: _labelForTab(tab.key, context.l10n),
                   isActive: widget.activeTab == tab.key,
                   isCollapsed: widget.isCollapsed,
-                  badgeCount: tab.key == AppTab.inbox
-                      ? widget.inboxBadgeCount
-                      : null,
-                  showDot: tab.key == AppTab.inbox &&
-                      widget.showInboxBadge,
                   onTap: () {
                     HapticFeedback.selectionClick();
                     widget.onTabPress(tab.key);
@@ -144,7 +124,7 @@ class _AppSidebarState extends State<AppSidebar> {
 
 // ─── _SidebarItem ────────────────────────────────────────────────────────────
 
-/// A single sidebar navigation item with icon, optional label, and badge.
+/// A single sidebar navigation item with icon and optional label.
 class _SidebarItem extends StatelessWidget {
   const _SidebarItem({
     required this.tab,
@@ -152,8 +132,6 @@ class _SidebarItem extends StatelessWidget {
     required this.isActive,
     required this.isCollapsed,
     required this.onTap,
-    this.badgeCount,
-    this.showDot = false,
   });
 
   final AppTabInfo tab;
@@ -161,8 +139,6 @@ class _SidebarItem extends StatelessWidget {
   final bool isActive;
   final bool isCollapsed;
   final VoidCallback onTap;
-  final int? badgeCount;
-  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -172,38 +148,10 @@ class _SidebarItem extends StatelessWidget {
     final inactiveColor = cs.onSurface.withValues(alpha: AppOpacity.half);
     final itemColor = isActive ? activeColor : inactiveColor;
 
-    final iconWidget = Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Icon(
-          isActive ? tab.activeIcon : tab.icon,
-          size: AppSpacing.xl,
-          color: itemColor,
-        ),
-        if (tab.key == AppTab.inbox &&
-            badgeCount != null &&
-            badgeCount! > 0)
-          Positioned(
-            top: -(AppSpacing.sm + AppSpacing.xs),
-            right: -(AppSpacing.lg + AppSpacing.md),
-            child: _SidebarBadge(count: badgeCount!),
-          ),
-        if (tab.key == AppTab.inbox &&
-            showDot &&
-            (badgeCount == null || badgeCount! == 0))
-          Positioned(
-            top: -AppSpacing.sm,
-            right: -AppSpacing.xs,
-            child: Container(
-              width: AppSpacing.xs + AppSpacing.xs,
-              height: AppSpacing.xs + AppSpacing.xs,
-              decoration: BoxDecoration(
-                color: cs.error,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-      ],
+    final iconWidget = Icon(
+      isActive ? tab.activeIcon : tab.icon,
+      size: AppSpacing.xl,
+      color: itemColor,
     );
 
     return Semantics(
@@ -256,48 +204,6 @@ class _SidebarItem extends StatelessWidget {
                   ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─── _SidebarBadge ───────────────────────────────────────────────────────────
-
-/// Numeric red badge for the sidebar inbox item.
-class _SidebarBadge extends StatelessWidget {
-  const _SidebarBadge({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final label = count > 99 ? '99+' : count.toString();
-    final isMultiDigit = count > 9;
-    return Container(
-      height: AppSpacing.md + AppSpacing.xs,
-      constraints: BoxConstraints(
-        minWidth: isMultiDigit
-            ? AppSpacing.md + AppSpacing.xsm
-            : AppSpacing.md,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: isMultiDigit ? AppSpacing.xs : 0,
-      ),
-      decoration: BoxDecoration(
-        color: cs.error,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: AppFontSize.xxs,
-          color: cs.onError,
-          fontWeight: FontWeight.w600,
-          height: AppLineHeight.tight,
-        ),
-        textAlign: TextAlign.center,
       ),
     );
   }
@@ -375,8 +281,6 @@ class ResponsiveNavLayout extends StatelessWidget {
     required this.isCollapsed,
     required this.onToggleCollapsed,
     required this.child,
-    this.inboxBadgeCount,
-    this.showInboxBadge = false,
     this.bottomBar,
     super.key,
   });
@@ -395,12 +299,6 @@ class ResponsiveNavLayout extends StatelessWidget {
 
   /// The main content area (tab body).
   final Widget child;
-
-  /// Numeric badge count for the Inbox tab.
-  final int? inboxBadgeCount;
-
-  /// Whether to show an unread dot on the Inbox tab.
-  final bool showInboxBadge;
 
   /// Optional custom bottom bar widget for phone layout.
   /// If null, no bottom bar is rendered on phone (caller provides it
@@ -425,8 +323,6 @@ class ResponsiveNavLayout extends StatelessWidget {
           onTabPress: onTabPress,
           isCollapsed: isCollapsed,
           onToggleCollapsed: onToggleCollapsed,
-          inboxBadgeCount: inboxBadgeCount,
-          showInboxBadge: showInboxBadge,
         ),
         Expanded(child: child),
       ],

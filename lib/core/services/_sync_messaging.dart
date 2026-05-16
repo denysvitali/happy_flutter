@@ -1164,7 +1164,6 @@ extension SyncMessaging on Sync {
     _sessionContentSignatures.remove(sessionId);
     _sessionMessagesCache = null;
     _sessionMessagesViewCache.remove(sessionId);
-    _todoLists.remove(sessionId);
     if (sessionId == _visibleSessionId) {
       _visibleSessionId = null;
     }

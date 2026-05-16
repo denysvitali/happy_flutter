@@ -75,10 +75,6 @@ void main() {
       sync.pushTokenSync = InvalidateSync(() async {});
       sync.nativeUpdateSync = InvalidateSync(() async {});
       sync.artifactsSync = InvalidateSync(() async {});
-      sync.friendsSync = InvalidateSync(() async {});
-      sync.friendRequestsSync = InvalidateSync(() async {});
-      sync.feedSync = InvalidateSync(() async {});
-      sync.todosSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
       // Reset state to ensure test isolation (resume() has a 5s debounce that
@@ -298,10 +294,6 @@ void main() {
       sync.pushTokenSync = InvalidateSync(() async {});
       sync.nativeUpdateSync = InvalidateSync(() async {});
       sync.artifactsSync = InvalidateSync(() async {});
-      sync.friendsSync = InvalidateSync(() async {});
-      sync.friendRequestsSync = InvalidateSync(() async {});
-      sync.feedSync = InvalidateSync(() async {});
-      sync.todosSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
       sync.testClearSessionsWithPendingSocketMessages();
@@ -357,10 +349,6 @@ void main() {
       sync.pushTokenSync = InvalidateSync(() async {});
       sync.nativeUpdateSync = InvalidateSync(() async {});
       sync.artifactsSync = InvalidateSync(() async {});
-      sync.friendsSync = InvalidateSync(() async {});
-      sync.friendRequestsSync = InvalidateSync(() async {});
-      sync.feedSync = InvalidateSync(() async {});
-      sync.todosSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
       sync.testClearSessionsWithPendingSocketMessages();
@@ -424,10 +412,6 @@ void main() {
       sync.pushTokenSync = InvalidateSync(() async {});
       sync.nativeUpdateSync = InvalidateSync(() async {});
       sync.artifactsSync = InvalidateSync(() async {});
-      sync.friendsSync = InvalidateSync(() async {});
-      sync.friendRequestsSync = InvalidateSync(() async {});
-      sync.feedSync = InvalidateSync(() async {});
-      sync.todosSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
       sync.testClearSessionsWithPendingSocketMessages();
@@ -565,10 +549,6 @@ void main() {
       sync.pushTokenSync = InvalidateSync(() async {});
       sync.nativeUpdateSync = InvalidateSync(() async {});
       sync.artifactsSync = InvalidateSync(() async {});
-      sync.friendsSync = InvalidateSync(() async {});
-      sync.friendRequestsSync = InvalidateSync(() async {});
-      sync.feedSync = InvalidateSync(() async {});
-      sync.todosSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
       sync.testClearSessionsWithPendingSocketMessages();

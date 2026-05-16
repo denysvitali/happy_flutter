@@ -111,8 +111,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: AppSpacing.lg),
             _buildToolsSection(context),
             const SizedBox(height: AppSpacing.lg),
-            _buildSocialSection(context),
-            const SizedBox(height: AppSpacing.lg),
             _buildSessionsSection(
               context,
               sessionsViewStyle: sessionsViewStyle,
@@ -296,27 +294,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: l10n.smartFeaturesTitle,
           subtitle: l10n.smartFeaturesEnabledDesc,
           onTap: () => context.pushNamed('smart-features'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSocialSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsSocial,
-      children: [
-        SettingsNavRow(
-          icon: Icons.person_add_alt_1,
-          title: l10n.settingsFindFriends,
-          subtitle: l10n.settingsFindFriendsSubtitle,
-          onTap: () => context.pushNamed('friends-search'),
-        ),
-        SettingsNavRow(
-          icon: Icons.inbox_outlined,
-          title: l10n.settingsOpenInbox,
-          subtitle: l10n.settingsOpenInboxSubtitle,
-          onTap: () => context.pushNamed('inbox'),
         ),
       ],
     );

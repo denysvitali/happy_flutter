@@ -324,17 +324,6 @@ extension SyncOperations on Sync {
     return Set<String>.from(_optimisticallyArchivedSessions);
   }
 
-  /// Refresh friends and pending requests from server.
-  Future<void> refreshFriends() async {
-    await friendsSync.invalidateAndAwait();
-    // friendRequestsSync is a no-op (requests come with friends).
-  }
-
-  /// Refresh feed items from server.
-  Future<void> refreshFeed() async {
-    await feedSync.invalidateAndAwait();
-  }
-
   /// Delete a session.
   Future<bool> deleteSession(String sessionId) async {
     try {

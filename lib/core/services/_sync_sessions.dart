@@ -134,25 +134,6 @@ extension SyncSessions on Sync {
     await machinesSync.invalidateAndAwait();
   }
 
-  /// Handle relationship update
-  void _handleRelationshipUpdated(Map<String, dynamic> data) {
-    logger.info('Relationship update received');
-    // Debounce: relationship events can fire in bursts. Schedule a
-    // single batched refresh instead of invalidating each sync immediately.
-    _scheduleSocialSyncsRefresh();
-  }
-
-  /// Debounced invalidation of social/secondary syncs.
-  void _scheduleSocialSyncsRefresh() {
-    _socialSyncsDebounceTimer?.cancel();
-    _socialSyncsDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-      _socialSyncsDebounceTimer = null;
-      friendsSync.invalidate();
-      friendRequestsSync.invalidate();
-      feedSync.invalidate();
-    });
-  }
-
   /// Handle new artifact update
   void _handleNewArtifact(Map<String, dynamic> data) {
     logger.info('New artifact received');
@@ -179,62 +160,4 @@ extension SyncSessions on Sync {
     });
   }
 
-  /// Handle new feed post
-  void _handleNewFeedPost(Map<String, dynamic> data) {
-    logger.info('New feed post received');
-    feedSync.invalidate();
-  }
-
-  /// Check if data contains a key matching the search string
-  /// without full JSON serialization.
-  bool _containsKeyRecursive(dynamic data, String key) {
-    if (data is Map) {
-      for (final k in data.keys) {
-        if (k is String && k.toLowerCase().contains(key)) {
-          return true;
-        }
-        if (_containsKeyRecursive(data[k], key)) {
-          return true;
-        }
-      }
-    } else if (data is List) {
-      for (final item in data) {
-        if (_containsKeyRecursive(item, key)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  /// Handle KV batch update (for todos)
-  void _handleKvBatchUpdate(Map<String, dynamic> data) {
-    bool hasTodoEntry(List<dynamic> list) => list.any(
-      (entry) =>
-          entry is Map<String, dynamic> &&
-          ((entry['key'] as String?)?.startsWith('todo') ?? false),
-    );
-
-    final changes = data['changes'];
-    if (changes is List && hasTodoEntry(changes)) {
-      todosSync.invalidate();
-      logger.info('KV batch update received (todos)');
-      return;
-    }
-
-    final operations = data['operations'];
-    if (operations is List && hasTodoEntry(operations)) {
-      todosSync.invalidate();
-      logger.info('KV batch update received (todos)');
-      return;
-    }
-
-    if (_containsKeyRecursive(data, 'todo')) {
-      todosSync.invalidate();
-      logger.info('KV batch update received (todos-fallback)');
-      return;
-    }
-
-    logger.info('KV batch update received (non-todo)');
-  }
 }

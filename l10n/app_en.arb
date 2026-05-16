@@ -39,15 +39,8 @@
   "@commonCancel": {
     "description": "Common cancel button"
   },
-  "tabsInbox": "Inbox",
   "tabsSessions": "Terminals",
   "tabsSettings": "Settings",
-  "@tabsInbox": {
-    "description": "Tab navigation label for Inbox"
-  },
-  "inboxEmptyTitle": "Empty Inbox",
-  "inboxEmptyDescription": "Connect with friends to start sharing sessions",
-  "inboxUpdates": "Updates",
   "statusConnected": "Connected",
   "statusConnecting": "Connecting",
   "statusDisconnected": "Disconnected",
@@ -252,7 +245,6 @@
   "settingsSessionsViewStyle": "Session view style",
   "settingsSessionsViewStyleSubtitle": "Choose how sessions are grouped in the sessions tab",
   "settingsFeatures": "Features",
-  "settingsSocial": "Social",
   "settingsAccount": "Account",
   "settingsAccountSubtitle": "Manage your account details",
   "settingsAppearance": "Appearance",
@@ -491,12 +483,7 @@
   "errorsErrorWithCode": "{message} (Error {code})",
   "errorsDisconnectServiceFailed": "Failed to disconnect {service}",
   "errorsConnectServiceFailed": "Failed to connect {service}. Please try again.",
-  "errorsFailedToLoadFriends": "Failed to load friends list",
-  "errorsFailedToAcceptRequest": "Failed to accept friend request",
-  "errorsFailedToRejectRequest": "Failed to reject friend request",
-  "errorsFailedToRemoveFriend": "Failed to remove friend",
   "errorsSearchFailed": "Search failed. Please try again.",
-  "errorsFailedToSendRequest": "Failed to send friend request",
   "@errorsFieldError": {
     "description": "Field validation error",
     "placeholders": {
@@ -711,7 +698,6 @@
   "navigationLinkNewDevice": "Link New Device",
   "navigationRestoreWithSecretKey": "Restore with Secret Key",
   "navigationWhatsNew": "What's New",
-  "navigationFriends": "Friends",
   "emptyMainScreenReadyToCode": "Ready to code?",
   "emptyMainScreenInstallCli": "Install the Happy CLI",
   "emptyMainScreenRunIt": "Run it",
@@ -786,71 +772,6 @@
     "placeholders": {
       "count": {
         "type": "int"
-      }
-    }
-  },
-  "friendsTitle": "Friends",
-  "friendsManageFriends": "Manage your friends and connections",
-  "friendsSearchTitle": "Find Friends",
-  "friendsPendingRequests": "Friend Requests",
-  "friendsMyFriends": "My Friends",
-  "friendsNoFriendsYet": "You don't have any friends yet",
-  "friendsFindFriends": "Find Friends",
-  "friendsRemove": "Remove",
-  "friendsPendingRequest": "Pending",
-  "friendsSentOn": "Sent on {date}",
-  "friendsAccept": "Accept",
-  "friendsReject": "Reject",
-  "friendsAddFriend": "Add Friend",
-  "friendsAlreadyFriends": "Already Friends",
-  "friendsRequestPending": "Request Pending",
-  "friendsSearchInstructions": "Enter a username to search for friends",
-  "friendsSearchPlaceholder": "Enter username...",
-  "friendsSearching": "Searching...",
-  "friendsUserNotFound": "User not found",
-  "friendsNoUserFound": "No user found with that username",
-  "friendsCheckUsername": "Please check the username and try again",
-  "friendsHowToFind": "How to Find Friends",
-  "friendsFindInstructions": "Search for friends by their username. Both you and your friend need to have GitHub connected to send friend requests.",
-  "friendsRequestSent": "Friend request sent!",
-  "friendsRequestAccepted": "Friend request accepted!",
-  "friendsRequestRejected": "Friend request rejected",
-  "friendsFriendRemoved": "Friend removed",
-  "friendsConfirmRemove": "Remove Friend",
-  "friendsConfirmRemoveMessage": "Are you sure you want to remove this friend?",
-  "friendsCannotAddYourself": "You cannot send a friend request to yourself",
-  "friendsBothMustHaveGithub": "Both users must have GitHub connected to become friends",
-  "friendsStatusNone": "Not connected",
-  "friendsStatusRequested": "Request sent",
-  "friendsStatusPending": "Request pending",
-  "friendsStatusFriend": "Friends",
-  "friendsStatusRejected": "Rejected",
-  "friendsAcceptRequest": "Accept Request",
-  "friendsRemoveFriend": "Remove Friend",
-  "friendsRemoveFriendConfirm": "Are you sure you want to remove {name} as a friend?",
-  "friendsRequestSentDescription": "Your friend request has been sent to {name}",
-  "friendsRequestFriendship": "Request friendship",
-  "friendsCancelRequest": "Cancel friendship request",
-  "friendsCancelRequestConfirm": "Cancel your friendship request to {name}?",
-  "friendsDenyRequest": "Deny friendship",
-  "friendsNowFriendsWith": "You are now friends with {name}",
-  "@friendsSentOn": {
-    "description": "Friend request sent date",
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "feedFriendRequestFrom": "{name} sent you a friend request",
-  "feedFriendRequestGeneric": "New friend request",
-  "feedFriendAccepted": "You are now friends with {name}",
-  "feedFriendAcceptedGeneric": "Friend request accepted",
-  "@feedFriendRequestFrom": {
-    "description": "Feed notification for friend request",
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
@@ -930,9 +851,9 @@
   "sessionsClaude": "Claude",
   "sessionsCodex": "Codex",
   "sessionsGemini": "Gemini",
-   "sessionsPi": "pi",
-   "sessionsOpencode": "OpenCode",
-   "sessionsType": "Type",
+  "sessionsPi": "pi",
+  "sessionsOpencode": "OpenCode",
+  "sessionsType": "Type",
   "sessionsAgent": "Agent",
   "sessionsSelectAll": "Select All",
   "sessionsDeselectAll": "Deselect All",
@@ -945,7 +866,9 @@
   "sessionsFoldersDeleteConfirm": "Delete folder \"{name}\"? Sessions in this folder will become unfiled.",
   "@sessionsFoldersDeleteConfirm": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "sessionsFoldersRename": "Rename Folder",
@@ -1224,74 +1147,8 @@
   "settingsShowFlavorIcons": "Show Flavor Icons",
   "settingsAvatarStyle": "Avatar Style",
   "settingsWrapLinesInDiffs": "Wrap Lines in Diffs",
-  "zenTitle": "Zen",
-  "zenNewTask": "New Task",
-  "zenAddTask": "Add Task",
-  "zenDescriptionHint": "What needs to be done?",
-  "zenPriorityLabel": "Priority",
-  "zenStatusLabel": "Status",
-  "zenCreatedLabel": "Created",
-  "zenCompletedLabel": "Completed",
-  "zenMarkDone": "Mark Done",
-  "zenTaskTitle": "Task",
-  "zenTaskNotFound": "Task not found",
-  "zenDeleteTitle": "Delete Task",
-  "zenDeleteConfirm": "Are you sure you want to delete this task?",
-  "zenEmptyTitle": "No Tasks Yet",
-  "zenEmptySubtitle": "Tap + to add your first task.",
-  "zenSectionActive": "Active",
-  "zenSectionCompleted": "Completed",
   "userProfileTitle": "User Profile",
   "userNotFound": "User not found",
-  "friendsStatusFriends": "Friends",
-  "friendsStatusRequestSent": "Request Sent",
-  "friendsStatusWantsToConnect": "Wants to Connect",
-  "friendsAddFriendAction": "Add Friend",
-  "friendsFailedToAdd": "Failed to add friend",
-  "friendsFailedToUpdate": "Failed to update friendship",
-  "friendsTabFriends": "Friends",
-  "friendsTabRequests": "Requests",
-  "friendsEmptyTitle": "No Friends Yet",
-  "friendsNoRequests": "No Incoming Requests",
-  "friendsRemoveTitle": "Remove Friend",
-  "friendsRemoveAction": "Remove",
-  "friendsRemoved": "Friend removed",
-  "friendsWantsToConnect": "Wants to connect",
-  "friendsSearchFailed": "Search failed",
-  "friendsActionFailed": "Action failed",
-  "friendsSearchByUsername": "Search by username",
-  "friendsSearchEmptyTitle": "Search for friends",
-  "friendsSearchEmptySubtitle": "Search for a username to connect",
-  "friendsIncomingRequest": "Incoming request",
-  "friendsNotConnected": "Not connected",
-  "inboxPendingRequests": "Pending Requests",
-  "inboxSentRequests": "Sent Requests",
-  "inboxMyFriends": "My Friends",
-  "inboxRequestPending": "Request pending",
-  "inboxRequestCanceled": "Request canceled",
-  "inboxFriendSubtitle": "Friend",
-  "inboxNoNotificationsTitle": "No notifications yet",
-  "inboxFeedFriendRequest": "Friend request",
-  "inboxFeedFriendAccepted": "Friend accepted",
-  "inboxFeedUpdate": "Update",
-  "inboxTimeNow": "now",
-  "inboxTimeMinutesAgo": "{n}m ago",
-  "@inboxTimeMinutesAgo": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "inboxTimeHoursAgo": "{n}h ago",
-  "@inboxTimeHoursAgo": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "inboxTimeYesterday": "Yesterday",
   "accountAccountSettings": "Account Settings",
   "accountProfile": "Profile",
   "accountBackupKey": "Backup Key",
@@ -1330,8 +1187,6 @@
   "settingsConnected": "Connected",
   "settingsTextToSpeech": "Text-to-Speech",
   "settingsGitHub": "GitHub",
-  "settingsFindFriends": "Find Friends",
-  "settingsOpenInbox": "Open Inbox",
   "settingsDeveloperEnabled": "Enabled",
   "featuresTitle": "Features",
   "devLogsTitle": "Logs",
@@ -1575,16 +1430,10 @@
   "commandAccountSubtitle": "Manage your account",
   "commandConnectDeviceTitle": "Connect Device",
   "commandConnectDeviceSubtitle": "Connect a new device via web",
-  "commandInboxTitle": "Inbox",
-  "commandInboxSubtitle": "View your notifications",
   "commandArtifactsTitle": "Artifacts",
   "commandArtifactsSubtitle": "Browse your artifacts",
-  "commandZenModeTitle": "Zen Mode",
-  "commandZenModeSubtitle": "Focus mode with todos",
   "commandTerminalTitle": "Terminal",
   "commandTerminalSubtitle": "Access terminal sessions",
-  "commandFriendsTitle": "Friends",
-  "commandFriendsSubtitle": "Manage your friends",
   "networkInspectorTitle": "Network Inspector ({count})",
   "@networkInspectorTitle": {
     "placeholders": {
@@ -1596,8 +1445,8 @@
   "networkInspectorCopyAll": "Copy all",
   "networkInspectorNoRequests": "No requests yet",
   "networkInspectorLabelRequests": "Requests",
-  "networkInspectorLabelSent": "\u2191 Sent",
-  "networkInspectorLabelReceived": "\u2193 Received",
+  "networkInspectorLabelSent": "↑ Sent",
+  "networkInspectorLabelReceived": "↓ Received",
   "networkInspectorLabelDuration": "Duration",
   "networkInspectorLabelSentBody": "Sent (body)",
   "networkInspectorLabelReceivedBody": "Received (body)",
@@ -1667,7 +1516,6 @@
   "serverCustomUrlSectionLabel": "CUSTOM SERVER URL",
   "machinesNoMachines": "No machines",
   "voiceAutoDetect": "Auto-detect",
-  "inboxTitle": "Inbox",
   "accountBackupKeyCopiedToClipboard": "Backup key copied to clipboard",
   "accountBackupKeyDialogContent": "Save this key in a safe place. You can use it to restore your account.",
   "accountInvalidKeyFormat": "Invalid key format. Use XXXXX-XXXXX-XXXXX-XXXXX-XXXXX",
@@ -1744,9 +1592,6 @@
   "featuresShowLineNumbersDesc": "Display line numbers in code blocks",
   "featuresWrapLinesInDiffsDesc": "Wrap long lines in diff views",
   "fileViewerContentError": "The file content could not be loaded.",
-  "friendsEmptySubtitle": "Search for people to connect with.",
-  "friendsNoRequestsSubtitle": "Friend requests will appear here",
-  "inboxConnectFriendsSubtitle": "Connect with friends to start sharing sessions.",
   "machineLastKnownStatus": "Last Known Status",
   "networkInspectorClearConfirm": "Are you sure you want to clear all requests?",
   "networkInspectorCopyInstruction": "Copy the log and send it to developers to investigate network usage.",
@@ -1779,10 +1624,8 @@
   "settingsConfigureVoiceAssistant": "Configure voice assistant",
   "settingsDeveloperOptions": "Developer Options",
   "settingsDeveloperTapToEnable": "Open developer options",
-  "settingsFindFriendsSubtitle": "Search and send friend requests",
   "settingsGitHubDisconnected": "GitHub disconnected",
   "settingsNotConnected": "Not connected",
-  "settingsOpenInboxSubtitle": "View updates and requests",
   "settingsServerResetConfirm": "Reset the server URL to the default? This cannot be undone.",
   "settingsShowFlavorIconsSubtitle": "Show AI provider icons in avatars",
   "settingsTextToSpeechSubtitle": "Read assistant messages aloud",
@@ -1854,14 +1697,6 @@
       }
     }
   },
-  "friendsRemoveConfirm": "Remove {name} from your friends?",
-  "@friendsRemoveConfirm": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "machineRemoveConfirm": "Are you sure you want to remove \"{name}\"?",
   "@machineRemoveConfirm": {
     "placeholders": {
@@ -1918,7 +1753,7 @@
       }
     }
   },
-  "accountLastActive": "{platform} \u2022 Last active {time}",
+  "accountLastActive": "{platform} • Last active {time}",
   "@accountLastActive": {
     "placeholders": {
       "platform": {
@@ -1980,6 +1815,5 @@
   "semanticSearchTitle": "Semantic Search",
   "semanticSearchDesc": "Rank sessions by semantic similarity to your query",
   "autoTagsTitle": "Auto Tags",
-  "autoTagsDesc": "Automatically generate tags for sessions based on content",
-  "commonAdd": "Add"
+  "autoTagsDesc": "Automatically generate tags for sessions based on content"
 }

@@ -93,33 +93,6 @@ class _StubSessionGitStatusNotifier extends SessionGitStatusNotifier {
   Map<String, GitStatus> build() => {};
 }
 
-class _StubFriendsNotifier extends FriendsNotifier {
-  @override
-  FriendsState build() => FriendsState();
-  @override
-  void loadFromSync() {}
-  @override
-  Future<void> refreshFromSync() async {}
-}
-
-class _StubFeedNotifier extends FeedNotifier {
-  @override
-  FeedState build() => FeedState();
-  @override
-  void loadFromSync() {}
-  @override
-  Future<void> refreshFromSync() async {}
-}
-
-class _StubTodoStateNotifier extends TodoStateNotifier {
-  @override
-  TodoListState build() => TodoListState();
-  @override
-  void loadFromSync() {}
-  @override
-  Future<void> refreshFromSync() async {}
-}
-
 // ─── Test themes (real app themes — fonts loaded via flutter_test_config) ────
 
 ThemeData _testLightTheme() => ThemeHelper.buildLightTheme();
@@ -167,9 +140,6 @@ _commonOverrides(Map<String, Session> sessions) => [
           .overrideWith(() => _StubCurrentSessionNotifier()),
       sessionGitStatusNotifierProvider
           .overrideWith(() => _StubSessionGitStatusNotifier()),
-      friendsNotifierProvider.overrideWith(() => _StubFriendsNotifier()),
-      feedNotifierProvider.overrideWith(() => _StubFeedNotifier()),
-      todoStateNotifierProvider.overrideWith(() => _StubTodoStateNotifier()),
     ];
 
 Widget _buildApp(

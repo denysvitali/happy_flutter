@@ -215,21 +215,6 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
                 value: sync.hasNativeUpdate ? 'Yes' : 'No',
               ),
               _InfoRow(
-                icon: Icons.list,
-                label: 'Todo lists',
-                value: '${sync.todoLists.length}',
-              ),
-              _InfoRow(
-                icon: Icons.people,
-                label: 'Friends',
-                value: '${sync.friends.length}',
-              ),
-              _InfoRow(
-                icon: Icons.feed,
-                label: 'Feed items',
-                value: '${sync.feedItems.length}',
-              ),
-              _InfoRow(
                 icon: Icons.description,
                 label: 'Artifacts',
                 value: '${sync.artifacts.length}',
@@ -379,9 +364,6 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
       ..writeln('')
       ..writeln('Sync managers:')
       ..writeln('  Message syncs: ${sync.messagesSync.length}')
-      ..writeln('  Todo lists: ${sync.todoLists.length}')
-      ..writeln('  Friends: ${sync.friends.length}')
-      ..writeln('  Feed items: ${sync.feedItems.length}')
       ..writeln('  Artifacts: ${sync.artifacts.length}')
       ..writeln('  Machines: ${sync.machines.length}');
 

@@ -1,6 +1,25 @@
 part of 'sync_service.dart';
 
 extension SyncData on Sync {
+  /// Lenient int coercion for wire payloads that may arrive as `int`,
+  /// `double`, or `null`.
+  int? _asInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is double) {
+      return value.toInt();
+    }
+    return null;
+  }
+
+  /// Placeholder sync callback for session git status. Git status is
+  /// managed locally and updated via socket events; this exists so the
+  /// [InvalidateSync] manager has a no-op fetcher to schedule.
+  Future<void> _fetchSessionGitStatus() async {
+    logger.info('Session git status sync triggered');
+  }
+
   /// Fetch sessions from server
   Future<void> fetchSessions() async {
     logger.info('Fetching sessions...');

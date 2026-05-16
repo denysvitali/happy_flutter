@@ -28,10 +28,6 @@ Sync createTestSync() {
     ..pushTokenSync = InvalidateSync(() async {})
     ..nativeUpdateSync = InvalidateSync(() async {})
     ..artifactsSync = InvalidateSync(() async {})
-    ..friendsSync = InvalidateSync(() async {})
-    ..friendRequestsSync = InvalidateSync(() async {})
-    ..feedSync = InvalidateSync(() async {})
-    ..todosSync = InvalidateSync(() async {})
     ..sessionGitStatusSync = InvalidateSync(() async {})
     ..messagesSync.clear();
   return testSync;
@@ -56,10 +52,6 @@ Sync createPartialMockSync() {
     ..pushTokenSync = InvalidateSync(() async {})
     ..nativeUpdateSync = InvalidateSync(() async {})
     ..artifactsSync = InvalidateSync(() async {})
-    ..friendsSync = InvalidateSync(() async {})
-    ..friendRequestsSync = InvalidateSync(() async {})
-    ..feedSync = InvalidateSync(() async {})
-    ..todosSync = InvalidateSync(() async {})
     ..sessionGitStatusSync = InvalidateSync(() async {})
     ..messagesSync.clear();
   // The test helper getters (testSessions, testSessionSpawnedAt, etc.)

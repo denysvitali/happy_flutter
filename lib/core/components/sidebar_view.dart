@@ -17,7 +17,6 @@ import 'voice_assistant_status_bar.dart';
 /// - Header with logo and connection status
 /// - Dynamic width calculation (min 250, max 360, 30% of window)
 /// - Status dot with pulsing animation for connecting state
-/// - Navigation icons: experiments (if enabled), inbox (badge),
 /// - Voice assistant status bar (conditionally shown)
 /// - Content area for session list
 class SidebarView extends ConsumerStatefulWidget {
@@ -41,12 +40,6 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
       settingsNotifierProvider.select((s) => s.experiments),
     );
     final connectionStatus = ref.watch(connectionNotifierProvider);
-    final friendRequestCount = ref.watch(
-      friendsNotifierProvider.select((s) => s.incomingRequests.length),
-    );
-    final unreadFeedCount = ref.watch(
-      feedNotifierProvider.select((s) => s.unreadCount),
-    );
 
     // Calculate sidebar width - same formula as SidebarNavigator.tsx
     final screenWidth = MediaQuery.sizeOf(context).width;
@@ -85,8 +78,6 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             experimentsEnabled,
             connectionInfo,
             shouldLeftJustify,
-            friendRequestCount,
-            unreadFeedCount,
           ),
 
           // Voice assistant status bar (shown when connected or connecting)
@@ -151,8 +142,6 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     bool experimentsEnabled,
     _ConnectionInfo connectionInfo,
     bool shouldLeftJustify,
-    int friendRequestCount,
-    int unreadFeedCount,
   ) {
     final theme = Theme.of(context);
     final headerTintColor =
@@ -222,23 +211,6 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Experiments icon (only if enabled)
-                if (experimentsEnabled)
-                  _buildNavIcon(
-                    context,
-                    icon: Icons.science_outlined,
-                    onTap: () => context.push('/zen'),
-                    tintColor: headerTintColor,
-                  ),
-
-                // Inbox icon with badge
-                _buildInboxIcon(
-                  context,
-                  friendRequestCount: friendRequestCount,
-                  unreadFeedCount: unreadFeedCount,
-                  tintColor: headerTintColor,
-                ),
-
                 // Settings icon
                 _buildNavIcon(
                   context,
@@ -315,62 +287,6 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
         padding: const EdgeInsets.all(AppSpacing.sm),
         child: Icon(icon, size: size, color: tintColor),
       ),
-    );
-  }
-
-  Widget _buildInboxIcon(
-    BuildContext context, {
-    required int friendRequestCount,
-    required int unreadFeedCount,
-    required Color tintColor,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    final badgeCount = friendRequestCount + unreadFeedCount;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        InkWell(
-          onTap: () => context.push('/inbox'),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Icon(
-              Icons.inbox_outlined,
-              size: AppSpacing.xxl,
-              color: tintColor,
-            ),
-          ),
-        ),
-        // Badge for incoming friend requests and unread feed items.
-        if (badgeCount > 0)
-          Positioned(
-            top: -AppSpacing.sm,
-            right: -AppSpacing.sm,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xxs,
-              ),
-              decoration: BoxDecoration(
-                color: cs.error,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              constraints: const BoxConstraints(
-                minWidth: AppSpacing.md,
-                minHeight: AppSpacing.md,
-              ),
-              child: Text(
-                badgeCount > 99 ? '99+' : badgeCount.toString(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: cs.onError,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-      ],
     );
   }
 

@@ -147,18 +147,6 @@ class ApiDeleteArtifact {
   final String id;
 }
 
-/// `relationship-updated` — a social relationship changed.
-class ApiRelationshipUpdated {
-  const ApiRelationshipUpdated({required this.data});
-  final Map<String, dynamic> data;
-}
-
-/// `kv-batch-update` — one or more KV entries changed.
-class ApiKvBatchUpdate {
-  const ApiKvBatchUpdate({required this.data});
-  final Map<String, dynamic> data;
-}
-
 /// API update type discriminator
 class ApiUpdate {
   ApiUpdate({required this.type, required this.data});

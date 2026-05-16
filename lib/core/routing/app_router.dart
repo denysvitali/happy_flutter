@@ -21,9 +21,6 @@ import '../../features/dev/network_inspector_screen.dart';
 import '../../features/dev/notification_test_screen.dart';
 import '../../features/dev/power_diagnostics_screen.dart';
 import '../../features/dev/session_debug_screen.dart';
-import '../../features/inbox/friends_screen.dart';
-import '../../features/inbox/friends_search_screen.dart';
-import '../../features/inbox/inbox_screen.dart';
 import '../../features/machine/machine_detail_screen.dart';
 import '../../features/sessions/sessions_screen.dart';
 import '../../features/settings/account_screen.dart';
@@ -54,10 +51,6 @@ import '../../features/sftp/screens/sftp_directory_manager_screen.dart';
 import '../../features/sftp/screens/sftp_log_viewer_screen.dart';
 import '../../features/terminal/terminal_connect_screen.dart';
 import '../../features/terminal/terminal_screen.dart';
-import '../../features/user/user_profile_screen.dart';
-import '../../features/zen/zen_home_screen.dart';
-import '../../features/zen/zen_new_screen.dart';
-import '../../features/zen/zen_view_screen.dart';
 import '../../sentry_widget.dart'
     if (dart.library.js_interop) '../../sentry_widget_stub.dart';
 import '../models/auth.dart';
@@ -210,18 +203,6 @@ GoRouter createRouter(String? initialDeepLink) {
             state,
           );
         },
-      ),
-      GoRoute(
-        path: '/inbox',
-        name: 'inbox',
-        pageBuilder: (context, state) =>
-            _fadePage(const AuthGate(child: InboxScreen()), state),
-      ),
-      GoRoute(
-        path: '/friends/search',
-        name: 'friends-search',
-        pageBuilder: (context, state) =>
-            _slidePage(const AuthGate(child: FriendsSearchScreen()), state),
       ),
       GoRoute(
         path: '/settings',
@@ -497,17 +478,6 @@ GoRouter createRouter(String? initialDeepLink) {
         },
       ),
       GoRoute(
-        path: '/user/:userId',
-        name: 'user-profile',
-        pageBuilder: (context, state) {
-          final id = state.pathParameters['userId']!;
-          return _slidePage(
-            AuthGate(child: UserProfileScreen(userId: id)),
-            state,
-          );
-        },
-      ),
-      GoRoute(
         path: '/artifacts',
         name: 'artifacts',
         pageBuilder: (context, state) =>
@@ -540,39 +510,6 @@ GoRouter createRouter(String? initialDeepLink) {
             state,
           );
         },
-      ),
-      GoRoute(
-        path: '/zen',
-        name: 'zen',
-        pageBuilder: (context, state) =>
-            _fadePage(const AuthGate(child: ZenHomeScreen()), state),
-      ),
-      GoRoute(
-        path: '/zen/new',
-        name: 'zen-new',
-        pageBuilder: (context, state) =>
-            _slideUpPage(const AuthGate(child: ZenNewScreen()), state),
-      ),
-      GoRoute(
-        path: '/zen/view',
-        name: 'zen-view',
-        pageBuilder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          final todoId = extra?['todoId'] as String? ?? '';
-          final sessionId = extra?['sessionId'] as String? ?? 'global';
-          return _slidePage(
-            AuthGate(
-              child: ZenViewScreen(todoId: todoId, sessionId: sessionId),
-            ),
-            state,
-          );
-        },
-      ),
-      GoRoute(
-        path: '/friends',
-        name: 'friends',
-        pageBuilder: (context, state) =>
-            _fadePage(const AuthGate(child: FriendsScreen()), state),
       ),
       GoRoute(
         path: '/terminal/connect',

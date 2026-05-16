@@ -298,12 +298,6 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete this?'**
   String get commonDeleteConfirmMessage;
 
-  /// Tab navigation label for Inbox
-  ///
-  /// In en, this message translates to:
-  /// **'Inbox'**
-  String get tabsInbox;
-
   /// No description provided for @tabsSessions.
   ///
   /// In en, this message translates to:
@@ -315,24 +309,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get tabsSettings;
-
-  /// No description provided for @inboxEmptyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Empty Inbox'**
-  String get inboxEmptyTitle;
-
-  /// No description provided for @inboxEmptyDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect with friends to start sharing sessions'**
-  String get inboxEmptyDescription;
-
-  /// No description provided for @inboxUpdates.
-  ///
-  /// In en, this message translates to:
-  /// **'Updates'**
-  String get inboxUpdates;
 
   /// Connection status
   ///
@@ -1314,12 +1290,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Features'**
   String get settingsFeatures;
-
-  /// No description provided for @settingsSocial.
-  ///
-  /// In en, this message translates to:
-  /// **'Social'**
-  String get settingsSocial;
 
   /// No description provided for @settingsAccount.
   ///
@@ -2599,41 +2569,11 @@ abstract class AppLocalizations {
   /// **'Failed to connect {service}. Please try again.'**
   String errorsConnectServiceFailed(Object service);
 
-  /// No description provided for @errorsFailedToLoadFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load friends list'**
-  String get errorsFailedToLoadFriends;
-
-  /// No description provided for @errorsFailedToAcceptRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to accept friend request'**
-  String get errorsFailedToAcceptRequest;
-
-  /// No description provided for @errorsFailedToRejectRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to reject friend request'**
-  String get errorsFailedToRejectRequest;
-
-  /// No description provided for @errorsFailedToRemoveFriend.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to remove friend'**
-  String get errorsFailedToRemoveFriend;
-
   /// No description provided for @errorsSearchFailed.
   ///
   /// In en, this message translates to:
   /// **'Search failed. Please try again.'**
   String get errorsSearchFailed;
-
-  /// No description provided for @errorsFailedToSendRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to send friend request'**
-  String get errorsFailedToSendRequest;
 
   /// No description provided for @terminalWebBrowserRequired.
   ///
@@ -3481,12 +3421,6 @@ abstract class AppLocalizations {
   /// **'What\'s New'**
   String get navigationWhatsNew;
 
-  /// No description provided for @navigationFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'Friends'**
-  String get navigationFriends;
-
   /// No description provided for @emptyMainScreenReadyToCode.
   ///
   /// In en, this message translates to:
@@ -3804,300 +3738,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to load artifact'**
   String get artifactsError;
-
-  /// No description provided for @friendsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Friends'**
-  String get friendsTitle;
-
-  /// No description provided for @friendsManageFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage your friends and connections'**
-  String get friendsManageFriends;
-
-  /// No description provided for @friendsSearchTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Find Friends'**
-  String get friendsSearchTitle;
-
-  /// No description provided for @friendsPendingRequests.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend Requests'**
-  String get friendsPendingRequests;
-
-  /// No description provided for @friendsMyFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'My Friends'**
-  String get friendsMyFriends;
-
-  /// No description provided for @friendsNoFriendsYet.
-  ///
-  /// In en, this message translates to:
-  /// **'You don\'t have any friends yet'**
-  String get friendsNoFriendsYet;
-
-  /// No description provided for @friendsFindFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'Find Friends'**
-  String get friendsFindFriends;
-
-  /// No description provided for @friendsRemove.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove'**
-  String get friendsRemove;
-
-  /// No description provided for @friendsPendingRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending'**
-  String get friendsPendingRequest;
-
-  /// Friend request sent date
-  ///
-  /// In en, this message translates to:
-  /// **'Sent on {date}'**
-  String friendsSentOn(String date);
-
-  /// No description provided for @friendsAccept.
-  ///
-  /// In en, this message translates to:
-  /// **'Accept'**
-  String get friendsAccept;
-
-  /// No description provided for @friendsReject.
-  ///
-  /// In en, this message translates to:
-  /// **'Reject'**
-  String get friendsReject;
-
-  /// No description provided for @friendsAddFriend.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Friend'**
-  String get friendsAddFriend;
-
-  /// No description provided for @friendsAlreadyFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'Already Friends'**
-  String get friendsAlreadyFriends;
-
-  /// No description provided for @friendsRequestPending.
-  ///
-  /// In en, this message translates to:
-  /// **'Request Pending'**
-  String get friendsRequestPending;
-
-  /// No description provided for @friendsSearchInstructions.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a username to search for friends'**
-  String get friendsSearchInstructions;
-
-  /// No description provided for @friendsSearchPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter username...'**
-  String get friendsSearchPlaceholder;
-
-  /// No description provided for @friendsSearching.
-  ///
-  /// In en, this message translates to:
-  /// **'Searching...'**
-  String get friendsSearching;
-
-  /// No description provided for @friendsUserNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'User not found'**
-  String get friendsUserNotFound;
-
-  /// No description provided for @friendsNoUserFound.
-  ///
-  /// In en, this message translates to:
-  /// **'No user found with that username'**
-  String get friendsNoUserFound;
-
-  /// No description provided for @friendsCheckUsername.
-  ///
-  /// In en, this message translates to:
-  /// **'Please check the username and try again'**
-  String get friendsCheckUsername;
-
-  /// No description provided for @friendsHowToFind.
-  ///
-  /// In en, this message translates to:
-  /// **'How to Find Friends'**
-  String get friendsHowToFind;
-
-  /// No description provided for @friendsFindInstructions.
-  ///
-  /// In en, this message translates to:
-  /// **'Search for friends by their username. Both you and your friend need to have GitHub connected to send friend requests.'**
-  String get friendsFindInstructions;
-
-  /// No description provided for @friendsRequestSent.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend request sent!'**
-  String get friendsRequestSent;
-
-  /// No description provided for @friendsRequestAccepted.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend request accepted!'**
-  String get friendsRequestAccepted;
-
-  /// No description provided for @friendsRequestRejected.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend request rejected'**
-  String get friendsRequestRejected;
-
-  /// No description provided for @friendsFriendRemoved.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend removed'**
-  String get friendsFriendRemoved;
-
-  /// No description provided for @friendsConfirmRemove.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove Friend'**
-  String get friendsConfirmRemove;
-
-  /// No description provided for @friendsConfirmRemoveMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to remove this friend?'**
-  String get friendsConfirmRemoveMessage;
-
-  /// No description provided for @friendsCannotAddYourself.
-  ///
-  /// In en, this message translates to:
-  /// **'You cannot send a friend request to yourself'**
-  String get friendsCannotAddYourself;
-
-  /// No description provided for @friendsBothMustHaveGithub.
-  ///
-  /// In en, this message translates to:
-  /// **'Both users must have GitHub connected to become friends'**
-  String get friendsBothMustHaveGithub;
-
-  /// No description provided for @friendsStatusNone.
-  ///
-  /// In en, this message translates to:
-  /// **'Not connected'**
-  String get friendsStatusNone;
-
-  /// No description provided for @friendsStatusRequested.
-  ///
-  /// In en, this message translates to:
-  /// **'Request sent'**
-  String get friendsStatusRequested;
-
-  /// No description provided for @friendsStatusPending.
-  ///
-  /// In en, this message translates to:
-  /// **'Request pending'**
-  String get friendsStatusPending;
-
-  /// No description provided for @friendsStatusFriend.
-  ///
-  /// In en, this message translates to:
-  /// **'Friends'**
-  String get friendsStatusFriend;
-
-  /// No description provided for @friendsStatusRejected.
-  ///
-  /// In en, this message translates to:
-  /// **'Rejected'**
-  String get friendsStatusRejected;
-
-  /// No description provided for @friendsAcceptRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Accept Request'**
-  String get friendsAcceptRequest;
-
-  /// No description provided for @friendsRemoveFriend.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove Friend'**
-  String get friendsRemoveFriend;
-
-  /// No description provided for @friendsRemoveFriendConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to remove {name} as a friend?'**
-  String friendsRemoveFriendConfirm(Object name);
-
-  /// No description provided for @friendsRequestSentDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Your friend request has been sent to {name}'**
-  String friendsRequestSentDescription(Object name);
-
-  /// No description provided for @friendsRequestFriendship.
-  ///
-  /// In en, this message translates to:
-  /// **'Request friendship'**
-  String get friendsRequestFriendship;
-
-  /// No description provided for @friendsCancelRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel friendship request'**
-  String get friendsCancelRequest;
-
-  /// No description provided for @friendsCancelRequestConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel your friendship request to {name}?'**
-  String friendsCancelRequestConfirm(Object name);
-
-  /// No description provided for @friendsDenyRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Deny friendship'**
-  String get friendsDenyRequest;
-
-  /// No description provided for @friendsNowFriendsWith.
-  ///
-  /// In en, this message translates to:
-  /// **'You are now friends with {name}'**
-  String friendsNowFriendsWith(Object name);
-
-  /// Feed notification for friend request
-  ///
-  /// In en, this message translates to:
-  /// **'{name} sent you a friend request'**
-  String feedFriendRequestFrom(String name);
-
-  /// No description provided for @feedFriendRequestGeneric.
-  ///
-  /// In en, this message translates to:
-  /// **'New friend request'**
-  String get feedFriendRequestGeneric;
-
-  /// No description provided for @feedFriendAccepted.
-  ///
-  /// In en, this message translates to:
-  /// **'You are now friends with {name}'**
-  String feedFriendAccepted(Object name);
-
-  /// No description provided for @feedFriendAcceptedGeneric.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend request accepted'**
-  String get feedFriendAcceptedGeneric;
 
   /// No description provided for @usageToday.
   ///
@@ -6037,108 +5677,6 @@ abstract class AppLocalizations {
   /// **'Wrap Lines in Diffs'**
   String get settingsWrapLinesInDiffs;
 
-  /// No description provided for @zenTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Zen'**
-  String get zenTitle;
-
-  /// No description provided for @zenNewTask.
-  ///
-  /// In en, this message translates to:
-  /// **'New Task'**
-  String get zenNewTask;
-
-  /// No description provided for @zenAddTask.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Task'**
-  String get zenAddTask;
-
-  /// No description provided for @zenDescriptionHint.
-  ///
-  /// In en, this message translates to:
-  /// **'What needs to be done?'**
-  String get zenDescriptionHint;
-
-  /// No description provided for @zenPriorityLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Priority'**
-  String get zenPriorityLabel;
-
-  /// No description provided for @zenStatusLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Status'**
-  String get zenStatusLabel;
-
-  /// No description provided for @zenCreatedLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Created'**
-  String get zenCreatedLabel;
-
-  /// No description provided for @zenCompletedLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Completed'**
-  String get zenCompletedLabel;
-
-  /// No description provided for @zenMarkDone.
-  ///
-  /// In en, this message translates to:
-  /// **'Mark Done'**
-  String get zenMarkDone;
-
-  /// No description provided for @zenTaskTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Task'**
-  String get zenTaskTitle;
-
-  /// No description provided for @zenTaskNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Task not found'**
-  String get zenTaskNotFound;
-
-  /// No description provided for @zenDeleteTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete Task'**
-  String get zenDeleteTitle;
-
-  /// No description provided for @zenDeleteConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete this task?'**
-  String get zenDeleteConfirm;
-
-  /// No description provided for @zenEmptyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'No Tasks Yet'**
-  String get zenEmptyTitle;
-
-  /// No description provided for @zenEmptySubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap + to add your first task.'**
-  String get zenEmptySubtitle;
-
-  /// No description provided for @zenSectionActive.
-  ///
-  /// In en, this message translates to:
-  /// **'Active'**
-  String get zenSectionActive;
-
-  /// No description provided for @zenSectionCompleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Completed'**
-  String get zenSectionCompleted;
-
   /// No description provided for @userProfileTitle.
   ///
   /// In en, this message translates to:
@@ -6150,216 +5688,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'User not found'**
   String get userNotFound;
-
-  /// No description provided for @friendsStatusFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'Friends'**
-  String get friendsStatusFriends;
-
-  /// No description provided for @friendsStatusRequestSent.
-  ///
-  /// In en, this message translates to:
-  /// **'Request Sent'**
-  String get friendsStatusRequestSent;
-
-  /// No description provided for @friendsStatusWantsToConnect.
-  ///
-  /// In en, this message translates to:
-  /// **'Wants to Connect'**
-  String get friendsStatusWantsToConnect;
-
-  /// No description provided for @friendsAddFriendAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Friend'**
-  String get friendsAddFriendAction;
-
-  /// No description provided for @friendsFailedToAdd.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to add friend'**
-  String get friendsFailedToAdd;
-
-  /// No description provided for @friendsFailedToUpdate.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to update friendship'**
-  String get friendsFailedToUpdate;
-
-  /// No description provided for @friendsTabFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'Friends'**
-  String get friendsTabFriends;
-
-  /// No description provided for @friendsTabRequests.
-  ///
-  /// In en, this message translates to:
-  /// **'Requests'**
-  String get friendsTabRequests;
-
-  /// No description provided for @friendsEmptyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'No Friends Yet'**
-  String get friendsEmptyTitle;
-
-  /// No description provided for @friendsNoRequests.
-  ///
-  /// In en, this message translates to:
-  /// **'No Incoming Requests'**
-  String get friendsNoRequests;
-
-  /// No description provided for @friendsRemoveTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove Friend'**
-  String get friendsRemoveTitle;
-
-  /// No description provided for @friendsRemoveAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove'**
-  String get friendsRemoveAction;
-
-  /// No description provided for @friendsRemoved.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend removed'**
-  String get friendsRemoved;
-
-  /// No description provided for @friendsWantsToConnect.
-  ///
-  /// In en, this message translates to:
-  /// **'Wants to connect'**
-  String get friendsWantsToConnect;
-
-  /// No description provided for @friendsSearchFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Search failed'**
-  String get friendsSearchFailed;
-
-  /// No description provided for @friendsActionFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Action failed'**
-  String get friendsActionFailed;
-
-  /// No description provided for @friendsSearchByUsername.
-  ///
-  /// In en, this message translates to:
-  /// **'Search by username'**
-  String get friendsSearchByUsername;
-
-  /// No description provided for @friendsSearchEmptyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Search for friends'**
-  String get friendsSearchEmptyTitle;
-
-  /// No description provided for @friendsSearchEmptySubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Search for a username to connect'**
-  String get friendsSearchEmptySubtitle;
-
-  /// No description provided for @friendsIncomingRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Incoming request'**
-  String get friendsIncomingRequest;
-
-  /// No description provided for @friendsNotConnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Not connected'**
-  String get friendsNotConnected;
-
-  /// No description provided for @inboxPendingRequests.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending Requests'**
-  String get inboxPendingRequests;
-
-  /// No description provided for @inboxSentRequests.
-  ///
-  /// In en, this message translates to:
-  /// **'Sent Requests'**
-  String get inboxSentRequests;
-
-  /// No description provided for @inboxMyFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'My Friends'**
-  String get inboxMyFriends;
-
-  /// No description provided for @inboxRequestPending.
-  ///
-  /// In en, this message translates to:
-  /// **'Request pending'**
-  String get inboxRequestPending;
-
-  /// No description provided for @inboxRequestCanceled.
-  ///
-  /// In en, this message translates to:
-  /// **'Request canceled'**
-  String get inboxRequestCanceled;
-
-  /// No description provided for @inboxFriendSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend'**
-  String get inboxFriendSubtitle;
-
-  /// No description provided for @inboxNoNotificationsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'No notifications yet'**
-  String get inboxNoNotificationsTitle;
-
-  /// No description provided for @inboxFeedFriendRequest.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend request'**
-  String get inboxFeedFriendRequest;
-
-  /// No description provided for @inboxFeedFriendAccepted.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend accepted'**
-  String get inboxFeedFriendAccepted;
-
-  /// No description provided for @inboxFeedUpdate.
-  ///
-  /// In en, this message translates to:
-  /// **'Update'**
-  String get inboxFeedUpdate;
-
-  /// No description provided for @inboxTimeNow.
-  ///
-  /// In en, this message translates to:
-  /// **'now'**
-  String get inboxTimeNow;
-
-  /// No description provided for @inboxTimeMinutesAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{n}m ago'**
-  String inboxTimeMinutesAgo(int n);
-
-  /// No description provided for @inboxTimeHoursAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{n}h ago'**
-  String inboxTimeHoursAgo(int n);
-
-  /// No description provided for @inboxTimeYesterday.
-  ///
-  /// In en, this message translates to:
-  /// **'Yesterday'**
-  String get inboxTimeYesterday;
 
   /// No description provided for @accountAccountSettings.
   ///
@@ -6588,18 +5916,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'GitHub'**
   String get settingsGitHub;
-
-  /// No description provided for @settingsFindFriends.
-  ///
-  /// In en, this message translates to:
-  /// **'Find Friends'**
-  String get settingsFindFriends;
-
-  /// No description provided for @settingsOpenInbox.
-  ///
-  /// In en, this message translates to:
-  /// **'Open Inbox'**
-  String get settingsOpenInbox;
 
   /// No description provided for @settingsDeveloperEnabled.
   ///
@@ -7849,18 +7165,6 @@ abstract class AppLocalizations {
   /// **'Connect a new device via web'**
   String get commandConnectDeviceSubtitle;
 
-  /// No description provided for @commandInboxTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Inbox'**
-  String get commandInboxTitle;
-
-  /// No description provided for @commandInboxSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'View your notifications'**
-  String get commandInboxSubtitle;
-
   /// No description provided for @commandArtifactsTitle.
   ///
   /// In en, this message translates to:
@@ -7873,18 +7177,6 @@ abstract class AppLocalizations {
   /// **'Browse your artifacts'**
   String get commandArtifactsSubtitle;
 
-  /// No description provided for @commandZenModeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Zen Mode'**
-  String get commandZenModeTitle;
-
-  /// No description provided for @commandZenModeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Focus mode with todos'**
-  String get commandZenModeSubtitle;
-
   /// No description provided for @commandTerminalTitle.
   ///
   /// In en, this message translates to:
@@ -7896,18 +7188,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Access terminal sessions'**
   String get commandTerminalSubtitle;
-
-  /// No description provided for @commandFriendsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Friends'**
-  String get commandFriendsTitle;
-
-  /// No description provided for @commandFriendsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage your friends'**
-  String get commandFriendsSubtitle;
 
   /// No description provided for @networkInspectorTitle.
   ///
@@ -8190,12 +7470,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto-detect'**
   String get voiceAutoDetect;
-
-  /// No description provided for @inboxTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Inbox'**
-  String get inboxTitle;
 
   /// No description provided for @accountBackupKeyCopiedToClipboard.
   ///
@@ -8653,24 +7927,6 @@ abstract class AppLocalizations {
   /// **'The file content could not be loaded.'**
   String get fileViewerContentError;
 
-  /// No description provided for @friendsEmptySubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Search for people to connect with.'**
-  String get friendsEmptySubtitle;
-
-  /// No description provided for @friendsNoRequestsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Friend requests will appear here'**
-  String get friendsNoRequestsSubtitle;
-
-  /// No description provided for @inboxConnectFriendsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect with friends to start sharing sessions.'**
-  String get inboxConnectFriendsSubtitle;
-
   /// No description provided for @machineLastKnownStatus.
   ///
   /// In en, this message translates to:
@@ -8863,12 +8119,6 @@ abstract class AppLocalizations {
   /// **'Open developer options'**
   String get settingsDeveloperTapToEnable;
 
-  /// No description provided for @settingsFindFriendsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Search and send friend requests'**
-  String get settingsFindFriendsSubtitle;
-
   /// No description provided for @settingsGitHubDisconnected.
   ///
   /// In en, this message translates to:
@@ -8880,12 +8130,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not connected'**
   String get settingsNotConnected;
-
-  /// No description provided for @settingsOpenInboxSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'View updates and requests'**
-  String get settingsOpenInboxSubtitle;
 
   /// No description provided for @settingsServerResetConfirm.
   ///
@@ -9018,12 +8262,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} log entries copied'**
   String devLogsCopied(int count);
-
-  /// No description provided for @friendsRemoveConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove {name} from your friends?'**
-  String friendsRemoveConfirm(String name);
 
   /// No description provided for @machineRemoveConfirm.
   ///

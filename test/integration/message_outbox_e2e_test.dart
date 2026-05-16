@@ -535,10 +535,6 @@ void _stubAllSyncs(Sync instance) {
   instance.pushTokenSync = InvalidateSync(() async {});
   instance.nativeUpdateSync = InvalidateSync(() async {});
   instance.artifactsSync = InvalidateSync(() async {});
-  instance.friendsSync = InvalidateSync(() async {});
-  instance.friendRequestsSync = InvalidateSync(() async {});
-  instance.feedSync = InvalidateSync(() async {});
-  instance.todosSync = InvalidateSync(() async {});
   instance.sessionGitStatusSync = InvalidateSync(() async {});
   instance.messagesSync.clear();
 }

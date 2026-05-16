@@ -112,23 +112,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you sure you want to delete this?';
 
   @override
-  String get tabsInbox => 'Inbox';
-
-  @override
   String get tabsSessions => 'Terminals';
 
   @override
   String get tabsSettings => 'Settings';
-
-  @override
-  String get inboxEmptyTitle => 'Empty Inbox';
-
-  @override
-  String get inboxEmptyDescription =>
-      'Connect with friends to start sharing sessions';
-
-  @override
-  String get inboxUpdates => 'Updates';
 
   @override
   String statusConnected(String time) {
@@ -691,9 +678,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsFeatures => 'Features';
-
-  @override
-  String get settingsSocial => 'Social';
 
   @override
   String get settingsAccount => 'Account';
@@ -1418,22 +1402,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get errorsFailedToLoadFriends => 'Failed to load friends list';
-
-  @override
-  String get errorsFailedToAcceptRequest => 'Failed to accept friend request';
-
-  @override
-  String get errorsFailedToRejectRequest => 'Failed to reject friend request';
-
-  @override
-  String get errorsFailedToRemoveFriend => 'Failed to remove friend';
-
-  @override
   String get errorsSearchFailed => 'Search failed. Please try again.';
-
-  @override
-  String get errorsFailedToSendRequest => 'Failed to send friend request';
 
   @override
   String get terminalWebBrowserRequired => 'Web Browser Required';
@@ -1918,9 +1887,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navigationWhatsNew => 'What\'s New';
 
   @override
-  String get navigationFriends => 'Friends';
-
-  @override
   String get emptyMainScreenReadyToCode => 'Ready to code?';
 
   @override
@@ -2094,172 +2060,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get artifactsError => 'Failed to load artifact';
-
-  @override
-  String get friendsTitle => 'Friends';
-
-  @override
-  String get friendsManageFriends => 'Manage your friends and connections';
-
-  @override
-  String get friendsSearchTitle => 'Find Friends';
-
-  @override
-  String get friendsPendingRequests => 'Friend Requests';
-
-  @override
-  String get friendsMyFriends => 'My Friends';
-
-  @override
-  String get friendsNoFriendsYet => 'You don\'t have any friends yet';
-
-  @override
-  String get friendsFindFriends => 'Find Friends';
-
-  @override
-  String get friendsRemove => 'Remove';
-
-  @override
-  String get friendsPendingRequest => 'Pending';
-
-  @override
-  String friendsSentOn(String date) {
-    return 'Sent on $date';
-  }
-
-  @override
-  String get friendsAccept => 'Accept';
-
-  @override
-  String get friendsReject => 'Reject';
-
-  @override
-  String get friendsAddFriend => 'Add Friend';
-
-  @override
-  String get friendsAlreadyFriends => 'Already Friends';
-
-  @override
-  String get friendsRequestPending => 'Request Pending';
-
-  @override
-  String get friendsSearchInstructions =>
-      'Enter a username to search for friends';
-
-  @override
-  String get friendsSearchPlaceholder => 'Enter username...';
-
-  @override
-  String get friendsSearching => 'Searching...';
-
-  @override
-  String get friendsUserNotFound => 'User not found';
-
-  @override
-  String get friendsNoUserFound => 'No user found with that username';
-
-  @override
-  String get friendsCheckUsername => 'Please check the username and try again';
-
-  @override
-  String get friendsHowToFind => 'How to Find Friends';
-
-  @override
-  String get friendsFindInstructions =>
-      'Search for friends by their username. Both you and your friend need to have GitHub connected to send friend requests.';
-
-  @override
-  String get friendsRequestSent => 'Friend request sent!';
-
-  @override
-  String get friendsRequestAccepted => 'Friend request accepted!';
-
-  @override
-  String get friendsRequestRejected => 'Friend request rejected';
-
-  @override
-  String get friendsFriendRemoved => 'Friend removed';
-
-  @override
-  String get friendsConfirmRemove => 'Remove Friend';
-
-  @override
-  String get friendsConfirmRemoveMessage =>
-      'Are you sure you want to remove this friend?';
-
-  @override
-  String get friendsCannotAddYourself =>
-      'You cannot send a friend request to yourself';
-
-  @override
-  String get friendsBothMustHaveGithub =>
-      'Both users must have GitHub connected to become friends';
-
-  @override
-  String get friendsStatusNone => 'Not connected';
-
-  @override
-  String get friendsStatusRequested => 'Request sent';
-
-  @override
-  String get friendsStatusPending => 'Request pending';
-
-  @override
-  String get friendsStatusFriend => 'Friends';
-
-  @override
-  String get friendsStatusRejected => 'Rejected';
-
-  @override
-  String get friendsAcceptRequest => 'Accept Request';
-
-  @override
-  String get friendsRemoveFriend => 'Remove Friend';
-
-  @override
-  String friendsRemoveFriendConfirm(Object name) {
-    return 'Are you sure you want to remove $name as a friend?';
-  }
-
-  @override
-  String friendsRequestSentDescription(Object name) {
-    return 'Your friend request has been sent to $name';
-  }
-
-  @override
-  String get friendsRequestFriendship => 'Request friendship';
-
-  @override
-  String get friendsCancelRequest => 'Cancel friendship request';
-
-  @override
-  String friendsCancelRequestConfirm(Object name) {
-    return 'Cancel your friendship request to $name?';
-  }
-
-  @override
-  String get friendsDenyRequest => 'Deny friendship';
-
-  @override
-  String friendsNowFriendsWith(Object name) {
-    return 'You are now friends with $name';
-  }
-
-  @override
-  String feedFriendRequestFrom(String name) {
-    return '$name sent you a friend request';
-  }
-
-  @override
-  String get feedFriendRequestGeneric => 'New friend request';
-
-  @override
-  String feedFriendAccepted(Object name) {
-    return 'You are now friends with $name';
-  }
-
-  @override
-  String get feedFriendAcceptedGeneric => 'Friend request accepted';
 
   @override
   String get usageToday => 'Today';
@@ -3262,170 +3062,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsWrapLinesInDiffs => 'Wrap Lines in Diffs';
 
   @override
-  String get zenTitle => 'Zen';
-
-  @override
-  String get zenNewTask => 'New Task';
-
-  @override
-  String get zenAddTask => 'Add Task';
-
-  @override
-  String get zenDescriptionHint => 'What needs to be done?';
-
-  @override
-  String get zenPriorityLabel => 'Priority';
-
-  @override
-  String get zenStatusLabel => 'Status';
-
-  @override
-  String get zenCreatedLabel => 'Created';
-
-  @override
-  String get zenCompletedLabel => 'Completed';
-
-  @override
-  String get zenMarkDone => 'Mark Done';
-
-  @override
-  String get zenTaskTitle => 'Task';
-
-  @override
-  String get zenTaskNotFound => 'Task not found';
-
-  @override
-  String get zenDeleteTitle => 'Delete Task';
-
-  @override
-  String get zenDeleteConfirm => 'Are you sure you want to delete this task?';
-
-  @override
-  String get zenEmptyTitle => 'No Tasks Yet';
-
-  @override
-  String get zenEmptySubtitle => 'Tap + to add your first task.';
-
-  @override
-  String get zenSectionActive => 'Active';
-
-  @override
-  String get zenSectionCompleted => 'Completed';
-
-  @override
   String get userProfileTitle => 'User Profile';
 
   @override
   String get userNotFound => 'User not found';
-
-  @override
-  String get friendsStatusFriends => 'Friends';
-
-  @override
-  String get friendsStatusRequestSent => 'Request Sent';
-
-  @override
-  String get friendsStatusWantsToConnect => 'Wants to Connect';
-
-  @override
-  String get friendsAddFriendAction => 'Add Friend';
-
-  @override
-  String get friendsFailedToAdd => 'Failed to add friend';
-
-  @override
-  String get friendsFailedToUpdate => 'Failed to update friendship';
-
-  @override
-  String get friendsTabFriends => 'Friends';
-
-  @override
-  String get friendsTabRequests => 'Requests';
-
-  @override
-  String get friendsEmptyTitle => 'No Friends Yet';
-
-  @override
-  String get friendsNoRequests => 'No Incoming Requests';
-
-  @override
-  String get friendsRemoveTitle => 'Remove Friend';
-
-  @override
-  String get friendsRemoveAction => 'Remove';
-
-  @override
-  String get friendsRemoved => 'Friend removed';
-
-  @override
-  String get friendsWantsToConnect => 'Wants to connect';
-
-  @override
-  String get friendsSearchFailed => 'Search failed';
-
-  @override
-  String get friendsActionFailed => 'Action failed';
-
-  @override
-  String get friendsSearchByUsername => 'Search by username';
-
-  @override
-  String get friendsSearchEmptyTitle => 'Search for friends';
-
-  @override
-  String get friendsSearchEmptySubtitle => 'Search for a username to connect';
-
-  @override
-  String get friendsIncomingRequest => 'Incoming request';
-
-  @override
-  String get friendsNotConnected => 'Not connected';
-
-  @override
-  String get inboxPendingRequests => 'Pending Requests';
-
-  @override
-  String get inboxSentRequests => 'Sent Requests';
-
-  @override
-  String get inboxMyFriends => 'My Friends';
-
-  @override
-  String get inboxRequestPending => 'Request pending';
-
-  @override
-  String get inboxRequestCanceled => 'Request canceled';
-
-  @override
-  String get inboxFriendSubtitle => 'Friend';
-
-  @override
-  String get inboxNoNotificationsTitle => 'No notifications yet';
-
-  @override
-  String get inboxFeedFriendRequest => 'Friend request';
-
-  @override
-  String get inboxFeedFriendAccepted => 'Friend accepted';
-
-  @override
-  String get inboxFeedUpdate => 'Update';
-
-  @override
-  String get inboxTimeNow => 'now';
-
-  @override
-  String inboxTimeMinutesAgo(int n) {
-    return '${n}m ago';
-  }
-
-  @override
-  String inboxTimeHoursAgo(int n) {
-    return '${n}h ago';
-  }
-
-  @override
-  String get inboxTimeYesterday => 'Yesterday';
 
   @override
   String get accountAccountSettings => 'Account Settings';
@@ -3540,12 +3180,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsGitHub => 'GitHub';
-
-  @override
-  String get settingsFindFriends => 'Find Friends';
-
-  @override
-  String get settingsOpenInbox => 'Open Inbox';
 
   @override
   String get settingsDeveloperEnabled => 'Enabled';
@@ -4184,34 +3818,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandConnectDeviceSubtitle => 'Connect a new device via web';
 
   @override
-  String get commandInboxTitle => 'Inbox';
-
-  @override
-  String get commandInboxSubtitle => 'View your notifications';
-
-  @override
   String get commandArtifactsTitle => 'Artifacts';
 
   @override
   String get commandArtifactsSubtitle => 'Browse your artifacts';
 
   @override
-  String get commandZenModeTitle => 'Zen Mode';
-
-  @override
-  String get commandZenModeSubtitle => 'Focus mode with todos';
-
-  @override
   String get commandTerminalTitle => 'Terminal';
 
   @override
   String get commandTerminalSubtitle => 'Access terminal sessions';
-
-  @override
-  String get commandFriendsTitle => 'Friends';
-
-  @override
-  String get commandFriendsSubtitle => 'Manage your friends';
 
   @override
   String networkInspectorTitle(int count) {
@@ -4363,9 +3979,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get voiceAutoDetect => 'Auto-detect';
-
-  @override
-  String get inboxTitle => 'Inbox';
 
   @override
   String get accountBackupKeyCopiedToClipboard =>
@@ -4634,16 +4247,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fileViewerContentError => 'The file content could not be loaded.';
 
   @override
-  String get friendsEmptySubtitle => 'Search for people to connect with.';
-
-  @override
-  String get friendsNoRequestsSubtitle => 'Friend requests will appear here';
-
-  @override
-  String get inboxConnectFriendsSubtitle =>
-      'Connect with friends to start sharing sessions.';
-
-  @override
   String get machineLastKnownStatus => 'Last Known Status';
 
   @override
@@ -4761,16 +4364,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDeveloperTapToEnable => 'Open developer options';
 
   @override
-  String get settingsFindFriendsSubtitle => 'Search and send friend requests';
-
-  @override
   String get settingsGitHubDisconnected => 'GitHub disconnected';
 
   @override
   String get settingsNotConnected => 'Not connected';
-
-  @override
-  String get settingsOpenInboxSubtitle => 'View updates and requests';
 
   @override
   String get settingsServerResetConfirm =>
@@ -4862,11 +4459,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String devLogsCopied(int count) {
     return '$count log entries copied';
-  }
-
-  @override
-  String friendsRemoveConfirm(String name) {
-    return 'Remove $name from your friends?';
   }
 
   @override

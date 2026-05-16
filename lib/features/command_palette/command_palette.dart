@@ -137,16 +137,6 @@ class CommandPaletteController {
         },
       ),
       CommandItem(
-        id: 'inbox',
-        title: l10n.commandInboxTitle,
-        subtitle: l10n.commandInboxSubtitle,
-        icon: Icons.inbox_outlined,
-        category: l10n.commandCategoryNavigation,
-        action: () {
-          router.go('/inbox');
-        },
-      ),
-      CommandItem(
         id: 'artifacts',
         title: l10n.commandArtifactsTitle,
         subtitle: l10n.commandArtifactsSubtitle,
@@ -157,16 +147,6 @@ class CommandPaletteController {
         },
       ),
       CommandItem(
-        id: 'zen',
-        title: l10n.commandZenModeTitle,
-        subtitle: l10n.commandZenModeSubtitle,
-        icon: Icons.emoji_nature_outlined,
-        category: l10n.commandCategoryNavigation,
-        action: () {
-          router.go('/zen');
-        },
-      ),
-      CommandItem(
         id: 'terminal',
         title: l10n.commandTerminalTitle,
         subtitle: l10n.commandTerminalSubtitle,
@@ -174,16 +154,6 @@ class CommandPaletteController {
         category: l10n.commandCategoryNavigation,
         action: () {
           router.go('/terminal');
-        },
-      ),
-      CommandItem(
-        id: 'friends',
-        title: l10n.commandFriendsTitle,
-        subtitle: l10n.commandFriendsSubtitle,
-        icon: Icons.people_outline,
-        category: l10n.commandCategoryNavigation,
-        action: () {
-          router.go('/friends');
         },
       ),
     ]);

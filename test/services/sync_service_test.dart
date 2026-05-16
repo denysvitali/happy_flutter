@@ -20,14 +20,12 @@ void main() {
     late int sessionsInvalidations;
     late int settingsInvalidations;
     late int profileInvalidations;
-    late int todosInvalidations;
 
     setUp(() {
       instance = Sync();
       sessionsInvalidations = 0;
       settingsInvalidations = 0;
       profileInvalidations = 0;
-      todosInvalidations = 0;
 
       instance.sessionsSync = InvalidateSync(() async {
         sessionsInvalidations++;
@@ -43,12 +41,6 @@ void main() {
       instance.pushTokenSync = InvalidateSync(() async {});
       instance.nativeUpdateSync = InvalidateSync(() async {});
       instance.artifactsSync = InvalidateSync(() async {});
-      instance.friendsSync = InvalidateSync(() async {});
-      instance.friendRequestsSync = InvalidateSync(() async {});
-      instance.feedSync = InvalidateSync(() async {});
-      instance.todosSync = InvalidateSync(() async {
-        todosInvalidations++;
-      });
       instance.messagesSync.clear();
     });
 
@@ -73,38 +65,6 @@ void main() {
       expect(profileInvalidations, 1);
       expect(settingsInvalidations, 1);
     });
-
-    test(
-      'kv-batch-update invalidates todo sync when todo payload is present',
-      () async {
-        instance.handleUpdate({
-          't': 'kv-batch-update',
-          'operations': [
-            {'key': 'todo:list:session_1', 'value': []},
-          ],
-        });
-
-        await instance.todosSync.awaitQueue();
-
-        expect(todosInvalidations, 1);
-      },
-    );
-
-    test(
-      'kv-batch-update invalidates todo sync when todo key is in changes',
-      () async {
-        instance.handleUpdate({
-          't': 'kv-batch-update',
-          'changes': [
-            {'key': 'todo.abc', 'value': 'encrypted'},
-          ],
-        });
-
-        await instance.todosSync.awaitQueue();
-
-        expect(todosInvalidations, 1);
-      },
-    );
 
     test(
       'delete-session clears in-memory message state for that session',
@@ -499,10 +459,6 @@ void main() {
         instance.pushTokenSync = InvalidateSync(() async {});
         instance.nativeUpdateSync = InvalidateSync(() async {});
         instance.artifactsSync = InvalidateSync(() async {});
-        instance.friendsSync = InvalidateSync(() async {});
-        instance.friendRequestsSync = InvalidateSync(() async {});
-        instance.feedSync = InvalidateSync(() async {});
-        instance.todosSync = InvalidateSync(() async {});
         instance.sessionGitStatusSync = InvalidateSync(() async {});
 
         instance.testInvalidateAllSyncs(force: true);
@@ -559,11 +515,7 @@ void main() {
       instance.nativeUpdateSync = InvalidateSync(() async {});
 
       // On-demand syncs (not invalidated by phased invalidation)
-      instance.friendsSync = InvalidateSync(() async {});
-      instance.feedSync = InvalidateSync(() async {});
-      instance.todosSync = InvalidateSync(() async {});
       instance.artifactsSync = InvalidateSync(() async {});
-      instance.friendRequestsSync = InvalidateSync(() async {});
       instance.sessionGitStatusSync = InvalidateSync(() async {});
 
       // Trigger invalidation
@@ -903,10 +855,6 @@ void main() {
       instance.pushTokenSync = InvalidateSync(() async {});
       instance.nativeUpdateSync = InvalidateSync(() async {});
       instance.artifactsSync = InvalidateSync(() async {});
-      instance.friendsSync = InvalidateSync(() async {});
-      instance.friendRequestsSync = InvalidateSync(() async {});
-      instance.feedSync = InvalidateSync(() async {});
-      instance.todosSync = InvalidateSync(() async {});
       instance.sessionGitStatusSync = InvalidateSync(() async {});
       instance.messagesSync.clear();
     });
@@ -1090,10 +1038,6 @@ void main() {
       sync.pushTokenSync = InvalidateSync(() async {});
       sync.nativeUpdateSync = InvalidateSync(() async {});
       sync.artifactsSync = InvalidateSync(() async {});
-      sync.friendsSync = InvalidateSync(() async {});
-      sync.friendRequestsSync = InvalidateSync(() async {});
-      sync.feedSync = InvalidateSync(() async {});
-      sync.todosSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
     });

@@ -16,7 +16,6 @@ import '../../core/utils/session_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../chat/chat_screen.dart';
-import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/connection_status_badge.dart';
 import 'widgets/new_session_dialog.dart';
@@ -72,15 +71,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     Future<void>.microtask(() async {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
-      ref.read(todoStateNotifierProvider.notifier).loadFromSync();
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
     });
     subscribeToDomains(
-      {SyncDomain.sessions, SyncDomain.machines, SyncDomain.todos},
+      {SyncDomain.sessions, SyncDomain.machines},
       () {
         ref.read(sessionsNotifierProvider.notifier).loadFromSync();
         ref.read(machinesNotifierProvider.notifier).loadFromSync();
-        ref.read(todoStateNotifierProvider.notifier).loadFromSync();
       },
     );
   }
@@ -95,7 +92,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
 
   AppTab _parseTab(String? tab) {
     return switch (tab) {
-      'inbox' => AppTab.inbox,
       'settings' => AppTab.settings,
       'sessions' => AppTab.sessions,
       _ => AppTab.sessions,
@@ -104,7 +100,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
 
   String _tabToString(AppTab tab) {
     return switch (tab) {
-      AppTab.inbox => 'inbox',
       AppTab.sessions => 'sessions',
       AppTab.settings => 'settings',
     };
@@ -141,12 +136,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final inboxBadgeCount = ref.watch(
-      friendsNotifierProvider.select((s) => s.incomingRequests.length),
-    );
-    final showInboxDot = ref.watch(
-      feedNotifierProvider.select((s) => s.unreadCount > 0),
-    );
 
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isTablet = screenWidth >= AppBreakpoint.tablet;
@@ -227,8 +216,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             : TabBar(
                 activeTab: _activeTab,
                 onTabPress: _setActiveTab,
-                inboxBadgeCount: inboxBadgeCount,
-                showInboxBadge: showInboxDot,
               ),
       ),
     );
@@ -527,7 +514,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     return IndexedStack(
       index: _activeTab.index,
       children: [
-        _buildInboxTab(),
         SessionsListContent(
           selectionNotifier: _selectionNotifier,
           folderNotifier: _folderNotifier,
@@ -550,13 +536,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   Widget _buildSettingsTab() {
     if (_builtTabs.contains(AppTab.settings)) {
       return const SettingsScreen(embedded: true);
-    }
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildInboxTab() {
-    if (_builtTabs.contains(AppTab.inbox)) {
-      return const InboxScreen();
     }
     return const SizedBox.shrink();
   }
