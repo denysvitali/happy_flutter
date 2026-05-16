@@ -214,7 +214,11 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final sameSender = nextRole == currentRole;
     final isToolCall = message['kind'] == 'tool-call';
     final nextIsToolCall = nextMessage?['kind'] == 'tool-call';
-    final bottomPad = (isToolCall && nextIsToolCall)
+    final isToolLike =
+        isToolCall || message['kind'] == 'hidden-tool-summary';
+    final nextIsToolLike =
+        nextIsToolCall || nextMessage?['kind'] == 'hidden-tool-summary';
+    final bottomPad = (isToolLike && nextIsToolLike)
         ? 0.0
         : sameSender
         ? AppSpacing.xs
