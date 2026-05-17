@@ -26,6 +26,7 @@ class InvalidateSync {
   bool _running = false;
   bool _disposed = false;
   int _retryCount = 0;
+  int _runGeneration = 0;
   Timer? _retryTimer;
   Timer? _cooldownTimer;
   DateTime? _lastRunEnd;
@@ -82,6 +83,7 @@ class InvalidateSync {
     // an in-flight _run() that races with the revived one.
     if (_disposed) {
       _disposed = false;
+      _runGeneration++;
       _setRunning(false);
       _retryCount = 0;
       _lastRunEnd = null;
@@ -128,7 +130,7 @@ class InvalidateSync {
     // a previously-exhausted InvalidateSync can recover on the
     // next call (e.g. after a socket reconnect).
     _retryCount = 0;
-    unawaited(_run());
+    unawaited(_run(_runGeneration));
   }
 
   void _setRunning(bool value) {
@@ -163,7 +165,9 @@ class InvalidateSync {
     await operation.future;
   }
 
-  Future<void> _run() async {
+  Future<void> _run(int generation) async {
+    if (generation != _runGeneration) return;
+
     // Skip if disposed — the instance was torn down while we were waiting for
     // the microtask/timer queue.  Complete any pending operation so callers
     // are not left hanging, then bail out silently.
@@ -208,6 +212,8 @@ class InvalidateSync {
 
       await transaction.finish();
 
+      if (generation != _runGeneration) return;
+
       // Add breadcrumb for successful completion
       unawaited(
         Sentry.addBreadcrumb(
@@ -221,6 +227,8 @@ class InvalidateSync {
       );
     } catch (error) {
       await transaction.finish(status: const SpanStatus.internalError());
+
+      if (generation != _runGeneration) return;
 
       _retryCount++;
       if (_retryCount <= maxRetries) {
@@ -256,7 +264,7 @@ class InvalidateSync {
         if (needsReinvalidate) {
           _retryCount = 0;
           _invalidated = false;
-          unawaited(_run());
+          unawaited(_run(_runGeneration));
         }
       }
       return;
@@ -308,8 +316,9 @@ class InvalidateSync {
     );
 
     _retryTimer?.cancel();
+    final generation = _runGeneration;
     _retryTimer = Timer(Duration(milliseconds: clampedDelay), () {
-      unawaited(_run());
+      unawaited(_run(generation));
     });
   }
 
@@ -324,16 +333,19 @@ class InvalidateSync {
     _retryTimer = null;
     _cooldownTimer?.cancel();
     _cooldownTimer = null;
+    _runGeneration++;
 
-    // If work was only waiting on a cooldown/retry timer, complete the current
-    // awaiters normally so lifecycle suspend does not leak a stale pending
-    // future into foreground recovery.
-    if (!_running) {
-      final op = _currentOperation;
-      _currentOperation = null;
-      if (op != null && !op.isCompleted) {
-        op.complete();
-      }
+    // Complete awaiters and mark the manager idle even if the underlying
+    // action is still awaiting a platform/network timeout. Android Cronet can
+    // leave those requests alive for tens of seconds after backgrounding; if
+    // _running stays true, the next foreground invalidate() is ignored and the
+    // app appears stuck syncing until the old request finally unwinds.
+    _invalidated = false;
+    _setRunning(false);
+    final op = _currentOperation;
+    _currentOperation = null;
+    if (op != null && !op.isCompleted) {
+      op.complete();
     }
   }
 
@@ -346,6 +358,7 @@ class InvalidateSync {
   /// in a try/catch (which is most of them).
   void dispose() {
     _disposed = true;
+    _runGeneration++;
     _retryTimer?.cancel();
     _cooldownTimer?.cancel();
     final op = _currentOperation;

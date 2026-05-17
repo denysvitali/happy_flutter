@@ -217,14 +217,17 @@ void main() {
       });
 
       test(
-        'suspend preserves an in-flight operation and allows reuse later',
+        'suspend releases an in-flight operation so resume can run again',
         () async {
           final blocker = Completer<void>();
+          final secondRun = Completer<void>();
           var callCount = 0;
           final sync = InvalidateSync(() async {
             callCount++;
             if (callCount == 1) {
               await blocker.future;
+            } else if (callCount == 2) {
+              secondRun.complete();
             }
           });
 
@@ -232,13 +235,13 @@ void main() {
           await Future<void>.delayed(Duration.zero);
 
           sync.suspend();
-          blocker.complete();
-          await sync.awaitQueue();
-
           sync.invalidate();
-          await sync.awaitQueue();
+          await secondRun.future;
 
           expect(callCount, 2);
+
+          blocker.complete();
+          await sync.awaitQueue();
         },
       );
     });
