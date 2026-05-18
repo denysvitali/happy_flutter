@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/markdown/markdown.dart';
@@ -12,6 +13,25 @@ import 'package:happy_flutter/features/chat/markdown/markdown.dart';
 void main() {
   // Initialize test binding for widget tests.
   TestWidgetsFlutterBinding.ensureInitialized();
+  const urlLauncherChannel = MethodChannel('plugins.flutter.io/url_launcher');
+  final urlLauncherCalls = <MethodCall>[];
+  final urlLauncherResponses = <bool>[];
+
+  setUp(() {
+    urlLauncherCalls.clear();
+    urlLauncherResponses.clear();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(urlLauncherChannel, (call) async {
+          urlLauncherCalls.add(call);
+          if (urlLauncherResponses.isEmpty) return true;
+          return urlLauncherResponses.removeAt(0);
+        });
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(urlLauncherChannel, null);
+  });
 
   // ── Helper ────────────────────────────────────────────────────────────────
 
@@ -23,8 +43,8 @@ void main() {
   }) async {
     await tester.pumpWidget(
       MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: ThemeData.light(),
         darkTheme: ThemeData.dark(),
         themeMode: themeMode,
@@ -53,15 +73,13 @@ void main() {
     });
 
     testWidgets('renders strikethrough text', (tester) async {
-      await pumpMarkdown(
-        tester,
-        SimpleMarkdownView(markdown: '~~deleted~~'),
-      );
+      await pumpMarkdown(tester, SimpleMarkdownView(markdown: '~~deleted~~'));
       expect(find.textContaining('deleted'), findsOneWidget);
     });
 
     testWidgets('renders all header levels', (tester) async {
-      const markdown = '# H1\n\n## H2\n\n### H3\n\n#### H4'
+      const markdown =
+          '# H1\n\n## H2\n\n### H3\n\n#### H4'
           '\n\n##### H5\n\n###### H6';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
 
@@ -81,9 +99,7 @@ void main() {
     testWidgets('renders links', (tester) async {
       await pumpMarkdown(
         tester,
-        SimpleMarkdownView(
-          markdown: '[Click here](https://example.com)',
-        ),
+        SimpleMarkdownView(markdown: '[Click here](https://example.com)'),
       );
       expect(find.textContaining('Click here'), findsOneWidget);
     });
@@ -121,7 +137,8 @@ void main() {
     });
 
     testWidgets('renders nested unordered lists', (tester) async {
-      const markdown = '- Parent 1\n  - Child 1a\n  - Child 1b\n'
+      const markdown =
+          '- Parent 1\n  - Child 1a\n  - Child 1b\n'
           '- Parent 2';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
 
@@ -142,7 +159,8 @@ void main() {
     });
 
     testWidgets('renders deeply nested mixed lists', (tester) async {
-      const markdown = '- Level 1\n  1. Level 2 ordered\n'
+      const markdown =
+          '- Level 1\n  1. Level 2 ordered\n'
           '    - Level 3 unordered';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
 
@@ -174,8 +192,7 @@ void main() {
     });
 
     testWidgets('renders fenced code block with javascript', (tester) async {
-      const markdown =
-          '```javascript\nconst x = 42;\nconsole.log(x);\n```';
+      const markdown = '```javascript\nconst x = 42;\nconsole.log(x);\n```';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
       expect(find.textContaining('const x = 42'), findsOneWidget);
       expect(find.textContaining('console.log(x)'), findsOneWidget);
@@ -202,7 +219,8 @@ void main() {
     });
 
     testWidgets('renders multiple code blocks', (tester) async {
-      const markdown = '```dart\nprint("a");\n```\n\n'
+      const markdown =
+          '```dart\nprint("a");\n```\n\n'
           '```python\nprint("b")\n```';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
       expect(find.textContaining('print("a")'), findsOneWidget);
@@ -220,7 +238,8 @@ void main() {
     });
 
     testWidgets('renders table with multiple rows', (tester) async {
-      const markdown = '| Name | Age |\n|------|-----|\n'
+      const markdown =
+          '| Name | Age |\n|------|-----|\n'
           '| Alice | 30 |\n| Bob | 25 |\n| Carol | 35 |';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
 
@@ -274,7 +293,8 @@ void main() {
     });
 
     testWidgets('renders mixed content', (tester) async {
-      const markdown = '# Title\n\nA paragraph with **bold** and '
+      const markdown =
+          '# Title\n\nA paragraph with **bold** and '
           '`code`.\n\n- Item 1\n- Item 2\n\n'
           '```dart\nvoid main() {}\n```\n\n> A quote';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
@@ -345,7 +365,8 @@ void main() {
     });
 
     testWidgets('renders tables', (tester) async {
-      const markdown = '| Col A | Col B |\n|-------|-------|\n'
+      const markdown =
+          '| Col A | Col B |\n|-------|-------|\n'
           '| Val 1 | Val 2 |';
       await pumpMarkdown(tester, MarkdownView(markdown: markdown));
 
@@ -368,12 +389,78 @@ void main() {
       expect(find.textContaining('Click me'), findsOneWidget);
     });
 
+    testWidgets('opens links through url launcher', (tester) async {
+      await pumpMarkdown(
+        tester,
+        MarkdownView(markdown: '[Click me](https://example.com)'),
+      );
+
+      await tester.tap(find.textContaining('Click me'));
+      await tester.pumpAndSettle();
+
+      expect(urlLauncherCalls, hasLength(1));
+      expect(urlLauncherCalls.single.method, 'launch');
+      expect(urlLauncherCalls.single.arguments, {
+        'url': 'https://example.com',
+        'useSafariVC': false,
+        'useWebView': false,
+        'enableJavaScript': true,
+        'enableDomStorage': true,
+        'universalLinksOnly': false,
+        'headers': <String, String>{},
+      });
+    });
+
+    testWidgets('normalizes bare-domain link targets before opening', (
+      tester,
+    ) async {
+      await pumpMarkdown(
+        tester,
+        SimpleMarkdownView(markdown: '[Docs](example.com/docs)'),
+      );
+
+      await tester.tap(find.textContaining('Docs'));
+      await tester.pumpAndSettle();
+
+      expect(urlLauncherCalls, hasLength(1));
+      expect(
+        urlLauncherCalls.single.arguments,
+        containsPair('url', 'https://example.com/docs'),
+      );
+    });
+
+    testWidgets('falls back to platform launch mode when external fails', (
+      tester,
+    ) async {
+      urlLauncherResponses.addAll([false, true]);
+      await pumpMarkdown(
+        tester,
+        MarkdownView(markdown: '[Click me](https://example.com)'),
+      );
+
+      await tester.tap(find.textContaining('Click me'));
+      await tester.pumpAndSettle();
+
+      expect(urlLauncherCalls, hasLength(2));
+      expect(
+        urlLauncherCalls.first.arguments,
+        containsPair('url', 'https://example.com'),
+      );
+      expect(
+        urlLauncherCalls.first.arguments,
+        containsPair('useWebView', false),
+      );
+      expect(
+        urlLauncherCalls.last.arguments,
+        containsPair('url', 'https://example.com'),
+      );
+      expect(urlLauncherCalls.last.arguments, containsPair('useWebView', true));
+    });
+
     testWidgets('renders images', (tester) async {
       await pumpMarkdown(
         tester,
-        MarkdownView(
-          markdown: '![A picture](https://example.com/photo.png)',
-        ),
+        MarkdownView(markdown: '![A picture](https://example.com/photo.png)'),
       );
       // Image widget should be present; alt text may or may not render visibly
       expect(find.byType(MarkdownView), findsOneWidget);
@@ -385,10 +472,7 @@ void main() {
     });
 
     testWidgets('renders strikethrough', (tester) async {
-      await pumpMarkdown(
-        tester,
-        MarkdownView(markdown: '~~removed~~'),
-      );
+      await pumpMarkdown(tester, MarkdownView(markdown: '~~removed~~'));
       expect(find.textContaining('removed'), findsOneWidget);
     });
   });
@@ -405,8 +489,9 @@ void main() {
       expect(find.text('No'), findsOneWidget);
     });
 
-    testWidgets('renders option chips as OutlinedButton with callback',
-        (tester) async {
+    testWidgets('renders option chips as OutlinedButton with callback', (
+      tester,
+    ) async {
       String? pressed;
       const markdown =
           '<options>\n<option>Accept</option>\n<option>Decline</option>'
@@ -430,8 +515,7 @@ void main() {
     });
 
     testWidgets('renders option chips with textColor', (tester) async {
-      const markdown =
-          '<options>\n<option>Option A</option>\n</options>';
+      const markdown = '<options>\n<option>Option A</option>\n</options>';
       await pumpMarkdown(
         tester,
         MarkdownView(markdown: markdown, textColor: Colors.white),
@@ -454,10 +538,7 @@ void main() {
 
       await pumpMarkdown(
         tester,
-        MarkdownView(
-          markdown: markdown,
-          onOptionPress: pressedOptions.add,
-        ),
+        MarkdownView(markdown: markdown, onOptionPress: pressedOptions.add),
       );
 
       await tester.tap(find.text('Opt 2'));
@@ -513,8 +594,9 @@ void main() {
   // ── Edge cases ────────────────────────────────────────────────────────────
 
   group('Edge cases', () {
-    testWidgets('renders markdown with leading/trailing whitespace',
-        (tester) async {
+    testWidgets('renders markdown with leading/trailing whitespace', (
+      tester,
+    ) async {
       await pumpMarkdown(
         tester,
         SimpleMarkdownView(markdown: '  \n  Hello  \n  '),
@@ -547,7 +629,8 @@ void main() {
     });
 
     testWidgets('renders consecutive code blocks', (tester) async {
-      const markdown = '```dart\nprint("a");\n```\n\n'
+      const markdown =
+          '```dart\nprint("a");\n```\n\n'
           'Some text between.\n\n'
           '```python\nprint("b")\n```';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
@@ -556,8 +639,9 @@ void main() {
       expect(find.textContaining('print("b")'), findsOneWidget);
     });
 
-    testWidgets('renders code block with language containing hyphen',
-        (tester) async {
+    testWidgets('renders code block with language containing hyphen', (
+      tester,
+    ) async {
       const markdown = '```objective-c\nint main() { return 0; }\n```';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
       expect(find.textContaining('int main()'), findsOneWidget);
@@ -590,9 +674,7 @@ void main() {
     testWidgets('renders link with title attribute', (tester) async {
       await pumpMarkdown(
         tester,
-        SimpleMarkdownView(
-          markdown: '[Link](https://example.com "A title")',
-        ),
+        SimpleMarkdownView(markdown: '[Link](https://example.com "A title")'),
       );
       expect(find.textContaining('Link'), findsOneWidget);
     });
@@ -606,7 +688,8 @@ void main() {
     });
 
     testWidgets('renders nested list with mixed markers', (tester) async {
-      const markdown = '- Unordered\n  1. Ordered sub\n  2. Another sub\n'
+      const markdown =
+          '- Unordered\n  1. Ordered sub\n  2. Another sub\n'
           '- Back to unordered';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
       expect(find.textContaining('Unordered'), findsOneWidget);
@@ -638,7 +721,8 @@ void main() {
     });
 
     testWidgets('renders list with code block item', (tester) async {
-      const markdown = '- First item\n\n  ```dart\n  code();\n  ```\n\n'
+      const markdown =
+          '- First item\n\n  ```dart\n  code();\n  ```\n\n'
           '- Second item';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
       expect(find.textContaining('First item'), findsOneWidget);
@@ -658,8 +742,9 @@ void main() {
   // ── StyleSheet caching ────────────────────────────────────────────────────
 
   group('StyleSheet caching', () {
-    testWidgets('MarkdownView rebuilds style sheet on theme change',
-        (tester) async {
+    testWidgets('MarkdownView rebuilds style sheet on theme change', (
+      tester,
+    ) async {
       await pumpMarkdown(
         tester,
         MarkdownView(markdown: 'Themed text'),
@@ -676,8 +761,9 @@ void main() {
       expect(find.textContaining('Themed text'), findsOneWidget);
     });
 
-    testWidgets('MarkdownView rebuilds style sheet on textColor change',
-        (tester) async {
+    testWidgets('MarkdownView rebuilds style sheet on textColor change', (
+      tester,
+    ) async {
       await pumpMarkdown(
         tester,
         MarkdownView(markdown: 'Colored', textColor: Colors.red),
@@ -691,8 +777,9 @@ void main() {
       expect(find.textContaining('Colored'), findsOneWidget);
     });
 
-    testWidgets('SimpleMarkdownView rebuilds style sheet on theme change',
-        (tester) async {
+    testWidgets('SimpleMarkdownView rebuilds style sheet on theme change', (
+      tester,
+    ) async {
       await pumpMarkdown(
         tester,
         SimpleMarkdownView(markdown: 'Themed'),

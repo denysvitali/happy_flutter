@@ -6,6 +6,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/syntax_cache.dart';
 import '../code_block_widget.dart';
@@ -99,15 +100,11 @@ class _MarkdownViewState extends State<MarkdownView> {
       h4: theme.textTheme.titleLarge?.copyWith(color: widget.textColor),
       h5: theme.textTheme.titleMedium?.copyWith(color: widget.textColor),
       h6: theme.textTheme.titleSmall?.copyWith(color: widget.textColor),
-      listBullet:
-          theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
+      listBullet: theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
       blockquoteDecoration: BoxDecoration(
         color: onSurface.withValues(alpha: 0.05),
         border: Border(
-          left: BorderSide(
-            color: onSurface.withValues(alpha: 0.3),
-            width: 4,
-          ),
+          left: BorderSide(color: onSurface.withValues(alpha: 0.3), width: 4),
         ),
       ),
       blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
@@ -160,14 +157,7 @@ class _MarkdownViewState extends State<MarkdownView> {
         builders: _effectiveBuilders,
         blockSyntaxes: _optionsBlockSyntaxes,
         styleSheet: _styleSheet!,
-        onTapLink: (text, href, title) async {
-          if (href != null) {
-            final uri = Uri.tryParse(href);
-            if (uri != null && await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
+        onTapLink: (text, href, title) => _openMarkdownLink(href),
       ),
     );
 
@@ -205,10 +195,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       blockquoteDecoration: BoxDecoration(
         color: onSurface.withValues(alpha: 0.05),
         border: Border(
-          left: BorderSide(
-            color: onSurface.withValues(alpha: 0.3),
-            width: 4,
-          ),
+          left: BorderSide(color: onSurface.withValues(alpha: 0.3), width: 4),
         ),
       ),
       blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
@@ -233,8 +220,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
   @override
   Widget build(BuildContext context) {
     if (widget.markdown == _lastMarkdown) {
-      return _markdownCache.get(widget.markdown) ??
-          _buildMarkdownBody(context);
+      return _markdownCache.get(widget.markdown) ?? _buildMarkdownBody(context);
     }
     return _buildMarkdownBody(context);
   }
@@ -255,14 +241,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         extensionSet: _gitHubFlavoredExtensionSet,
         builders: _simpleBuilders,
         styleSheet: _styleSheet!,
-        onTapLink: (text, href, title) async {
-          if (href != null) {
-            final uri = Uri.tryParse(href);
-            if (uri != null && await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          }
-        },
+        onTapLink: (text, href, title) => _openMarkdownLink(href),
       ),
     );
 
@@ -285,22 +264,56 @@ final _gitHubFlavoredExtensionSet = md.ExtensionSet.gitHubFlavored;
 /// Shared block syntaxes for [MarkdownView] with options block support.
 ///
 /// The list is const and immutable, safe to share across all instances.
-final _optionsBlockSyntaxes = const [
-  OptionsBlockSyntax(),
-];
+final _optionsBlockSyntaxes = const [OptionsBlockSyntax()];
 
 /// Shared builders map for [SimpleMarkdownView].
 ///
 /// Stable reference so [MarkdownBody] sees the same map object on every
 /// rebuild and does not re-parse unnecessarily.
-final _simpleBuilders = {
-  'pre': _sharedCodeBlockBuilder,
-};
+final _simpleBuilders = {'pre': _sharedCodeBlockBuilder};
 
 /// Shared instance of [_CodeBlockBuilder] reused across all [MarkdownView]
 /// and [SimpleMarkdownView] builds to avoid allocating a new object on every
 /// rebuild. [MarkdownElementBuilder] has no mutable state so sharing is safe.
 final _sharedCodeBlockBuilder = _CodeBlockBuilder();
+
+Future<void> _openMarkdownLink(String? href) async {
+  final uri = _normalizeMarkdownHref(href);
+  if (uri == null) return;
+
+  try {
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched) {
+      await launchUrl(uri);
+    }
+  } catch (error, stackTrace) {
+    logger.warning('Failed to open markdown link', error, stackTrace);
+  }
+}
+
+Uri? _normalizeMarkdownHref(String? href) {
+  final value = href?.trim();
+  if (value == null || value.isEmpty) return null;
+
+  if (value.startsWith('//')) {
+    return Uri.tryParse('https:$value');
+  }
+
+  final uri = Uri.tryParse(value);
+  if (uri == null) return null;
+
+  if (uri.hasScheme) {
+    return uri;
+  }
+
+  final firstPathSegment = value.split('/').first;
+  final isDomainLike =
+      firstPathSegment.startsWith('www.') ||
+      (firstPathSegment.contains('.') && !firstPathSegment.contains(' '));
+  if (!isDomainLike) return null;
+
+  return Uri.tryParse('https://$value');
+}
 
 /// Builder that renders fenced code blocks using [CodeBlockWidget].
 ///
@@ -336,13 +349,11 @@ class _CodeBlockBuilder extends MarkdownElementBuilder {
     }
 
     // Strip trailing newline that the parser appends.
-    final trimmed =
-        code.endsWith('\n') ? code.substring(0, code.length - 1) : code;
+    final trimmed = code.endsWith('\n')
+        ? code.substring(0, code.length - 1)
+        : code;
 
-    return CodeBlockWidget(
-      code: trimmed,
-      language: language,
-    );
+    return CodeBlockWidget(code: trimmed, language: language);
   }
 }
 
@@ -380,7 +391,9 @@ class OptionsBlockSyntax extends md.BlockSyntax {
       }
 
       // Extract content from <option> tags
-      final match = RegExp(r'\u003coption\u003e(.*?)\u003c/option\u003e').firstMatch(line);
+      final match = RegExp(
+        r'\u003coption\u003e(.*?)\u003c/option\u003e',
+      ).firstMatch(line);
       if (match != null) {
         items.add(match.group(1) ?? '');
       }
@@ -407,8 +420,10 @@ class OptionsElementBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     // Parse the items from the element text content
-    final items =
-        element.textContent.split('\n').where((s) => s.isNotEmpty).toList();
+    final items = element.textContent
+        .split('\n')
+        .where((s) => s.isNotEmpty)
+        .toList();
 
     return _OptionsChips(
       items: items,
