@@ -13,6 +13,11 @@ import 'helpers/server_url_dialog.dart';
 import 'widgets/danger_zone.dart';
 import 'widgets/inline_theme_picker.dart';
 import 'widgets/profile_header.dart';
+import 'widgets/settings_health_section.dart';
+import 'widgets/settings_search_widgets.dart';
+import 'widgets/workflow_presets_section.dart';
+
+part 'settings_screen_search.dart';
 
 // ─── Settings Screen ─────────────────────────────────────────────────────────
 
@@ -27,47 +32,71 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_handleSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_handleSearchChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleSearchChanged() {
+    setState(() => _searchQuery = _searchController.text);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(
-      settingsNotifierProvider.select((s) => s.themeMode),
-    );
-    final showFlavorIcons = ref.watch(
-      settingsNotifierProvider.select((s) => s.showFlavorIcons),
-    );
-    final avatarStyle = ref.watch(
-      settingsNotifierProvider.select((s) => s.avatarStyle),
-    );
-    final viewInline = ref.watch(
-      settingsNotifierProvider.select((s) => s.viewInline),
-    );
-    final hideToolCalls = ref.watch(
-      settingsNotifierProvider.select((s) => s.hideToolCalls),
-    );
-    final expandTodos = ref.watch(
-      settingsNotifierProvider.select((s) => s.expandTodos),
-    );
-    final ttsEnabled = ref.watch(
-      settingsNotifierProvider.select((s) => s.ttsEnabled),
-    );
-    final developerModeEnabled = ref.watch(
-      settingsNotifierProvider.select((s) => s.developerModeEnabled),
-    );
-    final sessionsViewStyle = ref.watch(
-      settingsNotifierProvider.select((s) => s.sessionsViewStyle),
+    final settings = ref.watch(
+      settingsNotifierProvider.select(
+        (s) => (
+          themeMode: s.themeMode,
+          showFlavorIcons: s.showFlavorIcons,
+          avatarStyle: s.avatarStyle,
+          viewInline: s.viewInline,
+          hideToolCalls: s.hideToolCalls,
+          expandTodos: s.expandTodos,
+          ttsEnabled: s.ttsEnabled,
+          developerModeEnabled: s.developerModeEnabled,
+          toolCallDebugEnabled: s.toolCallDebugEnabled,
+          sessionsViewStyle: s.sessionsViewStyle,
+          compactSessionView: s.compactSessionView,
+          hideInactiveSessions: s.hideInactiveSessions,
+        ),
+      ),
     );
     final profile = ref.watch(profileNotifierProvider);
+    final sessionStats = ref.watch(
+      sessionsNotifierProvider.select(
+        (sessions) => (
+          total: sessions.length,
+          online: sessions.values
+              .where((session) => session.presence == 'online')
+              .length,
+        ),
+      ),
+    );
     // Select only the machine count and first machine's display name/host to
     // avoid rebuilding this screen when unrelated machine fields change.
-    final machineCount = ref.watch(
-      machinesNotifierProvider.select((m) => m.length),
-    );
-    final firstMachineSubtitle = ref.watch(
-      machinesNotifierProvider.select((m) {
-        if (m.isEmpty) return null;
-        final first = m.values.first;
-        return first.metadata?.displayName ?? first.metadata?.host;
-      }),
+    final machineStats = ref.watch(
+      machinesNotifierProvider.select(
+        (machines) => (
+          total: machines.length,
+          active: machines.values.where((machine) => machine.active).length,
+          firstSubtitle: machines.isEmpty
+              ? null
+              : machines.values.first.metadata?.displayName ??
+                    machines.values.first.metadata?.host,
+        ),
+      ),
     );
     final l10n = AppLocalizations.of(context);
 
@@ -79,6 +108,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ? (constraints.maxWidth - maxContentWidth) / 2
             : AppSpacing.lg;
 
+        final sections = _buildSearchSections(
+          context,
+          settings: settings,
+          sessionStats: sessionStats,
+          machineStats: machineStats,
+        );
+        final visibleSections = _filterSections(sections, _searchQuery);
+
         return ListView(
           padding: EdgeInsets.fromLTRB(
             horizontalPadding,
@@ -89,49 +126,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
             ProfileHeader(profile: profile),
             const SizedBox(height: AppSpacing.xl),
-            _buildAppearanceSection(
-              context,
-              themeMode: themeMode,
-              showFlavorIcons: showFlavorIcons,
-              avatarStyle: avatarStyle,
-              ref: ref,
+            SettingsSearchField(
+              controller: _searchController,
+              query: _searchQuery,
             ),
             const SizedBox(height: AppSpacing.lg),
-            _buildBehaviorSection(
-              context,
-              viewInline: viewInline,
-              hideToolCalls: hideToolCalls,
-              expandTodos: expandTodos,
-              ref: ref,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _buildVoiceSection(context, ttsEnabled: ttsEnabled, ref: ref),
-            const SizedBox(height: AppSpacing.lg),
-            _buildAccountSection(context),
-            const SizedBox(height: AppSpacing.lg),
-            _buildToolsSection(context),
-            const SizedBox(height: AppSpacing.lg),
-            _buildSessionsSection(
-              context,
-              sessionsViewStyle: sessionsViewStyle,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _buildMachinesSection(
-              context,
-              machineCount: machineCount,
-              firstMachineSubtitle: firstMachineSubtitle,
-            ),
-            if (machineCount > 0) const SizedBox(height: AppSpacing.lg),
-            const _ServerSection(),
-            const SizedBox(height: AppSpacing.lg),
-            _buildDeveloperSection(
-              context,
-              developerModeEnabled: developerModeEnabled,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _buildAboutSection(context),
-            const SizedBox(height: AppSpacing.xl),
-            DangerZone(onSignOut: () => confirmSignOut(context, ref)),
+            if (visibleSections.isEmpty)
+              const SettingsNoSearchResults()
+            else
+              for (var i = 0; i < visibleSections.length; i++) ...[
+                visibleSections[i].widget,
+                if (i < visibleSections.length - 1)
+                  const SizedBox(height: AppSpacing.lg),
+              ],
+            if (_searchQuery.trim().isEmpty) ...[
+              const SizedBox(height: AppSpacing.xl),
+              DangerZone(onSignOut: () => confirmSignOut(context, ref)),
+            ],
             const SizedBox(height: AppSpacing.xxxl),
           ],
         );
