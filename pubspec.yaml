@@ -73,7 +73,7 @@ dependencies:
   # buildscript classpath, which 403s through the CI's Maven proxy.
   just_audio: ^0.10.4
   url_launcher: ^6.3.1
-  qr: ^3.0.2
+  qr: ^4.0.0
   web: ^1.1.1
   flutter_markdown_plus: ^1.0.0
   markdown: ^7.3.0
