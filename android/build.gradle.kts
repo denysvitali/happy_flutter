@@ -20,12 +20,17 @@ subprojects {
 gradle.projectsEvaluated {
     val minVer = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8
     subprojects {
-        val jvmTarget =
-            if (name == "app") {
-                org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-            } else {
-                org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
-            }
+        val javaTarget =
+            tasks
+                .matching { it is org.gradle.api.tasks.compile.JavaCompile }
+                .map { (it as org.gradle.api.tasks.compile.JavaCompile).targetCompatibility }
+                .firstOrNull()
+        val jvmTarget = when {
+            name == "app" -> org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+            javaTarget == "17" -> org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+            javaTarget == "11" -> org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+            else -> org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+        }
         tasks
             .matching { it is org.jetbrains.kotlin.gradle.tasks.KotlinCompile }
             .forEach {
