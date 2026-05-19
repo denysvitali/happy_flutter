@@ -81,6 +81,23 @@ void main() {
       expect(callCount, 1);
     });
 
+    test(
+      'fire-and-forget invalidation failure is internally observed',
+      () async {
+        var callCount = 0;
+        final sync = InvalidateSync(() async {
+          callCount++;
+          throw StateError('network timeout');
+        }, maxRetries: 0);
+
+        sync.invalidate();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(callCount, 1);
+      },
+    );
+
     group('dispose lifecycle', () {
       test('dispose completes awaitQueue normally', () async {
         final blocker = Completer<void>();

@@ -104,7 +104,15 @@ class InvalidateSync {
     // Always ensure a Completer exists so that awaitQueue() callers
     // block until the invalidated work actually completes — even if
     // the run is deferred by a cooldown timer or is already in flight.
-    _currentOperation ??= Completer<void>();
+    if (_currentOperation == null) {
+      final operation = Completer<void>();
+      _currentOperation = operation;
+      // `invalidate()` is intentionally fire-and-forget in many call sites.
+      // Keep errors observable via awaitQueue(), but attach a listener so a
+      // caller that does not await does not surface a handled sync failure as
+      // an uncaught async error.
+      unawaited(operation.future.catchError((Object _) {}));
+    }
 
     if (_running || _cooldownTimer != null) {
       return;
