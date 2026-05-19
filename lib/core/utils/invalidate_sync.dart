@@ -14,13 +14,16 @@ class InvalidateSync {
     Duration? minInterval,
     String? name,
     void Function(bool isRunning)? onRunningChanged,
+    int? maxRetries,
   }) : _minInterval = minInterval,
        _name = name,
-       _onRunningChanged = onRunningChanged;
+       _onRunningChanged = onRunningChanged,
+       _maxRetries = maxRetries ?? defaultMaxRetries;
   final Future<void> Function() _action;
   final Duration? _minInterval;
   final String? _name;
   final void Function(bool isRunning)? _onRunningChanged;
+  final int _maxRetries;
   Completer<void>? _currentOperation;
   bool _invalidated = false;
   bool _running = false;
@@ -42,7 +45,7 @@ class InvalidateSync {
   // retries at the HTTP layer, so 2 additional InvalidateSync retries
   // (total 6) is sufficient.  Excessive retries prolong delivery delays
   // and drain battery on mobile networks.
-  static const int maxRetries = 2;
+  static const int defaultMaxRetries = 2;
 
   /// Whether the app is currently backgrounded. When true, all InvalidateSync
   /// instances skip running actions and cancel pending retry/cooldown timers.
@@ -231,7 +234,7 @@ class InvalidateSync {
       if (generation != _runGeneration) return;
 
       _retryCount++;
-      if (_retryCount <= maxRetries) {
+      if (_retryCount <= _maxRetries) {
         _scheduleRetry();
       } else {
         final operation = _currentOperation;
@@ -310,7 +313,7 @@ class InvalidateSync {
           'name': _name ?? 'unknown',
           'retryCount': _retryCount,
           'delayMs': clampedDelay,
-          'maxRetries': maxRetries,
+          'maxRetries': _maxRetries,
         },
       ),
     );

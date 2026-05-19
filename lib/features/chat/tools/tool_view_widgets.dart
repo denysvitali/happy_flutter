@@ -291,25 +291,54 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
   bool _expanded = false;
   final GlobalKey _contentKey = GlobalKey();
   double? _contentHeight;
+  bool _measureScheduled = false;
+  int _measureAttempts = 0;
 
   @override
   void initState() {
     super.initState();
+    _scheduleMeasureContent();
+  }
+
+  @override
+  void didUpdateWidget(CollapsibleOutput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.child != widget.child || oldWidget.toolId != widget.toolId) {
+      _contentHeight = null;
+      _measureAttempts = 0;
+      _scheduleMeasureContent();
+    }
+  }
+
+  void _scheduleMeasureContent() {
+    if (_measureScheduled) return;
+    _measureScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measureScheduled = false;
       _measureContent();
     });
   }
 
   void _measureContent() {
-    final box = _contentKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box != null && box.hasSize && mounted) {
-      try {
-        setState(() {
-          _contentHeight = box.size.height;
-        });
-      } catch (_) {
-        // RenderBox not yet laid out — skip; will retry on next frame.
+    if (!mounted) return;
+
+    final renderObject = _contentKey.currentContext?.findRenderObject();
+    if (renderObject is! RenderBox ||
+        !renderObject.attached ||
+        !renderObject.hasSize) {
+      if (_measureAttempts < 3) {
+        _measureAttempts++;
+        _scheduleMeasureContent();
       }
+      return;
+    }
+
+    _measureAttempts = 0;
+    final height = renderObject.size.height;
+    if (_contentHeight != height) {
+      setState(() {
+        _contentHeight = height;
+      });
     }
   }
 

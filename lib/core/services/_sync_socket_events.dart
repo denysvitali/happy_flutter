@@ -260,6 +260,7 @@ extension SyncSocketEvents on Sync {
         minInterval: Sync._messagesSyncMinInterval,
         name: 'fetchMessages',
         onRunningChanged: _onSyncRunningChanged,
+        maxRetries: 0,
       );
     }
 
@@ -339,8 +340,8 @@ extension SyncSocketEvents on Sync {
         final newLastSeq = msgSeq != null && (session.lastSeq ?? 0) < msgSeq
             ? msgSeq
             : session.lastSeq;
-        final newLastMessageAt = msgCreatedAt != null &&
-                (session.lastMessageAt ?? 0) < msgCreatedAt
+        final newLastMessageAt =
+            msgCreatedAt != null && (session.lastMessageAt ?? 0) < msgCreatedAt
             ? msgCreatedAt
             : session.lastMessageAt;
         if (newLastSeq != session.lastSeq ||

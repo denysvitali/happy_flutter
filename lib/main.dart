@@ -402,11 +402,11 @@ class _HappyAppState extends ConsumerState<HappyApp>
   }
 
   void _processInitialDeepLink() {
-    if (widget.initialDeepLink != null) {
-      ref
-          .read(authStateNotifierProvider.notifier)
-          .handleDeepLink(widget.initialDeepLink!);
-    }
+    final initialDeepLink = widget.initialDeepLink;
+    if (initialDeepLink == null) return;
+    ref
+        .read(authStateNotifierProvider.notifier)
+        .handleDeepLink(initialDeepLink);
   }
 
   Future<void> _initializeTheme() async {

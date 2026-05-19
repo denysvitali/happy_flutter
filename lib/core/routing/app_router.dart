@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -56,6 +57,7 @@ import '../../sentry_widget.dart'
 import '../models/auth.dart';
 import '../models/settings.dart';
 import '../providers/app_providers.dart';
+import '../services/logger_service.dart';
 import '../services/opentelemetry_service.dart';
 import '../services/performance_context_service.dart';
 import '../widgets/auth_gate.dart';
@@ -146,6 +148,15 @@ class _SwipeBackRoute extends PageRoute<void> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    if (kIsWeb) {
+      return CupertinoPageTransition(
+        primaryRouteAnimation: animation,
+        secondaryRouteAnimation: secondaryAnimation,
+        linearTransition: false,
+        child: child,
+      );
+    }
+
     return CupertinoRouteTransitionMixin.buildPageTransitions<void>(
       this,
       context,
@@ -197,7 +208,10 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/chat/:sessionId',
         name: 'chat',
         pageBuilder: (context, state) {
-          final sessionId = state.pathParameters['sessionId']!;
+          final sessionId = _pathParameter(state, 'sessionId');
+          if (sessionId == null) {
+            return _missingPathParameterPage(state, 'sessionId');
+          }
           return _slidePage(
             AuthGate(child: ChatScreen(sessionId: sessionId)),
             state,
@@ -385,7 +399,8 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/chat/:sessionId/info',
         name: 'session-info',
         pageBuilder: (context, state) {
-          final id = state.pathParameters['sessionId']!;
+          final id = _pathParameter(state, 'sessionId');
+          if (id == null) return _missingPathParameterPage(state, 'sessionId');
           return _slidePage(
             AuthGate(child: SessionInfoScreen(sessionId: id)),
             state,
@@ -396,7 +411,8 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/chat/:sessionId/files',
         name: 'session-files',
         pageBuilder: (context, state) {
-          final id = state.pathParameters['sessionId']!;
+          final id = _pathParameter(state, 'sessionId');
+          if (id == null) return _missingPathParameterPage(state, 'sessionId');
           return _slidePage(
             AuthGate(child: SessionFilesScreen(sessionId: id)),
             state,
@@ -407,7 +423,10 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/chat/:sessionId/file',
         name: 'session-file',
         pageBuilder: (context, state) {
-          final sid = state.pathParameters['sessionId']!;
+          final sid = _pathParameter(state, 'sessionId');
+          if (sid == null) {
+            return _missingPathParameterPage(state, 'sessionId');
+          }
           final extra = state.extra as Map<String, dynamic>?;
           final path2 =
               extra?['path'] as String? ??
@@ -432,8 +451,14 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/chat/:sessionId/message/:messageId',
         name: 'message-detail',
         pageBuilder: (context, state) {
-          final sid = state.pathParameters['sessionId']!;
-          final mid = state.pathParameters['messageId']!;
+          final sid = _pathParameter(state, 'sessionId');
+          if (sid == null) {
+            return _missingPathParameterPage(state, 'sessionId');
+          }
+          final mid = _pathParameter(state, 'messageId');
+          if (mid == null) {
+            return _missingPathParameterPage(state, 'messageId');
+          }
           final extra = state.extra as Map<String, dynamic>?;
           return _slidePage(
             AuthGate(
@@ -451,8 +476,14 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/chat/:sessionId/agent/:messageId',
         name: 'agent-conversation',
         pageBuilder: (context, state) {
-          final sid = state.pathParameters['sessionId']!;
-          final mid = state.pathParameters['messageId']!;
+          final sid = _pathParameter(state, 'sessionId');
+          if (sid == null) {
+            return _missingPathParameterPage(state, 'sessionId');
+          }
+          final mid = _pathParameter(state, 'messageId');
+          if (mid == null) {
+            return _missingPathParameterPage(state, 'messageId');
+          }
           final extra = state.extra as Map<String, dynamic>?;
           return _slidePage(
             AuthGate(
@@ -470,7 +501,8 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/machine/:machineId',
         name: 'machine-detail',
         pageBuilder: (context, state) {
-          final id = state.pathParameters['machineId']!;
+          final id = _pathParameter(state, 'machineId');
+          if (id == null) return _missingPathParameterPage(state, 'machineId');
           return _slidePage(
             AuthGate(child: MachineDetailScreen(machineId: id)),
             state,
@@ -493,7 +525,10 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/artifacts/:artifactId',
         name: 'artifact-detail',
         pageBuilder: (context, state) {
-          final id = state.pathParameters['artifactId']!;
+          final id = _pathParameter(state, 'artifactId');
+          if (id == null) {
+            return _missingPathParameterPage(state, 'artifactId');
+          }
           return _slidePage(
             AuthGate(child: ArtifactDetailScreen(artifactId: id)),
             state,
@@ -504,7 +539,10 @@ GoRouter createRouter(String? initialDeepLink) {
         path: '/artifacts/:artifactId/edit',
         name: 'artifact-edit',
         pageBuilder: (context, state) {
-          final id = state.pathParameters['artifactId']!;
+          final id = _pathParameter(state, 'artifactId');
+          if (id == null) {
+            return _missingPathParameterPage(state, 'artifactId');
+          }
           return _slidePage(
             AuthGate(child: EditArtifactScreen(artifactId: id)),
             state,
@@ -540,10 +578,8 @@ GoRouter createRouter(String? initialDeepLink) {
       GoRoute(
         path: '/settings/voice/offline',
         name: 'voice-offline',
-        pageBuilder: (context, state) => _slidePage(
-          const AuthGate(child: OfflineVoicesScreen()),
-          state,
-        ),
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: OfflineVoicesScreen()), state),
       ),
       GoRoute(
         path: '/sftp/logs',
@@ -618,5 +654,22 @@ GoRouter createRouter(String? initialDeepLink) {
       }
       return null;
     },
+  );
+}
+
+String? _pathParameter(GoRouterState state, String name) {
+  final value = state.pathParameters[name];
+  if (value != null && value.isNotEmpty) return value;
+  logger.warning(
+    '[router] missing path parameter "$name" for '
+    'location=${state.uri}',
+  );
+  return null;
+}
+
+Page<void> _missingPathParameterPage(GoRouterState state, String name) {
+  return _slidePage(
+    Scaffold(body: Center(child: Text('Missing route parameter: $name'))),
+    state,
   );
 }

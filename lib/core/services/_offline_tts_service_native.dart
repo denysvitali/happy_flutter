@@ -386,7 +386,8 @@ class OfflineTtsService {
   /// Switch the active voice. Persisting the choice is the caller's
   /// responsibility (typically the [Settings] layer).
   void selectVoice(String voiceId) {
-    final resolved = OfflineTtsCatalog.byId(voiceId)?.id ??
+    final resolved =
+        OfflineTtsCatalog.byId(voiceId)?.id ??
         OfflineTtsCatalog.defaultModel.id;
     if (_selectedVoiceId == resolved) return;
     _selectedVoiceId = resolved;
@@ -453,9 +454,7 @@ class OfflineTtsService {
         next[voice.id] = current!;
         continue;
       }
-      final dir = Directory(
-        p.join(supportDir.path, 'speech', 'tts', voice.id),
-      );
+      final dir = Directory(p.join(supportDir.path, 'speech', 'tts', voice.id));
       final resolved = _resolveFor(voice, dir);
       next[voice.id] = resolved.allExist
           ? OfflineTtsStatus.ready
@@ -495,9 +494,7 @@ class OfflineTtsService {
       );
     }
     final supportDir = await getApplicationSupportDirectory();
-    final dir = Directory(
-      p.join(supportDir.path, 'speech', 'tts', voiceId),
-    );
+    final dir = Directory(p.join(supportDir.path, 'speech', 'tts', voiceId));
     if (dir.existsSync()) {
       try {
         await dir.delete(recursive: true);
@@ -550,9 +547,9 @@ class OfflineTtsService {
     final gen = ++_generationGen;
     final wavPath = await _allocateWavPath(gen);
 
-    // Build the request before spawning the isolate so the closure
-    // captures only this sendable object — never `this`, which has
-    // an unsendable AudioPlayer / Future field.
+    // Build the request before spawning the isolate so `compute`
+    // receives only this sendable object, never `this` (which has
+    // an unsendable AudioPlayer / Future field).
     //
     // The worker generates samples AND writes the WAV file inside
     // the same isolate. Doing the WAV write in the worker matters:
@@ -568,7 +565,7 @@ class OfflineTtsService {
       outputWavPath: wavPath,
     );
     final swGen = Stopwatch()..start();
-    final result = await Isolate.run(() => _generateInWorker(ttsReq));
+    final result = await compute(_generateInWorker, ttsReq);
     swGen.stop();
     if (gen != _generationGen) {
       logger.info('[OfflineTTS] superseded generation $gen, dropping audio');
@@ -582,8 +579,9 @@ class OfflineTtsService {
       );
       return;
     }
-    final wavSize =
-        File(wavPath).existsSync() ? await File(wavPath).length() : 0;
+    final wavSize = File(wavPath).existsSync()
+        ? await File(wavPath).length()
+        : 0;
     logger.info(
       '[OfflineTTS] generate: ${result.sampleCount} samples '
       '@ ${result.sampleRate}Hz '
@@ -671,9 +669,7 @@ class OfflineTtsService {
     await modelDir.create(recursive: true);
     final resolved = _resolveFor(voice, modelDir);
     if (resolved.allExist) {
-      logger.info(
-        '[OfflineTTS] ensureFiles: cache hit at ${modelDir.path}',
-      );
+      logger.info('[OfflineTTS] ensureFiles: cache hit at ${modelDir.path}');
       _setStatusFor(voice.id, OfflineTtsStatus.ready);
       return resolved;
     }
@@ -695,8 +691,7 @@ class OfflineTtsService {
       if (!File(after.tokens).existsSync()) {
         missing.add('tokens:${after.tokens}');
       }
-      if (after.dataDir.isNotEmpty &&
-          !Directory(after.dataDir).existsSync()) {
+      if (after.dataDir.isNotEmpty && !Directory(after.dataDir).existsSync()) {
         missing.add('dataDir:${after.dataDir}');
       }
       throw OfflineTtsException(
@@ -704,9 +699,7 @@ class OfflineTtsService {
         '${missing.join(", ")}',
       );
     }
-    logger.info(
-      '[OfflineTTS] ensureFiles: ready at ${modelDir.path}',
-    );
+    logger.info('[OfflineTTS] ensureFiles: ready at ${modelDir.path}');
     return after;
   }
 
@@ -733,14 +726,14 @@ class OfflineTtsService {
         '${archive.path} (${archive.lengthSync()} bytes) '
         'into ${modelDir.path}',
       );
-      // Build the request from local variables so the Isolate.run
-      // closure doesn't implicitly capture `this` (the singleton's
-      // _filesFuture / AudioPlayer aren't sendable).
+      // Build the request from local variables so `compute` receives a
+      // plain sendable message rather than a closure that may retain
+      // `this` (the singleton's Future / AudioPlayer aren't sendable).
       //
       // The isolate worker rethrows as a plain string-bearing
       // Exception so the message survives the isolate boundary
       // intact (custom exception types don't always serialize
-      // cleanly through Isolate.run).
+      // cleanly through isolate message passing).
       final extractReq = _ExtractRequest(
         archivePath: archive.path,
         modelDirPath: modelDir.path,
@@ -749,20 +742,18 @@ class OfflineTtsService {
         // bulk of the catalog where we don't pin checksums.
         expectedSha256: voice.archiveSha256,
       );
-      await Isolate.run(() => _verifyAndExtractInWorker(extractReq));
+      await compute(_verifyAndExtractInWorker, extractReq);
       logger.info('[OfflineTTS] extract: completed');
     } catch (e, st) {
-      logger.error(
-        '[OfflineTTS] download/extract failed: $e',
-        e,
-        st,
-      );
+      logger.error('[OfflineTTS] download/extract failed: $e', e, st);
       rethrow;
     } finally {
       if (archive.existsSync()) {
         try {
           await archive.delete();
-        } catch (_) {/* best effort */}
+        } catch (_) {
+          /* best effort */
+        }
       }
     }
   }
@@ -850,7 +841,9 @@ class OfflineTtsService {
       // setFilePath()/play() don't always raise synchronously
       // (codec mismatches, audio focus failures, etc.).
       player.playbackEventStream.listen(
-        (_) {/* state changes are handled above */},
+        (_) {
+          /* state changes are handled above */
+        },
         onError: (Object e, StackTrace st) {
           logger.error('[OfflineTTS] playback engine error: $e', e, st);
           _currentToken.value = null;
@@ -859,7 +852,9 @@ class OfflineTtsService {
     } else {
       try {
         await player.stop();
-      } catch (_) {/* best effort */}
+      } catch (_) {
+        /* best effort */
+      }
     }
     _currentToken.value = token;
     try {
@@ -902,9 +897,13 @@ class OfflineTtsService {
           if (stat.modified.isBefore(cutoff)) {
             await entity.delete();
           }
-        } catch (_) {/* best effort */}
+        } catch (_) {
+          /* best effort */
+        }
       }
-    } catch (_) {/* best effort */}
+    } catch (_) {
+      /* best effort */
+    }
   }
 
   Map<String, OfflineTtsStatus> _initialStatuses() {
@@ -928,8 +927,8 @@ class OfflineTtsService {
   }
 
   void _refreshSelectedStatus() {
-    final s = _statuses.value[_selectedVoiceId] ??
-        OfflineTtsStatus.notDownloaded;
+    final s =
+        _statuses.value[_selectedVoiceId] ?? OfflineTtsStatus.notDownloaded;
     if (_selectedStatus.value != s) _selectedStatus.value = s;
   }
 }
@@ -1040,7 +1039,7 @@ class _ExtractRequest {
 
 Future<void> _verifyAndExtractInWorker(_ExtractRequest req) async {
   // Throws plain Exception instances so messages survive the
-  // Isolate.run boundary on every Dart version.
+  // isolate boundary on every Dart version.
   final bytes = await File(req.archivePath).readAsBytes();
   if (req.expectedSha256.isNotEmpty) {
     final actualSha = sha256.convert(bytes).toString();
@@ -1076,10 +1075,7 @@ Future<void> _verifyAndExtractInWorker(_ExtractRequest req) async {
     final outPath = p.join(req.modelDirPath, rel);
     if (entry.isFile) {
       await File(outPath).parent.create(recursive: true);
-      await File(outPath).writeAsBytes(
-        entry.content as List<int>,
-        flush: true,
-      );
+      await File(outPath).writeAsBytes(entry.content as List<int>, flush: true);
       fileCount++;
     } else {
       await Directory(outPath).create(recursive: true);

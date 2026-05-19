@@ -131,6 +131,10 @@ class RetryInterceptor extends Interceptor {
       }
     }
 
+    if (err.requestOptions.extra['disableRetry'] == true) {
+      return handler.next(err);
+    }
+
     // Don't retry 4xx client errors except 429 (rate limit)
     if (responseStatusCode != null &&
         responseStatusCode >= 400 &&

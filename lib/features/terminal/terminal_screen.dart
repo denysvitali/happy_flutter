@@ -6,6 +6,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart'
     show AppFontSize, AppSpacing, AppDuration, AppCurve, AppTouchTarget;
 import '../../core/utils/ansi_parser.dart';
+import '../../core/utils/safe_pop.dart';
 
 /// Terminal emulator screen — displays terminal output with a dark
 /// background and allows entering commands.
@@ -32,8 +33,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   void initState() {
     super.initState();
     lines = [context.l10n.terminalConnected];
-    final extra =
-        GoRouterState.of(context).extra as Map<String, dynamic>?;
+    final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
     _machineId = extra?['machineId'] as String?;
     _cwd = extra?['cwd'] as String? ?? '/';
   }
@@ -112,9 +112,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.terminalDisconnect),
-        content: Text(
-          context.l10n.terminalDisconnectConfirm,
-        ),
+        content: Text(context.l10n.terminalDisconnectConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -123,8 +121,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: FilledButton.styleFrom(
-              backgroundColor:
-                  Theme.of(context).colorScheme.error,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
             child: Text(context.l10n.terminalDisconnect),
           ),
@@ -132,7 +129,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       ),
     ).then((confirmed) {
       if ((confirmed ?? false) && mounted) {
-        Navigator.of(context).maybePop();
+        safePop<void>(context);
       }
     });
   }
@@ -182,9 +179,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 final isCommand = line.startsWith('> ');
                 return Padding(
                   key: ValueKey(index),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.xxs,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
                   child: isCommand
                       ? Text(
                           line,
@@ -210,10 +205,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             decoration: const BoxDecoration(
               color: Color(0xFF2D2D2D),
               border: Border(
-                top: BorderSide(
-                  color: Color(0xFF3C3C3C),
-                  width: 0.5,
-                ),
+                top: BorderSide(color: Color(0xFF3C3C3C), width: 0.5),
               ),
             ),
             padding: EdgeInsets.only(
@@ -280,8 +272,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                         color: Color(0xFF4EC94E),
                         size: AppSpacing.xl,
                       ),
-                      onPressed: () =>
-                          _submitCommand(_commandController.text),
+                      onPressed: () => _submitCommand(_commandController.text),
                       tooltip: context.l10n.terminalSendCommand,
                     ),
                   ),

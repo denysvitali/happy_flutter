@@ -1,9 +1,6 @@
 part of 'sync_service.dart';
 
-void _accumulateDroppedReasons(
-  Map<String, int> counts,
-  List<String> reasons,
-) {
+void _accumulateDroppedReasons(Map<String, int> counts, List<String> reasons) {
   for (final reason in reasons) {
     final normalized = _normalizeDroppedReason(reason);
     counts[normalized] = (counts[normalized] ?? 0) + 1;
@@ -13,10 +10,7 @@ void _accumulateDroppedReasons(
 int _droppedReasonTotal(Map<String, int> counts) =>
     counts.values.fold(0, (sum, count) => sum + count);
 
-void _logDroppedReasonSummary(
-  String context,
-  Map<String, int> counts,
-) {
+void _logDroppedReasonSummary(String context, Map<String, int> counts) {
   if (counts.isEmpty) return;
 
   final total = _droppedReasonTotal(counts);
@@ -394,7 +388,7 @@ extension SyncMessaging on Sync {
               'limit': Sync._messageFetchPageSize,
             },
             options: Options(
-              extra: const {'bypassCache': true},
+              extra: const {'bypassCache': true, 'disableRetry': true},
               connectTimeout: Sync._messageFetchConnectTimeout,
               receiveTimeout: Sync._messageFetchReceiveTimeout,
             ),
@@ -761,7 +755,10 @@ extension SyncMessaging on Sync {
         await finalizeSpan.finish();
       }
       // Finish the fetch span successfully
-      _logDroppedReasonSummary('[fetchMessages] $sessionId', droppedReasonCounts);
+      _logDroppedReasonSummary(
+        '[fetchMessages] $sessionId',
+        droppedReasonCounts,
+      );
       fetchSpan
         ..setData('pagesFetched', totalPagesFetched)
         ..setData('totalFetchedMessages', totalFetchedMessages)

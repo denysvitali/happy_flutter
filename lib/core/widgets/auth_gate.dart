@@ -9,11 +9,7 @@ import '../theme/app_tokens.dart';
 /// Authentication gate widget that switches between
 /// the auth screen and the main app content.
 class AuthGate extends ConsumerStatefulWidget {
-  const AuthGate({
-    required this.child,
-    super.key,
-    this.initialDeepLink,
-  });
+  const AuthGate({required this.child, super.key, this.initialDeepLink});
 
   final Widget child;
   final String? initialDeepLink;
@@ -29,14 +25,15 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateNotifierProvider);
 
-    if (widget.initialDeepLink != null &&
+    final initialDeepLink = widget.initialDeepLink;
+    if (initialDeepLink != null &&
         authState == AuthState.authenticated &&
         !_deepLinkHandled) {
       _deepLinkHandled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref
             .read(authStateNotifierProvider.notifier)
-            .handleDeepLink(widget.initialDeepLink!);
+            .handleDeepLink(initialDeepLink);
       });
     }
 
@@ -46,21 +43,21 @@ class _AuthGateState extends ConsumerState<AuthGate> {
       switchOutCurve: AppCurve.exit,
       child: switch (authState) {
         AuthState.authenticated => KeyedSubtree(
-            key: const ValueKey('authenticated'),
-            child: widget.child,
-          ),
+          key: const ValueKey('authenticated'),
+          child: widget.child,
+        ),
         AuthState.unauthenticated => AuthScreen(
-            key: const ValueKey('unauth'),
-            initialDeepLink: widget.initialDeepLink,
-          ),
+          key: const ValueKey('unauth'),
+          initialDeepLink: widget.initialDeepLink,
+        ),
         AuthState.authenticating => _AuthenticatingView(
-            key: const ValueKey('checking'),
-          ),
+          key: const ValueKey('checking'),
+        ),
         AuthState.error => AuthScreen(
-            key: const ValueKey('auth-error'),
-            initialDeepLink: widget.initialDeepLink,
-            showError: true,
-          ),
+          key: const ValueKey('auth-error'),
+          initialDeepLink: widget.initialDeepLink,
+          showError: true,
+        ),
       },
     );
   }
@@ -79,8 +76,7 @@ class _AuthenticatingView extends StatelessWidget {
     return Scaffold(
       body: Center(
         child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               width: 64,
@@ -92,11 +88,7 @@ class _AuthenticatingView extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     scheme.primary,
-                    Color.lerp(
-                      scheme.primary,
-                      scheme.tertiary,
-                      0.4,
-                    )!,
+                    Color.lerp(scheme.primary, scheme.tertiary, 0.4)!,
                   ],
                 ),
               ),
@@ -106,29 +98,21 @@ class _AuthenticatingView extends StatelessWidget {
                 color: scheme.onPrimary,
               ),
             ),
-            const SizedBox(
-              height: AppSpacing.xxl,
-            ),
+            const SizedBox(height: AppSpacing.xxl),
             Text(
               'Checking sign-in status\u2026',
-              style:
-                  theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(
-              height: AppSpacing.xl,
-            ),
+            const SizedBox(height: AppSpacing.xl),
             SizedBox(
               width: AppSpacing.xxl,
               height: AppSpacing.xxl,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
                 strokeCap: StrokeCap.round,
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(
-                  scheme.primary,
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
               ),
             ),
           ],

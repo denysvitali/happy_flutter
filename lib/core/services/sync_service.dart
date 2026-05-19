@@ -407,6 +407,7 @@ what you have, you must use the options mode.
   /// `awaitQueue().then(...)`).
   Timer? _resumeConversationProgressSafetyTimer;
   static const int _resumeConversationProgressTimeoutMs = 30 * 1000;
+  static const Duration _resumeSessionsAwaitTimeout = Duration(seconds: 6);
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};

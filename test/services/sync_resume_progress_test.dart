@@ -37,117 +37,100 @@ void main() {
   });
 
   group('resume conversation progress safety', () {
-    test(
-      'safety timeout force-clears progress if fetch never completes',
-      () {
-        fakeAsync((async) {
-          instance.testStartResumeConversationProgress(3);
+    test('safety timeout force-clears progress if fetch never completes', () {
+      fakeAsync((async) {
+        instance.testStartResumeConversationProgress(3);
 
-          // Bar is shown at 0 of 3.
-          expect(
-            instance.testResumeConversationProgress,
-            equals((0, 3)),
-          );
-          expect(instance.testSyncProgress, isNotNull);
-          expect(instance.testSyncProgress!.completed, equals(0));
-          expect(instance.testSyncProgress!.total, equals(3));
-          expect(
-            instance.testResumeConversationProgressSafetyTimerActive,
-            isTrue,
-            reason: 'safety timer must be armed when progress starts',
-          );
+        // Bar is shown at 0 of 3.
+        expect(instance.testResumeConversationProgress, equals((0, 3)));
+        expect(instance.testSyncProgress, isNotNull);
+        expect(instance.testSyncProgress!.completed, equals(0));
+        expect(instance.testSyncProgress!.total, equals(3));
+        expect(
+          instance.testResumeConversationProgressSafetyTimerActive,
+          isTrue,
+          reason: 'safety timer must be armed when progress starts',
+        );
 
-          // Simulate a fetch failure: no advance is called, time passes.
-          // 29s — still hanging.
-          async.elapse(const Duration(seconds: 29));
-          expect(
-            instance.testResumeConversationProgress,
-            equals((0, 3)),
-            reason:
-                'progress should still be visible just before timeout',
-          );
+        // Simulate a fetch failure: no advance is called, time passes.
+        // 29s — still hanging.
+        async.elapse(const Duration(seconds: 29));
+        expect(
+          instance.testResumeConversationProgress,
+          equals((0, 3)),
+          reason: 'progress should still be visible just before timeout',
+        );
 
-          // At 30s the safety timer fires and clears the indicator.
-          async.elapse(const Duration(seconds: 2));
-          async.flushMicrotasks();
+        // At 30s the safety timer fires and clears the indicator.
+        async.elapse(const Duration(seconds: 2));
+        async.flushMicrotasks();
 
-          expect(
-            instance.testResumeConversationProgress,
-            equals((0, 0)),
-            reason:
-                'safety timeout must reset internal counters so future '
-                'advance() calls become no-ops',
-          );
-          expect(
-            instance.testSyncProgress,
-            isNull,
-            reason:
-                'safety timeout must clear _syncProgress so the UI bar '
-                'disappears',
-          );
-          expect(
-            instance.testResumeConversationProgressSafetyTimerActive,
-            isFalse,
-            reason:
-                'safety timer slot must be reset after firing so the '
-                'next resume cycle can re-arm it',
-          );
-        });
-      },
-    );
+        expect(
+          instance.testResumeConversationProgress,
+          equals((0, 0)),
+          reason:
+              'safety timeout must reset internal counters so future '
+              'advance() calls become no-ops',
+        );
+        expect(
+          instance.testSyncProgress,
+          isNull,
+          reason:
+              'safety timeout must clear _syncProgress so the UI bar '
+              'disappears',
+        );
+        expect(
+          instance.testResumeConversationProgressSafetyTimerActive,
+          isFalse,
+          reason:
+              'safety timer slot must be reset after firing so the '
+              'next resume cycle can re-arm it',
+        );
+      });
+    });
 
-    test(
-      'starting a new progress cycle cancels the previous safety timer',
-      () {
-        fakeAsync((async) {
-          instance.testStartResumeConversationProgress(2);
-          expect(
-            instance.testResumeConversationProgressSafetyTimerActive,
-            isTrue,
-          );
+    test('starting a new progress cycle cancels the previous safety timer', () {
+      fakeAsync((async) {
+        instance.testStartResumeConversationProgress(2);
+        expect(
+          instance.testResumeConversationProgressSafetyTimerActive,
+          isTrue,
+        );
 
-          // 10s in, a new resume cycle begins.
-          async.elapse(const Duration(seconds: 10));
-          instance.testStartResumeConversationProgress(5);
+        // 10s in, a new resume cycle begins.
+        async.elapse(const Duration(seconds: 10));
+        instance.testStartResumeConversationProgress(5);
 
-          // The new total should be 5, not 2 + 5.
-          expect(
-            instance.testResumeConversationProgress,
-            equals((0, 5)),
-          );
-          expect(
-            instance.testResumeConversationProgressSafetyTimerActive,
-            isTrue,
-          );
+        // The new total should be 5, not 2 + 5.
+        expect(instance.testResumeConversationProgress, equals((0, 5)));
+        expect(
+          instance.testResumeConversationProgressSafetyTimerActive,
+          isTrue,
+        );
 
-          // The OLD safety timer would have fired at t=30s (counted
-          // from the first start), i.e. 20s from now. If it weren't
-          // cancelled, advancing 25s would clear the new progress
-          // prematurely.
-          async.elapse(const Duration(seconds: 25));
-          expect(
-            instance.testResumeConversationProgress,
-            equals((0, 5)),
-            reason:
-                'first-cycle safety timer must have been cancelled when '
-                'the second cycle started — otherwise it would clear '
-                'progress prematurely',
-          );
+        // The OLD safety timer would have fired at t=30s (counted
+        // from the first start), i.e. 20s from now. If it weren't
+        // cancelled, advancing 25s would clear the new progress
+        // prematurely.
+        async.elapse(const Duration(seconds: 25));
+        expect(
+          instance.testResumeConversationProgress,
+          equals((0, 5)),
+          reason:
+              'first-cycle safety timer must have been cancelled when '
+              'the second cycle started — otherwise it would clear '
+              'progress prematurely',
+        );
 
-          // 35s from the second start, the new timer should fire.
-          async.elapse(const Duration(seconds: 10));
-          async.flushMicrotasks();
-          expect(
-            instance.testResumeConversationProgress,
-            equals((0, 0)),
-          );
-          expect(instance.testSyncProgress, isNull);
-        });
-      },
-    );
+        // 35s from the second start, the new timer should fire.
+        async.elapse(const Duration(seconds: 10));
+        async.flushMicrotasks();
+        expect(instance.testResumeConversationProgress, equals((0, 0)));
+        expect(instance.testSyncProgress, isNull);
+      });
+    });
 
-    test('advance completes progress and cancels the safety timer',
-        () {
+    test('advance completes progress and cancels the safety timer', () {
       fakeAsync((async) {
         instance.testStartResumeConversationProgress(3);
         expect(
@@ -158,10 +141,7 @@ void main() {
         // Two batches complete: 2 then 1. After the second, total is
         // reached and the safety timer must be cancelled.
         instance.testAdvanceResumeConversationProgress(2);
-        expect(
-          instance.testResumeConversationProgress,
-          equals((2, 3)),
-        );
+        expect(instance.testResumeConversationProgress, equals((2, 3)));
         expect(
           instance.testResumeConversationProgressSafetyTimerActive,
           isTrue,
@@ -186,10 +166,7 @@ void main() {
         async.elapse(const Duration(seconds: 60));
         async.flushMicrotasks();
         // Still 0/0 — nothing changed.
-        expect(
-          instance.testResumeConversationProgress,
-          equals((0, 0)),
-        );
+        expect(instance.testResumeConversationProgress, equals((0, 0)));
       });
     });
 
@@ -200,17 +177,11 @@ void main() {
         // Advance by 5 when total is 2 — must clamp via min().
         instance.testAdvanceResumeConversationProgress(5);
         // Reset to (0, 0) because completion >= total.
-        expect(
-          instance.testResumeConversationProgress,
-          equals((0, 0)),
-        );
+        expect(instance.testResumeConversationProgress, equals((0, 0)));
 
         // Further advance calls are no-ops.
         instance.testAdvanceResumeConversationProgress(10);
-        expect(
-          instance.testResumeConversationProgress,
-          equals((0, 0)),
-        );
+        expect(instance.testResumeConversationProgress, equals((0, 0)));
         async.flushMicrotasks();
       });
     });
@@ -235,10 +206,54 @@ void main() {
 
         async.elapse(const Duration(seconds: 60));
         async.flushMicrotasks();
+        expect(instance.testResumeConversationProgress, equals((0, 0)));
+      });
+    });
+
+    test('resume clears progress when sessions sync wait times out', () {
+      fakeAsync((async) {
+        final sessionsBlocker = Completer<void>();
+        var messageFetches = 0;
+
+        instance.testIsInitialized = true;
+        instance.testResetLastResumeAtMs();
+        instance.testLastInvalidateAllSyncsAtMs = null;
+        instance.testSetPendingSocketMessages({'slow-session'});
+        instance.sessionsSync = InvalidateSync(() => sessionsBlocker.future);
+        instance.messagesSync['slow-session'] = InvalidateSync(() async {
+          messageFetches++;
+        });
+
+        instance.resume();
+        async.elapse(const Duration(milliseconds: 500));
+        async.flushMicrotasks();
+
+        expect(
+          instance.testResumeConversationProgress,
+          equals((0, 1)),
+          reason: 'resume should show pending conversation progress',
+        );
+
+        async.elapse(const Duration(seconds: 6));
+        async.flushMicrotasks();
+
         expect(
           instance.testResumeConversationProgress,
           equals((0, 0)),
+          reason:
+              'resume progress should clear on the bounded sessions wait '
+              'instead of reaching the 30s safety timeout',
         );
+        expect(instance.testSyncProgress, isNull);
+        expect(
+          messageFetches,
+          equals(0),
+          reason:
+              'message fetches should not fan out while the prerequisite '
+              'sessions refresh is still stuck',
+        );
+
+        sessionsBlocker.complete();
       });
     });
   });

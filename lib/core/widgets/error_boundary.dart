@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show FlutterExceptionHandler, kDebugMode;
+import 'package:flutter/foundation.dart'
+    show FlutterExceptionHandler, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,13 +24,14 @@ import '../utils/tool_error_parser.dart';
 /// )
 /// ```
 class ErrorBoundary extends ConsumerStatefulWidget {
-
   const ErrorBoundary({
-    required this.child, super.key,
+    required this.child,
+    super.key,
     this.onError,
     this.fallbackBuilder,
     this.errorBuilder,
   });
+
   /// The child widget to wrap
   final Widget child;
 
@@ -167,8 +169,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
   void dispose() {
     // Restore previous handlers.
     FlutterError.onError = _previousOnError;
-    ErrorWidget.builder =
-        _previousErrorWidgetBuilder ?? _defaultErrorBuilder;
+    ErrorWidget.builder = _previousErrorWidgetBuilder ?? _defaultErrorBuilder;
     super.dispose();
   }
 
@@ -188,7 +189,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
           : null;
 
       if (widget.errorBuilder != null) {
-        return widget.errorBuilder!(_error!, _stackTrace!);
+        return widget.errorBuilder!(_error!, _stackTrace ?? StackTrace.empty);
       }
 
       return _DefaultErrorWidget(
@@ -210,7 +211,6 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
 
 /// Default error display widget
 class _DefaultErrorWidget extends StatelessWidget {
-
   const _DefaultErrorWidget({
     required this.error,
     required this.stackTrace,
@@ -233,11 +233,7 @@ class _DefaultErrorWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
             const SizedBox(height: AppSpacing.lg),
             Text(
               toolError?.errorName ?? 'Something went wrong',
@@ -417,10 +413,7 @@ class ErrorSnackbarManager {
   static void showToolError(String rawError) {
     final parsed = ToolErrorParser.parse(rawError);
     if (parsed != null) {
-      show(
-        parsed.message,
-        title: parsed.errorName,
-      );
+      show(parsed.message, title: parsed.errorName);
     } else {
       show(rawError, title: 'Error');
     }
@@ -434,11 +427,7 @@ class ErrorSnackbarManager {
 
 /// Widget that displays errors in a snackbar when they occur
 class ErrorSnackbarBoundary extends StatelessWidget {
-
-  const ErrorSnackbarBoundary({
-    required this.child, super.key,
-    this.onError,
-  });
+  const ErrorSnackbarBoundary({required this.child, super.key, this.onError});
   final Widget child;
   final void Function(Object, StackTrace)? onError;
 
@@ -473,10 +462,11 @@ class ErrorSnackbarBoundary extends StatelessWidget {
 
 /// Notification for errors that should be shown as snackbars
 class ErrorNotification extends Notification {
-
   ErrorNotification({
     required this.message,
-    required this.error, required this.stackTrace, this.title,
+    required this.error,
+    required this.stackTrace,
+    this.title,
   });
   final String message;
   final String? title;
@@ -489,7 +479,9 @@ extension ErrorNotificationExtension on BuildContext {
   /// Dispatch an error notification that will be caught by
   void notifyError(
     String message, {
-    required Object error, required StackTrace stackTrace, String? title,
+    required Object error,
+    required StackTrace stackTrace,
+    String? title,
   }) {
     ErrorNotification(
       message: message,
@@ -502,7 +494,6 @@ extension ErrorNotificationExtension on BuildContext {
 
 /// Fallback widget shown in place of the default red error screen.
 class _ErrorWidgetFallback extends StatelessWidget {
-
   const _ErrorWidgetFallback({required this.details});
   final FlutterErrorDetails details;
 
@@ -525,9 +516,7 @@ class _ErrorWidgetFallback extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              kDebugMode
-                  ? details.exceptionAsString()
-                  : 'An error occurred',
+              kDebugMode ? details.exceptionAsString() : 'An error occurred',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onErrorContainer,
               ),

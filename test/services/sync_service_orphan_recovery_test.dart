@@ -89,27 +89,22 @@ void main() {
       );
 
       final tasks = messages
-          .where((m) =>
-              m['kind'] == 'tool-call' && m['name'] == 'Task')
+          .where((m) => m['kind'] == 'tool-call' && m['name'] == 'Task')
           .toList();
       expect(tasks, hasLength(2));
 
       // Synthetic Task A should contain its two children.
-      final taskA = tasks.firstWhere(
-        (t) => t['uuid'] == 'parent-A',
-      );
+      final taskA = tasks.firstWhere((t) => t['uuid'] == 'parent-A');
       expect(taskA['_orphanRecovery'], isTrue);
       expect(taskA['id'], 'orphan-recovery-parent-A');
-      final childrenA =
-          (taskA['children'] as List).cast<Map<String, dynamic>>();
+      final childrenA = (taskA['children'] as List)
+          .cast<Map<String, dynamic>>();
       expect(childrenA.map((c) => c['id']), ['orph-1', 'orph-2']);
 
       // Synthetic Task B should contain its single child.
-      final taskB = tasks.firstWhere(
-        (t) => t['uuid'] == 'parent-B',
-      );
-      final childrenB =
-          (taskB['children'] as List).cast<Map<String, dynamic>>();
+      final taskB = tasks.firstWhere((t) => t['uuid'] == 'parent-B');
+      final childrenB = (taskB['children'] as List)
+          .cast<Map<String, dynamic>>();
       expect(childrenB.map((c) => c['id']), ['orph-3']);
     });
 
@@ -130,6 +125,35 @@ void main() {
       final messages = sync.testGetSessionMessages('s1');
       expect(messages, hasLength(1));
       expect(messages.first['id'], 'text-1');
+    });
+
+    test('does not report exhausted-history absorption as unresolved '
+        'Sentry warning', () {
+      sync.testSetSessionMessages('s1', [
+        <String, dynamic>{
+          'id': 'orph-1',
+          'isSidechain': true,
+          'parentUuid': 'parent-A',
+          'uuid': 'u-1',
+          'kind': 'text',
+          'seq': 2,
+        },
+      ]);
+      sync.testSetSessionFirstLoadedSeq('s1', 0);
+
+      expect(sync.hasOlderMessages('s1'), isFalse);
+      expect(
+        sync.testReportOrphanAbsorbToSentry(
+          sessionId: 's1',
+          orphanCount: 1,
+          triedFetchOlder: false,
+          hasMoreOlder: sync.hasOlderMessages('s1'),
+        ),
+        isFalse,
+        reason:
+            'when firstLoadedSeq=0, there is no parent page left to '
+            'fetch; the synthetic Task is expected UI recovery',
+      );
     });
 
     test('groups orphans without parentUuid into a single bucket', () {
@@ -160,10 +184,12 @@ void main() {
       final task = messages.first;
       expect(task['kind'], 'tool-call');
       expect(task['name'], 'Task');
-      expect(task['uuid'], isNull,
-          reason: 'unparented orphans must not invent a uuid');
-      final children =
-          (task['children'] as List).cast<Map<String, dynamic>>();
+      expect(
+        task['uuid'],
+        isNull,
+        reason: 'unparented orphans must not invent a uuid',
+      );
+      final children = (task['children'] as List).cast<Map<String, dynamic>>();
       expect(children.map((c) => c['id']), ['orph-1', 'orph-2']);
     });
 
@@ -271,12 +297,13 @@ void main() {
       expect(messages, hasLength(1));
       final task = messages.first;
       expect(task['_orphanRecovery'], isTrue);
-      expect(task['uuid'], 'task-A',
-          reason: 'synthetic uuid is the chain root, not an intermediate');
-      final children =
-          (task['children'] as List).cast<Map<String, dynamic>>();
-      expect(children.map((c) => c['id']),
-          ['orph-1', 'orph-2', 'orph-3']);
+      expect(
+        task['uuid'],
+        'task-A',
+        reason: 'synthetic uuid is the chain root, not an intermediate',
+      );
+      final children = (task['children'] as List).cast<Map<String, dynamic>>();
+      expect(children.map((c) => c['id']), ['orph-1', 'orph-2', 'orph-3']);
     });
 
     test('chain-root coalesce: two independent subagent chains '
@@ -317,8 +344,7 @@ void main() {
 
     // ── Synthetic dissolution (fix #4) ──
     group('dissolve stale synthetics on real Task arrival', () {
-      test('dissolves synthetic when its uuid matches a real Task uuid',
-          () {
+      test('dissolves synthetic when its uuid matches a real Task uuid', () {
         // Post-absorb state: synthetic with uuid=task-A holds two
         // children.  Then a real Task with the same uuid arrives.
         sync.testSetSessionMessages('s1', [
@@ -362,10 +388,10 @@ void main() {
 
         final after = sync.testGetSessionMessages('s1');
         // Real Task remains; synthetic is gone; children flattened.
-        expect(after.where((m) => m['_orphanRecovery'] == true),
-            isEmpty);
+        expect(after.where((m) => m['_orphanRecovery'] == true), isEmpty);
         expect(after.where((m) => m['id'] == 'real-task'), hasLength(1));
-        final flattenedIds = after.where((m) => m['isSidechain'] == true)
+        final flattenedIds = after
+            .where((m) => m['isSidechain'] == true)
             .map((m) => m['id'])
             .toList();
         expect(flattenedIds, ['c1', 'c2']);
@@ -404,8 +430,7 @@ void main() {
 
         expect(sync.testDissolveStaleOrphanSynthetics('s1'), isTrue);
         final after = sync.testGetSessionMessages('s1');
-        expect(after.where((m) => m['_orphanRecovery'] == true),
-            isEmpty);
+        expect(after.where((m) => m['_orphanRecovery'] == true), isEmpty);
       });
 
       test('does NOT dissolve synthetic when no real Task can resolve '
@@ -484,21 +509,19 @@ void main() {
 
         final after = sync.testGetSessionMessages('s1');
         // No synthetic remains.
-        expect(after.where((m) => m['_orphanRecovery'] == true),
-            isEmpty);
+        expect(after.where((m) => m['_orphanRecovery'] == true), isEmpty);
         // Real Task picked up the children.
-        final realTask = after.firstWhere(
-            (m) => m['id'] == 'real-task');
-        final children = (realTask['children'] as List?)
-            ?.cast<Map<String, dynamic>>() ?? const <Map<String, dynamic>>[];
+        final realTask = after.firstWhere((m) => m['id'] == 'real-task');
+        final children =
+            (realTask['children'] as List?)?.cast<Map<String, dynamic>>() ??
+            const <Map<String, dynamic>>[];
         expect(children.map((c) => c['id']).toList(), ['c1', 'c2']);
       });
     });
 
     // ── Cache strip on save (fix #5) ──
     group('strip orphan synthetics on cache save', () {
-      test('replaces synthetic Tasks with flattened sidechain children',
-          () {
+      test('replaces synthetic Tasks with flattened sidechain children', () {
         final input = <Map<String, dynamic>>[
           <String, dynamic>{
             'id': 'real-1',
@@ -541,14 +564,17 @@ void main() {
 
         final stripped = SyncTestHelpers.testStripOrphanSynthetics(input);
         // Real messages preserved; synthetic replaced with its 2 children.
-        expect(stripped.map((m) => m['id']).toList(),
-            ['real-1', 'c1', 'c2', 'real-2']);
+        expect(stripped.map((m) => m['id']).toList(), [
+          'real-1',
+          'c1',
+          'c2',
+          'real-2',
+        ]);
         // Children are reset to top-level isSidechain entries.
         expect(stripped[1]['isSidechain'], isTrue);
         expect(stripped[2]['isSidechain'], isTrue);
         // No synthetics remain.
-        expect(stripped.where((m) => m['_orphanRecovery'] == true),
-            isEmpty);
+        expect(stripped.where((m) => m['_orphanRecovery'] == true), isEmpty);
       });
 
       test('returns the same list when no synthetics are present', () {
@@ -557,8 +583,11 @@ void main() {
           <String, dynamic>{'id': 'b', 'kind': 'text', 'seq': 2},
         ];
         final stripped = SyncTestHelpers.testStripOrphanSynthetics(input);
-        expect(identical(stripped, input), isTrue,
-            reason: 'no-op path must avoid allocation');
+        expect(
+          identical(stripped, input),
+          isTrue,
+          reason: 'no-op path must avoid allocation',
+        );
       });
     });
 
@@ -600,14 +629,14 @@ void main() {
         final orphanCount1 = after1
             .where((m) => m['isSidechain'] == true)
             .length;
-        expect(orphanCount1, 2,
-            reason: 'absorb must not have run after only 1 no-progress sweep');
+        expect(
+          orphanCount1,
+          2,
+          reason: 'absorb must not have run after only 1 no-progress sweep',
+        );
 
         // No synthetic Task created.
-        expect(
-          after1.where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
+        expect(after1.where((m) => m['_orphanRecovery'] == true), isEmpty);
       });
 
       test('absorbs after second consecutive no-progress sweep', () {
@@ -636,10 +665,7 @@ void main() {
         expect(synthetics, hasLength(1));
         expect(synthetics.first['uuid'], 'task-A');
         // Children absorbed.
-        expect(
-          after.where((m) => m['isSidechain'] == true),
-          isEmpty,
-        );
+        expect(after.where((m) => m['isSidechain'] == true), isEmpty);
       });
 
       test('repeated no-progress sweeps terminate (no infinite loop)', () {
@@ -673,13 +699,11 @@ void main() {
         expect(
           after.where((m) => m['isSidechain'] == true),
           isEmpty,
-          reason: 'orphan must be absorbed within bounded sweeps — '
+          reason:
+              'orphan must be absorbed within bounded sweeps — '
               'production hit "1/2 no-progress" forever',
         );
-        expect(
-          after.where((m) => m['_orphanRecovery'] == true),
-          hasLength(1),
-        );
+        expect(after.where((m) => m['_orphanRecovery'] == true), hasLength(1));
       });
 
       test('new message resets sweep count before absorb threshold', () {
@@ -707,9 +731,11 @@ void main() {
         expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
 
         final after = sync.testGetSessionMessages('s1');
-        expect(after.where((m) => m['_orphanRecovery'] == true),
-            isEmpty,
-            reason: 'reset mid-flight must prevent absorb on second sweep');
+        expect(
+          after.where((m) => m['_orphanRecovery'] == true),
+          isEmpty,
+          reason: 'reset mid-flight must prevent absorb on second sweep',
+        );
       });
 
       test('dissolve of stale synthetic releases children to top level', () {
@@ -749,15 +775,18 @@ void main() {
         ]);
 
         final dissolved = sync.testDissolveStaleOrphanSynthetics('s1');
-        expect(dissolved, isTrue,
-            reason: 'real Task uuid matches synthetic uuid → must dissolve');
+        expect(
+          dissolved,
+          isTrue,
+          reason: 'real Task uuid matches synthetic uuid → must dissolve',
+        );
 
         final after = sync.testGetSessionMessages('s1');
         // Synthetic dissolved; children back at top level.
-        expect(after.where((m) => m['_orphanRecovery'] == true),
-            isEmpty);
-        final isSidechainChildren =
-            after.where((m) => m['isSidechain'] == true).toList();
+        expect(after.where((m) => m['_orphanRecovery'] == true), isEmpty);
+        final isSidechainChildren = after
+            .where((m) => m['isSidechain'] == true)
+            .toList();
         expect(isSidechainChildren, hasLength(1));
         expect(isSidechainChildren.first['id'], 'c1');
       });
@@ -792,10 +821,13 @@ void main() {
         // Sweep 1: no absorb yet.
         sync.testRunDeferredRegroupSweep('s1');
         expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
-        expect(sync.testGetSessionMessages('s1')
-                .where((m) => m['_orphanRecovery'] == true),
-            isEmpty,
-            reason: 'absorb must not fire on first sweep');
+        expect(
+          sync
+              .testGetSessionMessages('s1')
+              .where((m) => m['_orphanRecovery'] == true),
+          isEmpty,
+          reason: 'absorb must not fire on first sweep',
+        );
 
         // Sweep 2: now we absorb — chain-root coalesce produces ONE
         // synthetic Task (not two per-orphan).
@@ -834,15 +866,18 @@ void main() {
 
         final afterDissolve = sync.testGetSessionMessages('s1');
         // Synthetic gone.
-        expect(afterDissolve.where((m) => m['_orphanRecovery'] == true),
-            isEmpty);
+        expect(
+          afterDissolve.where((m) => m['_orphanRecovery'] == true),
+          isEmpty,
+        );
         // Real Task has both children.
-        final realTask = afterDissolve
-            .firstWhere((m) => m['id'] == 'real-task');
-        final children = (realTask['children'] as List?)
-            ?.cast<Map<String, dynamic>>() ?? const [];
-        expect(children.map((c) => c['id']).toList(),
-            ['c1', 'c2']);
+        final realTask = afterDissolve.firstWhere(
+          (m) => m['id'] == 'real-task',
+        );
+        final children =
+            (realTask['children'] as List?)?.cast<Map<String, dynamic>>() ??
+            const [];
+        expect(children.map((c) => c['id']).toList(), ['c1', 'c2']);
       });
     });
   });

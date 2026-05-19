@@ -14,6 +14,9 @@ class OpenTelemetryService {
   static const String _serviceName = 'happy-flutter';
   static const String _nativeEndpoint = 'opentelemetry.k2.k8s.best:4317';
   static const String _webEndpoint = 'https://opentelemetry.k2.k8s.best:4318';
+  static const bool _nativeEnabled = bool.fromEnvironment(
+    'HAPPY_ENABLE_NATIVE_OPENTELEMETRY',
+  );
 
   bool _initialized = false;
 
@@ -26,6 +29,13 @@ class OpenTelemetryService {
 
   Future<void> initialize() async {
     if (_initialized) return;
+    if (!kIsWeb && !_nativeEnabled) {
+      logger.info(
+        '[OpenTelemetry] native initialization skipped; '
+        'set HAPPY_ENABLE_NATIVE_OPENTELEMETRY=true to enable',
+      );
+      return;
+    }
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();

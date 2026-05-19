@@ -332,6 +332,7 @@ extension SyncLifecycle on Sync {
                 minInterval: Sync._messagesSyncMinInterval,
                 name: 'fetchMessages',
                 onRunningChanged: _onSyncRunningChanged,
+                maxRetries: 0,
               );
             }
           }
@@ -351,6 +352,15 @@ extension SyncLifecycle on Sync {
           unawaited(
             sessionsSync
                 .awaitQueue()
+                .timeout(
+                  Sync._resumeSessionsAwaitTimeout,
+                  onTimeout: () {
+                    throw TimeoutException(
+                      'resume sessions sync did not settle',
+                      Sync._resumeSessionsAwaitTimeout,
+                    );
+                  },
+                )
                 .then((_) {
                   for (final sessionId in sessionsToRefresh) {
                     _sessionsNeedingFetchProbe.add(sessionId);
@@ -366,8 +376,7 @@ extension SyncLifecycle on Sync {
                           e,
                           stackTrace: st,
                           hint: Hint.withMap(<String, dynamic>{
-                            'where':
-                                'resume.advance.messagesSync.invalidate',
+                            'where': 'resume.advance.messagesSync.invalidate',
                             'sessionId': sessionId,
                           }),
                         ),
@@ -395,9 +404,7 @@ extension SyncLifecycle on Sync {
                   // ALWAYS advance — even on failure — so the
                   // "Fetching conversations" bar never hangs at
                   // "0 of N complete".
-                  _advanceResumeConversationProgress(
-                    sessionsToRefresh.length,
-                  );
+                  _advanceResumeConversationProgress(sessionsToRefresh.length);
                 }),
           );
         } else if (shouldRefreshSessions) {
@@ -432,9 +439,7 @@ extension SyncLifecycle on Sync {
       ),
     );
     _resumeConversationProgressSafetyTimer = Timer(
-      const Duration(
-        milliseconds: Sync._resumeConversationProgressTimeoutMs,
-      ),
+      const Duration(milliseconds: Sync._resumeConversationProgressTimeoutMs),
       _onResumeConversationProgressTimeout,
     );
   }
@@ -523,6 +528,7 @@ extension SyncLifecycle on Sync {
               minInterval: Sync._messagesSyncMinInterval,
               name: 'fetchMessages',
               onRunningChanged: _onSyncRunningChanged,
+              maxRetries: 0,
             );
           }
           _sessionsNeedingFetchProbe.add(sessionId);

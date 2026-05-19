@@ -495,21 +495,23 @@ extension SyncMessagingMerge on Sync {
         'attempting fetchOlderMessages to locate parent Task',
       );
       unawaited(
-        fetchOlderMessages(sessionId).then((_) {
-          // The fetch path upserts and notifies; the next grouper pass
-          // will rerun automatically. Reset the no-progress counter so
-          // we get a fresh shot at converging before falling back to
-          // synthetic absorption.
-          _sidechainRegroupSweepCount.remove(sessionId);
-          _scheduleSidechainRegroup(sessionId);
-        }).catchError((Object error, StackTrace stack) {
-          logger.warning(
-            '[sidechain] fetchOlderMessages failed for session=$sessionId '
-            'during orphan recovery',
-            error,
-            stack,
-          );
-        }),
+        fetchOlderMessages(sessionId)
+            .then((_) {
+              // The fetch path upserts and notifies; the next grouper pass
+              // will rerun automatically. Reset the no-progress counter so
+              // we get a fresh shot at converging before falling back to
+              // synthetic absorption.
+              _sidechainRegroupSweepCount.remove(sessionId);
+              _scheduleSidechainRegroup(sessionId);
+            })
+            .catchError((Object error, StackTrace stack) {
+              logger.warning(
+                '[sidechain] fetchOlderMessages failed for session=$sessionId '
+                'during orphan recovery',
+                error,
+                stack,
+              );
+            }),
       );
       return;
     }
@@ -552,19 +554,30 @@ extension SyncMessagingMerge on Sync {
     }
   }
 
-  /// Emits a loud Sentry warning whenever the synthetic "Subagent
-  /// output (recovered)" tile is created because the parent Task could
-  /// not be found in history. Throttled per-session to avoid drowning
-  /// the project quota when a single session has a missing parent.
-  void _reportOrphanAbsorbToSentry({
+  /// Emits a loud Sentry warning when synthetic "Subagent output
+  /// (recovered)" recovery still looks actionable. If history is
+  /// exhausted, the parent Task cannot be fetched and the synthetic is
+  /// expected UI recovery for otherwise invisible sidechain rows.
+  ///
+  /// Returns true when a Sentry event was queued.
+  bool _reportOrphanAbsorbToSentry({
     required String sessionId,
     required int orphanCount,
     required bool triedFetchOlder,
     required bool hasMoreOlder,
   }) {
+    if (!hasMoreOlder) {
+      logger.info(
+        '[sidechain] absorbed $orphanCount orphan(s) into synthetic Task '
+        'for session=$sessionId after exhausting history '
+        '(triedFetchOlder=$triedFetchOlder) - not reporting to Sentry',
+      );
+      return false;
+    }
+
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final lastReportedAt = _orphanAbsorbReportedAtMs[sessionId] ?? 0;
-    if (nowMs - lastReportedAt < 5 * 60 * 1000) return;
+    if (nowMs - lastReportedAt < 5 * 60 * 1000) return false;
     _orphanAbsorbReportedAtMs[sessionId] = nowMs;
 
     final messages = _sessionMessages[sessionId];
@@ -599,6 +612,7 @@ extension SyncMessagingMerge on Sync {
           });
       },
     );
+    return true;
   }
 
   /// Absorb stuck orphan sidechain messages into synthetic Task
@@ -855,7 +869,8 @@ extension SyncMessagingMerge on Sync {
       // Fast-path: if any child carries parentToolUseId (Claude
       // `parent_tool_use_id`) and it matches a real Task key, the
       // whole synthetic is stale — no chain walking required.
-      outerPtu: for (final c in children) {
+      outerPtu:
+      for (final c in children) {
         if (c is! Map<String, dynamic>) continue;
         final ptu = c['parentToolUseId'] as String?;
         if (ptu != null && ptu.isNotEmpty && realTaskKeys.contains(ptu)) {
@@ -864,7 +879,8 @@ extension SyncMessagingMerge on Sync {
         }
       }
       if (!resolvable) {
-        outer: for (final c in children) {
+        outer:
+        for (final c in children) {
           if (c is! Map<String, dynamic>) continue;
           var current = (c['parentUuid'] as String?) ?? '';
           final visited = <String>{};

@@ -69,11 +69,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     _fadeController.forward();
 
     _checkServerError();
-    if (widget.initialDeepLink != null) {
+    final initialDeepLink = widget.initialDeepLink;
+    if (initialDeepLink != null) {
       WidgetsBinding.instance
           .addPostFrameCallback((_) {
         _handleIncomingLink(
-          widget.initialDeepLink!,
+          initialDeepLink,
         );
       });
     }

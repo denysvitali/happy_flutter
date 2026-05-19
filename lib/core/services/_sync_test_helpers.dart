@@ -131,6 +131,23 @@ extension SyncTestHelpers on Sync {
     return _absorbOrphansIntoSyntheticTasks(sessionId);
   }
 
+  /// Test helper: returns whether orphan absorption would emit a
+  /// Sentry warning for the supplied history state.
+  @visibleForTesting
+  bool testReportOrphanAbsorbToSentry({
+    required String sessionId,
+    required int orphanCount,
+    required bool triedFetchOlder,
+    required bool hasMoreOlder,
+  }) {
+    return _reportOrphanAbsorbToSentry(
+      sessionId: sessionId,
+      orphanCount: orphanCount,
+      triedFetchOlder: triedFetchOlder,
+      hasMoreOlder: hasMoreOlder,
+    );
+  }
+
   /// Test helper: invoke synthetic dissolution directly.  Returns
   /// true when at least one stale `_orphanRecovery` synthetic was
   /// flattened back to top-level isSidechain messages.
@@ -374,10 +391,8 @@ extension SyncTestHelpers on Sync {
   /// Test helper: read the current resume-progress totals (completed,
   /// total). Returns `(0, 0)` when the progress indicator is idle.
   @visibleForTesting
-  (int, int) get testResumeConversationProgress => (
-        _resumeConversationRefreshCompleted,
-        _resumeConversationRefreshTotal,
-      );
+  (int, int) get testResumeConversationProgress =>
+      (_resumeConversationRefreshCompleted, _resumeConversationRefreshTotal);
 
   /// Test helper: whether the safety timer is currently scheduled.
   @visibleForTesting
