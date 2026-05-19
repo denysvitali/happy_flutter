@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
-import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
-import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
@@ -67,6 +65,7 @@ void main() {
       sync = Sync();
       // Mark as initialized so resume() actually runs
       sync.testIsInitialized = true;
+      sync.encryption = _testEncryption();
       sync.sessionsSync = InvalidateSync(() async {});
       sync.settingsSync = InvalidateSync(() async {});
       sync.profileSync = InvalidateSync(() async {});
@@ -77,6 +76,7 @@ void main() {
       sync.artifactsSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
+      sync.testSetVisibleSessionId(null);
       // Reset state to ensure test isolation (resume() has a 5s debounce that
       // can cause early return if resume() was called recently in prior test)
       sync.testClearSessionsWithPendingSocketMessages();
@@ -86,6 +86,7 @@ void main() {
 
     tearDown(() {
       socketIoClient.testHasConnectedOnce = false;
+      sync.testSetVisibleSessionId(null);
     });
 
     test('resume() creates messagesSync for non-visible sessions without one '
@@ -286,6 +287,7 @@ void main() {
     setUp(() {
       sync = Sync();
       sync.testIsInitialized = true;
+      sync.encryption = _testEncryption();
       sync.sessionsSync = InvalidateSync(() async {});
       sync.settingsSync = InvalidateSync(() async {});
       sync.profileSync = InvalidateSync(() async {});
@@ -341,6 +343,7 @@ void main() {
     setUp(() {
       sync = Sync();
       sync.testIsInitialized = true;
+      sync.encryption = _testEncryption();
       sync.sessionsSync = InvalidateSync(() async {});
       sync.settingsSync = InvalidateSync(() async {});
       sync.profileSync = InvalidateSync(() async {});
@@ -542,6 +545,7 @@ void main() {
     setUp(() {
       sync = Sync();
       sync.testIsInitialized = true;
+      sync.encryption = _testEncryption();
       sync.settingsSync = InvalidateSync(() async {});
       sync.profileSync = InvalidateSync(() async {});
       sync.purchasesSync = InvalidateSync(() async {});
@@ -744,4 +748,14 @@ void main() {
 // Helper to call shutdown (which is async)
 Future<void> shutdown(Sync sync) async {
   await sync.shutdown();
+}
+
+Encryption _testEncryption() => _TestEncryption();
+
+class _TestEncryption implements Encryption {
+  @override
+  SessionEncryption? getSessionEncryption(String sessionId) => null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
