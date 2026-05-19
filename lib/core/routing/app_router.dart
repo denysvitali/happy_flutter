@@ -169,8 +169,7 @@ class _SwipeBackRoute extends PageRoute<void> {
 
 /// Creates the [GoRouter] instance for the app.
 ///
-/// [initialDeepLink] is the deep link URL if the app was opened from one.
-GoRouter createRouter(String? initialDeepLink) {
+GoRouter createRouter() {
   return GoRouter(
     initialLocation: '/',
     observers: [
@@ -185,10 +184,7 @@ GoRouter createRouter(String? initialDeepLink) {
         pageBuilder: (context, state) {
           final tabParam = state.uri.queryParameters['tab'];
           return _fadePage(
-            AuthGate(
-              initialDeepLink: initialDeepLink,
-              child: SessionsScreen(initialTab: tabParam),
-            ),
+            AuthGate(child: SessionsScreen(initialTab: tabParam)),
             state,
           );
         },

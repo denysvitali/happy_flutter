@@ -325,7 +325,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _router = createRouter(widget.initialDeepLink);
+    _router = createRouter();
     NotificationService.instance.updateRouter(_router);
     _setupDeepLinkListener();
     WidgetsBinding.instance.addPostFrameCallback((_) {

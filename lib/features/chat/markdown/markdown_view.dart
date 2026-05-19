@@ -1,9 +1,12 @@
 /// Markdown view widgets using flutter_markdown_plus with custom extensions.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/services/logger_service.dart';
@@ -279,10 +282,40 @@ final _sharedCodeBlockBuilder = _CodeBlockBuilder();
 
 Future<void> _openMarkdownLink(String? href) async {
   final uri = _normalizeMarkdownHref(href);
-  if (uri == null) return;
+  if (uri == null) {
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Markdown link ignored',
+          category: 'markdown.link',
+          data: {'hasHref': href != null, 'hrefLength': href?.length},
+        ),
+      ),
+    );
+    return;
+  }
+
+  unawaited(
+    Sentry.addBreadcrumb(
+      Breadcrumb(
+        message: 'Markdown link opening',
+        category: 'markdown.link',
+        data: _uriBreadcrumbData(uri),
+      ),
+    ),
+  );
 
   try {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Markdown link launch result',
+          category: 'markdown.link',
+          data: {..._uriBreadcrumbData(uri), 'externalLaunched': launched},
+        ),
+      ),
+    );
     if (!launched) {
       await launchUrl(uri);
     }
@@ -313,6 +346,15 @@ Uri? _normalizeMarkdownHref(String? href) {
   if (!isDomainLike) return null;
 
   return Uri.tryParse('https://$value');
+}
+
+Map<String, Object?> _uriBreadcrumbData(Uri uri) {
+  return {
+    'scheme': uri.scheme,
+    'host': uri.host,
+    'pathLength': uri.path.length,
+    'hasQuery': uri.hasQuery,
+  };
 }
 
 /// Builder that renders fenced code blocks using [CodeBlockWidget].

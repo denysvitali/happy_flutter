@@ -22,6 +22,7 @@ final authStateNotifierProvider =
 class AuthStateNotifier extends Notifier<AuthState> {
   final _authService = AuthService();
   String? _pendingDeepLink;
+  String? _activeDeepLink;
   OnTokenRefreshFailed? _tokenRefreshFailedListener;
 
   @override
@@ -90,19 +91,75 @@ class AuthStateNotifier extends Notifier<AuthState> {
   }
 
   void handleDeepLink(String url) {
+    final normalizedUrl = url.trim();
+    if (normalizedUrl.isEmpty || !normalizedUrl.startsWith('happy://')) {
+      logger.warning('Ignoring unsupported deep link');
+      return;
+    }
+    if (normalizedUrl == _pendingDeepLink || normalizedUrl == _activeDeepLink) {
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'Duplicate deep link ignored',
+            category: 'deep_link',
+            data: _deepLinkBreadcrumbData(normalizedUrl),
+          ),
+        ),
+      );
+      return;
+    }
+
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Deep link received',
+          category: 'deep_link',
+          data: {
+            ..._deepLinkBreadcrumbData(normalizedUrl),
+            'authState': state.name,
+          },
+        ),
+      ),
+    );
+
     if (state == AuthState.authenticated) {
-      _handleDeepLink(url);
+      unawaited(_handleDeepLink(normalizedUrl));
     } else {
-      _pendingDeepLink = url;
+      _pendingDeepLink = normalizedUrl;
     }
   }
 
   Future<void> _handleDeepLink(String url) async {
+    if (url == _activeDeepLink) return;
+    _activeDeepLink = url;
     try {
       await _authService.approveLinkingRequest(url);
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'Deep link handled',
+            category: 'deep_link',
+            data: _deepLinkBreadcrumbData(url),
+          ),
+        ),
+      );
     } catch (e, stack) {
       logger.warning('Failed to handle deep link', e, stack);
+    } finally {
+      if (_activeDeepLink == url) {
+        _activeDeepLink = null;
+      }
     }
+  }
+
+  Map<String, Object?> _deepLinkBreadcrumbData(String url) {
+    final uri = Uri.tryParse(url);
+    return {
+      'scheme': uri?.scheme,
+      'host': uri?.host,
+      'path': uri?.path,
+      'hasQuery': uri?.hasQuery,
+    };
   }
 
   Future<void> signOut() async {
