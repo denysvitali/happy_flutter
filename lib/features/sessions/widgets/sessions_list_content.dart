@@ -25,6 +25,7 @@ import 'session_dismissible.dart';
 import 'session_headers.dart';
 import 'session_list_helpers.dart';
 import 'session_shimmer.dart';
+import 'unread_focus_cards.dart';
 
 // ─── Main widget ──────────────────────────────────────
 
@@ -366,7 +367,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         context,
         activeSessions,
         inactiveSessions,
-        triggerStagger: triggerStagger,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       );
@@ -418,7 +418,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     BuildContext context,
     List<Session> activeSessions,
     List<Session> inactiveSessions, {
-    required bool triggerStagger,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
@@ -433,11 +432,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       }
     }
 
-    // Build the item list: Needs Attention header + cards, then All header
-    // + cards.
     final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
-    final primaryColor = cs.primary.toARGB32();
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final items = <Widget>[];
 
     if (needsAttention.isNotEmpty) {
@@ -450,60 +447,68 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               vertical: AppSpacing.xxs,
             ),
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.12),
+              color: cs.primary,
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Text(
               '${needsAttention.length}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: cs.primary,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onPrimary,
                 fontWeight: FontWeight.w700,
+                fontSize: AppFontSize.xxs,
               ),
             ),
           ),
         ),
       );
 
-      for (var i = 0; i < needsAttention.length; i++) {
-        final session = needsAttention[i];
+      for (final session in needsAttention) {
         items.add(
-          _buildUnreadFocusCard(
-            context,
+          _buildNeedsAttentionCard(
             session,
-            accentBarColor: primaryColor,
             showFlavorIcons: showFlavorIcons,
             avatarStyle: avatarStyle,
-            needsAttention: true,
-            triggerStagger: triggerStagger,
-            staggerIndex: i,
           ),
         );
       }
-
-      items.add(const SizedBox(height: AppSpacing.sm));
     }
 
-    // All Sessions section.
-    final allStartIndex = needsAttention.length;
-    items.add(SectionHeader(title: l10n.sessionsAllSessions));
-
-    for (var i = 0; i < allOthers.length; i++) {
-      final session = allOthers[i];
+    if (allOthers.isNotEmpty) {
+      if (needsAttention.isNotEmpty) {
+        items.add(const SizedBox(height: AppSpacing.md));
+      }
       items.add(
-        _buildUnreadFocusCard(
-          context,
-          session,
-          showFlavorIcons: showFlavorIcons,
-          avatarStyle: avatarStyle,
-          needsAttention: false,
-          triggerStagger: triggerStagger,
-          staggerIndex: allStartIndex + i,
+        SectionHeader(
+          title: l10n.sessionsAllSessions,
+          trailing: Text(
+            '${allOthers.length}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+              fontSize: AppFontSize.xs,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      );
+      items.add(
+        UnreadFocusListGroup(
+          children: [
+            for (final session in allOthers)
+              _buildUnreadFocusListRow(
+                session,
+                showFlavorIcons: showFlavorIcons,
+                avatarStyle: avatarStyle,
+              ),
+          ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
+      padding: const EdgeInsets.only(
+        top: AppSpacing.xs,
+        bottom: AppSpacing.lg,
+      ),
       addAutomaticKeepAlives: false,
       addRepaintBoundaries: false,
       itemCount: items.length,
@@ -511,39 +516,55 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     );
   }
 
-  Widget _buildUnreadFocusCard(
-    BuildContext context,
+  Widget _buildNeedsAttentionCard(
     Session session, {
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
-    required bool needsAttention,
-    required bool triggerStagger,
-    required int staggerIndex,
-    int? accentBarColor,
   }) {
     final sel = _sel.value;
-    final card = GestureDetector(
+    final card = NeedsAttentionCard(
+      session: session,
+      onTap: sel.isActive
+          ? () => _onSessionTapInSelectionMode(session.id)
+          : () => _navigateToChat(session.id),
       onLongPress: () => _onSessionLongPress(session.id),
-      child: CompactActiveSessionCard(
-        session: session,
-        onTap: sel.isActive
-            ? () => _onSessionTapInSelectionMode(session.id)
-            : () => _navigateToChat(session.id),
-        showFlavorIcon: showFlavorIcons,
-        avatarStyle: avatarStyle,
-        lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
-        lastMessagePreview: sync.getLastMessagePreview(session.id),
-        lastMessageRole: sync.getLastMessageRole(session.id),
-        isSelected: sel.selectedIds.contains(session.id),
-        selectionMode: sel.isActive,
-        unreadCount: sync.getUnreadCount(session.id),
-        accentBarColor: accentBarColor,
-        archiveCountdownLabel: null,
-      ),
+      showFlavorIcon: showFlavorIcons,
+      avatarStyle: avatarStyle,
+      lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+      lastMessagePreview: sync.getLastMessagePreview(session.id),
+      lastMessageRole: sync.getLastMessageRole(session.id),
+      isSelected: sel.selectedIds.contains(session.id),
+      selectionMode: sel.isActive,
+      unreadCount: sync.getUnreadCount(session.id),
     );
     return sel.isActive
         ? card
         : DismissibleActiveSession(session: session, child: card);
+  }
+
+  Widget _buildUnreadFocusListRow(
+    Session session, {
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+  }) {
+    final sel = _sel.value;
+    final row = UnreadFocusListRow(
+      session: session,
+      onTap: sel.isActive
+          ? () => _onSessionTapInSelectionMode(session.id)
+          : () => _navigateToChat(session.id),
+      onLongPress: () => _onSessionLongPress(session.id),
+      showFlavorIcon: showFlavorIcons,
+      avatarStyle: avatarStyle,
+      lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
+      lastMessagePreview: sync.getLastMessagePreview(session.id),
+      lastMessageRole: sync.getLastMessageRole(session.id),
+      isSelected: sel.selectedIds.contains(session.id),
+      selectionMode: sel.isActive,
+    );
+    return sel.isActive
+        ? row
+        : DismissibleActiveSession(session: session, child: row);
   }
 
   Widget _buildFolderModeView(

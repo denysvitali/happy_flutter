@@ -22,11 +22,6 @@ class CompactActiveSessionCard extends StatefulWidget {
     this.isSelected = false,
     this.unreadCount = 0,
     this.archiveCountdownLabel,
-
-    /// Override color for the left accent bar. Defaults to the session's
-    /// status dot color. Use [ThemeData.colorScheme.primary] for the
-    /// Unread Focus view's Needs Attention section.
-    this.accentBarColor,
   });
 
   final Session session;
@@ -40,7 +35,6 @@ class CompactActiveSessionCard extends StatefulWidget {
   final bool isSelected;
   final int unreadCount;
   final String? archiveCountdownLabel;
-  final int? accentBarColor;
 
   @override
   State<CompactActiveSessionCard> createState() =>
@@ -78,8 +72,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
         widget.lastMessagePreview != null &&
         widget.lastMessagePreview!.isNotEmpty;
 
-    final needsAttention =
-        widget.unreadCount > 0 || widget.accentBarColor != null;
+    final needsAttention = widget.unreadCount > 0;
     final cardColor = widget.isSelected
         ? cs.primary.withValues(alpha: 0.10)
         : needsAttention
@@ -134,9 +127,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                     Container(
                       width: 3,
                       decoration: BoxDecoration(
-                        color: widget.accentBarColor != null
-                            ? Color(widget.accentBarColor!)
-                            : Color(_d.status.statusDotColor),
+                        color: Color(_d.status.statusDotColor),
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(AppRadius.md),
                           bottomLeft: Radius.circular(AppRadius.md),
