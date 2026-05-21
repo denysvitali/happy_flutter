@@ -79,6 +79,25 @@ extension SyncTestHelpers on Sync {
     _previewCache.remove(sessionId);
     _previewCacheVersion.remove(sessionId);
     _sidechainRegroupSweepCount.remove(sessionId);
+    _orphanFetchOlderAttemptedMs.remove(sessionId);
+    _orphanSuppressedUntilMs.remove(sessionId);
+    _orphanAbsorbReportedAtMs.remove(sessionId);
+  }
+
+  /// Test helper: clear the throttle timestamp for orphan-recovery
+  /// fetchOlder attempts so the next sweep can call fetchOlderMessages
+  /// again without waiting for the real wall clock.
+  @visibleForTesting
+  void testClearOrphanFetchOlderAttemptedMs(String sessionId) {
+    _orphanFetchOlderAttemptedMs.remove(sessionId);
+  }
+
+  /// Test helper: read the last orphan-recovery fetchOlder attempt
+  /// timestamp (epoch ms) for a session. 0 means the path has never
+  /// fired for this session.
+  @visibleForTesting
+  int testOrphanFetchOlderAttemptedMs(String sessionId) {
+    return _orphanFetchOlderAttemptedMs[sessionId] ?? 0;
   }
 
   @visibleForTesting
