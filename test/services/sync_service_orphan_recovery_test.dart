@@ -1,4 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/encryption/encryption_cache.dart';
+import 'package:happy_flutter/core/encryption/encryption_manager.dart';
+import 'package:happy_flutter/core/encryption/encryptor.dart';
+import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 
 import '../helpers/test_helpers.dart';
@@ -880,5 +888,381 @@ void main() {
         expect(children.map((c) => c['id']).toList(), ['c1', 'c2']);
       });
     });
+
+    // ── parent_tool_use_id walk-back policy (bug fix) ──
+    //
+    // The wire stamps `parent_tool_use_id` on every Claude sidechain
+    // message. When every visible orphan in the window carries that
+    // field AND there is still older history to paginate through,
+    // synthesising a "Subagent output (recovered)" tile is premature —
+    // the real parent Task is just upstream. The sweep must keep
+    // paginating at an aggressive cadence (5s) instead of giving up
+    // after 2 sweeps and entering the 30s suppression window.
+    group('parent_tool_use_id walk-back policy', () {
+      late Sync syncWithEnc;
+      late int fetchOlderCount;
+
+      setUp(() {
+        // We need real session encryption so fetchOlderMessages can
+        // pass its `getSessionEncryption(sessionId) == null` guard and
+        // hit the testFetchOlderMessagesOverride hook.
+        syncWithEnc = createTestSync();
+        syncWithEnc.encryption = _OrphanFakeEncryption();
+        syncWithEnc.testIsInitialized = true;
+        syncWithEnc.testSessions['s2'] = _makeOrphanSession('s2', lastSeq: 500);
+        fetchOlderCount = 0;
+        syncWithEnc.testFetchOlderMessagesOverride =
+            (sessionId, afterSeq, limit) async {
+              fetchOlderCount++;
+              // Return an empty page so the sweep's follow-up logic
+              // doesn't actually upsert anything — we want to isolate
+              // the throttle behavior.
+              return {'messages': <Map<String, dynamic>>[], 'hasMore': true};
+            };
+      });
+
+      tearDown(() {
+        syncWithEnc.testFetchOlderMessagesOverride = null;
+        syncWithEnc.testClearSessionMessageState('s2');
+      });
+
+      test('does NOT absorb when every orphan has parentToolUseId and '
+          'history has more pages — paginates at aggressive 5s cadence',
+          () async {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+          <String, dynamic>{
+            'id': 'orph-2',
+            'isSidechain': true,
+            'uuid': 'u2',
+            'parentUuid': 'u1',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'seq': 103,
+          },
+        ]);
+        // firstLoadedSeq > 1 means hasOlderMessages == true: history
+        // still has pages we haven't walked back through. Use a value
+        // large enough that several 100-message pages remain ahead so
+        // the across-sweep hasOlderMessages check stays true even
+        // after a page-cursor advance.
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+        expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
+
+        // Sweep 1 — fires fetchOlderMessages (first attempt; throttle
+        // has never fired before). Drain microtasks + the unawaited
+        // fetch body so _loadingOlderMessages clears before sweep 2.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+
+        expect(fetchOlderCount, 1,
+            reason: 'first sweep must call fetchOlderMessages');
+        var msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty,
+            reason: 'no synthetic Task may exist while we can still '
+                'paginate to find the real parent');
+        // hasOlderMessages must remain true so the next sweep is
+        // allowed to paginate further.
+        expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
+
+        // Re-seed the orphans because the in-flight fetchOlder ran
+        // _groupSidechainMessages on an empty page (which by itself
+        // would NOT mutate the orphans, but the sweep follow-up
+        // microtask may have reset internal counters). Re-seeding is
+        // the simplest way to keep the test focused on the throttle
+        // behavior. Their parentToolUseId stays universal.
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+          <String, dynamic>{
+            'id': 'orph-2',
+            'isSidechain': true,
+            'uuid': 'u2',
+            'parentUuid': 'u1',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'seq': 103,
+          },
+        ]);
+
+        // Simulate the aggressive 5s throttle window elapsing.
+        syncWithEnc.testClearOrphanFetchOlderAttemptedMs('s2');
+
+        // Sweep 2 — should call fetchOlder again because aggressive
+        // throttle allows it; absorb is NOT permitted because every
+        // orphan still carries parentToolUseId and history has more
+        // pages.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+
+        expect(fetchOlderCount, 2,
+            reason: 'aggressive throttle must allow a second fetchOlder '
+                'call rather than absorbing the orphans');
+        msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
+        // Top-level orphans must still be present — they were not
+        // absorbed into a synthetic Task.
+        expect(
+          msgs.where((m) => m['isSidechain'] == true).length,
+          2,
+          reason: 'orphans must remain on the top-level list until '
+              'we either find the parent or exhaust history',
+        );
+      });
+
+      test('aggressive throttle is shorter than the default 60s — '
+          'paginates within seconds', () async {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 200,
+          },
+        ]);
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+
+        // First attempt fires.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+        expect(fetchOlderCount, 1);
+        final firstAttemptMs =
+            syncWithEnc.testOrphanFetchOlderAttemptedMs('s2');
+        expect(firstAttemptMs, greaterThan(0));
+
+        // Re-seed orphans so the post-fetch grouper pass hasn't
+        // mutated them away from this test's expectations.
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 200,
+          },
+        ]);
+
+        // Without resetting the throttle, an immediate second sweep
+        // must NOT re-fire fetchOlder — the throttle (whichever value)
+        // is respected. This confirms the throttle is wired in.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+        expect(fetchOlderCount, 1,
+            reason: 'throttle must prevent back-to-back fetches');
+        // No synthetic absorb either, because parentToolUseId+more
+        // history defers the absorb path.
+        final msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
+      });
+
+      test('mixed parentToolUseId presence falls back to default '
+          'behavior — absorbs after 2 sweeps', () {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 50,
+          },
+          // Missing parentToolUseId — wire didn't stamp it for this
+          // entry (e.g. legacy cached row), so we can't trust that
+          // pagination will resolve it.
+          <String, dynamic>{
+            'id': 'orph-2',
+            'isSidechain': true,
+            'uuid': 'u2',
+            'parentUuid': 'task-A',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'seq': 51,
+          },
+        ]);
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+
+        // Sweep 1 — default 60s throttle path; fetchOlder fires.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        // No absorb after 1 sweep.
+        var msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
+
+        // Throttle still in effect — second sweep must hit the absorb
+        // path after 2 consecutive no-progress sweeps.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        msgs = syncWithEnc.testGetSessionMessages('s2');
+        // The default-throttle path took the absorb branch on this
+        // sweep because the next fetchOlder cannot fire (throttle not
+        // cleared) and at least 2 sweeps have elapsed.
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), hasLength(1),
+            reason: 'mixed parentToolUseId must fall back to the '
+                'existing 2-sweep absorb path');
+        expect(msgs.where((m) => m['isSidechain'] == true), isEmpty,
+            reason: 'orphans must be absorbed into the synthetic Task');
+      });
+
+      test('universal parentToolUseId but no more history — absorbs as '
+          'today (exhausted history is the only safe fallback)', () {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 2,
+          },
+          <String, dynamic>{
+            'id': 'orph-2',
+            'isSidechain': true,
+            'uuid': 'u2',
+            'parentUuid': 'u1',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'seq': 3,
+          },
+        ]);
+        // firstLoadedSeq == 0 means we've exhausted history — there is
+        // no parent page left to fetch.
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 0);
+        expect(syncWithEnc.hasOlderMessages('s2'), isFalse);
+
+        // Sweep 1 — no fetchOlder available (no older history), so
+        // sweep count increments to 1 but no absorb yet.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        expect(fetchOlderCount, 0,
+            reason: 'no history → no fetchOlder attempts');
+        var msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
+
+        // Sweep 2 — absorb fires (2 consecutive no-progress sweeps,
+        // throttle path didn't help because there is nothing older).
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), hasLength(1),
+            reason: 'with no remaining history, absorption is the '
+                'correct fallback even when parentToolUseId is universal');
+      });
+    });
   });
+}
+
+// ---------------------------------------------------------------------------
+// Test helpers (fake encryption + session factory) for the
+// `parent_tool_use_id walk-back policy` group above.
+// ---------------------------------------------------------------------------
+
+/// Drains both microtask queue and any pending zero-duration timers
+/// (Sentry transaction finish, `await Future.delayed(Duration.zero)`
+/// inside `fetchOlderMessages`). Two yields are enough for the chain
+/// of awaits in the fetchOlder body to settle.
+Future<void> _drainAsyncWork() async {
+  for (var i = 0; i < 8; i++) {
+    await Future<void>.delayed(Duration.zero);
+  }
+}
+
+Session _makeOrphanSession(String id, {int lastSeq = 10}) {
+  return Session(
+    id: id,
+    seq: 1,
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+    active: true,
+    activeAt: 1700000000000,
+    metadataVersion: 1,
+    agentStateVersion: 1,
+    thinking: false,
+    presence: 'offline',
+    lastSeq: lastSeq,
+  );
+}
+
+class _OrphanFakeEncryption implements Encryption {
+  final Map<String, _OrphanFakeSessionEncryption> _sessions = {};
+
+  @override
+  SessionEncryption? getSessionEncryption(String sessionId) {
+    return _sessions.putIfAbsent(
+      sessionId,
+      () => _OrphanFakeSessionEncryption(sessionId: sessionId),
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      super.noSuchMethod(invocation);
+}
+
+class _OrphanFakeSessionEncryption extends SessionEncryption {
+  _OrphanFakeSessionEncryption({required String sessionId})
+      : super(
+          sessionId: sessionId,
+          encryptor: _OrphanFakeEncryptor(),
+          decryptor: _OrphanFakeEncryptor(),
+          cache: EncryptionCache(),
+        );
+}
+
+class _OrphanFakeEncryptor implements Encryptor {
+  @override
+  Future<List<Uint8List>> encrypt(List<dynamic> data) async {
+    return data.map((item) {
+      final json = jsonEncode(item);
+      final bytes = utf8.encode(json);
+      final output = Uint8List(bytes.length + 1);
+      output[0] = 0x01;
+      output.setRange(1, output.length, bytes);
+      return output;
+    }).toList();
+  }
+
+  @override
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    return data.map((item) {
+      if (item.isEmpty) return null;
+      try {
+        return item[0] == 0x01
+            ? jsonDecode(utf8.decode(item.sublist(1)))
+            : utf8.decode(item);
+      } catch (_) {
+        return null;
+      }
+    }).toList();
+  }
 }
