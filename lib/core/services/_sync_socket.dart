@@ -443,8 +443,10 @@ extension SyncSocket on Sync {
           // (_restoreAllCachedMessages) so children are correctly
           // re-parented.  Previously we stripped isSidechain messages
           // here, which permanently lost them on cold-start.
-          MessageCacheService()
-              .saveMessages(sessionId, _stripOrphanSynthetics(msgs));
+          MessageCacheService().saveMessages(
+            sessionId,
+            MessageCacheService.stripOrphanSynthetics(msgs),
+          );
         }
       },
     );
@@ -458,56 +460,13 @@ extension SyncSocket on Sync {
       entry.value.cancel();
       final msgs = _sessionMessages[entry.key];
       if (msgs != null) {
-        MessageCacheService()
-            .saveMessages(entry.key, _stripOrphanSynthetics(msgs));
+        MessageCacheService().saveMessages(
+          entry.key,
+          MessageCacheService.stripOrphanSynthetics(msgs),
+        );
       }
     }
     _saveMsgsDebounceTimers.clear();
-  }
-
-  /// Replace any `_orphanRecovery: true` synthetic Task with its
-  /// flattened children before persisting to disk.  Persisting the
-  /// synthetic shape would lock the corruption into MMKV: a
-  /// subsequent cold-start would restore synthetics-as-Tasks, never
-  /// re-attaching the children to the real Task that arrives later.
-  ///
-  /// Children are reset to top-level `isSidechain: true` entries; on
-  /// restore the grouper either re-attaches them to the real Task
-  /// (when the parent is in the cache window) or re-absorbs them
-  /// into a fresh synthetic.  Either outcome is safe; the persisted
-  /// synthetic shape is not.
-  static List<Map<String, dynamic>> _stripOrphanSynthetics(
-    List<Map<String, dynamic>> messages,
-  ) {
-    var hasSynthetic = false;
-    for (final m in messages) {
-      if (m['_orphanRecovery'] == true) {
-        hasSynthetic = true;
-        break;
-      }
-    }
-    if (!hasSynthetic) return messages;
-
-    final out = <Map<String, dynamic>>[];
-    for (final m in messages) {
-      if (m['_orphanRecovery'] == true) {
-        final children = m['children'] as List<dynamic>?;
-        if (children != null) {
-          for (final c in children) {
-            if (c is Map<String, dynamic>) {
-              if (c['isSidechain'] != true) {
-                out.add(<String, dynamic>{...c, 'isSidechain': true});
-              } else {
-                out.add(c);
-              }
-            }
-          }
-        }
-        continue;
-      }
-      out.add(m);
-    }
-    return out;
   }
 
   /// Immediately deliver any pending trailing-edge session message
