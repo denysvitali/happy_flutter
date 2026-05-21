@@ -19,6 +19,19 @@ class MessageCacheService {
   MessageCacheService._();
   static final MessageCacheService _instance = MessageCacheService._();
 
+  /// Storage backend.  Defaults to the singleton MMKVStorage.  Tests can
+  /// override this via [debugSetStorage] to inject a stateful fake so
+  /// round-trip behavior (e.g. cleaned-cache rewrites) can be observed
+  /// without booting the native MMKV plugin.
+  MMKVStorage _storage = MMKVStorage();
+
+  @visibleForTesting
+  // ignore: avoid_setters_without_getters
+  set debugSetStorage(MMKVStorage storage) => _storage = storage;
+
+  @visibleForTesting
+  void debugResetStorage() => _storage = MMKVStorage();
+
   /// Maximum number of messages to cache per session.
   /// Keep the persisted copy bounded to the recent window used by the
   /// sync save path so cold-start JSON decode and initial rendering stay
@@ -48,12 +61,24 @@ class MessageCacheService {
   /// zero-delay UI rendering on cold starts.
   List<Map<String, dynamic>> getMessages(String sessionId) {
     final stopwatch = Stopwatch()..start();
-    final cached = MMKVStorage().getSessionMessages(sessionId);
-    final messages = _trimToCacheWindow(cached);
+    final cached = _storage.getSessionMessages(sessionId);
+    var messages = _trimToCacheWindow(cached);
     final elapsedMs = stopwatch.elapsedMilliseconds;
 
     if (messages.length != cached.length) {
       _rewriteTrimmedCache(sessionId, messages, originalCount: cached.length);
+    }
+
+    // Scrub legacy `_orphanRecovery: true` synthetic Task tiles that
+    // were persisted before the cache-write strip was introduced
+    // (commit 53475ce3, May 9 2026).  Old installs can keep showing
+    // the ghost tile forever otherwise.  When we actually strip
+    // something, rewrite the cleaned list back to MMKV so the next
+    // read is free.
+    final scrubbed = stripOrphanSynthetics(messages);
+    if (!identical(scrubbed, messages)) {
+      _rewriteScrubbedCache(sessionId, scrubbed);
+      messages = scrubbed;
     }
 
     if (messages.isNotEmpty && kIsWeb) {
@@ -99,7 +124,7 @@ class MessageCacheService {
   void _evictWebOverflow() {
     // Merge in any sessions that exist in storage but are not yet
     // tracked in the LRU list (e.g. loaded from a previous run).
-    final stored = MMKVStorage().getCachedSessionIds();
+    final stored = _storage.getCachedSessionIds();
     for (final sid in stored) {
       if (!_webSessionLru.contains(sid)) {
         // Insert at the front so they are evicted first.
@@ -109,7 +134,7 @@ class MessageCacheService {
 
     while (_webSessionLru.length > _maxWebSessions) {
       final oldest = _webSessionLru.removeAt(0);
-      MMKVStorage().clearSessionMessages(oldest);
+      _storage.clearSessionMessages(oldest);
       logger.warning(
         '[MessageCache] Web quota guard: evicted session $oldest '
         '(keeping ${_webSessionLru.length}/$_maxWebSessions sessions)',
@@ -148,7 +173,7 @@ class MessageCacheService {
     }
 
     try {
-      MMKVStorage().saveSessionMessages(sessionId, toSave);
+      _storage.saveSessionMessages(sessionId, toSave);
       _lastSavedHash[sessionId] = hash;
       final elapsedMs = stopwatch.elapsedMilliseconds;
       if (elapsedMs >= _slowCacheWriteMs) {
@@ -202,7 +227,7 @@ class MessageCacheService {
     required int originalCount,
   }) {
     try {
-      MMKVStorage().saveSessionMessages(sessionId, messages);
+      _storage.saveSessionMessages(sessionId, messages);
       _lastSavedHash[sessionId] = _computeTailHash(messages);
       logger.debug(
         '[MessageCache] Trimmed legacy cache for session $sessionId '
@@ -211,6 +236,27 @@ class MessageCacheService {
     } catch (e) {
       logger.warning(
         '[MessageCache] Failed to trim legacy cache for $sessionId: $e',
+      );
+    }
+  }
+
+  /// Rewrites a session cache that had stale `_orphanRecovery: true`
+  /// synthetic Task tiles scrubbed.  Updates [_lastSavedHash] so the
+  /// next save-path check sees the cleaned hash and does not redo work.
+  void _rewriteScrubbedCache(
+    String sessionId,
+    List<Map<String, dynamic>> cleaned,
+  ) {
+    try {
+      _storage.saveSessionMessages(sessionId, cleaned);
+      _lastSavedHash[sessionId] = _computeTailHash(cleaned);
+      logger.debug(
+        '[MessageCache] Scrubbed stale orphan synthetics for session '
+        '$sessionId (now ${cleaned.length} messages)',
+      );
+    } catch (e) {
+      logger.warning(
+        '[MessageCache] Failed to scrub legacy synthetics for $sessionId: $e',
       );
     }
   }
@@ -244,7 +290,7 @@ class MessageCacheService {
   /// Call when a session is deleted or cleared.
   void clearMessages(String sessionId) {
     try {
-      MMKVStorage().clearSessionMessages(sessionId);
+      _storage.clearSessionMessages(sessionId);
       _lastSavedHash.remove(sessionId);
       logger.debug('[MessageCache] Cleared cache for session $sessionId');
     } catch (e) {
@@ -254,15 +300,66 @@ class MessageCacheService {
 
   /// Check if a session has cached messages.
   bool hasCachedMessages(String sessionId) {
-    final cached = MMKVStorage().getSessionMessages(sessionId);
+    final cached = _storage.getSessionMessages(sessionId);
     return cached.isNotEmpty;
   }
 
   /// Get the approximate cache size as message count for a session.
   int? getCacheSize(String sessionId) {
-    final cached = MMKVStorage().getSessionMessages(sessionId);
+    final cached = _storage.getSessionMessages(sessionId);
     if (cached.isEmpty) return null;
     return cached.length;
+  }
+
+  /// Replace any `_orphanRecovery: true` synthetic Task with its
+  /// flattened children before persisting to disk.
+  ///
+  /// Persisting the synthetic shape would lock the corruption into
+  /// MMKV: a subsequent cold-start would restore synthetics-as-Tasks,
+  /// never re-attaching the children to the real Task that arrives
+  /// later.
+  ///
+  /// Children are reset to top-level `isSidechain: true` entries; on
+  /// restore the grouper either re-attaches them to the real Task
+  /// (when the parent is in the cache window) or re-absorbs them
+  /// into a fresh synthetic.  Either outcome is safe; the persisted
+  /// synthetic shape is not.
+  ///
+  /// Returns the same list instance unchanged when no synthetics are
+  /// present, so callers can use `identical(out, in)` to detect a
+  /// no-op cheaply.
+  static List<Map<String, dynamic>> stripOrphanSynthetics(
+    List<Map<String, dynamic>> messages,
+  ) {
+    var hasSynthetic = false;
+    for (final m in messages) {
+      if (m['_orphanRecovery'] == true) {
+        hasSynthetic = true;
+        break;
+      }
+    }
+    if (!hasSynthetic) return messages;
+
+    final out = <Map<String, dynamic>>[];
+    for (final m in messages) {
+      if (m['_orphanRecovery'] == true) {
+        final children = m['children'] as List<dynamic>?;
+        if (children != null) {
+          for (final c in children) {
+            if (c is Map<String, dynamic>) {
+              if (c['isSidechain'] != true) {
+                out.add(<String, dynamic>{...c, 'isSidechain': true});
+              } else {
+                out.add(c);
+              }
+            }
+          }
+        }
+        continue;
+      }
+      out.add(m);
+    }
+    return out;
   }
 
   @visibleForTesting

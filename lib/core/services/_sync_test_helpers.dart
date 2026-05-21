@@ -165,7 +165,7 @@ extension SyncTestHelpers on Sync {
   static List<Map<String, dynamic>> testStripOrphanSynthetics(
     List<Map<String, dynamic>> messages,
   ) {
-    return SyncSocket._stripOrphanSynthetics(messages);
+    return MessageCacheService.stripOrphanSynthetics(messages);
   }
 
   @visibleForTesting
