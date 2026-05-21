@@ -22,6 +22,8 @@ void _processAcpContent({
 
   final dataType = data['type'] as String?;
   final meta = _sidechainMeta(data);
+  final parentToolUseId = _extractParentToolUseId(data);
+  final agentId = _extractAgentId(data);
 
   if (dataType == 'message' || dataType == 'reasoning') {
     messages.add({
@@ -36,6 +38,8 @@ void _processAcpContent({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
     return;
   }
@@ -54,6 +58,8 @@ void _processAcpContent({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
     return;
   }
@@ -75,6 +81,8 @@ void _processAcpContent({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
     return;
   }
@@ -112,6 +120,8 @@ void _processAcpContent({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
   }
 
