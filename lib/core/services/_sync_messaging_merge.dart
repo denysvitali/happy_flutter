@@ -99,17 +99,6 @@ extension SyncMessagingMerge on Sync {
   /// the API.
   static const int _orphanFetchOlderDefaultThrottleMs = 60000;
 
-  /// Aggressive throttle used when every visible orphan in the loaded
-  /// window carries a non-empty `parentToolUseId`. The wire stamps
-  /// `parent_tool_use_id` on every sidechain message in a subagent
-  /// run, so universal presence is a strong promise that a real
-  /// parent Task exists upstream. In long sessions with many Agent
-  /// spawns (worst-case: 15 Agents inside a 1000+ message session)
-  /// the parent may be several fetch-older pages away. A 5s cadence
-  /// walks back through history fast enough to converge in seconds
-  /// rather than minutes while still bounding API load.
-  static const int _orphanFetchOlderAggressiveThrottleMs = 5000;
-
   Map<String, dynamic>? _extractUsageMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {
@@ -507,9 +496,9 @@ extension SyncMessagingMerge on Sync {
     // 15 Agents at seqs 13..494 inside a 1000+ message session,
     // cache=200, page=100), the user needs ~8 fetchOlder pages to walk
     // back to the first Agent. The default 60s throttle stretches that
-    // across 8 minutes — too slow. Switch to an aggressive 5s throttle
-    // and skip the 2-sweep / 30s-suppression absorb fallback until we
-    // either find the parent or exhaust history.
+    // across 8 minutes — too slow. In aggressive mode, skip the
+    // throttle and the 2-sweep / 30s-suppression absorb fallback until
+    // we either find the parent or exhaust history.
     final messagesNow =
         _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];
     final visibleOrphanMessages = messagesNow
@@ -530,16 +519,12 @@ extension SyncMessagingMerge on Sync {
     // Otherwise the slower 60s throttle protects the API: pagination
     // alone can't recover when parentToolUseId is missing.
     final hasMoreOlder = hasOlderMessages(sessionId);
-    final useAggressiveThrottle =
-        everyOrphanHasParentToolUseId && hasMoreOlder;
-    final throttleMs = useAggressiveThrottle
-        ? _orphanFetchOlderAggressiveThrottleMs
-        : _orphanFetchOlderDefaultThrottleMs;
-    final canRetryFetch = nowMs - lastFetchAttempt > throttleMs;
+    final useAggressiveThrottle = everyOrphanHasParentToolUseId && hasMoreOlder;
+    final canRetryFetch =
+        useAggressiveThrottle ||
+        nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
 
-    if (canRetryFetch &&
-        hasMoreOlder &&
-        !isLoadingOlderMessages(sessionId)) {
+    if (canRetryFetch && hasMoreOlder && !isLoadingOlderMessages(sessionId)) {
       _orphanFetchOlderAttemptedMs[sessionId] = nowMs;
       logger.info(
         '[sidechain] orphans persist for session=$sessionId — '
@@ -570,10 +555,10 @@ extension SyncMessagingMerge on Sync {
 
     // If every orphan still carries parentToolUseId AND there is more
     // history to walk, never absorb — keep scheduling sweeps so the
-    // next throttle window can fire another fetchOlder. Do NOT enter
-    // the 30s suppression window; that would freeze pagination for
-    // sessions where the parent Task is genuinely just a few pages
-    // back.
+    // next completed fetch can trigger another walk-back attempt. Do
+    // NOT enter the 30s suppression window; that would freeze
+    // pagination for sessions where the parent Task is genuinely just
+    // a few pages back.
     if (useAggressiveThrottle) {
       logger.debug(
         '[sidechain] orphans for session=$sessionId all carry '

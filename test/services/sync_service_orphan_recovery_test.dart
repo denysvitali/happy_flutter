@@ -896,7 +896,7 @@ void main() {
     // field AND there is still older history to paginate through,
     // synthesising a "Subagent output (recovered)" tile is premature —
     // the real parent Task is just upstream. The sweep must keep
-    // paginating at an aggressive cadence (5s) instead of giving up
+    // paginating as fast as fetchOlder completes instead of giving up
     // after 2 sweeps and entering the 30s suppression window.
     group('parent_tool_use_id walk-back policy', () {
       late Sync syncWithEnc;
@@ -916,7 +916,7 @@ void main() {
               fetchOlderCount++;
               // Return an empty page so the sweep's follow-up logic
               // doesn't actually upsert anything — we want to isolate
-              // the throttle behavior.
+              // the walk-back scheduling behavior.
               return {'messages': <Map<String, dynamic>>[], 'hasMore': true};
             };
       });
@@ -927,7 +927,7 @@ void main() {
       });
 
       test('does NOT absorb when every orphan has parentToolUseId and '
-          'history has more pages — paginates at aggressive 5s cadence',
+          'history has more pages — paginates without wall-clock throttle',
           () async {
         syncWithEnc.testSetSessionMessages('s2', [
           <String, dynamic>{
@@ -960,9 +960,9 @@ void main() {
         syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
         expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
 
-        // Sweep 1 — fires fetchOlderMessages (first attempt; throttle
-        // has never fired before). Drain microtasks + the unawaited
-        // fetch body so _loadingOlderMessages clears before sweep 2.
+        // Sweep 1 — fires fetchOlderMessages. Drain microtasks + the
+        // unawaited fetch body so _loadingOlderMessages clears before
+        // sweep 2.
         syncWithEnc.testRunDeferredRegroupSweep('s2');
         await _drainAsyncWork();
 
@@ -980,7 +980,7 @@ void main() {
         // _groupSidechainMessages on an empty page (which by itself
         // would NOT mutate the orphans, but the sweep follow-up
         // microtask may have reset internal counters). Re-seeding is
-        // the simplest way to keep the test focused on the throttle
+        // the simplest way to keep the test focused on the scheduling
         // behavior. Their parentToolUseId stays universal.
         syncWithEnc.testSetSessionMessages('s2', [
           <String, dynamic>{
@@ -1006,18 +1006,15 @@ void main() {
           },
         ]);
 
-        // Simulate the aggressive 5s throttle window elapsing.
-        syncWithEnc.testClearOrphanFetchOlderAttemptedMs('s2');
-
-        // Sweep 2 — should call fetchOlder again because aggressive
-        // throttle allows it; absorb is NOT permitted because every
+        // Sweep 2 — should call fetchOlder again without clearing any
+        // throttle timestamp; absorb is NOT permitted because every
         // orphan still carries parentToolUseId and history has more
         // pages.
         syncWithEnc.testRunDeferredRegroupSweep('s2');
         await _drainAsyncWork();
 
         expect(fetchOlderCount, 2,
-            reason: 'aggressive throttle must allow a second fetchOlder '
+            reason: 'aggressive mode must allow a second fetchOlder '
                 'call rather than absorbing the orphans');
         msgs = syncWithEnc.testGetSessionMessages('s2');
         expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
@@ -1031,8 +1028,7 @@ void main() {
         );
       });
 
-      test('aggressive throttle is shorter than the default 60s — '
-          'paginates within seconds', () async {
+      test('aggressive mode does not use the default 60s throttle', () async {
         syncWithEnc.testSetSessionMessages('s2', [
           <String, dynamic>{
             'id': 'orph-1',
@@ -1070,13 +1066,14 @@ void main() {
           },
         ]);
 
-        // Without resetting the throttle, an immediate second sweep
-        // must NOT re-fire fetchOlder — the throttle (whichever value)
-        // is respected. This confirms the throttle is wired in.
+        // Without resetting the timestamp, an immediate second sweep
+        // still re-fires fetchOlder. Aggressive mode relies on
+        // isLoadingOlderMessages and the fetch completion callback for
+        // sequencing, not a wall-clock throttle.
         syncWithEnc.testRunDeferredRegroupSweep('s2');
         await _drainAsyncWork();
-        expect(fetchOlderCount, 1,
-            reason: 'throttle must prevent back-to-back fetches');
+        expect(fetchOlderCount, 2,
+            reason: 'aggressive mode must bypass the default throttle');
         // No synthetic absorb either, because parentToolUseId+more
         // history defers the absorb path.
         final msgs = syncWithEnc.testGetSessionMessages('s2');
@@ -1125,7 +1122,10 @@ void main() {
         // The default-throttle path took the absorb branch on this
         // sweep because the next fetchOlder cannot fire (throttle not
         // cleared) and at least 2 sweeps have elapsed.
-        expect(msgs.where((m) => m['_orphanRecovery'] == true), hasLength(1),
+        // Two orphans with distinct chain roots (toolu_A vs task-A)
+        // produce one synthetic per root — that is the existing
+        // chain-root coalesce contract, unchanged by this work.
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), hasLength(2),
             reason: 'mixed parentToolUseId must fall back to the '
                 'existing 2-sweep absorb path');
         expect(msgs.where((m) => m['isSidechain'] == true), isEmpty,

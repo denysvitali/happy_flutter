@@ -44,6 +44,7 @@ void main() {
       sync.encryption = encryption;
       sync.testIsInitialized = true;
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: lastSeq);
+      sync.testVisibleSessionId = sessionId;
     });
 
     tearDown(() {
