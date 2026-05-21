@@ -42,6 +42,8 @@ void _processPiContent({
 
   final dataType = data['type'] as String?;
   final meta = _sidechainMeta(data);
+  final parentToolUseId = _extractParentToolUseId(data);
+  final agentId = _extractAgentId(data);
 
   if (dataType == 'message' ||
       dataType == 'reasoning' ||
@@ -59,6 +61,8 @@ void _processPiContent({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
     return;
   }
@@ -82,6 +86,8 @@ void _processPiContent({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
     return;
   }
@@ -136,6 +142,8 @@ void _processPiContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else if (type == 'thinking') {
         final thinking = block['thinking']?.toString() ?? '';
@@ -156,6 +164,8 @@ void _processPiContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else if (type == 'tool_use' ||
           type == 'toolCall' ||
@@ -194,6 +204,8 @@ void _processPiContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else if (type == 'tool_result' ||
           type == 'web_search_tool_result' ||
@@ -210,6 +222,8 @@ void _processPiContent({
             if (meta.isSidechain) 'isSidechain': true,
             'uuid': effectiveUuid,
             'parentUuid': ?meta.parentUuid,
+            'parentToolUseId': ?parentToolUseId,
+            'agentId': ?agentId,
           });
         }
       }
@@ -235,6 +249,8 @@ void _processPiContent({
         if (meta.isSidechain) 'isSidechain': true,
         'uuid': ?meta.uuid,
         'parentUuid': ?meta.parentUuid,
+        'parentToolUseId': ?parentToolUseId,
+        'agentId': ?agentId,
       });
     }
     final outputItems = WireParsers.asList(data['output']) ?? const [];
@@ -274,6 +290,8 @@ void _processPiContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': callId,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else if (role == 'toolResult') {
         handled = true;
@@ -285,6 +303,8 @@ void _processPiContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': callId,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       }
       i++;

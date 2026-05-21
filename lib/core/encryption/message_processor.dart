@@ -65,6 +65,38 @@ class ProcessedMessages {
   );
 }
 
+/// Extract the spawning Agent/Task tool_use id from a data envelope.
+///
+/// The live-ingest reference impl is
+/// `lib/core/services/_sync_messaging_parse.dart::_attachParentToolUseId`
+/// (with the `task_started` branch in `_sync_messaging_parse_output.dart`
+/// also falling back to `tool_use_id`).  The batch decrypt pipeline used
+/// to drop this entirely, so sidechain messages from cold fetch/
+/// pagination/cache-restore lost their authoritative parent identity
+/// and the grouper had to fall back to fragile parentUuid chain walking.
+String? _extractParentToolUseId(Map<String, dynamic> data) {
+  final v =
+      data['parent_tool_use_id'] ??
+      data['parentToolUseId'] ??
+      data['parent_toolUseId'] ??
+      // task_started / task_progress / task_notification carry the
+      // spawning Agent tool_use id as `tool_use_id` (no parent_* form
+      // exists in that wire payload).  Mirrors the stamping in
+      // `_sync_messaging_parse_output.dart:72,93`.
+      data['tool_use_id'];
+  if (v is String && v.isNotEmpty) return v;
+  return null;
+}
+
+/// Extract the SDK-assigned agent id used for async background agents.
+///
+/// Mirrors `_attachParentToolUseId` in `_sync_messaging_parse.dart`.
+String? _extractAgentId(Map<String, dynamic> data) {
+  final v = data['agentId'] ?? data['agent_id'] ?? data['task_id'];
+  if (v is String && v.isNotEmpty) return v;
+  return null;
+}
+
 int _parseCreatedAtMs(dynamic raw) {
   if (raw is int) return raw;
   if (raw is String) {
@@ -137,6 +169,9 @@ void _addToolResultEnvelope({
   final callId = _extractToolResultCallId(data);
   if (callId == null) return;
 
+  final parentToolUseId = _extractParentToolUseId(data);
+  final agentId = _extractAgentId(data);
+
   toolResults.add({
     'toolUseId': callId,
     'result': data['result'] ?? data['output'] ?? data['content'],
@@ -146,6 +181,8 @@ void _addToolResultEnvelope({
     if (meta.isSidechain) 'isSidechain': true,
     'uuid': meta.uuid ?? callId,
     'parentUuid': ?meta.parentUuid,
+    'parentToolUseId': ?parentToolUseId,
+    'agentId': ?agentId,
   });
 }
 

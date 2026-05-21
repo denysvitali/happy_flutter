@@ -14,6 +14,8 @@ void _emitUnrenderedAgentEvent({
   required String label,
   required ({bool isSidechain, String? uuid, String? parentUuid}) meta,
   required List<Map<String, dynamic>> messages,
+  String? parentToolUseId,
+  String? agentId,
 }) {
   messages.add({
     'id': '${id}_$suffix',
@@ -25,6 +27,9 @@ void _emitUnrenderedAgentEvent({
     if (meta.isSidechain) 'isSidechain': true,
     'uuid': ?meta.uuid,
     'parentUuid': ?meta.parentUuid,
+    if (parentToolUseId != null && parentToolUseId.isNotEmpty)
+      'parentToolUseId': parentToolUseId,
+    if (agentId != null && agentId.isNotEmpty) 'agentId': agentId,
   });
 }
 
@@ -70,6 +75,8 @@ void _processOutputContent({
   }
 
   final meta = _sidechainMeta(data);
+  final parentToolUseId = _extractParentToolUseId(data);
+  final agentId = _extractAgentId(data);
   final dataType = data['type'] as String?;
 
   // Plain text agent message — some server paths emit this shape instead
@@ -92,6 +99,8 @@ void _processOutputContent({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
     return;
   }
@@ -117,6 +126,8 @@ void _processOutputContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else {
         droppedReasons?.add(
@@ -134,6 +145,8 @@ void _processOutputContent({
             label: 'Unsupported agent message',
             meta: meta,
             messages: messages,
+            parentToolUseId: parentToolUseId,
+            agentId: agentId,
           );
         }
       }
@@ -167,6 +180,8 @@ void _processOutputContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else {
         droppedReasons?.add(
@@ -184,6 +199,8 @@ void _processOutputContent({
             label: 'Unsupported agent message',
             meta: meta,
             messages: messages,
+            parentToolUseId: parentToolUseId,
+            agentId: agentId,
           );
         }
       }
@@ -221,6 +238,8 @@ void _processOutputContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else if (type == 'thinking') {
         messages.add({
@@ -237,6 +256,8 @@ void _processOutputContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else if (type == 'tool_use' ||
           type == 'toolCall' ||
@@ -273,6 +294,8 @@ void _processOutputContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': effectiveUuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else if (type == 'tool_result' ||
           type == 'web_search_tool_result' ||
@@ -289,6 +312,8 @@ void _processOutputContent({
             if (meta.isSidechain) 'isSidechain': true,
             'uuid': effectiveUuid,
             'parentUuid': ?meta.parentUuid,
+            'parentToolUseId': ?parentToolUseId,
+            'agentId': ?agentId,
           });
         }
       } else if (type == 'redacted_thinking') {
@@ -308,6 +333,8 @@ void _processOutputContent({
           label: 'Unsupported content block ($type)',
           meta: meta,
           messages: messages,
+          parentToolUseId: parentToolUseId,
+          agentId: agentId,
         );
       }
       i++;
@@ -337,6 +364,8 @@ void _processOutputContent({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': toolUseId ?? effectiveUuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
     return;
   }
@@ -362,6 +391,8 @@ void _processOutputContent({
         if (meta.isSidechain) 'isSidechain': true,
         'uuid': ?meta.uuid,
         'parentUuid': ?meta.parentUuid,
+        'parentToolUseId': ?parentToolUseId,
+        'agentId': ?agentId,
       });
     }
 
@@ -400,6 +431,8 @@ void _processOutputContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': callId,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       } else if (role == 'toolResult' &&
           callId != null &&
@@ -413,6 +446,8 @@ void _processOutputContent({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': callId,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
       }
       i++;
@@ -440,6 +475,8 @@ void _processOutputContent({
           'prompt': promptText,
           'uuid': ?meta.uuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
         return;
       }
@@ -459,6 +496,8 @@ void _processOutputContent({
         if (meta.isSidechain) 'isSidechain': true,
         'uuid': ?meta.uuid,
         'parentUuid': ?meta.parentUuid,
+        'parentToolUseId': ?parentToolUseId,
+        'agentId': ?agentId,
       });
       return;
     }
@@ -485,6 +524,8 @@ void _processOutputContent({
               if (meta.isSidechain) 'isSidechain': true,
               'uuid': ?meta.uuid,
               'parentUuid': ?meta.parentUuid,
+              'parentToolUseId': ?parentToolUseId,
+              'agentId': ?agentId,
             });
           }
         } else if (type == 'tool_result') {
@@ -497,6 +538,8 @@ void _processOutputContent({
             if (meta.isSidechain) 'isSidechain': true,
             'uuid': ?meta.uuid,
             'parentUuid': ?meta.parentUuid,
+            'parentToolUseId': ?parentToolUseId,
+            'agentId': ?agentId,
           });
         } else if (type == 'tool-result') {
           // Interrupted-tool variant emitted by the CLI when a user
@@ -514,6 +557,8 @@ void _processOutputContent({
               if (meta.isSidechain) 'isSidechain': true,
               'uuid': ?meta.uuid,
               'parentUuid': ?meta.parentUuid,
+              'parentToolUseId': ?parentToolUseId,
+              'agentId': ?agentId,
             });
           }
         } else if (type == 'image') {
@@ -531,6 +576,8 @@ void _processOutputContent({
             if (meta.isSidechain) 'isSidechain': true,
             'uuid': ?meta.uuid,
             'parentUuid': ?meta.parentUuid,
+            'parentToolUseId': ?parentToolUseId,
+            'agentId': ?agentId,
           });
         } else if (type != null) {
           droppedReasons?.add('user content block type=$type not handled');
@@ -542,6 +589,8 @@ void _processOutputContent({
             label: 'Unsupported content block ($type)',
             meta: meta,
             messages: messages,
+            parentToolUseId: parentToolUseId,
+            agentId: agentId,
           );
         }
         i++;
@@ -580,6 +629,8 @@ void _processOutputContent({
         : 'Unsupported agent message',
     meta: meta,
     messages: messages,
+    parentToolUseId: parentToolUseId,
+    agentId: agentId,
   );
 }
 
@@ -624,6 +675,13 @@ void _processMetaOutput({
   required List<Map<String, dynamic>> messages,
 }) {
   final meta = _sidechainMeta(data);
+  // For task_started / task_progress / task_notification the wire payload
+  // does NOT carry `parent_tool_use_id`; the spawning Agent tool_use id
+  // lives on `tool_use_id` and the agentId on `task_id`. The shared
+  // `_extractParentToolUseId` honors that fallback so the live-ingest
+  // and cold-fetch paths stamp the same key.
+  final parentToolUseId = _extractParentToolUseId(data);
+  final agentId = _extractAgentId(data);
   final dataType = data['type'] as String?;
   final subtype = data['subtype'] as String?;
 
@@ -638,6 +696,8 @@ void _processMetaOutput({
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
   }
 
@@ -661,6 +721,8 @@ void _processMetaOutput({
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': ?meta.uuid,
           'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
         });
         return;
       }
@@ -722,6 +784,8 @@ void _processMetaOutput({
       'isBridge': true,
       'uuid': meta.uuid,
       'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
     });
   }
 }

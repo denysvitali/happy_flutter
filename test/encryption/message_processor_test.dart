@@ -1286,6 +1286,212 @@ void main() {
       });
     });
 
+    group('sidechain parent linkage (cold-fetch / batch decrypt)', () {
+      // These tests guard the fix in
+      // `lib/core/encryption/processors/output_content_handler.dart` that
+      // mirrors the live-ingest `_attachParentToolUseId` behavior from
+      // `lib/core/services/_sync_messaging_parse.dart`.  Without this
+      // fix, every sidechain message arriving via fetchMessages,
+      // fetchOlderMessages, or cache restore lost
+      // `parentToolUseId` + `agentId` and the SidechainGrouper had to
+      // fall back to fragile parentUuid chain walking — producing
+      // "Subagent output (recovered)" tiles on cold start.
+
+      test(
+        'task_started system event stamps parentToolUseId from tool_use_id '
+        'and agentId from task_id',
+        () {
+          final result = processDecryptedMessages(
+            decryptedJsonList: [
+              {
+                'role': 'agent',
+                'content': {
+                  'type': 'output',
+                  'data': {
+                    'type': 'system',
+                    'subtype': 'task_started',
+                    'isMeta': true,
+                    'description': 'Spawning subagent',
+                    'tool_use_id': 'toolu_parent_123',
+                    'task_id': 'agent_async_xyz',
+                    'isSidechain': true,
+                    'uuid': 'u-ts',
+                  },
+                },
+              },
+            ],
+            wireMessages: [
+              {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+            ],
+            sessionId: 's1',
+          );
+
+          expect(result.messages, hasLength(1));
+          final msg = result.messages.first;
+          expect(msg['kind'], 'agent-event');
+          expect(
+            msg['parentToolUseId'],
+            'toolu_parent_123',
+            reason: 'task_started must carry tool_use_id as '
+                'parentToolUseId — matches live-ingest behavior in '
+                '_sync_messaging_parse_output.dart:72,93',
+          );
+          expect(msg['agentId'], 'agent_async_xyz');
+        },
+      );
+
+      test(
+        'output/assistant with parent_tool_use_id stamps parentToolUseId on '
+        'every emitted sidechain block (text, thinking, tool_use)',
+        () {
+          final result = processDecryptedMessages(
+            decryptedJsonList: [
+              {
+                'role': 'agent',
+                'content': {
+                  'type': 'output',
+                  'data': {
+                    'type': 'assistant',
+                    'uuid': 'u-asst',
+                    'isSidechain': true,
+                    'parent_tool_use_id': 'toolu_parent_abc',
+                    'agentId': 'agent_xyz',
+                    'message': {
+                      'content': [
+                        {'type': 'text', 'text': 'hello'},
+                        {'type': 'thinking', 'thinking': 'reasoning...'},
+                        {
+                          'type': 'tool_use',
+                          'id': 'toolu_child_1',
+                          'name': 'Read',
+                          'input': {'path': '/x'},
+                        },
+                        {
+                          'type': 'tool_result',
+                          'tool_use_id': 'toolu_child_1',
+                          'content': 'ok',
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
+            wireMessages: [
+              {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+            ],
+            sessionId: 's1',
+          );
+
+          expect(result.messages, hasLength(3));
+          for (final m in result.messages) {
+            expect(
+              m['parentToolUseId'],
+              'toolu_parent_abc',
+              reason: 'every sidechain emission must carry '
+                  'parentToolUseId so SidechainGrouper can attach by '
+                  'parent tool_use without walking parentUuid',
+            );
+            expect(m['agentId'], 'agent_xyz');
+            expect(m['isSidechain'], true);
+          }
+
+          expect(result.toolResults, hasLength(1));
+          expect(result.toolResults.first['parentToolUseId'],
+              'toolu_parent_abc');
+          expect(result.toolResults.first['agentId'], 'agent_xyz');
+        },
+      );
+
+      test(
+        'output/assistant WITHOUT parent_tool_use_id does NOT fabricate '
+        'parentToolUseId (regression guard)',
+        () {
+          final result = processDecryptedMessages(
+            decryptedJsonList: [
+              {
+                'role': 'agent',
+                'content': {
+                  'type': 'output',
+                  'data': {
+                    'type': 'assistant',
+                    'uuid': 'u-asst-noparent',
+                    'message': {
+                      'content': [
+                        {'type': 'text', 'text': 'top-level response'},
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
+            wireMessages: [
+              {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+            ],
+            sessionId: 's1',
+          );
+
+          expect(result.messages, hasLength(1));
+          expect(
+            result.messages.first.containsKey('parentToolUseId'),
+            false,
+            reason: 'top-level assistant messages must NOT carry a '
+                'fabricated parentToolUseId — only stamp what the '
+                'wire payload provided',
+          );
+          expect(
+            result.messages.first.containsKey('agentId'),
+            false,
+          );
+        },
+      );
+
+      test(
+        'unrendered placeholder (unrecognized content block) inside a '
+        'sidechain still carries parentToolUseId',
+        () {
+          final result = processDecryptedMessages(
+            decryptedJsonList: [
+              {
+                'role': 'agent',
+                'content': {
+                  'type': 'output',
+                  'data': {
+                    'type': 'assistant',
+                    'uuid': 'u-asst',
+                    'isSidechain': true,
+                    'parent_tool_use_id': 'toolu_parent_unr',
+                    'message': {
+                      'content': [
+                        // Unknown block type — drops into the
+                        // `_emitUnrenderedAgentEvent` branch which used
+                        // to lose parentToolUseId.
+                        {'type': 'mystery_block'},
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
+            wireMessages: [
+              {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+            ],
+            sessionId: 's1',
+          );
+
+          expect(result.messages, hasLength(1));
+          expect(result.messages.first['kind'], 'agent-event');
+          expect(
+            result.messages.first['parentToolUseId'],
+            'toolu_parent_unr',
+            reason: 'unrendered placeholders inside a sidechain must '
+                'still anchor to the parent tool_use so the grouper '
+                'attaches them under the spawning Agent tile',
+          );
+        },
+      );
+    });
+
     group('ProcessedMessages', () {
       test('stores all fields', () {
         final result = processDecryptedMessages(
