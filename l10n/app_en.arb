@@ -787,6 +787,15 @@
   "usageNoData": "No usage data available",
   "offlineBannerNoConnection": "No internet connection",
   "offlineBannerReconnecting": "Reconnecting...",
+  "offlineBannerReconnectingIn": "Reconnecting in {seconds}s…",
+  "@offlineBannerReconnectingIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "offlineBannerReconnectNow": "Reconnect now",
   "commonVersion": "Version",
   "commonDone": "Done",
   "commonEdit": "Edit",
@@ -1420,6 +1429,7 @@
   "commandSearchHint": "Search commands...",
   "commandCategorySessions": "Sessions",
   "commandCategoryNavigation": "Navigation",
+  "commandCategoryRecent": "Recent",
   "commandNewSessionTitle": "New Session",
   "commandNewSessionSubtitle": "Start a new chat session",
   "commandViewSessionsTitle": "View All Sessions",
