@@ -89,53 +89,29 @@ extension SyncSocket on Sync {
     unawaited(_restoreRecentCachedMessagesAsync());
 
     // Initialize sync managers
-    sessionsSync = InvalidateSync(
+    sessionsSync = _createSync(
       fetchSessions,
+      'fetchSessions',
       minInterval: Sync._sessionsSyncMinInterval,
-      name: 'fetchSessions',
-      onRunningChanged: _onSyncRunningChanged,
     );
-    settingsSync = InvalidateSync(
+    settingsSync = _createSync(
       syncSettings,
+      'syncSettings',
       minInterval: Sync._settingsSyncMinInterval,
-      name: 'syncSettings',
-      onRunningChanged: _onSyncRunningChanged,
     );
-    profileSync = InvalidateSync(
-      fetchProfile,
-      name: 'fetchProfile',
-      onRunningChanged: _onSyncRunningChanged,
-    );
-    purchasesSync = InvalidateSync(
-      syncPurchases,
-      name: 'syncPurchases',
-      onRunningChanged: _onSyncRunningChanged,
-    );
-    machinesSync = InvalidateSync(
+    profileSync = _createSync(fetchProfile, 'fetchProfile');
+    purchasesSync = _createSync(syncPurchases, 'syncPurchases');
+    machinesSync = _createSync(
       fetchMachines,
+      'fetchMachines',
       minInterval: Sync._machinesSyncMinInterval,
-      name: 'fetchMachines',
-      onRunningChanged: _onSyncRunningChanged,
     );
-    pushTokenSync = InvalidateSync(
-      syncPushToken,
-      name: 'syncPushToken',
-      onRunningChanged: _onSyncRunningChanged,
-    );
-    nativeUpdateSync = InvalidateSync(
-      fetchNativeUpdate,
-      name: 'fetchNativeUpdate',
-      onRunningChanged: _onSyncRunningChanged,
-    );
-    artifactsSync = InvalidateSync(
-      fetchArtifactsList,
-      name: 'fetchArtifactsList',
-      onRunningChanged: _onSyncRunningChanged,
-    );
-    sessionGitStatusSync = InvalidateSync(
+    pushTokenSync = _createSync(syncPushToken, 'syncPushToken');
+    nativeUpdateSync = _createSync(fetchNativeUpdate, 'fetchNativeUpdate');
+    artifactsSync = _createSync(fetchArtifactsList, 'fetchArtifactsList');
+    sessionGitStatusSync = _createSync(
       _fetchSessionGitStatus,
-      name: 'fetchSessionGitStatus',
-      onRunningChanged: _onSyncRunningChanged,
+      'fetchSessionGitStatus',
     );
 
     // Mark initialized early so that provider loadFromSync() can serve
@@ -190,6 +166,20 @@ extension SyncSocket on Sync {
     );
     unawaited(messageOutbox.restoreAndFlush());
   }
+
+  /// Creates an [InvalidateSync] wired to the standard
+  /// [_onSyncRunningChanged] callback used by every sync manager in
+  /// [_init]. Collapses near-identical boilerplate.
+  InvalidateSync _createSync(
+    Future<void> Function() action,
+    String name, {
+    Duration? minInterval,
+  }) => InvalidateSync(
+    action,
+    minInterval: minInterval,
+    name: name,
+    onRunningChanged: _onSyncRunningChanged,
+  );
 
   void _invalidateAllSyncs({
     bool force = false,
