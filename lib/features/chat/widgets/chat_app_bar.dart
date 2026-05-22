@@ -111,25 +111,105 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  sessionTitle,
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    height: 1.2,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                _StatusRow(statusChips: statusChips),
-              ],
+            child: _TitleReveal(
+              sessionTitle: sessionTitle,
+              statusChips: statusChips,
+              textTheme: textTheme,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Animates the session title and status row into view with a
+/// delayed parallax effect that complements the Hero avatar flight.
+///
+/// The title slides up from a few pixels below and fades in during
+/// the second half of the route enter transition
+/// (interval 0.4–1.0), so it appears to "follow" the avatar
+/// landing — creating a natural parallax reveal.
+class _TitleReveal extends StatefulWidget {
+  const _TitleReveal({
+    required this.sessionTitle,
+    required this.statusChips,
+    required this.textTheme,
+  });
+
+  final String sessionTitle;
+  final List<ChatAppBarStatusChip> statusChips;
+  final TextTheme textTheme;
+
+  @override
+  State<_TitleReveal> createState() => _TitleRevealState();
+}
+
+class _TitleRevealState extends State<_TitleReveal> {
+  // Animation driven by the page route's own animation, delayed with
+  // an Interval so the text appears after the Hero avatar arrives.
+  Animation<double>? _reveal;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_reveal != null) return; // already initialised
+
+    final routeAnim = ModalRoute.of(context)?.animation;
+    if (routeAnim == null) return;
+
+    // Wrap the route animation in a CurvedAnimation restricted to
+    // the 0.35–1.0 window so the title only appears in the latter
+    // 65 % of the push transition — after the Hero has landed.
+    _reveal = CurvedAnimation(
+      parent: routeAnim,
+      curve: const Interval(0.35, 1.0, curve: Curves.easeOutCubic),
+      reverseCurve: const Interval(0.0, 0.6, curve: Curves.easeInCubic),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reveal = _reveal;
+
+    // If no route animation is available (e.g. tablets with an inline
+    // master-detail layout), show the title immediately without animation.
+    if (reveal == null) {
+      return _buildContent(1.0);
+    }
+
+    return AnimatedBuilder(
+      animation: reveal,
+      builder: (context, _) => _buildContent(reveal.value),
+    );
+  }
+
+  Widget _buildContent(double t) {
+    // t goes 0 → 1 over the delayed interval.
+    // Slide up 6 px → 0 and fade in.
+    final offset = (1.0 - t) * 6.0;
+
+    return Transform.translate(
+      offset: Offset(0, offset),
+      child: Opacity(
+        opacity: t.clamp(0.0, 1.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.sessionTitle,
+              style: widget.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 3),
+            _StatusRow(statusChips: widget.statusChips),
+          ],
+        ),
       ),
     );
   }
