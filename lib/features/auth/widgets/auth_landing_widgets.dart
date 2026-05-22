@@ -160,7 +160,12 @@ class LandingLogoMark extends StatelessWidget {
 ///
 /// Primary CTA is visually prominent with a gradient.
 /// Secondary actions are outlined with icons for clarity.
-class AuthButtonGroup extends StatelessWidget {
+///
+/// The "Sign In with Secret Key" button uses progressive
+/// disclosure: the first tap reveals a reassurance hint
+/// card; the second tap (or "Enter Secret Key" button)
+/// opens the actual key input dialog.
+class AuthButtonGroup extends StatefulWidget {
   const AuthButtonGroup({
     required this.onCreateAccount,
     required this.onLinkAccount,
@@ -177,35 +182,214 @@ class AuthButtonGroup extends StatelessWidget {
   final AppLocalizations l10n;
 
   @override
+  State<AuthButtonGroup> createState() =>
+      _AuthButtonGroupState();
+}
+
+class _AuthButtonGroupState
+    extends State<AuthButtonGroup>
+    with SingleTickerProviderStateMixin {
+  bool _showKeyHint = false;
+  late final AnimationController _hintController;
+  late final Animation<double> _hintFade;
+  late final Animation<Offset> _hintSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _hintController = AnimationController(
+      vsync: this,
+      duration: AppDuration.normal,
+    );
+    _hintFade = CurvedAnimation(
+      parent: _hintController,
+      curve: Curves.easeOut,
+    );
+    _hintSlide = Tween<Offset>(
+      begin: const Offset(0, -0.15),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _hintController,
+        curve: Curves.easeOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hintController.dispose();
+    super.dispose();
+  }
+
+  void _handleKeyButtonTap() {
+    if (widget.isLoadingCreate) return;
+    if (!_showKeyHint) {
+      setState(() => _showKeyHint = true);
+      _hintController.forward();
+    } else {
+      widget.onRestoreKey();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         RoundButton(
-          title: l10n.welcomeCreateAccount,
-          onPressed: onCreateAccount,
-          isLoading: isLoadingCreate,
+          title: widget.l10n.welcomeCreateAccount,
+          onPressed: widget.onCreateAccount,
+          isLoading: widget.isLoadingCreate,
           icon: Icons.person_add_outlined,
         ),
         const SizedBox(height: AppSpacing.md),
         RoundButton(
-          title: l10n.welcomeLinkOrRestoreAccount,
-          onPressed: isLoadingCreate
+          title:
+              widget.l10n.welcomeLinkOrRestoreAccount,
+          onPressed: widget.isLoadingCreate
               ? null
-              : onLinkAccount,
+              : widget.onLinkAccount,
           isPrimary: false,
           icon: Icons.qr_code_rounded,
         ),
         const SizedBox(height: AppSpacing.sm),
         RoundButton(
-          title: l10n.authSignInWithSecretKey,
-          onPressed: isLoadingCreate
+          title: widget.l10n.authSignInWithSecretKey,
+          onPressed: widget.isLoadingCreate
               ? null
-              : onRestoreKey,
+              : _handleKeyButtonTap,
           isPrimary: false,
           icon: Icons.key_outlined,
         ),
+        if (_showKeyHint) ...[
+          const SizedBox(height: AppSpacing.sm),
+          FadeTransition(
+            opacity: _hintFade,
+            child: SlideTransition(
+              position: _hintSlide,
+              child: _KeyReassuranceCard(
+                l10n: widget.l10n,
+                scheme: scheme,
+                onProceed: widget.onRestoreKey,
+                onDismiss: () {
+                  _hintController.reverse().then((_) {
+                    if (mounted) {
+                      setState(
+                        () => _showKeyHint = false,
+                      );
+                    }
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// Inline reassurance hint card shown between the
+/// "Sign In with Secret Key" button and the actual
+/// key input. Gives users confidence before they
+/// proceed to type their sensitive backup key.
+class _KeyReassuranceCard extends StatelessWidget {
+  const _KeyReassuranceCard({
+    required this.l10n,
+    required this.scheme,
+    required this.onProceed,
+    required this.onDismiss,
+  });
+
+  final AppLocalizations l10n;
+  final ColorScheme scheme;
+  final VoidCallback onProceed;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest
+            .withValues(alpha: 0.55),
+        borderRadius:
+            BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: scheme.outline
+              .withValues(alpha: AppOpacity.subtle),
+        ),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.shield_outlined,
+                size: AppSpacing.xl,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  l10n.authSecretKeyReassuranceTitle,
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onDismiss,
+                child: Icon(
+                  Icons.close,
+                  size: AppSpacing.lg,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            l10n.authSecretKeyReassurance,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: AppLineHeight.normal,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonal(
+              onPressed: onProceed,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(
+                  0,
+                  AppTouchTarget.min,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.smd,
+                  ),
+                ),
+              ),
+              child: Text(
+                l10n.authContinueToKeyInput,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
