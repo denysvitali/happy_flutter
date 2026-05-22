@@ -8,7 +8,7 @@ import 'message_detail_sheet.dart';
 import 'streaming_cursor.dart';
 
 /// Left-aligned bot message bubble with full markdown rendering.
-class BotMessage extends StatelessWidget {
+class BotMessage extends StatefulWidget {
   const BotMessage({
     required this.text,
     required this.messageData,
@@ -29,6 +29,13 @@ class BotMessage extends StatelessWidget {
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
 
+  @override
+  State<BotMessage> createState() => _BotMessageState();
+}
+
+class _BotMessageState extends State<BotMessage> {
+  bool _pressed = false;
+
   String _truncateForLabel(String text) {
     const maxLength = 100;
     if (text.length <= maxLength) return text;
@@ -42,53 +49,66 @@ class BotMessage extends StatelessWidget {
 
     // Grouped radii: left side pinches for consecutive messages.
     final radius = BorderRadius.only(
-      topLeft: isFirstInGroup ? _full : _small,
-      topRight: _full,
-      bottomLeft: isLastInGroup ? _full : _small,
-      bottomRight: _full,
+      topLeft: widget.isFirstInGroup ? BotMessage._full : BotMessage._small,
+      topRight: BotMessage._full,
+      bottomLeft: widget.isLastInGroup ? BotMessage._full : BotMessage._small,
+      bottomRight: BotMessage._full,
     );
 
     return GestureDetector(
-      onTap: () => showMessageDetailSheet(context, messageData),
+      onTap: () => showMessageDetailSheet(context, widget.messageData),
       onLongPress: () {
-        HapticFeedback.mediumImpact();
-        showRawMarkdownSheet(context, text);
+        HapticFeedback.heavyImpact();
+        showRawMarkdownSheet(context, widget.text);
       },
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: AppSpacing.sm,
-            right: AppSpacing.sm,
-            top: isFirstInGroup ? AppSpacing.xs : 1,
-            bottom: isLastInGroup ? AppSpacing.xs : 1,
-          ),
-          child: Semantics(
-            label: isStreaming
-                ? 'AI response streaming'
-                : 'AI message: ${_truncateForLabel(text)}',
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.md,
-              ),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerLow,
-                borderRadius: radius,
-                border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
-                  width: 0.5,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeInOut,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: AppSpacing.sm,
+              right: AppSpacing.sm,
+              top: widget.isFirstInGroup ? AppSpacing.xs : 1,
+              bottom: widget.isLastInGroup ? AppSpacing.xs : 1,
+            ),
+            child: Semantics(
+              label: widget.isStreaming
+                  ? 'AI response streaming'
+                  : 'AI message: ${_truncateForLabel(widget.text)}',
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
                 ),
-              ),
-              child: DefaultTextStyle.merge(
-                style: TextStyle(color: cs.onSurface),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    MarkdownView(markdown: text, onOptionPress: onOptionPress),
-                    if (isStreaming) const StreamingCursor(),
-                  ],
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerLow,
+                  borderRadius: radius,
+                  border: Border.all(
+                    color: cs.outlineVariant.withValues(
+                      alpha: AppOpacity.subtle,
+                    ),
+                    width: 0.5,
+                  ),
+                ),
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(color: cs.onSurface),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MarkdownView(
+                        markdown: widget.text,
+                        onOptionPress: widget.onOptionPress,
+                      ),
+                      if (widget.isStreaming) const StreamingCursor(),
+                    ],
+                  ),
                 ),
               ),
             ),
