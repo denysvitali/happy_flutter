@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/components/settings/recent_settings_panel.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
@@ -128,6 +129,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           children: [
             ProfileHeader(profile: profile),
+            const SizedBox(height: AppSpacing.lg),
+            RecentSettingsPanel(
+              // TODO(MRU): replace with dynamically tracked list once
+              // MMKV MRU storage is wired up (key `settings_mru`).
+              chips: [
+                RecentSettingChip(
+                  label: l10n.settingsAppearance,
+                  icon: Icons.palette_outlined,
+                  onTap: () => context.pushNamed('theme'),
+                ),
+                RecentSettingChip(
+                  label: l10n.settingsProfiles,
+                  icon: Icons.account_tree,
+                  onTap: () => context.pushNamed('profiles'),
+                ),
+                RecentSettingChip(
+                  label: l10n.settingsVoice,
+                  icon: Icons.record_voice_over,
+                  onTap: () => context.pushNamed('voice'),
+                ),
+                RecentSettingChip(
+                  label: l10n.settingsVoiceLanguage,
+                  icon: Icons.translate_outlined,
+                  onTap: () => context.pushNamed('voice-language'),
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.xl),
             SettingsSearchField(
               controller: _searchController,
