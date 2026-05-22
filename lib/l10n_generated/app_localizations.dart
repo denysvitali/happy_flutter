@@ -3451,6 +3451,66 @@ abstract class AppLocalizations {
   /// **'Open Camera'**
   String get emptyMainScreenOpenCamera;
 
+  /// No description provided for @emptySessionsFirstTimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started with Happy'**
+  String get emptySessionsFirstTimeTitle;
+
+  /// No description provided for @emptySessionsFirstTimeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect your computer to start coding sessions from your phone.'**
+  String get emptySessionsFirstTimeSubtitle;
+
+  /// No description provided for @emptySessionsFirstTimeStep1Label.
+  ///
+  /// In en, this message translates to:
+  /// **'Install CLI'**
+  String get emptySessionsFirstTimeStep1Label;
+
+  /// No description provided for @emptySessionsFirstTimeStep1Detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Run happy install on your computer'**
+  String get emptySessionsFirstTimeStep1Detail;
+
+  /// No description provided for @emptySessionsFirstTimeStep2Label.
+  ///
+  /// In en, this message translates to:
+  /// **'Start daemon'**
+  String get emptySessionsFirstTimeStep2Label;
+
+  /// No description provided for @emptySessionsFirstTimeStep2Detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Run happy start in your project'**
+  String get emptySessionsFirstTimeStep2Detail;
+
+  /// No description provided for @emptySessionsFirstTimeStep3Label.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan & connect'**
+  String get emptySessionsFirstTimeStep3Label;
+
+  /// No description provided for @emptySessionsFirstTimeStep3Detail.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the + button and scan the QR code'**
+  String get emptySessionsFirstTimeStep3Detail;
+
+  /// No description provided for @emptySessionsReturningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No active sessions'**
+  String get emptySessionsReturningTitle;
+
+  /// No description provided for @emptySessionsReturningSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your previous sessions have ended. Start a new one to keep coding.'**
+  String get emptySessionsReturningSubtitle;
+
   /// No description provided for @reviewEnjoyingApp.
   ///
   /// In en, this message translates to:
