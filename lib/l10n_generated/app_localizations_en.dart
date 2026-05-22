@@ -1902,6 +1902,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emptyMainScreenOpenCamera => 'Open Camera';
 
   @override
+  String get emptySessionsFirstTimeTitle => 'Get started with Happy';
+
+  @override
+  String get emptySessionsFirstTimeSubtitle =>
+      'Connect your computer to start coding sessions from your phone.';
+
+  @override
+  String get emptySessionsFirstTimeStep1Label => 'Install CLI';
+
+  @override
+  String get emptySessionsFirstTimeStep1Detail =>
+      'Run happy install on your computer';
+
+  @override
+  String get emptySessionsFirstTimeStep2Label => 'Start daemon';
+
+  @override
+  String get emptySessionsFirstTimeStep2Detail =>
+      'Run happy start in your project';
+
+  @override
+  String get emptySessionsFirstTimeStep3Label => 'Scan & connect';
+
+  @override
+  String get emptySessionsFirstTimeStep3Detail =>
+      'Tap the + button and scan the QR code';
+
+  @override
+  String get emptySessionsReturningTitle => 'No active sessions';
+
+  @override
+  String get emptySessionsReturningSubtitle =>
+      'Your previous sessions have ended. Start a new one to keep coding.';
+
+  @override
   String get reviewEnjoyingApp => 'Enjoying the app?';
 
   @override
