@@ -75,14 +75,14 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
     final needsAttention = widget.unreadCount > 0;
     final cardColor = widget.isSelected
         ? cs.primary.withValues(alpha: 0.10)
-        : needsAttention
-        ? cs.primary.withValues(alpha: 0.06)
         : cs.surfaceContainerLow;
     final borderColor = widget.isSelected
         ? cs.primary.withValues(alpha: 0.32)
-        : needsAttention
-        ? cs.primary.withValues(alpha: 0.18)
         : cs.outlineVariant.withValues(alpha: 0.55);
+    // 3-px left accent: primary when unread, status-dot color otherwise.
+    final accentColor = needsAttention
+        ? cs.primary
+        : Color(_d.status.statusDotColor);
 
     return AnimatedScale(
       scale: _pressed ? 0.98 : 1.0,
@@ -127,7 +127,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                     Container(
                       width: 3,
                       decoration: BoxDecoration(
-                        color: Color(_d.status.statusDotColor),
+                        color: accentColor,
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(AppRadius.md),
                           bottomLeft: Radius.circular(AppRadius.md),
@@ -163,6 +163,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                                     fontWeight: FontWeight.w600,
                                     color: cs.onSurface,
                                   ),
+                                  pulseDot: needsAttention,
                                 ),
                                 if (statusWidget != null) ...[
                                   const SizedBox(height: AppSpacing.xxs),
