@@ -484,6 +484,20 @@ class _ArtifactListCard extends StatelessWidget {
                     ],
                   ],
                 ),
+                if (artifact.body != null &&
+                    artifact.body!.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xsm),
+                  // Content preview snippet.
+                  Text(
+                    artifact.body!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      height: AppLineHeight.tight,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
