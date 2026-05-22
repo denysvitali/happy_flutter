@@ -89,13 +89,21 @@ class _MessageWidgetState extends State<MessageWidget>
       // entirely to avoid 50+ controllers competing for frame time.
       _controller = AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 350),
       );
-      _opacity = CurvedAnimation(parent: _controller!, curve: Curves.easeOut);
+      _opacity = CurvedAnimation(
+        parent: _controller!,
+        curve: Curves.easeOut,
+      );
       _slide = Tween<Offset>(
         begin: const Offset(0, 0.04),
         end: Offset.zero,
-      ).animate(CurvedAnimation(parent: _controller!, curve: Curves.easeOut));
+      ).animate(
+        CurvedAnimation(
+          parent: _controller!,
+          curve: Curves.elasticOut,
+        ),
+      );
       _controller!.forward();
     } else {
       // Historical message — use static animations to avoid
