@@ -183,7 +183,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
 }
 
 /// Header bar showing language name, optional filename, and copy button.
-class _CodeHeader extends StatelessWidget {
+class _CodeHeader extends StatefulWidget {
   const _CodeHeader({
     required this.language,
     required this.fileName,
@@ -198,59 +198,82 @@ class _CodeHeader extends StatelessWidget {
   final VoidCallback onCopy;
 
   @override
+  State<_CodeHeader> createState() => _CodeHeaderState();
+}
+
+class _CodeHeaderState extends State<_CodeHeader> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    final headerBg = isDark ? _mocha.mantle : const Color(0xFFEFF1F3);
-    final dividerColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
-    final labelColor = isDark ? _mocha.subtext0 : const Color(0xFF6E7781);
+    final headerBg =
+        widget.isDark ? _mocha.mantle : const Color(0xFFEFF1F3);
+    final hoverBg =
+        widget.isDark ? _mocha.surface0 : const Color(0xFFE2E5E9);
+    final dividerColor =
+        widget.isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    final labelColor =
+        widget.isDark ? _mocha.subtext0 : const Color(0xFF6E7781);
 
     final displayName = _resolveDisplayName();
 
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: headerBg,
-        border: Border(bottom: BorderSide(color: dividerColor)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Row(
-        children: [
-          // Language dot indicator
-          if (displayName != null) ...[
-            Container(
-              width: AppSpacing.xs,
-              height: AppSpacing.xs,
-              decoration: BoxDecoration(
-                color: _languageColor(language),
-                shape: BoxShape.circle,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: AppDuration.fast,
+        height: 36,
+        decoration: BoxDecoration(
+          color: _hovered ? hoverBg : headerBg,
+          border: Border(bottom: BorderSide(color: dividerColor)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        child: Row(
+          children: [
+            // Language dot indicator
+            if (displayName != null) ...[
+              Container(
+                width: AppSpacing.xs,
+                height: AppSpacing.xs,
+                decoration: BoxDecoration(
+                  color: _languageColor(widget.language),
+                  shape: BoxShape.circle,
+                ),
               ),
+              const SizedBox(width: AppSpacing.xsm),
+            ],
+            // Language / file name label
+            if (displayName != null)
+              Text(
+                displayName,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: AppFontSize.sm,
+                  color: labelColor,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            const Spacer(),
+            // Copy button – always visible, more discoverable on hover
+            _CopyButton(
+              copied: widget.copied,
+              isDark: widget.isDark,
+              onTap: widget.onCopy,
             ),
-            const SizedBox(width: AppSpacing.xsm),
           ],
-          // Language / file name label
-          if (displayName != null)
-            Text(
-              displayName,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: AppFontSize.sm,
-                color: labelColor,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.3,
-              ),
-            ),
-          const Spacer(),
-          // Copy button – always visible
-          _CopyButton(copied: copied, isDark: isDark, onTap: onCopy),
-        ],
+        ),
       ),
     );
   }
 
   /// Returns filename if available, otherwise the normalised language name.
   String? _resolveDisplayName() {
-    if (fileName != null && fileName!.isNotEmpty) return fileName;
-    final detected = detectLanguage(language);
-    return detected ?? language;
+    if (widget.fileName != null && widget.fileName!.isNotEmpty) {
+      return widget.fileName;
+    }
+    final detected = detectLanguage(widget.language);
+    return detected ?? widget.language;
   }
 
   /// Returns a subtle accent colour associated with the language.
