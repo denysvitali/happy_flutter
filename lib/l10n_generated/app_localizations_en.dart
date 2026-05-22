@@ -2133,6 +2133,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offlineBannerReconnecting => 'Reconnecting...';
 
   @override
+  String offlineBannerReconnectingIn(int seconds) {
+    return 'Reconnecting in ${seconds}s…';
+  }
+
+  @override
+  String get offlineBannerReconnectNow => 'Reconnect now';
+
+  @override
   String get commonVersion => 'Version';
 
   @override

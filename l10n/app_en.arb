@@ -797,6 +797,15 @@
   "usageNoData": "No usage data available",
   "offlineBannerNoConnection": "No internet connection",
   "offlineBannerReconnecting": "Reconnecting...",
+  "offlineBannerReconnectingIn": "Reconnecting in {seconds}s…",
+  "@offlineBannerReconnectingIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "offlineBannerReconnectNow": "Reconnect now",
   "commonVersion": "Version",
   "commonDone": "Done",
   "commonEdit": "Edit",

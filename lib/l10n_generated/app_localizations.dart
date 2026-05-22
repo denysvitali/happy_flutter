@@ -3871,6 +3871,18 @@ abstract class AppLocalizations {
   /// **'Reconnecting...'**
   String get offlineBannerReconnecting;
 
+  /// No description provided for @offlineBannerReconnectingIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting in {seconds}s…'**
+  String offlineBannerReconnectingIn(int seconds);
+
+  /// No description provided for @offlineBannerReconnectNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect now'**
+  String get offlineBannerReconnectNow;
+
   /// No description provided for @commonVersion.
   ///
   /// In en, this message translates to:

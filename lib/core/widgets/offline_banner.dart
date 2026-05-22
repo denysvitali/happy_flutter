@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../api/socket_io_client.dart' show ConnectionStatus;
+import '../api/socket_io_client.dart' show ConnectionStatus, socketIoClient;
 import '../i18n/app_localizations.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_tokens.dart';
@@ -12,7 +14,8 @@ import '../theme/app_tokens.dart';
 /// Two states:
 /// - **No network** (red) — device has no WiFi/cellular.
 /// - **Reconnecting** (orange) — network available but socket
-///   not yet connected.
+///   not yet connected. Shows a countdown to the next attempt
+///   and a "Reconnect now" button.
 ///
 /// Collapses to zero height with animation when everything is
 /// healthy.
@@ -44,14 +47,130 @@ class OfflineBanner extends ConsumerWidget {
       );
     }
 
-    // Online but socket not connected — reconnecting.
-    return _AnimatedBannerShell(
+    // Online but socket not connected — show reconnecting state with
+    // countdown timer and manual reconnect button.
+    return const _AnimatedBannerShell(
       visible: true,
-      child: _BannerContent(
-        icon: Icons.sync_rounded,
-        label: AppLocalizations.of(context)
-            .offlineBannerReconnecting,
-        isError: false,
+      child: _ReconnectingBanner(),
+    );
+  }
+}
+
+/// Banner body for the "reconnecting" state. Manages a per-second
+/// countdown driven by [SocketIoClient.nextReconnectDelayStream] and
+/// provides a "Reconnect now" button.
+class _ReconnectingBanner extends StatefulWidget {
+  const _ReconnectingBanner();
+
+  @override
+  State<_ReconnectingBanner> createState() => _ReconnectingBannerState();
+}
+
+class _ReconnectingBannerState extends State<_ReconnectingBanner> {
+  // Remaining seconds until the next internal reconnect attempt.
+  // null = no countdown yet (socket just disconnected, waiting for
+  // the first reconnect_attempt event).
+  int? _secondsRemaining;
+
+  Timer? _ticker;
+  StreamSubscription<int>? _delaySub;
+
+  @override
+  void initState() {
+    super.initState();
+    _delaySub = socketIoClient.nextReconnectDelayStream.listen(
+      _onNextDelay,
+    );
+  }
+
+  void _onNextDelay(int seconds) {
+    if (!mounted) return;
+    _ticker?.cancel();
+    setState(() => _secondsRemaining = seconds);
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final current = _secondsRemaining;
+      if (current == null || current <= 1) {
+        // Countdown expired — clear so we show "Reconnecting…" until
+        // the next reconnect_attempt event fires.
+        setState(() => _secondsRemaining = null);
+        _ticker?.cancel();
+      } else {
+        setState(() => _secondsRemaining = current - 1);
+      }
+    });
+  }
+
+  void _forceReconnect() {
+    // Cancel the countdown immediately — the banner will show the
+    // plain "Reconnecting…" label while the new connection handshake
+    // is in progress.
+    _ticker?.cancel();
+    setState(() => _secondsRemaining = null);
+    socketIoClient.reconnect();
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _delaySub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final bg = cs.tertiaryContainer;
+    final fg = cs.onTertiaryContainer;
+
+    final remaining = _secondsRemaining;
+    final label = remaining != null && remaining > 0
+        ? l10n.offlineBannerReconnectingIn(remaining)
+        : l10n.offlineBannerReconnecting;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xs,
+      ),
+      color: bg,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.sync_rounded, size: 16, color: fg),
+          const SizedBox(width: AppSpacing.sm),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: AppFontSize.sm,
+                color: fg,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          TextButton(
+            onPressed: _forceReconnect,
+            style: TextButton.styleFrom(
+              foregroundColor: fg,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xxs,
+              ),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(
+                fontSize: AppFontSize.sm,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: Text(l10n.offlineBannerReconnectNow),
+          ),
+        ],
       ),
     );
   }
@@ -87,7 +206,7 @@ class _AnimatedBannerShell extends StatelessWidget {
 }
 
 /// The actual banner content — icon + label on a tinted
-/// background.
+/// background. Used for the "no connection" (error) state.
 class _BannerContent extends StatelessWidget {
   const _BannerContent({
     required this.icon,
