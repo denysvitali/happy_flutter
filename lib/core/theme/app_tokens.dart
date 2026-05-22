@@ -267,6 +267,122 @@ abstract final class AppShadow {
   ];
 }
 
+// ─── Elevation shadows (theme-aware) ────────────────────────────────────────
+
+/// Theme-aware [BoxShadow] presets that adapt to [Brightness].
+///
+/// In light mode, shadows are subtle black-tinted overlays — the same
+/// approach used by [AppShadow]. In dark mode, black shadows become
+/// invisible against dark backgrounds, so this class substitutes a
+/// very soft white-tinted glow (low-opacity white spread) that creates
+/// a perceived elevation without harsh contrast.
+///
+/// Usage:
+/// ```dart
+/// final brightness = Theme.of(context).brightness;
+/// BoxDecoration(boxShadow: AppElevationShadow.card(brightness))
+/// ```
+abstract final class AppElevationShadow {
+  /// Gentle card / list-item elevation.
+  ///
+  /// Light: 4 % + 2 % black drop-shadow.
+  /// Dark:  3 % white ambient glow — no hard drop.
+  static List<BoxShadow> card(Brightness brightness) {
+    if (brightness == Brightness.dark) {
+      return const [
+        BoxShadow(
+          color: Color(0x08FFFFFF), // 3 % white
+          blurRadius: 6,
+          spreadRadius: 1,
+          offset: Offset.zero,
+        ),
+      ];
+    }
+    return AppShadow.card;
+  }
+
+  /// Medium floating-panel / menu / drawer elevation.
+  ///
+  /// Light: 8 % + 4 % black drop-shadow.
+  /// Dark:  6 % white ambient glow with slight upward blur.
+  static List<BoxShadow> floating(Brightness brightness) {
+    if (brightness == Brightness.dark) {
+      return const [
+        BoxShadow(
+          color: Color(0x0FFFFFFF), // 6 % white
+          blurRadius: 14,
+          spreadRadius: 1,
+          offset: Offset(0, -1),
+        ),
+        BoxShadow(
+          color: Color(0x08FFFFFF), // 3 % white
+          blurRadius: 4,
+          spreadRadius: 0,
+          offset: Offset.zero,
+        ),
+      ];
+    }
+    return AppShadow.floating;
+  }
+
+  /// Strong modal-dialog / bottom-sheet elevation.
+  ///
+  /// Light: 12 % + 8 % black drop-shadow.
+  /// Dark:  8 % white ambient glow — conveys strong depth on dark surfaces.
+  static List<BoxShadow> modal(Brightness brightness) {
+    if (brightness == Brightness.dark) {
+      return const [
+        BoxShadow(
+          color: Color(0x14FFFFFF), // 8 % white
+          blurRadius: 28,
+          spreadRadius: 2,
+          offset: Offset(0, -2),
+        ),
+        BoxShadow(
+          color: Color(0x0AFFFFFF), // 4 % white
+          blurRadius: 8,
+          spreadRadius: 0,
+          offset: Offset.zero,
+        ),
+      ];
+    }
+    return AppShadow.modal;
+  }
+
+  /// Interactive-element (button, chip, pill) elevation.
+  ///
+  /// Light: gentle lift with a stronger directional component for
+  ///        affordance.
+  /// Dark:  minimal 2 % white outline-glow so interactive elements
+  ///        remain distinguishable without overwhelming dark surfaces.
+  static List<BoxShadow> interactive(Brightness brightness) {
+    if (brightness == Brightness.dark) {
+      return const [
+        BoxShadow(
+          color: Color(0x05FFFFFF), // 2 % white
+          blurRadius: 3,
+          spreadRadius: 1,
+          offset: Offset.zero,
+        ),
+      ];
+    }
+    return const [
+      BoxShadow(
+        color: Color(0x0D000000), // 5 % black
+        blurRadius: 6,
+        spreadRadius: 0,
+        offset: Offset(0, 2),
+      ),
+      BoxShadow(
+        color: Color(0x07000000), // ~3 % black
+        blurRadius: 2,
+        spreadRadius: 0,
+        offset: Offset(0, 1),
+      ),
+    ];
+  }
+}
+
 // ─── Borders ────────────────────────────────────────────────────────────────
 
 /// Border width constants.
