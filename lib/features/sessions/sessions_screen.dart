@@ -52,6 +52,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   bool _isSearching = false;
   Timer? _searchDebounce;
 
+  /// Drives the 1dp AppBar bottom border — true once the list
+  /// has scrolled past its initial position.
+  final _scrollController = ScrollController();
+  bool _isScrolled = false;
+
   /// Tracks a pending navigation action so that canPop remains false
   /// for the duration of the async setState, preventing rapid back
   /// presses from racing with state updates.
@@ -61,6 +66,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   /// On phone, navigation is handled via pushed routes (no in-place selection).
   String? _selectedSessionId;
 
+  void _onScroll() {
+    final scrolled = _scrollController.offset > 0;
+    if (scrolled != _isScrolled) {
+      setState(() => _isScrolled = scrolled);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +80,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _builtTabs = <AppTab>{_activeTab};
     _selectionNotifier.addListener(_onSelectionChanged);
     _folderNotifier.addListener(_onFolderChanged);
+    _scrollController.addListener(_onScroll);
     Future<void>.microtask(() async {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
@@ -128,6 +141,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       ..dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     super.dispose();
   }
 
@@ -382,6 +398,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           onPressed: () => _showNewSessionDialog(context),
         ),
       ],
+      bottom: _isScrolled
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.5),
+              ),
+            )
+          : null,
     );
   }
 
@@ -482,6 +511,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
                   folderNotifier: _folderNotifier,
                   searchQuery: _searchController.text,
                   onClearSearch: _clearSearch,
+                  scrollController: _scrollController,
                   onSessionTap: (sessionId) {
                     setState(() => _selectedSessionId = sessionId);
                   },
@@ -519,6 +549,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           folderNotifier: _folderNotifier,
           searchQuery: _searchController.text,
           onClearSearch: _clearSearch,
+          scrollController: _scrollController,
         ),
         _buildSettingsTab(),
       ],
