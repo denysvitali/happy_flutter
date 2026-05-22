@@ -385,6 +385,23 @@ extension SyncLifecycle on Sync {
                   }
                 })
                 .catchError((Object e, StackTrace st) {
+                  // A TimeoutException here just means sessionsSync did not
+                  // settle within [_resumeSessionsAwaitTimeout]. The
+                  // underlying invalidate() is still in flight and will
+                  // emit onDataChanged when it eventually resolves — so we
+                  // demote this to an info log and DO NOT report it to
+                  // Sentry. Capturing was generating noisy "resume sessions
+                  // sync did not settle" issues on slow cellular/VPN
+                  // networks where the sync was actually working fine.
+                  if (e is TimeoutException) {
+                    logger.info(
+                      '[Sync] resume: sessionsSync.awaitQueue() did not '
+                      'settle within '
+                      '${Sync._resumeSessionsAwaitTimeout.inSeconds}s — '
+                      'continuing in background',
+                    );
+                    return;
+                  }
                   logger.warning(
                     '[Sync] resume: sessionsSync.awaitQueue() failed — '
                     'forcing resume conversation progress to clear: $e',
@@ -478,22 +495,18 @@ extension SyncLifecycle on Sync {
     if (_resumeConversationRefreshTotal <= 0) return;
     final completed = _resumeConversationRefreshCompleted;
     final total = _resumeConversationRefreshTotal;
-    logger.warning(
+    // This is informational: the underlying invalidations may still be
+    // running and will emit onDataChanged when they finish. The only
+    // user-visible effect is that the "Fetching conversations" progress
+    // bar is being force-cleared so it does not hang. Previously we
+    // reported this to Sentry as a warning, which created noisy
+    // "Sync resume conversation progress timeout (completed 0 of N)"
+    // issues on slow networks.
+    logger.info(
       '[Sync] resume conversation progress timed out after '
       '${Sync._resumeConversationProgressTimeoutMs}ms — '
-      'completed $completed of $total; forcing UI clear',
-    );
-    unawaited(
-      Sentry.captureMessage(
-        'Sync resume conversation progress timeout '
-        '(completed $completed of $total)',
-        level: SentryLevel.warning,
-        hint: Hint.withMap(<String, dynamic>{
-          'completed': completed,
-          'total': total,
-          'timeoutMs': Sync._resumeConversationProgressTimeoutMs,
-        }),
-      ),
+      'completed $completed of $total; forcing UI clear '
+      '(invalidations may still complete in background)',
     );
     _clearResumeConversationProgress();
   }
