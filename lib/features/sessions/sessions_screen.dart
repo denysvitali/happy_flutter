@@ -511,17 +511,40 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       );
     }
 
-    return IndexedStack(
-      index: _activeTab.index,
-      children: [
-        SessionsListContent(
-          selectionNotifier: _selectionNotifier,
-          folderNotifier: _folderNotifier,
-          searchQuery: _searchController.text,
-          onClearSearch: _clearSearch,
+    // Crossfade + subtle upward slide when switching tabs on phone.
+    // The key changes with the active tab so AnimatedSwitcher sees a new
+    // widget and plays the transition; the IndexedStack underneath keeps
+    // both tab widgets alive for instant re-entry.
+    return AnimatedSwitcher(
+      duration: AppDuration.fast,
+      transitionBuilder: (child, animation) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0, 0.03),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOut,
+        ));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey<AppTab>(_activeTab),
+        child: IndexedStack(
+          index: _activeTab.index,
+          children: [
+            SessionsListContent(
+              selectionNotifier: _selectionNotifier,
+              folderNotifier: _folderNotifier,
+              searchQuery: _searchController.text,
+              onClearSearch: _clearSearch,
+            ),
+            _buildSettingsTab(),
+          ],
         ),
-        _buildSettingsTab(),
-      ],
+      ),
     );
   }
 
