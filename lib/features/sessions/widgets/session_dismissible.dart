@@ -53,6 +53,12 @@ class DismissibleActiveSession extends ConsumerWidget {
   }
 
   Future<bool> _confirmArchive(BuildContext context, WidgetRef ref) async {
+    // Capture the notifier reference BEFORE any async gap so that we never
+    // touch `ref` after the surrounding widget may have been unmounted
+    // (e.g. swiped-away `Dismissible` removed from the tree during the
+    // archive request). See GlitchTip HAPPY_FLUTTER-396.
+    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
+    final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -79,7 +85,6 @@ class DismissibleActiveSession extends ConsumerWidget {
 
     if (confirmed != true) return false;
 
-    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
     try {
       await SessionsApi().setSessionArchived(session.id, true);
       // Mark optimistically archived to prevent reappear during server lag.
@@ -90,7 +95,7 @@ class DismissibleActiveSession extends ConsumerWidget {
       logger.error('Failed to archive session: sessionId=${session.id}', e, st);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.sessionsFailedToArchive)),
+          SnackBar(content: Text(failedArchiveMsg)),
         );
       }
       return false;
@@ -143,6 +148,11 @@ class DismissibleInactiveSession extends ConsumerWidget {
   }
 
   Future<bool> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    // Capture the notifier reference BEFORE any async gap so that we never
+    // touch `ref` after the surrounding widget may have been unmounted.
+    // See GlitchTip HAPPY_FLUTTER-396.
+    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
+    final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -170,13 +180,11 @@ class DismissibleInactiveSession extends ConsumerWidget {
     if (confirmed != true) return false;
 
     // Optimistic: remove from UI immediately, roll back on failure.
-    final success = await ref
-        .read(sessionsNotifierProvider.notifier)
-        .optimisticDelete(session.id);
+    final success = await sessionsNotifier.optimisticDelete(session.id);
 
     if (!success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.sessionsFailedToDelete)),
+        SnackBar(content: Text(failedDeleteMsg)),
       );
     }
     return success;
