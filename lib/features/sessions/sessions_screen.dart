@@ -15,6 +15,7 @@ import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/widgets/sync_progress_bar.dart';
+import '../../core/components/tablet/resizable_pane_divider.dart';
 import '../chat/chat_screen.dart';
 import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
@@ -73,6 +74,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       setState(() => _isScrolled = scrolled);
     }
   }
+
+  /// Current master-pane width on tablet/desktop layouts.
+  /// Defaults to [AppBreakpoint.sidebarMax] and is updated by the
+  /// [ResizablePaneDivider] drag callback.
+  double _masterPaneWidth = AppBreakpoint.sidebarMax;
 
   @override
   void initState() {
@@ -505,14 +511,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     // folder / search modes affect only the master pane and the chat detail
     // keeps `ChatAppBar` visible at all times.
     if (isTablet && _activeTab == AppTab.sessions) {
-      final isDesktop = screenWidth >= AppBreakpoint.desktop;
-      final masterPaneWidth = isDesktop
-          ? (screenWidth * 0.25).clamp(280.0, 400.0)
-          : AppBreakpoint.sidebarMax.toDouble();
       return Row(
         children: [
           SizedBox(
-            width: masterPaneWidth,
+            width: _masterPaneWidth,
             child: Scaffold(
               appBar: _buildSessionsAppBar(context, context.l10n),
               body: SyncProgressOverlay(
@@ -529,7 +531,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               ),
             ),
           ),
-          const VerticalDivider(width: 1, thickness: 1),
+          ResizablePaneDivider(
+            onResize: (delta) {
+              setState(() {
+                _masterPaneWidth = (_masterPaneWidth + delta).clamp(
+                  ResizablePaneDivider.minWidth(context),
+                  ResizablePaneDivider.maxWidth(context),
+                );
+              });
+            },
+          ),
           Expanded(
             child: _selectedSessionId != null
                 ? ChatScreen(
