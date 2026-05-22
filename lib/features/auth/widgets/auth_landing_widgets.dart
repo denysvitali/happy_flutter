@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'auth_animated_widgets.dart';
 import 'qr_code_display.dart';
+import 'qr_viewfinder_overlay.dart';
 import 'round_button.dart';
 
 /// Logo + title + subtitle branding block shown on the
@@ -341,10 +342,20 @@ class QRCodeSection extends StatelessWidget {
               ? Semantics(
                   key: const ValueKey('qr-code'),
                   label: 'Account linking QR code',
-                  child: QRCodeDisplay(
-                    data: 'happy:///account?'
-                        '${base64Url.encode(publicKey!).replaceAll('=', '')}',
-                    size: 220,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      QRCodeDisplay(
+                        data: 'happy:///account?'
+                            '${base64Url.encode(publicKey!).replaceAll('=', '')}',
+                        size: 220,
+                      ),
+                      // 220 + AppSpacing.xxxl + AppSpacing.xl
+                      QRViewfinderOverlay(
+                        size: 272,
+                        isActive: true,
+                      ),
+                    ],
                   ),
                 )
               : isPolling
