@@ -54,35 +54,42 @@ class SendStatusIndicator extends StatelessWidget {
           ),
         );
       case 'failed':
-        return Padding(
-          padding: const EdgeInsets.only(top: 3, right: 2),
-          child: InkWell(
-            onTap: onRetry,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 10,
-                  color: cs.error.withValues(alpha: 0.8),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  'Not delivered',
-                  style: style?.copyWith(
-                    color: cs.error.withValues(alpha: 0.8),
-                  ),
-                ),
-                if (onRetry != null) ...[
-                  const SizedBox(width: 3),
+        // TODO(l10n): localize retry button semantic label
+        return Semantics(
+          button: onRetry != null,
+          label: onRetry != null
+              ? 'Message not delivered — tap to retry'
+              : 'Message not delivered',
+          child: Padding(
+            padding: const EdgeInsets.only(top: 3, right: 2),
+            child: InkWell(
+              onTap: onRetry,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Icon(
-                    Icons.refresh,
+                    Icons.error_outline,
                     size: 10,
                     color: cs.error.withValues(alpha: 0.8),
                   ),
+                  const SizedBox(width: 3),
+                  Text(
+                    'Not delivered',
+                    style: style?.copyWith(
+                      color: cs.error.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  if (onRetry != null) ...[
+                    const SizedBox(width: 3),
+                    Icon(
+                      Icons.refresh,
+                      size: 10,
+                      color: cs.error.withValues(alpha: 0.8),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );
