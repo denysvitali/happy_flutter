@@ -9,8 +9,11 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// Dismissible wrapper for active sessions (swipe left → archive).
-class DismissibleActiveSession extends ConsumerWidget {
+enum _SwipeAction { archive, delete }
+
+/// Dismissible wrapper for active sessions (swipe left → shows Archive +
+/// Delete side-by-side; tapping either half selects that action).
+class DismissibleActiveSession extends ConsumerStatefulWidget {
   const DismissibleActiveSession({
     required this.session,
     required this.child,
@@ -21,42 +24,45 @@ class DismissibleActiveSession extends ConsumerWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DismissibleActiveSession> createState() =>
+      _DismissibleActiveSessionState();
+}
+
+class _DismissibleActiveSessionState
+    extends ConsumerState<DismissibleActiveSession> {
+  _SwipeAction _pendingAction = _SwipeAction.archive;
+
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Dismissible(
-      key: ValueKey('active-${session.id}'),
+      key: ValueKey('active-${widget.session.id}'),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => _confirmArchive(context, ref),
+      confirmDismiss: (_) => _onConfirmDismiss(context),
       onDismissed: (_) {},
-      background: Container(
-        alignment: Alignment.centerRight,
-        color: cs.tertiary,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.archive_outlined, color: cs.onTertiary, size: 22),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              context.l10n.sessionsArchive,
-              style: TextStyle(
-                color: cs.onTertiary,
-                fontSize: AppFontSize.sm,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
+      background: _DualActionBackground(
+        colorScheme: cs,
+        pendingAction: _pendingAction,
+        onSelectAction: (action) {
+          if (_pendingAction != action) {
+            setState(() => _pendingAction = action);
+          }
+        },
       ),
-      child: child,
+      child: widget.child,
     );
   }
 
-  Future<bool> _confirmArchive(BuildContext context, WidgetRef ref) async {
-    // Capture the notifier reference BEFORE any async gap so that we never
-    // touch `ref` after the surrounding widget may have been unmounted
-    // (e.g. swiped-away `Dismissible` removed from the tree during the
-    // archive request). See GlitchTip HAPPY_FLUTTER-396.
+  Future<bool> _onConfirmDismiss(BuildContext context) async {
+    if (_pendingAction == _SwipeAction.delete) {
+      return _confirmDelete(context);
+    }
+    return _confirmArchive(context);
+  }
+
+  Future<bool> _confirmArchive(BuildContext context) async {
+    // Capture notifier reference BEFORE any async gap to avoid ref-after-dispose.
+    // See GlitchTip HAPPY_FLUTTER-396.
     final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
     final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
     final confirmed = await showDialog<bool>(
@@ -86,13 +92,17 @@ class DismissibleActiveSession extends ConsumerWidget {
     if (confirmed != true) return false;
 
     try {
-      await SessionsApi().setSessionArchived(session.id, true);
+      await SessionsApi().setSessionArchived(widget.session.id, true);
       // Mark optimistically archived to prevent reappear during server lag.
-      sync.markSessionArchived(session.id);
+      sync.markSessionArchived(widget.session.id);
       sessionsNotifier.loadFromSync();
       return true;
     } catch (e, st) {
-      logger.error('Failed to archive session: sessionId=${session.id}', e, st);
+      logger.error(
+        'Failed to archive session: sessionId=${widget.session.id}',
+        e,
+        st,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(failedArchiveMsg)),
@@ -100,6 +110,144 @@ class DismissibleActiveSession extends ConsumerWidget {
       }
       return false;
     }
+  }
+
+  Future<bool> _confirmDelete(BuildContext context) async {
+    // Capture notifier reference BEFORE any async gap to avoid ref-after-dispose.
+    // See GlitchTip HAPPY_FLUTTER-396.
+    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
+    final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final l10n = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Text(l10n.chatDeleteSession),
+          content: Text(l10n.sessionsDeleteConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.commonCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(ctx).colorScheme.error,
+              ),
+              child: Text(l10n.commonDelete),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return false;
+
+    // Optimistic: remove from UI immediately, roll back on failure.
+    final success = await sessionsNotifier.optimisticDelete(widget.session.id);
+
+    if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(failedDeleteMsg)),
+      );
+    }
+    return success;
+  }
+}
+
+/// The two-panel swipe background.  The left half selects Archive; the right
+/// half selects Delete.  The active panel is highlighted; the inactive one is
+/// shown at reduced opacity so the user knows both are available.
+class _DualActionBackground extends StatelessWidget {
+  const _DualActionBackground({
+    required this.colorScheme,
+    required this.pendingAction,
+    required this.onSelectAction,
+  });
+
+  final ColorScheme colorScheme;
+  final _SwipeAction pendingAction;
+  final ValueChanged<_SwipeAction> onSelectAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final archiveActive = pendingAction == _SwipeAction.archive;
+    final deleteActive = pendingAction == _SwipeAction.delete;
+
+    return Row(
+      children: [
+        // Left spacer so the two panels appear on the right side.
+        const Spacer(),
+        // Archive panel
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onSelectAction(_SwipeAction.archive),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            color: colorScheme.tertiary
+                .withValues(alpha: archiveActive ? 1.0 : 0.55),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.archive_outlined,
+                  color: colorScheme.onTertiary,
+                  size: 22,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  context.l10n.sessionsArchive,
+                  style: TextStyle(
+                    color: colorScheme.onTertiary,
+                    fontSize: AppFontSize.sm,
+                    fontWeight: archiveActive
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Delete panel
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onSelectAction(_SwipeAction.delete),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            color: colorScheme.error
+                .withValues(alpha: deleteActive ? 1.0 : 0.55),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.delete_outline,
+                  color: colorScheme.onError,
+                  size: 22,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  context.l10n.commonDelete,
+                  style: TextStyle(
+                    color: colorScheme.onError,
+                    fontSize: AppFontSize.sm,
+                    fontWeight: deleteActive
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
