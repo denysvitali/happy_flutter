@@ -17,6 +17,8 @@ import '../../features/chat/session_files_screen.dart';
 import '../../features/chat/session_info_screen.dart';
 import '../../features/chat/session_recent_screen.dart';
 import '../../features/dev/dev_logs_screen.dart';
+import '../../features/inbox/friend_search_screen.dart';
+import '../../features/inbox/friends_screen.dart';
 import '../../features/dev/encryption_debug_screen.dart';
 import '../../features/dev/network_inspector_screen.dart';
 import '../../features/dev/notification_test_screen.dart';
@@ -615,6 +617,26 @@ GoRouter createRouter() {
           final deviceId = state.uri.queryParameters['deviceId'];
           return _slidePage(
             AuthGate(child: SftpConnectionHistoryScreen(deviceId: deviceId)),
+            state,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/friends',
+        name: 'friends',
+        pageBuilder: (context, state) {
+          return _slidePage(
+            const AuthGate(child: FriendsScreen()),
+            state,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/friends/search',
+        name: 'friend-search',
+        pageBuilder: (context, state) {
+          return _slideUpPage(
+            const AuthGate(child: FriendSearchScreen()),
             state,
           );
         },

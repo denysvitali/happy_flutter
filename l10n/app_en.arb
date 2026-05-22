@@ -1816,5 +1816,10 @@
   "semanticSearchTitle": "Semantic Search",
   "semanticSearchDesc": "Rank sessions by semantic similarity to your query",
   "autoTagsTitle": "Auto Tags",
-  "autoTagsDesc": "Automatically generate tags for sessions based on content"
+  "autoTagsDesc": "Automatically generate tags for sessions based on content",
+  "friendsTitle": "Friends",
+  "friendsEmptyTitle": "Your friend list is empty",
+  "friendsEmptySubtitle": "Add friends to see when they are online and share sessions.",
+  "friendsFindFriends": "Find friends",
+  "friendsSearchHint": "Search by username or email"
 }
