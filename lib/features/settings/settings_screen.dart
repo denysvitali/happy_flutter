@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/built_in_profiles.dart';
+import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_colors.dart';
@@ -13,6 +15,7 @@ import 'helpers/server_url_dialog.dart';
 import 'widgets/danger_zone.dart';
 import 'widgets/inline_theme_picker.dart';
 import 'widgets/profile_header.dart';
+import 'widgets/profile_switcher_tile.dart';
 import 'widgets/settings_health_section.dart';
 import 'widgets/settings_search_widgets.dart';
 import 'widgets/workflow_presets_section.dart';
@@ -265,15 +268,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildToolsSection(BuildContext context) {
+  Widget _buildToolsSection(
+    BuildContext context, {
+    required List<AIBackendProfile> profiles,
+    required String? selectedProfileId,
+  }) {
     final l10n = AppLocalizations.of(context);
+    // Merge custom + built-in profiles (same deduplication as ProfilesScreen).
+    final effectiveProfiles = _effectiveProfiles(profiles);
     return SettingsSection(
       title: l10n.settingsFeatures,
       children: [
-        SettingsNavRow(
-          icon: Icons.account_tree,
+        ProfileSwitcherTile(
+          profiles: effectiveProfiles,
+          selectedProfileId: selectedProfileId,
           title: l10n.settingsProfiles,
-          subtitle: l10n.settingsProfilesSubtitle,
           onTap: () => context.pushNamed('profiles'),
         ),
         SettingsNavRow(
@@ -341,6 +350,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  /// Merges custom profiles with built-in profiles, deduplicating by id.
+  /// Mirrors the same logic used in ProfilesScreen.
+  List<AIBackendProfile> _effectiveProfiles(
+    List<AIBackendProfile> customProfiles,
+  ) {
+    final seen = <String>{};
+    final resolved = <AIBackendProfile>[];
+    for (final profile in [...customProfiles, ...builtInProfiles]) {
+      if (seen.add(profile.id)) {
+        resolved.add(profile);
+      }
+    }
+    return resolved;
   }
 
   String _sessionsViewStyleLabel(AppLocalizations l10n, String value) {

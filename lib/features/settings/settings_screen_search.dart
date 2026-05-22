@@ -123,7 +123,15 @@ extension _SettingsScreenSearch on _SettingsScreenState {
         ],
       ),
       _searchSection(
-        widget: _buildToolsSection(context),
+        widget: _buildToolsSection(
+          context,
+          profiles: ref.watch(
+            settingsNotifierProvider.select((s) => s.profiles),
+          ),
+          selectedProfileId: ref.watch(
+            settingsNotifierProvider.select((s) => s.lastUsedProfile),
+          ),
+        ),
         terms: [
           l10n.settingsFeatures,
           l10n.settingsProfiles,
