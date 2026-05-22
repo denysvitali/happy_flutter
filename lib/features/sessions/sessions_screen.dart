@@ -547,19 +547,38 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       );
     }
 
-    return IndexedStack(
-      index: _activeTab.index,
-      children: [
-        SessionsListContent(
-          selectionNotifier: _selectionNotifier,
-          folderNotifier: _folderNotifier,
-          searchQuery: _searchController.text,
-          onClearSearch: _clearSearch,
-          scrollController: _scrollController,
+    return AnimatedSwitcher(
+      duration: AppDuration.fast,
+      transitionBuilder: (child, animation) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0, 0.03),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOut,
+        ));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey<AppTab>(_activeTab),
+        child: IndexedStack(
+          index: _activeTab.index,
+          children: [
+            SessionsListContent(
+              selectionNotifier: _selectionNotifier,
+              folderNotifier: _folderNotifier,
+              searchQuery: _searchController.text,
+              onClearSearch: _clearSearch,
+              scrollController: _scrollController,
+            ),
+            _buildInboxTab(),
+            _buildSettingsTab(),
+          ],
         ),
-        _buildInboxTab(),
-        _buildSettingsTab(),
-      ],
+      ),
     );
   }
 
