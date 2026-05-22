@@ -267,6 +267,122 @@ abstract final class AppShadow {
   ];
 }
 
+// ─── Elevation (theme-aware) ─────────────────────────────────────────────────
+
+/// Theme-aware [BoxShadow] presets that adapt to [Brightness].
+///
+/// In light mode, shadows are subtle black-tinted overlays — the same
+/// approach used by [AppShadow]. In dark mode, black shadows become
+/// invisible against dark backgrounds, so this class substitutes a
+/// very soft white-tinted glow (low-opacity white spread) that creates
+/// a perceived elevation without harsh contrast.
+///
+/// Usage:
+/// ```dart
+/// final brightness = Theme.of(context).brightness;
+/// BoxDecoration(boxShadow: AppElevation.card(brightness))
+/// ```
+abstract final class AppElevation {
+  /// Gentle card / list-item elevation.
+  ///
+  /// Light: 4 % + 2 % black drop-shadow.
+  /// Dark:  3 % white ambient glow — no hard drop.
+  static List<BoxShadow> card(Brightness brightness) {
+    if (brightness == Brightness.dark) {
+      return const [
+        BoxShadow(
+          color: Color(0x08FFFFFF), // 3 % white
+          blurRadius: 6,
+          spreadRadius: 1,
+          offset: Offset.zero,
+        ),
+      ];
+    }
+    return AppShadow.card;
+  }
+
+  /// Medium floating-panel / menu / drawer elevation.
+  ///
+  /// Light: 8 % + 4 % black drop-shadow.
+  /// Dark:  6 % white ambient glow with slight upward blur.
+  static List<BoxShadow> floating(Brightness brightness) {
+    if (brightness == Brightness.dark) {
+      return const [
+        BoxShadow(
+          color: Color(0x0FFFFFFF), // 6 % white
+          blurRadius: 14,
+          spreadRadius: 1,
+          offset: Offset(0, -1),
+        ),
+        BoxShadow(
+          color: Color(0x08FFFFFF), // 3 % white
+          blurRadius: 4,
+          spreadRadius: 0,
+          offset: Offset.zero,
+        ),
+      ];
+    }
+    return AppShadow.floating;
+  }
+
+  /// Strong modal-dialog / bottom-sheet elevation.
+  ///
+  /// Light: 12 % + 8 % black drop-shadow.
+  /// Dark:  8 % white ambient glow — conveys strong depth on dark surfaces.
+  static List<BoxShadow> modal(Brightness brightness) {
+    if (brightness == Brightness.dark) {
+      return const [
+        BoxShadow(
+          color: Color(0x14FFFFFF), // 8 % white
+          blurRadius: 28,
+          spreadRadius: 2,
+          offset: Offset(0, -2),
+        ),
+        BoxShadow(
+          color: Color(0x0AFFFFFF), // 4 % white
+          blurRadius: 8,
+          spreadRadius: 0,
+          offset: Offset.zero,
+        ),
+      ];
+    }
+    return AppShadow.modal;
+  }
+
+  /// Interactive-element (button, chip, pill) elevation.
+  ///
+  /// Light: gentle lift identical to [AppShadow.card] but with a
+  ///        stronger directional component for affordance.
+  /// Dark:  minimal 2 % white outline-glow so interactive elements
+  ///        remain distinguishable without overwhelming dark surfaces.
+  static List<BoxShadow> interactive(Brightness brightness) {
+    if (brightness == Brightness.dark) {
+      return const [
+        BoxShadow(
+          color: Color(0x05FFFFFF), // 2 % white
+          blurRadius: 3,
+          spreadRadius: 1,
+          offset: Offset.zero,
+        ),
+      ];
+    }
+    return const [
+      BoxShadow(
+        color: Color(0x0D000000), // 5 % black
+        blurRadius: 6,
+        spreadRadius: 0,
+        offset: Offset(0, 2),
+      ),
+      BoxShadow(
+        color: Color(0x07000000), // ~3 % black
+        blurRadius: 2,
+        spreadRadius: 0,
+        offset: Offset(0, 1),
+      ),
+    ];
+  }
+}
+
 // ─── Borders ────────────────────────────────────────────────────────────────
 
 /// Border width constants.
@@ -365,6 +481,116 @@ abstract final class AppSpring {
     stiffness: 300.0,
     damping: 30.0,
   );
+}
+
+// ─── Motion / WidgetState layers ────────────────────────────────────────────
+
+/// State-layer opacity tokens and helpers for interactive widgets.
+///
+/// Material Design 3 specifies a translucent "state layer" painted on top
+/// of a component's surface colour to communicate interaction feedback.
+/// [AppMotion] centralises those opacity values and provides a composable
+/// [stateOverlay] helper so every button, chip, and input uses the same
+/// visual language instead of ad-hoc `withAlpha(15)` / `withAlpha(30)`.
+///
+/// ## Opacity reference (Material Design 3)
+/// | State    | Opacity |
+/// |----------|---------|
+/// | hover    | 8 %     |
+/// | focus    | 12 %    |
+/// | pressed  | 16 %    |
+/// | dragged  | 16 %    |
+/// | disabled | 38 %    |
+///
+/// ## Usage — manual WidgetStateProperty
+/// ```dart
+/// overlayColor: WidgetStateProperty.resolveWith((states) =>
+///     AppMotion.stateOverlay(theme.colorScheme.primary, states)),
+/// ```
+///
+/// ## Usage — pre-composed preset
+/// ```dart
+/// overlayColor: AppMotion.overlayFor(_kSeedColor),
+/// ```
+abstract final class AppMotion {
+  // ── Opacity constants ──────────────────────────────────────────────────
+
+  /// 8 % – hover state layer.
+  static const double hoverOpacity = 0.08;
+
+  /// 12 % – focus state layer.
+  static const double focusOpacity = 0.12;
+
+  /// 16 % – pressed state layer.
+  static const double pressedOpacity = 0.16;
+
+  /// 16 % – dragged state layer (same as pressed per M3 spec).
+  static const double draggedOpacity = 0.16;
+
+  /// 38 % – disabled content opacity (icon / label, not surface).
+  static const double disabledContentOpacity = 0.38;
+
+  /// 12 % – disabled container opacity (background surface).
+  static const double disabledContainerOpacity = 0.12;
+
+  // ── Alpha equivalents (0-255) ──────────────────────────────────────────
+
+  /// Alpha value for hover (8 % of 255 ≈ 20).
+  static const int hoverAlpha = 20; // 0.08 * 255
+
+  /// Alpha value for focus (12 % of 255 ≈ 31).
+  static const int focusAlpha = 31; // 0.12 * 255
+
+  /// Alpha value for pressed (16 % of 255 ≈ 41).
+  static const int pressedAlpha = 41; // 0.16 * 255
+
+  /// Alpha value for dragged (16 % of 255 ≈ 41).
+  static const int draggedAlpha = 41; // 0.16 * 255
+
+  // ── Helpers ────────────────────────────────────────────────────────────
+
+  /// Returns [base] tinted at the correct M3 state-layer opacity for the
+  /// highest-priority active state in [states], or `null` when idle.
+  ///
+  /// Priority order: `disabled > dragged > pressed > focused > hovered`.
+  ///
+  /// Pass this directly to `WidgetStateProperty.resolveWith`:
+  /// ```dart
+  /// overlayColor: WidgetStateProperty.resolveWith(
+  ///   (states) => AppMotion.stateOverlay(_kSeedColor, states),
+  /// ),
+  /// ```
+  static Color? stateOverlay(Color base, Set<WidgetState> states) {
+    if (states.contains(WidgetState.disabled)) return null;
+    if (states.contains(WidgetState.dragged)) {
+      return base.withAlpha(draggedAlpha);
+    }
+    if (states.contains(WidgetState.pressed)) {
+      return base.withAlpha(pressedAlpha);
+    }
+    if (states.contains(WidgetState.focused)) {
+      return base.withAlpha(focusAlpha);
+    }
+    if (states.contains(WidgetState.hovered)) {
+      return base.withAlpha(hoverAlpha);
+    }
+    return null;
+  }
+
+  /// Pre-composed [WidgetStateProperty] for `overlayColor` using [base].
+  ///
+  /// Resolves through hover → focus → pressed → dragged with the
+  /// canonical M3 opacities from [AppMotion].  Disabled returns `null`
+  /// (no overlay) so the component's disabled surface colour shows through.
+  ///
+  /// ```dart
+  /// overlayColor: AppMotion.overlayFor(_kSeedColor),
+  /// ```
+  static WidgetStateProperty<Color?> overlayFor(Color base) {
+    return WidgetStateProperty.resolveWith(
+      (states) => stateOverlay(base, states),
+    );
+  }
 }
 
 // ─── Screen padding ───────────────────────────────────────────────────────
