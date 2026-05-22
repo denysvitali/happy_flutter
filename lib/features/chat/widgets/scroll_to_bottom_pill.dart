@@ -26,11 +26,17 @@ class ScrollToBottomPill extends StatefulWidget {
 
 class _ScrollToBottomPillState
     extends State<ScrollToBottomPill>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _entryCtrl;
   late final Animation<double> _scale;
   late final Animation<double> _opacity;
   late final Animation<Offset> _slide;
+
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulseScale;
+  late final Animation<double> _pulseGlow;
+
+  int? _prevUnreadCount;
 
   @override
   void initState() {
@@ -61,11 +67,56 @@ class _ScrollToBottomPillState
       ),
     );
     _entryCtrl.forward();
+
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: AppDuration.fast,
+    );
+    _pulseScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 1.28)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.28, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 60,
+      ),
+    ]).animate(_pulseCtrl);
+    _pulseGlow = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.3, end: 0.7)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.7, end: 0.3)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 60,
+      ),
+    ]).animate(_pulseCtrl);
+
+    _prevUnreadCount = widget.unreadCount;
+  }
+
+  @override
+  void didUpdateWidget(ScrollToBottomPill oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final prev = _prevUnreadCount ?? 0;
+    final next = widget.unreadCount ?? 0;
+    if (next > prev && next > 0) {
+      _pulseCtrl
+        ..stop()
+        ..forward(from: 0);
+    }
+    _prevUnreadCount = widget.unreadCount;
   }
 
   @override
   void dispose() {
     _entryCtrl.dispose();
+    _pulseCtrl.dispose();
     super.dispose();
   }
 
@@ -147,36 +198,49 @@ class _ScrollToBottomPillState
                     tween: Tween(begin: 0.0, end: 1.0),
                     duration: AppDuration.fast,
                     curve: Curves.easeOutBack,
-                    builder: (context, value, child) =>
+                    builder: (context, entryValue, child) =>
                         Transform.scale(
-                      scale: value,
+                      scale: entryValue,
                       child: child,
                     ),
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: cs.primary,
-                        borderRadius:
-                            BorderRadius.circular(
-                          AppRadius.pill,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: cs.primary
-                                .withValues(alpha: 0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
+                    child: AnimatedBuilder(
+                      animation: _pulseCtrl,
+                      builder: (context, child) =>
+                          Transform.scale(
+                        scale: _pulseScale.value,
+                        child: Container(
+                          padding:
+                              const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
                           ),
-                        ],
-                      ),
-                      constraints:
-                          const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
+                          decoration: BoxDecoration(
+                            color: cs.primary,
+                            borderRadius:
+                                BorderRadius.circular(
+                              AppRadius.pill,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: cs.primary
+                                    .withValues(
+                                  alpha:
+                                      _pulseGlow.value,
+                                ),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                                offset:
+                                    const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          constraints:
+                              const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: child,
+                        ),
                       ),
                       child: Text(
                         widget.unreadCount! > 99
