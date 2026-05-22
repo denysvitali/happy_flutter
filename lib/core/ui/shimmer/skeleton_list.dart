@@ -158,41 +158,97 @@ class SkeletonCard extends StatelessWidget {
   }
 }
 
-/// Chat message bubble skeleton.
+/// Chat message bubble skeleton with simulated multi-line text.
 class SkeletonChatBubble extends StatelessWidget {
   /// Message bubble skeleton.
   ///
   /// [isUser] — aligns right for user, left for assistant.
-  /// [height] — bubble height (default 48 for user, 64 for assistant).
-  /// [width] — bubble width (default 180 for user, 240 for assistant).
+  /// [lineCount] — number of simulated text lines to render (1–6,
+  ///   default 3). Use 1 for short user messages, 2–4 for typical
+  ///   assistant replies, 5–6 for long responses.
+  /// [maxWidthFraction] — fraction of available width for the widest
+  ///   line. Defaults to 0.72 for user bubbles and 0.88 for assistant.
   const SkeletonChatBubble({
     super.key,
     this.isUser = false,
-    this.height = 48,
-    this.width = 180,
+    this.lineCount = 3,
+    this.maxWidthFraction,
   });
 
   final bool isUser;
-  final double height;
-  final double width;
+
+  /// Number of simulated text lines. Clamped to [1, 6].
+  final int lineCount;
+
+  /// Fraction of available width for the widest line.
+  /// Defaults to 0.72 for user bubbles, 0.88 for assistant bubbles.
+  final double? maxWidthFraction;
+
+  /// Width fractions for each line index (index 0 = first/top line).
+  ///
+  /// Full lines run 80–100 %; the terminal line is noticeably shorter
+  /// (50 %) to mimic how real messages end mid-line.
+  static const List<double> _lineWidthFractions = <double>[
+    1.00, // line 1 — spans full bubble width
+    0.95, // line 2
+    0.90, // line 3
+    0.85, // line 4
+    0.80, // line 5
+    0.50, // line 6 — tail line, always shorter
+  ];
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final clampedCount = lineCount.clamp(1, 6);
+    final resolvedMaxFraction =
+        maxWidthFraction ?? (isUser ? 0.72 : 0.88);
 
     return Shimmer(
       child: Align(
         alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          height: height,
-          width: width,
-          margin: const EdgeInsets.symmetric(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.xs,
           ),
-          decoration: BoxDecoration(
-            color: cs.onSurface.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final maxWidth =
+                  constraints.maxWidth * resolvedMaxFraction;
+              return Column(
+                crossAxisAlignment: isUser
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  for (int i = 0; i < clampedCount; i++)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i < clampedCount - 1
+                            ? AppSpacing.xxs
+                            : 0,
+                      ),
+                      child: Container(
+                        height: 14,
+                        width: maxWidth *
+                            (clampedCount > 1 &&
+                                    i == clampedCount - 1
+                                ? 0.50
+                                : _lineWidthFractions[i.clamp(
+                                    0,
+                                    _lineWidthFractions.length -
+                                        1)]),
+                        decoration: BoxDecoration(
+                          color: cs.onSurface.withValues(alpha: 0.08),
+                          borderRadius:
+                              BorderRadius.circular(AppRadius.xs),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/ui/shimmer/shimmer.dart';
+import '../../../core/ui/shimmer/skeleton_list.dart';
 
 /// Shimmer loading skeleton for the chat message list.
 class ChatLoadingShimmer extends StatefulWidget {
@@ -22,14 +23,14 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
     final random = Random();
     _items = List.generate(5, (i) {
       final isUser = i.isEven;
+      // User messages are short (1–2 lines); assistant replies are longer
+      // (2–4 lines) to mirror real message shapes.
+      final lineCount = isUser
+          ? 1 + random.nextInt(2) // 1 or 2
+          : 2 + random.nextInt(3); // 2, 3, or 4
       return _ShimmerItem(
-        height: isUser
-            ? 32.0 + random.nextDouble() * 24
-            : 48.0 + random.nextDouble() * 32,
-        width: isUser
-            ? 160.0 + random.nextDouble() * 80
-            : 200.0 + random.nextDouble() * 120,
-        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+        isUser: isUser,
+        lineCount: lineCount,
         delayMs: i * 50,
       );
     });
@@ -37,8 +38,6 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final base = cs.onSurface.withValues(alpha: 0.08);
     return ShimmerScope(
       child: ListView.builder(
         reverse: true,
@@ -47,25 +46,10 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
           vertical: AppSpacing.md,
         ),
         itemCount: _items.length,
-        itemBuilder: (_, i) {
-          final item = _items[i];
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: Shimmer(
-              child: Align(
-                alignment: item.alignment,
-                child: Container(
-                  height: item.height,
-                  width: item.width,
-                  decoration: BoxDecoration(
-                    color: base,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+        itemBuilder: (_, i) => SkeletonChatBubble(
+          isUser: _items[i].isUser,
+          lineCount: _items[i].lineCount,
+        ),
       ),
     );
   }
@@ -73,13 +57,11 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
 
 class _ShimmerItem {
   _ShimmerItem({
-    required this.height,
-    required this.width,
-    required this.alignment,
+    required this.isUser,
+    required this.lineCount,
     required this.delayMs,
   });
-  final double height;
-  final double width;
-  final Alignment alignment;
+  final bool isUser;
+  final int lineCount;
   final int delayMs;
 }
