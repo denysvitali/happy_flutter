@@ -55,34 +55,42 @@ class SendStatusIndicator extends StatelessWidget {
         );
       case 'failed':
         return Padding(
-          padding: const EdgeInsets.only(top: 3, right: 2),
-          child: InkWell(
-            onTap: onRetry,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 10,
-                  color: cs.error.withValues(alpha: 0.8),
+          padding: const EdgeInsets.only(top: 4, right: 2),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onRetry,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: cs.error,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
-                const SizedBox(width: 3),
-                Text(
-                  'Not delivered',
-                  style: style?.copyWith(
-                    color: cs.error.withValues(alpha: 0.8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: 3,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.refresh_rounded,
+                        size: 11,
+                        color: cs.onError,
+                      ),
+                      const SizedBox(width: AppSpacing.xxs),
+                      Text(
+                        'Failed — tap to retry',
+                        style: style?.copyWith(
+                          color: cs.onError,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (onRetry != null) ...[
-                  const SizedBox(width: 3),
-                  Icon(
-                    Icons.refresh,
-                    size: 10,
-                    color: cs.error.withValues(alpha: 0.8),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
         );
