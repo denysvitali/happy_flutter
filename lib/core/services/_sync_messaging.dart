@@ -10,21 +10,78 @@ void _accumulateDroppedReasons(Map<String, int> counts, List<String> reasons) {
 int _droppedReasonTotal(Map<String, int> counts) =>
     counts.values.fold(0, (sum, count) => sum + count);
 
+/// Canonical dropped-reason categories that are well-understood
+/// "skip — not user-visible" outcomes:
+///
+/// - Empty acks (`assistant content list is empty`) — server keepalives
+///   that carry no renderable content.
+/// - User content sub-blocks of an unsupported type — the user already
+///   sees an `agent-event` placeholder via `_emitUnrenderedAgentEvent`.
+/// - Unrecognized output content blocks inside an `assistant` envelope —
+///   ditto.
+/// - Codex/pi result envelopes that carried no tool rows (handled by an
+///   upstream rendering path) — telemetry is for debugging shape drift,
+///   not user impact.
+///
+/// These categories were a major source of GlitchTip warning noise
+/// (see ROADMAP.md "fetchMessages dropped (output filter)") even though
+/// the user-visible behavior is correct. Emit them at `info` so they
+/// stay in the local devlog ring buffer for diagnosis but never reach
+/// Sentry as warnings.
+///
+/// Anything not on this list — unknown `dataType`s, malformed
+/// envelopes, decryption failures — keeps the warning level so true
+/// parser drift continues to alert.
+const Set<String> _knownSkipDroppedReasons = {
+  'assistant content list is empty',
+  'unrecognized output content block',
+  'pi result with no tool rows',
+};
+
+bool _isKnownSkipDroppedReason(String normalized) {
+  if (_knownSkipDroppedReasons.contains(normalized)) return true;
+  // User content sub-blocks are surfaced as placeholders; the type
+  // suffix varies (`type=image`, `type=audio`, etc.) but the leading
+  // prefix is stable.
+  if (normalized.startsWith('user content block type=')) return true;
+  return false;
+}
+
 void _logDroppedReasonSummary(String context, Map<String, int> counts) {
   if (counts.isEmpty) return;
 
-  final total = _droppedReasonTotal(counts);
-  final topReasons = counts.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
-  final summary = topReasons
-      .take(5)
-      .map((entry) => '${entry.value}x ${entry.key}')
-      .join('; ');
-  final remaining = topReasons.length > 5
-      ? '; +${topReasons.length - 5} more reason(s)'
-      : '';
+  final knownSkipCounts = <String, int>{};
+  final warningCounts = <String, int>{};
+  for (final entry in counts.entries) {
+    if (_isKnownSkipDroppedReason(entry.key)) {
+      knownSkipCounts[entry.key] = entry.value;
+    } else {
+      warningCounts[entry.key] = entry.value;
+    }
+  }
 
-  logger.warning('$context dropped $total item(s): $summary$remaining');
+  void emit(String level, Map<String, int> bucket) {
+    if (bucket.isEmpty) return;
+    final total = bucket.values.fold(0, (sum, c) => sum + c);
+    final topReasons = bucket.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final summary = topReasons
+        .take(5)
+        .map((entry) => '${entry.value}x ${entry.key}')
+        .join('; ');
+    final remaining = topReasons.length > 5
+        ? '; +${topReasons.length - 5} more reason(s)'
+        : '';
+    final line = '$context dropped $total item(s): $summary$remaining';
+    if (level == 'info') {
+      logger.info(line);
+    } else {
+      logger.warning(line);
+    }
+  }
+
+  emit('info', knownSkipCounts);
+  emit('warning', warningCounts);
 }
 
 String _normalizeDroppedReason(String reason) {

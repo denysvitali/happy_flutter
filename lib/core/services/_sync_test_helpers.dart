@@ -422,4 +422,30 @@ extension SyncTestHelpers on Sync {
   /// which is identical but kept symmetrical with the other helpers).
   @visibleForTesting
   SyncProgress? get testSyncProgress => _syncProgress;
+
+  /// Test helper: invoke the dropped-reason summarizer with a fabricated
+  /// reason list so we can assert the info-vs-warning split that
+  /// quiets known-skip categories (see
+  /// `_isKnownSkipDroppedReason`).
+  @visibleForTesting
+  static void testLogDroppedReasonSummary(
+    String context,
+    List<String> reasons,
+  ) {
+    final counts = <String, int>{};
+    _accumulateDroppedReasons(counts, reasons);
+    _logDroppedReasonSummary(context, counts);
+  }
+
+  /// Test helper: classify a normalized dropped-reason string as
+  /// "known skip" (info-level) vs "true drift" (warning-level).
+  @visibleForTesting
+  static bool testIsKnownSkipDroppedReason(String normalized) =>
+      _isKnownSkipDroppedReason(normalized);
+
+  /// Test helper: expose the normalizer so callers can pin its
+  /// stripping of seq/id prefixes when constructing expectations.
+  @visibleForTesting
+  static String testNormalizeDroppedReason(String reason) =>
+      _normalizeDroppedReason(reason);
 }
