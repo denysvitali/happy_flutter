@@ -164,6 +164,67 @@ void main() {
       );
     });
 
+    // ─── GlitchTip HAPPY_FLUTTER-3C9: happy-path absorption ───────────
+    //
+    // Issue 3497 logged 100+ "Sidechain orphans absorbed into synthetic
+    // Task (parent Task missing from history)" Sentry events/week on
+    // what turned out to be the normal recovery path. These tests
+    // pin the gating contract so the dominant non-anomalous shapes
+    // never report to Sentry again.
+    test('does not report when no fetchOlder was attempted '
+        '(GlitchTip 3497 happy path)', () {
+      // No older fetch has occurred yet — orphans were absorbed on
+      // the very first pass. There is no evidence of a real data
+      // gap; reporting this case is pure noise.
+      expect(
+        sync.testReportOrphanAbsorbToSentry(
+          sessionId: 's1',
+          orphanCount: 3,
+          triedFetchOlder: false,
+          hasMoreOlder: true,
+        ),
+        isFalse,
+        reason: 'absorption without a prior fetchOlder is happy-path '
+            'recovery, not an anomaly worth a Sentry event',
+      );
+    });
+
+    test('does not report when only a small number of orphans were '
+        'absorbed even after fetchOlder', () {
+      // A single straggler orphan is well within the normal
+      // sidechain recovery envelope.
+      expect(
+        sync.testReportOrphanAbsorbToSentry(
+          sessionId: 's1',
+          orphanCount: 1,
+          triedFetchOlder: true,
+          hasMoreOlder: true,
+        ),
+        isFalse,
+        reason: 'small orphan counts are routine recovery, not an '
+            'anomaly worth a Sentry event',
+      );
+    });
+
+    test('reports only when fetchOlder was tried and a non-trivial '
+        'orphan count remained stuck', () {
+      // Anomalous: we paged back through history, there is still
+      // more history available, AND a large pile of orphans is
+      // still unresolved. This is the only shape we want to know
+      // about in Sentry.
+      expect(
+        sync.testReportOrphanAbsorbToSentry(
+          sessionId: 's1',
+          orphanCount: SyncMessagingMerge.kOrphanAbsorbSentryMinCount,
+          triedFetchOlder: true,
+          hasMoreOlder: true,
+        ),
+        isTrue,
+        reason: 'triedFetchOlder + hasMoreOlder + count >= threshold '
+            'indicates a true data gap worth investigating',
+      );
+    });
+
     test('groups orphans without parentUuid into a single bucket', () {
       sync.testSetSessionMessages('s1', [
         <String, dynamic>{

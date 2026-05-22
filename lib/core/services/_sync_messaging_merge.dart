@@ -607,10 +607,24 @@ extension SyncMessagingMerge on Sync {
     }
   }
 
-  /// Emits a loud Sentry warning when synthetic "Subagent output
-  /// (recovered)" recovery still looks actionable. If history is
-  /// exhausted, the parent Task cannot be fetched and the synthetic is
-  /// expected UI recovery for otherwise invisible sidechain rows.
+  /// Threshold for treating an orphan absorption as anomalous enough to
+  /// warrant a Sentry warning. Below this, absorption is the normal
+  /// happy path for sidechain recovery and only deserves a local
+  /// breadcrumb. See GlitchTip HAPPY_FLUTTER-3C9.
+  @visibleForTesting
+  static const int kOrphanAbsorbSentryMinCount = 5;
+
+  /// Emits a Sentry warning only when synthetic "Subagent output
+  /// (recovered)" recovery indicates a *real* data gap we couldn't
+  /// repair: we already paged back through history (triedFetchOlder)
+  /// AND a non-trivial number of orphans (>= [kOrphanAbsorbSentryMinCount])
+  /// remained stuck.
+  ///
+  /// Normal-path absorption (parent simply isn't in history; we either
+  /// already exhausted older messages or never needed to walk back)
+  /// emits a local `logger.info` breadcrumb instead of a Sentry event.
+  /// GlitchTip HAPPY_FLUTTER-3C9 was firing 100+ events/week on the
+  /// happy path; this gate keeps Sentry signal focused on anomalies.
   ///
   /// Returns true when a Sentry event was queued.
   bool _reportOrphanAbsorbToSentry({
@@ -619,11 +633,17 @@ extension SyncMessagingMerge on Sync {
     required bool triedFetchOlder,
     required bool hasMoreOlder,
   }) {
-    if (!hasMoreOlder) {
+    final isAnomalous =
+        triedFetchOlder &&
+        hasMoreOlder &&
+        orphanCount >= kOrphanAbsorbSentryMinCount;
+
+    if (!isAnomalous) {
       logger.info(
         '[sidechain] absorbed $orphanCount orphan(s) into synthetic Task '
-        'for session=$sessionId after exhausting history '
-        '(triedFetchOlder=$triedFetchOlder) - not reporting to Sentry',
+        'for session=$sessionId '
+        '(triedFetchOlder=$triedFetchOlder, hasMoreOlder=$hasMoreOlder) '
+        '- happy path, not reporting to Sentry',
       );
       return false;
     }
