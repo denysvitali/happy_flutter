@@ -39,7 +39,7 @@ The current test count is not enough if this contract can break without failing 
 | Resume sessions sync timeout | Error | 6 | Fix on main (0621440), **needs release** | `TimeoutException` on resume is now caught and logged at info; underlying sync still completes via `onDataChanged`. |
 | Resume conversation progress timeout | Warning | 6 | Fix on main (0621440), **needs release** | Safety-timer fallback demoted from Sentry warning to local info log. |
 | Ref used in disposed widget (sessions dismissible) | Error | 1 | Fix on main (6a4776b), **needs release** | `ref.read` and `context.l10n` hoisted before `showDialog` await in `session_dismissible.dart` so swipe-and-unmount can't trigger StateError. |
-| Back button error rate | Error | 3/8 (37.5%) | Open | `StandardComponentType.backButton` click action failing intermittently. |
+| Back button error rate | Error | 3/8 (37.5%) | Fixed on main (ec102e5, 2bca2c8, bd011fd), **needs release** | `StandardComponentType.backButton` `ui.action.click` transaction (GlitchTip transaction-group id 29). Two root causes addressed: (1) `PopScope` races where `canPop` was evaluated at build time but the callback ran later — fixed in `sessions_screen.dart`, `chat_screen.dart`, `edit_artifact_screen.dart`, and `voice_language_settings_screen.dart` by reading current state at callback time and adding `_pendingNav` / `_isPopping` guards; (2) bare `context.pop()` on deep-linked screens with an empty stack — fixed with `safePop()` helper in `lib/core/utils/safe_pop.dart` that checks `context.mounted` + `context.canPop()` and falls back to a named route, with widget tests in `test/core/utils/safe_pop_test.dart`. Transaction group last received an error 2026-04-03, before both fixes landed; no new occurrences as of audit 2026-05-22. |
 | CryptoSecretBox.decrypt failed | Warning | 27 | Open | Decryption failures — possible key mismatch on legacy NaCl messages or corrupt ciphertext. |
 | Stale profile in ChatScreen | Warning | 9 | Shipped in v1.0.0-154901 (51f1189) | `_loadInitialSettings` now catches `StateError` from `firstWhere` and falls back to no profile, clearing the stale `savedProfileId` from `DraftStorage`. |
 | Machine offline on session create | Warning | 33 | Open | No pre-check guard — user can tap "create session" on an offline machine. UX should disable or warn. |
@@ -151,7 +151,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 ## Next Steps
 
 1. **Immediate**: Cut a production release after v1.0.0-154901 to ship the May 2026 GlitchTip-driven fixes (TTS probe short-circuit, sync resume timeout demotion, sidechain orphan gating, ref-in-dispose hoist)
-2. **This sprint**: Fix back button 37.5% error rate
+2. **This sprint**: Ship back-button PopScope/safePop fixes (ec102e5, 2bca2c8, bd011fd) in the next release; verify GlitchTip `StandardComponentType.backButton` error rate stays at 0% post-release
 3. **This sprint**: Guard session creation against offline machines (UX warning/disable)
 4. **This sprint**: Investigate `CryptoSecretBox.decrypt failed` warnings (27 events)
 5. **Next sprint**: Optimistic mutation layer for instant UI feedback
