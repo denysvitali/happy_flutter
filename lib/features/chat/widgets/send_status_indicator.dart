@@ -1,13 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../../../core/theme/app_tokens.dart';
 
 /// Tiny status label shown below user bubbles for optimistic messages.
-class SendStatusIndicator extends StatelessWidget {
+///
+/// Wraps each state in a [Semantics] node with [liveRegion] so screen readers
+/// announce transitions automatically.  When the [status] prop changes the
+/// widget also calls [SemanticsService.announce] so assistive technology
+/// receives an explicit live-region notification.
+class SendStatusIndicator extends StatefulWidget {
   const SendStatusIndicator({required this.status, super.key, this.onRetry});
 
   final String status;
   final VoidCallback? onRetry;
+
+  @override
+  State<SendStatusIndicator> createState() => _SendStatusIndicatorState();
+}
+
+class _SendStatusIndicatorState extends State<SendStatusIndicator> {
+  @override
+  void didUpdateWidget(SendStatusIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.status != widget.status) {
+      final announcement = _announcementFor(widget.status);
+      if (announcement != null) {
+        SemanticsService.announce(announcement, TextDirection.ltr);
+      }
+    }
+  }
+
+  /// Returns a human-readable announcement string for the given [status], or
+  /// null for states that do not warrant an announcement (e.g. unknown).
+  String? _announcementFor(String status) {
+    switch (status) {
+      case 'sending':
+        return 'Message sending';
+      case 'pending':
+        return 'Message retry queued';
+      case 'sent':
+        return 'Message delivered';
+      case 'failed':
+        return 'Message not delivered';
+      default:
+        return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,51 +58,63 @@ class SendStatusIndicator extends StatelessWidget {
       fontFeatures: const [FontFeature.tabularFigures()],
     );
 
-    switch (status) {
+    switch (widget.status) {
       case 'sending':
-        return _StatusLabel(
-          label: 'Sending',
-          color: cs.onSurfaceVariant.withValues(alpha: 0.55),
-          indicator: SizedBox(
-            width: 8,
-            height: 8,
-            child: CircularProgressIndicator(
-              strokeWidth: 1,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+        return Semantics(
+          label: 'Message sending',
+          liveRegion: true,
+          child: _StatusLabel(
+            label: 'Sending',
+            color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+            indicator: SizedBox(
+              width: 8,
+              height: 8,
+              child: CircularProgressIndicator(
+                strokeWidth: 1,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+              ),
             ),
           ),
         );
       case 'pending':
-        return _StatusLabel(
-          label: 'Retry queued',
-          color: cs.secondary,
-          indicator: Icon(
-            Icons.schedule_rounded,
-            size: 10,
+        return Semantics(
+          label: 'Message retry queued',
+          liveRegion: true,
+          child: _StatusLabel(
+            label: 'Retry queued',
             color: cs.secondary,
+            indicator: Icon(
+              Icons.schedule_rounded,
+              size: 10,
+              color: cs.secondary,
+            ),
           ),
         );
       case 'sent':
-        return _StatusLabel(
-          label: 'Delivered',
-          color: cs.primary.withValues(alpha: 0.85),
-          indicator: Icon(
-            Icons.check_rounded,
-            size: 10,
+        return Semantics(
+          label: 'Message delivered',
+          liveRegion: true,
+          child: _StatusLabel(
+            label: 'Delivered',
             color: cs.primary.withValues(alpha: 0.85),
+            indicator: Icon(
+              Icons.check_rounded,
+              size: 10,
+              color: cs.primary.withValues(alpha: 0.85),
+            ),
           ),
         );
       case 'failed':
-        // TODO(l10n): localize retry button semantic label
         return Semantics(
-          button: onRetry != null,
-          label: onRetry != null
+          label: widget.onRetry != null
               ? 'Message not delivered — tap to retry'
               : 'Message not delivered',
+          liveRegion: true,
+          button: widget.onRetry != null,
           child: Padding(
             padding: const EdgeInsets.only(top: 3, right: 2),
             child: InkWell(
-              onTap: onRetry,
+              onTap: widget.onRetry,
               borderRadius: BorderRadius.circular(AppRadius.sm),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -80,7 +131,7 @@ class SendStatusIndicator extends StatelessWidget {
                       color: cs.error.withValues(alpha: 0.8),
                     ),
                   ),
-                  if (onRetry != null) ...[
+                  if (widget.onRetry != null) ...[
                     const SizedBox(width: 3),
                     Icon(
                       Icons.refresh,
