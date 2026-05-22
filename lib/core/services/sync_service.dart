@@ -93,6 +93,7 @@ enum SyncDomain {
   profile,
   artifacts,
   gitStatus,
+  friendRequests,
 }
 
 class SyncProgress {
