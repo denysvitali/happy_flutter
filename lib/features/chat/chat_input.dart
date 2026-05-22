@@ -51,6 +51,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.contextSize,
     this.isSessionOnline = false,
     this.enterToSend = false,
+    this.lastDeliveryStatus,
   });
 
   /// Stable identifier for the current session
@@ -127,6 +128,11 @@ class ChatInput extends ConsumerStatefulWidget {
   /// Whether pressing Enter sends the message
   /// (vs inserting a newline).
   final bool enterToSend;
+
+  /// Delivery status of the most-recently sent message.
+  /// Passed to [SendButton] so it can morph to a checkmark
+  /// when the value becomes `'sent'`.
+  final String? lastDeliveryStatus;
 
   @override
   ConsumerState<ChatInput> createState() => _ChatInputState();
@@ -781,6 +787,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
               isSendDisabled: widget.isSendDisabled,
               onTap: _onSendTap,
               scaleAnimation: _sendScale,
+              lastDeliveryStatus:
+                  widget.lastDeliveryStatus,
             ),
           ),
         ],
