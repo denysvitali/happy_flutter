@@ -42,6 +42,7 @@ class SessionsListContent extends ConsumerStatefulWidget {
     /// This allows a parent to handle navigation in a custom way
     /// (for example, tablet master-detail).
     this.onSessionTap,
+    this.scrollController,
     super.key,
   });
 
@@ -64,6 +65,11 @@ class SessionsListContent extends ConsumerStatefulWidget {
   /// pushing the 'chat' route. Use this for custom navigation
   /// (e.g. master-detail layouts on tablet).
   final void Function(String sessionId)? onSessionTap;
+
+  /// Optional scroll controller forwarded to the primary list view so that
+  /// a parent can observe the scroll offset (e.g. to show/hide an AppBar
+  /// border after the first item scrolls out of view).
+  final ScrollController? scrollController;
 
   @override
   ConsumerState<SessionsListContent> createState() =>
@@ -384,6 +390,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     );
 
     return ListView.builder(
+      controller: widget.scrollController,
       padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
       // Session cards use RepaintBoundary via StaggeredSlideIn;
       // disable the default keep-alive and repaint wrappers to
@@ -507,6 +514,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     }
 
     return ListView.builder(
+      controller: widget.scrollController,
       padding: const EdgeInsets.only(
         top: AppSpacing.xs,
         bottom: AppSpacing.lg,
@@ -607,6 +615,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     if (selectedFolder == null) {
       return ListView.builder(
+        controller: widget.scrollController,
         padding: const EdgeInsets.only(
           top: AppSpacing.xs,
           bottom: AppSpacing.lg,
@@ -660,6 +669,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         }
       },
       child: ListView(
+        controller: widget.scrollController,
         padding: const EdgeInsets.only(
           top: AppSpacing.xs,
           bottom: AppSpacing.lg,
