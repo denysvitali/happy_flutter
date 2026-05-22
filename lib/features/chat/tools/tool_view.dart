@@ -90,10 +90,18 @@ class ToolView extends ConsumerStatefulWidget {
   ConsumerState<ToolView> createState() => _ToolViewState();
 }
 
+// Total duration for one full stagger-fade-out sequence across all children.
+const _kStaggerTotalMs = 220;
+// Per-child fade window as a fraction of the total sequence duration.
+const _kStaggerFadeWindow = 0.55;
+// Vertical offset (logical pixels) that children slide down while fading out.
+const _kStaggerSlideOffset = 6.0;
+
 class _ToolViewState extends ConsumerState<ToolView>
     with TickerProviderStateMixin {
   bool _expanded = true;
   bool _showCheckFlash = false;
+  bool _collapsing = false;
   ToolState? _prevState;
   Timer? _collapseTimer;
 
@@ -102,6 +110,8 @@ class _ToolViewState extends ConsumerState<ToolView>
 
   late final AnimationController _chevronController;
   late final Animation<double> _chevronAnim;
+
+  late final AnimationController _staggerController;
 
   @override
   void initState() {
@@ -121,6 +131,11 @@ class _ToolViewState extends ConsumerState<ToolView>
     );
     _chevronAnim = Tween<double>(begin: 0.0, end: 0.5).animate(
       CurvedAnimation(parent: _chevronController, curve: Curves.easeInOut),
+    );
+
+    _staggerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: _kStaggerTotalMs),
     );
 
     final initial = parseToolState(
@@ -197,8 +212,34 @@ class _ToolViewState extends ConsumerState<ToolView>
   }
 
   void _setExpanded(bool value) {
-    setState(() => _expanded = value);
+    if (!value && _expanded && !_collapsing) {
+      // Start stagger-fade sequence before AnimatedSize collapses.
+      setState(() => _collapsing = true);
+      _staggerController
+        ..reset()
+        ..forward().whenCompleteOrCancel(() {
+          // Only finalise collapse if we weren't interrupted by a re-expand.
+          if (mounted && _collapsing) {
+            setState(() {
+              _expanded = false;
+              _collapsing = false;
+            });
+            _staggerController.reset();
+          }
+        });
+      _chevronController.reverse();
+      return;
+    }
+    // Expanding (or re-expanding mid-collapse): abort any in-flight stagger.
+    if (_collapsing) {
+      _staggerController.stop();
+    }
+    setState(() {
+      _expanded = value;
+      _collapsing = false;
+    });
     if (value) {
+      _staggerController.reset();
       _chevronController.forward();
     } else {
       _chevronController.reverse();
@@ -332,6 +373,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     _collapseTimer?.cancel();
     _pulseController.dispose();
     _chevronController.dispose();
+    _staggerController.dispose();
     super.dispose();
   }
 
@@ -527,15 +569,19 @@ class _ToolViewState extends ConsumerState<ToolView>
           AnimatedSize(
             duration: AppDuration.normal,
             curve: AppCurve.standard,
-            child: _expanded
-                ? _buildContent(
-                    context,
-                    knownTool,
-                    toolInput,
-                    toolResult,
-                    state,
-                    errorResult,
-                    permission,
+            child: (_expanded || _collapsing)
+                ? _StaggerFadeContent(
+                    controller: _staggerController,
+                    collapsing: _collapsing,
+                    child: _buildContent(
+                      context,
+                      knownTool,
+                      toolInput,
+                      toolResult,
+                      state,
+                      errorResult,
+                      permission,
+                    ),
                   )
                 : const SizedBox.shrink(),
           ),
@@ -799,6 +845,92 @@ class _ToolViewState extends ConsumerState<ToolView>
       tool: tool,
       metadata: metadata,
       sessionId: widget.sessionId,
+    );
+  }
+}
+
+/// Wraps [child] — a [Column] returned by `_buildContent` — and stagger-fades
+/// its children out top-to-bottom when [collapsing] is true.
+///
+/// Each child fades from full opacity to zero and slides slightly downward,
+/// with later children starting their fade a bit after earlier ones. When
+/// [collapsing] is false the widget delegates directly without any overhead.
+class _StaggerFadeContent extends StatelessWidget {
+  const _StaggerFadeContent({
+    required this.controller,
+    required this.collapsing,
+    required this.child,
+  });
+
+  final AnimationController controller;
+  final bool collapsing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!collapsing) return child;
+
+    // Unwrap the outermost Padding + Column produced by _buildContent so we
+    // can stagger each child independently.  If the structure doesn't match
+    // (e.g. some future refactor), fall back to fading the whole block at once.
+    if (child is Padding) {
+      final padding = child as Padding;
+      final inner = padding.child;
+      if (inner is Column) {
+        final column = inner;
+        // Filter to concrete widgets (if-guards produce null slots).
+        final visibleChildren = column.children
+            .whereType<Widget>()
+            .toList(growable: false);
+        final count = visibleChildren.length;
+        if (count > 0) {
+          return Padding(
+            padding: padding.padding,
+            child: Column(
+              crossAxisAlignment: column.crossAxisAlignment,
+              mainAxisSize: column.mainAxisSize,
+              children: [
+                for (var i = 0; i < count; i++)
+                  _staggeredChild(visibleChildren[i], i, count),
+              ],
+            ),
+          );
+        }
+      }
+    }
+
+    // Fallback: fade the entire content block as one unit.
+    return _staggeredChild(child, 0, 1);
+  }
+
+  Widget _staggeredChild(Widget child, int index, int total) {
+    // Each child starts fading after a small staggered delay, then fades out
+    // over [_kStaggerFadeWindow] of the total duration.
+    final staggerStep =
+        total > 1 ? (1.0 - _kStaggerFadeWindow) / total : 0.0;
+    final start = index * staggerStep;
+    final end = (start + _kStaggerFadeWindow).clamp(0.0, 1.0);
+
+    final curvedAnim = CurvedAnimation(
+      parent: controller,
+      curve: Interval(start, end, curve: AppCurve.exit),
+    );
+    final opacity = Tween<double>(begin: 1.0, end: 0.0).animate(curvedAnim);
+    final slideY = Tween<double>(
+      begin: 0.0,
+      end: _kStaggerSlideOffset,
+    ).animate(curvedAnim);
+
+    return AnimatedBuilder(
+      animation: controller,
+      child: child,
+      builder: (context, innerChild) => Transform.translate(
+        offset: Offset(0, slideY.value),
+        child: Opacity(
+          opacity: opacity.value,
+          child: innerChild,
+        ),
+      ),
     );
   }
 }
