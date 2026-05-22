@@ -6,6 +6,7 @@ import '../services/message_processing_service.dart';
 import '../utils/wire_parsers.dart';
 
 import 'base64.dart';
+import 'crypto_secret_box.dart';
 import 'encryption_cache.dart';
 import 'encryptor.dart';
 import 'message_processor.dart';
@@ -186,7 +187,13 @@ class SessionEncryption {
       if (_decryptor is AES256Encryption) {
         decrypted = await _decryptor.decryptInIsolate(encrypted);
       } else {
-        decrypted = await _decryptor.decrypt(encrypted);
+        // Tag this NaCl batch with a session-scoped diagnostic key so
+        // Sentry only captures one failure per (session, fingerprint)
+        // when a stale key invalidates the whole fetch.
+        decrypted = await CryptoSecretBox.withDiagnosticScope(
+          'session:$_sessionId:messages',
+          () => _decryptor.decrypt(encrypted),
+        );
       }
 
       for (var i = 0; i < toDecrypt.length; i++) {
@@ -305,7 +312,10 @@ class SessionEncryption {
   Future<dynamic> decryptRaw(String encrypted) async {
     try {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
-      final decrypted = await _decryptor.decrypt([encryptedData]);
+      final decrypted = await CryptoSecretBox.withDiagnosticScope(
+        'session:$_sessionId:raw',
+        () => _decryptor.decrypt([encryptedData]),
+      );
       return decrypted[0];
     } catch (e, stack) {
       // Recoverable: caller handles null as "no decrypted content".
@@ -347,7 +357,10 @@ class SessionEncryption {
       );
       return null;
     }
-    final decrypted = await _decryptor.decrypt([encryptedData]);
+    final decrypted = await CryptoSecretBox.withDiagnosticScope(
+      'session:$_sessionId:metadata',
+      () => _decryptor.decrypt([encryptedData]),
+    );
     if (decrypted[0] == null) {
       return null;
     }
@@ -391,7 +404,10 @@ class SessionEncryption {
       );
       return {};
     }
-    final decrypted = await _decryptor.decrypt([encryptedData]);
+    final decrypted = await CryptoSecretBox.withDiagnosticScope(
+      'session:$_sessionId:agent-state',
+      () => _decryptor.decrypt([encryptedData]),
+    );
     if (decrypted[0] == null) {
       return {};
     }

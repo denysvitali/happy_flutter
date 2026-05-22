@@ -1,6 +1,7 @@
 import '../services/logger_service.dart' show logger;
 
 import 'base64.dart';
+import 'crypto_secret_box.dart';
 import 'encryption_cache.dart';
 import 'encryptor.dart';
 
@@ -41,7 +42,10 @@ class MachineEncryption {
     // Decrypt
     try {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
-      final decrypted = await _decryptor.decrypt([encryptedData]);
+      final decrypted = await CryptoSecretBox.withDiagnosticScope(
+        'machine:$_machineId:metadata',
+        () => _decryptor.decrypt([encryptedData]),
+      );
       if (decrypted[0] == null) {
         return null;
       }
@@ -87,7 +91,10 @@ class MachineEncryption {
     // Decrypt
     try {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
-      final decrypted = await _decryptor.decrypt([encryptedData]);
+      final decrypted = await CryptoSecretBox.withDiagnosticScope(
+        'machine:$_machineId:daemon-state',
+        () => _decryptor.decrypt([encryptedData]),
+      );
       final result = decrypted[0];
 
       // Cache result (including null)
@@ -116,7 +123,10 @@ class MachineEncryption {
   Future<dynamic> decryptRaw(String encrypted) async {
     try {
       final encryptedData = Base64Utils.decode(encrypted, Encoding.base64);
-      final decrypted = await _decryptor.decrypt([encryptedData]);
+      final decrypted = await CryptoSecretBox.withDiagnosticScope(
+        'machine:$_machineId:raw',
+        () => _decryptor.decrypt([encryptedData]),
+      );
       return decrypted[0];
     } catch (e, stack) {
       // Recoverable: caller treats null as "no decrypted content".
