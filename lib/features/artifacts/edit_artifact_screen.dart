@@ -43,6 +43,10 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
   bool _isBusy = false;
   bool _initialized = false;
 
+  /// Whether the embedded editor is expanded to full-screen (tablet+).
+  /// Only applies when [EditArtifactScreen.embedded] is true.
+  bool _isFullscreen = false;
+
   void _initFromArtifact(DecryptedArtifact artifact) {
     if (_initialized) return;
     _initialized = true;
@@ -123,7 +127,10 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
             _EmbeddedEditHeader(
               title: l10n.artifactsEdit,
               isBusy: _isBusy,
+              isFullscreen: _isFullscreen,
               onSave: _handleSave,
+              onToggleFullscreen: () =>
+                  setState(() => _isFullscreen = !_isFullscreen),
               onClose: widget.onClose,
             ),
             Expanded(child: emptyBody),
@@ -243,24 +250,54 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     );
 
     if (widget.embedded) {
-      return Column(
+      final embeddedHeader = _EmbeddedEditHeader(
+        title: l10n.artifactsEdit,
+        isBusy: _isBusy,
+        isFullscreen: _isFullscreen,
+        onSave: _handleSave,
+        onToggleFullscreen: () =>
+            setState(() => _isFullscreen = !_isFullscreen),
+        onClose: () {
+          if (_isFullscreen) {
+            // Exit full-screen first instead of closing.
+            setState(() => _isFullscreen = false);
+            return;
+          }
+          if (_titleController.text.trim() != (artifact.title ?? '') ||
+              _contentController.text.trim() != (artifact.body ?? '')) {
+            _showUnsavedChangesDialog(context, embedded: true);
+            return;
+          }
+          widget.onClose?.call();
+        },
+      );
+
+      final embeddedColumn = Column(
         children: [
-          _EmbeddedEditHeader(
-            title: l10n.artifactsEdit,
-            isBusy: _isBusy,
-            onSave: _handleSave,
-            onClose: () {
-              if (_titleController.text.trim() != (artifact.title ?? '') ||
-                  _contentController.text.trim() != (artifact.body ?? '')) {
-                _showUnsavedChangesDialog(context, embedded: true);
-                return;
-              }
-              widget.onClose?.call();
-            },
-          ),
+          embeddedHeader,
           Expanded(child: form),
         ],
       );
+
+      // In fullscreen mode use a Stack + Positioned.fill so the editor
+      // overlays any surrounding pane/sidebar without needing a new route.
+      if (_isFullscreen) {
+        return Stack(
+          children: [
+            // Placeholder to keep parent layout stable.
+            const SizedBox.shrink(),
+            Positioned.fill(
+              child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                elevation: 0,
+                child: embeddedColumn,
+              ),
+            ),
+          ],
+        );
+      }
+
+      return embeddedColumn;
     }
 
     return PopScope(
@@ -340,18 +377,28 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
   }
 }
 
-/// Compact header for the embedded edit pane: title + save + close.
+/// Compact header for the embedded edit pane: title + save + fullscreen + close.
 class _EmbeddedEditHeader extends StatelessWidget {
   const _EmbeddedEditHeader({
     required this.title,
     required this.isBusy,
+    required this.isFullscreen,
     required this.onSave,
+    required this.onToggleFullscreen,
     this.onClose,
   });
 
   final String title;
   final bool isBusy;
+
+  /// Whether the editor is currently in full-screen mode.
+  final bool isFullscreen;
+
   final Future<void> Function() onSave;
+
+  /// Called when the user taps the fullscreen / fullscreen_exit button.
+  final VoidCallback onToggleFullscreen;
+
   final VoidCallback? onClose;
 
   @override
@@ -408,6 +455,17 @@ class _EmbeddedEditHeader extends StatelessWidget {
                             ),
                           ),
                   ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    isFullscreen
+                        ? Icons.fullscreen_exit
+                        : Icons.fullscreen,
+                  ),
+                  tooltip: isFullscreen
+                      ? l10n.commonClose
+                      : 'Expand to full screen',
+                  onPressed: onToggleFullscreen,
                 ),
                 if (onClose != null)
                   IconButton(
