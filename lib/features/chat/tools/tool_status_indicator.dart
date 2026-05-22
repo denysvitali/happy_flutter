@@ -55,7 +55,7 @@ class ToolStatusIndicator extends StatelessWidget {
           child: Icon(
             Icons.radio_button_unchecked,
             size: size,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
         );
     }

@@ -137,7 +137,7 @@ class AgentsListSheet extends StatelessWidget {
                           Icon(
                             Icons.rocket_launch_outlined,
                             size: 48,
-                            color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                            color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                           ),
                           const SizedBox(height: AppSpacing.md),
                           Text(
