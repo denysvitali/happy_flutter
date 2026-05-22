@@ -8,7 +8,7 @@ import '../services/logger_service.dart' show logger;
 import 'aes_gcm.dart';
 import 'crypto_secret_box.dart';
 
-/// Encryptor and Decryptor interface
+/// Encryptor and Decryptor interface.
 abstract interface class Encryptor {
   Future<List<Uint8List>> encrypt(List<dynamic> data);
   Future<List<dynamic>> decrypt(List<Uint8List> data);
@@ -38,12 +38,13 @@ class SecretBoxEncryption implements Encryptor {
 
   @override
   Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    final scope = CryptoSecretBox.currentDiagnosticScope;
     // Isolates are not supported on web — use per-item decryption.
     if (kIsWeb) {
       final results = <dynamic>[];
       for (var i = 0; i < data.length; i++) {
         final decrypted =
-            await CryptoSecretBox.decrypt(data[i], _secretKey);
+            await CryptoSecretBox.decrypt(data[i], _secretKey, scope: scope);
         results.add(decrypted);
         if (i > 0 && i % 10 == 0) {
           await Future<void>.delayed(Duration.zero);
@@ -55,14 +56,18 @@ class SecretBoxEncryption implements Encryptor {
     // isolate on NaCl FFI calls (crypto_secretbox_open_easy).
     // Fall back to per-item decryption with yields if isolate spawn fails.
     try {
-      return await CryptoSecretBox.decryptBatchInIsolate(data, _secretKey);
+      return await CryptoSecretBox.decryptBatchInIsolate(
+        data,
+        _secretKey,
+        scope: scope,
+      );
     } catch (_) {
       // Isolate unavailable (e.g. certain test environments) — fall back
       // to the slower per-item approach with event-loop yields.
       final results = <dynamic>[];
       for (var i = 0; i < data.length; i++) {
         final decrypted =
-            await CryptoSecretBox.decrypt(data[i], _secretKey);
+            await CryptoSecretBox.decrypt(data[i], _secretKey, scope: scope);
         results.add(decrypted);
         if (i > 0 && i % 10 == 0) {
           await Future<void>.delayed(Duration.zero);

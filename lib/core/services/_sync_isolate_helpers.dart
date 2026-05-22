@@ -142,6 +142,7 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
             final d = await CryptoSecretBox.decrypt(
               encMeta,
               item.secretKey,
+              scope: 'machine:${item.id}:metadata',
             );
             if (d is Map<String, dynamic>) metadata = d;
           }
@@ -166,6 +167,7 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
             daemonState = await CryptoSecretBox.decrypt(
               encDs,
               item.secretKey,
+              scope: 'machine:${item.id}:daemon-state',
             );
           }
         } catch (e) {
