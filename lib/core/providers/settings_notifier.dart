@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:riverpod/riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../crdt/settings_crdt.dart';
 import '../models/settings.dart';
@@ -80,8 +83,21 @@ class SettingsNotifier extends Notifier<Settings> {
       // Direct local writes shouldn't hit this path in production
       // (call sites are all hard-coded), but if a future rename leaves
       // a stale identifier behind we'd rather log loudly than crash.
+      // Regression guard for GlitchTip HAPPY_FLUTTER-3C6: a build that
+      // shipped a TTS toggle calling `updateSetting('ttsUseOffline', ...)`
+      // before the dispatcher had the matching case crashed fatally.
       logger.warning(
         'Dropping unknown settings key "${e.key}" from local update',
+      );
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'Settings: dropped unknown key from local update',
+            category: 'settings.unknownKey',
+            level: SentryLevel.warning,
+            data: {'key': e.key},
+          ),
+        ),
       );
       return;
     }
@@ -125,6 +141,16 @@ class SettingsNotifier extends Notifier<Settings> {
         // version). Drop them instead of crashing the merge.
         logger.warning(
           'Dropping unknown settings key "${e.key}" from remote patch',
+        );
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'Settings: dropped unknown key from remote patch',
+              category: 'settings.unknownKey',
+              level: SentryLevel.warning,
+              data: {'key': e.key},
+            ),
+          ),
         );
         continue;
       }

@@ -271,5 +271,31 @@ void main() {
         throwsA(isA<UnknownSettingsKeyException>()),
       );
     });
+
+    test(
+      'production SettingsNotifier.updateSetting does not throw on '
+      'unknown key (regression: HAPPY_FLUTTER-3C6 ttsUseOffline crash)',
+      () async {
+        // Use the real notifier (not the storage-free stub) so the
+        // production try/catch around `SettingsUpdate.copyWithUpdated`
+        // runs. We never reach the storage write for an unknown key
+        // because the dispatcher returns early after logging.
+        final c = ProviderContainer();
+        addTearDown(c.dispose);
+        final notifier = c.read(settingsNotifierProvider.notifier);
+
+        // Snapshot a known field before the call so we can verify no
+        // state change happened either.
+        final before = c.read(settingsNotifierProvider).themeMode;
+
+        await expectLater(
+          notifier.updateSetting('totallyUnknownLegacyKey', true),
+          completes,
+        );
+
+        // The unknown key must not have flipped any real field.
+        expect(c.read(settingsNotifierProvider).themeMode, before);
+      },
+    );
   });
 }

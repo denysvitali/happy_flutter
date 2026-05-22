@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../models/auth.dart';
 import '../models/settings.dart';
@@ -367,8 +368,21 @@ class SettingsStorage {
       // exists in this build (e.g. renamed/removed in a newer version,
       // or echoed back by the server for an older client) must not
       // crash the app. Drop the key and continue.
+      // Regression guard for GlitchTip HAPPY_FLUTTER-3C6 (ttsUseOffline
+      // crash on build 152201): never let a stale key reach an
+      // ArgumentError throw on a production hot path.
       logger.warning(
         'Dropping unknown settings key "${e.key}" from storage write',
+      );
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'Settings: dropped unknown key from storage write',
+            category: 'settings.unknownKey',
+            level: SentryLevel.warning,
+            data: {'key': e.key},
+          ),
+        ),
       );
       return;
     }
