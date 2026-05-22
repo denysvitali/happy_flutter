@@ -1317,6 +1317,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
           isSessionOnline: _session?.isPresenceOnline ?? false,
           enterToSend: enterToSend,
+          lastDeliveryStatus: _latestUserMessageWithStatus()?['sendStatus']
+              as String?,
         ),
       ],
     );
