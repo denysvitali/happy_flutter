@@ -416,9 +416,8 @@ FilledButtonThemeData _buildFilledButtonTheme() {
   return FilledButtonThemeData(
     style: ButtonStyle(
       foregroundColor: const WidgetStatePropertyAll(Colors.white),
-      overlayColor: WidgetStatePropertyAll(
-        Colors.white.withAlpha(30),
-      ),
+      // White state-layer at M3 pressed opacity (16 %) over the gradient.
+      overlayColor: AppMotion.overlayFor(Colors.white),
       elevation: const WidgetStatePropertyAll(AppElevation.none),
       shadowColor:
           const WidgetStatePropertyAll(Colors.transparent),
@@ -468,24 +467,20 @@ FilledButtonThemeData _buildFilledButtonTheme() {
 OutlinedButtonThemeData _buildOutlinedButtonTheme({
   required bool dark,
 }) {
-  // Ghost style: transparent background, subtle primary-color border
-  // that deepens on hover/pressed; foreground is the seed color.
+  // Ghost style: transparent background with a primary-tinted M3
+  // state layer; foreground and border colour are the seed color.
   return OutlinedButtonThemeData(
     style: ButtonStyle(
       foregroundColor:
           const WidgetStatePropertyAll(_kSeedColor),
-      backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.pressed)) {
-          return _kSeedColor.withAlpha(20);
-        }
-        if (states.contains(WidgetState.hovered)) {
-          return _kSeedColor.withAlpha(10);
-        }
-        return Colors.transparent;
-      }),
-      overlayColor: WidgetStatePropertyAll(
-        _kSeedColor.withAlpha(15),
+      // Background fills with the M3 state-layer colour directly —
+      // AppMotion.stateOverlay returns null when idle so the button
+      // stays fully transparent at rest.
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) => AppMotion.stateOverlay(_kSeedColor, states),
       ),
+      // Ripple overlay uses the canonical M3 seed-color state layer.
+      overlayColor: AppMotion.overlayFor(_kSeedColor),
       side: WidgetStateProperty.resolveWith((states) {
         final alpha =
             states.contains(WidgetState.focused) ? 255 : 120;
