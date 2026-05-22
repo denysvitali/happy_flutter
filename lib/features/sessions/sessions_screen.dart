@@ -470,10 +470,14 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     // folder / search modes affect only the master pane and the chat detail
     // keeps `ChatAppBar` visible at all times.
     if (isTablet && _activeTab == AppTab.sessions) {
+      final isDesktop = screenWidth >= AppBreakpoint.desktop;
+      final masterPaneWidth = isDesktop
+          ? (screenWidth * 0.25).clamp(280.0, 400.0)
+          : AppBreakpoint.sidebarMax.toDouble();
       return Row(
         children: [
           SizedBox(
-            width: AppBreakpoint.sidebarMax.toDouble(),
+            width: masterPaneWidth,
             child: Scaffold(
               appBar: _buildSessionsAppBar(context, context.l10n),
               body: SyncProgressOverlay(
