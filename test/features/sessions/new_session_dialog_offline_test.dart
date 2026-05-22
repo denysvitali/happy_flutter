@@ -265,5 +265,81 @@ void main() {
         reason: 'online machine + path must allow Create',
       );
     });
+
+    testWidgets(
+      'switching from offline to online machine clears the warning '
+      'and enables Create',
+      (tester) async {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final staleMs = DateTime.now()
+            .subtract(const Duration(minutes: 10))
+            .millisecondsSinceEpoch;
+        final offlineMachine = _machine(
+          id: 'm-offline',
+          displayName: 'Offline Box',
+          active: false,
+          activeAtMs: staleMs,
+        );
+        final onlineMachine = _machine(
+          id: 'm-online',
+          displayName: 'Online Box',
+          active: true,
+          activeAtMs: now,
+        );
+        await pumpDialog(
+          tester,
+          buildHarness(
+            machines: {
+              'm-offline': offlineMachine,
+              'm-online': onlineMachine,
+            },
+            initialMachineId: 'm-offline',
+          ),
+        );
+
+        // Offline machine selected: warning shown, Create disabled.
+        expect(
+          find.text('Launcher disabled while machine is offline'),
+          findsOneWidget,
+        );
+        var createButton = tester.widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, 'Create'),
+        );
+        expect(
+          createButton.onPressed,
+          isNull,
+          reason: 'offline machine must disable Create',
+        );
+
+        // Open the machine dropdown and pick the online machine.
+        await tester.tap(find.byType(DropdownButtonFormField<String>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Online Box').last);
+        await tester.pumpAndSettle();
+
+        // Warning must disappear once an online machine is selected.
+        expect(
+          find.text('Launcher disabled while machine is offline'),
+          findsNothing,
+        );
+
+        // Switching machines clears the previously-selected path; type a
+        // path so the only remaining gate is the machine status.
+        await tester.enterText(
+          find.widgetWithText(TextFormField, 'Path'),
+          '/repo',
+        );
+        await tester.pump();
+
+        createButton = tester.widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, 'Create'),
+        );
+        expect(
+          createButton.onPressed,
+          isNotNull,
+          reason: 'online machine + path must enable Create',
+        );
+      },
+    );
   });
 }
