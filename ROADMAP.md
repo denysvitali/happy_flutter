@@ -43,7 +43,7 @@ The current test count is not enough if this contract can break without failing 
 | CryptoSecretBox.decrypt failed | Warning | 27 | Open | Decryption failures — possible key mismatch on legacy NaCl messages or corrupt ciphertext. |
 | Stale profile in ChatScreen | Warning | 9 | Shipped in v1.0.0-154901 (51f1189) | `_loadInitialSettings` now catches `StateError` from `firstWhere` and falls back to no profile, clearing the stale `savedProfileId` from `DraftStorage`. |
 | Machine offline on session create | Warning | 33 | Open | No pre-check guard — user can tap "create session" on an offline machine. UX should disable or warn. |
-| fetchMessages dropped (output filter) | Warning | ~180 | Open | Large batches of messages dropped during fetch for output data/filter reasons. Needs investigation. |
+| fetchMessages dropped (output filter) | Warning | ~180 | Fix on main, **needs release** | Audit found every unresolved issue in this cohort comes from old builds (`1.0.0+97201` / `+1`) whose parser predated the top-level `dataType=tool-result` handler and the per-page summarizer dedupe. Current parser already routes the production-shape envelope (`callId`+`id`+`output`+`isError`+`parentUuid`+`permissions`+`type`) through `_isToolResultEnvelope`/`_addToolResultEnvelope`; added a contract test pinning the exact production shape and a telemetry split so known-skip categories (`assistant content list is empty`, `unrecognized output content block`, `user content block type=X not handled`, `pi result with no tool rows`) log at info-level while unknown `dataType`s stay at warning. |
 
 ### Performance (from GlitchTip)
 

@@ -357,6 +357,87 @@ void main() {
         expect(result.toolResults.first['permissions'], {'mode': 'read'});
       });
 
+      // GlitchTip issues 435–441, 554, 575, 3228, 3232 (release 97201
+      // and earlier) reported `output dataType=tool-result not handled
+      // (keys=[callId, id, isError, output, parentUuid, permissions,
+      // type])`. The production envelope carried BOTH `callId` and `id`
+      // — `callId` is the authoritative tool-call identifier and must
+      // win. Older code dropped these because the parser did not
+      // recognize `dataType=tool-result`; the current parser routes them
+      // through `_isToolResultEnvelope`. This contract test pins the
+      // exact production shape so any regression that re-introduces the
+      // drop trips CI.
+      test('processes top-level tool-result envelope with callId+id '
+          '(GlitchTip 435–441 production shape)', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'tool-result',
+                  'callId': 'call_authoritative_42',
+                  'id': 'm-envelope-id',
+                  'output': 'completed',
+                  'isError': false,
+                  'parentUuid': 'parent-uuid-1',
+                  'permissions': {'mode': 'read'},
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'c93750a6d2f8d8c4102498c19', 'seq': 172, 'createdAt': 1000},
+          ],
+          sessionId: 'c1e8928f840c1c7725263559c',
+        );
+
+        expect(result.messages, isEmpty);
+        expect(result.droppedReasons, isEmpty);
+        expect(result.toolResults, hasLength(1));
+        // `callId` must win over `id` when both are present — `id` is the
+        // envelope id, not the tool-call id.
+        expect(result.toolResults.first['toolUseId'], 'call_authoritative_42');
+        expect(result.toolResults.first['result'], 'completed');
+        expect(result.toolResults.first['isError'], false);
+        expect(result.toolResults.first['parentUuid'], 'parent-uuid-1');
+        expect(result.toolResults.first['permissions'], {'mode': 'read'});
+      });
+
+      // Same shape as above but with `isError=true` — exercises the
+      // error path that production hits when a tool fails.
+      test('top-level tool-result envelope preserves isError=true', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'tool-result',
+                  'callId': 'call_err',
+                  'id': 'env-id',
+                  'output': 'tool exploded',
+                  'isError': true,
+                  'parentUuid': 'p1',
+                  'permissions': null,
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.droppedReasons, isEmpty);
+        expect(result.toolResults, hasLength(1));
+        expect(result.toolResults.first['isError'], true);
+        expect(result.toolResults.first['toolUseId'], 'call_err');
+      });
+
       test('ignores incomplete top-level tool-result envelope', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
