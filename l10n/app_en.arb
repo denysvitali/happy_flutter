@@ -1420,6 +1420,7 @@
   "commandSearchHint": "Search commands...",
   "commandCategorySessions": "Sessions",
   "commandCategoryNavigation": "Navigation",
+  "commandCategoryRecent": "Recent",
   "commandNewSessionTitle": "New Session",
   "commandNewSessionSubtitle": "Start a new chat session",
   "commandViewSessionsTitle": "View All Sessions",

@@ -7105,6 +7105,12 @@ abstract class AppLocalizations {
   /// **'Navigation'**
   String get commandCategoryNavigation;
 
+  /// No description provided for @commandCategoryRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get commandCategoryRecent;
+
   /// No description provided for @commandNewSessionTitle.
   ///
   /// In en, this message translates to:

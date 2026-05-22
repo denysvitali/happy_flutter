@@ -3788,6 +3788,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandCategoryNavigation => 'Navigation';
 
   @override
+  String get commandCategoryRecent => 'Recent';
+
+  @override
   String get commandNewSessionTitle => 'New Session';
 
   @override

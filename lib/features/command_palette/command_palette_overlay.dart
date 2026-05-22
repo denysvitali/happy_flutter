@@ -11,6 +11,8 @@ class CommandPaletteOverlay extends StatefulWidget {
   const CommandPaletteOverlay({
     required this.commands,
     required this.onClose,
+    this.recentCommands = const [],
+    this.onCommandExecuted,
     super.key,
   });
 
@@ -20,11 +22,20 @@ class CommandPaletteOverlay extends StatefulWidget {
   /// Callback when palette should close
   final VoidCallback onClose;
 
+  /// IDs of recently executed commands (most-recent first), shown when the
+  /// query is empty.
+  final List<String> recentCommands;
+
+  /// Called with the executed [CommandItem.id] just before closing.
+  final void Function(String commandId)? onCommandExecuted;
+
   /// Shows the command palette as an overlay
   static Future<void> show(
     BuildContext context,
-    List<CommandItem> commands,
-  ) {
+    List<CommandItem> commands, {
+    List<String> recentCommands = const [],
+    void Function(String commandId)? onCommandExecuted,
+  }) {
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -50,6 +61,8 @@ class CommandPaletteOverlay extends StatefulWidget {
       pageBuilder: (context, animation, secondaryAnimation) {
         return CommandPaletteOverlay(
           commands: commands,
+          recentCommands: recentCommands,
+          onCommandExecuted: onCommandExecuted,
           onClose: () => Navigator.of(context).pop(),
         );
       },
@@ -93,6 +106,10 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     super.dispose();
   }
 
+  // Resolved l10n label for the "Recent" category header.  Set on first
+  // build so _filterCommands can reference it without a BuildContext.
+  String _recentCategoryLabel = 'Recent';
+
   void _filterCommands() {
     final query = _searchQuery.trim();
 
@@ -124,25 +141,51 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
       filtered = results.map((r) => r.item).toList();
     }
 
-    // Store all commands for keyboard navigation
-    _allCommands = filtered;
+    // Build the ordered category list.
+    final categories = <CommandCategory>[];
 
-    // Group by category
+    // When query is empty and there are recent commands, prepend a
+    // "Recent" section containing those commands (in persisted order).
+    if (query.isEmpty && widget.recentCommands.isNotEmpty) {
+      final byId = {for (final c in widget.commands) c.id: c};
+      final recentItems = widget.recentCommands
+          .map((id) => byId[id])
+          .whereType<CommandItem>()
+          .toList();
+      if (recentItems.isNotEmpty) {
+        categories.add(
+          CommandCategory(
+            id: 'recent',
+            title: _recentCategoryLabel,
+            commands: recentItems,
+          ),
+        );
+      }
+    }
+
+    // Append the normal grouped-by-category commands.
     final grouped = <String, List<CommandItem>>{};
     for (final command in filtered) {
       final category = command.category ?? 'General';
       grouped.putIfAbsent(category, () => []).add(command);
     }
+    categories.addAll(
+      grouped.entries.map(
+        (entry) => CommandCategory(
+          id: entry.key.toLowerCase().replaceAll(' ', '-'),
+          title: entry.key,
+          commands: entry.value,
+        ),
+      ),
+    );
 
-    _filteredCategories = grouped.entries
-        .map(
-          (entry) => CommandCategory(
-            id: entry.key.toLowerCase().replaceAll(' ', '-'),
-            title: entry.key,
-            commands: entry.value,
-          ),
-        )
-        .toList();
+    _filteredCategories = categories;
+
+    // Flat ordered list for keyboard navigation (Recent items first when
+    // query is empty, same as the visual order).
+    _allCommands = [
+      for (final cat in _filteredCategories) ...cat.commands,
+    ];
 
     // Pre-compute category start indices so itemBuilder is O(1).
     var runningIndex = 0;
@@ -213,6 +256,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   void _executeSelected() {
     if (_selectedIndex >= 0 && _selectedIndex < _allCommands.length) {
       final command = _allCommands[_selectedIndex];
+      widget.onCommandExecuted?.call(command.id);
       widget.onClose();
       command.action();
     }
@@ -222,6 +266,9 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
+    // Keep _recentCategoryLabel in sync with the current locale so
+    // _filterCommands() can use it without needing a BuildContext.
+    _recentCategoryLabel = l10n.commandCategoryRecent;
 
     return KeyboardListener(
       focusNode: _keyboardFocusNode,
@@ -399,6 +446,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                 isSelected: globalIndex == _selectedIndex,
                 colorScheme: colorScheme,
                 onTap: () {
+                  widget.onCommandExecuted?.call(command.id);
                   widget.onClose();
                   command.action();
                 },
