@@ -344,10 +344,23 @@ class OfflineTtsService {
   /// TTS instead of paying the init cost on a user-initiated tap.
   bool _ready = false;
 
+  /// `true` when the sherpa-onnx FFI binding probe failed during
+  /// [_doInitialize]. Callers can short-circuit to the system engine
+  /// without spawning a doomed worker isolate (which would otherwise
+  /// raise "Please initialize sherpa-onnx first" and spam Sentry).
+  bool _probeFailed = false;
+
   /// Whether the offline engine has finished its one-shot
   /// initialisation. `false` until [initialize] resolves; once true,
   /// stays true for the lifetime of the process.
   bool get isReady => _ready;
+
+  /// `true` when the native sherpa-onnx library couldn't be bound on
+  /// this device during initialisation. When this is the case the
+  /// offline engine is permanently unusable for the lifetime of the
+  /// process and [TtsService] should silently fall back to the system
+  /// engine without retrying.
+  bool get isProbeFailed => _probeFailed;
 
   /// Listenable for the currently-playing token (caller-supplied id,
   /// usually a message id).
@@ -421,11 +434,18 @@ class OfflineTtsService {
       // the bindings — they're per-isolate — but a successful probe
       // means subsequent generate workers will succeed too.
       await Isolate.run(_initBindingsProbe);
-    } catch (e, st) {
-      logger.warning(
-        '[OfflineTTS] initialize: sherpa-onnx probe failed: $e',
-        e,
-        st,
+    } catch (e) {
+      // Mark the offline engine as permanently unusable on this
+      // device so [speak] short-circuits to the system engine instead
+      // of spawning generate workers that will raise
+      // "Please initialize sherpa-onnx first" and forward to Sentry.
+      _probeFailed = true;
+      // Use info level (not warning) so this expected-on-some-devices
+      // condition doesn't reach Sentry on every cold start. The dev
+      // logs still capture the breadcrumb for diagnostics.
+      logger.info(
+        '[OfflineTTS] initialize: sherpa-onnx probe failed, '
+        'offline engine disabled this session: $e',
       );
       // Still walk the disk so the UI can show statuses even when the
       // engine isn't usable on this device.
@@ -533,6 +553,17 @@ class OfflineTtsService {
     // launch can hit the worker before its isolate-local FFI symbols
     // are usable and surface "Please initialize sherpa-onnx first".
     await initialize();
+
+    // If the FFI probe failed during init, the native library is
+    // unusable on this device; spawning a generate worker would
+    // raise "Please initialize sherpa-onnx first" and forward to
+    // Sentry on every speak. Surface as a typed exception so
+    // [TtsService] can fall back to the system engine silently.
+    if (_probeFailed) {
+      throw const OfflineTtsException(
+        'Offline TTS native library unavailable on this device',
+      );
+    }
 
     logger.info(
       '[OfflineTTS] speak: ${clean.length} chars, voice=${voice.id}, '

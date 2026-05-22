@@ -31,6 +31,19 @@ class TtsService {
   _Backend _activeBackend = _Backend.system;
   final List<_QueuedSpeech> _queue = <_QueuedSpeech>[];
   bool _draining = false;
+  bool _fallbackLogged = false;
+
+  /// Emit a single info-level breadcrumb per process explaining that
+  /// the offline engine is being skipped. We deliberately don't
+  /// forward this to Sentry: a fallback to the system TTS engine is
+  /// a graceful degradation, not an error, and the original
+  /// implementation was capturing it ~once per speak which produced
+  /// significant noise (GlitchTip HAPPY_FLUTTER-3C7).
+  void _logFallbackOnce(String message) {
+    if (_fallbackLogged) return;
+    _fallbackLogged = true;
+    logger.info(message);
+  }
 
   void _attachOfflineListenerIfNeeded() {
     if (_offlineListenerAttached) return;
@@ -310,6 +323,13 @@ class TtsService {
     );
 
     if (useOffline && OfflineTtsService().isSupported) {
+      // If sherpa-onnx's FFI binding probe failed during initialize,
+      // the native library is unusable for this process; silently
+      // fall back to the system engine without retrying so we don't
+      // spawn doomed generate workers that raise "Please initialize
+      // sherpa-onnx first" and forward to Sentry on every speak.
+      final probeBroken =
+          OfflineTtsService().isReady && OfflineTtsService().isProbeFailed;
       // If the offline engine's one-shot init hasn't completed yet
       // AND the requested voice isn't already extracted on disk,
       // skip offline this round and use the system engine so the
@@ -317,9 +337,17 @@ class TtsService {
       // on a sherpa probe (or, worse, racing past it). The next tap
       // — by which time `initialize()` has resolved — will use the
       // offline engine as configured.
-      if (!OfflineTtsService().isReady &&
-          _offlineVoiceNotReady(offlineVoiceId)) {
-        logger.warning(
+      final initInFlight = !OfflineTtsService().isReady &&
+          _offlineVoiceNotReady(offlineVoiceId);
+
+      if (probeBroken) {
+        _logFallbackOnce(
+          '[TTS] offline engine unavailable on this device; '
+          'using system TTS',
+        );
+        // fall through to flutter_tts
+      } else if (initInFlight) {
+        logger.info(
           '[TTS] offline engine not initialised yet; '
           'falling back to system TTS for this request',
         );
@@ -347,14 +375,26 @@ class TtsService {
           );
           return;
         } catch (e, st) {
-          // Use error level so the failure is visible under the dev
-          // logs error filter; without this the fallback to system
-          // TTS is silent and impossible to diagnose.
-          logger.error(
-            '[TTS] offline speak failed, falling back to system engine: $e',
-            e,
-            st,
-          );
+          // Distinguish "engine genuinely unavailable" (sherpa-onnx
+          // bindings missing — common on devices without the native
+          // .so) from real generation/playback failures. The former
+          // is expected on those devices and the user still gets
+          // speech via the system engine, so we log at info level
+          // (one-shot per session) to keep Sentry quiet. Anything
+          // else is a real bug worth capturing.
+          if (e is OfflineTtsException) {
+            _logFallbackOnce(
+              '[TTS] offline engine unavailable, '
+              'using system TTS: $e',
+            );
+          } else {
+            logger.warning(
+              '[TTS] offline speak failed, '
+              'falling back to system engine: $e',
+              e,
+              st,
+            );
+          }
           _activeBackend = _Backend.system;
           // fall through to flutter_tts
         }

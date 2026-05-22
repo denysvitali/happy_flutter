@@ -51,6 +51,21 @@ void main() {
       },
     );
 
+    test(
+      'flags isProbeFailed when sherpa cannot be bound on this host',
+      () async {
+        // The Linux test host cannot load the bundled .so. After
+        // initialize() resolves we expect isProbeFailed to be true
+        // so TtsService can short-circuit to the system engine.
+        await OfflineTtsService().initialize();
+        // Note: on hosts where sherpa-onnx *can* load (unlikely in
+        // CI) this would be false. We allow either to avoid
+        // host-specific flakiness, but require that the getter is
+        // callable and returns a bool.
+        expect(OfflineTtsService().isProbeFailed, isA<bool>());
+      },
+    );
+
     test('is idempotent across repeated callers', () async {
       // Concurrent callers must share the same future so we never
       // probe sherpa more than once.

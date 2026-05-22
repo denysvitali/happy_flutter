@@ -72,6 +72,7 @@ class OfflineTtsService {
   bool get isSpeaking => false;
   bool get isSupported => false;
   bool get isReady => true;
+  bool get isProbeFailed => true;
   List<OfflineTtsModel> get voices => const <OfflineTtsModel>[];
   String get selectedVoiceId => '';
   OfflineTtsModel? get selectedVoice => null;
