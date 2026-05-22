@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter/services.dart';
 
@@ -227,7 +230,10 @@ class _CollapseToggle extends StatelessWidget {
     final icon = isCollapsed
         ? Icons.keyboard_arrow_right
         : Icons.keyboard_arrow_left;
-    final tooltip = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    final shortcut =
+        (!kIsWeb && Platform.isMacOS) ? '⌘B' : 'Ctrl+B';
+    final label = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    final tooltip = '$label ($shortcut)';
 
     return Padding(
       padding: const EdgeInsets.symmetric(
