@@ -8412,6 +8412,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Automatically generate tags for sessions based on content'**
   String get autoTagsDesc;
+
+  /// No description provided for @friendsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Friends'**
+  String get friendsTitle;
+
+  /// No description provided for @friendsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your friend list is empty'**
+  String get friendsEmptyTitle;
+
+  /// No description provided for @friendsEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add friends to see when they are online and share sessions.'**
+  String get friendsEmptySubtitle;
+
+  /// No description provided for @friendsFindFriends.
+  ///
+  /// In en, this message translates to:
+  /// **'Find friends'**
+  String get friendsFindFriends;
+
+  /// No description provided for @friendsSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by username or email'**
+  String get friendsSearchHint;
 }
 
 class _AppLocalizationsDelegate

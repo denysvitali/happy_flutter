@@ -4595,4 +4595,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get autoTagsDesc =>
       'Automatically generate tags for sessions based on content';
+
+  @override
+  String get friendsTitle => 'Friends';
+
+  @override
+  String get friendsEmptyTitle => 'Your friend list is empty';
+
+  @override
+  String get friendsEmptySubtitle =>
+      'Add friends to see when they are online and share sessions.';
+
+  @override
+  String get friendsFindFriends => 'Find friends';
+
+  @override
+  String get friendsSearchHint => 'Search by username or email';
 }
