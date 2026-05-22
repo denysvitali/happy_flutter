@@ -256,6 +256,12 @@ class _CommandPaletteKeyboardHandlerState
       return KeyEventResult.handled;
     }
 
+    // Check for Ctrl+B or Cmd+B to toggle sidebar collapse
+    if (isCommandPressed && event.logicalKey == LogicalKeyboardKey.keyB) {
+      ref.read(sidebarCollapsedProvider.notifier).toggle();
+      return KeyEventResult.handled;
+    }
+
     return KeyEventResult.ignored;
   }
 
