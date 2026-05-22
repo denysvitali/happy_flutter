@@ -448,10 +448,22 @@ extension SyncMessagingSend on Sync {
             _updateMessageSendStatus(targetSessionId, localId, 'sent');
             _notifySessionMessagesChanged(targetSessionId);
           } else {
-            throw StateError(
+            final err = StateError(
               'Failed to send message: '
               'server did not acknowledge message',
             );
+            logger.error(
+              '[sendMessage] server did not acknowledge message '
+              'session=$targetSessionId localId=$localId '
+              'status=${response.statusCode} body=${response.data}',
+            );
+            unawaited(
+              Sentry.captureException(
+                err,
+                stackTrace: StackTrace.current,
+              ),
+            );
+            throw err;
           }
         }
 

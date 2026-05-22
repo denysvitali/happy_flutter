@@ -706,6 +706,14 @@ extension _ChatScreenActions on _ChatScreenState {
               {..._messages[idx], 'sendStatus': 'failed'},
               ..._messages.sublist(idx + 1),
             ];
+          } else {
+            final msg =
+                'chat_send: optimistic message not found for '
+                'localId=$localId (session=${widget.sessionId})';
+            logger.warning(msg);
+            unawaited(
+              Sentry.captureMessage(msg, level: SentryLevel.warning),
+            );
           }
           _controller.text = text;
           _isSending = false;
