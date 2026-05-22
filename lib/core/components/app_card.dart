@@ -7,7 +7,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 /// Renders a [Material] surface with:
 /// - [AppRadius.lg] (16 px) border radius
 /// - Subtle border (`onSurface` at 8 % opacity)
-/// - Soft drop-shadow via [AppShadow.card]
+/// - Soft drop-shadow via [AppElevationShadow.card] (theme-aware)
 /// - White / dark-surface background from [ColorScheme.surface]
 ///
 /// When [onTap] is provided, the card wraps [child] in an [InkWell]
@@ -54,7 +54,9 @@ class _AppCardState extends State<AppCard> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final brightness = theme.brightness;
     final effectivePadding =
         widget.padding ?? const EdgeInsets.all(AppSpacing.lg);
 
@@ -103,7 +105,7 @@ class _AppCardState extends State<AppCard> {
       margin: widget.margin,
       decoration: BoxDecoration(
         borderRadius: AppCard._radius,
-        boxShadow: AppShadow.card,
+        boxShadow: AppElevationShadow.card(brightness),
       ),
       child: inner,
     );

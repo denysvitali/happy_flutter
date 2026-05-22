@@ -65,12 +65,14 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
     final sessionFlavor = session.metadata?.flavor;
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
 
-    final cardColor = widget.unreadCount > 0
-        ? cs.primary.withValues(alpha: 0.07)
-        : cs.surfaceContainerLow;
-    final borderColor = widget.unreadCount > 0
-        ? cs.primary.withValues(alpha: 0.22)
-        : cs.outlineVariant.withValues(alpha: 0.65);
+    final hasUnread = widget.unreadCount > 0;
+    // Left accent drives unread affordance; bg and border stay neutral.
+    final cardBgColor = cs.surfaceContainerLow;
+    final borderColor = cs.outlineVariant.withValues(alpha: 0.65);
+    // 3-px left accent: primary when unread, status-dot color otherwise.
+    final accentColor = hasUnread
+        ? cs.primary
+        : Color(_d.status.statusDotColor);
 
     return AnimatedScale(
       scale: _pressed ? 0.98 : 1.0,
@@ -83,9 +85,8 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          color: cardColor,
+          color: cardBgColor,
           border: Border.all(color: borderColor, width: AppBorder.hairline),
-          boxShadow: widget.unreadCount > 0 ? AppShadow.card : null,
         ),
         child: Material(
           color: Colors.transparent,
@@ -133,6 +134,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
+                              pulseDot: hasUnread,
                             ),
                             const SizedBox(height: AppSpacing.xxs),
                             Text(
@@ -187,7 +189,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                   child: Container(
                     width: 3,
                     decoration: BoxDecoration(
-                      color: Color(_d.status.statusDotColor),
+                      color: accentColor,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(AppRadius.md),
                         bottomLeft: Radius.circular(AppRadius.md),

@@ -569,12 +569,31 @@ extension SyncMessagingMerge on Sync {
       return;
     }
 
-    // Require at least 2 consecutive no-progress sweeps before
-    // absorbing.  This prevents premature absorption when a parent
-    // Task is still in-flight (e.g. in a REST batch or socket burst).
-    // With the 300ms debounce, 2 sweeps = ~600ms minimum; the burst
-    // cap at 2s would fire immediately if needed.
-    const kMinSweepsBeforeAbsorb = 2;
+    // Never synthesize when older history is still available but we
+    // have not actually attempted to fetch it yet. Without this gate
+    // the default 60s throttle could let the no-progress sweep
+    // counter race ahead and absorb before pagination ever got a
+    // chance, producing user-visible "Subagent output (recovered)"
+    // tiles whose real parent Task lives one fetchOlder page away.
+    // See GlitchTip HAPPY_FLUTTER-3C9.
+    if (hasMoreOlder && lastFetchAttempt == 0) {
+      logger.debug(
+        '[sidechain] orphans for session=$sessionId — older history '
+        'available but fetchOlder never attempted; deferring absorb',
+      );
+      _scheduleSidechainRegroup(sessionId);
+      return;
+    }
+
+    // Require several consecutive no-progress sweeps before absorbing.
+    // This prevents premature absorption when a parent Task is still
+    // in-flight (e.g. in a REST batch or socket burst). With the 300ms
+    // debounce, 4 sweeps = ~1.2s minimum; the burst cap at 2s would
+    // fire immediately if needed. Raised from 2 in response to
+    // GlitchTip HAPPY_FLUTTER-3C9 still firing on caught-up sessions
+    // where socket bursts occasionally took 800ms+ to deliver the
+    // parent Task.
+    const kMinSweepsBeforeAbsorb = 4;
     if (sweepCount < kMinSweepsBeforeAbsorb) {
       logger.debug(
         '[sidechain] $sweepCount/$kMinSweepsBeforeAbsorb no-progress '

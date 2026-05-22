@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/recent_commands_storage.dart';
 import '../sessions/widgets/new_session_dialog.dart';
 import 'command_item.dart';
 import 'command_palette_overlay.dart';
@@ -256,6 +257,12 @@ class _CommandPaletteKeyboardHandlerState
       return KeyEventResult.handled;
     }
 
+    // Check for Ctrl+B or Cmd+B to toggle sidebar collapse
+    if (isCommandPressed && event.logicalKey == LogicalKeyboardKey.keyB) {
+      ref.read(sidebarCollapsedProvider.notifier).toggle();
+      return KeyEventResult.handled;
+    }
+
     return KeyEventResult.ignored;
   }
 
@@ -286,8 +293,15 @@ class CommandPaletteOverlayWrapper extends ConsumerWidget {
     final controller = ref.read(commandPaletteControllerProvider);
     final commands = controller.buildCommands(context);
 
+    // Load persisted recent command IDs.
+    final recentIds = RecentCommandsStorage.instance.getRecent();
+
     return CommandPaletteOverlay(
       commands: commands,
+      recentCommands: recentIds,
+      onCommandExecuted: (id) {
+        RecentCommandsStorage.instance.recordCommand(id);
+      },
       onClose: () {
         ref.read(commandPaletteVisibleProvider.notifier).hide();
       },

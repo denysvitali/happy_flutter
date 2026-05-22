@@ -1902,6 +1902,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emptyMainScreenOpenCamera => 'Open Camera';
 
   @override
+  String get emptySessionsFirstTimeTitle => 'Get started with Happy';
+
+  @override
+  String get emptySessionsFirstTimeSubtitle =>
+      'Connect your computer to start coding sessions from your phone.';
+
+  @override
+  String get emptySessionsFirstTimeStep1Label => 'Install CLI';
+
+  @override
+  String get emptySessionsFirstTimeStep1Detail =>
+      'Run happy install on your computer';
+
+  @override
+  String get emptySessionsFirstTimeStep2Label => 'Start daemon';
+
+  @override
+  String get emptySessionsFirstTimeStep2Detail =>
+      'Run happy start in your project';
+
+  @override
+  String get emptySessionsFirstTimeStep3Label => 'Scan & connect';
+
+  @override
+  String get emptySessionsFirstTimeStep3Detail =>
+      'Tap the + button and scan the QR code';
+
+  @override
+  String get emptySessionsReturningTitle => 'No active sessions';
+
+  @override
+  String get emptySessionsReturningSubtitle =>
+      'Your previous sessions have ended. Start a new one to keep coding.';
+
+  @override
   String get reviewEnjoyingApp => 'Enjoying the app?';
 
   @override
@@ -2096,6 +2131,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offlineBannerReconnecting => 'Reconnecting...';
+
+  @override
+  String offlineBannerReconnectingIn(int seconds) {
+    return 'Reconnecting in ${seconds}s…';
+  }
+
+  @override
+  String get offlineBannerReconnectNow => 'Reconnect now';
 
   @override
   String get commonVersion => 'Version';
@@ -3788,6 +3831,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandCategoryNavigation => 'Navigation';
 
   @override
+  String get commandCategoryRecent => 'Recent';
+
+  @override
   String get commandNewSessionTitle => 'New Session';
 
   @override
@@ -4595,4 +4641,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get autoTagsDesc =>
       'Automatically generate tags for sessions based on content';
+
+  @override
+  String get friendsTitle => 'Friends';
+
+  @override
+  String get friendsEmptyTitle => 'Your friend list is empty';
+
+  @override
+  String get friendsEmptySubtitle =>
+      'Add friends to see when they are online and share sessions.';
+
+  @override
+  String get friendsFindFriends => 'Find friends';
+
+  @override
+  String get friendsSearchHint => 'Search by username or email';
 }

@@ -38,7 +38,17 @@ class MasterDetailScaffold extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
-    final resolvedMasterWidth = masterWidth ?? AppBreakpoint.sidebarMax;
+    // On desktop (≥960 px) scale the master pane with the viewport:
+    // clamp(280, viewportWidth * 0.25, 400). On tablet keep the fixed
+    // sidebarMax (360 px) unless an explicit masterWidth is provided.
+    final double resolvedMasterWidth;
+    if (masterWidth != null) {
+      resolvedMasterWidth = masterWidth!;
+    } else if (width >= AppBreakpoint.desktop) {
+      resolvedMasterWidth = (width * 0.25).clamp(280.0, 400.0);
+    } else {
+      resolvedMasterWidth = AppBreakpoint.sidebarMax;
+    }
     final resolvedDetail = hasSelection
         ? detail
         : (emptyDetail ?? const _DefaultEmptyDetail());

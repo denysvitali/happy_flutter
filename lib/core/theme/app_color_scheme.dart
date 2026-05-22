@@ -24,6 +24,23 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     required this.bubbleAssistant,
     required this.bubbleUserText,
     required this.bubbleAssistantText,
+    // ── Text hierarchy ────────────────────────────────────────────────────
+    /// High-emphasis foreground — headings, titles, primary body copy.
+    required this.textPrimary,
+    /// Medium-emphasis foreground — list tile titles, body large/medium.
+    required this.textSecondary,
+    /// Low-emphasis foreground — subtitles, captions, secondary list text.
+    required this.textMuted,
+    /// Placeholder / hint foreground — input hints, icon tints, nav labels.
+    required this.textSubtle,
+    // ── Interactive ───────────────────────────────────────────────────────
+    /// Border color used on error / danger input states.
+    required this.errorBorder,
+    /// Fill color for disabled filled-button states.
+    required this.disabledFill,
+    // ── Overlay ───────────────────────────────────────────────────────────
+    /// Background for floating snack-bars.
+    required this.snackBarBackground,
   });
 
   factory AppColorScheme.light() {
@@ -46,6 +63,16 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       bubbleAssistant: Color(0xFFF1F5F9),
       bubbleUserText: Colors.white,
       bubbleAssistantText: Color(0xFF1E293B),
+      // Text hierarchy
+      textPrimary: Color(0xFF0F172A),
+      textSecondary: Color(0xFF1E293B),
+      textMuted: Color(0xFF475569),
+      textSubtle: Color(0xFF64748B),
+      // Interactive
+      errorBorder: Color(0xFFEF4444),
+      disabledFill: Color(0xFF94A3B8),
+      // Overlay
+      snackBarBackground: Color(0xFF1E293B),
     );
   }
 
@@ -69,6 +96,16 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       bubbleAssistant: Color(0xFF252836),
       bubbleUserText: Colors.white,
       bubbleAssistantText: Color(0xFFE2E8F0),
+      // Text hierarchy
+      textPrimary: Colors.white,
+      textSecondary: Color(0xFFE2E8F0),
+      textMuted: Color(0xFFCBD5E1),
+      textSubtle: Color(0xFF94A3B8),
+      // Interactive
+      errorBorder: Color(0xFFEF4444),
+      disabledFill: Color(0xFF94A3B8),
+      // Overlay
+      snackBarBackground: Color(0xFF334155),
     );
   }
 
@@ -90,6 +127,16 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
   final Color bubbleAssistant;
   final Color bubbleUserText;
   final Color bubbleAssistantText;
+  // Text hierarchy
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textMuted;
+  final Color textSubtle;
+  // Interactive
+  final Color errorBorder;
+  final Color disabledFill;
+  // Overlay
+  final Color snackBarBackground;
 
   @override
   AppColorScheme copyWith({
@@ -111,6 +158,13 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     Color? bubbleAssistant,
     Color? bubbleUserText,
     Color? bubbleAssistantText,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? textMuted,
+    Color? textSubtle,
+    Color? errorBorder,
+    Color? disabledFill,
+    Color? snackBarBackground,
   }) {
     return AppColorScheme(
       success: success ?? this.success,
@@ -131,6 +185,13 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       bubbleAssistant: bubbleAssistant ?? this.bubbleAssistant,
       bubbleUserText: bubbleUserText ?? this.bubbleUserText,
       bubbleAssistantText: bubbleAssistantText ?? this.bubbleAssistantText,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+      textMuted: textMuted ?? this.textMuted,
+      textSubtle: textSubtle ?? this.textSubtle,
+      errorBorder: errorBorder ?? this.errorBorder,
+      disabledFill: disabledFill ?? this.disabledFill,
+      snackBarBackground: snackBarBackground ?? this.snackBarBackground,
     );
   }
 
@@ -163,7 +224,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       dangerContainer:
           Color.lerp(dangerContainer, other.dangerContainer, t) ??
           dangerContainer,
-      shimmerBase: Color.lerp(shimmerBase, other.shimmerBase, t) ?? shimmerBase,
+      shimmerBase:
+          Color.lerp(shimmerBase, other.shimmerBase, t) ?? shimmerBase,
       shimmerHighlight:
           Color.lerp(shimmerHighlight, other.shimmerHighlight, t) ??
           shimmerHighlight,
@@ -176,6 +238,23 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       bubbleAssistantText:
           Color.lerp(bubbleAssistantText, other.bubbleAssistantText, t) ??
           bubbleAssistantText,
+      textPrimary:
+          Color.lerp(textPrimary, other.textPrimary, t) ?? textPrimary,
+      textSecondary:
+          Color.lerp(textSecondary, other.textSecondary, t) ?? textSecondary,
+      textMuted: Color.lerp(textMuted, other.textMuted, t) ?? textMuted,
+      textSubtle: Color.lerp(textSubtle, other.textSubtle, t) ?? textSubtle,
+      errorBorder:
+          Color.lerp(errorBorder, other.errorBorder, t) ?? errorBorder,
+      disabledFill:
+          Color.lerp(disabledFill, other.disabledFill, t) ?? disabledFill,
+      snackBarBackground:
+          Color.lerp(
+            snackBarBackground,
+            other.snackBarBackground,
+            t,
+          ) ??
+          snackBarBackground,
     );
   }
 }

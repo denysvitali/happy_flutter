@@ -11,6 +11,8 @@ class CommandPaletteOverlay extends StatefulWidget {
   const CommandPaletteOverlay({
     required this.commands,
     required this.onClose,
+    this.recentCommands = const [],
+    this.onCommandExecuted,
     super.key,
   });
 
@@ -20,11 +22,20 @@ class CommandPaletteOverlay extends StatefulWidget {
   /// Callback when palette should close
   final VoidCallback onClose;
 
+  /// IDs of recently executed commands (most-recent first), shown when the
+  /// query is empty.
+  final List<String> recentCommands;
+
+  /// Called with the executed [CommandItem.id] just before closing.
+  final void Function(String commandId)? onCommandExecuted;
+
   /// Shows the command palette as an overlay
   static Future<void> show(
     BuildContext context,
-    List<CommandItem> commands,
-  ) {
+    List<CommandItem> commands, {
+    List<String> recentCommands = const [],
+    void Function(String commandId)? onCommandExecuted,
+  }) {
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
@@ -50,6 +61,8 @@ class CommandPaletteOverlay extends StatefulWidget {
       pageBuilder: (context, animation, secondaryAnimation) {
         return CommandPaletteOverlay(
           commands: commands,
+          recentCommands: recentCommands,
+          onCommandExecuted: onCommandExecuted,
           onClose: () => Navigator.of(context).pop(),
         );
       },
@@ -71,8 +84,14 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
 
   List<CommandCategory> _filteredCategories = [];
   List<CommandItem> _allCommands = [];
+
   /// Pre-computed start index per category so itemBuilder is O(1).
   List<int> _categoryStartIndex = [];
+
+  /// Highlighted character positions per command, keyed by object identity.
+  /// Each entry holds bit-sets for title and subtitle matched indices.
+  final Map<CommandItem, ({Set<int> title, Set<int> subtitle})>
+      _matchHighlights = {};
 
   @override
   void initState() {
@@ -93,10 +112,30 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     super.dispose();
   }
 
+  // Resolved l10n label for the "Recent" category header.  Set on first
+  // build so _filterCommands can reference it without a BuildContext.
+  String _recentCategoryLabel = 'Recent';
+
+  /// Expands a list of [start, end] match ranges into a flat set of indices.
+  Set<int> _expandMatchIndices(List<dynamic> matchedIndices) {
+    final positions = <int>{};
+    for (final idx in matchedIndices) {
+      // MatchIndex exposes .start and .end (inclusive on both ends).
+      final start = idx.start as int;
+      final end = idx.end as int;
+      for (var i = start; i <= end; i++) {
+        positions.add(i);
+      }
+    }
+    return positions;
+  }
+
   void _filterCommands() {
     final query = _searchQuery.trim();
 
     List<CommandItem> filtered;
+    _matchHighlights.clear();
+
     if (query.isEmpty) {
       filtered = widget.commands;
     } else {
@@ -122,27 +161,71 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
       final results = fuzzy.search(query);
       // Fuzzy results are already sorted by score (lower = better match).
       filtered = results.map((r) => r.item).toList();
+
+      // Extract per-field match indices for highlight rendering.
+      for (final result in results) {
+        var titlePositions = <int>{};
+        var subtitlePositions = <int>{};
+        for (final detail in result.matches) {
+          final positions = _expandMatchIndices(detail.matchedIndices);
+          if (detail.key == 'title') {
+            titlePositions = positions;
+          } else if (detail.key == 'subtitle') {
+            subtitlePositions = positions;
+          }
+        }
+        _matchHighlights[result.item] = (
+          title: titlePositions,
+          subtitle: subtitlePositions,
+        );
+      }
     }
 
-    // Store all commands for keyboard navigation
-    _allCommands = filtered;
+    // Build the ordered category list.
+    final categories = <CommandCategory>[];
 
-    // Group by category
+    // When query is empty and there are recent commands, prepend a
+    // "Recent" section containing those commands (in persisted order).
+    if (query.isEmpty && widget.recentCommands.isNotEmpty) {
+      final byId = {for (final c in widget.commands) c.id: c};
+      final recentItems = widget.recentCommands
+          .map((id) => byId[id])
+          .whereType<CommandItem>()
+          .toList();
+      if (recentItems.isNotEmpty) {
+        categories.add(
+          CommandCategory(
+            id: 'recent',
+            title: _recentCategoryLabel,
+            commands: recentItems,
+          ),
+        );
+      }
+    }
+
+    // Append the normal grouped-by-category commands.
     final grouped = <String, List<CommandItem>>{};
     for (final command in filtered) {
       final category = command.category ?? 'General';
       grouped.putIfAbsent(category, () => []).add(command);
     }
+    categories.addAll(
+      grouped.entries.map(
+        (entry) => CommandCategory(
+          id: entry.key.toLowerCase().replaceAll(' ', '-'),
+          title: entry.key,
+          commands: entry.value,
+        ),
+      ),
+    );
 
-    _filteredCategories = grouped.entries
-        .map(
-          (entry) => CommandCategory(
-            id: entry.key.toLowerCase().replaceAll(' ', '-'),
-            title: entry.key,
-            commands: entry.value,
-          ),
-        )
-        .toList();
+    _filteredCategories = categories;
+
+    // Flat ordered list for keyboard navigation (Recent items first when
+    // query is empty, same as the visual order).
+    _allCommands = [
+      for (final cat in _filteredCategories) ...cat.commands,
+    ];
 
     // Pre-compute category start indices so itemBuilder is O(1).
     var runningIndex = 0;
@@ -213,6 +296,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   void _executeSelected() {
     if (_selectedIndex >= 0 && _selectedIndex < _allCommands.length) {
       final command = _allCommands[_selectedIndex];
+      widget.onCommandExecuted?.call(command.id);
       widget.onClose();
       command.action();
     }
@@ -222,6 +306,9 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
+    // Keep _recentCategoryLabel in sync with the current locale so
+    // _filterCommands() can use it without needing a BuildContext.
+    _recentCategoryLabel = l10n.commandCategoryRecent;
 
     return KeyboardListener(
       focusNode: _keyboardFocusNode,
@@ -394,11 +481,16 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
               final globalIndex =
                   _categoryStartIndex[categoryIndex] + commandIndex;
 
+              final highlights = _matchHighlights[command];
+
               return _CommandPaletteItem(
                 command: command,
                 isSelected: globalIndex == _selectedIndex,
                 colorScheme: colorScheme,
+                titleHighlights: highlights?.title ?? const {},
+                subtitleHighlights: highlights?.subtitle ?? const {},
                 onTap: () {
+                  widget.onCommandExecuted?.call(command.id);
                   widget.onClose();
                   command.action();
                 },
@@ -423,6 +515,8 @@ class _CommandPaletteItem extends StatefulWidget {
     required this.command,
     required this.isSelected,
     required this.colorScheme,
+    required this.titleHighlights,
+    required this.subtitleHighlights,
     required this.onTap,
     required this.onHover,
   });
@@ -430,6 +524,13 @@ class _CommandPaletteItem extends StatefulWidget {
   final CommandItem command;
   final bool isSelected;
   final ColorScheme colorScheme;
+
+  /// Character positions (0-based) in [command.title] to highlight.
+  final Set<int> titleHighlights;
+
+  /// Character positions (0-based) in [command.subtitle] to highlight.
+  final Set<int> subtitleHighlights;
+
   final VoidCallback onTap;
   final void Function(bool) onHover;
 
@@ -439,6 +540,55 @@ class _CommandPaletteItem extends StatefulWidget {
 
 class _CommandPaletteItemState extends State<_CommandPaletteItem> {
   bool _isHovered = false;
+
+  /// Builds a [Text.rich] widget that bolds and colors characters whose
+  /// 0-based index appears in [highlights].  When [highlights] is empty the
+  /// result is a plain unstyled span, matching the original behaviour.
+  Widget _buildHighlightedText(
+    String text,
+    Set<int> highlights,
+    TextStyle baseStyle,
+    Color highlightColor,
+  ) {
+    if (highlights.isEmpty) {
+      return Text(text, style: baseStyle);
+    }
+
+    final spans = <TextSpan>[];
+    final buffer = StringBuffer();
+    bool lastWasHighlighted = false;
+
+    void flush(bool highlighted) {
+      if (buffer.isEmpty) return;
+      final chunk = buffer.toString();
+      buffer.clear();
+      if (highlighted) {
+        spans.add(
+          TextSpan(
+            text: chunk,
+            style: baseStyle.copyWith(
+              color: highlightColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        );
+      } else {
+        spans.add(TextSpan(text: chunk, style: baseStyle));
+      }
+    }
+
+    for (var i = 0; i < text.length; i++) {
+      final highlighted = highlights.contains(i);
+      if (i > 0 && highlighted != lastWasHighlighted) {
+        flush(lastWasHighlighted);
+      }
+      buffer.write(text[i]);
+      lastWasHighlighted = highlighted;
+    }
+    flush(lastWasHighlighted);
+
+    return Text.rich(TextSpan(children: spans));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -506,24 +656,28 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
+                    _buildHighlightedText(
                       widget.command.title,
-                      style: TextStyle(
+                      widget.titleHighlights,
+                      TextStyle(
                         fontSize: AppFontSize.base,
                         fontWeight: FontWeight.w500,
                         color: colorScheme.onSurface,
                         letterSpacing: -0.2,
                       ),
+                      colorScheme.primary,
                     ),
                     if (widget.command.subtitle != null) ...[
                       const SizedBox(height: AppSpacing.xxs),
-                      Text(
+                      _buildHighlightedText(
                         widget.command.subtitle!,
-                        style: TextStyle(
+                        widget.subtitleHighlights,
+                        TextStyle(
                           fontSize: AppFontSize.md,
                           color: colorScheme.onSurfaceVariant,
                           letterSpacing: -0.1,
                         ),
+                        colorScheme.primary,
                       ),
                     ],
                   ],
@@ -543,22 +697,26 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
 
               // Shortcut
               if (widget.command.shortcut != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.onSurface.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  child: Text(
-                    widget.command.shortcut!,
-                    style: TextStyle(
-                      fontSize: AppFontSize.sm,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurfaceVariant,
-                      fontFamily: 'monospace',
+                Tooltip(
+                  message:
+                      'Press ${widget.command.shortcut} to run this command',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                    ),
+                    child: Text(
+                      widget.command.shortcut!,
+                      style: TextStyle(
+                        fontSize: AppFontSize.sm,
+                        fontWeight: FontWeight.w500,
+                        color: colorScheme.onSurfaceVariant,
+                        fontFamily: 'monospace',
+                      ),
                     ),
                   ),
                 ),

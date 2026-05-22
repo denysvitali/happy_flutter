@@ -28,8 +28,8 @@ class ModelChip extends StatelessWidget {
     final isDefault = model == ChatModelMode.defaultModel;
     final iconColor = isDefault ? cs.onSurfaceVariant : cs.primary;
     final chevronColor = isDefault
-        ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-        : cs.primary.withValues(alpha: 0.6);
+        ? cs.onSurfaceVariant.withValues(alpha: 0.65)
+        : cs.primary.withValues(alpha: 0.65);
 
     return Semantics(
       button: true,
@@ -144,8 +144,8 @@ class ProfileChip extends StatelessWidget {
                 Icons.keyboard_arrow_down_rounded,
                 size: 12,
                 color: isDefault
-                    ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-                    : cs.tertiary.withValues(alpha: 0.6),
+                    ? cs.onSurfaceVariant.withValues(alpha: 0.65)
+                    : cs.tertiary.withValues(alpha: 0.65),
               ),
             ],
           ),
@@ -176,7 +176,7 @@ class ContextSizeIndicator extends StatelessWidget {
     } else if (pctRemaining <= 15) {
       indicatorColor = Colors.orange;
     } else {
-      indicatorColor = cs.onSurfaceVariant.withValues(alpha: 0.4);
+      indicatorColor = cs.onSurfaceVariant.withValues(alpha: 0.65);
     }
 
     final String label;

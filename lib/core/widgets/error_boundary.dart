@@ -343,27 +343,91 @@ class _DefaultErrorWidget extends StatelessWidget {
   }
 }
 
-/// Global error snackbar manager for showing errors from anywhere in the app
+/// Tracks a batched error entry for deduplication within a time window.
+class _DedupEntry {
+  _DedupEntry({
+    required this.timestamp,
+    required this.handle,
+    this.count = 1,
+  });
+
+  /// When this error was first shown in the current batch.
+  final DateTime timestamp;
+
+  /// Active snackbar controller — used to close the old one before
+  /// re-showing with an updated count.
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason> handle;
+
+  /// How many times this key has fired within the dedup window.
+  int count;
+}
+
+/// Global error snackbar manager for showing errors from anywhere in the app.
+///
+/// Identical errors (same [title] + [message]) arriving within a 5-second
+/// window are collapsed into a single snackbar whose count badge increments,
+/// rather than flooding the queue with separate entries.
 class ErrorSnackbarManager {
   static GlobalKey<ScaffoldMessengerState> _scaffoldKey =
       GlobalKey<ScaffoldMessengerState>();
 
-  /// Initialize the snackbar manager with a scaffold messenger key
+  /// Active dedup entries keyed by "<title>|<message>".
+  static final Map<String, _DedupEntry> _dedupeMap = {};
+
+  /// Time window within which identical errors are batched together.
+  static const Duration _dedupWindow = Duration(seconds: 5);
+
+  /// Initialize the snackbar manager with a scaffold messenger key.
   static void init(GlobalKey<ScaffoldMessengerState> key) {
     _scaffoldKey = key;
   }
 
-  /// Show an error snackbar
+  /// Show an error snackbar.
+  ///
+  /// If an identical error (same [title] + [message]) was shown within
+  /// [_dedupWindow], the existing snackbar is replaced by one whose count
+  /// badge reflects how many times the error has fired.
+  ///
+  /// Provide an [action] to surface a labelled button (e.g. "Retry" or
+  /// "View Details") on the snackbar. When omitted the default "Dismiss"
+  /// button is used.
   static void show(
     String message, {
     String? title,
     Duration duration = const Duration(seconds: 5),
+    SnackBarAction? action,
   }) {
-    final context = _scaffoldKey.currentState?.context;
-    if (context == null) return;
+    final scaffoldState = _scaffoldKey.currentState;
+    if (scaffoldState == null) return;
 
+    final context = scaffoldState.context;
     final theme = Theme.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
+    final now = DateTime.now();
+    final key = '${title ?? ''}|$message';
+
+    // Determine whether to batch with an existing entry.
+    final existing = _dedupeMap[key];
+    int count;
+    if (existing != null &&
+        now.difference(existing.timestamp) < _dedupWindow) {
+      // Dismiss the current snackbar before re-showing with the new count.
+      existing.handle.close();
+      count = existing.count + 1;
+    } else {
+      count = 1;
+    }
+
+    final effectiveAction = action ??
+        SnackBarAction(
+          label: 'Dismiss',
+          textColor: theme.colorScheme.onErrorContainer,
+          onPressed: () {
+            scaffoldState.hideCurrentSnackBar();
+            _dedupeMap.remove(key);
+          },
+        );
+
+    final handle = scaffoldState.showSnackBar(
       SnackBar(
         duration: duration,
         backgroundColor: theme.colorScheme.errorContainer,
@@ -379,13 +443,42 @@ class ErrorSnackbarManager {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (title != null)
-                    Text(
-                      title,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onErrorContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  if (title != null || count > 1)
+                    Row(
+                      children: [
+                        if (title != null)
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: theme.colorScheme.onErrorContainer,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        if (count > 1)
+                          Container(
+                            margin: EdgeInsets.only(
+                              left: title != null ? AppSpacing.xs : 0,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.error,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.pill),
+                            ),
+                            child: Text(
+                              'x$count',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onError,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   Text(
                     message,
@@ -398,28 +491,33 @@ class ErrorSnackbarManager {
             ),
           ],
         ),
-        action: SnackBarAction(
-          label: 'Dismiss',
-          textColor: theme.colorScheme.onErrorContainer,
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
+        action: effectiveAction,
       ),
     );
+
+    // Persist the entry; on close remove it so stale keys don't linger.
+    final entry = _DedupEntry(
+      timestamp: existing?.timestamp ?? now,
+      handle: handle,
+      count: count,
+    );
+    _dedupeMap[key] = entry;
+    handle.closed.then((_) {
+      if (_dedupeMap[key] == entry) _dedupeMap.remove(key);
+    });
   }
 
-  /// Show a tool error snackbar with parsed information
-  static void showToolError(String rawError) {
+  /// Show a tool error snackbar with parsed information.
+  static void showToolError(String rawError, {SnackBarAction? action}) {
     final parsed = ToolErrorParser.parse(rawError);
     if (parsed != null) {
-      show(parsed.message, title: parsed.errorName);
+      show(parsed.message, title: parsed.errorName, action: action);
     } else {
-      show(rawError, title: 'Error');
+      show(rawError, title: 'Error', action: action);
     }
   }
 
-  /// Hide the current snackbar
+  /// Hide the current snackbar.
   static void hide() {
     _scaffoldKey.currentState?.hideCurrentSnackBar();
   }

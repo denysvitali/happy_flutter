@@ -42,6 +42,7 @@ class SessionsListContent extends ConsumerStatefulWidget {
     /// This allows a parent to handle navigation in a custom way
     /// (for example, tablet master-detail).
     this.onSessionTap,
+    this.scrollController,
     super.key,
   });
 
@@ -65,6 +66,11 @@ class SessionsListContent extends ConsumerStatefulWidget {
   /// (e.g. master-detail layouts on tablet).
   final void Function(String sessionId)? onSessionTap;
 
+  /// Optional scroll controller forwarded to the primary list view so that
+  /// a parent can observe the scroll offset (e.g. to show/hide an AppBar
+  /// border after the first item scrolls out of view).
+  final ScrollController? scrollController;
+
   @override
   ConsumerState<SessionsListContent> createState() =>
       _SessionsListContentState();
@@ -77,6 +83,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   String? _selectedFolderKey;
   final Set<String> _expandedArchivedFolders = {};
   final Set<String> _expandedOlderArchivedFolders = {};
+  final Set<String> _collapsedActiveProjects = {};
   final Set<String> _collapsedActivePaths = {};
   final Set<String> _collapsedFolderKeys = {};
   final Set<String> _collapsedDateKeys = {};
@@ -326,6 +333,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       ListItemType.activeSession ||
       ListItemType.archivedSession ||
       ListItemType.folderEntry => ValueKey('s-${item.session!.id}'),
+      ListItemType.projectHeader => ValueKey('proj-${item.projectKey}'),
       ListItemType.pathHeader => ValueKey('p-${item.pathKey}'),
       ListItemType.dateHeader => ValueKey('d-${item.dateKey}'),
       ListItemType.folderHeader => ValueKey(
@@ -382,6 +390,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     );
 
     return ListView.builder(
+      controller: widget.scrollController,
       padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
       // Session cards use RepaintBoundary via StaggeredSlideIn;
       // disable the default keep-alive and repaint wrappers to
@@ -505,6 +514,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     }
 
     return ListView.builder(
+      controller: widget.scrollController,
       padding: const EdgeInsets.only(
         top: AppSpacing.xs,
         bottom: AppSpacing.lg,
@@ -605,6 +615,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     if (selectedFolder == null) {
       return ListView.builder(
+        controller: widget.scrollController,
         padding: const EdgeInsets.only(
           top: AppSpacing.xs,
           bottom: AppSpacing.lg,
@@ -658,6 +669,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         }
       },
       child: ListView(
+        controller: widget.scrollController,
         padding: const EdgeInsets.only(
           top: AppSpacing.xs,
           bottom: AppSpacing.lg,
@@ -816,6 +828,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       for (final session in inactiveSessions) session.id,
       hideInactive,
       _archivedGrouping,
+      Object.hashAllUnordered(_collapsedActiveProjects),
       Object.hashAllUnordered(_collapsedActivePaths),
       Object.hashAllUnordered(_collapsedFolderKeys),
       Object.hashAllUnordered(_collapsedDateKeys),
@@ -834,10 +847,16 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       return cachedItems;
     }
 
-    final activeByPath = <String, List<Session>>{};
+    // Group active sessions by inferred project name, then by path within
+    // each project.
+    final activeByProject = <String, Map<String, List<Session>>>{};
     for (final s in activeSessions) {
       final path = s.metadata?.path ?? 'Unknown';
-      activeByPath.putIfAbsent(path, () => []).add(s);
+      final project = inferProjectName(path);
+      activeByProject
+          .putIfAbsent(project, () => {})
+          .putIfAbsent(path, () => [])
+          .add(s);
     }
 
     var staggerIndex = 0;
@@ -851,23 +870,56 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         ),
       );
 
-      for (final entry
-          in (activeByPath.entries.toList()
-            ..sort((a, b) => a.key.compareTo(b.key)))) {
-        final pathKey = entry.key;
-        final isPathCollapsed = _collapsedActivePaths.contains(pathKey);
+      final sortedProjects = activeByProject.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+
+      for (final projectEntry in sortedProjects) {
+        final projectKey = projectEntry.key;
+        final pathMap = projectEntry.value;
+        final totalCount = pathMap.values.fold(
+          0,
+          (sum, list) => sum + list.length,
+        );
+        final activeCount = pathMap.values.fold(
+          0,
+          (sum, list) => sum +
+              list.where((s) => s.presence == 'online').length,
+        );
+        final isProjectCollapsed =
+            _collapsedActiveProjects.contains(projectKey);
+
         items.add(
-          ListItem.pathHeader(
-            pathKey,
-            entry.value.length,
-            isPathCollapsed,
+          ListItem.projectHeader(
+            projectKey,
+            totalCount,
+            activeCount,
+            isProjectCollapsed,
             staggerIndex,
           ),
         );
-        if (!isPathCollapsed) {
-          for (final session in entry.value) {
-            items.add(ListItem.activeSession(session, staggerIndex));
-            staggerIndex++;
+
+        if (!isProjectCollapsed) {
+          final sortedPaths = pathMap.entries.toList()
+            ..sort((a, b) => a.key.compareTo(b.key));
+
+          for (final pathEntry in sortedPaths) {
+            final pathKey = pathEntry.key;
+            final isPathCollapsed =
+                _collapsedActivePaths.contains(pathKey);
+            items.add(
+              ListItem.pathHeader(
+                pathKey,
+                pathEntry.value.length,
+                isPathCollapsed,
+                staggerIndex,
+              ),
+            );
+            if (!isPathCollapsed) {
+              for (final session in pathEntry.value) {
+                items.add(ListItem.activeSession(session, staggerIndex));
+                staggerIndex++;
+              }
+            }
           }
         }
       }
@@ -968,6 +1020,24 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         // StaggeredSlideIn already wraps every item with a staggered
         // fade+slide — no need for a second FadeInSection controller.
         return SectionHeader(title: item.title!);
+
+      case ListItemType.projectHeader:
+        final isProjectCollapsed =
+            _collapsedActiveProjects.contains(item.projectKey!);
+        return ProjectHeader(
+          projectName: item.projectKey!,
+          sessionCount: item.sessionCount ?? 0,
+          activeCount: item.activeSessionCount ?? 0,
+          isCollapsed: isProjectCollapsed,
+          onToggle: () => setState(() {
+            if (isProjectCollapsed) {
+              _collapsedActiveProjects.remove(item.projectKey!);
+            } else {
+              _collapsedActiveProjects.add(item.projectKey!);
+            }
+            _listItemsCache = null;
+          }),
+        );
 
       case ListItemType.pathHeader:
         final isPathCollapsed = _collapsedActivePaths.contains(item.pathKey!);

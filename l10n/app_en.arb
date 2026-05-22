@@ -703,6 +703,16 @@
   "emptyMainScreenRunIt": "Run it",
   "emptyMainScreenScanQrCode": "Scan the QR code",
   "emptyMainScreenOpenCamera": "Open Camera",
+  "emptySessionsFirstTimeTitle": "Get started with Happy",
+  "emptySessionsFirstTimeSubtitle": "Connect your computer to start coding sessions from your phone.",
+  "emptySessionsFirstTimeStep1Label": "Install CLI",
+  "emptySessionsFirstTimeStep1Detail": "Run happy install on your computer",
+  "emptySessionsFirstTimeStep2Label": "Start daemon",
+  "emptySessionsFirstTimeStep2Detail": "Run happy start in your project",
+  "emptySessionsFirstTimeStep3Label": "Scan & connect",
+  "emptySessionsFirstTimeStep3Detail": "Tap the + button and scan the QR code",
+  "emptySessionsReturningTitle": "No active sessions",
+  "emptySessionsReturningSubtitle": "Your previous sessions have ended. Start a new one to keep coding.",
   "reviewEnjoyingApp": "Enjoying the app?",
   "reviewFeedbackPrompt": "We'd love to hear your feedback!",
   "reviewYesILoveIt": "Yes, I love it!",
@@ -787,6 +797,15 @@
   "usageNoData": "No usage data available",
   "offlineBannerNoConnection": "No internet connection",
   "offlineBannerReconnecting": "Reconnecting...",
+  "offlineBannerReconnectingIn": "Reconnecting in {seconds}s…",
+  "@offlineBannerReconnectingIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "offlineBannerReconnectNow": "Reconnect now",
   "commonVersion": "Version",
   "commonDone": "Done",
   "commonEdit": "Edit",
@@ -1420,6 +1439,7 @@
   "commandSearchHint": "Search commands...",
   "commandCategorySessions": "Sessions",
   "commandCategoryNavigation": "Navigation",
+  "commandCategoryRecent": "Recent",
   "commandNewSessionTitle": "New Session",
   "commandNewSessionSubtitle": "Start a new chat session",
   "commandViewSessionsTitle": "View All Sessions",
@@ -1544,8 +1564,13 @@
   "authServerUrlSaved": "Server URL saved and applied.",
   "authSignInFirst": "Please sign in first to approve device linking",
   "authSignInWithSecretKey": "Sign In with Secret Key",
+  "authSecretKeyReassurance": "We'll never ask for this in email or support chats. Only enter it here.",
+  "authSecretKeyReassuranceTitle": "Your key stays private",
+  "authContinueToKeyInput": "Enter Secret Key",
   "authSomethingWentWrong": "Something went wrong. Please sign in again.",
   "authWaitingForApproval": "Waiting for approval...",
+  "authApprovalFailedTitle": "Scan not completed",
+  "authApprovalFailedBody": "This can happen if the desktop app closed or the request timed out. Try scanning the QR code again.",
   "chatBeginningOfConversation": "Beginning of conversation",
   "chatFailedToDeleteSession": "Failed to delete session",
   "chatLastSeenJustNow": "Last seen just now",
@@ -1815,5 +1840,10 @@
   "semanticSearchTitle": "Semantic Search",
   "semanticSearchDesc": "Rank sessions by semantic similarity to your query",
   "autoTagsTitle": "Auto Tags",
-  "autoTagsDesc": "Automatically generate tags for sessions based on content"
+  "autoTagsDesc": "Automatically generate tags for sessions based on content",
+  "friendsTitle": "Friends",
+  "friendsEmptyTitle": "Your friend list is empty",
+  "friendsEmptySubtitle": "Add friends to see when they are online and share sessions.",
+  "friendsFindFriends": "Find friends",
+  "friendsSearchHint": "Search by username or email"
 }

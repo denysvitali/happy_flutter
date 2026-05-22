@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Status icons for tool execution states.
+///
+/// Each state is wrapped in a [Semantics] node with [liveRegion] so screen
+/// readers announce tool-state transitions as they happen.
 class ToolStatusIndicator extends StatelessWidget {
 
   const ToolStatusIndicator({
@@ -21,24 +24,39 @@ class ToolStatusIndicator extends StatelessWidget {
 
     switch (state) {
       case ToolState.running:
-        return _PulsingRunningIndicator(size: size);
+        return Semantics(
+          label: 'Tool running',
+          liveRegion: true,
+          child: _PulsingRunningIndicator(size: size),
+        );
       case ToolState.completed:
-        return Icon(
-          Icons.check_circle_rounded,
-          size: size,
-          color: AppColors.success,
+        return Semantics(
+          label: 'Tool completed',
+          liveRegion: true,
+          child: Icon(
+            Icons.check_circle_rounded,
+            size: size,
+            color: AppColors.success,
+          ),
         );
       case ToolState.error:
-        return Icon(
-          Icons.cancel_rounded,
-          size: size,
-          color: theme.colorScheme.error,
+        return Semantics(
+          label: 'Tool failed',
+          liveRegion: true,
+          child: Icon(
+            Icons.cancel_rounded,
+            size: size,
+            color: theme.colorScheme.error,
+          ),
         );
       case ToolState.pending:
-        return Icon(
-          Icons.radio_button_unchecked,
-          size: size,
-          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+        return Semantics(
+          label: 'Tool pending',
+          child: Icon(
+            Icons.radio_button_unchecked,
+            size: size,
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          ),
         );
     }
   }

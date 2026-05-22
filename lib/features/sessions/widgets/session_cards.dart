@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_status_dot.dart';
@@ -132,12 +134,17 @@ Widget buildPreviewText({
 }
 
 /// Name row: session name with trailing status dot.
+///
+/// Set [pulseDot] to true to force the status dot into pulse
+/// animation (e.g. when the session has unread messages),
+/// independent of the session's own activity state.
 Widget buildNameRow({
   required String name,
   required SessionStatus sessionStatus,
   required TextStyle? style,
   Color? dotColor,
   double dotSize = 7,
+  bool pulseDot = false,
 }) {
   return Row(
     children: [
@@ -152,7 +159,7 @@ Widget buildNameRow({
       const SizedBox(width: AppSpacing.xsm),
       AppStatusDot(
         color: dotColor ?? Color(sessionStatus.statusDotColor),
-        pulse: sessionStatus.isPulsing,
+        pulse: sessionStatus.isPulsing || pulseDot,
         size: dotSize,
       ),
     ],
@@ -244,6 +251,12 @@ class _ArchiveCountdownBadge extends StatelessWidget {
 }
 
 /// Shared avatar with Hero, optional draft badge.
+///
+/// The Hero uses a custom [flightShuttleBuilder] that:
+/// - scales the shuttle with a deceleration curve so the avatar
+///   smoothly arrives at the destination size, and
+/// - cross-fades out any draft badge so it does not linger
+///   during the flight to the chat app bar.
 Widget buildSessionAvatar({
   required String sessionId,
   required String avatarId,
@@ -256,6 +269,65 @@ Widget buildSessionAvatar({
 }) {
   return Hero(
     tag: 'session-avatar-$sessionId',
+    flightShuttleBuilder: (
+      flightContext,
+      animation,
+      direction,
+      fromContext,
+      toContext,
+    ) {
+      // Resolve destination size from the to-context's render box so the
+      // shuttle always interpolates to the exact target dimensions.
+      final toBox = toContext.findRenderObject();
+      final destSize = (toBox is RenderBox && toBox.hasSize)
+          ? toBox.size.shortestSide
+          : 34.0;
+      final srcSize = size;
+
+      // Curved animation: decelerate into the destination.
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: direction == HeroFlightDirection.push
+            ? Curves.easeOutCubic
+            : Curves.easeInCubic,
+      );
+
+      return AnimatedBuilder(
+        animation: curved,
+        builder: (context, _) {
+          final t = curved.value;
+          final currentSize = direction == HeroFlightDirection.push
+              ? lerpDouble(srcSize, destSize, t)!
+              : lerpDouble(destSize, srcSize, t)!;
+
+          // Fade out draft badge during flight so it doesn't overlap
+          // the compact app-bar avatar at the destination.
+          final badgeOpacity = direction == HeroFlightDirection.push
+              ? (1.0 - t).clamp(0.0, 1.0)
+              : t.clamp(0.0, 1.0);
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              SessionAvatar(
+                id: avatarId,
+                flavor: sessionFlavor,
+                size: currentSize,
+                showFlavorIcon: showFlavorIcon,
+                monochrome: monochrome,
+                square: true,
+                style: avatarStyle,
+              ),
+              if (hasDraft)
+                Opacity(
+                  opacity: badgeOpacity,
+                  child: const DraftBadge(),
+                ),
+            ],
+          );
+        },
+      );
+    },
     child: Stack(
       clipBehavior: Clip.none,
       children: [

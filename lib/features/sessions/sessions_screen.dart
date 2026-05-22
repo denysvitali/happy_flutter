@@ -15,7 +15,9 @@ import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/widgets/sync_progress_bar.dart';
+import '../../core/components/tablet/resizable_pane_divider.dart';
 import '../chat/chat_screen.dart';
+import '../inbox/inbox_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/connection_status_badge.dart';
 import 'widgets/new_session_dialog.dart';
@@ -52,6 +54,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   bool _isSearching = false;
   Timer? _searchDebounce;
 
+  /// Drives the 1dp AppBar bottom border — true once the list
+  /// has scrolled past its initial position.
+  final _scrollController = ScrollController();
+  bool _isScrolled = false;
+
   /// Tracks a pending navigation action so that canPop remains false
   /// for the duration of the async setState, preventing rapid back
   /// presses from racing with state updates.
@@ -61,6 +68,18 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   /// On phone, navigation is handled via pushed routes (no in-place selection).
   String? _selectedSessionId;
 
+  void _onScroll() {
+    final scrolled = _scrollController.offset > 0;
+    if (scrolled != _isScrolled) {
+      setState(() => _isScrolled = scrolled);
+    }
+  }
+
+  /// Current master-pane width on tablet/desktop layouts.
+  /// Defaults to [AppBreakpoint.sidebarMax] and is updated by the
+  /// [ResizablePaneDivider] drag callback.
+  double _masterPaneWidth = AppBreakpoint.sidebarMax;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +87,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _builtTabs = <AppTab>{_activeTab};
     _selectionNotifier.addListener(_onSelectionChanged);
     _folderNotifier.addListener(_onFolderChanged);
+    _scrollController.addListener(_onScroll);
     Future<void>.microtask(() async {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
@@ -93,6 +113,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   AppTab _parseTab(String? tab) {
     return switch (tab) {
       'settings' => AppTab.settings,
+      'inbox' => AppTab.inbox,
       'sessions' => AppTab.sessions,
       _ => AppTab.sessions,
     };
@@ -101,6 +122,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   String _tabToString(AppTab tab) {
     return switch (tab) {
       AppTab.sessions => 'sessions',
+      AppTab.inbox => 'inbox',
       AppTab.settings => 'settings',
     };
   }
@@ -128,6 +150,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       ..dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
     super.dispose();
   }
 
@@ -227,6 +252,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   ) {
     if (_activeTab == AppTab.sessions) {
       return _buildSessionsAppBar(context, l10n);
+    }
+    if (_activeTab == AppTab.inbox) {
+      return AppBar(title: const Text('Inbox'));
     }
     if (_activeTab == AppTab.settings) {
       return AppBar(title: Text(l10n.settingsTitle));
@@ -382,6 +410,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           onPressed: () => _showNewSessionDialog(context),
         ),
       ],
+      bottom: _isScrolled
+          ? PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: Theme.of(context)
+                    .colorScheme
+                    .outlineVariant
+                    .withValues(alpha: 0.5),
+              ),
+            )
+          : null,
     );
   }
 
@@ -473,7 +514,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       return Row(
         children: [
           SizedBox(
-            width: AppBreakpoint.sidebarMax.toDouble(),
+            width: _masterPaneWidth,
             child: Scaffold(
               appBar: _buildSessionsAppBar(context, context.l10n),
               body: SyncProgressOverlay(
@@ -482,6 +523,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
                   folderNotifier: _folderNotifier,
                   searchQuery: _searchController.text,
                   onClearSearch: _clearSearch,
+                  scrollController: _scrollController,
                   onSessionTap: (sessionId) {
                     setState(() => _selectedSessionId = sessionId);
                   },
@@ -489,7 +531,16 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               ),
             ),
           ),
-          const VerticalDivider(width: 1, thickness: 1),
+          ResizablePaneDivider(
+            onResize: (delta) {
+              setState(() {
+                _masterPaneWidth = (_masterPaneWidth + delta).clamp(
+                  ResizablePaneDivider.minWidth(context),
+                  ResizablePaneDivider.maxWidth(context),
+                );
+              });
+            },
+          ),
           Expanded(
             child: _selectedSessionId != null
                 ? ChatScreen(
@@ -511,17 +562,38 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       );
     }
 
-    return IndexedStack(
-      index: _activeTab.index,
-      children: [
-        SessionsListContent(
-          selectionNotifier: _selectionNotifier,
-          folderNotifier: _folderNotifier,
-          searchQuery: _searchController.text,
-          onClearSearch: _clearSearch,
+    return AnimatedSwitcher(
+      duration: AppDuration.fast,
+      transitionBuilder: (child, animation) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0, 0.03),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOut,
+        ));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey<AppTab>(_activeTab),
+        child: IndexedStack(
+          index: _activeTab.index,
+          children: [
+            SessionsListContent(
+              selectionNotifier: _selectionNotifier,
+              folderNotifier: _folderNotifier,
+              searchQuery: _searchController.text,
+              onClearSearch: _clearSearch,
+              scrollController: _scrollController,
+            ),
+            _buildInboxTab(),
+            _buildSettingsTab(),
+          ],
         ),
-        _buildSettingsTab(),
-      ],
+      ),
     );
   }
 
@@ -531,6 +603,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       title: context.l10n.chatChat,
       subtitle: context.l10n.sessionNoSessionsYet,
     );
+  }
+
+  Widget _buildInboxTab() {
+    if (_builtTabs.contains(AppTab.inbox)) {
+      return const InboxScreen();
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildSettingsTab() {

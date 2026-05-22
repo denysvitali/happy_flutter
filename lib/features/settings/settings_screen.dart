@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/components/settings/recent_settings_panel.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/built_in_profiles.dart';
+import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_colors.dart';
@@ -13,6 +16,7 @@ import 'helpers/server_url_dialog.dart';
 import 'widgets/danger_zone.dart';
 import 'widgets/inline_theme_picker.dart';
 import 'widgets/profile_header.dart';
+import 'widgets/profile_switcher_tile.dart';
 import 'widgets/settings_health_section.dart';
 import 'widgets/settings_search_widgets.dart';
 import 'widgets/workflow_presets_section.dart';
@@ -125,6 +129,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           children: [
             ProfileHeader(profile: profile),
+            const SizedBox(height: AppSpacing.lg),
+            RecentSettingsPanel(
+              // TODO(MRU): replace with dynamically tracked list once
+              // MMKV MRU storage is wired up (key `settings_mru`).
+              chips: [
+                RecentSettingChip(
+                  label: l10n.settingsAppearance,
+                  icon: Icons.palette_outlined,
+                  onTap: () => context.pushNamed('theme'),
+                ),
+                RecentSettingChip(
+                  label: l10n.settingsProfiles,
+                  icon: Icons.account_tree,
+                  onTap: () => context.pushNamed('profiles'),
+                ),
+                RecentSettingChip(
+                  label: l10n.settingsVoice,
+                  icon: Icons.record_voice_over,
+                  onTap: () => context.pushNamed('voice'),
+                ),
+                RecentSettingChip(
+                  label: l10n.settingsVoiceLanguage,
+                  icon: Icons.translate_outlined,
+                  onTap: () => context.pushNamed('voice-language'),
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpacing.xl),
             SettingsSearchField(
               controller: _searchController,
@@ -265,15 +296,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildToolsSection(BuildContext context) {
+  Widget _buildToolsSection(
+    BuildContext context, {
+    required List<AIBackendProfile> profiles,
+    required String? selectedProfileId,
+  }) {
     final l10n = AppLocalizations.of(context);
+    // Merge custom + built-in profiles (same deduplication as ProfilesScreen).
+    final effectiveProfiles = _effectiveProfiles(profiles);
     return SettingsSection(
       title: l10n.settingsFeatures,
       children: [
-        SettingsNavRow(
-          icon: Icons.account_tree,
+        ProfileSwitcherTile(
+          profiles: effectiveProfiles,
+          selectedProfileId: selectedProfileId,
           title: l10n.settingsProfiles,
-          subtitle: l10n.settingsProfilesSubtitle,
           onTap: () => context.pushNamed('profiles'),
         ),
         SettingsNavRow(
@@ -341,6 +378,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  /// Merges custom profiles with built-in profiles, deduplicating by id.
+  /// Mirrors the same logic used in ProfilesScreen.
+  List<AIBackendProfile> _effectiveProfiles(
+    List<AIBackendProfile> customProfiles,
+  ) {
+    final seen = <String>{};
+    final resolved = <AIBackendProfile>[];
+    for (final profile in [...customProfiles, ...builtInProfiles]) {
+      if (seen.add(profile.id)) {
+        resolved.add(profile);
+      }
+    }
+    return resolved;
   }
 
   String _sessionsViewStyleLabel(AppLocalizations l10n, String value) {

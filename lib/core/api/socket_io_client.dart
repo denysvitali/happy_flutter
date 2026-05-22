@@ -121,6 +121,12 @@ class SocketIoClient {
   // Stream controllers for events
   final _statusController = StreamController<ConnectionStatus>.broadcast();
 
+  // Emits the expected delay (in whole seconds) before the next internal
+  // reconnect attempt, so UI can display a countdown.  Computed from the
+  // same exponential-backoff formula the socket library uses
+  // (initial=2s, max=10s, factor=2).
+  final _nextReconnectDelayController = StreamController<int>.broadcast();
+
   // Event handlers - supports multiple handlers per event
   final Map<String, List<void Function(dynamic)>> _messageHandlers = {};
 
@@ -128,8 +134,33 @@ class SocketIoClient {
   final _reconnectedListeners = <void Function()>[];
   final _statusListeners = <void Function(ConnectionStatus)>[];
 
+  // Reconnection backoff constants — must match the values passed to
+  // sio.OptionBuilder in connect().
+  static const int _reconnectDelayInitialMs = 2000;
+  static const int _reconnectDelayMaxMs = 10000;
+  static const int _reconnectBackoffFactor = 2;
+
+  /// Compute the backoff delay (ms) for the given attempt index (0-based).
+  static int _backoffDelayMs(int attempt) {
+    final ms =
+        (_reconnectDelayInitialMs *
+                _pow2(attempt).clamp(1, 1 << 20))
+            .clamp(0, _reconnectDelayMaxMs);
+    return ms;
+  }
+
+  static int _pow2(int n) {
+    if (n <= 0) return 1;
+    return 1 << n;
+  }
+
   /// Get connection status stream
   Stream<ConnectionStatus> get statusStream => _statusController.stream;
+
+  /// Stream that emits the expected wait (whole seconds) before the next
+  /// internal reconnect attempt.  Useful for showing a countdown in UI.
+  Stream<int> get nextReconnectDelayStream =>
+      _nextReconnectDelayController.stream;
 
   /// Current connection status
   ConnectionStatus get connectionStatus => _status;
@@ -370,6 +401,21 @@ class SocketIoClient {
       _updateStatus(ConnectionStatus.disconnected);
       for (final listener in _reconnectFailedListeners) {
         listener();
+      }
+    });
+
+    // Track reconnection attempts so the UI can show a countdown for the
+    // *next* attempt.  The attempt index is 1-based from Socket.IO; convert
+    // to 0-based for our backoff formula.
+    _socket!.onReconnectAttempt((attempt) {
+      if (!_isCurrentGeneration(generation)) return;
+      final attemptIndex =
+          attempt is int ? attempt : int.tryParse('$attempt') ?? 1;
+      // Compute delay before the NEXT attempt (index = current attempt).
+      final nextDelayMs = _backoffDelayMs(attemptIndex);
+      final nextDelaySecs = (nextDelayMs / 1000).ceil();
+      if (!_nextReconnectDelayController.isClosed) {
+        _nextReconnectDelayController.add(nextDelaySecs);
       }
     });
 
@@ -620,6 +666,7 @@ class SocketIoClient {
   void dispose() {
     disconnect();
     _statusController.close();
+    _nextReconnectDelayController.close();
     _messageHandlers.clear();
     _reconnectedListeners.clear();
     _reconnectFailedListeners.clear();

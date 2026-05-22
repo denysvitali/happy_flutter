@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'auth_animated_widgets.dart';
 import 'qr_code_display.dart';
+import 'qr_viewfinder_overlay.dart';
 import 'round_button.dart';
 
 /// Logo + title + subtitle branding block shown on the
@@ -159,7 +160,12 @@ class LandingLogoMark extends StatelessWidget {
 ///
 /// Primary CTA is visually prominent with a gradient.
 /// Secondary actions are outlined with icons for clarity.
-class AuthButtonGroup extends StatelessWidget {
+///
+/// The "Sign In with Secret Key" button uses progressive
+/// disclosure: the first tap reveals a reassurance hint
+/// card; the second tap (or "Enter Secret Key" button)
+/// opens the actual key input dialog.
+class AuthButtonGroup extends StatefulWidget {
   const AuthButtonGroup({
     required this.onCreateAccount,
     required this.onLinkAccount,
@@ -176,35 +182,214 @@ class AuthButtonGroup extends StatelessWidget {
   final AppLocalizations l10n;
 
   @override
+  State<AuthButtonGroup> createState() =>
+      _AuthButtonGroupState();
+}
+
+class _AuthButtonGroupState
+    extends State<AuthButtonGroup>
+    with SingleTickerProviderStateMixin {
+  bool _showKeyHint = false;
+  late final AnimationController _hintController;
+  late final Animation<double> _hintFade;
+  late final Animation<Offset> _hintSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _hintController = AnimationController(
+      vsync: this,
+      duration: AppDuration.normal,
+    );
+    _hintFade = CurvedAnimation(
+      parent: _hintController,
+      curve: Curves.easeOut,
+    );
+    _hintSlide = Tween<Offset>(
+      begin: const Offset(0, -0.15),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _hintController,
+        curve: Curves.easeOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hintController.dispose();
+    super.dispose();
+  }
+
+  void _handleKeyButtonTap() {
+    if (widget.isLoadingCreate) return;
+    if (!_showKeyHint) {
+      setState(() => _showKeyHint = true);
+      _hintController.forward();
+    } else {
+      widget.onRestoreKey();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         RoundButton(
-          title: l10n.welcomeCreateAccount,
-          onPressed: onCreateAccount,
-          isLoading: isLoadingCreate,
+          title: widget.l10n.welcomeCreateAccount,
+          onPressed: widget.onCreateAccount,
+          isLoading: widget.isLoadingCreate,
           icon: Icons.person_add_outlined,
         ),
         const SizedBox(height: AppSpacing.md),
         RoundButton(
-          title: l10n.welcomeLinkOrRestoreAccount,
-          onPressed: isLoadingCreate
+          title:
+              widget.l10n.welcomeLinkOrRestoreAccount,
+          onPressed: widget.isLoadingCreate
               ? null
-              : onLinkAccount,
+              : widget.onLinkAccount,
           isPrimary: false,
           icon: Icons.qr_code_rounded,
         ),
         const SizedBox(height: AppSpacing.sm),
         RoundButton(
-          title: l10n.authSignInWithSecretKey,
-          onPressed: isLoadingCreate
+          title: widget.l10n.authSignInWithSecretKey,
+          onPressed: widget.isLoadingCreate
               ? null
-              : onRestoreKey,
+              : _handleKeyButtonTap,
           isPrimary: false,
           icon: Icons.key_outlined,
         ),
+        if (_showKeyHint) ...[
+          const SizedBox(height: AppSpacing.sm),
+          FadeTransition(
+            opacity: _hintFade,
+            child: SlideTransition(
+              position: _hintSlide,
+              child: _KeyReassuranceCard(
+                l10n: widget.l10n,
+                scheme: scheme,
+                onProceed: widget.onRestoreKey,
+                onDismiss: () {
+                  _hintController.reverse().then((_) {
+                    if (mounted) {
+                      setState(
+                        () => _showKeyHint = false,
+                      );
+                    }
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// Inline reassurance hint card shown between the
+/// "Sign In with Secret Key" button and the actual
+/// key input. Gives users confidence before they
+/// proceed to type their sensitive backup key.
+class _KeyReassuranceCard extends StatelessWidget {
+  const _KeyReassuranceCard({
+    required this.l10n,
+    required this.scheme,
+    required this.onProceed,
+    required this.onDismiss,
+  });
+
+  final AppLocalizations l10n;
+  final ColorScheme scheme;
+  final VoidCallback onProceed;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest
+            .withValues(alpha: 0.55),
+        borderRadius:
+            BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: scheme.outline
+              .withValues(alpha: AppOpacity.subtle),
+        ),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.shield_outlined,
+                size: AppSpacing.xl,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  l10n.authSecretKeyReassuranceTitle,
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onDismiss,
+                child: Icon(
+                  Icons.close,
+                  size: AppSpacing.lg,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            l10n.authSecretKeyReassurance,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: AppLineHeight.normal,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonal(
+              onPressed: onProceed,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(
+                  0,
+                  AppTouchTarget.min,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppRadius.smd,
+                  ),
+                ),
+              ),
+              child: Text(
+                l10n.authContinueToKeyInput,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -341,10 +526,20 @@ class QRCodeSection extends StatelessWidget {
               ? Semantics(
                   key: const ValueKey('qr-code'),
                   label: 'Account linking QR code',
-                  child: QRCodeDisplay(
-                    data: 'happy:///account?'
-                        '${base64Url.encode(publicKey!).replaceAll('=', '')}',
-                    size: 220,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      QRCodeDisplay(
+                        data: 'happy:///account?'
+                            '${base64Url.encode(publicKey!).replaceAll('=', '')}',
+                        size: 220,
+                      ),
+                      // 220 + AppSpacing.xxxl + AppSpacing.xl
+                      QRViewfinderOverlay(
+                        size: 272,
+                        isActive: true,
+                      ),
+                    ],
                   ),
                 )
               : isPolling
@@ -420,6 +615,10 @@ class QRLoadingPlaceholder extends StatelessWidget {
 
 /// "Waiting for approval" indicator + Try Again / Back
 /// buttons with a pulsing status indicator.
+///
+/// When [hasError] is true, shows a calm illustrated card
+/// with a reassuring headline, body copy, and a filled
+/// retry button before the Back button.
 class PollingView extends StatelessWidget {
   const PollingView({
     required this.isPolling,
@@ -480,20 +679,21 @@ class PollingView extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xl),
         ],
-        if (hasError)
-          RoundButton(
-            title: context.l10n.authTryAgain,
-            onPressed: onTryAgain,
-            icon: Icons.refresh_rounded,
-          )
-        else
+        if (hasError) ...[
+          _ScanFailedCard(
+            theme: theme,
+            onTryAgain: onTryAgain,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ] else ...[
           RoundButton(
             title: context.l10n.authTryAgain,
             onPressed: onTryAgain,
             isPrimary: false,
             icon: Icons.refresh_rounded,
           ),
-        const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.sm),
+        ],
         RoundButton(
           title: context.l10n.commonBack,
           onPressed: onBack,
@@ -501,6 +701,112 @@ class PollingView extends StatelessWidget {
           icon: Icons.arrow_back_rounded,
         ),
       ],
+    );
+  }
+}
+
+/// Calm illustrated card shown when QR approval fails.
+///
+/// Displays a tinted icon, a headline, reassuring body
+/// copy, and a filled primary retry button.
+class _ScanFailedCard extends StatelessWidget {
+  const _ScanFailedCard({
+    required this.theme,
+    required this.onTryAgain,
+  });
+
+  final ThemeData theme;
+  final VoidCallback onTryAgain;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = theme.colorScheme;
+    const iconBoxSize = AppSpacing.xxxl * 2.0;
+    const iconSize = AppSpacing.xxxl + AppSpacing.sm;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(
+          AppRadius.lg,
+        ),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(
+            alpha: AppOpacity.subtle,
+          ),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Illustrated icon container.
+          Container(
+            width: iconBoxSize,
+            height: iconBoxSize,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  scheme.errorContainer,
+                  scheme.errorContainer.withValues(
+                    alpha: AppOpacity.high,
+                  ),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(
+                AppRadius.pill,
+              ),
+              border: Border.all(
+                color: scheme.error.withValues(
+                  alpha: AppOpacity.subtle,
+                ),
+                width: AppBorder.hairline,
+              ),
+            ),
+            child: Icon(
+              Icons.qr_code_scanner_rounded,
+              size: iconSize,
+              color: scheme.onErrorContainer
+                  .withValues(
+                alpha: AppOpacity.high,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          // Headline.
+          Text(
+            context.l10n.authApprovalFailedTitle,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          // Body copy.
+          Text(
+            context.l10n.authApprovalFailedBody,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(
+              color: scheme.onSurfaceVariant,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          // Filled retry button.
+          SizedBox(
+            width: double.infinity,
+            child: RoundButton(
+              title: context.l10n.authTryAgain,
+              onPressed: onTryAgain,
+              icon: Icons.refresh_rounded,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
