@@ -543,22 +543,26 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
 
               // Shortcut
               if (widget.command.shortcut != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.onSurface.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  child: Text(
-                    widget.command.shortcut!,
-                    style: TextStyle(
-                      fontSize: AppFontSize.sm,
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurfaceVariant,
-                      fontFamily: 'monospace',
+                Tooltip(
+                  message:
+                      'Press ${widget.command.shortcut} to run this command',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.onSurface.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                    ),
+                    child: Text(
+                      widget.command.shortcut!,
+                      style: TextStyle(
+                        fontSize: AppFontSize.sm,
+                        fontWeight: FontWeight.w500,
+                        color: colorScheme.onSurfaceVariant,
+                        fontFamily: 'monospace',
+                      ),
                     ),
                   ),
                 ),
