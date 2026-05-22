@@ -10,9 +10,7 @@ class FriendsApi {
   /// Fetches pending inbound friend requests for the current user.
   Future<List<FriendRequest>> fetchPendingRequests() async {
     try {
-      final response = await _client.dio.get<dynamic>(
-        '/v1/friends/requests/pending',
-      );
+      final response = await _client.get('/v1/friends/requests/pending');
       final data = response.data;
       if (data is! List) return [];
       return data
@@ -28,7 +26,7 @@ class FriendsApi {
   /// Accepts a friend request by [requestId].
   Future<bool> acceptRequest(String requestId) async {
     try {
-      final response = await _client.dio.post<dynamic>(
+      final response = await _client.post(
         '/v1/friends/requests/$requestId/accept',
       );
       final statusCode = response.statusCode;
@@ -46,7 +44,7 @@ class FriendsApi {
   /// Declines (rejects) a friend request by [requestId].
   Future<bool> declineRequest(String requestId) async {
     try {
-      final response = await _client.dio.post<dynamic>(
+      final response = await _client.post(
         '/v1/friends/requests/$requestId/decline',
       );
       final statusCode = response.statusCode;
