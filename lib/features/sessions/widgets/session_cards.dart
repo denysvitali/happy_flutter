@@ -132,12 +132,17 @@ Widget buildPreviewText({
 }
 
 /// Name row: session name with trailing status dot.
+///
+/// Set [pulseDot] to true to force the status dot into pulse
+/// animation (e.g. when the session has unread messages),
+/// independent of the session's own activity state.
 Widget buildNameRow({
   required String name,
   required SessionStatus sessionStatus,
   required TextStyle? style,
   Color? dotColor,
   double dotSize = 7,
+  bool pulseDot = false,
 }) {
   return Row(
     children: [
@@ -152,7 +157,7 @@ Widget buildNameRow({
       const SizedBox(width: AppSpacing.xsm),
       AppStatusDot(
         color: dotColor ?? Color(sessionStatus.statusDotColor),
-        pulse: sessionStatus.isPulsing,
+        pulse: sessionStatus.isPulsing || pulseDot,
         size: dotSize,
       ),
     ],
