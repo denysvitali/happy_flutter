@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/components/app_card.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
@@ -84,90 +83,92 @@ class ThemeSettingsScreen extends ConsumerWidget {
             ),
           ),
         ),
-        AppCard(
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    isDark
-                        ? Icons.dark_mode
-                        : Icons.light_mode,
-                    color: cs.primary,
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isDark
+                          ? Icons.dark_mode
+                          : Icons.light_mode,
+                      color: cs.primary,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Text(
+                      isDark
+                          ? l10n.appearanceThemeDarkModeActive
+                          : l10n.appearanceThemeLightModeActive,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Container(
+                  height: AppTouchTarget.min,
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius:
+                        BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(
+                      color: cs.outlineVariant,
+                    ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Text(
-                    isDark
-                        ? l10n.appearanceThemeDarkModeActive
-                        : l10n
-                            .appearanceThemeLightModeActive,
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                height: AppTouchTarget.min,
-                decoration: BoxDecoration(
-                  color: cs.surface,
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(
-                    color: cs.outlineVariant,
+                  child: Center(
+                    child: Text(
+                      l10n.appearanceThemeSampleContent,
+                      style: TextStyle(color: cs.onSurface),
+                    ),
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    l10n.appearanceThemeSampleContent,
-                    style: TextStyle(color: cs.onSurface),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: AppTouchTarget.min,
-                      decoration: BoxDecoration(
-                        color: cs.primaryContainer,
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.sm,
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: AppTouchTarget.min,
+                        decoration: BoxDecoration(
+                          color: cs.primaryContainer,
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.sm,
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          l10n.appearanceThemeColorPrimary,
-                          style: TextStyle(
-                            color: cs.onPrimaryContainer,
+                        child: Center(
+                          child: Text(
+                            l10n.appearanceThemeColorPrimary,
+                            style: TextStyle(
+                              color: cs.onPrimaryContainer,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Container(
-                      height: AppTouchTarget.min,
-                      decoration: BoxDecoration(
-                        color: cs.secondaryContainer,
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.sm,
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Container(
+                        height: AppTouchTarget.min,
+                        decoration: BoxDecoration(
+                          color: cs.secondaryContainer,
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.sm,
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          l10n.appearanceThemeColorSecondary,
-                          style: TextStyle(
-                            color: cs.onSecondaryContainer,
+                        child: Center(
+                          child: Text(
+                            l10n.appearanceThemeColorSecondary,
+                            style: TextStyle(
+                              color: cs.onSecondaryContainer,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),

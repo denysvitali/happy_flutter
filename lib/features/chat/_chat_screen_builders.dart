@@ -64,6 +64,11 @@ extension _ChatScreenBuilders on _ChatScreenState {
           // Sidechain (agent) messages should only appear inside
           // the AgentConversationScreen, never in the main chat.
           if (msg['isSidechain'] == true) continue;
+          // Synthetic "Subagent output (recovered)" tiles produced by
+          // _absorbOrphansIntoSyntheticTasks are diagnostic-only; surface
+          // them in AgentsListSheet, never in the main chat list. They
+          // were the user-visible noise behind GlitchTip HAPPY_FLUTTER-3C9.
+          if (msg['_orphanRecovery'] == true) continue;
           if (_shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
             hiddenToolCalls.add(msg);
             continue;
