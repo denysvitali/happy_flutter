@@ -224,7 +224,8 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       dangerContainer:
           Color.lerp(dangerContainer, other.dangerContainer, t) ??
           dangerContainer,
-      shimmerBase: Color.lerp(shimmerBase, other.shimmerBase, t) ?? shimmerBase,
+      shimmerBase:
+          Color.lerp(shimmerBase, other.shimmerBase, t) ?? shimmerBase,
       shimmerHighlight:
           Color.lerp(shimmerHighlight, other.shimmerHighlight, t) ??
           shimmerHighlight,
