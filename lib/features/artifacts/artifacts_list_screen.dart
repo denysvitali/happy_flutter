@@ -448,40 +448,28 @@ class _ArtifactListCard extends StatelessWidget {
                       const SizedBox(width: AppSpacing.xs),
                       _TypeBadge(
                         label: context.l10n.artifactsDraft,
-                        color: cs.tertiary,
+                        color: AppColors.warning,
                       ),
                     ],
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xsm),
-                // Metadata row: date + session count.
-                Row(
+                // Metadata pill row: date + optional session count.
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
                   children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 13,
+                    _TypeBadge(
+                      label: _relativeDate(context, artifact.updatedAt),
                       color: cs.onSurfaceVariant,
                     ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      _relativeDate(context, artifact.updatedAt),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        height: AppLineHeight.tight,
+                    if (hasSessions)
+                      _TypeBadge(
+                        label: sessionCount == 1
+                            ? '1 session'
+                            : '$sessionCount sessions',
+                        color: cs.primary,
                       ),
-                    ),
-                    if (hasSessions) ...[
-                      const SizedBox(width: AppSpacing.md),
-                      Icon(Icons.link, size: 13, color: cs.onSurfaceVariant),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        '$sessionCount',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          height: AppLineHeight.tight,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ],
@@ -559,7 +547,7 @@ class _TypeBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: AppOpacity.soft),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(
           color: color.withValues(alpha: 0.25),
           width: AppBorder.hairline,
