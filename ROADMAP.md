@@ -25,16 +25,23 @@ The current test count is not enough if this contract can break without failing 
 | User-visible core E2E scenarios | Not Started | Add E2E coverage for rapid follow-ups, background/resume mid-send, disconnected socket with successful REST persistence, and follow-up sends while the agent is still thinking. |
 | Invariant telemetry | Not Started | Emit counters/logs for unmatched optimistic rows, duplicate `localId`s, unknown acked `localId`s, and retry-created duplicates. |
 
-### Production Bugs (from GlitchTip, Apr 2026)
+### Production Bugs (from GlitchTip, May 2026)
 
 | Issue | Severity | Count | Status | Description |
 |-------|----------|-------|--------|-------------|
-| InvalidateSync disposed crash | Fatal | 55 | Fix on main (1ba4ebc), **needs release** | App suspend races with in-flight `invalidateAndAwait()`; `dispose()` now completes normally instead of throwing `StateError`. Production build 113001 predates fix. |
-| Null check operator (chat load) | Fatal | 9 | Fix on main (51f1189), **needs release** | `session!.permissionMode!` and `selectedProfile!.defaultModelMode` force-unwraps in `_loadInitialSettings` when async gap allowed session/profile to become null. Fixed with safe pattern-matching (`case final x?`). |
-| Null check operator (general) | Error | 12 | Fix on main (51f1189), **needs release** | Same root cause as above — same `_loadInitialSettings` async-gap null-unwraps. |
+| InvalidateSync disposed crash | Fatal | 55 | Shipped in v1.0.0-154901 (1ba4ebc) | App suspend races with in-flight `invalidateAndAwait()`; `dispose()` now completes normally instead of throwing `StateError`. |
+| Null check operator (chat load) | Fatal | 9 | Shipped in v1.0.0-154901 (51f1189) | `session!.permissionMode!` and `selectedProfile!.defaultModelMode` force-unwraps in `_loadInitialSettings` when async gap allowed session/profile to become null. Fixed with safe pattern-matching (`case final x?`). Residual GlitchTip events (HAPPY_FLUTTER-17O/3C0/382) are historical aggregate; no new shape identified in audit 2026-05-22. |
+| Null check operator (general) | Error | 12 | Shipped in v1.0.0-154901 (51f1189) | Same root cause as above. |
+| Isolate unsendable Future | Error | 3 | Shipped in v1.0.0-152XXX+ (7b69d1b, 84ff0c2) | `Isolate.run` closure was capturing `this` in offline TTS / AES decrypt isolates; switched to top-level worker with sendable POD args. |
+| ttsUseOffline unknown settings key | Fatal | 1 | Shipped in v1.0.0-XXXX (e051f35); telemetry b7cee41 on main | Settings dispatcher dropped unknown legacy keys instead of throwing; Sentry breadcrumb now captures dropped keys for context. |
+| sherpa-onnx not initialized (TTS fallback noise) | Warning | 4 | Fix on main (9135fbd), **needs release** | `OfflineTtsService` now records FFI probe failures and short-circuits to system TTS via typed `OfflineTtsException`; one info breadcrumb per process replaces ~one Sentry capture per `speak()`. |
+| Sidechain orphans absorbed | Warning | 100+ | Fix on main (35db8c4), **needs release** | Sentry capture gated to `triedFetchOlder && hasMoreOlder && count≥5`; normal happy-path absorption now local-info-only. |
+| Resume sessions sync timeout | Error | 6 | Fix on main (0621440), **needs release** | `TimeoutException` on resume is now caught and logged at info; underlying sync still completes via `onDataChanged`. |
+| Resume conversation progress timeout | Warning | 6 | Fix on main (0621440), **needs release** | Safety-timer fallback demoted from Sentry warning to local info log. |
+| Ref used in disposed widget (sessions dismissible) | Error | 1 | Fix on main (6a4776b), **needs release** | `ref.read` and `context.l10n` hoisted before `showDialog` await in `session_dismissible.dart` so swipe-and-unmount can't trigger StateError. |
 | Back button error rate | Error | 3/8 (37.5%) | Open | `StandardComponentType.backButton` click action failing intermittently. |
 | CryptoSecretBox.decrypt failed | Warning | 27 | Open | Decryption failures — possible key mismatch on legacy NaCl messages or corrupt ciphertext. |
-| Stale profile in ChatScreen | Warning | 9 | Fix on main (51f1189), **needs release** | `_loadInitialSettings` now catches `StateError` from `firstWhere` and falls back to no profile, clearing the stale `savedProfileId` from `DraftStorage`. |
+| Stale profile in ChatScreen | Warning | 9 | Shipped in v1.0.0-154901 (51f1189) | `_loadInitialSettings` now catches `StateError` from `firstWhere` and falls back to no profile, clearing the stale `savedProfileId` from `DraftStorage`. |
 | Machine offline on session create | Warning | 33 | Open | No pre-check guard — user can tap "create session" on an offline machine. UX should disable or warn. |
 | fetchMessages dropped (output filter) | Warning | ~180 | Open | Large batches of messages dropped during fetch for output data/filter reasons. Needs investigation. |
 
@@ -143,14 +150,13 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 ## Next Steps
 
-1. **Immediate**: Cut a production release to ship the InvalidateSync dispose fix (1ba4ebc) — 55 fatal crashes/day
-2. **This sprint**: Investigate and fix the two Null check operator fatals (chat.screen.load + general)
-3. **This sprint**: Fix back button 37.5% error rate
-4. **This sprint**: Guard session creation against offline machines (UX warning/disable)
-5. **This sprint**: Clean up stale profile references in ChatScreen
-6. **Next sprint**: Optimistic mutation layer for instant UI feedback
-7. **Next sprint**: Profile and reduce cold start time (avg 4.6s → target < 3s)
-8. **This quarter**: Sidebar navigation for tablet/desktop
+1. **Immediate**: Cut a production release after v1.0.0-154901 to ship the May 2026 GlitchTip-driven fixes (TTS probe short-circuit, sync resume timeout demotion, sidechain orphan gating, ref-in-dispose hoist)
+2. **This sprint**: Fix back button 37.5% error rate
+3. **This sprint**: Guard session creation against offline machines (UX warning/disable)
+4. **This sprint**: Investigate `CryptoSecretBox.decrypt failed` warnings (27 events)
+5. **Next sprint**: Optimistic mutation layer for instant UI feedback
+6. **Next sprint**: Profile and reduce cold start time (avg 4.6s → target < 3s)
+7. **This quarter**: Sidebar navigation for tablet/desktop
 
 ---
 
@@ -158,7 +164,6 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Effort | Impact |
 |------|--------|--------|
-| Ship InvalidateSync fix to production | Very Low | Tag a release — eliminates 55 fatal crashes/day |
+| Ship next production release | Very Low | Tag a release — propagates 5 May 2026 fixes to users (TTS noise, sidechain noise, resume timeouts, ref-in-dispose) |
 | Guard offline machine in NewSessionDialog | Low | Disable create button or show warning when machine offline — eliminates 33 warnings/day |
-| Clear stale profile references | Low | On profile deletion, clear sessionId→profileId mappings — eliminates 9 warnings/day |
 | Streaming cursor in assistant bubble | Low | Makes AI response feel continuous vs discrete jumps |
