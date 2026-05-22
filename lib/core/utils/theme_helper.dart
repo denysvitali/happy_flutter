@@ -133,6 +133,32 @@ const _kDarkBackground = Color(0xFF0F1117);
 const _kDarkSurface = Color(0xFF1A1D27);
 const _kDarkSurfaceVariant = Color(0xFF252836);
 
+// ── Text hierarchy (mirrors AppColorScheme text fields) ───────────────────────
+// Keep in sync with lib/core/theme/app_color_scheme.dart factories.
+
+// Light text
+const _kLightTextPrimary = Color(0xFF0F172A);
+const _kLightTextSecondary = Color(0xFF1E293B);
+const _kLightTextMuted = Color(0xFF475569);
+const _kLightTextSubtle = Color(0xFF64748B);
+
+// Dark text
+const _kDarkTextSecondary = Color(0xFFE2E8F0);
+const _kDarkTextMuted = Color(0xFFCBD5E1);
+const _kDarkTextSubtle = Color(0xFF94A3B8);
+
+// ── Interactive ───────────────────────────────────────────────────────────────
+/// Error / danger border color (mirrors AppColorScheme.errorBorder).
+const _kErrorBorder = Color(0xFFEF4444);
+
+/// Disabled filled-button fill (mirrors AppColorScheme.disabledFill).
+const _kDisabledFill = Color(0xFF94A3B8);
+
+// ── Overlay ───────────────────────────────────────────────────────────────────
+// Snack-bar backgrounds (mirror AppColorScheme.snackBarBackground).
+const _kSnackBarDark = Color(0xFF334155);
+const _kSnackBarLight = Color(0xFF1E293B);
+
 // ─── Text themes ─────────────────────────────────────────────────────────────
 
 /// Body / UI text: Inter
@@ -144,79 +170,71 @@ TextTheme _buildTextTheme({required bool dark}) {
       fontSize: 57,
       fontWeight: FontWeight.w300,
       letterSpacing: -0.5,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     displayMedium: GoogleFonts.dmSans(
       fontSize: 45,
       fontWeight: FontWeight.w300,
       letterSpacing: -0.25,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     displaySmall: GoogleFonts.dmSans(
       fontSize: 36,
       fontWeight: FontWeight.w400,
       letterSpacing: -0.15,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     headlineLarge: GoogleFonts.dmSans(
       fontSize: 32,
       fontWeight: FontWeight.w600,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     headlineMedium: GoogleFonts.dmSans(
       fontSize: 28,
       fontWeight: FontWeight.w600,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     headlineSmall: GoogleFonts.dmSans(
       fontSize: 24,
       fontWeight: FontWeight.w600,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     titleLarge: GoogleFonts.dmSans(
       fontSize: 22,
       fontWeight: FontWeight.w600,
       letterSpacing: 0,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     titleMedium: GoogleFonts.dmSans(
       fontSize: 16,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.15,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     titleSmall: GoogleFonts.dmSans(
       fontSize: 14,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.1,
-      color: dark
-          ? const Color(0xFFCBD5E1)
-          : const Color(0xFF334155),
+      color: dark ? _kDarkTextMuted : _kLightTextSecondary,
     ),
     // Body — Inter
     bodyLarge: GoogleFonts.inter(
       fontSize: 16,
       fontWeight: FontWeight.w400,
       letterSpacing: 0.15,
-      color: dark
-          ? const Color(0xFFE2E8F0)
-          : const Color(0xFF1E293B),
+      color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
     ),
     bodyMedium: GoogleFonts.inter(
       fontSize: 14,
       fontWeight: FontWeight.w400,
       letterSpacing: 0.25,
-      color: dark
-          ? const Color(0xFFE2E8F0)
-          : const Color(0xFF1E293B),
+      color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
     ),
     bodySmall: GoogleFonts.inter(
       fontSize: 12,
       fontWeight: FontWeight.w400,
       letterSpacing: 0.4,
-      color: dark
-          ? const Color(0xFF94A3B8)
-          : const Color(0xFF64748B),
+      color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
     ),
     labelLarge: GoogleFonts.inter(
       fontSize: 14,
@@ -244,12 +262,12 @@ AppBarTheme _buildAppBarTheme({required bool dark}) {
     scrolledUnderElevation: 1,
     backgroundColor:
         dark ? _kDarkSurface.withAlpha(230) : _kLightSurface.withAlpha(230),
-    foregroundColor: dark ? Colors.white : const Color(0xFF0F172A),
+    foregroundColor: dark ? Colors.white : _kLightTextPrimary,
     centerTitle: false,
     titleTextStyle: GoogleFonts.dmSans(
       fontSize: 20,
       fontWeight: FontWeight.w600,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     systemOverlayStyle: SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -324,20 +342,18 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: const BorderSide(color: Color(0xFFEF4444)),
+      borderSide: const BorderSide(color: _kErrorBorder),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: radius,
       borderSide: const BorderSide(
-        color: Color(0xFFEF4444),
+        color: _kErrorBorder,
         width: AppBorder.thick,
       ),
     ),
     hintStyle: GoogleFonts.inter(
       fontSize: 14,
-      color: dark
-          ? const Color(0xFF64748B)
-          : const Color(0xFF94A3B8),
+      color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
     ),
     // Subtle primary-tinted fill when focused (applied by widget via
     // focusedBorder fill workaround; see focusFill below).
@@ -347,9 +363,7 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
     prefixIconColor: WidgetStateColor.resolveWith(
       (states) => states.contains(WidgetState.focused)
           ? focusFill
-          : (dark
-              ? const Color(0xFF64748B)
-              : const Color(0xFF94A3B8)),
+          : (dark ? _kDarkTextSubtle : _kLightTextSubtle),
     ),
   );
 }
@@ -416,9 +430,8 @@ FilledButtonThemeData _buildFilledButtonTheme() {
   return FilledButtonThemeData(
     style: ButtonStyle(
       foregroundColor: const WidgetStatePropertyAll(Colors.white),
-      overlayColor: WidgetStatePropertyAll(
-        Colors.white.withAlpha(30),
-      ),
+      // White state-layer at M3 pressed opacity (16 %) over the gradient.
+      overlayColor: AppMotion.overlayFor(Colors.white),
       elevation: const WidgetStatePropertyAll(AppElevation.none),
       shadowColor:
           const WidgetStatePropertyAll(Colors.transparent),
@@ -452,9 +465,7 @@ FilledButtonThemeData _buildFilledButtonTheme() {
                     end: Alignment.bottomCenter,
                     colors: [_kFilledButtonTop, _kSeedColor],
                   ),
-            color: disabled
-                ? const Color(0xFF94A3B8)
-                : null,
+            color: disabled ? _kDisabledFill : null,
             borderRadius:
                 BorderRadius.circular(AppRadius.md),
           ),
@@ -468,24 +479,20 @@ FilledButtonThemeData _buildFilledButtonTheme() {
 OutlinedButtonThemeData _buildOutlinedButtonTheme({
   required bool dark,
 }) {
-  // Ghost style: transparent background, subtle primary-color border
-  // that deepens on hover/pressed; foreground is the seed color.
+  // Ghost style: transparent background with a primary-tinted M3
+  // state layer; foreground and border colour are the seed color.
   return OutlinedButtonThemeData(
     style: ButtonStyle(
       foregroundColor:
           const WidgetStatePropertyAll(_kSeedColor),
-      backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.pressed)) {
-          return _kSeedColor.withAlpha(20);
-        }
-        if (states.contains(WidgetState.hovered)) {
-          return _kSeedColor.withAlpha(10);
-        }
-        return Colors.transparent;
-      }),
-      overlayColor: WidgetStatePropertyAll(
-        _kSeedColor.withAlpha(15),
+      // Background fills with the M3 state-layer colour directly —
+      // AppMotion.stateOverlay returns null when idle so the button
+      // stays fully transparent at rest.
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) => AppMotion.stateOverlay(_kSeedColor, states),
       ),
+      // Ripple overlay uses the canonical M3 seed-color state layer.
+      overlayColor: AppMotion.overlayFor(_kSeedColor),
       side: WidgetStateProperty.resolveWith((states) {
         final alpha =
             states.contains(WidgetState.focused) ? 255 : 120;
@@ -531,13 +538,11 @@ ListTileThemeData _buildListTileTheme({required bool dark}) {
     titleTextStyle: GoogleFonts.inter(
       fontSize: 15,
       fontWeight: FontWeight.w500,
-      color: dark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+      color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
     ),
     subtitleTextStyle: GoogleFonts.inter(
       fontSize: 13,
-      color: dark
-          ? const Color(0xFF94A3B8)
-          : const Color(0xFF64748B),
+      color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
     ),
   );
 }
@@ -558,9 +563,7 @@ NavigationBarThemeData _buildNavigationBarTheme({
         fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
         color: selected
             ? _kSeedColor
-            : (dark
-                ? const Color(0xFF94A3B8)
-                : const Color(0xFF64748B)),
+            : (dark ? _kDarkTextSubtle : _kLightTextSubtle),
       );
     }),
   );
@@ -602,21 +605,18 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
     titleTextStyle: GoogleFonts.dmSans(
       fontSize: 20,
       fontWeight: FontWeight.w600,
-      color: dark ? Colors.white : const Color(0xFF0F172A),
+      color: dark ? Colors.white : _kLightTextPrimary,
     ),
     contentTextStyle: GoogleFonts.inter(
       fontSize: 14,
-      color: dark
-          ? const Color(0xFFCBD5E1)
-          : const Color(0xFF475569),
+      color: dark ? _kDarkTextMuted : _kLightTextMuted,
     ),
   );
 }
 
 SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
   return SnackBarThemeData(
-    backgroundColor:
-        dark ? const Color(0xFF334155) : const Color(0xFF1E293B),
+    backgroundColor: dark ? _kSnackBarDark : _kSnackBarLight,
     contentTextStyle: GoogleFonts.inter(
       fontSize: 14,
       color: Colors.white,
@@ -646,8 +646,8 @@ class ThemeHelper {
       onPrimary: Colors.white,
       surface: _kLightSurface,
       surfaceContainerHighest: _kLightSurfaceVariant,
-      onSurface: const Color(0xFF1E293B),
-      onSurfaceVariant: const Color(0xFF475569),
+      onSurface: _kLightTextSecondary,
+      onSurfaceVariant: _kLightTextMuted,
       outline: Colors.black.withAlpha(20),
       outlineVariant: Colors.black.withAlpha(12),
     );
@@ -707,8 +707,8 @@ class ThemeHelper {
       surfaceContainer: _kDarkSurface,
       surfaceContainerHigh: const Color(0xFF1F222E),
       surfaceContainerHighest: _kDarkSurfaceVariant,
-      onSurface: const Color(0xFFE2E8F0),
-      onSurfaceVariant: const Color(0xFF94A3B8),
+      onSurface: _kDarkTextSecondary,
+      onSurfaceVariant: _kDarkTextSubtle,
       outline: Colors.white.withAlpha(25),
       outlineVariant: Colors.white.withAlpha(15),
     );
