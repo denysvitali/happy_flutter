@@ -337,20 +337,24 @@ class _StopButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
       child: Tooltip(
         message: 'Stop speaking',
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          onTap: onPressed,
-          child: Container(
-            width: AppTouchTarget.comfortable,
-            height: AppTouchTarget.comfortable,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.stop_rounded,
-              color: Theme.of(context).colorScheme.onPrimary,
-              size: AppSpacing.lg,
+        child: Semantics(
+          button: true,
+          label: 'Stop speaking',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            onTap: onPressed,
+            child: Container(
+              width: AppTouchTarget.comfortable,
+              height: AppTouchTarget.comfortable,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.stop_rounded,
+                color: Theme.of(context).colorScheme.onPrimary,
+                size: AppSpacing.lg,
+              ),
             ),
           ),
         ),
