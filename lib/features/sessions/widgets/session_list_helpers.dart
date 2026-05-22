@@ -189,6 +189,7 @@ bool shouldShowInactiveSessionsSection({
 /// Enum of list item types rendered in the sessions list.
 enum ListItemType {
   sectionHeader,
+  projectHeader,
   pathHeader,
   activeSession,
   archiveHeader,
@@ -197,6 +198,42 @@ enum ListItemType {
   folderHeader,
   folderSectionHeader,
   folderEntry,
+}
+
+/// Infers a human-readable project name from a file-system path.
+///
+/// Strategy: strip common prefixes (`~/`, `/home/…/`, `/Users/…/`) and
+/// return the first meaningful path segment. Falls back to the full path
+/// when the result would be empty.
+///
+/// Examples:
+///   `/home/alice/projects/happy`  →  `happy`
+///   `~/work/api`                  →  `work`  (first segment after tilde)
+///   `/tmp/scratch`                →  `tmp`
+String inferProjectName(String path) {
+  var p = path.trim();
+  if (p.isEmpty) return path;
+
+  // Normalise tilde to bare segments.
+  if (p.startsWith('~/')) p = p.substring(2);
+
+  // Strip leading slash so split doesn't produce an empty first element.
+  if (p.startsWith('/')) p = p.substring(1);
+
+  // Strip common home-directory prefixes: home/<user> or Users/<user>.
+  final lp = p.toLowerCase();
+  if (lp.startsWith('home/') || lp.startsWith('users/')) {
+    // Remove 'home/<user>/' or 'users/<user>/'
+    final afterPrefix = p.indexOf('/');
+    if (afterPrefix != -1) {
+      final afterUser = p.indexOf('/', afterPrefix + 1);
+      p = afterUser != -1 ? p.substring(afterUser + 1) : '';
+    }
+  }
+
+  final segments = p.split('/').where((s) => s.isNotEmpty).toList();
+  if (segments.isEmpty) return path;
+  return segments.first;
 }
 
 /// Lightweight descriptor for a list item. Widgets are
@@ -210,7 +247,9 @@ class ListItem {
     this.folderHeader,
     this.title,
     this.pathKey,
+    this.projectKey,
     this.sessionCount,
+    this.activeSessionCount,
     this.dateKey,
     this.archivedGrouping,
     this.isFirst,
@@ -223,6 +262,21 @@ class ListItem {
         type: ListItemType.sectionHeader,
         staggerIndex: staggerIndex,
         title: title,
+      );
+
+  /// Project-level collapsible group header above path headers.
+  ListItem.projectHeader(
+    String projectKey,
+    int sessionCount,
+    int activeSessionCount,
+    bool _, // isCollapsed — unused at descriptor level
+    int staggerIndex,
+  ) : this._raw(
+        type: ListItemType.projectHeader,
+        staggerIndex: staggerIndex,
+        projectKey: projectKey,
+        sessionCount: sessionCount,
+        activeSessionCount: activeSessionCount,
       );
 
   ListItem.pathHeader(
@@ -319,7 +373,9 @@ class ListItem {
   final SessionFolderHeader? folderHeader;
   final String? title;
   final String? pathKey;
+  final String? projectKey;
   final int? sessionCount;
+  final int? activeSessionCount;
   final String? dateKey;
   final ArchivedGrouping? archivedGrouping;
   final bool? isFirst;

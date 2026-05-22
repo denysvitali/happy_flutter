@@ -43,6 +43,116 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
+/// Top-level collapsible project header grouping active sessions
+/// by inferred project name (leading path segment).
+///
+/// Rendered above one or more [PathHeader] rows to give a two-level
+/// hierarchy: Project → Path → sessions.
+class ProjectHeader extends StatelessWidget {
+  const ProjectHeader({
+    required this.projectName,
+    required this.sessionCount,
+    required this.activeCount,
+    required this.isCollapsed,
+    required this.onToggle,
+    super.key,
+  });
+
+  final String projectName;
+  final int sessionCount;
+  final int activeCount;
+  final bool isCollapsed;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.workspaces_outlined,
+              size: 14,
+              color: cs.onSurfaceVariant,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                projectName.toUpperCase(),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (activeCount > 0)
+              _ActiveBadge(count: activeCount),
+            const SizedBox(width: AppSpacing.xs),
+            AnimatedRotation(
+              turns: isCollapsed ? -0.25 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.keyboard_arrow_down,
+                size: 18,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small badge showing the active-session count inside a project header.
+class _ActiveBadge extends StatelessWidget {
+  const _ActiveBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 20),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: cs.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: cs.primary.withValues(alpha: 0.25),
+          width: AppBorder.hairline,
+        ),
+      ),
+      child: Text(
+        '$count',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: cs.primary,
+          fontSize: AppFontSize.xs,
+          fontWeight: FontWeight.w700,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
+}
+
 /// Path header for grouping active sessions by working directory.
 class PathHeader extends StatelessWidget {
   const PathHeader({
