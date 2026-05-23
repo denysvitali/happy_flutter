@@ -54,6 +54,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
         items.add({
           'kind': 'hidden-tool-summary',
           'id': 'hidden-tool-summary-$first',
+          'role': 'agent',
           'tools': hiddenToolCalls,
         });
         hiddenToolCalls = <Map<String, dynamic>>[];
