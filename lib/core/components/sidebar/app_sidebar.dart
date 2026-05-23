@@ -67,7 +67,6 @@ class _AppSidebarState extends State<AppSidebar> {
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.sessions => l10n.sessionHistoryTitle,
-      AppTab.inbox => 'Inbox',
       AppTab.settings => l10n.tabsSettings,
     };
   }

@@ -30,7 +30,7 @@ void main() {
   testWidgets('renders failed retry affordance', (tester) async {
     await tester.pumpWidget(_buildIndicator('failed'));
 
-    expect(find.text('Not delivered'), findsOneWidget);
-    expect(find.byIcon(Icons.refresh), findsOneWidget);
+    expect(find.text('Failed — tap to retry'), findsOneWidget);
+    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
   });
 }

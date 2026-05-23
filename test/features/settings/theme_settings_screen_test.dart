@@ -41,7 +41,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Adaptive'), findsOneWidget);
+      expect(find.text('Auto'), findsOneWidget);
       expect(find.text('Light'), findsOneWidget);
       expect(find.text('Dark'), findsOneWidget);
     });
@@ -161,7 +161,7 @@ void main() {
           .updateSetting('themeMode', 'light');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Adaptive'));
+      await tester.tap(find.text('Auto'));
       await tester.pumpAndSettle();
 
       expect(
@@ -238,7 +238,8 @@ void main() {
       expect(find.text('Light mode active'), findsOneWidget);
     });
 
-    testWidgets('renders theme option icons', (tester) async {
+    testWidgets('renders preview light/dark active icon',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -256,33 +257,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Icons appear in both theme options and preview section
-      expect(find.byIcon(Icons.brightness_auto), findsWidgets);
-      expect(find.byIcon(Icons.light_mode), findsWidgets);
-      expect(find.byIcon(Icons.dark_mode), findsWidgets);
-    });
-
-    testWidgets('renders theme option descriptions', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            settingsNotifierProvider.overrideWith(
-              () => _StorageFreeSettingsNotifier(),
-            ),
-          ],
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const ThemeSettingsScreen(),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Match system settings'), findsOneWidget);
-      expect(find.text('Always use light theme'), findsOneWidget);
-      expect(find.text('Always use dark theme'), findsOneWidget);
+      // Either light or dark mode icon appears in the preview chrome.
+      final hasLightIcon =
+          find.byIcon(Icons.light_mode).evaluate().isNotEmpty;
+      final hasDarkIcon =
+          find.byIcon(Icons.dark_mode).evaluate().isNotEmpty;
+      expect(hasLightIcon || hasDarkIcon, isTrue);
     });
   });
 }

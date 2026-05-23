@@ -708,7 +708,7 @@ void main() {
         expect(after1.where((m) => m['_orphanRecovery'] == true), isEmpty);
       });
 
-      test('absorbs after second consecutive no-progress sweep', () {
+      test('absorbs after fourth consecutive no-progress sweep', () {
         sync.testSetSessionMessages('s1', [
           <String, dynamic>{
             'id': 'orph-1',
@@ -720,13 +720,24 @@ void main() {
             'seq': 2,
           },
         ]);
-        // First sweep — no progress.
+        // Sweeps 1–3 — no progress, not enough to absorb yet.
         sync.testRunDeferredRegroupSweep('s1');
         expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
-
-        // Second sweep with same orphans — now absorb should fire.
         sync.testRunDeferredRegroupSweep('s1');
         expect(sync.testGetSidechainRegroupSweepCount('s1'), 2);
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 3);
+        expect(
+          sync.testGetSessionMessages('s1').where(
+            (m) => m['_orphanRecovery'] == true,
+          ),
+          isEmpty,
+          reason: 'absorb must not fire before 4 consecutive no-progress sweeps',
+        );
+
+        // Fourth sweep with same orphans — now absorb should fire.
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 4);
 
         final after = sync.testGetSessionMessages('s1');
         // One synthetic Task for the chain-root.
@@ -887,7 +898,7 @@ void main() {
           },
         ]);
 
-        // Sweep 1: no absorb yet.
+        // Sweeps 1–3: no absorb yet (threshold is 4 consecutive sweeps).
         sync.testRunDeferredRegroupSweep('s1');
         expect(sync.testGetSidechainRegroupSweepCount('s1'), 1);
         expect(
@@ -897,8 +908,26 @@ void main() {
           isEmpty,
           reason: 'absorb must not fire on first sweep',
         );
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 2);
+        expect(
+          sync
+              .testGetSessionMessages('s1')
+              .where((m) => m['_orphanRecovery'] == true),
+          isEmpty,
+          reason: 'absorb must not fire on second sweep',
+        );
+        sync.testRunDeferredRegroupSweep('s1');
+        expect(sync.testGetSidechainRegroupSweepCount('s1'), 3);
+        expect(
+          sync
+              .testGetSessionMessages('s1')
+              .where((m) => m['_orphanRecovery'] == true),
+          isEmpty,
+          reason: 'absorb must not fire on third sweep',
+        );
 
-        // Sweep 2: now we absorb — chain-root coalesce produces ONE
+        // Sweep 4: now we absorb — chain-root coalesce produces ONE
         // synthetic Task (not two per-orphan).
         sync.testRunDeferredRegroupSweep('s1');
         final afterAbsorb = sync.testGetSessionMessages('s1');
@@ -958,7 +987,7 @@ void main() {
     // synthesising a "Subagent output (recovered)" tile is premature —
     // the real parent Task is just upstream. The sweep must keep
     // paginating as fast as fetchOlder completes instead of giving up
-    // after 2 sweeps and entering the 30s suppression window.
+    // after 4 sweeps and entering the 30s suppression window.
     group('parent_tool_use_id walk-back policy', () {
       late Sync syncWithEnc;
       late int fetchOlderCount;
@@ -1142,7 +1171,7 @@ void main() {
       });
 
       test('mixed parentToolUseId presence falls back to default '
-          'behavior — absorbs after 2 sweeps', () {
+          'behavior — absorbs after 4 sweeps', () {
         syncWithEnc.testSetSessionMessages('s2', [
           <String, dynamic>{
             'id': 'orph-1',
@@ -1170,25 +1199,37 @@ void main() {
         ]);
         syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
 
-        // Sweep 1 — default 60s throttle path; fetchOlder fires.
+        // Sweep 1 — default 60s throttle path; fetchOlder fires and
+        // sets lastFetchAttempt so the fetchOlder gate is cleared for
+        // subsequent sweeps. Not enough sweeps to absorb yet.
         syncWithEnc.testRunDeferredRegroupSweep('s2');
-        // No absorb after 1 sweep.
         var msgs = syncWithEnc.testGetSessionMessages('s2');
-        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty,
+            reason: 'no absorb after 1 sweep');
 
-        // Throttle still in effect — second sweep must hit the absorb
-        // path after 2 consecutive no-progress sweeps.
+        // Sweeps 2–3 — throttle still in effect (60s not elapsed) so
+        // fetchOlder cannot re-fire; sweep counter increments toward 4.
         syncWithEnc.testRunDeferredRegroupSweep('s2');
         msgs = syncWithEnc.testGetSessionMessages('s2');
-        // The default-throttle path took the absorb branch on this
-        // sweep because the next fetchOlder cannot fire (throttle not
-        // cleared) and at least 2 sweeps have elapsed.
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty,
+            reason: 'no absorb after 2 sweeps');
+
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty,
+            reason: 'no absorb after 3 sweeps');
+
+        // Sweep 4 — must hit the absorb path: fetchOlder cannot fire
+        // (throttle not cleared) and 4 consecutive no-progress sweeps
+        // have elapsed.
         // Two orphans with distinct chain roots (toolu_A vs task-A)
         // produce one synthetic per root — that is the existing
         // chain-root coalesce contract, unchanged by this work.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        msgs = syncWithEnc.testGetSessionMessages('s2');
         expect(msgs.where((m) => m['_orphanRecovery'] == true), hasLength(2),
             reason: 'mixed parentToolUseId must fall back to the '
-                'existing 2-sweep absorb path');
+                'existing 4-sweep absorb path');
         expect(msgs.where((m) => m['isSidechain'] == true), isEmpty,
             reason: 'orphans must be absorbed into the synthetic Task');
       });
@@ -1223,18 +1264,21 @@ void main() {
         syncWithEnc.testSetSessionFirstLoadedSeq('s2', 0);
         expect(syncWithEnc.hasOlderMessages('s2'), isFalse);
 
-        // Sweep 1 — no fetchOlder available (no older history), so
-        // sweep count increments to 1 but no absorb yet.
-        syncWithEnc.testRunDeferredRegroupSweep('s2');
-        expect(fetchOlderCount, 0,
-            reason: 'no history → no fetchOlder attempts');
-        var msgs = syncWithEnc.testGetSessionMessages('s2');
-        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
+        // Sweeps 1–3 — no fetchOlder available (no older history), so
+        // sweep count increments but no absorb yet.
+        for (var i = 1; i <= 3; i++) {
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+          expect(fetchOlderCount, 0,
+              reason: 'no history → no fetchOlder attempts');
+          final msgs = syncWithEnc.testGetSessionMessages('s2');
+          expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty,
+              reason: 'absorb must not fire before 4 sweeps (i=$i)');
+        }
 
-        // Sweep 2 — absorb fires (2 consecutive no-progress sweeps,
+        // Sweep 4 — absorb fires (4 consecutive no-progress sweeps,
         // throttle path didn't help because there is nothing older).
         syncWithEnc.testRunDeferredRegroupSweep('s2');
-        msgs = syncWithEnc.testGetSessionMessages('s2');
+        final msgs = syncWithEnc.testGetSessionMessages('s2');
         expect(msgs.where((m) => m['_orphanRecovery'] == true), hasLength(1),
             reason: 'with no remaining history, absorption is the '
                 'correct fallback even when parentToolUseId is universal');
