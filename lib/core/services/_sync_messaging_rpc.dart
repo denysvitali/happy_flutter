@@ -647,32 +647,42 @@ extension SyncMessagingRpc on Sync {
       // cache as a starting point — the user sees *something* instead
       // of a loading spinner for 5-15s while the server fetch runs.
       // The incremental delta fetch will fill in any missing messages.
-      final cached = MessageCacheService().getMessages(sessionId);
-      if (logger.shouldLog(LogLevel.debug)) {
-        logger.debug(
-          '[onSessionVisible] cacheRestore: ${cached.length} '
-          'cached messages '
-          '(hasPendingSocket=$hasPendingSocketMessages)',
-        );
-      }
-      if (cached.isNotEmpty) {
-        _sessionMessages[sessionId] = cached;
-        _sessionMessagesCache = null;
-        _sessionMessagesViewCache.remove(sessionId);
-        hasMessages = true;
-        // Re-run the sidechain grouper so cached sidechain messages
-        // are correctly re-parented into their parent Task messages.
-        if (cached.any((m) => m['isSidechain'] == true)) {
-          _groupSidechainMessages(sessionId);
+      try {
+        final cached = MessageCacheService().getMessages(sessionId);
+        if (logger.shouldLog(LogLevel.debug)) {
+          logger.debug(
+            '[onSessionVisible] cacheRestore: ${cached.length} '
+            'cached messages '
+            '(hasPendingSocket=$hasPendingSocketMessages)',
+          );
         }
-        // Notify UI immediately so it can render cached messages.
-        _notifySessionMessagesChanged(sessionId);
-        _notifyDataChanged({SyncDomain.messages});
-        // Recalculate the older-messages boundary from the cache
-        // so hasOlderMessages() returns the correct value even if
-        // _restoreAllCachedMessagesAsync hasn't run yet or the
-        // session grew since the persisted boundary was saved.
-        _ensureFirstLoadedSeq(sessionId);
+        if (cached.isNotEmpty) {
+          _sessionMessages[sessionId] = cached;
+          _sessionMessagesCache = null;
+          _sessionMessagesViewCache.remove(sessionId);
+          hasMessages = true;
+          // Re-run the sidechain grouper so cached sidechain messages
+          // are correctly re-parented into their parent Task messages.
+          if (cached.any((m) => m['isSidechain'] == true)) {
+            _groupSidechainMessages(sessionId);
+          }
+          // Notify UI immediately so it can render cached messages.
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged({SyncDomain.messages});
+          // Recalculate the older-messages boundary from the cache
+          // so hasOlderMessages() returns the correct value even if
+          // _restoreAllCachedMessagesAsync hasn't run yet or the
+          // session grew since the persisted boundary was saved.
+          _ensureFirstLoadedSeq(sessionId);
+        }
+      } catch (error, stack) {
+        logger.warning(
+          'Failed to restore cached messages for session $sessionId '
+          'in onSessionVisible — falling back to server fetch',
+          error,
+          stack,
+        );
+        hasMessages = false;
       }
       // Only request a tail refresh when there are NO messages to show.
       // When cache was restored, the incremental delta path (afterSeq =

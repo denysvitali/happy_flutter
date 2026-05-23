@@ -661,7 +661,11 @@ extension SyncSocket on Sync {
     for (final entry in entriesToWarm) {
       if (!isInitialized) return;
       final sessionId = entry.key;
-      if (!_sessionMessages.containsKey(sessionId)) {
+      if (_sessionMessages.containsKey(sessionId)) {
+        processedInBatch++;
+        continue;
+      }
+      try {
         final cached = MessageCacheService().getMessages(sessionId);
         if (cached.isNotEmpty) {
           batchRestored++;
@@ -692,6 +696,13 @@ extension SyncSocket on Sync {
             batchFirstLoadedChanged = true;
           }
         }
+      } catch (error, stack) {
+        logger.warning(
+          'Failed to restore cached messages for session $sessionId '
+          'during cold start — skipping',
+          error,
+          stack,
+        );
       }
       processedInBatch++;
       if (processedInBatch >= _coldStartMessageCacheBatchSize) {

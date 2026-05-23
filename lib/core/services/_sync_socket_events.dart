@@ -457,57 +457,66 @@ extension SyncSocketEvents on Sync {
         return;
       }
 
-      if (processed.messages.isNotEmpty) {
-        _upsertSessionMessages(sessionId, processed.messages);
-      }
-      if (processed.toolResults.isNotEmpty) {
-        _applyToolResults(sessionId, processed.toolResults);
-      }
-      // Apply any pending tool results that arrived before these
-      // messages. This handles the case where a tool-call-result arrives
-      // via socket before the tool-call message itself. Only drain
-      // matched results so cross-path ordering can't lose results.
-      final pending = _pendingToolResults[sessionId];
-      if (pending != null && pending.isNotEmpty) {
-        final matched = _applyToolResults(sessionId, pending);
-        if (matched.isNotEmpty) {
-          pending.removeWhere((r) => matched.contains(r['toolUseId']));
-          if (pending.isEmpty) {
-            _pendingToolResults.remove(sessionId);
+      try {
+        if (processed.messages.isNotEmpty) {
+          _upsertSessionMessages(sessionId, processed.messages);
+        }
+        if (processed.toolResults.isNotEmpty) {
+          _applyToolResults(sessionId, processed.toolResults);
+        }
+        // Apply any pending tool results that arrived before these
+        // messages. This handles the case where a tool-call-result arrives
+        // via socket before the tool-call message itself. Only drain
+        // matched results so cross-path ordering can't lose results.
+        final pending = _pendingToolResults[sessionId];
+        if (pending != null && pending.isNotEmpty) {
+          final matched = _applyToolResults(sessionId, pending);
+          if (matched.isNotEmpty) {
+            pending.removeWhere((r) => matched.contains(r['toolUseId']));
+            if (pending.isEmpty) {
+              _pendingToolResults.remove(sessionId);
+            }
           }
         }
-      }
-      for (final u in processed.usageUpdates) {
-        final usageMap = WireParsers.asMap(u['usage']);
-        if (usageMap != null) {
-          _updateSessionUsage(
-            u['sessionId'] as String,
-            usageMap,
-            u['timestamp'] as int,
-          );
+        for (final u in processed.usageUpdates) {
+          final usageMap = WireParsers.asMap(u['usage']);
+          if (usageMap != null) {
+            _updateSessionUsage(
+              u['sessionId'] as String,
+              usageMap,
+              u['timestamp'] as int,
+            );
+          }
         }
-      }
-      _applyPermissionRequests(sessionId);
+        _applyPermissionRequests(sessionId);
 
-      // Run the sidechain grouper when the incoming messages contain
-      // sidechain content.  We intentionally omit changedIds here to
-      // force the full 4-pass grouper instead of the fast-path.  The
-      // fast-path only checks whether the *changed* messages are
-      // sidechain-relevant, which misses orphaned children from
-      // previous batches whose parent chain wasn't established yet.
-      // During active agent streaming, messages arrive every ~50ms and
-      // the deferred regroup timer (300ms) keeps getting cancelled, so
-      // orphans accumulate and never get grouped — this is the root
-      // cause of agent conversation screens showing incomplete children
-      // (only 1-2 tool calls, no thinking or text blocks).
-      //
-      // The full grouper is O(4n) where n <= 3000 (the message cap),
-      // which completes in ~1-2ms — negligible for inline processing.
-      final hasSidechain = processed.messages.any(
-        (m) => m['isSidechain'] == true || m['kind'] == 'sidechain-root',
-      );
-      if (hasSidechain) {
-        _groupSidechainMessages(sessionId);
+        // Run the sidechain grouper when the incoming messages contain
+        // sidechain content.  We intentionally omit changedIds here to
+        // force the full 4-pass grouper instead of the fast-path.  The
+        // fast-path only checks whether the *changed* messages are
+        // sidechain-relevant, which misses orphaned children from
+        // previous batches whose parent chain wasn't established yet.
+        // During active agent streaming, messages arrive every ~50ms and
+        // the deferred regroup timer (300ms) keeps getting cancelled, so
+        // orphans accumulate and never get grouped — this is the root
+        // cause of agent conversation screens showing incomplete children
+        // (only 1-2 tool calls, no thinking or text blocks).
+        //
+        // The full grouper is O(4n) where n <= 3000 (the message cap),
+        // which completes in ~1-2ms — negligible for inline processing.
+        final hasSidechain = processed.messages.any(
+          (m) => m['isSidechain'] == true || m['kind'] == 'sidechain-root',
+        );
+        if (hasSidechain) {
+          _groupSidechainMessages(sessionId);
+        }
+      } catch (error, stack) {
+        logger.warning(
+          'Inline message upsert/grouping failed for session $sessionId '
+          '— HTTP fetch will retry',
+          error,
+          stack,
+        );
       }
 
       // Advance the seq cursor so future incremental fetches don't
