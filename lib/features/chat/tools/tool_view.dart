@@ -658,23 +658,20 @@ class _ToolViewState extends ConsumerState<ToolView>
             width: 1,
           );
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: ClipRRect(
-              clipBehavior: Clip.hardEdge,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  border: Border(
-                    left: accentBorder,
-                    top: sideBorder,
-                    right: sideBorder,
-                    bottom: sideBorder,
-                  ),
+          return ClipRRect(
+            clipBehavior: Clip.hardEdge,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                border: Border(
+                  left: accentBorder,
+                  top: sideBorder,
+                  right: sideBorder,
+                  bottom: sideBorder,
                 ),
-                child: child,
               ),
+              child: child,
             ),
           );
         },
