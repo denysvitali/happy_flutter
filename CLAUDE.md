@@ -222,7 +222,7 @@ For non-URL data (e.g., `message-detail`), pass `Map<String, dynamic>` via `stat
 - `_slideUpPage` — creation/modal flows
 - `_slidePage` — detail screens with iOS-style swipe-back on all platforms
 
-**`SessionsScreen`** is a stateful tab shell rendering `InboxScreen` and `SettingsScreen` inline (not via GoRouter's `ShellRoute`).
+**`SessionsScreen`** is a stateful tab shell rendering `SettingsScreen` inline (not via GoRouter's `ShellRoute`).
 
 **Auth gating:** Every route wraps its child in `AuthGate`. The router only redirects `/` → `/sessions` for authenticated users.
 
