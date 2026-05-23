@@ -225,7 +225,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final nextIsToolLike =
         nextIsToolCall || nextMessage?['kind'] == 'hidden-tool-summary';
     final bottomPad = (isToolLike && nextIsToolLike)
-        ? 0.0
+        ? AppSpacing.xxs
         : sameSender
         ? AppSpacing.xs
         : AppSpacing.md;
