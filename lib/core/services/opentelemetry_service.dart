@@ -29,9 +29,9 @@ class OpenTelemetryService {
 
   Future<void> initialize() async {
     if (_initialized) return;
-    if (!kIsWeb && !_nativeEnabled) {
+    if (!_nativeEnabled) {
       logger.info(
-        '[OpenTelemetry] native initialization skipped; '
+        '[OpenTelemetry] initialization skipped; '
         'set HAPPY_ENABLE_NATIVE_OPENTELEMETRY=true to enable',
       );
       return;
