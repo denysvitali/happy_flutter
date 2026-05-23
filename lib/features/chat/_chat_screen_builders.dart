@@ -231,8 +231,16 @@ extension _ChatScreenBuilders on _ChatScreenState {
         : AppSpacing.md;
 
     final prevRole = prevMessage?['role'] as String?;
+    final prevIsToolLike =
+        prevMessage?['kind'] == 'tool-call' ||
+        prevMessage?['kind'] == 'hidden-tool-summary';
     final isFirstInGroup = nextRole != currentRole;
     final isLastInGroup = prevRole != currentRole;
+    // A non-tool message wedged between two tool-like neighbors renders
+    // with reduced vertical padding so the tool flow reads tightly. Short
+    // agent acknowledgements between hidden-tool-summary groups would
+    // otherwise feel "far apart" due to standard bubble padding.
+    final isCompact = !isToolLike && prevIsToolLike && nextIsToolLike;
 
     final messageKey =
         message['id'] as String? ??
@@ -276,6 +284,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
           isFirstInGroup: isFirstInGroup,
           isLastInGroup: isLastInGroup,
           isStreaming: isStreaming,
+          isCompact: isCompact,
         ),
       ),
     );

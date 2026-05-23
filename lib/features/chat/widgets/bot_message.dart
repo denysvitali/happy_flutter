@@ -17,6 +17,7 @@ class BotMessage extends StatefulWidget {
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
     this.isStreaming = false,
+    this.isCompact = false,
   });
 
   final String text;
@@ -25,6 +26,10 @@ class BotMessage extends StatefulWidget {
   final bool isFirstInGroup;
   final bool isLastInGroup;
   final bool isStreaming;
+
+  /// Reduce vertical padding when sandwiched between two tool-like
+  /// neighbors so the tool flow reads tightly.
+  final bool isCompact;
 
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
@@ -74,17 +79,21 @@ class _BotMessageState extends State<BotMessage> {
             padding: EdgeInsets.only(
               left: AppSpacing.sm,
               right: AppSpacing.sm,
-              top: widget.isFirstInGroup ? AppSpacing.xs : 1,
-              bottom: widget.isLastInGroup ? AppSpacing.xs : 1,
+              top: widget.isCompact
+                  ? 0
+                  : (widget.isFirstInGroup ? AppSpacing.xs : 1),
+              bottom: widget.isCompact
+                  ? 0
+                  : (widget.isLastInGroup ? AppSpacing.xs : 1),
             ),
             child: Semantics(
               label: widget.isStreaming
                   ? 'AI response streaming'
                   : 'AI message: ${_truncateForLabel(widget.text)}',
               child: Container(
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
+                  vertical: widget.isCompact ? AppSpacing.xs : AppSpacing.md,
                 ),
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerLow,

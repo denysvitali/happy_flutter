@@ -38,6 +38,7 @@ class MessageWidget extends StatefulWidget {
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
     this.isStreaming = false,
+    this.isCompact = false,
   });
 
   final Map<String, dynamic> messageData;
@@ -67,6 +68,12 @@ class MessageWidget extends StatefulWidget {
   /// When [true] a blinking [StreamingCursor] is appended after the content.
   /// Only meaningful for bot messages; ignored for user bubbles.
   final bool isStreaming;
+
+  /// Whether this message is sandwiched between two tool-like neighbors.
+  ///
+  /// Bot messages in this position render with reduced vertical padding so
+  /// the tool flow reads tightly. Ignored for non-bot kinds.
+  final bool isCompact;
 
   @override
   State<MessageWidget> createState() => _MessageWidgetState();
@@ -140,6 +147,7 @@ class _MessageWidgetState extends State<MessageWidget>
       widget.isFirstInGroup,
       widget.isLastInGroup,
       widget.isStreaming,
+      widget.isCompact,
       widget.onOptionPress != null,
       widget.onRetry != null,
     );
@@ -241,6 +249,7 @@ class _MessageWidgetState extends State<MessageWidget>
               isFirstInGroup: widget.isFirstInGroup,
               isLastInGroup: widget.isLastInGroup,
               isStreaming: widget.isStreaming,
+              isCompact: widget.isCompact,
             ),
     );
   }
