@@ -172,7 +172,7 @@ Providers live in `lib/core/providers/`, one notifier per file. `app_providers.d
 - **App data**: Stored in MMKV (separate instance for server config that persists across logouts)
 - **Certificate pinning**: Currently relies on platform CA store via NativeAdapter
 
-**Web platform**: Web is supported — CI runs `flutter build web --release` and deploys it. Web-specific shims are used for storage (`mmkv_storage_web.dart` falls back to `SharedPreferences`) and crypto (`sodium_loader_web.dart`).
+**Web platform**: Web is supported — CI runs `flutter build web --release --web-renderer html` and deploys it. The HTML renderer avoids CanvasKit's WASM memory exhaustion on long chat sessions. Web-specific shims are used for storage (`mmkv_storage_web.dart` falls back to `SharedPreferences`) and crypto (`sodium_loader_web.dart`).
 
 ## Testing
 
