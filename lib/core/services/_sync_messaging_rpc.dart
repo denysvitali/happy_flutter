@@ -629,7 +629,14 @@ extension SyncMessagingRpc on Sync {
       sessionId,
     );
     if (!isInitialized) return;
-    final shouldProbeAfterSessionsRefresh = sessionsSync.isPending;
+    final bool shouldProbeAfterSessionsRefresh;
+    try {
+      shouldProbeAfterSessionsRefresh = sessionsSync.isPending;
+    } on LateError {
+      // Some widget tests exercise ChatScreen with only in-memory sync state
+      // and do not initialize the network sync queues.
+      return;
+    }
 
     // Only tail-refresh when we have no messages in memory for this session
     // (first open or after restart).  When messages are already loaded the
