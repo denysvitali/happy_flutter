@@ -591,7 +591,7 @@ void main() {
         });
 
         // Mark session as visible
-        await sync.onSessionVisible(visibleId);
+        unawaited(sync.onSessionVisible(visibleId));
         expect(sync.testGetVisibleSessionId(), equals(visibleId));
 
         // Call resume()

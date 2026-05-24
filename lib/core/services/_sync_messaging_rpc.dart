@@ -628,6 +628,7 @@ extension SyncMessagingRpc on Sync {
     final hasPendingSocketMessages = _sessionsWithPendingSocketMessages.remove(
       sessionId,
     );
+    if (!isInitialized) return;
     final shouldProbeAfterSessionsRefresh = sessionsSync.isPending;
 
     // Only tail-refresh when we have no messages in memory for this session
