@@ -149,6 +149,12 @@ class MMKVStorage {
   }
 
   /// Load all IndexedDB entries into the in-memory cache.
+  ///
+  /// Session message blobs (`session-messages-*`) are skipped — they can
+  /// be large (200 messages × ~1KB each) and loading all of them for
+  /// every session into Dart memory at startup causes OOM on web,
+  /// especially under CanvasKit. They are loaded on-demand in
+  /// [getSessionMessages].
   Future<void> _loadAll() async {
     try {
       final txn = _db!.transaction(_storeName, idbModeReadOnly);
@@ -156,9 +162,11 @@ class MMKVStorage {
       final keys = await store.getAllKeys(null);
       for (final key in keys) {
         if (key == _migratedKey) continue;
+        final keyStr = key as String;
+        if (keyStr.startsWith('session-messages-')) continue;
         final value = await store.getObject(key);
         if (value is String) {
-          _cache[key as String] = value;
+          _cache[keyStr] = value;
         }
       }
       await txn.completed;
@@ -567,8 +575,9 @@ class MMKVStorage {
   // ─── Session message cache ──────────────────────────────────────────
 
   List<Map<String, dynamic>> getSessionMessages(String sessionId) {
+    final key = 'session-messages-$sessionId';
     try {
-      final raw = _cache['session-messages-$sessionId'];
+      final raw = _cache[key];
       if (raw == null) return [];
       final list = jsonDecode(raw) as List<dynamic>;
       return list.cast<Map<String, dynamic>>();
