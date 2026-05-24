@@ -792,6 +792,7 @@ extension SyncLifecycle on Sync {
     _isReady = false;
     _connectionStatus = ConnectionStatus.disconnected;
     isInitialized = false;
+    _syncManagersInitialized = false;
     _encryptionInitialized = false;
     // Dispose the outbox so retry timers don't fire after logout.
     messageOutbox.dispose();
