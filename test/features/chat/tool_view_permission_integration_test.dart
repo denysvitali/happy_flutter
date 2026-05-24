@@ -82,6 +82,25 @@ void main() {
       expect(actions.single.kind, PermissionActionKind.allowAllEdits);
     });
 
+    testWidgets('YOLO emits yolo action', (tester) async {
+      final actions = <PermissionAction>[];
+
+      await tester.pumpWidget(
+        _wrapToolView(
+          tool: _planTool(),
+          permissionActionDelegate: (action) async {
+            actions.add(action);
+          },
+        ),
+      );
+
+      await tester.tap(find.text('YOLO'));
+      await tester.pump();
+
+      expect(actions, hasLength(1));
+      expect(actions.single.kind, PermissionActionKind.yolo);
+    });
+
     testWidgets('Deny emits deny action', (tester) async {
       final actions = <PermissionAction>[];
 

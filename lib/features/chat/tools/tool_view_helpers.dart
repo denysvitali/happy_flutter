@@ -103,6 +103,7 @@ enum PermissionActionKind {
   deny,
   allowAllEdits,
   allowForSession,
+  yolo,
   codexApprove,
   codexApproveForSession,
   codexAbort,

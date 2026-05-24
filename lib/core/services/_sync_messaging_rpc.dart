@@ -212,7 +212,15 @@ extension SyncMessagingRpc on Sync {
     final looksReady =
         !isArchived &&
         (session.isOnline || (agentIsStartingOrRunning && lifecycleRecent));
-    if (looksReady) return false;
+
+    // Grace period for recently-spawned sessions — same threshold as
+    // _resolveSendTargetSession. Prevents premature auto-restore for
+    // permission actions while the daemon is still booting the agent.
+    final recentlySpawned = _sessionSpawnedAt[sessionId] != null &&
+        DateTime.now().millisecondsSinceEpoch - _sessionSpawnedAt[sessionId]! <
+            120000;
+
+    if (looksReady || recentlySpawned) return false;
 
     final machineId = session.metadata?.machineId;
     final path = session.metadata?.path;

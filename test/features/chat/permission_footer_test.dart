@@ -38,7 +38,40 @@ void main() {
 
       expect(find.text('Allow'), findsOneWidget);
       expect(find.text('All edits'), findsOneWidget);
+      expect(find.text('YOLO'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
+    });
+
+    testWidgets('YOLO shows loading spinner while callback runs', (
+      tester,
+    ) async {
+      final completer = Completer<void>();
+
+      await tester.pumpWidget(
+        _wrap(
+          PermissionFooter(
+            permission: _pending(),
+            sessionId: 's1',
+            toolName: 'ExitPlanMode',
+            onAllow: () async {},
+            onAllowAllEdits: () async {},
+            onYolo: () => completer.future,
+            onDeny: () async {},
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('YOLO'));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Allow'), findsNothing);
+
+      completer.complete();
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Allow'), findsOneWidget);
     });
 
     testWidgets('Allow shows loading spinner while callback runs', (
@@ -278,6 +311,7 @@ void main() {
 
       expect(find.text('Allow'), findsOneWidget);
       expect(find.text('All edits'), findsOneWidget);
+      expect(find.text('YOLO'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
     });
 

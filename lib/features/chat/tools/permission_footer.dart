@@ -21,6 +21,7 @@ class PermissionFooter extends StatefulWidget {
     this.onDeny,
     this.onAllowAllEdits,
     this.onAllowForSession,
+    this.onYolo,
     this.onCodexApprove,
     this.onCodexApproveForSession,
     this.onCodexAbort,
@@ -59,6 +60,9 @@ class PermissionFooter extends StatefulWidget {
 
   /// Callback when permission is allowed for the session.
   final Future<void> Function()? onAllowForSession;
+
+  /// Callback when permission is allowed with YOLO mode.
+  final Future<void> Function()? onYolo;
 
   /// Callback for Codex approve (single action).
   final Future<void> Function()? onCodexApprove;
@@ -292,6 +296,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
                       onDeny: () => _wrap(widget.onDeny),
                       onAllowAllEdits: () => _wrap(widget.onAllowAllEdits),
                       onAllowForSession: () => _wrap(widget.onAllowForSession),
+                      onYolo: () => _wrap(widget.onYolo),
                     ),
             ),
           ],
@@ -314,6 +319,7 @@ class _ActionButtons extends StatelessWidget {
     this.onDeny,
     this.onAllowAllEdits,
     this.onAllowForSession,
+    this.onYolo,
   });
   final bool isPending;
   final bool isEditTool;
@@ -326,6 +332,7 @@ class _ActionButtons extends StatelessWidget {
   final VoidCallback? onDeny;
   final VoidCallback? onAllowAllEdits;
   final VoidCallback? onAllowForSession;
+  final VoidCallback? onYolo;
 
   @override
   Widget build(BuildContext context) {
@@ -336,48 +343,48 @@ class _ActionButtons extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
           children: [
             // Primary allow button
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: isPending ? onAllow : null,
-                icon: const Icon(Icons.check_rounded, size: 15),
-                label: Text(AppLocalizations.of(context).permissionAllow),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  textStyle: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  elevation: 0,
+            ElevatedButton.icon(
+              onPressed: isPending ? onAllow : null,
+              icon: const Icon(Icons.check_rounded, size: 15),
+              label: Text(AppLocalizations.of(context).permissionAllow),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
                 ),
+                textStyle: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                elevation: 0,
               ),
             ),
 
             // Secondary allow (all edits / for session)
-            if (isPending) ...[
-              const SizedBox(width: 6),
-              if (isEditTool)
+            if (isPending)
+              if (isEditTool) ...[
                 _SecondaryButton(
                   label: l10n.permissionAllEdits,
                   onPressed: onAllowAllEdits,
-                )
-              else
+                ),
+                _SecondaryButton(
+                  label: l10n.permissionYolo,
+                  onPressed: onYolo,
+                ),
+              ] else
                 _SecondaryButton(
                   label: l10n.permissionForSession,
                   onPressed: onAllowForSession,
                 ),
-            ],
-
-            const SizedBox(width: 6),
 
             // Deny button
             OutlinedButton.icon(

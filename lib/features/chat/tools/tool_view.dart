@@ -347,6 +347,12 @@ class _ToolViewState extends ConsumerState<ToolView>
           action.permissionId,
           allowTools: allowTools,
         );
+      case PermissionActionKind.yolo:
+        await sync.sessionAllow(
+          action.sessionId,
+          action.permissionId,
+          mode: 'yolo',
+        );
       case PermissionActionKind.codexApprove:
         await sync.sessionAllow(
           action.sessionId,
@@ -615,6 +621,12 @@ class _ToolViewState extends ConsumerState<ToolView>
             ),
             onAllowForSession: () => _handlePermission(
               PermissionActionKind.allowForSession,
+              permission,
+              toolName,
+              toolInput,
+            ),
+            onYolo: () => _handlePermission(
+              PermissionActionKind.yolo,
               permission,
               toolName,
               toolInput,

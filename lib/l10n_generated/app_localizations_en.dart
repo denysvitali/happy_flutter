@@ -2883,7 +2883,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionPlan => 'Plan Mode';
 
   @override
-  String get permissionYolo => 'Yolo Mode';
+  String get permissionYolo => 'YOLO';
 
   @override
   String get permissionReadOnly => 'Read Only';
