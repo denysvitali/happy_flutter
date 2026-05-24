@@ -113,7 +113,6 @@ extension SyncSocket on Sync {
       _fetchSessionGitStatus,
       'fetchSessionGitStatus',
     );
-    _syncManagersInitialized = true;
 
     // Mark initialized early so that provider loadFromSync() can serve
     // cached sessions and messages immediately, before network syncs

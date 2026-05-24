@@ -43,10 +43,6 @@ extension SyncTestHelpers on Sync {
   set testIsInitialized(bool value) => isInitialized = value;
 
   @visibleForTesting
-  set testSyncManagersInitialized(bool value) =>
-      _syncManagersInitialized = value;
-
-  @visibleForTesting
   void testInvalidateAllSyncs({
     bool force = false,
     bool resetSessionDeltaCursor = false,

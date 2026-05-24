@@ -316,7 +316,6 @@ what you have, you must use the options mode.
   // State tracking
   bool revenueCatInitialized = false;
   bool isInitialized = false;
-  bool _syncManagersInitialized = false;
   bool _isReady = false;
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
   String? _registeredPushToken;

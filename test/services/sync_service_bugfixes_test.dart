@@ -297,7 +297,6 @@ void main() {
       sync.nativeUpdateSync = InvalidateSync(() async {});
       sync.artifactsSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
-      sync.testSyncManagersInitialized = true;
       sync.messagesSync.clear();
       sync.testClearSessionsWithPendingSocketMessages();
       sync.testResetLastResumeAtMs();
@@ -354,7 +353,6 @@ void main() {
       sync.nativeUpdateSync = InvalidateSync(() async {});
       sync.artifactsSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
-      sync.testSyncManagersInitialized = true;
       sync.messagesSync.clear();
       sync.testClearSessionsWithPendingSocketMessages();
       sync.testResetLastResumeAtMs();
