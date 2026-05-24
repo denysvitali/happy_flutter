@@ -9,6 +9,25 @@ import '../../../core/utils/wire_parsers.dart';
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart' show parseToolState;
 
+/// Immutable snapshot of Task/Agent progress for a session.
+class TaskProgress {
+  const TaskProgress({
+    required this.total,
+    required this.running,
+    required this.completed,
+    required this.error,
+  });
+
+  final int total;
+  final int running;
+  final int completed;
+  final int error;
+
+  double get completionRatio => total == 0 ? 0 : (completed + error) / total;
+  bool get hasTasks => total > 0;
+  bool get isComplete => total > 0 && running == 0;
+}
+
 /// Bottom sheet showing all active/running Task agents in the session.
 class AgentsListSheet extends StatelessWidget {
   const AgentsListSheet({
@@ -44,6 +63,41 @@ class AgentsListSheet extends StatelessWidget {
     return count;
   }
 
+  /// Progress stats for Task/Agent tools in a session.
+  static TaskProgress computeTaskProgress(String sessionId) {
+    final messages = sync.sessionMessages[sessionId] ?? [];
+    var total = 0;
+    var running = 0;
+    var completed = 0;
+    var error = 0;
+    for (final msg in messages) {
+      if (msg['isSidechain'] == true) continue;
+      if (msg['_orphanRecovery'] == true) continue;
+      final kind = msg['kind'] as String?;
+      if (kind == 'tool-call') {
+        final name = msg['name'] as String?;
+        if (name == 'Task' || name == 'Agent') {
+          total++;
+          final state = msg['state'] as String?;
+          switch (state) {
+            case 'running':
+              running++;
+            case 'completed':
+              completed++;
+            case 'error':
+              error++;
+          }
+        }
+      }
+    }
+    return TaskProgress(
+      total: total,
+      running: running,
+      completed: completed,
+      error: error,
+    );
+  }
+
   /// Extracts all Task/Agent tools from the session messages.
   static List<Map<String, dynamic>> _extractAgents(String sessionId) {
     final messages = sync.sessionMessages[sessionId] ?? [];
@@ -76,6 +130,7 @@ class AgentsListSheet extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
 
     final agents = _extractAgents(sessionId);
+    final progress = computeTaskProgress(sessionId);
 
     return DraggableScrollableSheet(
       initialChildSize: agents.isEmpty ? 0.3 : 0.5,
@@ -124,6 +179,40 @@ class AgentsListSheet extends StatelessWidget {
               ],
             ),
           ),
+          // Progress bar
+          if (progress.hasTasks)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: AppSpacing.lg,
+                right: AppSpacing.lg,
+                bottom: AppSpacing.xs,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClipRRect(
+                    borderRadius:
+                        BorderRadius.circular(AppRadius.xs),
+                    child: LinearProgressIndicator(
+                      value: progress.completionRatio,
+                      minHeight: 4,
+                      backgroundColor:
+                          cs.surfaceContainerHighest,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    '${progress.completed + progress.error} of ${progress.total} complete'
+                    '${progress.running > 0 ? ', ${progress.running} running' : ''}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontSize: AppFontSize.xxs,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const Divider(height: 1),
           // Content
           Expanded(

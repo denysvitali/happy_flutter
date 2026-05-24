@@ -43,7 +43,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeAgentCount = AgentsListSheet.countActiveAgents(sessionId);
     return AppBar(
       automaticallyImplyLeading: onBackTap == null,
       leading: onBackTap == null
@@ -63,8 +62,11 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: _VitalsStrip(vitals: machineVitals!),
             ),
       actions: [
-        // Agents list button with badge
-        _AgentsListButton(activeCount: activeAgentCount, sessionId: sessionId),
+        // Agents list button with progress
+        _AgentsListButton(
+          progress: AgentsListSheet.computeTaskProgress(sessionId),
+          sessionId: sessionId,
+        ),
         _AppBarAction(
           icon: Icons.info_outline_rounded,
           tooltip: context.l10n.chatSessionSettings,
@@ -469,21 +471,40 @@ class _AppBarAction extends StatelessWidget {
   }
 }
 
-/// Agents list button with badge showing active agent count.
+/// Agents list button with progress ring and running-count badge.
 class _AgentsListButton extends StatelessWidget {
-  const _AgentsListButton({required this.activeCount, required this.sessionId});
+  const _AgentsListButton({
+    required this.progress,
+    required this.sessionId,
+  });
 
-  final int activeCount;
+  final TaskProgress progress;
   final String sessionId;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l10n = context.l10n;
+    final hasTasks = progress.hasTasks;
+    final running = progress.running;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
+        // Progress ring behind the icon when tasks exist.
+        if (hasTasks)
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: CircularProgressIndicator(
+                value: progress.completionRatio,
+                strokeWidth: 2.5,
+                color: cs.primary,
+                backgroundColor:
+                    cs.surfaceContainerHighest,
+              ),
+            ),
+          ),
         IconButton(
           icon: const Icon(Icons.rocket_launch_outlined),
           iconSize: 20,
@@ -508,7 +529,7 @@ class _AgentsListButton extends StatelessWidget {
             );
           },
         ),
-        if (activeCount > 0)
+        if (running > 0)
           Positioned(
             right: 0,
             top: 0,
@@ -520,7 +541,7 @@ class _AgentsListButton extends StatelessWidget {
               ),
               constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
               child: Text(
-                activeCount > 9 ? '9+' : '$activeCount',
+                running > 9 ? '9+' : '$running',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 9,

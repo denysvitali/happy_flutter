@@ -170,5 +170,141 @@ void main() {
         expect(AgentsListSheet.countActiveAgents('test-session'), 10);
       });
     });
+
+    group('computeTaskProgress', () {
+      test('empty session returns zero progress', () {
+        sync.testSetSessionMessages('test-session', []);
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.total, 0);
+        expect(p.running, 0);
+        expect(p.completed, 0);
+        expect(p.error, 0);
+        expect(p.hasTasks, false);
+        expect(p.completionRatio, 0.0);
+      });
+
+      test('counts running, completed, and error states', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'task-1',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'isSidechain': false,
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'task-2',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'completed',
+            'isSidechain': false,
+            'seq': 2,
+          },
+          <String, dynamic>{
+            'id': 'task-3',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'state': 'error',
+            'isSidechain': false,
+            'seq': 3,
+          },
+          <String, dynamic>{
+            'id': 'task-4',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'state': 'running',
+            'isSidechain': false,
+            'seq': 4,
+          },
+        ]);
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.total, 4);
+        expect(p.running, 2);
+        expect(p.completed, 1);
+        expect(p.error, 1);
+        expect(p.hasTasks, true);
+        expect(p.completionRatio, 0.5);
+        expect(p.isComplete, false);
+      });
+
+      test('skips sidechain children and orphan recovery', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'task-top',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'isSidechain': false,
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'task-sidechain',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'isSidechain': true,
+            'seq': 2,
+          },
+          <String, dynamic>{
+            'id': 'task-orphan',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'isSidechain': false,
+            '_orphanRecovery': true,
+            'seq': 3,
+          },
+        ]);
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.total, 1);
+        expect(p.running, 1);
+      });
+
+      test('all completed yields completionRatio=1 and isComplete=true', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'task-1',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'completed',
+            'isSidechain': false,
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'task-2',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'state': 'completed',
+            'isSidechain': false,
+            'seq': 2,
+          },
+        ]);
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.completionRatio, 1.0);
+        expect(p.isComplete, true);
+      });
+
+      test('non-Task tool calls are ignored', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'tool-1',
+            'kind': 'tool-call',
+            'name': 'Grep',
+            'state': 'running',
+            'isSidechain': false,
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'text-1',
+            'kind': 'text',
+            'role': 'agent',
+            'seq': 2,
+          },
+        ]);
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.total, 0);
+      });
+    });
   });
 }
