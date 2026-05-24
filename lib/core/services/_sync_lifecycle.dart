@@ -268,6 +268,7 @@ extension SyncLifecycle on Sync {
             '(${socketIoClient.connectionStatus.name}) — '
             'refreshing sessions via HTTP fallback',
           );
+          _lastResumeHttpFallbackAtMs = DateTime.now().millisecondsSinceEpoch;
         } else {
           logger.debug(
             '[Sync] resume: skipping broad invalidation '

@@ -1036,8 +1036,9 @@ extension SyncMessaging on Sync {
           '/v3/sessions/$sessionId/messages',
           queryParameters: {'after_seq': startSeq, 'limit': pageSize},
           options: Options(
-            extra: const {'bypassCache': true},
-            receiveTimeout: const Duration(seconds: 15),
+            extra: const {'bypassCache': true, 'disableRetry': true},
+            connectTimeout: Sync._messageFetchConnectTimeout,
+            receiveTimeout: Sync._messageFetchReceiveTimeout,
           ),
         );
 

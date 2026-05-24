@@ -45,7 +45,15 @@ extension SyncSocketEvents on Sync {
       // socket connects.  Without this guard, every cold start pays
       // for two full sync cycles (18 HTTP requests instead of 9).
       final reconnectNowMs = DateTime.now().millisecondsSinceEpoch;
-      if (_lastInvalidateAllSyncsAtMs == null ||
+      final resumeHttpFallbackRecentlyFired =
+          _lastResumeHttpFallbackAtMs != null &&
+          reconnectNowMs - _lastResumeHttpFallbackAtMs! < 3000;
+      if (resumeHttpFallbackRecentlyFired) {
+        logger.debug(
+          '[Sync] skipping reconnect global invalidation; '
+          'resume HTTP fallback already refreshed sessions',
+        );
+      } else if (_lastInvalidateAllSyncsAtMs == null ||
           reconnectNowMs - _lastInvalidateAllSyncsAtMs! >= 2000) {
         _invalidateAllSyncs(force: true);
       }
@@ -100,7 +108,7 @@ extension SyncSocketEvents on Sync {
       // The probe bypasses fetchMessages' "already caught up" skip
       // even when the delta sessions fetch returned nothing and
       // serverLastSeq is still stale.
-      if (_visibleSessionId != null) {
+      if (_visibleSessionId != null && !resumeHttpFallbackRecentlyFired) {
         unawaited(
           sessionsSync.awaitQueue().then((_) {
             // Snapshot once: `_visibleSessionId` can be cleared by a

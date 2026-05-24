@@ -396,6 +396,7 @@ what you have, you must use the options mode.
   Timer? _deferredResumeInvalidationTimer;
   Timer? _reconnectWatchdogTimer;
   Timer? _resumeBatchTimer;
+  int? _lastResumeHttpFallbackAtMs;
   int _resumeConversationRefreshTotal = 0;
   int _resumeConversationRefreshCompleted = 0;
 
