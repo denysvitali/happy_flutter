@@ -471,7 +471,13 @@ class _AppBarAction extends StatelessWidget {
   }
 }
 
-/// Agents list button with progress ring and running-count badge.
+/// Agents list button with a compact task-progress badge.
+///
+/// The badge sits at the top-right of the icon and changes colour/shape
+/// to communicate overall progress at a glance:
+/// - Red circle with running count  → tasks are still active
+/// - Green check circle             → all tasks finished successfully
+/// - No badge                       → no tasks in this session
 class _AgentsListButton extends StatelessWidget {
   const _AgentsListButton({
     required this.progress,
@@ -485,26 +491,11 @@ class _AgentsListButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final l10n = context.l10n;
-    final hasTasks = progress.hasTasks;
     final running = progress.running;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // Progress ring behind the icon when tasks exist.
-        if (hasTasks)
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: CircularProgressIndicator(
-                value: progress.completionRatio,
-                strokeWidth: 2.5,
-                color: cs.primary,
-                backgroundColor:
-                    cs.surfaceContainerHighest,
-              ),
-            ),
-          ),
         IconButton(
           icon: const Icon(Icons.rocket_launch_outlined),
           iconSize: 20,
@@ -529,27 +520,40 @@ class _AgentsListButton extends StatelessWidget {
             );
           },
         ),
-        if (running > 0)
+        // Progress badge: red circle with count while running,
+        // green check when everything is done.
+        if (progress.hasTasks)
           Positioned(
-            right: 0,
-            top: 0,
+            right: -2,
+            top: -2,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              width: 18,
+              height: 18,
               decoration: BoxDecoration(
-                color: cs.error,
-                borderRadius: BorderRadius.circular(AppRadius.xs),
-              ),
-              constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-              child: Text(
-                running > 9 ? '9+' : '$running',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  height: 1.0,
+                color: running > 0 ? cs.error : AppColors.success,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: cs.surface,
+                  width: 1.5,
                 ),
-                textAlign: TextAlign.center,
               ),
+              alignment: Alignment.center,
+              child: running > 0
+                  ? Text(
+                      running > 9 ? '9+' : '$running',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        height: 1.0,
+                      ),
+                      textAlign: TextAlign.center,
+                    )
+                  : const Icon(
+                      Icons.check_rounded,
+                      size: 10,
+                      color: Colors.white,
+                    ),
             ),
           ),
       ],
