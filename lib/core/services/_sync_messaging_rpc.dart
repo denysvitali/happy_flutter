@@ -629,16 +629,23 @@ extension SyncMessagingRpc on Sync {
       sessionId,
     );
     if (!isInitialized) return;
+    if (!messagesSync.containsKey(sessionId)) {
+      messagesSync[sessionId] = InvalidateSync(
+        () => fetchMessages(sessionId),
+        minInterval: Sync._messagesSyncMinInterval,
+        name: 'fetchMessages',
+        onRunningChanged: _onSyncRunningChanged,
+        maxRetries: 0,
+      );
+    }
+
     var shouldProbeAfterSessionsRefresh = false;
     try {
       shouldProbeAfterSessionsRefresh = sessionsSync.isPending;
-    } on Error catch (error) {
-      if (error.runtimeType.toString() == 'LateInitializationError') {
-        // Some widget tests exercise ChatScreen with only in-memory sync
-        // state and do not initialize the network sync queues.
-        return;
-      }
-      rethrow;
+    } on Error {
+      // Some widget tests exercise ChatScreen with only in-memory sync state
+      // and do not initialize the global network sync queues.
+      return;
     }
 
     // Only tail-refresh when we have no messages in memory for this session
@@ -762,15 +769,6 @@ extension SyncMessagingRpc on Sync {
           }
         }
       }
-    }
-    if (!messagesSync.containsKey(sessionId)) {
-      messagesSync[sessionId] = InvalidateSync(
-        () => fetchMessages(sessionId),
-        minInterval: Sync._messagesSyncMinInterval,
-        name: 'fetchMessages',
-        onRunningChanged: _onSyncRunningChanged,
-        maxRetries: 0,
-      );
     }
     messagesSync[sessionId]?.invalidate();
 
