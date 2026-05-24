@@ -656,7 +656,7 @@ extension SyncMessagingRpc on Sync {
       // of a loading spinner for 5-15s while the server fetch runs.
       // The incremental delta fetch will fill in any missing messages.
       try {
-        final cached = MessageCacheService().getMessages(sessionId);
+        final cached = await MessageCacheService().getMessagesAsync(sessionId);
         if (logger.shouldLog(LogLevel.debug)) {
           logger.debug(
             '[onSessionVisible] cacheRestore: ${cached.length} '

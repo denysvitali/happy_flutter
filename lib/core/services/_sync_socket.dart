@@ -666,7 +666,7 @@ extension SyncSocket on Sync {
         continue;
       }
       try {
-        final cached = MessageCacheService().getMessages(sessionId);
+        final cached = await MessageCacheService().getMessagesAsync(sessionId);
         if (cached.isNotEmpty) {
           batchRestored++;
           totalRestored++;

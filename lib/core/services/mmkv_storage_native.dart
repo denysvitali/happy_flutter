@@ -661,6 +661,12 @@ class MMKVStorage {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getSessionMessagesAsync(
+    String sessionId,
+  ) async {
+    return getSessionMessages(sessionId);
+  }
+
   /// Returns all session IDs that have cached messages.
   ///
   /// On native this is not used for quota eviction (MMKV handles large

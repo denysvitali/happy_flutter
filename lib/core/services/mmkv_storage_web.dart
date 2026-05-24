@@ -57,6 +57,7 @@ class MMKVStorage {
 
   Database? _db;
   final Map<String, String> _cache = {};
+  final Set<String> _sessionMessageCacheKeys = <String>{};
   bool _initialized = false;
 
   // In-memory caches for the synchronous seq methods.
@@ -163,7 +164,10 @@ class MMKVStorage {
       for (final key in keys) {
         if (key == _migratedKey) continue;
         final keyStr = key as String;
-        if (keyStr.startsWith('session-messages-')) continue;
+        if (keyStr.startsWith('session-messages-')) {
+          _sessionMessageCacheKeys.add(keyStr);
+          continue;
+        }
         final value = await store.getObject(key);
         if (value is String) {
           _cache[keyStr] = value;
@@ -562,6 +566,7 @@ class MMKVStorage {
       await txn.completed;
       _sessionLastSeq = {};
       _sessionFirstLoadedSeq = {};
+      _sessionMessageCacheKeys.clear();
     } catch (e) {
       logger.warning('WebStorage: failed to clear all: $e');
     }
@@ -586,10 +591,35 @@ class MMKVStorage {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getSessionMessagesAsync(
+    String sessionId,
+  ) async {
+    final key = 'session-messages-$sessionId';
+    try {
+      var raw = _cache[key];
+      if (raw == null && _sessionMessageCacheKeys.contains(key)) {
+        final txn = _db!.transaction(_storeName, idbModeReadOnly);
+        final store = txn.objectStore(_storeName);
+        final value = await store.getObject(key);
+        await txn.completed;
+        if (value is String) {
+          raw = value;
+          _cache[key] = value;
+        }
+      }
+      if (raw == null) return [];
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.cast<Map<String, dynamic>>();
+    } catch (e) {
+      logger.warning('WebStorage: failed to read messages for $sessionId: $e');
+      return [];
+    }
+  }
+
   /// Returns all session IDs that have cached messages.
   List<String> getCachedSessionIds() {
     const prefix = 'session-messages-';
-    return _cache.keys
+    return _sessionMessageCacheKeys
         .where((k) => k.startsWith(prefix))
         .map((k) => k.substring(prefix.length))
         .toList();
@@ -609,13 +639,16 @@ class MMKVStorage {
     final encoded = jsonEncode(messages);
     // Always update in-memory cache so reads are consistent.
     _cache[key] = encoded;
+    _sessionMessageCacheKeys.add(key);
     // Fire-and-forget persist; errors are logged inside _doPersist.
     _doPersist(key, encoded);
     return true;
   }
 
   void clearSessionMessages(String sessionId) {
-    _remove('session-messages-$sessionId');
+    final key = 'session-messages-$sessionId';
+    _sessionMessageCacheKeys.remove(key);
+    _remove(key);
   }
 
   // ─── Generic key-value access ────────────────────────────────────────

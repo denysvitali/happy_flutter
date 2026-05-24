@@ -62,8 +62,35 @@ class MessageCacheService {
   List<Map<String, dynamic>> getMessages(String sessionId) {
     final stopwatch = Stopwatch()..start();
     final cached = _storage.getSessionMessages(sessionId);
+    return _processCachedMessages(
+      sessionId,
+      cached,
+      elapsedMs: stopwatch.elapsedMilliseconds,
+    );
+  }
+
+  /// Async cache read for web IndexedDB-backed message blobs.
+  ///
+  /// The sync [getMessages] path remains the fastest option when the cache
+  /// is already in memory. On web cold starts, message blobs are intentionally
+  /// skipped during storage initialization, so callers that can await should
+  /// use this method to load the selected session on demand.
+  Future<List<Map<String, dynamic>>> getMessagesAsync(String sessionId) async {
+    final stopwatch = Stopwatch()..start();
+    final cached = await _storage.getSessionMessagesAsync(sessionId);
+    return _processCachedMessages(
+      sessionId,
+      cached,
+      elapsedMs: stopwatch.elapsedMilliseconds,
+    );
+  }
+
+  List<Map<String, dynamic>> _processCachedMessages(
+    String sessionId,
+    List<Map<String, dynamic>> cached, {
+    required int elapsedMs,
+  }) {
     var messages = _trimToCacheWindow(cached);
-    final elapsedMs = stopwatch.elapsedMilliseconds;
 
     if (messages.length != cached.length) {
       _rewriteTrimmedCache(sessionId, messages, originalCount: cached.length);

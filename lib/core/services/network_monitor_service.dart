@@ -86,14 +86,15 @@ class NetworkMonitorService {
   void _triggerReconnect() {
     if (_isSuspended) return;
 
-    final socket = socketIoClient;
-    if (socket.connectionStatus != ConnectionStatus.connected) {
-      socket.reconnect();
-    }
-
     final s = Sync();
     if (s.isInitialized) {
       s.resume();
+      return;
+    }
+
+    final socket = socketIoClient;
+    if (socket.connectionStatus != ConnectionStatus.connected) {
+      socket.reconnect();
     }
   }
 

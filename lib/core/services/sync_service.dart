@@ -130,9 +130,9 @@ class Sync {
 
   // Constants
   static const int sessionReadyTimeoutMs = 3000;
-  static const int _visibleMessageFetchPageLimit = 12;
+  static const int _visibleMessageFetchPageLimit = kIsWeb ? 4 : 12;
   static const int _backgroundMessageFetchPageLimit = 1;
-  static const int _maxVisibleSessionMessages = 1000;
+  static const int _maxVisibleSessionMessages = kIsWeb ? 600 : 1000;
   static const int _maxBackgroundSessionMessages = 200;
   static const Duration _messageFetchConnectTimeout = Duration(seconds: 8);
   static const Duration _messageFetchReceiveTimeout = Duration(seconds: 8);
@@ -148,8 +148,10 @@ class Sync {
   /// paint partial results sooner via the per-page
   /// [_notifySessionMessagesChanged] hook.  The page-limit was bumped
   /// in step (8 → 12) so the worst-case crawl still covers
-  /// 12 × 200 = 2400 messages — well above the visible cap of 1000.
-  static const int _messageFetchPageSize = 200;
+  /// 12 × 200 = 2400 messages on native — well above the visible cap of
+  /// 1000. Web uses smaller pages/limits to avoid browser main-thread and
+  /// CanvasKit memory spikes while decrypting and rendering large sessions.
+  static const int _messageFetchPageSize = kIsWeb ? 100 : 200;
 
   /// Soft budget for a single [fetchMessages] cycle.  When the elapsed
   /// time exceeds this, we stop crawling forward pages and let the
@@ -160,7 +162,7 @@ class Sync {
   static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);
 
   /// Number of recent messages to load on first open of a session.
-  static const int initialLoad = 200;
+  static const int initialLoad = kIsWeb ? 100 : 200;
   static const Set<String> _supportedPermissionModes = {
     'default',
     'acceptEdits',

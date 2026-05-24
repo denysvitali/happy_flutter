@@ -28,6 +28,13 @@ class _InMemoryMMKVStorage extends MMKVStorage {
   }
 
   @override
+  Future<List<Map<String, dynamic>>> getSessionMessagesAsync(
+    String sessionId,
+  ) async {
+    return getSessionMessages(sessionId);
+  }
+
+  @override
   bool saveSessionMessages(
     String sessionId,
     List<Map<String, dynamic>> messages,
@@ -103,6 +110,23 @@ void main() {
 
       expect(identical(trimmed, messages), isTrue);
       expect(trimmed, hasLength(12));
+    });
+
+    test('getMessagesAsync uses the async storage read path', () async {
+      final storage = _InMemoryMMKVStorage()
+        ..rawSeed('session-async', [
+          {'id': 'message-1', 'seq': 1},
+        ]);
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+
+      final messages = await MessageCacheService().getMessagesAsync(
+        'session-async',
+      );
+
+      expect(messages, hasLength(1));
+      expect(messages.single['id'], 'message-1');
+      expect(storage.readCount, 1);
     });
   });
 

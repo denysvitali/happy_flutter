@@ -267,6 +267,7 @@ class SyntaxHighlighter extends StatefulWidget {
 }
 
 class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
+  static const int _maxHighlightedCodeUnits = 50000;
   late List<TextSpan> _textSpans;
 
   @override
@@ -289,6 +290,10 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
   }
 
   List<TextSpan> _computeSpans() {
+    if (widget.code.length > _maxHighlightedCodeUnits) {
+      return [TextSpan(text: widget.code)];
+    }
+
     // Use global tokenization cache for instant re-renders of identical code.
     final tokens = _tokenCache.get(widget.code, widget.language);
     return tokens.map((token) {

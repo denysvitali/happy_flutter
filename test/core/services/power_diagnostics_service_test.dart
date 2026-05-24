@@ -114,5 +114,48 @@ void main() {
       expect(report, contains('endpoints'));
       expect(report, contains('POST /v1/messages: count=1'));
     });
+
+    test('normalizes dynamic ids and caps retained endpoint maps', () {
+      for (var i = 0; i < 240; i++) {
+        powerDiagnostics.recordHttpRequest(
+          HttpRequestEntry(
+            id: i + 3,
+            timestamp: DateTime(2026),
+            method: 'GET',
+            path: '/v1/unique/$i',
+            statusCode: 200,
+          ),
+        );
+      }
+      powerDiagnostics
+        ..recordHttpRequest(
+          HttpRequestEntry(
+            id: 300,
+            timestamp: DateTime(2026),
+            method: 'GET',
+            path:
+                '/v3/sessions/123e4567-e89b-12d3-a456-426614174000/messages',
+            statusCode: 200,
+          ),
+        )
+        ..recordHttpRequest(
+          HttpRequestEntry(
+            id: 301,
+            timestamp: DateTime(2026),
+            method: 'GET',
+            path:
+                '/v3/sessions/123e4567-e89b-12d3-a456-426614174111/messages',
+            statusCode: 200,
+          ),
+        );
+
+      final snapshot = powerDiagnostics.snapshot();
+      expect(
+        snapshot.httpEndpointCounts['GET /v3/sessions/:id/messages'],
+        2,
+      );
+      expect(snapshot.httpEndpointCounts.length, lessThanOrEqualTo(200));
+      expect(snapshot.httpEndpointStats.length, lessThanOrEqualTo(200));
+    });
   });
 }

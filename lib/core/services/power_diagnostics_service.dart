@@ -140,6 +140,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
   static final PowerDiagnosticsService _instance = PowerDiagnosticsService._();
 
   static const int _maxEvents = 300;
+  static const int _maxHttpEndpoints = 200;
   static const int _notifyDebounceMs = 1000;
 
   final Queue<PowerDiagnosticEvent> _events = Queue<PowerDiagnosticEvent>();
@@ -322,11 +323,13 @@ class PowerDiagnosticsService extends ChangeNotifier {
     final slow = (entry.durationMs ?? 0) >= 1000;
     if (failed) _httpFailures++;
     if (slow) _httpSlowRequests++;
-    final endpoint = '${entry.method} ${entry.path}';
+    final endpoint = '${entry.method} ${_normalizeHttpPath(entry.path)}';
     _increment(_httpEndpointCounts, endpoint);
     _httpEndpointStats
         .putIfAbsent(endpoint, _MutableHttpEndpointStats.new)
         .record(entry, failed: failed, slow: slow);
+    _capMap(_httpEndpointCounts, _maxHttpEndpoints);
+    _capMap(_httpEndpointStats, _maxHttpEndpoints);
     _addEvent(
       PowerDiagnosticEventType.http,
       '${entry.method} ${entry.statusCode ?? '???'} '
@@ -437,6 +440,21 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   static void _increment(Map<String, int> counts, String key) {
     counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  static final RegExp _uuidPathSegment = RegExp(
+    r'/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)',
+  );
+
+  static String _normalizeHttpPath(String path) {
+    return path.replaceAll(_uuidPathSegment, '/:id');
+  }
+
+  static void _capMap<K, V>(Map<K, V> map, int maxEntries) {
+    while (map.length > maxEntries) {
+      map.remove(map.keys.first);
+    }
   }
 
   static String _formatCountSection(String title, Map<String, int> counts) {

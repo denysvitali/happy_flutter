@@ -93,6 +93,7 @@ class FrameMetricsService {
   void detach() {
     if (!_attached) return;
     _attached = false;
+    SchedulerBinding.instance.removeTimingsCallback(_onTimings);
     _flushTimer?.cancel();
     _flushTimer = null;
     _flush();

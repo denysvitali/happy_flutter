@@ -273,6 +273,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       );
     }
+    unawaited(_loadCachedMessagesAsyncIfNeeded());
 
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
@@ -284,6 +285,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _loadCachedMessagesAsyncIfNeeded() async {
+    if (_messages.isNotEmpty) return;
+    final cached = await MessageCacheService().getMessagesAsync(
+      widget.sessionId,
+    );
+    if (!mounted || cached.isEmpty || _messages.isNotEmpty) return;
+    final initialVisible = cached.length < _pageSize
+        ? cached.length
+        : _pageSize;
+    setState(() {
+      _messages = cached;
+      _isLoadingMessages = false;
+      for (final m in cached) {
+        _seenMessageIds.add(_messageKey(m));
+      }
+      _prevSeenLength = cached.length;
+      _visibleCount = initialVisible;
+    });
   }
 
   @override

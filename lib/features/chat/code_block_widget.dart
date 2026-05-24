@@ -64,11 +64,15 @@ class CodeBlockWidget extends StatefulWidget {
 }
 
 class _CodeBlockWidgetState extends State<CodeBlockWidget> {
+  static const int _maxDisplayedCodeUnits = 100000;
+  static const int _maxDisplayedLines = 2000;
   bool _copied = false;
 
   /// Cached line count — computed once and updated only when [widget.code]
   /// changes, avoiding repeated `allMatches` scans on every build.
   late int _lineCount;
+  late String _displayCode;
+  late bool _isTruncated;
 
   /// Estimated line height in logical pixels (font size * line height ratio).
   double get _lineHeight => widget.fontSize * 1.5;
@@ -79,15 +83,38 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   @override
   void initState() {
     super.initState();
-    _lineCount = '\n'.allMatches(widget.code).length + 1;
+    _updateDisplayCode();
   }
 
   @override
   void didUpdateWidget(CodeBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.code != widget.code) {
-      _lineCount = '\n'.allMatches(widget.code).length + 1;
+      _updateDisplayCode();
     }
+  }
+
+  void _updateDisplayCode() {
+    _displayCode = _truncateForDisplay(widget.code);
+    _isTruncated = _displayCode.length != widget.code.length;
+    _lineCount = '\n'.allMatches(_displayCode).length + 1;
+  }
+
+  String _truncateForDisplay(String code) {
+    var lines = 1;
+    var end = code.length < _maxDisplayedCodeUnits
+        ? code.length
+        : _maxDisplayedCodeUnits;
+    for (var i = 0; i < end; i++) {
+      if (code.codeUnitAt(i) == 10) {
+        lines++;
+        if (lines > _maxDisplayedLines) {
+          end = i;
+          break;
+        }
+      }
+    }
+    return end == code.length ? code : code.substring(0, end);
   }
 
   /// Max height before vertical scrolling kicks in.
@@ -125,6 +152,12 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             SizedBox(height: _maxHeight, child: _buildScrollableCode(isDark))
           else
             _buildScrollableCode(isDark),
+          if (_isTruncated)
+            _TruncatedNotice(
+              originalChars: widget.code.length,
+              displayedChars: _displayCode.length,
+              isDark: isDark,
+            ),
         ],
       ),
     );
@@ -161,7 +194,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             right: AppSpacing.lg,
           ),
           child: SyntaxHighlighter(
-            code: widget.code,
+            code: _displayCode,
             language: widget.language,
             isDarkMode: isDark,
             fontSize: widget.fontSize,
@@ -356,6 +389,46 @@ class _CopyButton extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TruncatedNotice extends StatelessWidget {
+  const _TruncatedNotice({
+    required this.originalChars,
+    required this.displayedChars,
+    required this.isDark,
+  });
+
+  final int originalChars;
+  final int displayedChars;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? _mocha.mantle : const Color(0xFFEFF1F3);
+    final color = isDark ? _mocha.subtext0 : const Color(0xFF6E7781);
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? _mocha.surface0 : const Color(0xFFD0D7DE),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      child: Text(
+        'Showing $displayedChars of $originalChars characters',
+        style: TextStyle(
+          color: color,
+          fontSize: AppFontSize.sm,
+          fontFamily: 'monospace',
         ),
       ),
     );

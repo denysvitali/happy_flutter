@@ -11,7 +11,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/syntax_cache.dart';
 import '../code_block_widget.dart';
 
 /// Callback type for when an option is pressed in an options block.
@@ -56,7 +55,6 @@ class _MarkdownViewState extends State<MarkdownView> {
   MarkdownStyleSheet? _styleSheet;
   ThemeData? _lastTheme;
   Color? _lastTextColor;
-  String? _lastMarkdown;
 
   /// Cached builders map — same reference passed to [MarkdownBody] each build
   /// unless the options builder instance changes.
@@ -131,12 +129,6 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   @override
   Widget build(BuildContext context) {
-    // Fast path: if the markdown string hasn't changed from the last build,
-    // return the cached widget.  This prevents re-parsing on every parent
-    // rebuild when the content is unchanged (the common case during streaming).
-    if (widget.markdown == _lastMarkdown) {
-      return _markdownCache.get(widget.markdown) ?? _buildMarkdownBody(context);
-    }
     return _buildMarkdownBody(context);
   }
 
@@ -151,9 +143,8 @@ class _MarkdownViewState extends State<MarkdownView> {
     }
 
     final markdown = widget.markdown;
-    _lastMarkdown = markdown;
 
-    final widget_ = RepaintBoundary(
+    return RepaintBoundary(
       child: MarkdownBody(
         data: markdown,
         extensionSet: _gitHubFlavoredExtensionSet,
@@ -163,11 +154,6 @@ class _MarkdownViewState extends State<MarkdownView> {
         onTapLink: (text, href, title) => _openMarkdownLink(href),
       ),
     );
-
-    // Cache the built widget keyed by exact markdown string so that
-    // identical markdown strings reuse the same widget tree on the next build.
-    _markdownCache.put(markdown, widget_);
-    return widget_;
   }
 }
 
@@ -190,7 +176,6 @@ class SimpleMarkdownView extends StatefulWidget {
 class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
   MarkdownStyleSheet? _styleSheet;
   ThemeData? _lastTheme;
-  String? _lastMarkdown;
 
   MarkdownStyleSheet _buildStyleSheet(ThemeData theme) {
     final onSurface = theme.colorScheme.onSurface;
@@ -222,9 +207,6 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.markdown == _lastMarkdown) {
-      return _markdownCache.get(widget.markdown) ?? _buildMarkdownBody(context);
-    }
     return _buildMarkdownBody(context);
   }
 
@@ -236,9 +218,8 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     }
 
     final markdown = widget.markdown;
-    _lastMarkdown = markdown;
 
-    final widget_ = RepaintBoundary(
+    return RepaintBoundary(
       child: MarkdownBody(
         data: markdown,
         extensionSet: _gitHubFlavoredExtensionSet,
@@ -247,14 +228,8 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         onTapLink: (text, href, title) => _openMarkdownLink(href),
       ),
     );
-
-    _markdownCache.put(markdown, widget_);
-    return widget_;
   }
 }
-
-/// Global markdown cache for tracking rendered content.
-final _markdownCache = MarkdownAstCache.instance;
 
 // Static caches shared across all instances to avoid allocations.
 
