@@ -305,6 +305,100 @@ void main() {
         final p = AgentsListSheet.computeTaskProgress('test-session');
         expect(p.total, 0);
       });
+
+      test('prefers task lifecycle events over tool-call counting', () {
+        // Task lifecycle events present -> should use those, ignore tool calls.
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'task-1',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'isSidechain': false,
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'ev-1',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'agent-1',
+            'seq': 2,
+          },
+        ]);
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.total, 1);
+        expect(p.running, 1);
+        expect(p.completed, 0);
+      });
+
+      test('task lifecycle events track completion by agentId', () {
+        sync.testSetSessionMessages('test-session', [
+          // Task A: started then completed
+          <String, dynamic>{
+            'id': 'ev-1',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'agent-a',
+            'seq': 1,
+          },
+          <String, dynamic>{
+            'id': 'ev-2',
+            'kind': 'text',
+            'taskEvent': true,
+            'taskStatus': 'completed',
+            'agentId': 'agent-a',
+            'seq': 2,
+          },
+          // Task B: started, multiple progress updates, still active
+          <String, dynamic>{
+            'id': 'ev-3',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'agent-b',
+            'seq': 3,
+          },
+          <String, dynamic>{
+            'id': 'ev-4',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'agent-b',
+            'seq': 4,
+          },
+          // Task C: started then failed
+          <String, dynamic>{
+            'id': 'ev-5',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'agent-c',
+            'seq': 5,
+          },
+          <String, dynamic>{
+            'id': 'ev-6',
+            'kind': 'text',
+            'taskEvent': true,
+            'taskStatus': 'failed',
+            'agentId': 'agent-c',
+            'seq': 6,
+          },
+        ]);
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.total, 3);
+        expect(p.running, 1); // only agent-b is still active
+        expect(p.completed, 2); // agent-a completed, agent-c failed = both done
+      });
+
+      test('task events without agentId are ignored', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'ev-1',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'seq': 1,
+          },
+        ]);
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.total, 0);
+      });
     });
   });
 }

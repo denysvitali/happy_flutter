@@ -47,6 +47,7 @@ void main() {
         'uuid': 'task-uuid-1',
         'parentUuid': 'tool-use-call-1',
         'description': 'exploring repo',
+        'task_id': 'task-123',
       });
       expect(r.messages, hasLength(1));
       expect(r.messages.first['kind'], 'agent-event');
@@ -54,6 +55,8 @@ void main() {
       expect(r.messages.first['isSidechain'], true);
       expect(r.messages.first['uuid'], 'task-uuid-1');
       expect(r.messages.first['parentUuid'], 'tool-use-call-1');
+      expect(r.messages.first['taskEvent'], true);
+      expect(r.messages.first['agentId'], 'task-123');
     });
 
     test('task_notification with status=completed renders summary text', () {
@@ -63,10 +66,14 @@ void main() {
         'subtype': 'task_notification',
         'status': 'completed',
         'summary': 'Done — 3 files updated',
+        'task_id': 'task-456',
       });
       expect(r.messages, hasLength(1));
       expect(r.messages.first['kind'], 'text');
       expect(r.messages.first['content'], 'Done — 3 files updated');
+      expect(r.messages.first['taskEvent'], true);
+      expect(r.messages.first['taskStatus'], 'completed');
+      expect(r.messages.first['agentId'], 'task-456');
     });
 
     test('api_retry shows attempt/max-retries label', () {

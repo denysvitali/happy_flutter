@@ -123,9 +123,58 @@ void _processAcpContent({
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
     });
+    return;
   }
 
-  // Skip task lifecycle events
+  // Task lifecycle events (task_started, task_progress, task_notification).
+  // Mirrors the handling in output_content_handler.dart::_processMetaOutput.
+  if (dataType == 'system') {
+    final subtype = data['subtype'] as String?;
+    if (subtype == 'task_started' ||
+        subtype == 'task_progress' ||
+        subtype == 'task_notification') {
+      final description = data['description'] as String?;
+      final summary = data['summary'] as String?;
+      final status = data['status'] as String?;
+
+      if (subtype == 'task_notification' &&
+          (status == 'completed' || status == 'failed')) {
+        messages.add({
+          'id': '${id}_tn',
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'content': summary ?? 'Task $status',
+          'taskEvent': true,
+          'taskStatus': status,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': ?meta.uuid,
+          'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
+        });
+        return;
+      }
+
+      final label = description ?? summary ?? 'Task $subtype';
+      messages.add({
+        'id': '${id}_te',
+        'seq': seq,
+        'createdAt': createdAt,
+        'role': 'agent',
+        'kind': 'agent-event',
+        'event': {'type': 'message', 'message': label},
+        'taskEvent': true,
+        if (meta.isSidechain) 'isSidechain': true,
+        'uuid': ?meta.uuid,
+        'parentUuid': ?meta.parentUuid,
+        'parentToolUseId': ?parentToolUseId,
+        'agentId': ?agentId,
+      });
+      return;
+    }
+  }
 
   // Catch-all for any unrecognized ACP dataType values.
   // Log ALL unrecognized types including null so we can audit what was

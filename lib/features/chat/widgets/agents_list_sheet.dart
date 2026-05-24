@@ -64,8 +64,45 @@ class AgentsListSheet extends StatelessWidget {
   }
 
   /// Progress stats for Task/Agent tools in a session.
+  ///
+  /// Prefers Claude Code task lifecycle events (task_started/progress/
+  /// notification) when available; falls back to counting tool-call
+  /// states otherwise.
   static TaskProgress computeTaskProgress(String sessionId) {
     final messages = sync.sessionMessages[sessionId] ?? [];
+
+    // First pass: look for Claude Code task lifecycle events.
+    // agentId (task_id) -> 'active' | 'done'
+    final taskStates = <String, String>{};
+    for (final msg in messages) {
+      if (msg['isSidechain'] == true) continue;
+      if (msg['_orphanRecovery'] == true) continue;
+      if (msg['taskEvent'] != true) continue;
+
+      final agentId = msg['agentId'] as String?;
+      if (agentId == null || agentId.isEmpty) continue;
+
+      final taskStatus = msg['taskStatus'] as String?;
+      if (taskStatus == 'completed' || taskStatus == 'failed') {
+        taskStates[agentId] = 'done';
+      } else {
+        // Only mark active if we haven't already seen a completion.
+        taskStates.putIfAbsent(agentId, () => 'active');
+      }
+    }
+
+    if (taskStates.isNotEmpty) {
+      final total = taskStates.length;
+      final done = taskStates.values.where((s) => s == 'done').length;
+      return TaskProgress(
+        total: total,
+        running: total - done,
+        completed: done,
+        error: 0,
+      );
+    }
+
+    // Fallback: count Task/Agent tool-call states.
     var total = 0;
     var running = 0;
     var completed = 0;

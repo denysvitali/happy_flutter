@@ -685,7 +685,12 @@ void _processMetaOutput({
   final dataType = data['type'] as String?;
   final subtype = data['subtype'] as String?;
 
-  void addEvent(String suffix, String eventType, String label) {
+  void addEvent(
+    String suffix,
+    String eventType,
+    String label, {
+    Map<String, dynamic>? extras,
+  }) {
     messages.add({
       'id': '${id}_$suffix',
       'seq': seq,
@@ -698,6 +703,7 @@ void _processMetaOutput({
       'parentUuid': ?meta.parentUuid,
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
+      ...?extras,
     });
   }
 
@@ -718,6 +724,8 @@ void _processMetaOutput({
           'role': 'agent',
           'kind': 'text',
           'content': summary ?? 'Task $status',
+          'taskEvent': true,
+          'taskStatus': status,
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': ?meta.uuid,
           'parentUuid': ?meta.parentUuid,
@@ -728,7 +736,7 @@ void _processMetaOutput({
       }
 
       final label = description ?? summary ?? 'Task $subtype';
-      addEvent('te', 'message', label);
+      addEvent('te', 'message', label, extras: {'taskEvent': true});
       return;
     }
 
