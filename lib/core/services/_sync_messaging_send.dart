@@ -188,7 +188,7 @@ extension SyncMessagingSend on Sync {
     // sessions list before the chat screen initialises), _startPostSendCatchUp
     // silently no-ops and the agent response never appears.
     if (!messagesSync.containsKey(targetSessionId)) {
-      onSessionVisible(targetSessionId);
+      unawaited(onSessionVisible(targetSessionId));
     }
 
     // Sending a message is definitive local activity for this session.

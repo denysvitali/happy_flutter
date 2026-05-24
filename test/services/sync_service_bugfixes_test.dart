@@ -434,7 +434,7 @@ void main() {
 
       // No messages in memory — onSessionVisible should request a
       // tail refresh (and skip cache restore since it may be stale).
-      sync.onSessionVisible(sessionId);
+      await sync.onSessionVisible(sessionId);
 
       expect(sync.testSessionsNeedingTailRefresh().contains(sessionId), isTrue);
     });
@@ -467,7 +467,7 @@ void main() {
       );
       sync.testSetPendingSocketMessages({sessionId});
 
-      sync.onSessionVisible(sessionId);
+      await sync.onSessionVisible(sessionId);
 
       // Should NOT request tail refresh — the delta path
       // (serverLastSeq > cursorSeq) handles missing messages
@@ -509,7 +509,7 @@ void main() {
       // Simulate: socket events arrived but didn't advance lastSeq
       sync.testSessionsWithPendingUpdates.add(sessionId);
 
-      sync.onSessionVisible(sessionId);
+      await sync.onSessionVisible(sessionId);
 
       expect(
         sync.testSessionsNeedingTailRefresh().contains(sessionId),
@@ -591,7 +591,7 @@ void main() {
         });
 
         // Mark session as visible
-        sync.onSessionVisible(visibleId);
+        await sync.onSessionVisible(visibleId);
         expect(sync.testGetVisibleSessionId(), equals(visibleId));
 
         // Call resume()

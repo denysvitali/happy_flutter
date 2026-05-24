@@ -224,7 +224,7 @@ extension SyncSessionOperations on Sync {
       _flushDataChanged();
 
       if (!messagesSync.containsKey(sessionId)) {
-        onSessionVisible(sessionId);
+        unawaited(onSessionVisible(sessionId));
       }
 
       if (message != null && message.isNotEmpty) {

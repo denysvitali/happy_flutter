@@ -222,7 +222,7 @@ extension _ChatScreenActions on _ChatScreenState {
         'chat.sync.visible',
         description: 'Mark session as visible',
       );
-      sync.onSessionVisible(sessionId);
+      unawaited(sync.onSessionVisible(sessionId));
       // Suppress the live "session activity" notification while the
       // user is looking at the session in-app.
       unawaited(sessionActivityCoordinator.setVisibleSession(sessionId));
@@ -230,9 +230,9 @@ extension _ChatScreenActions on _ChatScreenState {
 
       // Show cached messages immediately instead of
       // waiting for the debounced stream notification
-      // (100ms). onSessionVisible() loads the MMKV cache
-      // synchronously so sync already has messages in
-      // memory at this point.
+      // (100ms). onSessionVisible() starts the cache restore path
+      // immediately so sync can publish cached messages before the
+      // network catch-up finishes.
       final refreshSpan = transaction.startChild(
         'chat.sync.refresh',
         description: 'Refresh from sync singleton',

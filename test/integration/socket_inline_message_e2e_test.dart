@@ -548,7 +548,7 @@ void main() {
         };
 
         // Simulate user navigating to the session with pending messages
-        sync.onSessionVisible(sessionId);
+        await sync.onSessionVisible(sessionId);
 
         // Allow fetch to complete
         await Future<void>.delayed(

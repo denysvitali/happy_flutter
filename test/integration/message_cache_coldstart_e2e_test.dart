@@ -308,7 +308,7 @@ void main() {
           ]);
         };
 
-        sync.onSessionVisible(sessionId);
+        await sync.onSessionVisible(sessionId);
         await sync.messagesSync[sessionId]?.awaitQueue();
 
         expect(

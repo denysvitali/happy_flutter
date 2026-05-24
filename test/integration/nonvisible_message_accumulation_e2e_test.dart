@@ -235,7 +235,7 @@ void main() {
         };
 
         // Signal that the user navigated to the session.
-        sync.onSessionVisible(sessionId);
+        await sync.onSessionVisible(sessionId);
 
         await Future<void>.delayed(const Duration(milliseconds: 200));
 
@@ -298,7 +298,7 @@ void main() {
           ]);
         };
 
-        sync.onSessionVisible(sessionId);
+        await sync.onSessionVisible(sessionId);
 
         await Future<void>.delayed(const Duration(milliseconds: 200));
 
@@ -343,7 +343,7 @@ void main() {
           isTrue,
         );
 
-        sync.onSessionVisible(sessionId);
+        await sync.onSessionVisible(sessionId);
 
         // onSessionVisible removes the flag synchronously before
         // kicking off the async fetch, so we can check immediately.
@@ -478,7 +478,7 @@ void main() {
           return _buildMessagesResponse(newMessages);
         };
 
-        sync.onSessionVisible(sessionId);
+        await sync.onSessionVisible(sessionId);
 
         await Future<void>.delayed(const Duration(milliseconds: 200));
 

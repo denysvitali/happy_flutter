@@ -563,7 +563,7 @@ extension SyncMessagingRpc on Sync {
   }
 
   /// On session visible handler
-  void onSessionVisible(String sessionId) {
+  Future<void> onSessionVisible(String sessionId) async {
     _visibleSessionId = sessionId;
     _sessionUnreadCounts.remove(sessionId);
     _sessionUnreadLastIncrementMs.remove(sessionId);
