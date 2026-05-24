@@ -20,15 +20,6 @@
        isn't available when the app first needs it for decryption. -->
   <script src="sodium.js"></script>
 
-  <!-- Cap CanvasKit overlay surfaces to prevent GPU memory exhaustion on
-       text-heavy chat screens. The default is unbounded; on long sessions
-       with many messages Skia layer explosion can crash the tab. -->
-  <script>
-    window.flutterCanvasKit = {
-      maximumSurfaces: 8,
-    };
-  </script>
-
   <meta charset="UTF-8">
   <meta name="description" content="A new Flutter project.">
 
