@@ -491,10 +491,13 @@ void main() {
 
         final migrated = sync.testSessionMessages(restoredId);
         expect(migrated, isNotNull);
-        expect(migrated, hasLength(2));
+        // sendMessage inserts an optimistic placeholder, so the total is
+        // 2 migrated + 1 optimistic = 3.
+        expect(migrated, hasLength(3));
+        final migratedIds = migrated?.map((m) => m['id'] as String?).toList();
         expect(
-          migrated?.map((m) => m['id']).toList(),
-          ['msg-1', 'msg-2'],
+          migratedIds,
+          containsAll(['msg-1', 'msg-2']),
           reason: 'old session messages must be migrated to redirected session',
         );
         expect(
