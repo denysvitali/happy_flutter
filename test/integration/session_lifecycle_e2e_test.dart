@@ -432,6 +432,79 @@ void main() {
       expect(sync.testSessionMessages(restoredId), isNotNull);
     });
 
+    test(
+      'errored session with redirect migrates conversation history',
+      () async {
+        const sessionId = 'errored-with-history';
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          machineId: 'machine-1',
+          path: '/project',
+          lifecycleState: 'errored',
+        );
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'msg-1',
+            'seq': 1,
+            'role': 'user',
+            'content': {'t': 'text', 'c': 'hello'},
+            'createdAt': 1700000000000,
+          },
+          {
+            'id': 'msg-2',
+            'seq': 2,
+            'role': 'assistant',
+            'content': {'t': 'text', 'c': 'hi there'},
+            'createdAt': 1700000001000,
+          },
+        ]);
+
+        var rpcCalled = false;
+        const restoredId = 'errored-restored-history';
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          rpcCalled = true;
+          expect(machineId, 'machine-1');
+          expect(method, 'spawn-happy-session');
+          final now = DateTime.now().millisecondsSinceEpoch;
+          sync.testSessions[restoredId] = _makeSession(
+            restoredId,
+            presence: 'online',
+            machineId: machineId,
+            path: '/project',
+            lifecycleState: 'running',
+            lifecycleStateSince: now,
+          );
+          sync.testSetLastEphemeralAt(restoredId, now);
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': restoredId,
+            'dataEncryptionKey': null,
+          };
+        };
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        final result = await sync.sendMessage(sessionId, 'follow-up');
+        await sync.lastCompleteSendFuture;
+
+        expect(rpcCalled, isTrue);
+        expect(result, restoredId);
+
+        final migrated = sync.testSessionMessages(restoredId);
+        expect(migrated, isNotNull);
+        expect(migrated, hasLength(2));
+        expect(
+          migrated?.map((m) => m['id']).toList(),
+          ['msg-1', 'msg-2'],
+          reason: 'old session messages must be migrated to redirected session',
+        );
+        expect(
+          sync.testSessionMessages(sessionId),
+          isNotNull,
+          reason: 'original session messages must remain intact',
+        );
+      },
+    );
+
     test('errored session fails send when auto-restore RPC fails', () async {
       const sessionId = 'errored-restore-fail';
       sync.testSessions[sessionId] = _makeSession(

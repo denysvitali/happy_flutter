@@ -1234,6 +1234,24 @@ PY
       _sessionSpawnedProfile[restoredSessionId] = spawnResult.profile?.id;
       _sessionSpawnedModel[restoredSessionId] = modelMode;
       if (restoredSessionId != sessionId) {
+        // Migrate conversation history from the old session to the new
+        // one so the user doesn't lose context after an auto-restore
+        // redirect (e.g. after abort + respawn).
+        final oldMessages = _sessionMessages[sessionId];
+        if (oldMessages != null && oldMessages.isNotEmpty) {
+          logger.info(
+            '[sendMessage] migrating ${oldMessages.length} messages '
+            'from $sessionId -> $restoredSessionId',
+          );
+          _sessionMessages[restoredSessionId] =
+              List<Map<String, dynamic>>.from(oldMessages);
+          _rebuildSessionContentSignatures(restoredSessionId);
+          _sessionMessagesViewCache.remove(restoredSessionId);
+          if (_sessionsNeedingSidechainRegroup.contains(sessionId)) {
+            _sessionsNeedingSidechainRegroup.add(restoredSessionId);
+          }
+          _sessionMessagesCache = null;
+        }
         logger.info(
           '[sendMessage] auto-restore redirected session '
           '$sessionId -> $restoredSessionId',
