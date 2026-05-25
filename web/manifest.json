@@ -1,13 +1,14 @@
 {
     "name": "Happy",
     "short_name": "Happy",
-    "start_url": ".",
+    "id": "/",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Happy web client for secure encrypted messaging.",
     "orientation": "portrait-primary",
-    "prefer_related_applications": false,
     "icons": [
         {
             "src": "icons/Icon-192.png",
