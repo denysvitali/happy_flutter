@@ -46,7 +46,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
   @override
   void loadFromSync() {} // keep stub state
   @override
-  Future<void> refreshFromSync() async {} // keep stub state
+  Future<void> refreshFromSync({bool includeMachines = false}) async {} // keep stub state
 }
 
 class _StubMachinesNotifier extends MachinesNotifier {

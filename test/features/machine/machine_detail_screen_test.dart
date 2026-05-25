@@ -23,7 +23,7 @@ class _StubMachinesNotifier extends MachinesNotifier {
   void loadFromSync() {}
 
   @override
-  Future<void> refreshFromSync() async {}
+  Future<void> refreshFromSync({bool includeMachines = false}) async {}
 }
 
 /// Stub [SessionsNotifier] that returns pre-seeded state.
@@ -39,7 +39,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
   void loadFromSync() {}
 
   @override
-  Future<void> refreshFromSync() async {}
+  Future<void> refreshFromSync({bool includeMachines = false}) async {}
 }
 
 // ── Helpers ─────────────────────────────────────────────────────

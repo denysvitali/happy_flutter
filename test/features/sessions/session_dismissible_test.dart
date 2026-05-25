@@ -15,7 +15,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
   void loadFromSync() {}
 
   @override
-  Future<void> refreshFromSync() async {}
+  Future<void> refreshFromSync({bool includeMachines = false}) async {}
 
   @override
   Future<bool> optimisticDelete(String sessionId) async => true;
