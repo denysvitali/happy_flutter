@@ -120,25 +120,45 @@ Future<void> _runApp() async {
   // Await essentials: storage + API client. NetworkMonitor is deferred
   // to _deferredInit; its callers (Sync.resume, networkNotifier) all
   // tolerate a not-yet-initialized service.
+  // Resolve a provisional server URL immediately so API init can begin
+  // while storage warms. Storage may later load a custom URL.
+  final serverUrl = getServerUrl();
+
   final storageSpan = startupTransaction.startChild(
     'app.startup.storage',
     description: 'Initialize storage',
   );
-  await storage.Storage().initialize();
-  await storageSpan.finish();
-  final serverUrl = getServerUrl();
   final apiSpan = startupTransaction.startChild(
     'app.startup.apiClient',
     description: 'Initialize API client',
   );
-  await ApiClient().initialize(serverUrl: serverUrl).whenComplete(() {
-    unawaited(apiSpan.finish());
-  });
+
+  final storageInit = storage.Storage().initialize();
+  final apiInit = ApiClient().initialize(serverUrl: serverUrl);
+  await Future.wait<void>([storageInit, apiInit]);
+  await storageSpan.finish();
+
+  final resolvedServerUrl = getServerUrl();
+  if (resolvedServerUrl != serverUrl) {
+    final urlCorrectionSpan = startupTransaction.startChild(
+      'app.startup.apiClient.urlCorrection',
+      description: 'Reconfigure API client for stored server URL',
+    );
+    try {
+      await ApiClient().refreshServerUrl();
+    } finally {
+      await urlCorrectionSpan.finish();
+    }
+  }
+  await apiSpan.finish();
 
   final deepLink = await deepLinkFuture;
 
   startupTransaction
-    ..setData('serverUrlHost', Uri.tryParse(serverUrl)?.host ?? 'unknown')
+    ..setData(
+      'serverUrlHost',
+      Uri.tryParse(resolvedServerUrl)?.host ?? 'unknown',
+    )
     ..setData(
       'currentRoute',
       PerformanceContextService().currentRoute ?? 'unknown',
