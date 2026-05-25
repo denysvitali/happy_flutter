@@ -69,7 +69,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     _mergeLocalState();
   }
 
-  Future<void> refreshFromSync() {
+  /// Reload session state from sync.
+  /// When [includeMachines] is true, refreshes both sessions and machines
+  /// through a single batched sync call.
+  Future<void> refreshFromSync({bool includeMachines = false}) {
     if (!sync.isInitialized) {
       return Future<void>.value();
     }
@@ -79,7 +82,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     }
     final future = () async {
       try {
-        await sync.refreshSessionsListData();
+        await sync.refreshSessionsListData(includeMachines: includeMachines);
       } catch (e, stack) {
         logger.warning('Failed to refresh sessions', e, stack);
       }

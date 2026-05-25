@@ -91,7 +91,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
       sessionsNotifier.loadFromSync();
       unawaited(
-        sessionsNotifier.refreshFromSync(),
+        sessionsNotifier.refreshFromSync(includeMachines: true),
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
@@ -99,7 +99,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         }
         final machinesNotifier = ref.read(machinesNotifierProvider.notifier);
         machinesNotifier.loadFromSync();
-        unawaited(machinesNotifier.refreshFromSync());
       });
     });
     subscribeToDomains(
