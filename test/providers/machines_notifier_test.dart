@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 import 'package:riverpod/riverpod.dart';
 
 void main() {
@@ -12,6 +14,8 @@ void main() {
     });
 
     tearDown(() {
+      sync.testIsInitialized = false;
+      sync.machinesSync = InvalidateSync(() async {});
       container.dispose();
     });
 
@@ -237,6 +241,23 @@ void main() {
 
       final state = container.read(machinesNotifierProvider);
       expect(state, isEmpty);
+    });
+
+    test('refreshFromSync should dedupe concurrent calls', () async {
+      sync.testIsInitialized = true;
+      var machineSyncCalls = 0;
+      sync.machinesSync = InvalidateSync(() async {
+        machineSyncCalls++;
+      });
+      final notifier = container.read(machinesNotifierProvider.notifier);
+
+      final first = notifier.refreshFromSync();
+      final second = notifier.refreshFromSync();
+
+      expect(first, same(second));
+      await first;
+
+      expect(machineSyncCalls, 1);
     });
 
     test('remove only deletes the specified machine', () {

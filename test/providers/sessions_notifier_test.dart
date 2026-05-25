@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 import 'package:riverpod/riverpod.dart';
 
 void main() {
@@ -12,6 +14,8 @@ void main() {
     });
 
     tearDown(() {
+      sync.testIsInitialized = false;
+      sync.sessionsSync = InvalidateSync(() async {});
       container.dispose();
     });
 
@@ -183,6 +187,23 @@ void main() {
 
       final state = container.read(sessionsNotifierProvider);
       expect(state, isEmpty);
+    });
+
+    test('refreshFromSync should dedupe concurrent calls', () async {
+      sync.testIsInitialized = true;
+      var sessionSyncCalls = 0;
+      sync.sessionsSync = InvalidateSync(() async {
+        sessionSyncCalls++;
+      });
+      final notifier = container.read(sessionsNotifierProvider.notifier);
+
+      final first = notifier.refreshFromSync();
+      final second = notifier.refreshFromSync();
+
+      expect(first, same(second));
+      await first;
+
+      expect(sessionSyncCalls, 1);
     });
 
     test('should maintain session order by id in map', () {

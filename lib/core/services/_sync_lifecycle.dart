@@ -790,6 +790,7 @@ extension SyncLifecycle on Sync {
     _registeredPushToken = null;
     _nativeUpdateUrl = null;
     _isReady = false;
+    _sessionListRefreshInFlight = null;
     _connectionStatus = ConnectionStatus.disconnected;
     isInitialized = false;
     _encryptionInitialized = false;

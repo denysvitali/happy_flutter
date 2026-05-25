@@ -547,6 +547,77 @@ void main() {
         reason: 'Deferred syncs should invalidate after delay',
       );
     });
+
+    test('refreshSessionsListData dedupes concurrent callers', () async {
+      final instance = Sync();
+      instance.testIsInitialized = true;
+
+      var sessionsInvalidations = 0;
+      instance.sessionsSync = InvalidateSync(() async {
+        sessionsInvalidations++;
+      });
+      instance.settingsSync = InvalidateSync(() async {});
+      instance.profileSync = InvalidateSync(() async {});
+      instance.purchasesSync = InvalidateSync(() async {});
+      instance.machinesSync = InvalidateSync(() async {});
+      instance.pushTokenSync = InvalidateSync(() async {});
+      instance.nativeUpdateSync = InvalidateSync(() async {});
+      instance.artifactsSync = InvalidateSync(() async {});
+      instance.sessionGitStatusSync = InvalidateSync(() async {});
+
+      final first = instance.refreshSessionsListData();
+      final second = instance.refreshSessionsListData();
+
+      expect(first, same(second));
+
+      await first;
+      expect(
+        sessionsInvalidations,
+        1,
+        reason: 'Concurrent session-list refresh requests should coalesce',
+      );
+    });
+
+    test('refreshSessionsListData defers machine refresh with delay', () {
+      fakeAsync((async) {
+        final instance = Sync();
+        instance.testIsInitialized = true;
+        instance.testSessions['warm-session'] = Session(
+          id: 'warm-session',
+          seq: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          active: true,
+          activeAt: 1,
+          metadataVersion: 1,
+          agentStateVersion: 1,
+          thinking: false,
+          presence: 'offline',
+        );
+        final started = <String>[];
+        instance.sessionsSync = InvalidateSync(() async {
+          started.add('sessions');
+        });
+        instance.settingsSync = InvalidateSync(() async {});
+        instance.profileSync = InvalidateSync(() async {});
+        instance.purchasesSync = InvalidateSync(() async {});
+        instance.machinesSync = InvalidateSync(() async {
+          started.add('machines');
+        });
+        instance.pushTokenSync = InvalidateSync(() async {});
+        instance.nativeUpdateSync = InvalidateSync(() async {});
+        instance.artifactsSync = InvalidateSync(() async {});
+        instance.sessionGitStatusSync = InvalidateSync(() async {});
+
+        instance.refreshSessionsListData(includeMachines: true);
+
+        async.flushMicrotasks();
+        expect(started, ['sessions']);
+
+        async.elapse(const Duration(milliseconds: 800));
+        expect(started, ['sessions', 'machines']);
+      });
+    });
   });
 
   group('Sync auto-restore priming', () {

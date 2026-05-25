@@ -87,10 +87,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _selectionNotifier.addListener(_onSelectionChanged);
     _folderNotifier.addListener(_onFolderChanged);
     _scrollController.addListener(_onScroll);
-    Future<void>.microtask(() async {
+    Future<void>.microtask(() {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
-      await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+      unawaited(
+        ref.read(sessionsNotifierProvider.notifier).refreshFromSync(),
+      );
     });
     subscribeToDomains(
       {SyncDomain.sessions, SyncDomain.machines},

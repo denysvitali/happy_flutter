@@ -289,6 +289,55 @@ extension SyncOperations on Sync {
     await sessionsSync.invalidateAndAwait();
   }
 
+  /// Refreshes session-list domain syncs in one bounded operation.
+  ///
+  /// `sessions` is always refreshed because it is needed for the Sessions
+  /// tab's primary data model. `machines` is optional and intentionally
+  /// deferred to avoid competing with the first session paint when called
+  /// during screen init.
+  Future<void> refreshSessionsListData({
+    bool includeMachines = false,
+    bool deferMachineRefresh = true,
+  }) {
+    if (!isInitialized) {
+      return Future.value();
+    }
+
+    final inFlight = _sessionListRefreshInFlight;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final futures = <Future<void>>[sessionsSync.invalidateAndAwait()];
+    if (includeMachines) {
+      final machineTask = () {
+        if (deferMachineRefresh) {
+          return Future<void>.delayed(
+            _sessionListMachineRefreshDelay,
+            () => machinesSync.invalidateAndAwait(),
+          );
+        }
+        return machinesSync.invalidateAndAwait();
+      };
+      futures.add(machineTask());
+    }
+
+    final task = Future.wait(futures)
+        .catchError((Object error, StackTrace stack) {
+          logger.warning(
+            'Failed to refresh session-list sync data',
+            error,
+            stack,
+          );
+        })
+        .whenComplete(() {
+          _sessionListRefreshInFlight = null;
+        });
+
+    _sessionListRefreshInFlight = task;
+    return task;
+  }
+
   /// Mark a session as optimistically archived.
   ///
   /// Call this after a successful archive API call. The session will be

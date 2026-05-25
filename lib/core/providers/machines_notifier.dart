@@ -6,6 +6,7 @@ import '../services/sync_service.dart';
 
 class MachinesNotifier extends Notifier<Map<String, Machine>> {
   int _lastDataChangeCounter = -1;
+  Future<void>? _refreshInFlight;
 
   @override
   Map<String, Machine> build() => {};
@@ -33,12 +34,25 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
     if (!sync.isInitialized) {
       return;
     }
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
     try {
-      await sync.refreshMachines();
+      final future = sync.refreshMachines().then((_) {
+        loadFromSync();
+      }).catchError((e, stack) {
+        logger.warning('Failed to refresh machines', e, stack);
+      }).whenComplete(() {
+        _refreshInFlight = null;
+      });
+      _refreshInFlight = future;
+      await future;
     } catch (e, stack) {
       logger.warning('Failed to refresh machines', e, stack);
+      _refreshInFlight = null;
     }
-    loadFromSync();
   }
 
   void remove(String machineId) {

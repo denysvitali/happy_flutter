@@ -160,6 +160,8 @@ class Sync {
   /// freshest tail load even if a slow server tries to bury us.
   static const Duration _messageFetchBudget = Duration(seconds: 15);
   static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);
+  static const Duration _sessionListMachineRefreshDelay =
+      Duration(milliseconds: 800);
 
   /// Number of recent messages to load on first open of a session.
   static const int initialLoad = kIsWeb ? 100 : 200;
@@ -1027,6 +1029,8 @@ what you have, you must use the options mode.
 
   /// Minimum interval between machine fetches via InvalidateSync.
   static const Duration _machinesSyncMinInterval = Duration(seconds: 1);
+
+  Future<void>? _sessionListRefreshInFlight;
 
   Timer? _machinesRefreshDebounceTimer;
   final Set<String> _pendingUpdateMachineIds = {};

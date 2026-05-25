@@ -8,6 +8,7 @@ import '../services/sync_service.dart';
 
 class SessionsNotifier extends Notifier<Map<String, Session>> {
   int _lastDataChangeCounter = -1;
+  Future<void>? _refreshInFlight;
   final _pinnedStorage = PinnedSessionsStorage.instance;
   final _foldersStorage = SessionFoldersStorage.instance;
 
@@ -72,12 +73,20 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     if (!sync.isInitialized) {
       return;
     }
-    try {
-      await sync.refreshSessions();
-    } catch (e, stack) {
-      logger.warning('Failed to refresh sessions', e, stack);
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) {
+      return inFlight;
     }
-    loadFromSync();
+    final future = sync.refreshSessionsListData().then((_) {
+      loadFromSync();
+    }).catchError((e, stack) {
+      logger.warning('Failed to refresh sessions', e, stack);
+    }).whenComplete(() {
+      _refreshInFlight = null;
+    });
+
+    _refreshInFlight = future;
+    await future;
   }
 
   void clear() {
