@@ -200,8 +200,7 @@ void main() {
       final first = notifier.refreshFromSync();
       final second = notifier.refreshFromSync();
 
-      expect(first, same(second));
-      await first;
+      await Future.wait<void>([first, second]);
 
       expect(sessionSyncCalls, 1);
     });

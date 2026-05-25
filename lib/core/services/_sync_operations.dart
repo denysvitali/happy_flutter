@@ -310,29 +310,21 @@ extension SyncOperations on Sync {
 
     final futures = <Future<void>>[sessionsSync.invalidateAndAwait()];
     if (includeMachines) {
-      final machineTask = () {
-        if (deferMachineRefresh) {
-          return Future<void>.delayed(
-            _sessionListMachineRefreshDelay,
+      if (deferMachineRefresh) {
+        futures.add(
+          Future<void>.delayed(
+            Sync._sessionListMachineRefreshDelay,
             () => machinesSync.invalidateAndAwait(),
-          );
-        }
-        return machinesSync.invalidateAndAwait();
-      };
-      futures.add(machineTask());
+          ),
+        );
+      } else {
+        futures.add(machinesSync.invalidateAndAwait());
+      }
     }
 
-    final task = Future.wait(futures)
-        .catchError((Object error, StackTrace stack) {
-          logger.warning(
-            'Failed to refresh session-list sync data',
-            error,
-            stack,
-          );
-        })
-        .whenComplete(() {
-          _sessionListRefreshInFlight = null;
-        });
+    final task = Future.wait(futures).whenComplete(() {
+      _sessionListRefreshInFlight = null;
+    });
 
     _sessionListRefreshInFlight = task;
     return task;

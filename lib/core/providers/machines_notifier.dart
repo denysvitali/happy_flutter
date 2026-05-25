@@ -30,29 +30,26 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
     state = Map<String, Machine>.from(next);
   }
 
-  Future<void> refreshFromSync() async {
+  Future<void> refreshFromSync() {
     if (!sync.isInitialized) {
-      return;
+      return Future<void>.value();
     }
     final inFlight = _refreshInFlight;
     if (inFlight != null) {
       return inFlight;
     }
-
-    try {
-      final future = sync.refreshMachines().then((_) {
-        loadFromSync();
-      }).catchError((e, stack) {
+    final future = () async {
+      try {
+        await sync.refreshMachines();
+      } catch (e, stack) {
         logger.warning('Failed to refresh machines', e, stack);
-      }).whenComplete(() {
-        _refreshInFlight = null;
-      });
-      _refreshInFlight = future;
-      await future;
-    } catch (e, stack) {
-      logger.warning('Failed to refresh machines', e, stack);
+      }
+      loadFromSync();
+    }().whenComplete(() {
       _refreshInFlight = null;
-    }
+    });
+    _refreshInFlight = future;
+    return future;
   }
 
   void remove(String machineId) {

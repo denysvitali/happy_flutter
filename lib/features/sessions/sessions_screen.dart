@@ -88,11 +88,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _folderNotifier.addListener(_onFolderChanged);
     _scrollController.addListener(_onScroll);
     Future<void>.microtask(() {
-      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-      ref.read(machinesNotifierProvider.notifier).loadFromSync();
+      final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
+      sessionsNotifier.loadFromSync();
       unawaited(
-        ref.read(sessionsNotifierProvider.notifier).refreshFromSync(),
+        sessionsNotifier.refreshFromSync(),
       );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        final machinesNotifier = ref.read(machinesNotifierProvider.notifier);
+        machinesNotifier.loadFromSync();
+        unawaited(machinesNotifier.refreshFromSync());
+      });
     });
     subscribeToDomains(
       {SyncDomain.sessions, SyncDomain.machines},

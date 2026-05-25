@@ -69,24 +69,27 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     _mergeLocalState();
   }
 
-  Future<void> refreshFromSync() async {
+  Future<void> refreshFromSync() {
     if (!sync.isInitialized) {
-      return;
+      return Future<void>.value();
     }
     final inFlight = _refreshInFlight;
     if (inFlight != null) {
       return inFlight;
     }
-    final future = sync.refreshSessionsListData().then((_) {
+    final future = () async {
+      try {
+        await sync.refreshSessionsListData();
+      } catch (e, stack) {
+        logger.warning('Failed to refresh sessions', e, stack);
+      }
       loadFromSync();
-    }).catchError((e, stack) {
-      logger.warning('Failed to refresh sessions', e, stack);
-    }).whenComplete(() {
+    }().whenComplete(() {
       _refreshInFlight = null;
     });
 
     _refreshInFlight = future;
-    await future;
+    return future;
   }
 
   void clear() {
