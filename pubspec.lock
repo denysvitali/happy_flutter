@@ -290,21 +290,21 @@ packages:
     source: hosted
     version: "3.1.7"
   dartastic_opentelemetry:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: dartastic_opentelemetry
-      sha256: "237c60abc468f4f692b25e41d4041c5a5888c6642584fb9364d6ea6e25ea4552"
+      sha256: "9b142ca47071e45a57b6adf17bd67c603167d572dabfbbc09c6c4bc6cbad0796"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.0-beta.6"
+    version: "1.0.2-alpha"
   dartastic_opentelemetry_api:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: dartastic_opentelemetry_api
-      sha256: "455130f250e007f9ef03eae29ac132dc44e04b606e5b5f011d42cd48f22f32d9"
+      sha256: "4d58acb9fed1f313a8df639b44a8c6f9933dc1cc124b43c57a362dfdf1151147"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.0-beta.7"
+    version: "1.0.0-alpha"
   dbus:
     dependency: transitive
     description:

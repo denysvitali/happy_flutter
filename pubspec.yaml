@@ -98,6 +98,9 @@ dependency_overrides:
   # flutterrific_opentelemetry 0.4.0 caps go_router at ^14.8.1, but the
   # route observer API used here is compatible with the app's current v17.
   go_router: 17.2.3
+  # flutterrific_opentelemetry 0.4.0 has not adopted the beta API yet.
+  dartastic_opentelemetry: 1.0.2-alpha
+  dartastic_opentelemetry_api: 1.0.0-alpha
 
 dev_dependencies:
   flutter_test:
