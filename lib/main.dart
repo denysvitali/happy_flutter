@@ -117,58 +117,69 @@ Future<void> _runApp() async {
     }
   });
 
-  // Await essentials: storage + API client. NetworkMonitor is deferred
-  // to _deferredInit; its callers (Sync.resume, networkNotifier) all
-  // tolerate a not-yet-initialized service.
-  // Resolve a provisional server URL immediately so API init can begin
-  // while storage warms. Storage may later load a custom URL.
-  final serverUrl = getServerUrl();
+  final startupServicesFuture = () async {
+    // Await essentials: storage + API client. NetworkMonitor is deferred
+    // to _deferredInit; its callers (Sync.resume, networkNotifier) all
+    // tolerate a not-yet-initialized service.
+    // Resolve a provisional server URL immediately so API init can begin
+    // while storage warms. Storage may later load a custom URL.
+    final serverUrl = getServerUrl();
 
-  final storageSpan = startupTransaction.startChild(
-    'app.startup.storage',
-    description: 'Initialize storage',
-  );
-  final apiSpan = startupTransaction.startChild(
-    'app.startup.apiClient',
-    description: 'Initialize API client',
-  );
-
-  final storageInit = storage.Storage().initialize();
-  final apiInit = ApiClient().initialize(serverUrl: serverUrl);
-  await Future.wait<void>([storageInit, apiInit]);
-  await storageSpan.finish();
-
-  final resolvedServerUrl = getServerUrl();
-  if (resolvedServerUrl != serverUrl) {
-    final urlCorrectionSpan = startupTransaction.startChild(
-      'app.startup.apiClient.urlCorrection',
-      description: 'Reconfigure API client for stored server URL',
+    final storageSpan = startupTransaction.startChild(
+      'app.startup.storage',
+      description: 'Initialize storage',
     );
-    try {
-      await ApiClient().refreshServerUrl();
-    } finally {
-      await urlCorrectionSpan.finish();
+    final apiSpan = startupTransaction.startChild(
+      'app.startup.apiClient',
+      description: 'Initialize API client',
+    );
+
+    final storageInit = storage.Storage().initialize();
+    final apiInit = ApiClient().initialize(serverUrl: serverUrl);
+    await Future.wait<void>([storageInit, apiInit]);
+    await storageSpan.finish();
+
+    final resolvedServerUrl = getServerUrl();
+    if (resolvedServerUrl != serverUrl) {
+      final urlCorrectionSpan = startupTransaction.startChild(
+        'app.startup.apiClient.urlCorrection',
+        description: 'Reconfigure API client for stored server URL',
+      );
+      try {
+        await ApiClient().refreshServerUrl();
+      } finally {
+        await urlCorrectionSpan.finish();
+      }
     }
+    await apiSpan.finish();
+
+    startupTransaction
+      ..setData(
+        'serverUrlHost',
+        Uri.tryParse(resolvedServerUrl)?.host ?? 'unknown',
+      )
+      ..setData(
+        'currentRoute',
+        PerformanceContextService().currentRoute ?? 'unknown',
+      );
+    await startupTransaction.finish();
+  }();
+
+  if (!kIsWeb) {
+    await startupServicesFuture;
   }
-  await apiSpan.finish();
 
   final deepLink = await deepLinkFuture;
-
-  startupTransaction
-    ..setData(
-      'serverUrlHost',
-      Uri.tryParse(resolvedServerUrl)?.host ?? 'unknown',
-    )
-    ..setData(
-      'currentRoute',
-      PerformanceContextService().currentRoute ?? 'unknown',
-    );
-  await startupTransaction.finish();
 
   runApp(
     ErrorBoundary(
       child: ProviderScope(
-        child: SentryWidget(child: HappyApp(initialDeepLink: deepLink)),
+        child: SentryWidget(
+          child: HappyApp(
+            initialDeepLink: deepLink,
+            startupServicesFuture: startupServicesFuture,
+          ),
+        ),
       ),
     ),
   );
@@ -313,9 +324,10 @@ Future<String?> _getInitialDeepLink() async {
 }
 
 class HappyApp extends ConsumerStatefulWidget {
-  const HappyApp({super.key, this.initialDeepLink});
+  const HappyApp({super.key, this.initialDeepLink, this.startupServicesFuture});
 
   final String? initialDeepLink;
+  final Future<void>? startupServicesFuture;
 
   @override
   ConsumerState<HappyApp> createState() => _HappyAppState();
@@ -357,8 +369,20 @@ class _HappyAppState extends ConsumerState<HappyApp>
         );
       }
     });
-    Future<void>.microtask(() {
-      ref.read(authStateNotifierProvider.notifier).checkAuth();
+    ref.read(authStateNotifierProvider.notifier).beginAuthCheck();
+    Future<void>.microtask(() async {
+      try {
+        await widget.startupServicesFuture;
+      } catch (error, stack) {
+        logger.error('Startup initialization failed', error, stack);
+        unawaited(Sentry.captureException(error, stackTrace: stack));
+        if (mounted) {
+          ref.read(authStateNotifierProvider.notifier).failAuthCheck();
+        }
+        return;
+      }
+      if (!mounted) return;
+      unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
       unawaited(_initializeTheme());
       unawaited(_loadChangelogInfo());
       _processInitialDeepLink();

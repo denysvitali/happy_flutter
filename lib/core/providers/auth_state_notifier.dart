@@ -52,6 +52,14 @@ class AuthStateNotifier extends Notifier<AuthState> {
     checkAuth();
   }
 
+  void beginAuthCheck() {
+    state = AuthState.authenticating;
+  }
+
+  void failAuthCheck() {
+    state = AuthState.error;
+  }
+
   Future<void> checkAuth() async {
     state = AuthState.authenticating;
     try {
