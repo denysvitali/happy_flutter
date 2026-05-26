@@ -32,6 +32,9 @@ bool _isTransientSocketError(String error) {
       lower.contains('bad certificate') ||
       lower.contains('not upgraded to websocket') ||
       lower.contains('http status code: 503') ||
+      // Server temporarily down or restarting — resolves on reconnect.
+      lower.contains('connection refused') ||
+      lower.contains('network is unreachable') ||
       // Socket.IO internal timeout (ACK timeout or ping timeout)
       lower.contains('timeout') ||
       lower.contains('socket.io error: timeout');
