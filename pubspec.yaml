@@ -38,7 +38,7 @@ dependencies:
   json_annotation: ^4.9.0
 
   # Utilities
-  package_info_plus: ^8.3.1
+  package_info_plus: ^10.1.0
   path: ^1.9.0
   path_provider: ^2.1.5
   meta: ^1.16.0
@@ -73,7 +73,7 @@ dependencies:
   # buildscript classpath, which 403s through the CI's Maven proxy.
   just_audio: ^0.10.4
   url_launcher: ^6.3.1
-  qr: ^3.0.2
+  qr: ^4.0.0
   web: ^1.1.1
   flutter_markdown_plus: ^1.0.0
   markdown: ^7.3.0
@@ -90,14 +90,14 @@ dependencies:
   cached_network_image: ^3.4.1
 
 dependency_overrides:
-  # 2.4.18 and 2.4.21 lack SharedPreferencesPlugin; 2.4.20 is the last
-  # known-good version with Flutter 3.38.7.
-  shared_preferences_android: 2.4.20
+  # Keep this explicit until the Flutter toolchain's transitive constraints
+  # consistently pick an Android implementation with SharedPreferencesPlugin.
+  shared_preferences_android: 2.4.23
   mmkv_platform_interface: 2.4.0
-  flutter_secure_storage_linux: 3.0.0
+  flutter_secure_storage_linux: 3.0.1
   # flutterrific_opentelemetry 0.4.0 caps go_router at ^14.8.1, but the
   # route observer API used here is compatible with the app's current v17.
-  go_router: 17.2.2
+  go_router: 17.2.3
 
 dev_dependencies:
   flutter_test:

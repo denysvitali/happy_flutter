@@ -10,6 +10,7 @@ include: package:flutter_lints/flutter.yaml
 # Analyzer configuration
 analyzer:
   exclude:
+    - build/**
     - lib/**/*.freezed.dart
     - lib/**/*.g.dart
     - lib/**/*.mocks.dart
