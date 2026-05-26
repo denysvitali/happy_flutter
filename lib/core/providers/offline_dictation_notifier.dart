@@ -58,7 +58,9 @@ class OfflineDictationNotifier extends Notifier<OfflineDictationState> {
   Future<void> _showReadyToast(BuildContext context) async {
     final l10n = await AppLocalizations.delegate.load(const Locale('en'));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.showSnackBar(
       SnackBar(
         content: Text(l10n.transcriptionReady),
         behavior: SnackBarBehavior.floating,
@@ -76,6 +78,8 @@ class OfflineDictationNotifier extends Notifier<OfflineDictationState> {
         state = const OfflineDictationState.idle();
       });
       if (context != null) {
+        // _showReadyToast checks context.mounted internally.
+        // ignore: use_build_context_synchronously
         unawaited(_showReadyToast(context));
       }
     } on OfflineDictationException catch (error) {
