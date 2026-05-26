@@ -5314,7 +5314,7 @@ abstract class AppLocalizations {
   /// No description provided for @permissionYolo.
   ///
   /// In en, this message translates to:
-  /// **'Yolo Mode'**
+  /// **'YOLO'**
   String get permissionYolo;
 
   /// No description provided for @permissionReadOnly.
@@ -7717,6 +7717,24 @@ abstract class AppLocalizations {
   /// **'Sign In with Secret Key'**
   String get authSignInWithSecretKey;
 
+  /// No description provided for @authSecretKeyReassurance.
+  ///
+  /// In en, this message translates to:
+  /// **'We\'ll never ask for this in email or support chats. Only enter it here.'**
+  String get authSecretKeyReassurance;
+
+  /// No description provided for @authSecretKeyReassuranceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your key stays private'**
+  String get authSecretKeyReassuranceTitle;
+
+  /// No description provided for @authContinueToKeyInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter Secret Key'**
+  String get authContinueToKeyInput;
+
   /// No description provided for @authSomethingWentWrong.
   ///
   /// In en, this message translates to:
@@ -7728,6 +7746,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Waiting for approval...'**
   String get authWaitingForApproval;
+
+  /// No description provided for @authApprovalFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan not completed'**
+  String get authApprovalFailedTitle;
+
+  /// No description provided for @authApprovalFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This can happen if the desktop app closed or the request timed out. Try scanning the QR code again.'**
+  String get authApprovalFailedBody;
 
   /// No description provided for @chatBeginningOfConversation.
   ///

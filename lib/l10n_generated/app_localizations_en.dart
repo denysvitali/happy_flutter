@@ -4125,11 +4125,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSignInWithSecretKey => 'Sign In with Secret Key';
 
   @override
+  String get authSecretKeyReassurance =>
+      'We\'ll never ask for this in email or support chats. Only enter it here.';
+
+  @override
+  String get authSecretKeyReassuranceTitle => 'Your key stays private';
+
+  @override
+  String get authContinueToKeyInput => 'Enter Secret Key';
+
+  @override
   String get authSomethingWentWrong =>
       'Something went wrong. Please sign in again.';
 
   @override
   String get authWaitingForApproval => 'Waiting for approval...';
+
+  @override
+  String get authApprovalFailedTitle => 'Scan not completed';
+
+  @override
+  String get authApprovalFailedBody =>
+      'This can happen if the desktop app closed or the request timed out. Try scanning the QR code again.';
 
   @override
   String get chatBeginningOfConversation => 'Beginning of conversation';
