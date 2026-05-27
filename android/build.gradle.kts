@@ -14,13 +14,14 @@ subprojects {
 
 // Workaround: cronet_http (via native_dio_adapter) compiles against
 // android-34 but its :jni dependency requires android-35+.
-// Force all Android library plugins to compileSdk 36 so the AAR
-// metadata check passes. CI also patches cronet_http's build.gradle
-// directly via sed; this block covers local builds.
+// afterEvaluate runs after each plugin's build.gradle body, so we
+// can safely override compileSdk after the plugin sets its value.
 subprojects {
-    plugins.withId("com.android.library") {
-        extensions.findByType<com.android.build.api.dsl.LibraryExtension>()
-            ?.compileSdk = 36
+    afterEvaluate {
+        if (plugins.hasPlugin("com.android.library")) {
+            extensions.findByType<com.android.build.api.dsl.LibraryExtension>()
+                ?.compileSdk = 36
+        }
     }
 }
 

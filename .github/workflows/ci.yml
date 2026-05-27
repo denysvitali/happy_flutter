@@ -269,11 +269,19 @@ jobs:
 
       - name: Patch cronet_http compileSdk for AGP 9.x compatibility
         run: |
+          # Find cronet_http in pub cache and bump its compileSdkVersion from 34 to 36.
+          # cronet_http's :jni dependency requires compileSdk 35+ but the plugin
+          # hardcodes compileSdkVersion 34. Gradle-level overrides (plugins.withId,
+          # projectsEvaluated) arrive too late because the plugin's build.gradle
+          # overwrites them after AGP reads the value during evaluation.
           CRONET_BUILD=$(python3 -c "import json; d=json.load(open('.dart_tool/package_config.json')); print(next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http'))" 2>/dev/null)/android/build.gradle
           if [ -f "$CRONET_BUILD" ]; then
             echo "Patching $CRONET_BUILD: compileSdkVersion 34 -> 36"
             sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' "$CRONET_BUILD"
           fi
+
+      - name: Clear Gradle build cache
+        run: rm -rf ~/.gradle/caches/build-cache-*
 
       - name: Determine flavor
         id: flavor
@@ -402,11 +410,20 @@ jobs:
       - name: Patch cronet_http compileSdk for AGP 9.x compatibility
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
+          # Find cronet_http in pub cache and bump its compileSdkVersion from 34 to 36.
+          # cronet_http's :jni dependency requires compileSdk 35+ but the plugin
+          # hardcodes compileSdkVersion 34. Gradle-level overrides (plugins.withId,
+          # projectsEvaluated) arrive too late because the plugin's build.gradle
+          # overwrites them after AGP reads the value during evaluation.
           CRONET_BUILD=$(python3 -c "import json; d=json.load(open('.dart_tool/package_config.json')); print(next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http'))" 2>/dev/null)/android/build.gradle
           if [ -f "$CRONET_BUILD" ]; then
             echo "Patching $CRONET_BUILD: compileSdkVersion 34 -> 36"
             sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' "$CRONET_BUILD"
           fi
+
+      - name: Clear Gradle build cache
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        run: rm -rf ~/.gradle/caches/build-cache-*
 
       - name: Determine flavor
         id: flavor
