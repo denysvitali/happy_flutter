@@ -133,6 +133,9 @@ class FriendsNotifier extends Notifier<FriendsState> {
   }
 
   void _markPending(String requestId) {
+    // Short-circuit when the id is already pending — avoids rebuilding the
+    // pendingActionIds set (and emitting a new state) on no-op marks.
+    if (state.pendingActionIds.contains(requestId)) return;
     state = state.copyWith(
       pendingActionIds: {...state.pendingActionIds, requestId},
     );

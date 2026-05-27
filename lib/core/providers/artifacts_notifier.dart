@@ -12,16 +12,22 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
   Map<String, DecryptedArtifact> build() => {};
 
   void addArtifact(DecryptedArtifact artifact) {
-    state = {...state, artifact.id: artifact};
+    // Short-circuit when the slot already holds an identical reference —
+    // common when a refresh path replays the same artifact.
+    if (identical(state[artifact.id], artifact)) return;
+    state = Map<String, DecryptedArtifact>.from(state)
+      ..[artifact.id] = artifact;
   }
 
   void updateArtifact(
     String id,
     DecryptedArtifact Function(DecryptedArtifact) update,
   ) {
-    if (state.containsKey(id)) {
-      state = {...state, id: update(state[id]!)};
-    }
+    final current = state[id];
+    if (current == null) return;
+    final next = update(current);
+    if (identical(current, next)) return;
+    state = Map<String, DecryptedArtifact>.from(state)..[id] = next;
   }
 
   void removeArtifact(String id) {
