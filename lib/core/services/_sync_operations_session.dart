@@ -108,8 +108,14 @@ extension SyncSessionOperations on Sync {
     final profile = effectiveProfileId != null
         ? _resolveProfile(effectiveProfileId)
         : null;
-    final profileEnvVars = profile != null
-        ? _profileEnvironmentVariables(profile)
+    // Cold-start optimization: API keys live in secure storage and are
+    // hydrated on demand. Hydrate the selected profile now so its
+    // `apiKey` fields are populated before we build the env vars.
+    final hydratedProfile = profile != null
+        ? await _hydrateProfileForSpawn(profile)
+        : null;
+    final profileEnvVars = hydratedProfile != null
+        ? _profileEnvironmentVariables(hydratedProfile)
         : null;
     final permMode =
         profile?.defaultPermissionMode ??
@@ -757,6 +763,25 @@ PY
   }
 
   /// Mirrors React Native's `getProfileEnvironmentVariables`.
+  /// Ensures [profile]'s API keys are populated from secure storage
+  /// before they are read for env-var construction.
+  ///
+  /// On cold start [SettingsStorage.getSettings] returns profiles with
+  /// `apiKey: null` so we don't pay N×100ms FlutterSecureStorage round
+  /// trips on the startup hot path. The first time a profile is used
+  /// to spawn a session, we hydrate its keys here. Hydration is
+  /// idempotent: subsequent spawns are a no-op.
+  Future<AIBackendProfile> _hydrateProfileForSpawn(
+    AIBackendProfile profile,
+  ) async {
+    // Built-in profiles do not have API keys in secure storage and
+    // [hydrateProfileApiKeys] would return null for them. Short-circuit
+    // so we always return a usable profile.
+    final hydrated =
+        await SettingsStorage().hydrateProfileApiKeys(profile.id);
+    return hydrated ?? profile;
+  }
+
   Map<String, String> _profileEnvironmentVariables(AIBackendProfile profile) {
     final envVars = <String, String>{};
 
@@ -921,11 +946,12 @@ PY
     if (profileId != null) {
       final profile = _resolveProfile(profileId);
       if (profile != null) {
+        final hydrated = await _hydrateProfileForSpawn(profile);
         return (
           envVars: _spawnEnvironmentVariables(
-            _profileEnvironmentVariables(profile),
+            _profileEnvironmentVariables(hydrated),
           ),
-          profile: profile,
+          profile: hydrated,
         );
       }
     }
