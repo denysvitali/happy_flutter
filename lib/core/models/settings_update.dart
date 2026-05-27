@@ -196,9 +196,29 @@ final class SettingsUpdate {
 
   static Object? toSyncValue(String key, Object? value) {
     return switch (key) {
-      'profiles' =>
-        (value as List<AIBackendProfile>).map((p) => p.toJson()).toList(),
+      'profiles' => _profilesToJsonCached(value as List<AIBackendProfile>),
       _ => value,
     };
   }
+
+  /// Cache `profiles.toJson()` keyed by the profiles list identity.
+  ///
+  /// `SettingsNotifier.updateSetting` is called on every settings sync
+  /// fan-out and serializes the profiles list each time even when it is
+  /// the exact same instance. The cache short-circuits repeated calls
+  /// for the same list reference; mutating the profiles list reference
+  /// (e.g. `settings.profiles = [...]`) invalidates the cache naturally
+  /// because the Expando is keyed by list identity (perf #11).
+  static List<Map<String, dynamic>> _profilesToJsonCached(
+    List<AIBackendProfile> profiles,
+  ) {
+    final cached = _profilesJsonCache[profiles];
+    if (cached != null) return cached;
+    final encoded = profiles.map((p) => p.toJson()).toList(growable: false);
+    _profilesJsonCache[profiles] = encoded;
+    return encoded;
+  }
+
+  static final Expando<List<Map<String, dynamic>>> _profilesJsonCache =
+      Expando<List<Map<String, dynamic>>>('SettingsUpdate.profilesJsonCache');
 }
