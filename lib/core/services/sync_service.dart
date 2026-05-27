@@ -62,6 +62,7 @@ import 'inline_message_processor.dart';
 import 'logger_service.dart';
 import 'message_cursor_manager.dart';
 import 'notification_service.dart';
+import '_sync_session_restore_split.dart';
 import 'session_activity_coordinator.dart';
 import 'sidechain_grouper.dart';
 import 'tool_result_processor.dart';

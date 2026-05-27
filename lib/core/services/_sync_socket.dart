@@ -498,36 +498,15 @@ extension SyncSocket on Sync {
       final encryptedKeysRaw = cache['encryptedDataKeys'];
 
       if (sessionsRaw is List) {
-        // Sort raw JSON entries by updatedAt desc so we restore the
-        // most-recent sessions synchronously. Reading `updatedAt`
-        // straight from the JSON map is cheap compared to a full
-        // `Session.fromJson()` which decodes nested metadata/agentState
-        // structures.
-        final orderedRaw = <Map<String, dynamic>>[];
-        for (final item in sessionsRaw) {
-          if (item is Map<String, dynamic>) {
-            orderedRaw.add(item);
-          } else if (item is Map) {
-            orderedRaw.add(Map<String, dynamic>.from(item));
-          }
-        }
-        orderedRaw.sort((a, b) {
-          final aUpdated = WireParsers.parseInt(a['updatedAt']) ?? 0;
-          final bUpdated = WireParsers.parseInt(b['updatedAt']) ?? 0;
-          return bUpdated.compareTo(aUpdated);
-        });
+        final split = splitCachedSessionsForColdStart(
+          sessionsRaw,
+          syncLimit: _coldStartSyncSessionRestoreLimit,
+        );
 
-        // Restore only the top-K most-recent sessions synchronously.
-        // Decoding the rest is deferred to a microtask-yielding
-        // background pump so the UI isolate is unblocked sooner.
-        final syncLimit =
-            orderedRaw.length < _coldStartSyncSessionRestoreLimit
-                ? orderedRaw.length
-                : _coldStartSyncSessionRestoreLimit;
         final restoredSessions = <Session>[];
-        for (var i = 0; i < syncLimit; i++) {
+        for (final raw in split.recent) {
           try {
-            restoredSessions.add(Session.fromJson(orderedRaw[i]));
+            restoredSessions.add(Session.fromJson(raw));
           } catch (error, stack) {
             logger.warning(
               'Skipping malformed cached session during restore',
@@ -540,12 +519,10 @@ extension SyncSocket on Sync {
           for (final session in restoredSessions) session.id: session,
         };
 
-        if (orderedRaw.length > syncLimit) {
-          // Stash remaining raw entries for the deferred pass. We
-          // intentionally don't await here — `_restoreRemainingSessionsAsync`
-          // is fire-and-forget so it doesn't block initialization.
-          final remaining = orderedRaw.sublist(syncLimit);
-          unawaited(_restoreRemainingSessionsAsync(remaining));
+        if (split.remaining.isNotEmpty) {
+          // Fire-and-forget the deferred decode of the long tail so
+          // it does not block initialization.
+          unawaited(_restoreRemainingSessionsAsync(split.remaining));
         }
       }
 
