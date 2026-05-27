@@ -109,6 +109,13 @@ void main() {
       expect(find.text('*Thinking...*'), findsNothing);
     });
 
+    testWidgets('copy icon is present in header', (tester) async {
+      await tester.pumpWidget(_thinkingMessage());
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.copy_outlined), findsOneWidget);
+    });
+
     testWidgets('has ClipRRect and ClipRect for proper clipping',
         (tester) async {
       await tester.pumpWidget(_thinkingMessage());

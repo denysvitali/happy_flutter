@@ -170,6 +170,26 @@ class _ThinkingBlockState extends State<ThinkingBlock>
                           ),
                         ),
                         const Spacer(),
+                        GestureDetector(
+                          onTap: () async {
+                            await HapticFeedback.lightImpact();
+                            await Clipboard.setData(
+                              ClipboardData(text: _cleanedContent),
+                            );
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xs),
+                            child: Icon(
+                              Icons.copy_outlined,
+                              size: 14,
+                              color: cs.onSurfaceVariant.withValues(
+                                alpha: 0.35,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
                         AnimatedRotation(
                           turns: _expanded ? 0.5 : 0,
                           duration: const Duration(milliseconds: 200),
