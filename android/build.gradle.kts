@@ -14,14 +14,14 @@ subprojects {
 
 // Workaround: cronet_http (via native_dio_adapter) compiles against
 // android-34 but its :jni dependency requires android-35+.
-// The :cronet_http:checkReleaseAarMetadata task fails because :jni's
-// AAR metadata declares minCompileSdk=35. Setting compileSdk on
-// LibraryExtension doesn't propagate in time for the metadata check,
-// so disable the check tasks directly.
-gradle.taskGraph.whenReady {
-    allTasks
-        .filter { it.name.contains("AarMetadata") }
-        .forEach { it.enabled = false }
+// Force all Android library plugins to compileSdk 36 so the AAR
+// metadata check passes. CI also patches cronet_http's build.gradle
+// directly via sed; this block covers local builds.
+subprojects {
+    plugins.withId("com.android.library") {
+        extensions.findByType<com.android.build.api.dsl.LibraryExtension>()
+            ?.compileSdk = 36
+    }
 }
 
 // Kotlin 2.x dropped support for languageVersion < 1.8.
