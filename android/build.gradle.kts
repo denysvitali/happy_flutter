@@ -12,18 +12,15 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Workaround: cronet_http (via native_dio_adapter) compiles against
-// android-34 but its :jni dependency requires android-35+.
-// afterEvaluate runs after each plugin's build.gradle body, so we
-// can safely override compileSdk after the plugin sets its value.
-subprojects {
-    afterEvaluate {
-        if (plugins.hasPlugin("com.android.library")) {
-            extensions.findByType<com.android.build.api.dsl.LibraryExtension>()
-                ?.compileSdk = 36
-        }
-    }
-}
+// NOTE: cronet_http (via native_dio_adapter) hardcodes compileSdkVersion 34
+// but its :jni dependency requires android-35+. CI patches the pub-cache
+// copy via sed before Gradle runs. Local dev should run:
+//   flutter pub get && sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' \
+//     .dart_tool/package_config.json  (find cronet_http path first)
+// or use devenv which pins a compatible Flutter version.
+// Do NOT add a Gradle-level compileSdk override here — it changes the
+// task graph after AGP 9.x has already wired up task inputs/outputs,
+// causing BundleAar validation failures.
 
 // Kotlin 2.x dropped support for languageVersion < 1.8.
 // We hook in after all subprojects are evaluated (avoiding the
