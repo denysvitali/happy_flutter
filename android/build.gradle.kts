@@ -12,6 +12,27 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Workaround: cronet_http (via native_dio_adapter) compiles against
+// android-34 but its :jni dependency requires android-35+.
+// Set compileSdk on all Android library plugins during evaluation
+// (via plugins.withId) so AGP reads the overridden value before
+// configuring tasks. afterEvaluate / projectsEvaluated is too late
+// in AGP 9.x / Gradle 9.x.
+subprojects {
+    plugins.withId("com.android.library") {
+        extensions.findByType<com.android.build.gradle.BaseExtension>()
+            ?.compileSdkVersion = "android-36"
+    }
+}
+
+// Belt-and-suspenders: also disable AAR metadata tasks right before
+// execution in case the compileSdk override above doesn't propagate.
+gradle.taskGraph.whenReady { graph ->
+    graph.allTasks
+        .filter { it.name.contains("AarMetadata") }
+        .forEach { it.enabled = false }
+}
+
 // Kotlin 2.x dropped support for languageVersion < 1.8.
 // We hook in after all subprojects are evaluated (avoiding the
 // "project already evaluated" error from evaluationDependsOn(":app"))
@@ -20,16 +41,6 @@ subprojects {
 gradle.projectsEvaluated {
     val minVer = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8
     subprojects {
-        // Workaround: cronet_http (via native_dio_adapter) compiles against
-        // android-34 but its :jni dependency requires android-35+.
-        // Disable AAR metadata checks (compileSdk override is too late
-        // here — projectsEvaluated runs after compileSdk is already read).
-        tasks.configureEach {
-            if (name.startsWith("check") && name.contains("AarMetadata")) {
-                enabled = false
-            }
-        }
-
         val javaTarget =
             tasks
                 .matching { it is org.gradle.api.tasks.compile.JavaCompile }
