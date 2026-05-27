@@ -58,11 +58,20 @@ void main() {
         // These files import both but keep NaCl on the main thread:
         // - encryptor.dart: AES256Encryption.decryptInIsolate
         //   sends only pure-Dart AES data; SecretBoxEncryption
-        //   (NaCl) never touches isolates.
+        //   (NaCl) delegates to CryptoSecretBox.decryptBatchInIsolate,
+        //   which in turn delegates to nacl_isolate_worker.dart.
         // - sync_service.dart: isAes/else branch ensures NaCl
         //   items stay on the main thread.
+        // - nacl_isolate_worker.dart: the *one* file that legitimately
+        //   uses NaCl + dart:isolate. It is the boundary — the worker
+        //   re-loads sodium inside the spawned isolate and only
+        //   receives sendable Uint8List PODs across `Isolate.run`.
+        //   No SecureKey or sodiumSingleton instance ever crosses
+        //   the boundary, dodging the "Illegal argument in isolate
+        //   message: object is unsendable" failure mode.
         const allowedMixedFiles = <String>{
           'encryptor.dart',
+          'nacl_isolate_worker.dart',
           'sync_service.dart',
         };
 

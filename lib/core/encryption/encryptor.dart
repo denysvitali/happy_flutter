@@ -39,42 +39,16 @@ class SecretBoxEncryption implements Encryptor {
   @override
   Future<List<dynamic>> decrypt(List<Uint8List> data) async {
     final scope = CryptoSecretBox.currentDiagnosticScope;
-    // Isolates are not supported on web — use per-item decryption.
-    if (kIsWeb) {
-      final results = <dynamic>[];
-      for (var i = 0; i < data.length; i++) {
-        final decrypted =
-            await CryptoSecretBox.decrypt(data[i], _secretKey, scope: scope);
-        results.add(decrypted);
-        if (i > 0 && i % 10 == 0) {
-          await Future<void>.delayed(Duration.zero);
-        }
-      }
-      return results;
-    }
-    // Use isolate-based batch decryption to avoid blocking the main
-    // isolate on NaCl FFI calls (crypto_secretbox_open_easy).
-    // Fall back to per-item decryption with yields if isolate spawn fails.
-    try {
-      return await CryptoSecretBox.decryptBatchInIsolate(
-        data,
-        _secretKey,
-        scope: scope,
-      );
-    } catch (_) {
-      // Isolate unavailable (e.g. certain test environments) — fall back
-      // to the slower per-item approach with event-loop yields.
-      final results = <dynamic>[];
-      for (var i = 0; i < data.length; i++) {
-        final decrypted =
-            await CryptoSecretBox.decrypt(data[i], _secretKey, scope: scope);
-        results.add(decrypted);
-        if (i > 0 && i % 10 == 0) {
-          await Future<void>.delayed(Duration.zero);
-        }
-      }
-      return results;
-    }
+    // [CryptoSecretBox.decryptBatchInIsolate] handles all three cases:
+    //   - web: stays inline (kIsWeb branch inside)
+    //   - batch >= threshold on native: spawns Isolate.run with a
+    //     top-level worker that takes only sendable POD args
+    //   - small batch / isolate spawn failure: inline with periodic yields
+    return CryptoSecretBox.decryptBatchInIsolate(
+      data,
+      _secretKey,
+      scope: scope,
+    );
   }
 
   /// Release any cached native resources.
