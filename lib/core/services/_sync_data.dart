@@ -35,10 +35,12 @@ extension SyncData on Sync {
         client: apiClient,
       ).fetchSessions(limit: 50, changedSince: changedSince);
 
-      logger.info(
-        'fetchSessions: received ${allSessions.length} sessions '
-        '(changedSince=$changedSince)',
-      );
+      if (logger.shouldLog(LogLevel.info)) {
+        logger.info(
+          'fetchSessions: received ${allSessions.length} sessions '
+          '(changedSince=$changedSince)',
+        );
+      }
       if (allSessions.isNotEmpty) {
         _setSyncProgress(
           SyncProgress(
@@ -108,11 +110,13 @@ extension SyncData on Sync {
             (t) => encryption
                 .decryptEncryptionKey(t.dataEncryptionKey)
                 .catchError((Object e) {
-                  logger.info(
-                    '[Encryption] DEK decryption threw for session '
-                    '${t.sessionId}: $e '
-                    '-- falling back to legacy encryption.',
-                  );
+                  if (logger.shouldLog(LogLevel.info)) {
+                    logger.info(
+                      '[Encryption] DEK decryption threw for session '
+                      '${t.sessionId}: $e '
+                      '-- falling back to legacy encryption.',
+                    );
+                  }
                   return null;
                 }),
           ),
@@ -149,7 +153,7 @@ extension SyncData on Sync {
       final preDecrypted = await _preDecryptSessions(allSessions);
       final preDecryptMs =
           DateTime.now().millisecondsSinceEpoch - preDecryptStartMs;
-      if (allSessions.length > 1) {
+      if (allSessions.length > 1 && logger.shouldLog(LogLevel.info)) {
         logger.info(
           '[fetchSessions] Pre-decrypted ${preDecrypted.length} '
           'sessions in ${preDecryptMs}ms',

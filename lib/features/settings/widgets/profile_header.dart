@@ -59,26 +59,30 @@ class ProfileHeader extends StatelessWidget {
       ),
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 40,
-            backgroundColor: cs.primaryContainer,
-            backgroundImage: avatarUrl != null
-                ? CachedNetworkImageProvider(
-                    avatarUrl,
-                    maxWidth: 216,
-                    maxHeight: 216,
-                  )
-                : null,
-            child: avatarUrl == null
-                ? Text(
-                    _initialForName(displayName),
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: cs.onPrimaryContainer,
-                    ),
-                  )
-                : null,
-          ),
+          Builder(builder: (context) {
+            final dpr = MediaQuery.devicePixelRatioOf(context);
+            final cachePx = (80 * dpr).round().clamp(80, 256);
+            return CircleAvatar(
+              radius: 40,
+              backgroundColor: cs.primaryContainer,
+              backgroundImage: avatarUrl != null
+                  ? CachedNetworkImageProvider(
+                      avatarUrl,
+                      maxWidth: cachePx,
+                      maxHeight: cachePx,
+                    )
+                  : null,
+              child: avatarUrl == null
+                  ? Text(
+                      _initialForName(displayName),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: cs.onPrimaryContainer,
+                      ),
+                    )
+                  : null,
+            );
+          }),
           const SizedBox(height: AppSpacing.md),
           Text(
             displayName,

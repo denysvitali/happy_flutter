@@ -25,17 +25,28 @@ class HiddenToolSummary extends StatefulWidget {
 
 class _HiddenToolSummaryState extends State<HiddenToolSummary> {
   bool _expanded = false;
+  Object? _cachedToolsRef;
+  List<Map<String, dynamic>> _cachedTools = const [];
+  int _cachedCompleted = 0;
+  int _cachedPending = 0;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tools = (widget.data['tools'] as List<dynamic>? ?? const [])
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
+    final rawTools = widget.data['tools'];
+    if (!identical(rawTools, _cachedToolsRef)) {
+      _cachedToolsRef = rawTools;
+      _cachedTools = (rawTools as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+      _cachedCompleted = _cachedTools.where(_isCompleted).length;
+      _cachedPending = _cachedTools.where(_isPending).length;
+    }
+    final tools = _cachedTools;
     if (tools.isEmpty) return const SizedBox.shrink();
 
-    final completed = tools.where(_isCompleted).length;
-    final pending = tools.where(_isPending).length;
+    final completed = _cachedCompleted;
+    final pending = _cachedPending;
     final total = tools.length;
     final summary = pending > 0
         ? '$completed of $total tools complete, $pending pending'

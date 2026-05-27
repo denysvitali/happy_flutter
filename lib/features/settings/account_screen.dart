@@ -57,14 +57,18 @@ class AccountScreen extends ConsumerWidget {
           child: Row(
             children: [
               if (profile?.avatarUrl != null)
-                CircleAvatar(
-                  radius: 18,
-                  backgroundImage: CachedNetworkImageProvider(
-                    profile!.avatarUrl!,
-                    maxWidth: 132,
-                    maxHeight: 132,
-                  ),
-                )
+                Builder(builder: (context) {
+                  final dpr = MediaQuery.devicePixelRatioOf(context);
+                  final cachePx = (36 * dpr).round().clamp(36, 144);
+                  return CircleAvatar(
+                    radius: 18,
+                    backgroundImage: CachedNetworkImageProvider(
+                      profile!.avatarUrl!,
+                      maxWidth: cachePx,
+                      maxHeight: cachePx,
+                    ),
+                  );
+                })
               else
                 SettingsIconContainer(
                   icon: Icons.person,

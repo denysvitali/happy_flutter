@@ -16,9 +16,10 @@ class NetworkNotifier extends Notifier<bool> {
   @override
   bool build() {
     final service = NetworkMonitorService();
-    _subscription = service.onConnectivityChanged.listen(
-      (online) => state = online,
-    );
+    _subscription = service.onConnectivityChanged.listen((online) {
+      if (state == online) return;
+      state = online;
+    });
     ref.onDispose(() => _subscription?.cancel());
     return service.isOnline;
   }

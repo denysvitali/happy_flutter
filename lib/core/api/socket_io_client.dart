@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 
-import '../services/logger_service.dart' show logger;
+import '../services/logger_service.dart' show LogLevel, logger;
 import '../services/performance_context_service.dart';
 import '../services/power_diagnostics_service.dart';
 
@@ -692,10 +692,12 @@ class SocketIoClient {
     }
     // Window expired or different error — flush suppression summary first.
     if (_suppressedErrorCount > 0) {
-      logger.info(
-        'Socket.IO error suppressed $_suppressedErrorCount× '
-        'within ${_errorThrottleWindowMs}ms: $_lastErrorStr',
-      );
+      if (logger.shouldLog(LogLevel.info)) {
+        logger.info(
+          'Socket.IO error suppressed $_suppressedErrorCount× '
+          'within ${_errorThrottleWindowMs}ms: $_lastErrorStr',
+        );
+      }
       _suppressedErrorCount = 0;
     }
     _lastErrorStr = errorStr;
@@ -707,10 +709,12 @@ class SocketIoClient {
   /// after a successful reconnection is always logged).
   void _resetErrorThrottle() {
     if (_suppressedErrorCount > 0) {
-      logger.info(
-        'Socket.IO error suppressed $_suppressedErrorCount× '
-        'within ${_errorThrottleWindowMs}ms: $_lastErrorStr',
-      );
+      if (logger.shouldLog(LogLevel.info)) {
+        logger.info(
+          'Socket.IO error suppressed $_suppressedErrorCount× '
+          'within ${_errorThrottleWindowMs}ms: $_lastErrorStr',
+        );
+      }
     }
     _lastErrorStr = null;
     _lastErrorAtMs = null;

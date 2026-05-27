@@ -633,10 +633,19 @@ SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
 
 /// Theme helper for building theme data based on mode
 class ThemeHelper {
+  // Cache built themes per seed color. Theme construction resolves Google
+  // Fonts text styles and builds ~12 component themes — expensive enough that
+  // repeating it on every MaterialApp rebuild is wasteful when the seed has
+  // not changed.
+  static final Map<Color, ThemeData> _lightCache = <Color, ThemeData>{};
+  static final Map<Color, ThemeData> _darkCache = <Color, ThemeData>{};
+
   /// Build light theme data
   static ThemeData buildLightTheme({Color? seedColor}) {
     const seed = _kSeedColor;
     final effectiveSeed = seedColor ?? seed;
+    final cached = _lightCache[effectiveSeed];
+    if (cached != null) return cached;
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: effectiveSeed,
@@ -652,7 +661,7 @@ class ThemeHelper {
       outlineVariant: Colors.black.withAlpha(12),
     );
 
-    return ThemeData(
+    final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: colorScheme,
@@ -690,12 +699,16 @@ class ThemeHelper {
         AppColorScheme.light(),
       ],
     );
+    _lightCache[effectiveSeed] = theme;
+    return theme;
   }
 
   /// Build dark theme data
   static ThemeData buildDarkTheme({Color? seedColor}) {
     const seed = _kSeedColor;
     final effectiveSeed = seedColor ?? seed;
+    final cached = _darkCache[effectiveSeed];
+    if (cached != null) return cached;
 
     final colorScheme = ColorScheme.fromSeed(
       seedColor: effectiveSeed,
@@ -713,7 +726,7 @@ class ThemeHelper {
       outlineVariant: Colors.white.withAlpha(15),
     );
 
-    return ThemeData(
+    final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: colorScheme,
@@ -751,6 +764,8 @@ class ThemeHelper {
         AppColorScheme.dark(),
       ],
     );
+    _darkCache[effectiveSeed] = theme;
+    return theme;
   }
 
   /// Build theme data based on mode
