@@ -307,7 +307,11 @@ extension SyncSocketEvents on Sync {
         // orphaned outside their parent Task.
         _inlineProcessor.enqueue(
           sessionId,
-          () => _processInlineMessage(sessionId, embeddedMessage),
+          () => _processInlineMessage(
+            sessionId,
+            embeddedMessage,
+            notifySessionsDomain: false,
+          ),
         );
       } else {
         // Visible session with no embedded message — HTTP fetch.
@@ -366,7 +370,11 @@ extension SyncSocketEvents on Sync {
       if (embeddedMessage != null) {
         _inlineProcessor.enqueue(
           sessionId,
-          () => _processInlineMessage(sessionId, embeddedMessage),
+          () => _processInlineMessage(
+            sessionId,
+            embeddedMessage,
+            notifySessionsDomain: true,
+          ),
         );
       } else {
         // No embedded message — mark pending for HTTP fetch on
@@ -425,8 +433,9 @@ extension SyncSocketEvents on Sync {
   /// message produces no displayable content.
   Future<void> _processInlineMessage(
     String sessionId,
-    Map<String, dynamic> wireMessage,
-  ) async {
+    Map<String, dynamic> wireMessage, {
+    required bool notifySessionsDomain,
+  }) async {
     final msgId = wireMessage['id'] as String?;
     final msgSeq = wireMessage['seq'];
     // Null-safe dedup key — only meaningful when both fields are
@@ -546,7 +555,11 @@ extension SyncSocketEvents on Sync {
       }
 
       _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+      _notifyDataChanged(
+        notifySessionsDomain
+            ? const {SyncDomain.messages, SyncDomain.sessions}
+            : const {SyncDomain.messages},
+      );
     } catch (error, stack) {
       logger.warning(
         'Inline message processing failed — HTTP fetch will retry',

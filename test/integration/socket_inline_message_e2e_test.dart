@@ -322,6 +322,74 @@ void main() {
         );
       },
     );
+
+    test(
+      'inline message for visible session notifies messages domain only',
+      () async {
+        const sessionId = 'visible-domain-1';
+
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 1,
+        );
+        sync.testSetSessionMessages(sessionId, []);
+        sync.testVisibleSessionId = sessionId;
+        sync.messagesSync[sessionId] = InvalidateSync(
+          () => sync.fetchMessages(sessionId),
+        );
+
+        final seenDomains = <SyncDomain>{};
+        final sub = sync.onDomainChanged.listen(seenDomains.add);
+        final beforeMessages = sync.domainChangeCounter(SyncDomain.messages);
+        final beforeSessions = sync.domainChangeCounter(SyncDomain.sessions);
+        final messagesEvent = sync.onDomainChanged
+            .firstWhere((d) => d == SyncDomain.messages)
+            .timeout(const Duration(seconds: 2));
+
+        final encMsg = _makeEncryptedMessage(
+          'msg-domain-visible',
+          seq: 2,
+          content: 'Visible domain test',
+        );
+        sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': encMsg,
+        });
+
+        await messagesEvent;
+        await sub.cancel();
+
+        expect(
+          sync.domainChangeCounter(SyncDomain.messages),
+          greaterThan(beforeMessages),
+          reason:
+              'Visible inline message should notify messages '
+              'domain changes',
+        );
+        expect(
+          sync.domainChangeCounter(SyncDomain.sessions),
+          equals(beforeSessions),
+          reason:
+              'Visible inline message should not notify '
+              'sessions domain',
+        );
+        expect(
+          seenDomains,
+          contains(SyncDomain.messages),
+          reason:
+              'Inline-visible messages should emit a messages domain '
+              'notification',
+        );
+        expect(
+          seenDomains,
+          isNot(contains(SyncDomain.sessions)),
+          reason:
+              'Inline-visible messages should not emit a sessions '
+              'notification',
+        );
+      },
+    );
   });
 
   group('non-visible session socket handling', () {
@@ -407,6 +475,64 @@ void main() {
           reason:
               'Non-visible session should have pending updates '
               'flag for session list refresh',
+        );
+      },
+    );
+
+    test(
+      'inline message for non-visible session notifies sessions and messages',
+      () async {
+        const sessionId = 'non-visible-domain-1';
+
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 5,
+        );
+        sync.testSetSessionMessages(sessionId, []);
+        sync.testVisibleSessionId = 'some-other-session';
+
+        final seenDomains = <SyncDomain>{};
+        final sub = sync.onDomainChanged.listen(seenDomains.add);
+        final beforeMessages = sync.domainChangeCounter(SyncDomain.messages);
+        final beforeSessions = sync.domainChangeCounter(SyncDomain.sessions);
+        final sessionsEvent = sync.onDomainChanged
+            .firstWhere((d) => d == SyncDomain.sessions)
+            .timeout(const Duration(seconds: 2));
+
+        final encMsg = _makeEncryptedMessage(
+          'msg-domain-bg-1',
+          seq: 6,
+          content: 'Background domain test',
+        );
+        sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': encMsg,
+        });
+
+        await sessionsEvent;
+        await sub.cancel();
+
+        expect(
+          sync.domainChangeCounter(SyncDomain.messages),
+          greaterThan(beforeMessages),
+          reason:
+              'Non-visible inline message should notify messages '
+              'domain changes',
+        );
+        expect(
+          sync.domainChangeCounter(SyncDomain.sessions),
+          greaterThan(beforeSessions),
+          reason:
+              'Non-visible inline message should notify sessions '
+              'domain changes for list metadata',
+        );
+        expect(
+          seenDomains,
+          containsAll(<SyncDomain>{SyncDomain.messages, SyncDomain.sessions}),
+          reason:
+              'Non-visible inline message should emit both '
+              'sessions and messages domain notifications',
         );
       },
     );
