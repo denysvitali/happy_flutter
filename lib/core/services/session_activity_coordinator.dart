@@ -65,7 +65,9 @@ class SessionActivityCoordinator {
   /// Begin watching [sync] for changes.
   void attach(Sync sync) {
     _sub?.cancel();
-    _sub = sync.onDataChanged.listen((_) => _reconcile(sync));
+    _sub = sync.onDomainChanged
+        .where((domain) => domain == SyncDomain.sessions)
+        .listen((_) => _reconcile(sync));
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(_refreshInterval, (_) => _reconcile(sync));
   }
