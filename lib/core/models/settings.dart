@@ -1,5 +1,6 @@
 // Settings model matching the original Zod schema
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 part 'settings.g.dart';
 
@@ -186,6 +187,62 @@ class Settings {
     return json;
   }
 
+  /// Shallow clone — used to detach the cached snapshot from callers
+  /// that might mutate top-level fields. Collection fields are shallow
+  /// copies so caller mutation of the list/map doesn't leak back into
+  /// the cache; element objects (e.g. AIBackendProfile) are shared
+  /// since they are effectively immutable (`final` fields).
+  ///
+  /// This replaces the previous `Settings.fromJson(toJson())` clone,
+  /// which round-tripped through JSON encoding for the same effect.
+  Settings shallowClone() {
+    return Settings()
+      ..schemaVersion = schemaVersion
+      ..themeMode = themeMode
+      ..viewInline = viewInline
+      ..hideToolCalls = hideToolCalls
+      ..inferenceOpenAIKey = inferenceOpenAIKey
+      ..expandTodos = expandTodos
+      ..showLineNumbers = showLineNumbers
+      ..showLineNumbersInToolViews = showLineNumbersInToolViews
+      ..wrapLinesInDiffs = wrapLinesInDiffs
+      ..analyticsOptOut = analyticsOptOut
+      ..experiments = experiments
+      ..markdownCopyV2 = markdownCopyV2
+      ..useEnhancedSessionWizard = useEnhancedSessionWizard
+      ..alwaysShowContextSize = alwaysShowContextSize
+      ..agentInputEnterToSend = agentInputEnterToSend
+      ..developerModeEnabled = developerModeEnabled
+      ..toolCallDebugEnabled = toolCallDebugEnabled
+      ..avatarStyle = avatarStyle
+      ..showFlavorIcons = showFlavorIcons
+      ..compactSessionView = compactSessionView
+      ..sessionsViewStyle = sessionsViewStyle
+      ..hideInactiveSessions = hideInactiveSessions
+      ..reviewPromptAnswered = reviewPromptAnswered
+      ..reviewPromptLikedApp = reviewPromptLikedApp
+      ..ttsEnabled = ttsEnabled
+      ..ttsUseOffline = ttsUseOffline
+      ..voiceAssistantLanguage = voiceAssistantLanguage
+      ..ttsEngine = ttsEngine
+      ..ttsVoiceId = ttsVoiceId
+      ..preferredLanguage = preferredLanguage
+      ..usagePeriod = usagePeriod
+      ..recentMachinePaths = List<RecentMachinePath>.from(recentMachinePaths)
+      ..lastUsedAgent = lastUsedAgent
+      ..lastUsedPermissionMode = lastUsedPermissionMode
+      ..lastUsedModelMode = lastUsedModelMode
+      ..profiles = List<AIBackendProfile>.from(profiles)
+      ..lastUsedProfile = lastUsedProfile
+      ..lastUsedProfilesByAgent = Map<String, String>.from(
+        lastUsedProfilesByAgent,
+      )
+      ..favoriteDirectories = List<String>.from(favoriteDirectories)
+      ..favoriteMachines = List<String>.from(favoriteMachines)
+      ..folders = List<String>.from(folders)
+      ..dismissedCLIWarnings = dismissedCLIWarnings;
+  }
+
   Settings copyWith({
     int? schemaVersion,
     String? themeMode,
@@ -282,7 +339,9 @@ class Settings {
           : preferredLanguage as String?
       ..usagePeriod = usagePeriod ?? this.usagePeriod
       ..recentMachinePaths = recentMachinePaths != null
-          ? List<RecentMachinePath>.from(recentMachinePaths)
+          ? (identical(recentMachinePaths, this.recentMachinePaths)
+                ? this.recentMachinePaths
+                : List<RecentMachinePath>.from(recentMachinePaths))
           : this.recentMachinePaths
       ..lastUsedAgent = identical(lastUsedAgent, _unset)
           ? this.lastUsedAgent
@@ -294,21 +353,33 @@ class Settings {
           ? this.lastUsedModelMode
           : lastUsedModelMode as String?
       ..profiles = profiles != null
-          ? List<AIBackendProfile>.from(profiles)
+          ? (identical(profiles, this.profiles)
+                ? this.profiles
+                : List<AIBackendProfile>.from(profiles))
           : this.profiles
       ..lastUsedProfile = identical(lastUsedProfile, _unset)
           ? this.lastUsedProfile
           : lastUsedProfile as String?
       ..lastUsedProfilesByAgent = lastUsedProfilesByAgent != null
-          ? Map<String, String>.from(lastUsedProfilesByAgent)
+          ? (identical(lastUsedProfilesByAgent, this.lastUsedProfilesByAgent)
+                ? this.lastUsedProfilesByAgent
+                : Map<String, String>.from(lastUsedProfilesByAgent))
           : this.lastUsedProfilesByAgent
       ..favoriteDirectories = favoriteDirectories != null
-          ? List<String>.from(favoriteDirectories)
+          ? (identical(favoriteDirectories, this.favoriteDirectories)
+                ? this.favoriteDirectories
+                : List<String>.from(favoriteDirectories))
           : this.favoriteDirectories
       ..favoriteMachines = favoriteMachines != null
-          ? List<String>.from(favoriteMachines)
+          ? (identical(favoriteMachines, this.favoriteMachines)
+                ? this.favoriteMachines
+                : List<String>.from(favoriteMachines))
           : this.favoriteMachines
-      ..folders = folders != null ? List<String>.from(folders) : this.folders
+      ..folders = folders != null
+          ? (identical(folders, this.folders)
+                ? this.folders
+                : List<String>.from(folders))
+          : this.folders
       ..dismissedCLIWarnings =
           dismissedCLIWarnings ?? this.dismissedCLIWarnings;
   }
@@ -331,11 +402,66 @@ bool _stringMapsEqual(Map<String, String> a, Map<String, String> b) {
   return true;
 }
 
+/// Cached default-Settings JSON. Defaults are pure (no instance state),
+/// so building once and reusing eliminates the per-decode
+/// `Settings().toJson()` allocation that previously fired on every
+/// settings sync, MMKV restore, and clone.
+Map<String, dynamic> _settingsDefaultsCache = _buildDefaultsJson();
+
+Map<String, dynamic> _buildDefaultsJson() => Settings().toJson();
+
+/// Snapshot of expected top-level keys present in default settings JSON.
+/// Used by [_normalizeSettingsJson] to decide whether a fast-path
+/// short-circuit (skip defaults merge) is safe.
+final Set<String> _settingsDefaultKeys = _settingsDefaultsCache.keys.toSet();
+
+@visibleForTesting
+void debugResetSettingsDefaultsCache() {
+  _settingsDefaultsCache = _buildDefaultsJson();
+}
+
 Map<String, dynamic> _normalizeSettingsJson(
   Map<String, dynamic> json, {
   Map<String, dynamic>? fallback,
 }) {
-  final defaults = fallback ?? Settings().toJson();
+  // Defaults are reused across calls — Settings() carries no instance
+  // state at construction, so the JSON shape is stable for the process
+  // lifetime. Avoid the per-call `Settings().toJson()` allocation.
+  final defaults = fallback ?? _settingsDefaultsCache;
+
+  // Fast path: when no fallback is provided and the incoming JSON
+  // already contains every expected default key with a non-null value,
+  // we can skip the defaults-merge entirely. This is the common case
+  // for cache restore and clone paths where the JSON was just produced
+  // by `Settings.toJson()`.
+  if (fallback == null) {
+    var hasAllKeys = true;
+    for (final key in _settingsDefaultKeys) {
+      if (json[key] == null) {
+        hasAllKeys = false;
+        break;
+      }
+    }
+    if (hasAllKeys) {
+      // Still need list/map shape coercion for hostile inputs — but if
+      // every collection key is already a List/Map of the right shape
+      // we can return `json` directly. Verify cheaply.
+      final lastUsedProfilesByAgent = json['lastUsedProfilesByAgent'];
+      final dismissed = json['dismissedCLIWarnings'];
+      if (json['recentMachinePaths'] is List &&
+          json['profiles'] is List &&
+          json['favoriteDirectories'] is List &&
+          json['favoriteMachines'] is List &&
+          json['folders'] is List &&
+          lastUsedProfilesByAgent is Map &&
+          dismissed is Map &&
+          dismissed['perMachine'] is Map &&
+          dismissed['global'] is Map) {
+        return json;
+      }
+    }
+  }
+
   final normalized = <String, dynamic>{...defaults, ...json};
 
   for (final entry in defaults.entries) {
