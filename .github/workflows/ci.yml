@@ -408,7 +408,7 @@ jobs:
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
-          GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g'
+          GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.project.android.enableNewAarMetadataCheck=false'
         run: |
           flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
