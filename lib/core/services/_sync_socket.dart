@@ -481,6 +481,13 @@ extension SyncSocket on Sync {
     );
   }
 
+  /// Number of most-recent sessions to deserialize synchronously during
+  /// [_restoreSessionsCache]. The remaining sessions are decoded after
+  /// the first frame via [_restoreRemainingSessionsAsync] so we don't
+  /// JSON-decode all 200 cached sessions on the UI isolate during cold
+  /// start (a documented contributor to startup time).
+  static const int _coldStartSyncSessionRestoreLimit = 5;
+
   Future<void> _restoreSessionsCache() async {
     // SessionsCacheStorage abstracts IndexedDB on web / MMKV on native.
     final cache = await SessionsCacheStorage.instance.getSessionsCacheAsync();
@@ -491,16 +498,36 @@ extension SyncSocket on Sync {
       final encryptedKeysRaw = cache['encryptedDataKeys'];
 
       if (sessionsRaw is List) {
-        final restoredSessions = <Session>[];
+        // Sort raw JSON entries by updatedAt desc so we restore the
+        // most-recent sessions synchronously. Reading `updatedAt`
+        // straight from the JSON map is cheap compared to a full
+        // `Session.fromJson()` which decodes nested metadata/agentState
+        // structures.
+        final orderedRaw = <Map<String, dynamic>>[];
         for (final item in sessionsRaw) {
+          if (item is Map<String, dynamic>) {
+            orderedRaw.add(item);
+          } else if (item is Map) {
+            orderedRaw.add(Map<String, dynamic>.from(item));
+          }
+        }
+        orderedRaw.sort((a, b) {
+          final aUpdated = WireParsers.parseInt(a['updatedAt']) ?? 0;
+          final bUpdated = WireParsers.parseInt(b['updatedAt']) ?? 0;
+          return bUpdated.compareTo(aUpdated);
+        });
+
+        // Restore only the top-K most-recent sessions synchronously.
+        // Decoding the rest is deferred to a microtask-yielding
+        // background pump so the UI isolate is unblocked sooner.
+        final syncLimit =
+            orderedRaw.length < _coldStartSyncSessionRestoreLimit
+                ? orderedRaw.length
+                : _coldStartSyncSessionRestoreLimit;
+        final restoredSessions = <Session>[];
+        for (var i = 0; i < syncLimit; i++) {
           try {
-            if (item is Map<String, dynamic>) {
-              restoredSessions.add(Session.fromJson(item));
-            } else if (item is Map) {
-              restoredSessions.add(
-                Session.fromJson(Map<String, dynamic>.from(item)),
-              );
-            }
+            restoredSessions.add(Session.fromJson(orderedRaw[i]));
           } catch (error, stack) {
             logger.warning(
               'Skipping malformed cached session during restore',
@@ -512,6 +539,14 @@ extension SyncSocket on Sync {
         _sessions = {
           for (final session in restoredSessions) session.id: session,
         };
+
+        if (orderedRaw.length > syncLimit) {
+          // Stash remaining raw entries for the deferred pass. We
+          // intentionally don't await here — `_restoreRemainingSessionsAsync`
+          // is fire-and-forget so it doesn't block initialization.
+          final remaining = orderedRaw.sublist(syncLimit);
+          unawaited(_restoreRemainingSessionsAsync(remaining));
+        }
       }
 
       if (encryptedKeysRaw is Map) {
@@ -633,6 +668,63 @@ extension SyncSocket on Sync {
   /// isolate responsive while still warming previews quickly.
   static const int _coldStartMessageCacheBatchSize = 20;
   static const int _maxColdStartMessageCacheWarmSessions = 20;
+
+  /// Number of sessions decoded per batch in
+  /// [_restoreRemainingSessionsAsync]. Yielding to the event loop between
+  /// batches keeps the UI isolate responsive during the deferred pass.
+  static const int _coldStartSessionRestoreBatchSize = 25;
+
+  /// Decode the remaining cached sessions (the tail beyond
+  /// [_coldStartSyncSessionRestoreLimit]) in small batches, yielding to
+  /// the event loop between batches so frames can still render. The
+  /// most-recent sessions are already in [_sessions] from the synchronous
+  /// pass in [_restoreSessionsCache]; this pass fills in the inbox so
+  /// scroll-to-bottom and older-session searches work as expected.
+  Future<void> _restoreRemainingSessionsAsync(
+    List<Map<String, dynamic>> remaining,
+  ) async {
+    // Let the first frame paint before we start decoding.
+    await Future<void>.delayed(Duration.zero);
+    if (!isInitialized) return;
+
+    final stopwatch = Stopwatch()..start();
+    var processedInBatch = 0;
+    var totalAdded = 0;
+    for (final raw in remaining) {
+      if (!isInitialized) return;
+      try {
+        final session = Session.fromJson(raw);
+        // Preserve any session that was updated by the server while
+        // we were yielding (e.g. socket push) — `putIfAbsent` would
+        // be wrong if the server-side version is newer, so we keep
+        // the existing entry to avoid clobbering live data.
+        if (!_sessions.containsKey(session.id)) {
+          _sessions[session.id] = session;
+          totalAdded++;
+        }
+      } catch (error, stack) {
+        logger.warning(
+          'Skipping malformed cached session during deferred restore',
+          error,
+          stack,
+        );
+      }
+      processedInBatch++;
+      if (processedInBatch >= _coldStartSessionRestoreBatchSize) {
+        processedInBatch = 0;
+        _notifyDataChanged({SyncDomain.sessions});
+        // Yield to the event loop so any pending frames can render.
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+    if (totalAdded > 0) {
+      _notifyDataChanged({SyncDomain.sessions});
+    }
+    logger.info(
+      'Restored remaining ${remaining.length} cached sessions '
+      '(added=$totalAdded, elapsedMs=${stopwatch.elapsedMilliseconds})',
+    );
+  }
 
   /// Restores cached messages for the most recent sessions from MMKV into
   /// [_sessionMessages]. Deferred off the synchronous [_init] critical path.
