@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
+import '_section_label.dart';
 
 /// View for displaying Bash tool command and output.
 class BashView extends StatelessWidget {
@@ -44,7 +45,7 @@ class BashView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _SectionLabel(label: context.l10n.toolSectionCommand),
+          SectionLabel(label: context.l10n.toolSectionCommand),
           const SizedBox(height: AppSpacing.xs),
           CommandView(
             command: command,
@@ -637,29 +638,6 @@ class _CopyButtonState extends State<_CopyButton> {
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
-
-/// Small all-caps section label (e.g. "COMMAND", "OUTPUT").
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 9,
-        fontWeight: FontWeight.w600,
-        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
-        letterSpacing: 0.8,
-        fontFamily: 'monospace',
-        fontFamilyFallback: const ['Courier New', 'Courier'],
-      ),
-    );
-  }
-}
 
 /// A pill chip that displays a file path with a leading file icon.
 class FilePillChip extends StatelessWidget {

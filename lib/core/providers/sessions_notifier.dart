@@ -5,6 +5,7 @@ import '../services/logger_service.dart' show logger;
 import '../services/pinned_sessions_storage.dart';
 import '../services/session_folders_storage.dart';
 import '../services/sync_service.dart';
+import '_shared.dart';
 
 class SessionsNotifier extends Notifier<Map<String, Session>> {
   int _lastDataChangeCounter = -1;
@@ -54,17 +55,9 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     _lastDataChangeCounter = counter;
     final next = sync.sessions;
     // sync.sessions returns Map.unmodifiable() which creates a new wrapper
-    // each time, so identical() check is skipped. Direct map comparison is
-    // more efficient than mapEquals() for most cases.
-    if (state.length == next.length) {
-      var changed = false;
-      next.forEach((key, value) {
-        if (!identical(state[key], value)) {
-          changed = true;
-        }
-      });
-      if (!changed) return;
-    }
+    // each time, so identical() on the maps themselves is useless — but
+    // per-entry identical() catches the common no-op refresh.
+    if (mapValuesIdentical(state, next)) return;
     state = Map<String, Session>.from(next);
     _mergeLocalState();
   }

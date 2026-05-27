@@ -375,8 +375,7 @@ extension SyncSessionOperations on Sync {
     } catch (error, stackTrace) {
       if (error is StateError && error.message.contains('not connected')) {
         logger.info('machineBash: socket not connected');
-      } else if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcReplicaTimeout(error)) {
+      } else if (Sync._isTransientRpcError(error)) {
         logger.info('machineBash: transient RPC failure — $error');
       } else {
         logger.error('machineBash error', error, stackTrace);
@@ -409,8 +408,7 @@ extension SyncSessionOperations on Sync {
           success: false,
           error: 'File viewing requires a newer machine agent',
         );
-      } else if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcReplicaTimeout(error)) {
+      } else if (Sync._isTransientRpcError(error)) {
         logger.info('machineReadFile: transient RPC failure — $error');
       } else {
         logger.error('machineReadFile error', error, stackTrace);
@@ -448,8 +446,7 @@ extension SyncSessionOperations on Sync {
           success: false,
           error: 'RPC method not available',
         );
-      } else if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcReplicaTimeout(error)) {
+      } else if (Sync._isTransientRpcError(error)) {
         logger.info(
           'machineGetClaudeUsageLimits: transient RPC failure — $error',
         );
@@ -492,8 +489,7 @@ extension SyncSessionOperations on Sync {
           models: [],
           error: 'RPC method not available',
         );
-      } else if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcReplicaTimeout(error)) {
+      } else if (Sync._isTransientRpcError(error)) {
         logger.info('machineGetCodexModels: transient RPC failure — $error');
       } else {
         logger.error('machineGetCodexModels error', error, stackTrace);
@@ -679,8 +675,7 @@ PY
           'machineGetCodexUsage: RPC method not available '
           '(daemon too old); falling back to machineBash',
         );
-      } else if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcReplicaTimeout(error)) {
+      } else if (Sync._isTransientRpcError(error)) {
         logger.info('machineGetCodexUsage: transient RPC failure — $error');
       } else {
         logger.error('machineGetCodexUsage RPC error', error, stackTrace);
@@ -1315,9 +1310,8 @@ PY
     } catch (error, stack) {
       // Transient network errors and unsupported RPC methods during
       // auto-restore are expected — log at info to avoid Sentry noise.
-      if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcMethodNotAvailable(error) ||
-          Sync._isRpcReplicaTimeout(error)) {
+      if (Sync._isTransientRpcError(error) ||
+          Sync._isRpcMethodNotAvailable(error)) {
         final reason = Sync._isRpcMethodNotAvailable(error)
             ? 'RPC unavailable'
             : Sync._isRpcReplicaTimeout(error)

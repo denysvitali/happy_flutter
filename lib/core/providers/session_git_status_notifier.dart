@@ -1,8 +1,8 @@
 import 'package:riverpod/riverpod.dart';
 
 import '../models/machine.dart';
-import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
+import '_shared.dart';
 
 class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
   int _lastDataChangeCounter = -1;
@@ -16,32 +16,18 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.sessionGitStatus;
-    // Fast path: check length first, then use identical() for each value
-    if (state.length == next.length) {
-      var changed = false;
-      next.forEach((key, value) {
-        if (!identical(state[key], value)) {
-          changed = true;
-        }
-      });
-      if (!changed) return;
-    }
+    if (mapValuesIdentical(state, next)) return;
     state = Map<String, GitStatus>.from(next);
   }
 
-  Future<void> refreshFromSync() async {
-    if (!sync.isInitialized) {
-      return;
-    }
-    try {
-      await sync.sessionGitStatusSync.invalidateAndAwait();
-    } catch (e, stack) {
-      logger.warning('Failed to refresh git status', e, stack);
-    }
-    loadFromSync();
-  }
+  Future<void> refreshFromSync() => refreshSyncDomain(
+        invalidate: () => sync.sessionGitStatusSync,
+        name: 'git status',
+        reload: loadFromSync,
+      );
 
   void setGitStatus(String sessionId, GitStatus status) {
+    if (identical(state[sessionId], status)) return;
     state = {...state, sessionId: status};
   }
 

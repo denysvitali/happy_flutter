@@ -274,9 +274,8 @@ extension SyncMessagingRpc on Sync {
         'error=${result.errorMessage ?? 'unknown'}',
       );
     } catch (error, stack) {
-      if (Sync._isTransientConnectionError(error) ||
-          Sync._isRpcMethodNotAvailable(error) ||
-          Sync._isRpcReplicaTimeout(error)) {
+      if (Sync._isTransientRpcError(error) ||
+          Sync._isRpcMethodNotAvailable(error)) {
         final reason = Sync._isRpcMethodNotAvailable(error)
             ? 'RPC unavailable'
             : Sync._isRpcReplicaTimeout(error)

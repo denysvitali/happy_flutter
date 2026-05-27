@@ -1,8 +1,8 @@
 import 'package:riverpod/riverpod.dart';
 
 import '../models/profile.dart';
-import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
+import '_shared.dart';
 
 class ProfileNotifier extends Notifier<Profile?> {
   int _lastDataChangeCounter = -1;
@@ -20,17 +20,11 @@ class ProfileNotifier extends Notifier<Profile?> {
     state = next;
   }
 
-  Future<void> refreshFromSync() async {
-    if (!sync.isInitialized) {
-      return;
-    }
-    try {
-      await sync.profileSync.invalidateAndAwait();
-    } catch (e, stack) {
-      logger.warning('Failed to refresh profile', e, stack);
-    }
-    loadFromSync();
-  }
+  Future<void> refreshFromSync() => refreshSyncDomain(
+        invalidate: () => sync.profileSync,
+        name: 'profile',
+        reload: loadFromSync,
+      );
 
   void updateProfile(Profile profile) {
     state = profile;

@@ -3,6 +3,7 @@ import 'package:riverpod/riverpod.dart';
 import '../models/artifact.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
+import '_shared.dart';
 
 class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
   int _lastDataChangeCounter = -1;
@@ -44,17 +45,11 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
     state = {for (final a in next) a.id: a};
   }
 
-  Future<void> refreshFromSync() async {
-    if (!sync.isInitialized) {
-      return;
-    }
-    try {
-      await sync.artifactsSync.invalidateAndAwait();
-    } catch (e, stack) {
-      logger.warning('Failed to refresh artifacts', e, stack);
-    }
-    loadFromSync();
-  }
+  Future<void> refreshFromSync() => refreshSyncDomain(
+        invalidate: () => sync.artifactsSync,
+        name: 'artifacts',
+        reload: loadFromSync,
+      );
 
   void clear() {
     state = {};

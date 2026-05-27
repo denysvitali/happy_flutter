@@ -3,6 +3,7 @@ import 'package:riverpod/riverpod.dart';
 import '../models/machine.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
+import '_shared.dart';
 
 class MachinesNotifier extends Notifier<Map<String, Machine>> {
   int _lastDataChangeCounter = -1;
@@ -17,16 +18,7 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
     final next = sync.machines;
-    // Fast path: check length first, then use identical() for each value
-    if (state.length == next.length) {
-      var changed = false;
-      next.forEach((key, value) {
-        if (!identical(state[key], value)) {
-          changed = true;
-        }
-      });
-      if (!changed) return;
-    }
+    if (mapValuesIdentical(state, next)) return;
     state = Map<String, Machine>.from(next);
   }
 

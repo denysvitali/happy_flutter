@@ -3,6 +3,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
+import '_section_label.dart';
 
 /// View for displaying Write tool content.
 ///
@@ -61,7 +62,7 @@ class _WriteViewState extends State<WriteView> {
           const SizedBox(height: AppSpacing.sm),
 
           // ── Content section label + preview ───────────────
-          _WriteSectionLabel(label: context.l10n.toolSectionContent),
+          SectionLabel(label: context.l10n.toolSectionContent),
           const SizedBox(height: AppSpacing.xs),
           Container(
             width: double.infinity,
@@ -288,29 +289,6 @@ class _InfoPill extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Small all-caps section label for write view content blocks.
-class _WriteSectionLabel extends StatelessWidget {
-  const _WriteSectionLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 9,
-        fontWeight: FontWeight.w600,
-        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
-        letterSpacing: 0.8,
-        fontFamily: 'monospace',
-        fontFamilyFallback: const ['Courier New', 'Courier'],
       ),
     );
   }

@@ -959,6 +959,13 @@ what you have, you must use the options mode.
         msg.contains('no replica responded');
   }
 
+  /// Combined transient classification used at machine-RPC call sites:
+  /// either the local socket is wobbly ([_isTransientConnectionError]) or
+  /// the infra side never reached a replica ([_isRpcReplicaTimeout]). Both
+  /// are non-actionable from the client and should be downgraded to info.
+  static bool _isTransientRpcError(Object error) =>
+      _isTransientConnectionError(error) || _isRpcReplicaTimeout(error);
+
   bool _isSocketConnected() {
     return testSocketConnectedOverride ??
         socketIoClient.connectionStatus == ConnectionStatus.connected;

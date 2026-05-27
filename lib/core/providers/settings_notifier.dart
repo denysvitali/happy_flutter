@@ -9,6 +9,7 @@ import '../models/settings_update.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
+import '_shared.dart';
 
 class SettingsNotifier extends Notifier<Settings> {
   final _storage = SettingsStorage();
@@ -59,17 +60,11 @@ class SettingsNotifier extends Notifier<Settings> {
     state = preserved;
   }
 
-  Future<void> refreshFromSync() async {
-    if (!sync.isInitialized) {
-      return;
-    }
-    try {
-      await sync.settingsSync.invalidateAndAwait();
-    } catch (e, stack) {
-      logger.warning('Failed to refresh settings', e, stack);
-    }
-    loadFromSync();
-  }
+  Future<void> refreshFromSync() => refreshSyncDomain(
+        invalidate: () => sync.settingsSync,
+        name: 'settings',
+        reload: loadFromSync,
+      );
 
   Future<void> updateSetting<T>(String key, T value) async {
     // Update provider state synchronously (before yielding to the event

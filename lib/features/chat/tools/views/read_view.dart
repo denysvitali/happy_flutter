@@ -9,6 +9,7 @@ import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 import '../../../../core/utils/clipboard_utils.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
+import '_section_label.dart';
 import 'bash_view.dart' show FilePillChip;
 
 /// View for displaying Read tool file content preview.
@@ -161,7 +162,7 @@ class _ReadViewContentState extends State<_ReadViewContent> {
         // Content section label + preview
         if (content != null && content.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
-          _ReadSectionLabel(label: context.l10n.toolSectionContent),
+          SectionLabel(label: context.l10n.toolSectionContent),
           const SizedBox(height: AppSpacing.xs),
           _ContentBlock(
             content: content,
@@ -191,29 +192,6 @@ class _ReadViewContentState extends State<_ReadViewContent> {
 // ---------------------------------------------------------------------------
 // Private sub-widgets
 // ---------------------------------------------------------------------------
-
-/// Small section label for read view blocks.
-class _ReadSectionLabel extends StatelessWidget {
-  const _ReadSectionLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Text(
-      label,
-      style: TextStyle(
-        fontSize: 9,
-        fontWeight: FontWeight.w600,
-        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
-        letterSpacing: 0.8,
-        fontFamily: 'monospace',
-        fontFamilyFallback: const ['Courier New', 'Courier'],
-      ),
-    );
-  }
-}
 
 class _FileHeader extends StatelessWidget {
   const _FileHeader({
