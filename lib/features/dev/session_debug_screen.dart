@@ -23,7 +23,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
   @override
   void initState() {
     super.initState();
-    subscribeToDataChanged(ref, () {
+    subscribeToDomains([SyncDomain.sessions, SyncDomain.messages], () {
       setState(() {});
     });
   }
