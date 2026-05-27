@@ -385,7 +385,7 @@ extension SyncMessaging on Sync {
         ..setData('cursorSeq', cursorSeq)
         ..setData('serverLastSeq', serverLastSeq)
         ..setData('pageSize', Sync._messageFetchPageSize)
-        ..setData('budgetMs', Sync._messageFetchBudget.inMilliseconds);
+        ..setData('budgetMs', _activeMessageFetchBudget.inMilliseconds);
 
       var totalFetchedMessages = 0;
       var totalDecryptedMessages = 0;
@@ -397,7 +397,34 @@ extension SyncMessaging on Sync {
       var totalHttpMs = 0;
       var hitBudget = false;
       final droppedReasonCounts = <String, int>{};
+      // Track every message id we upserted across pages so the final
+      // sidechain pass can use the changedIds fast path instead of
+      // re-walking the entire history — a major contributor to p95
+      // latency on large sessions (~O(4n) per page previously).
+      final upsertedIdsThisCycle = <String>{};
+      final activeBudget = _activeMessageFetchBudget;
       while (true) {
+        // ── Hard budget check (pre-page) ──
+        // Production p95 for fetchMessages was ~54 s because slow servers
+        // could serialize multiple 8 s receiveTimeout pages back-to-back.
+        // The post-page check below caught those that returned, but a page
+        // that began near the budget could still run for another full
+        // receive timeout. Stop BEFORE starting a new fetch so the worst
+        // case is one in-flight page, not 1 + receiveTimeout.
+        if (page > 0 && fetchStopwatch.elapsed >= activeBudget) {
+          hitBudget = true;
+          final budgetMs = activeBudget.inMilliseconds;
+          logger.info(
+            '[fetchMessages] $sessionId hit ${budgetMs}ms hard budget '
+            '(page=$page afterSeq=$afterSeq httpMs=$totalHttpMs '
+            'decryptMs=$totalDecryptMs) '
+            '— deferring remaining pages to next cycle',
+          );
+          // Re-trigger so the next cycle continues from the advanced
+          // cursor; the user keeps the messages already merged.
+          messagesSync[sessionId]?.invalidate();
+          break;
+        }
         // ── Check visibility ──
         // Continue fetching even when the session is no longer visible so
         // messages are not lost.  The user may navigate back at any time
@@ -635,20 +662,41 @@ extension SyncMessaging on Sync {
             '(existing=${_sessionMessages[sessionId]?.length ?? 0})',
           );
         }
+        final pageHasSidechain = processed.messages.any(
+          (message) =>
+              message['isSidechain'] == true ||
+              message['kind'] == 'sidechain-root',
+        );
         if (processed.messages.isNotEmpty) {
           _upsertSessionMessages(sessionId, processed.messages);
           didMutateMessages = true;
           shouldRegroupWhenVisible =
-              shouldRegroupWhenVisible ||
-              processed.messages.any(
-                (message) =>
-                    message['isSidechain'] == true ||
-                    message['kind'] == 'sidechain-root',
-              );
+              shouldRegroupWhenVisible || pageHasSidechain;
+          for (final m in processed.messages) {
+            final id = m['id'];
+            if (id is String) upsertedIdsThisCycle.add(id);
+          }
         }
 
         // ── Yield ──
         await Future<void>.delayed(Duration.zero);
+
+        // ── Incremental sidechain grouping (per-page, visible only) ──
+        // Previously the full O(4n) grouper ran ONCE after all pages
+        // finished — quadratic on large histories and a major
+        // contributor to p95 latency. Run it incrementally per-page
+        // using the changedIds hint so only newly-arrived rows are
+        // re-walked, and only when this page actually contained
+        // sidechain content. Non-visible sessions still defer
+        // grouping until they become visible (background sync must
+        // not pay the regroup cost).
+        if (pageHasSidechain && isStillVisible) {
+          final changedIds = <String>{
+            for (final m in processed.messages)
+              if (m['id'] is String) m['id'] as String,
+          };
+          _groupSidechainMessages(sessionId, changedIds: changedIds);
+        }
 
         // ── Apply tool results + usage ──
         if (processed.toolResults.isNotEmpty) {
@@ -749,11 +797,11 @@ extension SyncMessaging on Sync {
         // pinning fetchMessages for ~60s (the Dio receive-timeout
         // ceiling × maxPages) and gives the UI a chance to render the
         // tail messages it already merged on earlier pages.
-        if (fetchStopwatch.elapsed >= Sync._messageFetchBudget) {
+        if (fetchStopwatch.elapsed >= activeBudget) {
           hitBudget = true;
-          final budgetSec = Sync._messageFetchBudget.inSeconds;
+          final budgetMs = activeBudget.inMilliseconds;
           logger.info(
-            '[fetchMessages] $sessionId hit ${budgetSec}s budget '
+            '[fetchMessages] $sessionId hit ${budgetMs}ms budget '
             '(page=$page afterSeq=$afterSeq httpMs=$totalHttpMs '
             'decryptMs=$totalDecryptMs) '
             '— deferring remaining pages to next cycle',
@@ -783,7 +831,17 @@ extension SyncMessaging on Sync {
           'sync.fetchMessages.finalize',
           description: 'Finalize visible fetch state',
         );
-        _groupSidechainMessages(sessionId);
+        // Pass changedIds so the grouper can short-circuit when none of
+        // the upserted rows are sidechain-relevant (fast path). When
+        // they are, the per-page incremental pass already did most of
+        // the work; this final call covers cross-page parent/child
+        // pairs (e.g. parent on page 1, child on page 3).
+        _groupSidechainMessages(
+          sessionId,
+          changedIds: upsertedIdsThisCycle.isEmpty
+              ? null
+              : upsertedIdsThisCycle,
+        );
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
         await finalizeSpan.finish();

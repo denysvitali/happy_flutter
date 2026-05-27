@@ -595,6 +595,16 @@ what you have, you must use the options mode.
   )?
   testFetchOlderMessagesOverride;
 
+  /// Overrides [_messageFetchBudget] for tests so the hard-budget
+  /// pagination guard can be exercised deterministically without
+  /// running for the full 15 s production budget.
+  @visibleForTesting
+  Duration? testMessageFetchBudgetOverride;
+
+  /// Returns the active per-cycle budget, honoring any test override.
+  Duration get _activeMessageFetchBudget =>
+      testMessageFetchBudgetOverride ?? _messageFetchBudget;
+
   /// Override _typedMachineRPC for testing createSession and
   /// auto-restore without a real socket connection.
   @visibleForTesting
