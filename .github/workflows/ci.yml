@@ -267,6 +267,14 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Patch cronet_http compileSdk for AGP 9.x compatibility
+        run: |
+          CRONET_BUILD=$(python3 -c "import json; d=json.load(open('.dart_tool/package_config.json')); print(next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http'))" 2>/dev/null)/android/build.gradle
+          if [ -f "$CRONET_BUILD" ]; then
+            echo "Patching $CRONET_BUILD: compileSdkVersion 34 -> 36"
+            sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' "$CRONET_BUILD"
+          fi
+
       - name: Determine flavor
         id: flavor
         run: |
@@ -390,6 +398,15 @@ jobs:
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: flutter pub get
+
+      - name: Patch cronet_http compileSdk for AGP 9.x compatibility
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        run: |
+          CRONET_BUILD=$(python3 -c "import json; d=json.load(open('.dart_tool/package_config.json')); print(next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http'))" 2>/dev/null)/android/build.gradle
+          if [ -f "$CRONET_BUILD" ]; then
+            echo "Patching $CRONET_BUILD: compileSdkVersion 34 -> 36"
+            sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' "$CRONET_BUILD"
+          fi
 
       - name: Determine flavor
         id: flavor
