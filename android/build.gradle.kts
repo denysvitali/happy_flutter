@@ -22,7 +22,9 @@ gradle.projectsEvaluated {
     subprojects {
         // Workaround: cronet_http (via native_dio_adapter) compiles against
         // android-34 but its :jni dependency requires android-35+.
-        // Disable AAR metadata check tasks until cronet_http is updated.
+        // Force compileSdk 36 and disable AAR metadata checks.
+        extensions.findByType<com.android.build.gradle.BaseExtension>()
+            ?.compileSdkVersion = "android-36"
         tasks.configureEach {
             if (name.startsWith("check") && name.contains("AarMetadata")) {
                 enabled = false
