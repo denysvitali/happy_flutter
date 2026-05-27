@@ -61,6 +61,18 @@ gradle.projectsEvaluated {
     }
 }
 
+// Workaround: cronet_http (via native_dio_adapter) compiles against
+// android-34 but its :jni dependency requires android-35+. Force all
+// subprojects to compile against SDK 36 so the AAR metadata check passes.
+// Properties in gradle.properties are overwritten by Flutter's tool, so
+// we apply the override at evaluation time.
+subprojects {
+    afterEvaluate {
+        extensions.findByType<com.android.build.gradle.BaseExtension>()
+            ?.compileSdkVersion = "android-36"
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
