@@ -14,23 +14,14 @@ subprojects {
 
 // Workaround: cronet_http (via native_dio_adapter) compiles against
 // android-34 but its :jni dependency requires android-35+.
-// Set compileSdk on all Android library plugins during evaluation
-// (via plugins.withId) so AGP reads the overridden value before
-// configuring tasks. afterEvaluate / projectsEvaluated is too late
-// in AGP 9.x / Gradle 9.x.
+// Force all Android library plugins to compileSdk 36 during evaluation
+// via plugins.withId so AGP reads the overridden value before
+// configuring tasks.
 subprojects {
     plugins.withId("com.android.library") {
-        extensions.findByType<com.android.build.gradle.BaseExtension>()
-            ?.compileSdkVersion = "android-36"
+        extensions.findByType<com.android.build.api.dsl.LibraryExtension>()
+            ?.compileSdk = 36
     }
-}
-
-// Belt-and-suspenders: also disable AAR metadata tasks right before
-// execution in case the compileSdk override above doesn't propagate.
-gradle.taskGraph.whenReady { graph ->
-    graph.allTasks
-        .filter { it.name.contains("AarMetadata") }
-        .forEach { it.enabled = false }
 }
 
 // Kotlin 2.x dropped support for languageVersion < 1.8.
