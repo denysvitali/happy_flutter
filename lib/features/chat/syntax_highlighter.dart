@@ -294,7 +294,15 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
       return [TextSpan(text: widget.code)];
     }
 
-    // Use global tokenization cache for instant re-renders of identical code.
+    // Fast path: empty code skips cache lookup entirely.
+    if (widget.code.isEmpty) {
+      return const <TextSpan>[];
+    }
+
+    // Use global tokenization cache for instant re-renders of identical
+    // code. `_tokenCache.get` is cache-first: it only invokes the
+    // tokenizer on a cache miss, so repeated identical (code, language)
+    // pairs across all SyntaxHighlighter instances return instantly.
     final tokens = _tokenCache.get(widget.code, widget.language);
     return tokens.map((token) {
       final color = SyntaxColors.getColor(
