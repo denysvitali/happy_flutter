@@ -142,7 +142,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
 
   /// Debounced handler for the search TextField. Updates [_searchQuery]
   /// immediately so other handlers see the latest value, but defers the
-  /// heavy Fuzzy<CommandItem> match + highlight rebuild by
+  /// heavy `Fuzzy<CommandItem>` match + highlight rebuild by
   /// [_filterDebounceDuration]. Arrow-key navigation and Enter execution
   /// remain responsive (they don't go through this path).
   ///
