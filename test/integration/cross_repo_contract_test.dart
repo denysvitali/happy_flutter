@@ -10,25 +10,21 @@ void main() {
         markTestSkipped(_missingCliMessage);
         return;
       }
+      final goFiles = _requireGoFiles(cliRoot, [
+        'proto/server/v1/sessions.proto',
+        'internal/server/db/migrations/000001_initial_schema.up.sql',
+        'internal/server/ws/session_handlers.go',
+        'internal/server/compat_handlers.go',
+      ]);
+      if (goFiles == null) return; // already skipped
+
       final messagesApi = _read('lib/core/api/messages_api.dart');
       final sessionsApi = _read('lib/core/api/sessions_api.dart');
       final sendSync = _read('lib/core/services/_sync_messaging_send.dart');
-      final goSessionsProto = _readFrom(
-        cliRoot,
-        'proto/server/v1/sessions.proto',
-      );
-      final goSchema = _readFrom(
-        cliRoot,
-        'internal/server/db/migrations/000001_initial_schema.up.sql',
-      );
-      final goSessionHandlers = _readFrom(
-        cliRoot,
-        'internal/server/ws/session_handlers.go',
-      );
-      final goCompatHandlers = _readFrom(
-        cliRoot,
-        'internal/server/compat_handlers.go',
-      );
+      final goSessionsProto = goFiles[0];
+      final goSchema = goFiles[1];
+      final goSessionHandlers = goFiles[2];
+      final goCompatHandlers = goFiles[3];
 
       expect(messagesApi, contains(r'/v3/sessions/$sessionId/messages'));
       expect(messagesApi, contains("'localId': ?localId"));
@@ -70,18 +66,23 @@ void main() {
         markTestSkipped(_missingCliMessage);
         return;
       }
+      final goFiles = _requireGoFiles(cliRoot, [
+        'proto/server/v1/machines.proto',
+        'internal/api/machine_sync.go',
+        'internal/api/session_sync.go',
+        'internal/wsapi/events.go',
+      ]);
+      if (goFiles == null) return; // already skipped
+
       final syncOperations = _read(
         'lib/core/services/_sync_operations_session.dart',
       );
       final syncRpc = _read('lib/core/services/_sync_messaging_rpc.dart');
       final socketClient = _read('lib/core/api/socket_io_client.dart');
-      final goMachinesProto = _readFrom(
-        cliRoot,
-        'proto/server/v1/machines.proto',
-      );
-      final goMachineSync = _readFrom(cliRoot, 'internal/api/machine_sync.go');
-      final goSessionSync = _readFrom(cliRoot, 'internal/api/session_sync.go');
-      final goWsEvents = _readFrom(cliRoot, 'internal/wsapi/events.go');
+      final goMachinesProto = goFiles[0];
+      final goMachineSync = goFiles[1];
+      final goSessionSync = goFiles[2];
+      final goWsEvents = goFiles[3];
 
       expect(syncOperations, contains('spawn-happy-session'));
       expect(syncRpc, contains('spawn-happy-session'));
@@ -113,8 +114,21 @@ Directory? _cliRoot() {
   return root;
 }
 
-String _read(String path) => File(path).readAsStringSync();
-
-String _readFrom(Directory root, String path) {
-  return File('${root.path}/$path').readAsStringSync();
+/// Reads multiple Go files, skipping the test if any are missing.
+List<String>? _requireGoFiles(Directory root, List<String> paths) {
+  final contents = <String>[];
+  for (final path in paths) {
+    final file = File('${root.path}/$path');
+    if (!file.existsSync()) {
+      markTestSkipped(
+        'Cross-repo file not found: $path. '
+        'Update your happy-cli-go checkout.',
+      );
+      return null;
+    }
+    contents.add(file.readAsStringSync());
+  }
+  return contents;
 }
+
+String _read(String path) => File(path).readAsStringSync();
