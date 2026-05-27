@@ -144,7 +144,9 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final isWide = MasterDetailScaffold.isWide(context);
-    final artifacts = ref.watch(artifactsNotifierProvider);
+    // Watch the identity-stable derived list to avoid rebuilds when other
+    // map-shaped providers change.
+    final artifacts = ref.watch(artifactsListProvider);
     final filtered = _filterAndSort(artifacts);
     final hasArtifacts = artifacts.isNotEmpty;
 
@@ -211,9 +213,9 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
   }
 
   List<DecryptedArtifact> _filterAndSort(
-    Map<String, DecryptedArtifact> artifacts,
+    List<DecryptedArtifact> artifacts,
   ) {
-    var list = artifacts.values.toList();
+    var list = artifacts.toList();
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       list = list.where((a) {
