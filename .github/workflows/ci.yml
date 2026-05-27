@@ -2,7 +2,9 @@ name: Happy Flutter CI/CD
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel stale PR runs; never cancel main-branch runs so the
+  # deploy-web → deploy-pages flow is not interrupted (see fa072b98).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
   push:
