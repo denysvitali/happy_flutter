@@ -23,10 +23,6 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
-
     buildFeatures {
         buildConfig = true
     }
@@ -97,6 +93,10 @@ android {
             }
         }
     }
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 flutter {
