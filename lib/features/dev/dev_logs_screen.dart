@@ -320,7 +320,7 @@ class _LogListViewState extends State<LogListView> {
         itemBuilder: (context, index) {
           // Show most recent at bottom (reversed order)
           final entry = widget.logs[widget.logs.length - 1 - index];
-          return LogEntryWidget(entry: entry);
+          return RepaintBoundary(child: LogEntryWidget(entry: entry));
         },
       ),
     );

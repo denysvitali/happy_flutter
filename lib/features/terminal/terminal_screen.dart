@@ -177,24 +177,28 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
               itemBuilder: (context, index) {
                 final line = lines[index];
                 final isCommand = line.startsWith('> ');
-                return Padding(
+                return RepaintBoundary(
                   key: ValueKey(index),
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-                  child: isCommand
-                      ? Text(
-                          line,
-                          style: _terminalTextStyle.copyWith(
-                            color: const Color(0xFF569CD6),
-                          ),
-                        )
-                      : SelectableText.rich(
-                          TextSpan(
-                            children: AnsiParser.parse(
-                              line,
-                              defaultStyle: _terminalTextStyle,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xxs,
+                    ),
+                    child: isCommand
+                        ? Text(
+                            line,
+                            style: _terminalTextStyle.copyWith(
+                              color: const Color(0xFF569CD6),
+                            ),
+                          )
+                        : SelectableText.rich(
+                            TextSpan(
+                              children: AnsiParser.parse(
+                                line,
+                                defaultStyle: _terminalTextStyle,
+                              ),
                             ),
                           ),
-                        ),
+                  ),
                 );
               },
             ),

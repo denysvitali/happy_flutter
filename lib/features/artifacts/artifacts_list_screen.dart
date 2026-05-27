@@ -346,13 +346,17 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
                     itemBuilder: (context, index) {
                       final artifact = filtered[index];
                       final isSelected = selectedId == artifact.id;
-                      return Padding(
+                      return RepaintBoundary(
                         key: ValueKey(artifact.id),
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: _ArtifactListCard(
-                          artifact: artifact,
-                          selected: isSelected,
-                          onTap: () => onTap(artifact.id),
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: AppSpacing.sm,
+                          ),
+                          child: _ArtifactListCard(
+                            artifact: artifact,
+                            selected: isSelected,
+                            onTap: () => onTap(artifact.id),
+                          ),
                         ),
                       );
                     },

@@ -276,10 +276,9 @@ class _AgentConversationScreenState
               AppSpacing.xxl,
             ),
             itemCount: children.length,
-            itemBuilder: (context, i) => _buildChildMessage(
-              theme,
-              children[i],
+            itemBuilder: (context, i) => RepaintBoundary(
               key: ValueKey(children[i]['id'] ?? i),
+              child: _buildChildMessage(theme, children[i]),
             ),
           );
 
@@ -347,47 +346,38 @@ class _AgentConversationScreenState
     );
   }
 
-  Widget _buildChildMessage(
-    ThemeData theme,
-    Map<String, dynamic> msg, {
-    required Key? key,
-  }) {
+  Widget _buildChildMessage(ThemeData theme, Map<String, dynamic> msg) {
     final kind = msg['kind'] as String?;
 
     if (kind == 'text') {
-      return _buildTextMessage(theme, msg, key: key);
+      return _buildTextMessage(theme, msg);
     }
 
     if (kind == 'tool-call') {
       final toolName = msg['name'] as String? ?? '';
       if (toolName == 'Task' || toolName == 'Agent') {
-        return _buildNestedTaskRow(theme, msg, key: key);
+        return _buildNestedTaskRow(theme, msg);
       }
-      return _buildToolRow(theme, msg, key: key);
+      return _buildToolRow(theme, msg);
     }
 
     if (kind == 'error') {
-      return _ErrorRow(key: key, theme: theme, msg: msg);
+      return _ErrorRow(theme: theme, msg: msg);
     }
 
     if (kind == 'agent-event') {
-      return AgentEventWidget(key: key, event: msg['event']);
+      return AgentEventWidget(event: msg['event']);
     }
 
     return const SizedBox.shrink();
   }
 
-  Widget _buildTextMessage(
-    ThemeData theme,
-    Map<String, dynamic> msg, {
-    Key? key,
-  }) {
+  Widget _buildTextMessage(ThemeData theme, Map<String, dynamic> msg) {
     final content = msg['content'] as String? ?? '';
     if (content.isEmpty) return const SizedBox.shrink();
     final isThinking = msg['isThinking'] == true;
 
     return Padding(
-      key: key,
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: isThinking
           ? const _ThinkingRow()
@@ -405,10 +395,9 @@ class _AgentConversationScreenState
     );
   }
 
-  Widget _buildToolRow(ThemeData theme, Map<String, dynamic> msg, {Key? key}) {
+  Widget _buildToolRow(ThemeData theme, Map<String, dynamic> msg) {
     // Use full ToolView for detailed tool call display
     return Padding(
-      key: key,
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: ToolView(
         tool: msg,
@@ -424,11 +413,7 @@ class _AgentConversationScreenState
     );
   }
 
-  Widget _buildNestedTaskRow(
-    ThemeData theme,
-    Map<String, dynamic> msg, {
-    Key? key,
-  }) {
+  Widget _buildNestedTaskRow(ThemeData theme, Map<String, dynamic> msg) {
     final input = WireParsers.asMap(msg['input']);
     final description =
         input?['description'] as String? ??
@@ -454,7 +439,6 @@ class _AgentConversationScreenState
     }
 
     return Padding(
-      key: key,
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxs),
       child: InkWell(
         onTap: () {

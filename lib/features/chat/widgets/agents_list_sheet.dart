@@ -284,9 +284,11 @@ class AgentsListSheet extends StatelessWidget {
                     itemCount: agents.length,
                     itemBuilder: (context, index) {
                       final agent = agents[index];
-                      return _AgentTile(
-                        agent: agent,
-                        sessionId: sessionId,
+                      return RepaintBoundary(
+                        child: _AgentTile(
+                          agent: agent,
+                          sessionId: sessionId,
+                        ),
                       );
                     },
                   ),
