@@ -868,10 +868,14 @@ extension SyncMessagingRpc on Sync {
       'lifecycleState=${session?.metadata?.lifecycleState}',
     );
 
-    // Event-driven: resolve as soon as onDataChanged fires with session
-    // ready, or after timeoutMs, whichever comes first.
+    // Event-driven: resolve as soon as the sessions domain changes
+    // and the target session is ready, or after timeoutMs.  We listen
+    // on [onDomainChanged] (filtered to sessions) instead of the
+    // global [onDataChanged] firehose because session-state changes
+    // are now scoped to SyncDomain.sessions; the firehose only fires
+    // for truly-everything notifications.
     final completer = Completer<bool>();
-    StreamSubscription<void>? sub;
+    StreamSubscription<SyncDomain>? sub;
     Timer? timer;
 
     timer = Timer(Duration(milliseconds: timeoutMs), () {
@@ -879,14 +883,16 @@ extension SyncMessagingRpc on Sync {
       sub?.cancel();
     });
 
-    sub = onDataChanged.listen((_) {
-      final s = _sessions[sessionId];
-      if (s != null && _isSessionReady(s) && !completer.isCompleted) {
-        completer.complete(true);
-        timer?.cancel();
-        sub?.cancel();
-      }
-    });
+    sub = onDomainChanged
+        .where((d) => d == SyncDomain.sessions)
+        .listen((_) {
+          final s = _sessions[sessionId];
+          if (s != null && _isSessionReady(s) && !completer.isCompleted) {
+            completer.complete(true);
+            timer?.cancel();
+            sub?.cancel();
+          }
+        });
 
     final ready = await completer.future;
     logger.info(

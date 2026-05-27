@@ -636,6 +636,7 @@ extension SyncSocketEvents on Sync {
           Map.unmodifiable(_sessionFirstLoadedSeq),
         );
         _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
+        _saveMsgsFirstScheduledAtMs.remove(sessionId);
         MessageCacheService().clearMessages(sessionId);
         if (_encryptionInitialized) {
           encryption.removeSessionEncryption(sessionId);

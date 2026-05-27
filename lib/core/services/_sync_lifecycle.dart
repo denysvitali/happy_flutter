@@ -119,6 +119,7 @@ extension SyncLifecycle on Sync {
       timer.cancel();
     }
     _saveMsgsDebounceTimers.clear();
+    _saveMsgsFirstScheduledAtMs.clear();
 
     // Suspend message outbox to stop retry timers
     messageOutbox.suspend();
