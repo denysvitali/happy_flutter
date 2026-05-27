@@ -150,7 +150,7 @@ class _MessageWidgetState extends State<MessageWidget>
         msg['id'] as String? ??
         msg['localId'] as String? ??
         msg['key'] as String?;
-    final content = msg['content'] ?? msg['text'];
+    final sigContent = msg['content'] ?? msg['text'];
     final signature = Object.hash(
       messageId,
       msg['kind'],
@@ -159,7 +159,7 @@ class _MessageWidgetState extends State<MessageWidget>
       msg['sendStatus'],
       msg['isThinking'],
       msg['updatedAt'] ?? msg['createdAt'],
-      content is String ? content : content?.toString(),
+      sigContent is String ? sigContent : sigContent?.toString(),
       // Tool/Agent messages also need to invalidate when the messages
       // list reference changes meaningfully. List identity is acceptable
       // because chat_screen only passes `_messages` for Task/Agent and
