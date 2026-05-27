@@ -274,10 +274,21 @@ jobs:
           # hardcodes compileSdkVersion 34. Gradle-level overrides (plugins.withId,
           # projectsEvaluated) arrive too late because the plugin's build.gradle
           # overwrites them after AGP reads the value during evaluation.
-          CRONET_BUILD=$(python3 -c "import json; d=json.load(open('.dart_tool/package_config.json')); print(next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http'))" 2>/dev/null)/android/build.gradle
+          CRONET_BUILD=$(python3 -c "
+          import json, urllib.parse
+          d = json.load(open('.dart_tool/package_config.json'))
+          uri = next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http')
+          print(urllib.parse.urlparse(uri).path)
+          " 2>/dev/null)/android/build.gradle
+          echo "cronet_http build.gradle: $CRONET_BUILD"
           if [ -f "$CRONET_BUILD" ]; then
-            echo "Patching $CRONET_BUILD: compileSdkVersion 34 -> 36"
+            echo "Before patch:"
+            grep -n 'compileSdk' "$CRONET_BUILD" || true
             sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' "$CRONET_BUILD"
+            echo "After patch:"
+            grep -n 'compileSdk' "$CRONET_BUILD" || true
+          else
+            echo "WARNING: $CRONET_BUILD not found!"
           fi
 
       - name: Clear Gradle build cache
@@ -415,10 +426,21 @@ jobs:
           # hardcodes compileSdkVersion 34. Gradle-level overrides (plugins.withId,
           # projectsEvaluated) arrive too late because the plugin's build.gradle
           # overwrites them after AGP reads the value during evaluation.
-          CRONET_BUILD=$(python3 -c "import json; d=json.load(open('.dart_tool/package_config.json')); print(next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http'))" 2>/dev/null)/android/build.gradle
+          CRONET_BUILD=$(python3 -c "
+          import json, urllib.parse
+          d = json.load(open('.dart_tool/package_config.json'))
+          uri = next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http')
+          print(urllib.parse.urlparse(uri).path)
+          " 2>/dev/null)/android/build.gradle
+          echo "cronet_http build.gradle: $CRONET_BUILD"
           if [ -f "$CRONET_BUILD" ]; then
-            echo "Patching $CRONET_BUILD: compileSdkVersion 34 -> 36"
+            echo "Before patch:"
+            grep -n 'compileSdk' "$CRONET_BUILD" || true
             sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' "$CRONET_BUILD"
+            echo "After patch:"
+            grep -n 'compileSdk' "$CRONET_BUILD" || true
+          else
+            echo "WARNING: $CRONET_BUILD not found!"
           fi
 
       - name: Clear Gradle build cache
