@@ -12,6 +12,21 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Workaround: cronet_http (via native_dio_adapter) compiles against
+// android-34 but its :jni dependency requires android-35+. Disable the
+// AAR metadata check on all subprojects until cronet_http is updated.
+// Properties in gradle.properties are overwritten by Flutter's tool, so
+// we disable the tasks directly.
+subprojects {
+    afterEvaluate {
+        tasks.configureEach {
+            if (name.startsWith("check") && name.contains("AarMetadata")) {
+                enabled = false
+            }
+        }
+    }
+}
+
 // Kotlin 2.x dropped support for languageVersion < 1.8.
 // We hook in after all subprojects are evaluated (avoiding the
 // "project already evaluated" error from evaluationDependsOn(":app"))

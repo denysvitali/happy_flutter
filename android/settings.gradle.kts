@@ -1,11 +1,3 @@
-// Flutter's "Upgrading gradle.properties" overwrites user-added keys.
-// Set AGP compatibility flags here so they survive the tool's migration.
-gradle.beforeSettings {
-    val extra = startParameter.projectProperties
-    extra.putIfAbsent("android.newDsl", "false")
-    extra.putIfAbsent("android.enableNewAarMetadataCheck", "false")
-}
-
 pluginManagement {
     val flutterSdkPath =
         run {
