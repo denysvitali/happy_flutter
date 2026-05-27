@@ -267,28 +267,35 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Patch cronet_http compileSdk for AGP 9.x compatibility
+      - name: Patch plugin compileSdk for AGP 9.x compatibility
         run: |
-          # Find cronet_http in pub cache and bump its compileSdkVersion from 34 to 36.
-          # cronet_http's :jni dependency requires compileSdk 35+ but the plugin
-          # hardcodes compileSdkVersion 34. Gradle-level overrides (plugins.withId,
-          # projectsEvaluated) arrive too late because the plugin's build.gradle
-          # overwrites them after AGP reads the value during evaluation.
-          CRONET_BUILD=$(python3 -c "
-          import json, urllib.parse
-          d = json.load(open('.dart_tool/package_config.json'))
-          uri = next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http')
-          print(urllib.parse.urlparse(uri).path)
-          " 2>/dev/null)/android/build.gradle
-          echo "cronet_http build.gradle: $CRONET_BUILD"
-          if [ -f "$CRONET_BUILD" ]; then
-            echo "Before patch:"
-            grep -n 'compileSdk' "$CRONET_BUILD" || true
-            sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' "$CRONET_BUILD"
-            echo "After patch:"
-            grep -n 'compileSdk' "$CRONET_BUILD" || true
-          else
-            echo "WARNING: $CRONET_BUILD not found!"
+          # AGP 9.x enforces strict AAR metadata validation. Flutter plugins
+          # that hardcode compileSdkVersion < 35 cause BundleAar / checkReleaseAarMetadata
+          # failures. Gradle-level overrides arrive too late (plugin build.gradle
+          # overwrites them). Patch all plugin build.gradle files in the pub cache.
+          DART_TOOL=".dart_tool/package_config.json"
+          if [ -f "$DART_TOOL" ]; then
+            python3 -c "
+          import json, urllib.parse, os
+          d = json.load(open('$DART_TOOL'))
+          for p in d['packages']:
+              uri = p.get('rootUri','')
+              path = urllib.parse.urlparse(uri).path
+              bg = os.path.join(path, 'android', 'build.gradle')
+              if os.path.isfile(bg):
+                  print(bg)
+          " | while read -r f; do
+              if grep -q 'compileSdkVersion' "$f"; then
+                OLD=$(grep -o 'compileSdkVersion [0-9]*' "$f" | head -1)
+                # Bump any compileSdkVersion < 36 to 36
+                sed -i 's/compileSdkVersion \([0-9]\{1,2\}\)/compileSdkVersion 36/' "$f"
+                NEW=$(grep -o 'compileSdkVersion [0-9]*' "$f" | head -1)
+                if [ "$OLD" != "$NEW" ]; then
+                  echo "Patched $f: $OLD -> $NEW"
+                fi
+              fi
+            done
+            echo "Patched plugin compileSdk values for AGP 9.x"
           fi
 
       - name: Clear Gradle build cache
@@ -418,29 +425,35 @@ jobs:
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: flutter pub get
 
-      - name: Patch cronet_http compileSdk for AGP 9.x compatibility
+      - name: Patch plugin compileSdk for AGP 9.x compatibility
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
-          # Find cronet_http in pub cache and bump its compileSdkVersion from 34 to 36.
-          # cronet_http's :jni dependency requires compileSdk 35+ but the plugin
-          # hardcodes compileSdkVersion 34. Gradle-level overrides (plugins.withId,
-          # projectsEvaluated) arrive too late because the plugin's build.gradle
-          # overwrites them after AGP reads the value during evaluation.
-          CRONET_BUILD=$(python3 -c "
-          import json, urllib.parse
-          d = json.load(open('.dart_tool/package_config.json'))
-          uri = next(p['rootUri'] for p in d['packages'] if p['name']=='cronet_http')
-          print(urllib.parse.urlparse(uri).path)
-          " 2>/dev/null)/android/build.gradle
-          echo "cronet_http build.gradle: $CRONET_BUILD"
-          if [ -f "$CRONET_BUILD" ]; then
-            echo "Before patch:"
-            grep -n 'compileSdk' "$CRONET_BUILD" || true
-            sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' "$CRONET_BUILD"
-            echo "After patch:"
-            grep -n 'compileSdk' "$CRONET_BUILD" || true
-          else
-            echo "WARNING: $CRONET_BUILD not found!"
+          # AGP 9.x enforces strict AAR metadata validation. Flutter plugins
+          # that hardcode compileSdkVersion < 35 cause BundleAar / checkReleaseAarMetadata
+          # failures. Gradle-level overrides arrive too late (plugin build.gradle
+          # overwrites them). Patch all plugin build.gradle files in the pub cache.
+          DART_TOOL=".dart_tool/package_config.json"
+          if [ -f "$DART_TOOL" ]; then
+            python3 -c "
+          import json, urllib.parse, os
+          d = json.load(open('$DART_TOOL'))
+          for p in d['packages']:
+              uri = p.get('rootUri','')
+              path = urllib.parse.urlparse(uri).path
+              bg = os.path.join(path, 'android', 'build.gradle')
+              if os.path.isfile(bg):
+                  print(bg)
+          " | while read -r f; do
+              if grep -q 'compileSdkVersion' "$f"; then
+                OLD=$(grep -o 'compileSdkVersion [0-9]*' "$f" | head -1)
+                sed -i 's/compileSdkVersion \([0-9]\{1,2\}\)/compileSdkVersion 36/' "$f"
+                NEW=$(grep -o 'compileSdkVersion [0-9]*' "$f" | head -1)
+                if [ "$OLD" != "$NEW" ]; then
+                  echo "Patched $f: $OLD -> $NEW"
+                fi
+              fi
+            done
+            echo "Patched plugin compileSdk values for AGP 9.x"
           fi
 
       - name: Clear Gradle build cache
