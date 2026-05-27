@@ -2,7 +2,6 @@ name: Happy Flutter CI/CD
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 on:
   push:
@@ -583,9 +582,6 @@ jobs:
     needs: build-web
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    concurrency:
-      group: deploy-github-pages
-      cancel-in-progress: false
 
     environment:
       name: github-pages
