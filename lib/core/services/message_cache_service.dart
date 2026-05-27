@@ -51,6 +51,11 @@ class MessageCacheService {
   /// recently used.
   final List<String> _webSessionLru = [];
 
+  /// Whether the LRU list has been seeded with sessions already present
+  /// in storage. The merge happens once per process to avoid scanning
+  /// the full cached-session set on every save (hot path).
+  bool _webLruSeeded = false;
+
   /// Per-session content hash of the last persisted tail. Used to skip
   /// redundant MMKV writes when the message list hasn't changed.
   final Map<String, int> _lastSavedHash = {};
@@ -149,14 +154,16 @@ class MessageCacheService {
   /// Removes the least-recently-used sessions from the cache until the
   /// number of cached sessions is within [_maxWebSessions].
   void _evictWebOverflow() {
-    // Merge in any sessions that exist in storage but are not yet
-    // tracked in the LRU list (e.g. loaded from a previous run).
-    final stored = _storage.getCachedSessionIds();
-    for (final sid in stored) {
-      if (!_webSessionLru.contains(sid)) {
-        // Insert at the front so they are evicted first.
-        _webSessionLru.insert(0, sid);
+    // Seed the LRU once with sessions that exist in storage from a
+    // previous run. Subsequent saves only touch the in-memory list.
+    if (!_webLruSeeded) {
+      final stored = _storage.getCachedSessionIds();
+      for (final sid in stored) {
+        if (!_webSessionLru.contains(sid)) {
+          _webSessionLru.insert(0, sid);
+        }
       }
+      _webLruSeeded = true;
     }
 
     while (_webSessionLru.length > _maxWebSessions) {

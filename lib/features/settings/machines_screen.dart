@@ -33,7 +33,7 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen>
     Future<void>.microtask(
       () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
     );
-    subscribeToDataChanged(ref, () {
+    subscribeToDomains([SyncDomain.machines], () {
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
     });
   }

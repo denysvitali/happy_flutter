@@ -10,6 +10,7 @@ import '../../core/services/logger_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/package_info_cache.dart';
 import '../../dart_version.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
@@ -30,7 +31,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
   }
 
   Future<void> _loadPackageInfo() async {
-    final info = await PackageInfo.fromPlatform();
+    final info = await PackageInfoCache.get();
     if (mounted) {
       setState(() => _packageInfo = info);
     }

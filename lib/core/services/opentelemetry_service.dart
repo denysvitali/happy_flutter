@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
+import '../utils/package_info_cache.dart';
 import 'logger_service.dart';
 
 class OpenTelemetryService {
@@ -38,7 +38,7 @@ class OpenTelemetryService {
     }
 
     try {
-      final packageInfo = await PackageInfo.fromPlatform();
+      final packageInfo = await PackageInfoCache.get();
       await FlutterOTel.initialize(
         appName: _serviceName,
         endpoint: kIsWeb ? _webEndpoint : _nativeEndpoint,

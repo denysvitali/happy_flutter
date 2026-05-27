@@ -52,7 +52,7 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
     Future<void>.microtask(() async {
       await ref.read(artifactsNotifierProvider.notifier).refreshFromSync();
     });
-    subscribeToDataChanged(ref, () {
+    subscribeToDomains([SyncDomain.artifacts], () {
       ref.read(artifactsNotifierProvider.notifier).loadFromSync();
     });
   }
