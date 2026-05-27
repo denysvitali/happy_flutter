@@ -12,6 +12,18 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Force all subprojects (plugins) to compile against SDK 36, matching
+// our app's compileSdk.  Plugins like cronet_http still declare 34
+// but their transitive :jni dep now requires 35+.
+subprojects {
+    afterEvaluate {
+        val ext = extensions.findByName("android")
+        if (ext is com.android.build.gradle.BaseExtension) {
+            ext.compileSdkVersion = 36
+        }
+    }
+}
+
 // Kotlin 2.x dropped support for languageVersion < 1.8.
 // We hook in after all subprojects are evaluated (avoiding the
 // "project already evaluated" error from evaluationDependsOn(":app"))
