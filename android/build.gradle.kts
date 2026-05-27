@@ -12,21 +12,6 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Workaround: cronet_http (via native_dio_adapter) compiles against
-// android-34 but its :jni dependency requires android-35+. Disable the
-// AAR metadata check on all subprojects until cronet_http is updated.
-// Properties in gradle.properties are overwritten by Flutter's tool, so
-// we disable the tasks directly.
-subprojects {
-    afterEvaluate {
-        tasks.configureEach {
-            if (name.startsWith("check") && name.contains("AarMetadata")) {
-                enabled = false
-            }
-        }
-    }
-}
-
 // Kotlin 2.x dropped support for languageVersion < 1.8.
 // We hook in after all subprojects are evaluated (avoiding the
 // "project already evaluated" error from evaluationDependsOn(":app"))
@@ -35,6 +20,15 @@ subprojects {
 gradle.projectsEvaluated {
     val minVer = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8
     subprojects {
+        // Workaround: cronet_http (via native_dio_adapter) compiles against
+        // android-34 but its :jni dependency requires android-35+.
+        // Disable AAR metadata check tasks until cronet_http is updated.
+        tasks.configureEach {
+            if (name.startsWith("check") && name.contains("AarMetadata")) {
+                enabled = false
+            }
+        }
+
         val javaTarget =
             tasks
                 .matching { it is org.gradle.api.tasks.compile.JavaCompile }
@@ -58,18 +52,6 @@ gradle.projectsEvaluated {
                     this.jvmTarget.set(jvmTarget)
                 }
             }
-    }
-}
-
-// Workaround: cronet_http (via native_dio_adapter) compiles against
-// android-34 but its :jni dependency requires android-35+. Force all
-// subprojects to compile against SDK 36 so the AAR metadata check passes.
-// Properties in gradle.properties are overwritten by Flutter's tool, so
-// we apply the override at evaluation time.
-subprojects {
-    afterEvaluate {
-        extensions.findByType<com.android.build.gradle.BaseExtension>()
-            ?.compileSdkVersion = "android-36"
     }
 }
 
