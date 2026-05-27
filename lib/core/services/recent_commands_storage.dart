@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'logger_service.dart' show logger;
@@ -18,6 +19,8 @@ class RecentCommandsStorage {
 
   final _storage = MMKVStorage();
   List<String>? _cache;
+  Timer? _persistTimer;
+  static const _persistDebounce = Duration(milliseconds: 500);
 
   List<String> _loadCache() {
     try {
@@ -33,6 +36,11 @@ class RecentCommandsStorage {
   }
 
   void _persist() {
+    _persistTimer?.cancel();
+    _persistTimer = Timer(_persistDebounce, _persistNow);
+  }
+
+  void _persistNow() {
     final cache = _cache;
     if (cache != null) {
       _storage.setString(_key, jsonEncode(cache));
@@ -45,10 +53,9 @@ class RecentCommandsStorage {
   /// Records [commandId] as the most-recently executed command.
   ///
   /// Moves it to the front if already present, then caps the list
-  /// at [maxEntries] and persists synchronously.
+  /// at [maxEntries] and schedules a debounced persist (500ms).
   void recordCommand(String commandId) {
-    final list = getRecent();
-    list
+    final list = getRecent()
       ..remove(commandId)
       ..insert(0, commandId);
     if (list.length > maxEntries) {
@@ -59,6 +66,7 @@ class RecentCommandsStorage {
 
   /// Clears all recent commands.
   void clearAll() {
+    _persistTimer?.cancel();
     _cache?.clear();
     _storage.removeKey(_key);
   }

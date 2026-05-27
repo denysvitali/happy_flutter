@@ -142,15 +142,12 @@ class _JsonMapStore {
   /// Get from in-memory cache (must call [initCache] first).
   String? getFromCache(String id) => _cache?[id];
 
-  /// Save to in-memory cache and persist synchronously.
+  /// Save to in-memory cache; persist to MMKV via 500ms debounce so
+  /// rapid picker taps don't trigger per-tap full-map serialization.
   void saveToCache(String id, String value) {
     _cache ??= {};
     _cache![id] = value;
-    try {
-      _mmkv()?.encodeString(_key, jsonEncode(_cache));
-    } catch (e) {
-      logger.warning('MMKV: Failed to save cached $_key[$id]: $e');
-    }
+    _schedulePersist();
   }
 
   /// Initialize cache from MMKV. Returns the loaded map.
