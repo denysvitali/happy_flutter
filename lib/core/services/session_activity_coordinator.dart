@@ -30,9 +30,9 @@ class SessionActivityCoordinator {
     NotificationService? notificationService,
     LiveActivityService? liveActivityService,
     Duration refreshInterval = const Duration(seconds: 15),
-  })  : _notifications = notificationService ?? NotificationService.instance,
-        _liveActivity = liveActivityService ?? LiveActivityService.instance,
-        _refreshInterval = refreshInterval;
+  }) : _notifications = notificationService ?? NotificationService.instance,
+       _liveActivity = liveActivityService ?? LiveActivityService.instance,
+       _refreshInterval = refreshInterval;
 
   final NotificationService _notifications;
   final LiveActivityService _liveActivity;
@@ -94,8 +94,7 @@ class SessionActivityCoordinator {
 
   /// Visible for tests — apply a decision (start/update/end) without
   /// the full Sync wiring.
-  Future<void> applyDecision(ActivityDecision decision) =>
-      _apply(decision);
+  Future<void> applyDecision(ActivityDecision decision) => _apply(decision);
 
   void _reconcile(Sync sync) {
     final sessions = sync.sessions.values.toList(growable: false);
@@ -118,8 +117,7 @@ class SessionActivityCoordinator {
   }
 
   ActivityDecision _decisionFor(Session session, String? visibleId) {
-    final shouldShow =
-        session.thinking == true && session.id != visibleId;
+    final shouldShow = session.thinking == true && session.id != visibleId;
     if (!shouldShow) {
       return _active.containsKey(session.id)
           ? ActivityDecision.end(session.id)
@@ -129,7 +127,8 @@ class SessionActivityCoordinator {
     final startedAt = DateTime.fromMillisecondsSinceEpoch(
       session.thinkingAt ?? session.activeAt,
     );
-    final sessionName = session.metadata?.summary?.text ??
+    final sessionName =
+        session.metadata?.summary?.text ??
         session.metadata?.path?.split('/').last;
     return ActivityDecision.show(
       sessionId: session.id,
@@ -182,25 +181,18 @@ class SessionActivityCoordinator {
             );
           }
         } catch (e, st) {
-          logger.warning(
-            'SessionActivityCoordinator.show failed: $e',
-            e,
-            st,
-          );
+          logger.warning('SessionActivityCoordinator.show failed: $e', e, st);
         }
         break;
       case ActivityAction.end:
         _active.remove(decision.sessionId);
         try {
-          await _notifications
-              .cancelSessionActivityNotification(decision.sessionId);
+          await _notifications.cancelSessionActivityNotification(
+            decision.sessionId,
+          );
           await _liveActivity.end(decision.sessionId);
         } catch (e, st) {
-          logger.warning(
-            'SessionActivityCoordinator.end failed: $e',
-            e,
-            st,
-          );
+          logger.warning('SessionActivityCoordinator.end failed: $e', e, st);
         }
         break;
       case ActivityAction.noop:
@@ -240,14 +232,13 @@ class ActivityDecision {
     required String toolName,
     required DateTime startedAt,
     String? sessionName,
-  }) =>
-      ActivityDecision._(
-        action: ActivityAction.show,
-        sessionId: sessionId,
-        toolName: toolName,
-        startedAt: startedAt,
-        sessionName: sessionName,
-      );
+  }) => ActivityDecision._(
+    action: ActivityAction.show,
+    sessionId: sessionId,
+    toolName: toolName,
+    startedAt: startedAt,
+    sessionName: sessionName,
+  );
 
   factory ActivityDecision.end(String sessionId) =>
       ActivityDecision._(action: ActivityAction.end, sessionId: sessionId);
