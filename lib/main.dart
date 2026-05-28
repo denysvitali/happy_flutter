@@ -165,10 +165,11 @@ Future<void> _runApp() async {
     await startupTransaction.finish();
   }();
 
-  if (!kIsWeb) {
-    await startupServicesFuture;
-  }
-
+  // Do NOT block the first frame on storage + API init. `startupServicesFuture`
+  // already runs concurrently and is awaited in `_HappyAppState.initState`
+  // before any auth check or API call; AuthGate renders a loading state until
+  // it settles. Awaiting it here previously added storage+API init latency
+  // (hundreds of ms) to time-to-first-frame on every cold start.
   final deepLink = await deepLinkFuture;
 
   runApp(
