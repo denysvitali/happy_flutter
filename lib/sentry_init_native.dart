@@ -16,6 +16,12 @@ import 'sentry_config.dart';
 // local builds where --dart-define is not passed.
 const _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 
+// Baked in at build time via --dart-define=SENTRY_DIST=<build-number>.
+// Must match SENTRY_DIST used by sentry_dart_plugin when uploading debug
+// symbols, otherwise GlitchTip cannot associate the uploaded symbols with
+// incoming events and obfuscated stack traces never symbolicate.
+const _sentryDist = String.fromEnvironment('SENTRY_DIST');
+
 Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
   if (!sentryEnabled) {
     logger.warning('[Sentry] SDK disabled by sentryEnabled=false');
@@ -33,6 +39,7 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       // ignore: experimental_member_use
       ..profilesSampleRate = sentryProfilesSampleRate
       ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
+      ..dist = _sentryDist.isNotEmpty ? _sentryDist : null
       ..environment = kReleaseMode ? 'production' : 'debug'
       // Keep Android ANR reporting enabled. Background ANRs are filtered below
       // when the SDK routes them through beforeSend, but disabling this option

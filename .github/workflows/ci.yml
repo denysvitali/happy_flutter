@@ -316,7 +316,8 @@ jobs:
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
-            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
+            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
+            --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ steps.debug_keystore.outputs.KEYSTORE_PATH }}
@@ -484,6 +485,7 @@ jobs:
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
+            --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --split-debug-info=build/debug-info \
             --obfuscate
 
@@ -572,7 +574,8 @@ jobs:
       - name: Build Linux x64 Release
         run: |
           flutter build linux --release \
-            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
+            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
+            --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Bundle release archive
         run: |
@@ -619,7 +622,8 @@ jobs:
             --base-href '/' \
             --source-maps \
             --dart-define=COMMIT_SHA=${{ github.sha }} \
-            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
+            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
+            --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Upload web source maps to Sentry
         if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
