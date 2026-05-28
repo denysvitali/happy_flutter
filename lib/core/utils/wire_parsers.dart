@@ -116,24 +116,13 @@ class WireParsers {
       _firstNonEmptyString(data, _agentIdKeys);
 
   /// Whether the payload carries the raw `isSidechain` / `is_sidechain` flag.
+  ///
+  /// This is the metadata-stage definition shared by both decrypt pipelines
+  /// (message_processor.dart and _sync_messaging_parse_output.dart). The flag
+  /// is propagated verbatim so the downstream grouper can stitch sub-agent
+  /// transcripts via the `parentUuid` chain even for intermediate messages
+  /// (meta/unrendered events) that carry no tool-use/agent anchor of their
+  /// own. See GlitchTip HAPPY_FLUTTER-3C9.
   static bool isRawSidechain(Map<String, dynamic> data) =>
       data['isSidechain'] == true || data['is_sidechain'] == true;
-
-  /// Whether a sidechain payload carries a real anchor (parent tool-use id
-  /// or agent id) the grouper can attach it to.
-  static bool hasSidechainAnchor(Map<String, dynamic> data) =>
-      sidechainParentToolUseId(data) != null ||
-      sidechainAgentId(data) != null;
-
-  /// Effective sidechain flag after stripping an SDK misclassification:
-  /// when the orchestrator emits multiple Agent/Task tool_use blocks in one
-  /// assistant turn, the CLI flags the 2nd..Nth as `isSidechain: true` even
-  /// though they belong to the top-level orchestrator (no parent_tool_use_id,
-  /// no agentId/task_id). Without an anchor the sidechain grouper can never
-  /// attach them, so they become hidden orphans and only the first Agent card
-  /// renders. Treating anchorless sidechain payloads as top-level keeps the
-  /// remaining Agent cards visible while preserving real sub-agent sidechains,
-  /// which always carry an anchor.
-  static bool isEffectiveSidechain(Map<String, dynamic> data) =>
-      isRawSidechain(data) && hasSidechainAnchor(data);
 }

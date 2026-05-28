@@ -230,36 +230,37 @@ void main() {
 
   // Contract for GlitchTip HAPPY_FLUTTER-3C9: the isolate decrypt pipeline
   // (message_processor.dart) and the live-ingest pipeline
-  // (_sync_messaging_parse_output.dart) must share one definition of an
-  // "effective" sidechain. These pin that shared definition.
-  group('WireParsers sidechain anchor', () {
-    test('non-sidechain payload is never effective sidechain', () {
+  // (_sync_messaging_parse_output.dart) must share one metadata-stage
+  // definition of a sidechain and one set of anchor extractors so they
+  // can't drift. These pin that shared definition.
+  group('WireParsers sidechain detection', () {
+    test('raw flag is true for either casing', () {
+      expect(WireParsers.isRawSidechain({'isSidechain': true}), isTrue);
+      expect(WireParsers.isRawSidechain({'is_sidechain': true}), isTrue);
+    });
+
+    test('raw flag is false when absent or not boolean true', () {
       expect(WireParsers.isRawSidechain(<String, dynamic>{}), isFalse);
-      expect(
-        WireParsers.isEffectiveSidechain({'parent_tool_use_id': 'abc'}),
-        isFalse,
-      );
+      expect(WireParsers.isRawSidechain({'isSidechain': false}), isFalse);
+      expect(WireParsers.isRawSidechain({'isSidechain': 'true'}), isFalse);
+      expect(WireParsers.isRawSidechain({'isSidechain': 1}), isFalse);
     });
 
-    test('anchorless sidechain is demoted to top-level', () {
-      // Reproduces the SDK misclassification: 2nd..Nth Agent/Task block in
-      // one turn flagged sidechain with no parent/agent anchor.
+    test('anchorless sidechain still reports raw sidechain', () {
+      // Intermediate meta/unrendered events carry no tool-use/agent anchor
+      // but are genuine parentUuid-chained sidechains; the flag must be
+      // preserved so the grouper can stitch the transcript.
       expect(
-        WireParsers.isEffectiveSidechain({'isSidechain': true}),
-        isFalse,
-        reason: 'anchorless sidechain must render top-level, not be hidden',
-      );
-      expect(
-        WireParsers.isEffectiveSidechain({
-          'is_sidechain': true,
-          'parent_tool_use_id': '',
-          'agentId': '',
+        WireParsers.isRawSidechain({
+          'isSidechain': true,
+          'uuid': 'sc',
+          'parentUuid': 'parent',
         }),
-        isFalse,
+        isTrue,
       );
     });
 
-    test('real sidechain with parent_tool_use_id is preserved', () {
+    test('parent tool-use id extractor reads every wire spelling', () {
       for (final key in [
         'parent_tool_use_id',
         'parentToolUseId',
@@ -267,19 +268,19 @@ void main() {
         'tool_use_id',
       ]) {
         expect(
-          WireParsers.isEffectiveSidechain({'isSidechain': true, key: 'tu_1'}),
-          isTrue,
-          reason: '$key is a valid sidechain anchor',
+          WireParsers.sidechainParentToolUseId({key: 'tu_1'}),
+          'tu_1',
+          reason: '$key is a valid parent tool-use anchor',
         );
       }
     });
 
-    test('real sidechain with agent id is preserved', () {
+    test('agent id extractor reads every wire spelling', () {
       for (final key in ['agentId', 'agent_id', 'task_id']) {
         expect(
-          WireParsers.isEffectiveSidechain({'is_sidechain': true, key: 'a_1'}),
-          isTrue,
-          reason: '$key is a valid sidechain anchor',
+          WireParsers.sidechainAgentId({key: 'a_1'}),
+          'a_1',
+          reason: '$key is a valid agent anchor',
         );
       }
     });

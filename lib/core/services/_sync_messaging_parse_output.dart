@@ -18,11 +18,10 @@ extension SyncMessagingParseOutput on Sync {
     // every sidechain emission below carries it without each call
     // site having to thread the field manually.
     //
-    // [WireParsers.isEffectiveSidechain] strips an SDK misclassification
-    // where the 2nd..Nth Agent/Task tool_use blocks in one turn are
-    // flagged `isSidechain: true` despite belonging to the top-level
-    // orchestrator (no anchor). See GlitchTip HAPPY_FLUTTER-3C9.
-    final isSidechain = WireParsers.isEffectiveSidechain(data);
+    // [WireParsers.isRawSidechain] is the single shared metadata-stage
+    // definition (also used by message_processor.dart) so the two decrypt
+    // pipelines can't drift. See GlitchTip HAPPY_FLUTTER-3C9.
+    final isSidechain = WireParsers.isRawSidechain(data);
     final dataUuid = (data['uuid'] ?? data['id']) as String?;
     final dataParentUuid =
         (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])

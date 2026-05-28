@@ -56,7 +56,7 @@ class ProcessedMessages {
   Map<String, dynamic> data,
 ) {
   return (
-    isSidechain: WireParsers.isEffectiveSidechain(data),
+    isSidechain: WireParsers.isRawSidechain(data),
     uuid: (data['uuid'] ?? data['id']) as String?,
     parentUuid: (data['subagent'] ??
         data['parentUuid'] ??
