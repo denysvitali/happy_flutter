@@ -40,6 +40,22 @@ class ChatModelMode {
     );
   }
 
+  static const _knownSlugs = {'sonnet', 'opus'};
+
+  factory ChatModelMode.custom({
+    required String slug,
+    String? effort,
+  }) {
+    final effortLabel = effort != null ? _capitalizeEffort(effort) : null;
+    return ChatModelMode._(
+      label: effortLabel != null ? '$slug $effortLabel' : slug,
+      modeString: effort != null ? '$slug:$effort' : slug,
+      modelSlug: slug,
+      reasoningEffort: effort,
+      flavor: 'claude',
+    );
+  }
+
   /// Use the server-configured default model.
   static const defaultModel = ChatModelMode._(
     label: 'Default',
@@ -106,6 +122,9 @@ class ChatModelMode {
   bool get hasEffort => reasoningEffort != null;
 
   bool get isDefault => modeString == defaultModel.modeString;
+
+  bool get isCustom =>
+      !isDefault && !isCodex && !_knownSlugs.contains(modelSlug);
 
   String get reasoningEffortLabel => _capitalizeEffort(reasoningEffort ?? '');
 
@@ -214,11 +233,18 @@ class ChatModelMode {
         effort: effort,
       );
     }
+    if (_isClaudeModelSlug(slug)) {
+      return ChatModelMode.custom(slug: slug, effort: effort);
+    }
     return ChatModelMode.fromCodexModel(
       slug: slug,
       displayName: _displayNameFromSlug(slug),
       effort: effort,
     );
+  }
+
+  static bool _isClaudeModelSlug(String slug) {
+    return slug.startsWith('claude-');
   }
 
   static String _displayNameFromSlug(String slug) {

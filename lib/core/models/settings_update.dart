@@ -105,6 +105,9 @@ final class SettingsUpdate {
       'lastUsedModelMode' => settings.copyWith(
         lastUsedModelMode: value as String?,
       ),
+      'customModelModes' => settings.copyWith(
+        customModelModes: (value as List<dynamic>?)?.cast<String>() ?? [],
+      ),
       'profiles' => settings.copyWith(
         profiles: (value as List<dynamic>?)?.cast<AIBackendProfile>() ?? [],
       ),
@@ -185,6 +188,7 @@ final class SettingsUpdate {
       ..lastUsedAgent = updated.lastUsedAgent
       ..lastUsedPermissionMode = updated.lastUsedPermissionMode
       ..lastUsedModelMode = updated.lastUsedModelMode
+      ..customModelModes = updated.customModelModes
       ..profiles = updated.profiles
       ..lastUsedProfile = updated.lastUsedProfile
       ..lastUsedProfilesByAgent = updated.lastUsedProfilesByAgent

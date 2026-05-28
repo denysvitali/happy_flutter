@@ -71,6 +71,7 @@ class Settings {
   String? lastUsedAgent;
   String? lastUsedPermissionMode;
   String? lastUsedModelMode;
+  List<String> customModelModes = [];
   // Profile API keys excluded from serialization via toJsonWithoutApiKeys()
   List<AIBackendProfile> profiles = [];
   String? lastUsedProfile;
@@ -116,6 +117,10 @@ class Settings {
           lastUsedAgent == other.lastUsedAgent &&
           lastUsedPermissionMode == other.lastUsedPermissionMode &&
           lastUsedModelMode == other.lastUsedModelMode &&
+          customModelModes.length == other.customModelModes.length &&
+          customModelModes.asMap().entries.every(
+            (e) => e.value == other.customModelModes[e.key],
+          ) &&
           lastUsedProfile == other.lastUsedProfile &&
           _stringMapsEqual(
             lastUsedProfilesByAgent,
@@ -224,6 +229,7 @@ class Settings {
     Object? lastUsedAgent = _unset,
     Object? lastUsedPermissionMode = _unset,
     Object? lastUsedModelMode = _unset,
+    List<String>? customModelModes,
     List<AIBackendProfile>? profiles,
     Object? lastUsedProfile = _unset,
     Map<String, String>? lastUsedProfilesByAgent,
@@ -293,6 +299,9 @@ class Settings {
       ..lastUsedModelMode = identical(lastUsedModelMode, _unset)
           ? this.lastUsedModelMode
           : lastUsedModelMode as String?
+      ..customModelModes = customModelModes != null
+          ? List<String>.from(customModelModes)
+          : this.customModelModes
       ..profiles = profiles != null
           ? List<AIBackendProfile>.from(profiles)
           : this.profiles
@@ -351,6 +360,7 @@ Map<String, dynamic> _normalizeSettingsJson(
   }
 
   normalizeListField('recentMachinePaths');
+  normalizeListField('customModelModes');
   normalizeListField('profiles');
   normalizeListField('favoriteDirectories');
   normalizeListField('favoriteMachines');

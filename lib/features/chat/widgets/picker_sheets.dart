@@ -12,6 +12,7 @@ import 'model_mode.dart';
 
 IconData iconForModel(ChatModelMode model) {
   if (model.isCodex) return Icons.psychology_alt_outlined;
+  if (model.isCustom) return Icons.tune_outlined;
   if (model.modelSlug == 'opus') return Icons.diamond_outlined;
   if (model.modelSlug == 'sonnet') return Icons.auto_awesome_outlined;
   if (model == ChatModelMode.defaultModel) return Icons.smart_toy_outlined;
@@ -80,8 +81,10 @@ void showModelPickerSheet(
   BuildContext context,
   ChatModelMode current,
   List<ChatModelMode> models,
-  ValueChanged<ChatModelMode> onChanged,
-) {
+  ValueChanged<ChatModelMode> onChanged, {
+  Settings? settings,
+  ValueChanged<List<String>>? onCustomModelsChanged,
+}) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final hasGroupedModels = models.any((m) => m.modelSlug != null);
@@ -143,6 +146,8 @@ void showModelPickerSheet(
                   current: current,
                   models: models,
                   onChanged: onChanged,
+                  settings: settings,
+                  onCustomModelsChanged: onCustomModelsChanged,
                 ),
         ),
       ),
@@ -155,11 +160,15 @@ class _GroupedModelPickerContent extends StatefulWidget {
     required this.current,
     required this.models,
     required this.onChanged,
+    this.settings,
+    this.onCustomModelsChanged,
   });
 
   final ChatModelMode current;
   final List<ChatModelMode> models;
   final ValueChanged<ChatModelMode> onChanged;
+  final Settings? settings;
+  final ValueChanged<List<String>>? onCustomModelsChanged;
 
   @override
   State<_GroupedModelPickerContent> createState() =>
@@ -267,6 +276,33 @@ class _GroupedModelPickerContentState
                     : 'Auto',
               ),
           ],
+          if (_recentCustomModels.isNotEmpty) ...[
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                AppSpacing.xs,
+              ),
+              child: Text(
+                'Custom',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final model in _recentCustomModels)
+              _buildModelTile(
+                context,
+                model,
+                widget.current,
+                theme,
+                widget.onChanged,
+              ),
+          ],
+          Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
+          _buildCustomTile(context, cs, theme),
         ],
       ),
     );
@@ -313,6 +349,123 @@ class _GroupedModelPickerContentState
         ),
       ),
     );
+  }
+
+  List<ChatModelMode> get _recentCustomModels {
+    final customSlugs = widget.settings?.customModelModes ?? [];
+    return customSlugs
+        .map((slug) => ChatModelMode.custom(slug: slug))
+        .toList();
+  }
+
+  Widget _buildCustomTile(
+    BuildContext context,
+    ColorScheme cs,
+    ThemeData theme,
+  ) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _showCustomModelDialog(context);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.add_rounded, size: 18, color: cs.onSurfaceVariant),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                'Custom…',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCustomModelDialog(BuildContext context) async {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final slugController = TextEditingController();
+    String? selectedEffort;
+
+    final result = await showDialog<ChatModelMode>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Custom Model'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: slugController,
+                decoration: const InputDecoration(
+                  hintText: 'claude-opus-4-8',
+                  labelText: 'Model slug',
+                ),
+                autofocus: true,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<String>(
+                value: selectedEffort,
+                decoration: const InputDecoration(
+                  labelText: 'Effort (optional)',
+                ),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('None')),
+                  for (final effort in ChatModelMode.claudeEfforts)
+                    DropdownMenuItem(
+                      value: effort,
+                      child: Text(ChatModelMode.custom(
+                        slug: '',
+                        effort: effort,
+                      ).reasoningEffortLabel),
+                    ),
+                ],
+                onChanged: (v) => setDialogState(() => selectedEffort = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final slug = slugController.text.trim();
+                if (slug.isEmpty) return;
+                Navigator.pop(
+                  ctx,
+                  ChatModelMode.custom(slug: slug, effort: selectedEffort),
+                );
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null && context.mounted) {
+      // Save to recent custom models
+      final customModels = widget.settings?.customModelModes ?? [];
+      if (!customModels.contains(result.modelSlug)) {
+        final updated = [result.modelSlug!, ...customModels];
+        widget.onCustomModelsChanged?.call(updated);
+      }
+      Navigator.pop(context);
+      widget.onChanged(result);
+    }
   }
 }
 

@@ -845,11 +845,18 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   void _showModelPicker(BuildContext context) {
     final current = widget.modelMode ?? ChatModelMode.defaultModel;
+    final settings = ref.read(settingsNotifierProvider);
     showModelPickerSheet(
       context,
       current,
       widget.availableModels,
       (model) => widget.onModelModeChanged?.call(model),
+      settings: settings,
+      onCustomModelsChanged: (customModels) {
+        ref
+            .read(settingsNotifierProvider.notifier)
+            .updateSetting('customModelModes', customModels);
+      },
     );
   }
 

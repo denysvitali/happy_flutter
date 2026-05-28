@@ -867,12 +867,18 @@ PY
   /// to preserve, so we only match patterns that are definitely Codex or
   /// Gemini.
   bool _isNonClaudeModelMode(String modelMode) {
-    // Codex selections use `<slug>:<reasoning-effort>` wire format.
-    if (modelMode.contains(':')) return true;
     // OpenAI / Azure OpenAI models from Codex profiles.
     if (modelMode.startsWith('gpt-')) return true;
     // Gemini models.
     if (modelMode.startsWith('gemini-')) return true;
+    // Codex selections use `<slug>:<reasoning-effort>` wire format.
+    // Custom Claude models also use `:` for effort, so check the slug.
+    if (modelMode.contains(':')) {
+      final slug = modelMode.substring(0, modelMode.indexOf(':'));
+      if (slug.startsWith('gpt-') || slug.startsWith('gemini-')) return true;
+      // Custom Claude models with effort — pass through
+      return false;
+    }
     return false;
   }
 

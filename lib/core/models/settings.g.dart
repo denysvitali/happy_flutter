@@ -32,7 +32,7 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..reviewPromptAnswered = json['reviewPromptAnswered'] as bool
   ..reviewPromptLikedApp = json['reviewPromptLikedApp'] as bool?
   ..ttsEnabled = json['ttsEnabled'] as bool
-  ..ttsUseOffline = json['ttsUseOffline'] as bool? ?? true
+  ..ttsUseOffline = json['ttsUseOffline'] as bool
   ..voiceAssistantLanguage = json['voiceAssistantLanguage'] as String?
   ..ttsEngine = json['ttsEngine'] as String?
   ..ttsVoiceId = json['ttsVoiceId'] as String?
@@ -44,6 +44,9 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..lastUsedAgent = json['lastUsedAgent'] as String?
   ..lastUsedPermissionMode = json['lastUsedPermissionMode'] as String?
   ..lastUsedModelMode = json['lastUsedModelMode'] as String?
+  ..customModelModes = (json['customModelModes'] as List<dynamic>)
+      .map((e) => e as String)
+      .toList()
   ..profiles = (json['profiles'] as List<dynamic>)
       .map((e) => AIBackendProfile.fromJson(e as Map<String, dynamic>))
       .toList()
@@ -101,6 +104,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'lastUsedAgent': instance.lastUsedAgent,
   'lastUsedPermissionMode': instance.lastUsedPermissionMode,
   'lastUsedModelMode': instance.lastUsedModelMode,
+  'customModelModes': instance.customModelModes,
   'profiles': instance.profiles.map((e) => e.toJson()).toList(),
   'lastUsedProfile': instance.lastUsedProfile,
   'lastUsedProfilesByAgent': instance.lastUsedProfilesByAgent,
@@ -316,6 +320,7 @@ ProfileCompatibility _$ProfileCompatibilityFromJson(
   claude: json['claude'] as bool? ?? true,
   codex: json['codex'] as bool? ?? true,
   gemini: json['gemini'] as bool? ?? true,
+  pi: json['pi'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$ProfileCompatibilityToJson(
@@ -324,4 +329,5 @@ Map<String, dynamic> _$ProfileCompatibilityToJson(
   'claude': instance.claude,
   'codex': instance.codex,
   'gemini': instance.gemini,
+  'pi': instance.pi,
 };
