@@ -6,7 +6,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gemma/flutter_gemma.dart' show FlutterGemma;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,7 +14,6 @@ import 'package:sentry_flutter/sentry_flutter.dart' show Sentry, SpanStatus;
 import 'core/api/api_client.dart';
 import 'core/encryption/sodium_singleton.dart';
 import 'core/i18n/app_localizations.dart';
-import 'core/ml/gemma_model_config.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/app_visibility_coordinator.dart';
@@ -266,22 +264,20 @@ Future<void> _deferredInit() async {
     }());
   }
 
-  // flutter_gemma — initialize the on-device LLM runtime. Off the critical
-  // path; smart features are opt-in and the model is downloaded on demand.
-  if (!kIsWeb) {
+  // flutter_gemma — warm the on-device LLM only when smart features are
+  // already enabled. The SDK runtime is otherwise initialized lazily on first
+  // use (see `ensureGemmaRuntime`), keeping its FFI/HF-token setup off the
+  // post-first-frame window for the majority of users who never opt in.
+  if (!kIsWeb && SmartFeaturesService.instance.smartFeaturesEnabled) {
     futures.add(() async {
       final gemmaSpan = transaction.startChild(
         'app.deferredInit.gemma',
         description: 'Initialize on-device LLM runtime',
       );
       try {
-        await FlutterGemma.initialize(
-          huggingFaceToken: GemmaModelConfig.token,
-        );
-        // Load the model if it was already downloaded in a prior session.
-        if (SmartFeaturesService.instance.smartFeaturesEnabled) {
-          await SmartFeaturesService.instance.initialize();
-        }
+        // Loads the runtime + the model if it was downloaded in a prior
+        // session. No-op for users who have never downloaded the model.
+        await SmartFeaturesService.instance.initialize();
       } catch (e) {
         logger.info('flutter_gemma init skipped: $e');
         gemmaSpan

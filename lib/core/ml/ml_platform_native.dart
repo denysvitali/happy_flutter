@@ -6,6 +6,19 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../services/logger_service.dart' show logger;
 import 'gemma_model_config.dart';
 
+/// Lazily initializes the flutter_gemma runtime exactly once.
+///
+/// Kept off the cold-start critical path: the SDK init (FFI + HF token wiring)
+/// only runs the first time smart features actually touch the model, instead
+/// of unconditionally during `_deferredInit` for every user. Idempotent — the
+/// cached future is a cheap no-op after the first call.
+Future<void>? _gemmaRuntimeInit;
+Future<void> ensureGemmaRuntime() {
+  return _gemmaRuntimeInit ??= FlutterGemma.initialize(
+    huggingFaceToken: GemmaModelConfig.token,
+  );
+}
+
 /// Native (Android/iOS/desktop) Gemma service backed by flutter_gemma
 /// (MediaPipe LLM Inference). Runs real on-device generation for session
 /// ranking and auto-tagging. The model is downloaded on demand; until it is
@@ -22,6 +35,7 @@ class GemmaService {
   /// Whether the model file has been downloaded to the device.
   Future<bool> isModelDownloaded() async {
     try {
+      await ensureGemmaRuntime();
       return await FlutterGemma.isModelInstalled(
         GemmaModelConfig.modelFilename,
       );
@@ -39,6 +53,7 @@ class GemmaService {
     _initialized = true;
 
     try {
+      await ensureGemmaRuntime();
       if (!await isModelDownloaded()) {
         logger.info('GemmaService: model not downloaded yet');
         return;
@@ -60,6 +75,7 @@ class GemmaService {
 
     Future<void>(() async {
       try {
+        await ensureGemmaRuntime();
         await FlutterGemma.installModel(modelType: GemmaModelConfig.modelType)
             .fromNetwork(
               GemmaModelConfig.modelUrl,
