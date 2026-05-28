@@ -19,6 +19,32 @@ IconData iconForModel(ChatModelMode model) {
   return Icons.smart_toy_outlined;
 }
 
+/// Shared circular leading icon so every picker row aligns its label at the
+/// same horizontal offset, regardless of row type.
+Widget _modelLeading(
+  ColorScheme cs, {
+  required IconData icon,
+  required bool highlighted,
+  Color? accent,
+}) {
+  final color = accent ?? cs.primary;
+  return Container(
+    width: 32,
+    height: 32,
+    decoration: BoxDecoration(
+      color: highlighted
+          ? color.withValues(alpha: 0.12)
+          : cs.onSurface.withValues(alpha: 0.05),
+      shape: BoxShape.circle,
+    ),
+    child: Icon(
+      icon,
+      size: 16,
+      color: highlighted ? color : cs.onSurfaceVariant,
+    ),
+  );
+}
+
 Widget _buildModelTile(
   BuildContext ctx,
   ChatModelMode model,
@@ -43,20 +69,10 @@ Widget _buildModelTile(
       ),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? cs.primary.withValues(alpha: 0.12)
-                  : cs.onSurface.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              iconForModel(model),
-              size: 16,
-              color: isSelected ? cs.primary : cs.onSurfaceVariant,
-            ),
+          _modelLeading(
+            cs,
+            icon: iconForModel(model),
+            highlighted: isSelected,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -178,6 +194,9 @@ class _GroupedModelPickerContent extends StatefulWidget {
 class _GroupedModelPickerContentState
     extends State<_GroupedModelPickerContent> {
   late String? _selectedSlug = widget.current.modelSlug ?? _firstSlug;
+  late final List<String> _customModels = List<String>.from(
+    widget.settings?.customModelModes ?? const [],
+  );
 
   String? get _firstSlug {
     for (final model in widget.models) {
@@ -293,13 +312,7 @@ class _GroupedModelPickerContentState
               ),
             ),
             for (final model in _recentCustomModels)
-              _buildModelTile(
-                context,
-                model,
-                widget.current,
-                theme,
-                widget.onChanged,
-              ),
+              _buildCustomModelTile(context, model, theme),
           ],
           Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
           _buildCustomTile(context, cs, theme),
@@ -328,10 +341,10 @@ class _GroupedModelPickerContentState
         ),
         child: Row(
           children: [
-            Icon(
-              iconForModel(model),
-              size: 18,
-              color: selected ? cs.primary : cs.onSurfaceVariant,
+            _modelLeading(
+              cs,
+              icon: iconForModel(model),
+              highlighted: selected,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
@@ -352,10 +365,73 @@ class _GroupedModelPickerContentState
   }
 
   List<ChatModelMode> get _recentCustomModels {
-    final customSlugs = widget.settings?.customModelModes ?? [];
-    return customSlugs
+    return _customModels
         .map((slug) => ChatModelMode.custom(slug: slug))
         .toList();
+  }
+
+  void _removeCustomModel(String slug) {
+    setState(() => _customModels.remove(slug));
+    widget.onCustomModelsChanged?.call(List<String>.from(_customModels));
+  }
+
+  void _addCustomModel(String slug) {
+    if (slug.isEmpty || _customModels.contains(slug)) return;
+    setState(() => _customModels.insert(0, slug));
+    widget.onCustomModelsChanged?.call(List<String>.from(_customModels));
+  }
+
+  Widget _buildCustomModelTile(
+    BuildContext context,
+    ChatModelMode model,
+    ThemeData theme,
+  ) {
+    final cs = theme.colorScheme;
+    final isSelected = model == widget.current;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.pop(context);
+        widget.onChanged(model);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            _modelLeading(
+              cs,
+              icon: iconForModel(model),
+              highlighted: isSelected,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                model.label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? cs.primary : cs.onSurface,
+                ),
+              ),
+            ),
+            if (isSelected)
+              Icon(Icons.check_rounded, size: 18, color: cs.primary),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: cs.onSurfaceVariant,
+              tooltip: 'Remove',
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                _removeCustomModel(model.modelSlug!);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildCustomTile(
@@ -375,7 +451,11 @@ class _GroupedModelPickerContentState
         ),
         child: Row(
           children: [
-            Icon(Icons.add_rounded, size: 18, color: cs.onSurfaceVariant),
+            _modelLeading(
+              cs,
+              icon: Icons.add_rounded,
+              highlighted: false,
+            ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
@@ -392,8 +472,6 @@ class _GroupedModelPickerContentState
   }
 
   Future<void> _showCustomModelDialog(BuildContext context) async {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final slugController = TextEditingController();
     String? selectedEffort;
 
@@ -416,7 +494,7 @@ class _GroupedModelPickerContentState
               ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
-                value: selectedEffort,
+                initialValue: selectedEffort,
                 decoration: const InputDecoration(
                   labelText: 'Effort (optional)',
                 ),
@@ -457,12 +535,7 @@ class _GroupedModelPickerContentState
     );
 
     if (result != null && context.mounted) {
-      // Save to recent custom models
-      final customModels = widget.settings?.customModelModes ?? [];
-      if (!customModels.contains(result.modelSlug)) {
-        final updated = [result.modelSlug!, ...customModels];
-        widget.onCustomModelsChanged?.call(updated);
-      }
+      _addCustomModel(result.modelSlug!);
       Navigator.pop(context);
       widget.onChanged(result);
     }

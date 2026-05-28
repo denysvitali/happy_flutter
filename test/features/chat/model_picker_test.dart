@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/picker_sheets.dart';
@@ -147,6 +148,60 @@ void main() {
     await tester.tap(find.text('High'));
     await tester.pumpAndSettle();
     expect(selected, 'opus:high');
+  });
+
+  testWidgets('custom models can be removed from the picker', (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final settings = Settings()
+      ..customModelModes = ['claude-opus-4-8', 'claude-sonnet-4-6'];
+    List<String>? lastSaved;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: TextButton(
+                onPressed: () {
+                  showModelPickerSheet(
+                    context,
+                    ChatModelMode.defaultModel,
+                    ChatModelMode.availableForFlavor('claude'),
+                    (_) {},
+                    settings: settings,
+                    onCustomModelsChanged: (models) => lastSaved = models,
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('claude-opus-4-8'), findsOneWidget);
+    expect(find.text('claude-sonnet-4-6'), findsOneWidget);
+
+    // Each custom row exposes a remove button.
+    final removeButtons = find.byIcon(Icons.close_rounded);
+    expect(removeButtons, findsNWidgets(2));
+
+    await tester.tap(removeButtons.first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('claude-opus-4-8'), findsNothing);
+    expect(find.text('claude-sonnet-4-6'), findsOneWidget);
+    expect(lastSaved, ['claude-sonnet-4-6']);
   });
 
   test('raw model normalization drops Claude effort modes for Codex', () {
