@@ -1835,9 +1835,23 @@
   "smartFeaturesEnabled": "Enable Smart Features",
   "smartFeaturesEnabledDesc": "Enable on-device AI features for smarter session ranking and auto-generated tags",
   "smartFeaturesStatus": "Status",
-  "smartFeaturesReady": "Smart features active",
-  "smartFeaturesUnavailable": "Smart features off",
-  "smartFeaturesUnavailableDesc": "On-device session ranking and auto-tags run locally — no download required. Turn on Smart Features to use them.",
+  "smartFeaturesReady": "Model ready",
+  "smartFeaturesUnavailable": "Model not loaded",
+  "smartFeaturesUnavailableDesc": "Download the on-device AI model below to power session ranking and auto-tags. Until then, simple heuristics are used.",
+  "smartFeaturesModelSection": "On-device model",
+  "smartFeaturesModelNotDownloaded": "Not downloaded",
+  "smartFeaturesModelReady": "Downloaded and ready",
+  "smartFeaturesDownloadModel": "Download model",
+  "smartFeaturesDownloadModelDesc": "Downloads the Gemma model ({size}). Wi-Fi strongly recommended.",
+  "@smartFeaturesDownloadModelDesc": {
+    "placeholders": { "size": { "type": "String" } }
+  },
+  "smartFeaturesDownloading": "Downloading… {percent}%",
+  "@smartFeaturesDownloading": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "smartFeaturesDownloadFailed": "Download failed. Tap to retry.",
+  "smartFeaturesLoadingModel": "Loading model…",
   "semanticSearchTitle": "Semantic Search",
   "semanticSearchDesc": "Rank sessions by semantic similarity to your query",
   "autoTagsTitle": "Auto Tags",

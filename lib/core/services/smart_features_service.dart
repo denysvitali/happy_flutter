@@ -35,20 +35,23 @@ class SmartFeaturesService {
   bool get autoTagsEnabled =>
       _storage.getBool(_keyAutoTagsEnabled) ?? false;
 
-  /// Whether on-device smart features are active.
-  ///
-  /// Smart features (session ranking + auto-tags) run entirely on-device
-  /// using local heuristics and require no downloaded model, so they are
-  /// ready whenever the feature is enabled.
-  bool get isReady => smartFeaturesEnabled;
+  /// Whether smart features are enabled and the on-device model is loaded.
+  bool get isReady => smartFeaturesEnabled && sessionRanker.isAvailable;
+
+  /// Whether the on-device model has been downloaded to the device.
+  Future<bool> isModelDownloaded() => sessionRanker.isModelDownloaded();
+
+  /// Downloads the on-device model, emitting progress (0.0–1.0). The model is
+  /// loaded automatically once the download completes.
+  Stream<double> downloadModel() => sessionRanker.downloadModel();
 
   /// The session ranker instance. Null until [initialize] completes.
   SessionRanker? _sessionRanker;
 
-  /// The session ranker instance. Throws if accessed before
-  /// [initialize] completes — callers should check [_initialized].
+  /// The session ranker instance. Lazily created to mirror the current
+  /// enabled state so model download/availability work before [initialize].
   SessionRanker get sessionRanker =>
-      _sessionRanker ??= SessionRanker(gemmaEnabled: false);
+      _sessionRanker ??= SessionRanker(gemmaEnabled: smartFeaturesEnabled);
 
   bool _initialized = false;
 

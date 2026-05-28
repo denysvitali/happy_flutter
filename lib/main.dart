@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_gemma/flutter_gemma.dart' show FlutterGemma;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +15,7 @@ import 'package:sentry_flutter/sentry_flutter.dart' show Sentry, SpanStatus;
 import 'core/api/api_client.dart';
 import 'core/encryption/sodium_singleton.dart';
 import 'core/i18n/app_localizations.dart';
+import 'core/ml/gemma_model_config.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/app_visibility_coordinator.dart';
@@ -26,6 +28,7 @@ import 'core/services/performance_context_service.dart';
 import 'core/services/power_diagnostics_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
+import 'core/services/smart_features_service.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'core/services/sync_service.dart';
 import 'core/utils/package_info_cache.dart';
@@ -259,6 +262,33 @@ Future<void> _deferredInit() async {
           ..setData('error', e.toString());
       } finally {
         await certsSpan.finish();
+      }
+    }());
+  }
+
+  // flutter_gemma — initialize the on-device LLM runtime. Off the critical
+  // path; smart features are opt-in and the model is downloaded on demand.
+  if (!kIsWeb) {
+    futures.add(() async {
+      final gemmaSpan = transaction.startChild(
+        'app.deferredInit.gemma',
+        description: 'Initialize on-device LLM runtime',
+      );
+      try {
+        await FlutterGemma.initialize(
+          huggingFaceToken: GemmaModelConfig.token,
+        );
+        // Load the model if it was already downloaded in a prior session.
+        if (SmartFeaturesService.instance.smartFeaturesEnabled) {
+          await SmartFeaturesService.instance.initialize();
+        }
+      } catch (e) {
+        logger.info('flutter_gemma init skipped: $e');
+        gemmaSpan
+          ..status = const SpanStatus.internalError()
+          ..setData('error', e.toString());
+      } finally {
+        await gemmaSpan.finish();
       }
     }());
   }

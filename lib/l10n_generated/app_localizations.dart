@@ -8482,20 +8482,68 @@ abstract class AppLocalizations {
   /// No description provided for @smartFeaturesReady.
   ///
   /// In en, this message translates to:
-  /// **'Smart features active'**
+  /// **'Model ready'**
   String get smartFeaturesReady;
 
   /// No description provided for @smartFeaturesUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'Smart features off'**
+  /// **'Model not loaded'**
   String get smartFeaturesUnavailable;
 
   /// No description provided for @smartFeaturesUnavailableDesc.
   ///
   /// In en, this message translates to:
-  /// **'On-device session ranking and auto-tags run locally — no download required. Turn on Smart Features to use them.'**
+  /// **'Download the on-device AI model below to power session ranking and auto-tags. Until then, simple heuristics are used.'**
   String get smartFeaturesUnavailableDesc;
+
+  /// No description provided for @smartFeaturesModelSection.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device model'**
+  String get smartFeaturesModelSection;
+
+  /// No description provided for @smartFeaturesModelNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not downloaded'**
+  String get smartFeaturesModelNotDownloaded;
+
+  /// No description provided for @smartFeaturesModelReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded and ready'**
+  String get smartFeaturesModelReady;
+
+  /// No description provided for @smartFeaturesDownloadModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Download model'**
+  String get smartFeaturesDownloadModel;
+
+  /// No description provided for @smartFeaturesDownloadModelDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads the Gemma model ({size}). Wi-Fi strongly recommended.'**
+  String smartFeaturesDownloadModelDesc(String size);
+
+  /// No description provided for @smartFeaturesDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading… {percent}%'**
+  String smartFeaturesDownloading(int percent);
+
+  /// No description provided for @smartFeaturesDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed. Tap to retry.'**
+  String get smartFeaturesDownloadFailed;
+
+  /// No description provided for @smartFeaturesLoadingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading model…'**
+  String get smartFeaturesLoadingModel;
 
   /// No description provided for @semanticSearchTitle.
   ///

@@ -26,6 +26,13 @@ class SessionRanker {
     }
   }
 
+  /// Whether the on-device model has been downloaded.
+  Future<bool> isModelDownloaded() => _gemma.isModelDownloaded();
+
+  /// Downloads the on-device model, emitting progress (0.0–1.0). The model is
+  /// loaded automatically once the download completes.
+  Stream<double> downloadModel() => _gemma.downloadModel();
+
   /// Ranks sessions by relevance to [query].
   /// Uses Gemma semantic ranking when available and enabled, otherwise
   /// falls back to heuristic ranking (recency + fuzzy match).

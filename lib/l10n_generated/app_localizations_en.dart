@@ -4636,14 +4636,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get smartFeaturesStatus => 'Status';
 
   @override
-  String get smartFeaturesReady => 'Smart features active';
+  String get smartFeaturesReady => 'Model ready';
 
   @override
-  String get smartFeaturesUnavailable => 'Smart features off';
+  String get smartFeaturesUnavailable => 'Model not loaded';
 
   @override
   String get smartFeaturesUnavailableDesc =>
-      'On-device session ranking and auto-tags run locally — no download required. Turn on Smart Features to use them.';
+      'Download the on-device AI model below to power session ranking and auto-tags. Until then, simple heuristics are used.';
+
+  @override
+  String get smartFeaturesModelSection => 'On-device model';
+
+  @override
+  String get smartFeaturesModelNotDownloaded => 'Not downloaded';
+
+  @override
+  String get smartFeaturesModelReady => 'Downloaded and ready';
+
+  @override
+  String get smartFeaturesDownloadModel => 'Download model';
+
+  @override
+  String smartFeaturesDownloadModelDesc(String size) {
+    return 'Downloads the Gemma model ($size). Wi-Fi strongly recommended.';
+  }
+
+  @override
+  String smartFeaturesDownloading(int percent) {
+    return 'Downloading… $percent%';
+  }
+
+  @override
+  String get smartFeaturesDownloadFailed => 'Download failed. Tap to retry.';
+
+  @override
+  String get smartFeaturesLoadingModel => 'Loading model…';
 
   @override
   String get semanticSearchTitle => 'Semantic Search';

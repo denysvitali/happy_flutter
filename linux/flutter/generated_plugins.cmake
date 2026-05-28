@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  flutter_gemma
   flutter_secure_storage_linux
   mmkv_linux
   record_linux
@@ -13,7 +14,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   jni
   sherpa_onnx_linux
-  tflite_flutter
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

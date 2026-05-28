@@ -1,86 +1,166 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:isolate';
 
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../services/logger_service.dart' show logger;
+import 'gemma_model_config.dart';
 
-/// Native Android implementation of Gemma ML service using TFLite.
-/// Falls back to heuristics if the model is unavailable or fails to load.
+/// Native (Android/iOS/desktop) Gemma service backed by flutter_gemma
+/// (MediaPipe LLM Inference). Runs real on-device generation for session
+/// ranking and auto-tagging. The model is downloaded on demand; until it is
+/// present, [isAvailable] is false and callers fall back to heuristics.
 class GemmaService {
   GemmaService();
 
-  Interpreter? _interpreter;
+  InferenceModel? _model;
   bool _initialized = false;
 
-  bool get isAvailable => _initialized && _interpreter != null;
+  /// Whether the model is loaded and ready for inference.
+  bool get isAvailable => _model != null;
 
-  /// Initializes the Gemma model from app assets or documents directory.
-  /// Runs in a separate isolate to avoid blocking the UI thread.
-  Future<void> initialize() async {
-    if (_initialized) return;
-
+  /// Whether the model file has been downloaded to the device.
+  Future<bool> isModelDownloaded() async {
     try {
-      // Check if model exists in documents dir (previously copied)
-      final docsDir = await getApplicationDocumentsDirectory();
-      final modelPath = '${docsDir.path}/gemma_model/gemma_2b.tflite';
-
-      final modelFile = File(modelPath);
-      if (!await modelFile.exists()) {
-        // Try to copy from assets (user must place the model file)
-        logger.info('GemmaService: model not found at $modelPath');
-        _initialized = true;
-        return;
-      }
-
-      // Load model in isolate to avoid blocking UI
-      _interpreter = await Isolate.run(() {
-        return Interpreter.fromFile(File(modelPath));
-      });
-
-      _initialized = true;
-      logger.info('GemmaService: model loaded successfully');
-    } catch (e, stack) {
-      logger.error('GemmaService: failed to load model', e, stack);
-      unawaited(Sentry.captureException(e, stackTrace: stack));
-      _initialized = true;
-      _interpreter = null;
+      return await FlutterGemma.isModelInstalled(
+        GemmaModelConfig.modelFilename,
+      );
+    } catch (e) {
+      logger.warning('GemmaService: isModelInstalled check failed: $e');
+      return false;
     }
   }
 
-  /// Ranks sessions by semantic similarity to [query].
-  /// Uses cosine similarity between query and session name embeddings.
+  /// Loads the model into memory if it has already been downloaded.
+  /// Never triggers a download — that is an explicit user action via
+  /// [downloadModel]. Safe to call repeatedly.
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    try {
+      if (!await isModelDownloaded()) {
+        logger.info('GemmaService: model not downloaded yet');
+        return;
+      }
+      await _activateAndLoad();
+      logger.info('GemmaService: model loaded and ready');
+    } catch (e, stack) {
+      logger.error('GemmaService: initialize failed', e, stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
+      _model = null;
+    }
+  }
+
+  /// Downloads the model with progress (0.0–1.0) and loads it on completion.
+  /// Emits a final 1.0 once the model is ready, then closes. Errors are
+  /// forwarded to the stream so the UI can surface them.
+  Stream<double> downloadModel() {
+    final controller = StreamController<double>();
+
+    Future<void>(() async {
+      try {
+        await FlutterGemma.installModel(modelType: ModelType.gemmaIt)
+            .fromNetwork(
+              GemmaModelConfig.modelUrl,
+              token: GemmaModelConfig.token,
+            )
+            .withProgress((p) {
+              if (!controller.isClosed) {
+                controller.add((p.clamp(0, 100)) / 100.0);
+              }
+            })
+            .install();
+
+        // install() sets the model active; load it into an interpreter.
+        await _loadActiveModel();
+        if (!controller.isClosed) controller.add(1.0);
+        await controller.close();
+      } catch (e, stack) {
+        logger.error('GemmaService: model download failed', e, stack);
+        unawaited(Sentry.captureException(e, stackTrace: stack));
+        if (!controller.isClosed) controller.addError(e, stack);
+        await controller.close();
+      }
+    });
+
+    return controller.stream;
+  }
+
+  /// Re-registers the already-downloaded model as active (idempotent install
+  /// skips the network when files exist) and loads it.
+  Future<void> _activateAndLoad() async {
+    await FlutterGemma.installModel(modelType: ModelType.gemmaIt)
+        .fromNetwork(
+          GemmaModelConfig.modelUrl,
+          token: GemmaModelConfig.token,
+        )
+        .install();
+    await _loadActiveModel();
+  }
+
+  Future<void> _loadActiveModel() async {
+    await _model?.close();
+    _model = await FlutterGemma.getActiveModel(
+      maxTokens: GemmaModelConfig.maxTokens,
+    );
+  }
+
+  /// Ranks [sessions] by relevance to [query] using a single batched
+  /// generation call. Returns the input maps annotated with a `gemmaScore`
+  /// (1.0 = most relevant, descending). Falls back to the input order on any
+  /// failure so the caller's heuristic blend still has data.
   Future<List<Map<String, dynamic>>> rankSessions(
     String query,
     List<Map<String, dynamic>> sessions,
   ) async {
-    if (!isAvailable || sessions.isEmpty) return sessions;
+    final model = _model;
+    if (model == null || sessions.isEmpty || query.trim().isEmpty) {
+      return sessions;
+    }
 
     try {
-      // Simple embedding: tokenize query and session names
-      final queryTokens = _tokenize(query);
-      final sessionScores = <Map<String, dynamic>>[];
-
-      for (final session in sessions) {
-        final name = session['name'] as String? ?? '';
-        final summary = session['summary'] as String? ?? '';
-        final sessionTokens = _tokenize('$name $summary');
-
-        // Compute simple cosine similarity
-        final score = _cosineSimilarity(queryTokens, sessionTokens);
-        sessionScores.add({...session, 'gemmaScore': score});
+      final lines = <String>[];
+      for (var i = 0; i < sessions.length; i++) {
+        final s = sessions[i];
+        final name = (s['name'] as String? ?? '').trim();
+        final summary = (s['summary'] as String? ?? '').trim();
+        lines.add('$i: $name${summary.isEmpty ? '' : ' — $summary'}');
       }
 
-      // Sort by Gemma score descending
-      sessionScores.sort(
-        (a, b) =>
-            (b['gemmaScore'] as double).compareTo(a['gemmaScore'] as double),
+      final chat = await model.createChat(
+        systemInstruction:
+            'You rank developer chat sessions by relevance to a search '
+            'query. Reply with ONLY a comma-separated list of the session '
+            'indices, most relevant first. No prose.',
       );
+      await chat.addQueryChunk(
+        Message.text(
+          text: 'Query: "$query"\nSessions:\n${lines.join('\n')}',
+          isUser: true,
+        ),
+      );
+      final response = await chat.generateChatResponse();
+      final text = response is TextResponse ? response.token : '';
 
-      return sessionScores;
+      final order = _parseIndices(text, sessions.length);
+      if (order.isEmpty) return sessions;
+
+      // Assign descending scores by rank position.
+      final scored = <Map<String, dynamic>>[];
+      for (var rank = 0; rank < order.length; rank++) {
+        final idx = order[rank];
+        final score = (order.length - rank) / order.length;
+        scored.add({...sessions[idx], 'gemmaScore': score});
+      }
+      // Append any sessions the model omitted, with score 0.
+      final seen = order.toSet();
+      for (var i = 0; i < sessions.length; i++) {
+        if (!seen.contains(i)) {
+          scored.add({...sessions[i], 'gemmaScore': 0.0});
+        }
+      }
+      return scored;
     } catch (e, stack) {
       logger.error('GemmaService: rankSessions failed', e, stack);
       unawaited(Sentry.captureException(e, stackTrace: stack));
@@ -88,35 +168,35 @@ class GemmaService {
     }
   }
 
-  /// Classifies a session into categories based on its content.
+  /// Generates up to a few short tags for a session.
   Future<List<String>> classifySession(Map<String, dynamic> session) async {
-    if (!isAvailable) return [];
+    final model = _model;
+    if (model == null) return [];
 
     try {
-      final name = session['name'] as String? ?? '';
-      final path = session['path'] as String? ?? '';
-      final text = '$name $path'.toLowerCase();
+      final name = (session['name'] as String? ?? '').trim();
+      final path = (session['path'] as String? ?? '').trim();
 
-      // Simple keyword-based classification
-      final tags = <String>[];
+      final chat = await model.createChat(
+        systemInstruction:
+            'You tag developer chat sessions. Reply with ONLY 1-3 short, '
+            'lowercase, comma-separated tags. No prose.',
+      );
+      await chat.addQueryChunk(
+        Message.text(
+          text: 'Session name: "$name"\nPath: "$path"',
+          isUser: true,
+        ),
+      );
+      final response = await chat.generateChatResponse();
+      final text = response is TextResponse ? response.token : '';
 
-      if (_containsAny(text, ['work', 'project', 'office', 'meeting'])) {
-        tags.add('work');
-      }
-      if (_containsAny(text, ['personal', 'home', 'diary'])) {
-        tags.add('personal');
-      }
-      if (_containsAny(text, ['code', 'programming', 'debug', 'git'])) {
-        tags.add('code');
-      }
-      if (_containsAny(text, ['research', 'learning', 'study'])) {
-        tags.add('research');
-      }
-      if (_containsAny(text, ['admin', 'config', 'setup', 'install'])) {
-        tags.add('admin');
-      }
-
-      return tags;
+      return text
+          .split(RegExp(r'[,\n]'))
+          .map((t) => t.trim().toLowerCase())
+          .where((t) => t.isNotEmpty && t.length <= 24)
+          .take(3)
+          .toList();
     } catch (e, stack) {
       logger.error('GemmaService: classifySession failed', e, stack);
       unawaited(Sentry.captureException(e, stackTrace: stack));
@@ -124,59 +204,23 @@ class GemmaService {
     }
   }
 
-  /// Scores a session's relevance (0.0 - 1.0).
-  Future<double> scoreSessionRelevance(Map<String, dynamic> session) async {
-    if (!isAvailable) return 0.0;
-
-    try {
-      final name = session['name'] as String? ?? '';
-      final tokens = _tokenize(name);
-      // Higher token count in name often means more specific/important
-      return tokens.length.clamp(1, 10) / 10.0;
-    } catch (e) {
-      return 0.0;
+  /// Parses a comma/space separated list of indices, keeping only valid,
+  /// in-range, first-seen entries.
+  List<int> _parseIndices(String text, int count) {
+    final result = <int>[];
+    final seen = <int>{};
+    for (final match in RegExp(r'\d+').allMatches(text)) {
+      final n = int.tryParse(match.group(0)!);
+      if (n != null && n >= 0 && n < count && seen.add(n)) {
+        result.add(n);
+      }
     }
+    return result;
   }
 
   void dispose() {
-    _interpreter?.close();
-    _interpreter = null;
+    unawaited(_model?.close());
+    _model = null;
     _initialized = false;
-  }
-
-  // ── Simple embedding helpers ─────────────────────────────────────────────
-
-  /// Simple whitespace tokenization with lowercase normalization.
-  List<double> _tokenize(String text) {
-    final words = text.toLowerCase().split(RegExp(r'\s+'));
-    // Build a simple bag-of-words vector (hash-based)
-    final vec = <int, double>{};
-    for (final word in words) {
-      if (word.isEmpty) continue;
-      final hash = word.hashCode.abs() % 1000;
-      vec[hash] = (vec[hash] ?? 0) + 1;
-    }
-    // Normalize to unit vector
-    var magnitude = 0.0;
-    for (final v in vec.values) {
-      magnitude += v * v;
-    }
-    magnitude = magnitude > 0 ? magnitude : 1.0;
-    return vec.values.map((v) => v / magnitude).toList();
-  }
-
-  /// Simple cosine similarity between two token vectors.
-  double _cosineSimilarity(List<double> a, List<double> b) {
-    if (a.isEmpty || b.isEmpty) return 0.0;
-    // Use word hash overlap for simplicity
-    final setA = a.where((v) => v > 0).length;
-    final setB = b.where((v) => v > 0).length;
-    final intersection = (a.length * b.length / 1000).round();
-    if (setA == 0 || setB == 0) return 0.0;
-    return intersection / (setA + setB - intersection);
-  }
-
-  bool _containsAny(String text, List<String> keywords) {
-    return keywords.any((kw) => text.contains(kw));
   }
 }

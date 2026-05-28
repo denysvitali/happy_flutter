@@ -39,5 +39,12 @@
 -dontwarn com.google.android.play.core.splitinstall.**
 -dontwarn com.google.android.play.core.tasks.**
 
-# TensorFlow Lite GPU delegate (referenced by tflite_flutter plugin)
--dontwarn org.tensorflow.lite.gpu.**
+# MediaPipe LLM Inference (flutter_gemma)
+-keep class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.protobuf.**
+
+# TensorFlow Lite / LiteRT (used by MediaPipe GenAI runtime)
+-keep class org.tensorflow.lite.** { *; }
+-dontwarn org.tensorflow.lite.**

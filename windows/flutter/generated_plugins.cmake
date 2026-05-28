@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   firebase_core
+  flutter_gemma
   flutter_secure_storage_windows
   flutter_tts
   mmkv_win32
@@ -17,7 +18,6 @@ list(APPEND FLUTTER_FFI_PLUGIN_LIST
   flutter_local_notifications_windows
   jni
   sherpa_onnx_windows
-  tflite_flutter
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)
