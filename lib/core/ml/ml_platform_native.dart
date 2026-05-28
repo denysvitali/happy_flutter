@@ -60,7 +60,7 @@ class GemmaService {
 
     Future<void>(() async {
       try {
-        await FlutterGemma.installModel(modelType: ModelType.gemmaIt)
+        await FlutterGemma.installModel(modelType: GemmaModelConfig.modelType)
             .fromNetwork(
               GemmaModelConfig.modelUrl,
               token: GemmaModelConfig.token,
@@ -90,7 +90,7 @@ class GemmaService {
   /// Re-registers the already-downloaded model as active (idempotent install
   /// skips the network when files exist) and loads it.
   Future<void> _activateAndLoad() async {
-    await FlutterGemma.installModel(modelType: ModelType.gemmaIt)
+    await FlutterGemma.installModel(modelType: GemmaModelConfig.modelType)
         .fromNetwork(
           GemmaModelConfig.modelUrl,
           token: GemmaModelConfig.token,

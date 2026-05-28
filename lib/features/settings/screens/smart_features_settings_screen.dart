@@ -1,24 +1,27 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/components/settings_section.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/ml/gemma_model_config.dart';
+import '../../../core/models/session.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/services/smart_features_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Settings screen for configuring on-device smart features (Gemma).
-class SmartFeaturesSettingsScreen extends StatefulWidget {
+class SmartFeaturesSettingsScreen extends ConsumerStatefulWidget {
   const SmartFeaturesSettingsScreen({super.key});
 
   @override
-  State<SmartFeaturesSettingsScreen> createState() =>
+  ConsumerState<SmartFeaturesSettingsScreen> createState() =>
       _SmartFeaturesSettingsScreenState();
 }
 
 class _SmartFeaturesSettingsScreenState
-    extends State<SmartFeaturesSettingsScreen> {
+    extends ConsumerState<SmartFeaturesSettingsScreen> {
   final _service = SmartFeaturesService.instance;
 
   late bool _smartFeaturesEnabled;
@@ -30,6 +33,11 @@ class _SmartFeaturesSettingsScreenState
   double? _downloadProgress;
   bool _downloadFailed = false;
   StreamSubscription<double>? _downloadSub;
+
+  final _testController = TextEditingController();
+  bool _testRunning = false;
+  String? _testError;
+  List<String>? _testResults;
 
   @override
   void initState() {
@@ -43,6 +51,7 @@ class _SmartFeaturesSettingsScreenState
   @override
   void dispose() {
     _downloadSub?.cancel();
+    _testController.dispose();
     super.dispose();
   }
 
@@ -81,6 +90,61 @@ class _SmartFeaturesSettingsScreenState
         });
       },
     );
+  }
+
+  Future<void> _runTest() async {
+    final query = _testController.text.trim();
+    if (query.isEmpty || _testRunning) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _testRunning = true;
+      _testError = null;
+      _testResults = null;
+    });
+
+    try {
+      // Rank the most recent sessions by relevance to the query using the
+      // real on-device model (same path used by semantic search).
+      final all = ref.read(sessionsNotifierProvider).values.toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      final candidates = all.take(20).toList();
+
+      if (candidates.isEmpty) {
+        setState(() {
+          _testRunning = false;
+          _testError = 'No sessions to rank yet.';
+        });
+        return;
+      }
+
+      final ranked = await _service.sessionRanker.rankSessions(
+        query,
+        candidates,
+      );
+      if (!mounted) return;
+      setState(() {
+        _testRunning = false;
+        _testResults = ranked
+            .take(5)
+            .map(_sessionLabel)
+            .toList(growable: false);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _testRunning = false;
+        _testError = '$e';
+      });
+    }
+  }
+
+  String _sessionLabel(Session s) {
+    final name = (s.metadata?.name ?? '').trim();
+    if (name.isNotEmpty) return name;
+    final path = (s.metadata?.path ?? '').trim();
+    if (path.isNotEmpty) return path;
+    return s.id;
   }
 
   @override
@@ -154,8 +218,84 @@ class _SmartFeaturesSettingsScreenState
               ),
             ],
           ),
+          const SizedBox(height: AppSpacing.lg),
+          _buildTesterSection(context),
         ],
       ),
+    );
+  }
+
+  Widget _buildTesterSection(BuildContext context) {
+    final ready = _smartFeaturesEnabled && _modelDownloaded;
+    return SettingsSection(
+      title: 'Try it',
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                ready
+                    ? 'Type a query and the on-device model will rank your '
+                          'recent sessions by relevance.'
+                    : 'Enable smart features and download the model to try '
+                          'on-device ranking.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                controller: _testController,
+                enabled: ready && !_testRunning,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. flutter chat bug',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _runTest(),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: (ready && !_testRunning) ? _runTest : null,
+                  icon: _testRunning
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.play_arrow, size: 18),
+                  label: Text(_testRunning ? 'Running…' : 'Run'),
+                ),
+              ),
+              if (_testError != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _testError!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              if (_testResults != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                for (var i = 0; i < _testResults!.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xxs,
+                    ),
+                    child: Text(
+                      '${i + 1}. ${_testResults![i]}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
