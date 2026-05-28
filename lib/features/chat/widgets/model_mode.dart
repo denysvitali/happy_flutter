@@ -204,6 +204,13 @@ class ChatModelMode {
     if (available.contains(model) || (flavor == 'codex' && model.isCodex)) {
       return model;
     }
+    // Custom Claude models (e.g. `claude-opus-4-8`) aren't in the static
+    // catalog but are still valid selections for a Claude session.
+    if ((flavor == 'claude' || flavor == null) &&
+        model.isClaude &&
+        model.isCustom) {
+      return model;
+    }
     return defaultModel;
   }
 
