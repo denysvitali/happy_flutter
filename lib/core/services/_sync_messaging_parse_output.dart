@@ -17,8 +17,12 @@ extension SyncMessagingParseOutput on Sync {
     // by `_attachParentToolUseId` in `_sync_messaging_parse.dart` so
     // every sidechain emission below carries it without each call
     // site having to thread the field manually.
-    final isSidechain =
-        data['isSidechain'] == true || data['is_sidechain'] == true;
+    //
+    // [WireParsers.isEffectiveSidechain] strips an SDK misclassification
+    // where the 2nd..Nth Agent/Task tool_use blocks in one turn are
+    // flagged `isSidechain: true` despite belonging to the top-level
+    // orchestrator (no anchor). See GlitchTip HAPPY_FLUTTER-3C9.
+    final isSidechain = WireParsers.isEffectiveSidechain(data);
     final dataUuid = (data['uuid'] ?? data['id']) as String?;
     final dataParentUuid =
         (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])

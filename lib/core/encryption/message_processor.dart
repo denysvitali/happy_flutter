@@ -56,8 +56,7 @@ class ProcessedMessages {
   Map<String, dynamic> data,
 ) {
   return (
-    isSidechain:
-        data['isSidechain'] == true || data['is_sidechain'] == true,
+    isSidechain: WireParsers.isEffectiveSidechain(data),
     uuid: (data['uuid'] ?? data['id']) as String?,
     parentUuid: (data['subagent'] ??
         data['parentUuid'] ??
@@ -74,28 +73,14 @@ class ProcessedMessages {
 /// to drop this entirely, so sidechain messages from cold fetch/
 /// pagination/cache-restore lost their authoritative parent identity
 /// and the grouper had to fall back to fragile parentUuid chain walking.
-String? _extractParentToolUseId(Map<String, dynamic> data) {
-  final v =
-      data['parent_tool_use_id'] ??
-      data['parentToolUseId'] ??
-      data['parent_toolUseId'] ??
-      // task_started / task_progress / task_notification carry the
-      // spawning Agent tool_use id as `tool_use_id` (no parent_* form
-      // exists in that wire payload).  Mirrors the stamping in
-      // `_sync_messaging_parse_output.dart:72,93`.
-      data['tool_use_id'];
-  if (v is String && v.isNotEmpty) return v;
-  return null;
-}
+String? _extractParentToolUseId(Map<String, dynamic> data) =>
+    WireParsers.sidechainParentToolUseId(data);
 
 /// Extract the SDK-assigned agent id used for async background agents.
 ///
 /// Mirrors `_attachParentToolUseId` in `_sync_messaging_parse.dart`.
-String? _extractAgentId(Map<String, dynamic> data) {
-  final v = data['agentId'] ?? data['agent_id'] ?? data['task_id'];
-  if (v is String && v.isNotEmpty) return v;
-  return null;
-}
+String? _extractAgentId(Map<String, dynamic> data) =>
+    WireParsers.sidechainAgentId(data);
 
 int _parseCreatedAtMs(dynamic raw) {
   if (raw is int) return raw;

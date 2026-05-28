@@ -227,4 +227,71 @@ void main() {
       expect(WireParsers.parseString(null), isNull);
     });
   });
+
+  // Contract for GlitchTip HAPPY_FLUTTER-3C9: the isolate decrypt pipeline
+  // (message_processor.dart) and the live-ingest pipeline
+  // (_sync_messaging_parse_output.dart) must share one definition of an
+  // "effective" sidechain. These pin that shared definition.
+  group('WireParsers sidechain anchor', () {
+    test('non-sidechain payload is never effective sidechain', () {
+      expect(WireParsers.isRawSidechain(<String, dynamic>{}), isFalse);
+      expect(
+        WireParsers.isEffectiveSidechain({'parent_tool_use_id': 'abc'}),
+        isFalse,
+      );
+    });
+
+    test('anchorless sidechain is demoted to top-level', () {
+      // Reproduces the SDK misclassification: 2nd..Nth Agent/Task block in
+      // one turn flagged sidechain with no parent/agent anchor.
+      expect(
+        WireParsers.isEffectiveSidechain({'isSidechain': true}),
+        isFalse,
+        reason: 'anchorless sidechain must render top-level, not be hidden',
+      );
+      expect(
+        WireParsers.isEffectiveSidechain({
+          'is_sidechain': true,
+          'parent_tool_use_id': '',
+          'agentId': '',
+        }),
+        isFalse,
+      );
+    });
+
+    test('real sidechain with parent_tool_use_id is preserved', () {
+      for (final key in [
+        'parent_tool_use_id',
+        'parentToolUseId',
+        'parent_toolUseId',
+        'tool_use_id',
+      ]) {
+        expect(
+          WireParsers.isEffectiveSidechain({'isSidechain': true, key: 'tu_1'}),
+          isTrue,
+          reason: '$key is a valid sidechain anchor',
+        );
+      }
+    });
+
+    test('real sidechain with agent id is preserved', () {
+      for (final key in ['agentId', 'agent_id', 'task_id']) {
+        expect(
+          WireParsers.isEffectiveSidechain({'is_sidechain': true, key: 'a_1'}),
+          isTrue,
+          reason: '$key is a valid sidechain anchor',
+        );
+      }
+    });
+
+    test('anchor extractors return first non-empty value', () {
+      expect(
+        WireParsers.sidechainParentToolUseId({'tool_use_id': 'tu'}),
+        'tu',
+      );
+      expect(WireParsers.sidechainParentToolUseId({'tool_use_id': ''}), isNull);
+      expect(WireParsers.sidechainAgentId({'task_id': 't'}), 't');
+      expect(WireParsers.sidechainAgentId(<String, dynamic>{}), isNull);
+    });
+  });
 }
