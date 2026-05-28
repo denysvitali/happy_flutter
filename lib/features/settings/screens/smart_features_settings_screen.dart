@@ -21,7 +21,6 @@ class _SmartFeaturesSettingsScreenState
   late bool _smartFeaturesEnabled;
   late bool _semanticSearchEnabled;
   late bool _autoTagsEnabled;
-  bool _isGemmaAvailable = false;
 
   @override
   void initState() {
@@ -29,7 +28,6 @@ class _SmartFeaturesSettingsScreenState
     _smartFeaturesEnabled = _service.smartFeaturesEnabled;
     _semanticSearchEnabled = _service.semanticSearchEnabled;
     _autoTagsEnabled = _service.autoTagsEnabled;
-    _isGemmaAvailable = _service.sessionRanker.isAvailable;
   }
 
   @override
@@ -57,7 +55,7 @@ class _SmartFeaturesSettingsScreenState
                 },
               ),
               _StatusRow(
-                isAvailable: _isGemmaAvailable,
+                isAvailable: _smartFeaturesEnabled,
                 readyLabel: l10n.smartFeaturesReady,
                 unavailableLabel: l10n.smartFeaturesUnavailable,
                 unavailableDesc: l10n.smartFeaturesUnavailableDesc,

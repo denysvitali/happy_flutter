@@ -8482,19 +8482,19 @@ abstract class AppLocalizations {
   /// No description provided for @smartFeaturesReady.
   ///
   /// In en, this message translates to:
-  /// **'Gemma ready'**
+  /// **'Smart features active'**
   String get smartFeaturesReady;
 
   /// No description provided for @smartFeaturesUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'Gemma unavailable'**
+  /// **'Smart features off'**
   String get smartFeaturesUnavailable;
 
   /// No description provided for @smartFeaturesUnavailableDesc.
   ///
   /// In en, this message translates to:
-  /// **'Gemma 2B model not loaded. Smart features use simple heuristics instead.'**
+  /// **'On-device session ranking and auto-tags run locally — no download required. Turn on Smart Features to use them.'**
   String get smartFeaturesUnavailableDesc;
 
   /// No description provided for @semanticSearchTitle.

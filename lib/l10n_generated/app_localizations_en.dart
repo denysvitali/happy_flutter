@@ -4636,14 +4636,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get smartFeaturesStatus => 'Status';
 
   @override
-  String get smartFeaturesReady => 'Gemma ready';
+  String get smartFeaturesReady => 'Smart features active';
 
   @override
-  String get smartFeaturesUnavailable => 'Gemma unavailable';
+  String get smartFeaturesUnavailable => 'Smart features off';
 
   @override
   String get smartFeaturesUnavailableDesc =>
-      'Gemma 2B model not loaded. Smart features use simple heuristics instead.';
+      'On-device session ranking and auto-tags run locally — no download required. Turn on Smart Features to use them.';
 
   @override
   String get semanticSearchTitle => 'Semantic Search';

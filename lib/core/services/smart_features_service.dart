@@ -35,6 +35,13 @@ class SmartFeaturesService {
   bool get autoTagsEnabled =>
       _storage.getBool(_keyAutoTagsEnabled) ?? false;
 
+  /// Whether on-device smart features are active.
+  ///
+  /// Smart features (session ranking + auto-tags) run entirely on-device
+  /// using local heuristics and require no downloaded model, so they are
+  /// ready whenever the feature is enabled.
+  bool get isReady => smartFeaturesEnabled;
+
   /// The session ranker instance. Null until [initialize] completes.
   SessionRanker? _sessionRanker;
 
