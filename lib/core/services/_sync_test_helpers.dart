@@ -456,9 +456,4 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   static String testNormalizeDroppedReason(String reason) =>
       _normalizeDroppedReason(reason);
-
-  /// Test helper: expose the short-suspend threshold so tests can
-  /// construct suspend durations relative to the real constant.
-  @visibleForTesting
-  static int get testShortSuspendThresholdMs => Sync._shortSuspendThresholdMs;
 }

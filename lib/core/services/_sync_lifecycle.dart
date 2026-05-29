@@ -231,7 +231,8 @@ extension SyncLifecycle on Sync {
             ? DateTime.now().millisecondsSinceEpoch - _lastSuspendedAtMs!
             : 0;
         final shouldRunGlobalInvalidation = suspendDuration > 30 * 1000;
-        final socketNeedsHttpFallback = !_isSocketConnected();
+        final socketNeedsHttpFallback =
+            socketIoClient.connectionStatus != ConnectionStatus.connected;
         final shouldRefreshSessions =
             shouldRunGlobalInvalidation || socketNeedsHttpFallback;
         unawaited(
@@ -273,22 +274,6 @@ extension SyncLifecycle on Sync {
             '[Sync] resume: skipping broad invalidation '
             'after short suspend (${suspendDuration}ms)',
           );
-        }
-
-        // For short suspends with the socket connected, skip the entire
-        // sessions + messages fetch cascade.  The socket reconnect handler
-        // already fires _invalidateAllSyncs(force: true) on every resume,
-        // covering all sync domains — so the additional fetch cascade is
-        // redundant HTTP traffic (~3-4 wasted requests per short resume).
-        if (suspendDuration < Sync._shortSuspendThresholdMs &&
-            !socketNeedsHttpFallback) {
-          logger.debug(
-            '[Sync] resume: skipping fetch cascade after short suspend '
-            '(${suspendDuration}ms < ${Sync._shortSuspendThresholdMs}ms, '
-            'socket connected)',
-          );
-          powerDiagnostics.recordResumeShortSuspendSkip();
-          return;
         }
 
         final sessionsToRefresh = <String>{};
