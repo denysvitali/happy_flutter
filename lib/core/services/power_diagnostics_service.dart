@@ -79,6 +79,7 @@ class PowerDiagnosticsSnapshot {
     required this.syncInvalidationCounts,
     required this.syncBackgroundSkips,
     required this.syncBackgroundSkipCounts,
+    required this.resumeShortSuspendSkips,
     required this.outboxSchedules,
     required this.outboxAttempts,
     required this.outboxFailures,
@@ -114,6 +115,7 @@ class PowerDiagnosticsSnapshot {
   final Map<String, int> syncInvalidationCounts;
   final int syncBackgroundSkips;
   final Map<String, int> syncBackgroundSkipCounts;
+  final int resumeShortSuspendSkips;
   final int outboxSchedules;
   final int outboxAttempts;
   final int outboxFailures;
@@ -166,6 +168,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
   int _syncInvalidations = 0;
   int _globalSyncInvalidations = 0;
   int _syncBackgroundSkips = 0;
+  int _resumeShortSuspendSkips = 0;
   int _outboxSchedules = 0;
   int _outboxAttempts = 0;
   int _outboxFailures = 0;
@@ -211,6 +214,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       syncInvalidationCounts: Map.unmodifiable(_syncInvalidationCounts),
       syncBackgroundSkips: _syncBackgroundSkips,
       syncBackgroundSkipCounts: Map.unmodifiable(_syncBackgroundSkipCounts),
+      resumeShortSuspendSkips: _resumeShortSuspendSkips,
       outboxSchedules: _outboxSchedules,
       outboxAttempts: _outboxAttempts,
       outboxFailures: _outboxFailures,
@@ -240,6 +244,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _syncInvalidations = 0;
     _globalSyncInvalidations = 0;
     _syncBackgroundSkips = 0;
+    _resumeShortSuspendSkips = 0;
     _outboxSchedules = 0;
     _outboxAttempts = 0;
     _outboxFailures = 0;
@@ -353,6 +358,11 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _addEvent(PowerDiagnosticEventType.sync, 'background skip $name');
   }
 
+  void recordResumeShortSuspendSkip() {
+    _resumeShortSuspendSkips++;
+    _addEvent(PowerDiagnosticEventType.sync, 'resume short-suspend skip');
+  }
+
   void recordOutboxSchedule({required String localId, required int delayMs}) {
     _outboxSchedules++;
     _addEvent(
@@ -413,6 +423,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       ..writeln('  invalidations: ${s.syncInvalidations}')
       ..writeln('  globalInvalidations: ${s.globalSyncInvalidations}')
       ..writeln('  backgroundSkips: ${s.syncBackgroundSkips}')
+      ..writeln('  resumeShortSuspendSkips: ${s.resumeShortSuspendSkips}')
       ..write(
         _formatCountSection('  invalidationsByName', s.syncInvalidationCounts),
       )

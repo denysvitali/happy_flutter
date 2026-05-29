@@ -382,6 +382,57 @@ void main() {
       },
     );
   });
+
+  group('Sync send-failure classification', () {
+    late Sync instance;
+
+    setUp(() {
+      instance = Sync();
+      _stubAllSyncs(instance);
+    });
+
+    test('unrestorable-session errors are permanent (no outbox retry)', () {
+      // These are thrown by the auto-restore path when the session no
+      // longer exists / cannot be restored. Retrying via the outbox is
+      // pointless, so they must classify as permanent.
+      expect(
+        instance.testIsPermanentSendFailure(
+          StateError('Session not found: sess-1 — failed to resolve session'),
+        ),
+        isTrue,
+      );
+      expect(
+        instance.testIsPermanentSendFailure(
+          StateError('Could not restore stopped session sess-1: timeout'),
+        ),
+        isTrue,
+      );
+      expect(
+        instance.testIsPermanentSendFailure(
+          StateError('Failed to send message: 404'),
+        ),
+        isTrue,
+      );
+      // And they must not be treated as retryable.
+      expect(
+        instance.testIsRetryableSendFailure(
+          StateError('Session not found: sess-1'),
+        ),
+        isFalse,
+      );
+    });
+
+    test('transient server/ack errors stay retryable, not permanent', () {
+      final ackError = StateError(
+        'Failed to send message: server did not acknowledge message',
+      );
+      final serverError = StateError('Failed to send message: 503');
+      for (final e in [ackError, serverError]) {
+        expect(instance.testIsRetryableSendFailure(e), isTrue);
+        expect(instance.testIsPermanentSendFailure(e), isFalse);
+      }
+    });
+  });
 }
 
 class _FakeMMKVStorage extends MMKVStorage {

@@ -483,14 +483,20 @@ extension SyncMessagingSend on Sync {
       }
       await transaction.finish(status: const SpanStatus.ok());
     } catch (e, stack) {
-      if (_isRetryableSendFailure(e) || Sync._isTransientConnectionError(e)) {
+      final permanent = !sent && _isPermanentSendFailure(e);
+      // A permanently-unrestorable session is an expected user-facing
+      // condition (session deleted on the server), not a code defect —
+      // log at warning so it doesn't surface as a Sentry error.
+      if (_isRetryableSendFailure(e) ||
+          Sync._isTransientConnectionError(e) ||
+          permanent) {
         logger.warning('[sendMessage] error sending', e, stack);
       } else {
         logger.error('[sendMessage] error sending', e, stack);
       }
       transaction.setData('error', e.toString());
       await transaction.finish(status: const SpanStatus.internalError());
-      if (!sent && _isPermanentSendFailure(e)) {
+      if (permanent) {
         _updateMessageSendStatus(targetSessionId, localId, 'failed');
         _notifySessionMessagesChanged(targetSessionId);
       } else if (!sent) {
@@ -517,9 +523,17 @@ extension SyncMessagingSend on Sync {
   /// (e.g. session doesn't exist).  These should be marked failed
   /// immediately rather than queued for retry.
   static bool _isPermanentSendFailure(Object error) {
+    if (error is! StateError) return false;
+    final message = error.message;
     // 404 = session not found on server. Retrying won't help.
-    if (error is StateError &&
-        error.message.contains('Failed to send message: 404')) {
+    if (message.contains('Failed to send message: 404')) {
+      return true;
+    }
+    // Auto-restore resolved the session as permanently gone or
+    // unrestorable. The outbox cannot recover it, so mark failed
+    // immediately instead of retrying a session that no longer exists.
+    if (message.contains('Session not found:') ||
+        message.contains('Could not restore')) {
       return true;
     }
     return false;

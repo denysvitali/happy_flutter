@@ -5,6 +5,14 @@ extension SyncTestHelpers on Sync {
   Map<String, Session> get testSessions => _sessions;
 
   @visibleForTesting
+  bool testIsPermanentSendFailure(Object error) =>
+      SyncMessagingSend._isPermanentSendFailure(error);
+
+  @visibleForTesting
+  bool testIsRetryableSendFailure(Object error) =>
+      SyncMessagingSend._isRetryableSendFailure(error);
+
+  @visibleForTesting
   Map<String, Machine> get testMachines => _machines;
 
   @visibleForTesting
@@ -448,4 +456,9 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   static String testNormalizeDroppedReason(String reason) =>
       _normalizeDroppedReason(reason);
+
+  /// Test helper: expose the short-suspend threshold so tests can
+  /// construct suspend durations relative to the real constant.
+  @visibleForTesting
+  static int get testShortSuspendThresholdMs => Sync._shortSuspendThresholdMs;
 }

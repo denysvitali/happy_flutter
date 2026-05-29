@@ -389,6 +389,13 @@ what you have, you must use the options mode.
   /// when the app cycles between paused and resumed states repeatedly.
   static const int _resumeDebounceWindowMs = 2000;
 
+  /// Suspend duration below which the resume cascade (sessions + messages
+  /// fetch) is skipped.  The socket reconnect handler already fires
+  /// `_invalidateAllSyncs(force: true)` on every resume, covering all
+  /// sync domains — so for short suspends the additional fetch cascade
+  /// is redundant HTTP traffic.
+  static const int _shortSuspendThresholdMs = 5000;
+
   /// Delay before the reconnection watchdog fires on resume. If the
   /// socket hasn't connected by this point, force a fresh reconnect
   /// cycle to recover from exhausted Socket.IO attempts.
