@@ -231,8 +231,7 @@ extension SyncLifecycle on Sync {
             ? DateTime.now().millisecondsSinceEpoch - _lastSuspendedAtMs!
             : 0;
         final shouldRunGlobalInvalidation = suspendDuration > 30 * 1000;
-        final socketNeedsHttpFallback =
-            socketIoClient.connectionStatus != ConnectionStatus.connected;
+        final socketNeedsHttpFallback = !_isSocketConnected();
         final shouldRefreshSessions =
             shouldRunGlobalInvalidation || socketNeedsHttpFallback;
         unawaited(

@@ -153,6 +153,9 @@ void main() {
         instance.testIsInitialized = true;
         instance.testResetLastResumeAtMs();
         instance.testLastInvalidateAllSyncsAtMs = null;
+        // Socket connected so the short-suspend skip fires — that is the
+        // path under test (the skip must not clear pending messages).
+        instance.testSocketConnectedOverride = true;
 
         // Simulate pending socket messages from before suspend.
         instance.testSetPendingSocketMessages({'session-abc'});
