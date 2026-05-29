@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
-import 'diff_view.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/ui/diff/diff_types.dart' as ui;
+import 'package:happy_flutter/core/ui/diff/diff_view.dart' as ui;
 
 /// Diff view colors for theming.
+///
+/// Legacy color model retained for backward compatibility. Internally
+/// mapped onto the canonical [ui.DiffTheme] used by `core/ui/diff`.
 class DiffViewColors {
 
   DiffViewColors({
@@ -25,20 +31,20 @@ class DiffViewColors {
   /// Light theme colors
   factory DiffViewColors.light() {
     return DiffViewColors(
-      addedBg: const Color(0xFFE6FFEC),
-      removedBg: const Color(0xFFFFEBE9),
+      addedBg: AppColors.diffAddedBgLight,
+      removedBg: AppColors.diffRemovedBgLight,
       contextBg: Colors.transparent,
       hunkHeaderBg: const Color(0xFFF0F0F0),
       lineNumberBg: const Color(0xFFF5F5F5),
-      addedText: const Color(0xFF1A7F37),
-      removedText: const Color(0xFFCF222E),
+      addedText: AppColors.diffAddedTextLight,
+      removedText: AppColors.diffRemovedTextLight,
       contextText: const Color(0xFF24292F),
       hunkHeaderText: const Color(0xFF656D76),
       lineNumberText: const Color(0xFF6E7781),
       inlineAddedBg: const Color(0x4AC26B4D),
-      inlineAddedText: const Color(0xFF1A7F37),
+      inlineAddedText: AppColors.diffAddedTextLight,
       inlineRemovedBg: const Color(0xFFA39E4D),
-      inlineRemovedText: const Color(0xFFCF222E),
+      inlineRemovedText: AppColors.diffRemovedTextLight,
       leadingSpaceDot: const Color(0xFFD4D4D4),
     );
   }
@@ -46,20 +52,20 @@ class DiffViewColors {
   /// Dark theme colors
   factory DiffViewColors.dark() {
     return DiffViewColors(
-      addedBg: const Color(0xFF1A2D1A),
-      removedBg: const Color(0xFF2D1A1A),
+      addedBg: AppColors.diffAddedBgDark,
+      removedBg: AppColors.diffRemovedBgDark,
       contextBg: Colors.transparent,
       hunkHeaderBg: const Color(0xFF2D2D2D),
       lineNumberBg: const Color(0xFF252525),
-      addedText: const Color(0xFF4AC26B),
-      removedText: const Color(0xFFFF7B72),
+      addedText: AppColors.diffAddedTextDark,
+      removedText: AppColors.diffRemovedTextDark,
       contextText: const Color(0xFFC9D1D9),
       hunkHeaderText: const Color(0xFF8B949E),
       lineNumberText: const Color(0xFF6E7681),
       inlineAddedBg: const Color(0x4AC26B33),
-      inlineAddedText: const Color(0xFF4AC26B),
+      inlineAddedText: AppColors.diffAddedTextDark,
       inlineRemovedBg: const Color(0xFFA39E33),
-      inlineRemovedText: const Color(0xFFFF7B72),
+      inlineRemovedText: AppColors.diffRemovedTextDark,
       leadingSpaceDot: const Color(0xFF4A4A4A),
     );
   }
@@ -85,17 +91,38 @@ class DiffViewColors {
 
   /// Other colors
   final Color leadingSpaceDot;
+
+  /// Map onto the canonical [ui.DiffTheme].
+  ui.DiffTheme toDiffTheme() {
+    return ui.DiffTheme(
+      addedBg: addedBg,
+      addedText: addedText,
+      removedBg: removedBg,
+      removedText: removedText,
+      contextBg: contextBg,
+      contextText: contextText,
+      lineNumberBg: lineNumberBg,
+      lineNumberText: lineNumberText,
+      hunkHeaderBg: hunkHeaderBg,
+      hunkHeaderText: hunkHeaderText,
+      inlineAddedBg: inlineAddedBg,
+      inlineAddedText: inlineAddedText,
+      inlineRemovedBg: inlineRemovedBg,
+      inlineRemovedText: inlineRemovedText,
+      leadingSpaceDot: leadingSpaceDot,
+    );
+  }
 }
 
 /// Configuration for diff view styling.
 class DiffWidgetConfig {
 
   DiffWidgetConfig({
-    this.fontSize = 13,
-    this.lineHeight = 20,
-    this.linePaddingHorizontal = 8,
-    this.hunkHeaderPadding = 8,
-    this.lineNumberWidth = 40,
+    this.fontSize = AppFontSize.md,
+    this.lineHeight = AppFontSize.md * AppLineHeight.relaxed,
+    this.linePaddingHorizontal = AppSpacing.sm,
+    this.hunkHeaderPadding = AppSpacing.sm,
+    this.lineNumberWidth = AppSpacing.xxxl + AppSpacing.sm,
     this.useMonospaceFont = true,
   });
   /// Font size for diff content
@@ -119,8 +146,10 @@ class DiffWidgetConfig {
 
 /// A Flutter widget for displaying git diffs with syntax highlighting.
 ///
-/// Matches the behavior of the React Native DiffView.tsx component.
-class DiffView extends StatefulWidget {
+/// Backward-compatible facade over the canonical `core/ui/diff` [ui.DiffView].
+/// Translates the legacy [DiffViewColors] / [DiffWidgetConfig] inputs into the
+/// canonical [ui.DiffTheme] / [ui.DiffViewConfig].
+class DiffView extends StatelessWidget {
 
   const DiffView({
     required this.oldText, required this.newText, super.key,
@@ -172,356 +201,35 @@ class DiffView extends StatefulWidget {
   final Color? backgroundColor;
 
   @override
-  State<DiffView> createState() => _DiffViewState();
-}
-
-class _DiffViewState extends State<DiffView> {
-  late DiffResult _diffResult;
-  late DiffViewColors _colors;
-  late DiffWidgetConfig _config;
-
-  @override
-  void initState() {
-    super.initState();
-    _diffResult = DiffParser.compareStrings(
-      widget.oldText,
-      widget.newText,
-      contextLines: widget.contextLines,
-    );
-    _config = widget.config ?? DiffWidgetConfig();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _colors = _resolveColors(context);
-  }
-
-  @override
-  void didUpdateWidget(DiffView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.oldText != widget.oldText ||
-        oldWidget.newText != widget.newText ||
-        oldWidget.contextLines != widget.contextLines) {
-      _diffResult = DiffParser.compareStrings(
-        widget.oldText,
-        widget.newText,
-        contextLines: widget.contextLines,
-      );
-    }
-    if (oldWidget.config != widget.config) {
-      _config = widget.config ?? DiffWidgetConfig();
-    }
-    if (oldWidget.colors != widget.colors) {
-      _colors = _resolveColors(context);
-    }
-  }
-
-  DiffViewColors _resolveColors(BuildContext context) {
-    if (widget.colors != null) {
-      return widget.colors!;
-    }
-
-    final brightness = Theme.of(context).brightness;
-    return brightness == Brightness.dark
-        ? DiffViewColors.dark()
-        : DiffViewColors.light();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final resolvedColors = colors ??
+        (Theme.of(context).brightness == Brightness.dark
+            ? DiffViewColors.dark()
+            : DiffViewColors.light());
 
-    final content = _buildDiffContent();
+    final diffView = ui.DiffView(
+      oldText: oldText,
+      newText: newText,
+      oldTitle: oldTitle,
+      newTitle: newTitle,
+      config: ui.DiffViewConfig(
+        contextLines: contextLines,
+        showLineNumbers: showLineNumbers,
+        showPlusMinusSymbols: showPlusMinusSymbols,
+        wrapLines: wrapLines,
+        theme: resolvedColors.toDiffTheme(),
+      ),
+    );
 
-    return Container(
-      constraints: widget.maxHeight != null
-          ? BoxConstraints(maxHeight: widget.maxHeight!)
+    final content = Container(
+      constraints: maxHeight != null
+          ? BoxConstraints(maxHeight: maxHeight!)
           : null,
-      color: widget.backgroundColor ??
-          Theme.of(context).colorScheme.surface,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: IntrinsicWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: content,
-            ),
-          ),
-        ),
-      ),
+      color: backgroundColor,
+      child: diffView,
     );
+
+    if (maxHeight == null) return content;
+    return SingleChildScrollView(child: content);
   }
-
-  List<Widget> _buildDiffContent() {
-    final lines = <Widget>[];
-
-    for (var hunkIndex = 0;
-        hunkIndex < _diffResult.hunks.length;
-        hunkIndex++) {
-      final hunk = _diffResult.hunks[hunkIndex];
-
-      // Add hunk header for non-first hunks
-      if (hunkIndex > 0) {
-        lines.add(_buildHunkHeader(hunk));
-      }
-
-      // Add lines in this hunk
-      for (var lineIndex = 0; lineIndex < hunk.lines.length; lineIndex++) {
-        lines.add(_buildDiffLine(hunk.lines[lineIndex]));
-      }
-    }
-
-    return lines;
-  }
-
-  Widget _buildHunkHeader(DiffHunk hunk) {
-    final headerText =
-        '@@ -${hunk.oldStart},${hunk.oldLines}'
-            ' +${hunk.newStart},${hunk.newLines} @@';
-
-    return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: _config.hunkHeaderPadding,
-        horizontal: _config.linePaddingHorizontal,
-      ),
-      color: _colors.hunkHeaderBg,
-      child: Text(
-        headerText,
-        style: TextStyle(
-          fontSize: _config.fontSize - 1,
-          color: _colors.hunkHeaderText,
-          fontFamily: _config.useMonospaceFont ? 'monospace' : null,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDiffLine(DiffLine line) {
-    final isAdded = line.type == DiffLineType.add;
-    final isRemoved = line.type == DiffLineType.remove;
-
-    final textColor = isAdded
-        ? _colors.addedText
-        : isRemoved
-            ? _colors.removedText
-            : _colors.contextText;
-    final bgColor = isAdded
-        ? _colors.addedBg
-        : isRemoved
-            ? _colors.removedBg
-            : _colors.contextBg;
-
-    return Container(
-      color: bgColor,
-      padding: EdgeInsets.symmetric(
-        horizontal: _config.linePaddingHorizontal,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Line number column
-          if (widget.showLineNumbers)
-            SizedBox(
-              width: _config.lineNumberWidth,
-              child: Text(
-                _getLineNumberText(line),
-                style: TextStyle(
-                  fontSize: _config.fontSize,
-                  color: _colors.lineNumberText,
-                  fontFamily: _config.useMonospaceFont ? 'monospace' : null,
-                ),
-                textAlign: TextAlign.end,
-              ),
-            ),
-
-          // +/- symbol column
-          if (widget.showPlusMinusSymbols)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Text(
-                isAdded ? '+' : isRemoved ? '-' : ' ',
-                style: TextStyle(
-                  fontSize: _config.fontSize,
-                  color: textColor,
-                  fontFamily: _config.useMonospaceFont ? 'monospace' : null,
-                ),
-              ),
-            ),
-
-          // Line content
-          Expanded(
-            child: _buildLineContent(line, textColor),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getLineNumberText(DiffLine line) {
-    final number = line.type == DiffLineType.remove
-        ? line.oldLineNumber
-        : line.type == DiffLineType.add
-            ? line.newLineNumber
-            : line.oldLineNumber;
-
-    if (number == null) return '';
-
-    return number.toString().padLeft(3, ' ');
-  }
-
-  Widget _buildLineContent(DiffLine line, Color baseColor) {
-    final formatted = _formatLineContent(line.content);
-
-    if (line.tokens != null && line.tokens!.isNotEmpty) {
-      return _buildWithInlineHighlighting(formatted, line.tokens!, baseColor);
-    }
-
-    return _buildPlainContent(formatted, baseColor);
-  }
-
-  String _formatLineContent(String content) {
-    // Trim trailing spaces
-    return content.trimRight();
-  }
-
-  Widget _buildWithInlineHighlighting(
-    String content,
-    List<DiffToken> tokens,
-    Color baseColor,
-  ) {
-    final spans = <InlineSpan>[];
-    var processedLeadingSpaces = false;
-
-    for (var i = 0; i < tokens.length; i++) {
-      final token = tokens[i];
-
-      // Process leading spaces in the first token only
-      if (!processedLeadingSpaces && token.value.isNotEmpty) {
-        final leadingMatch = RegExp(r'^( +)').firstMatch(token.value);
-        if (leadingMatch != null) {
-          processedLeadingSpaces = true;
-          final leadingSpaces = leadingMatch[1]!;
-          final leadingDots = '\u00B7' * leadingSpaces.length;
-          final restOfToken = token.value.substring(leadingMatch[0]!.length);
-
-          spans.add(TextSpan(
-            text: leadingDots,
-            style: TextStyle(color: _colors.leadingSpaceDot),
-          ));
-
-          if (restOfToken.isNotEmpty) {
-            spans.add(_buildTokenSpan(restOfToken, token, baseColor));
-          }
-          continue;
-        }
-        processedLeadingSpaces = true;
-      }
-
-      spans.add(_buildTokenSpan(token.value, token, baseColor));
-    }
-
-    return Text.rich(
-      TextSpan(children: spans),
-      style: TextStyle(
-        fontSize: _config.fontSize,
-        height: _config.lineHeight / _config.fontSize,
-        fontFamily: _config.useMonospaceFont ? 'monospace' : null,
-      ),
-      softWrap: widget.wrapLines,
-    );
-  }
-
-  InlineSpan _buildTokenSpan(
-    String value,
-    DiffToken token,
-    Color baseColor,
-  ) {
-    if (token.added || token.removed) {
-      return TextSpan(
-        text: value,
-        style: TextStyle(
-          backgroundColor: token.added
-              ? _colors.inlineAddedBg
-              : _colors.inlineRemovedBg,
-          color: token.added
-              ? _colors.inlineAddedText
-              : _colors.inlineRemovedText,
-        ),
-      );
-    }
-
-    return TextSpan(
-      text: value,
-      style: TextStyle(color: baseColor),
-    );
-  }
-
-  Widget _buildPlainContent(String content, Color baseColor) {
-    // Convert leading spaces to dots
-    final leadingMatch = RegExp(r'^( +)').firstMatch(content);
-    final widgets = <Widget>[];
-
-    if (leadingMatch != null) {
-      final leadingSpaces = leadingMatch[1]!;
-      final leadingDots = '\u00B7' * leadingSpaces.length;
-      final mainContent = content.substring(leadingMatch[0]!.length);
-
-      widgets.add(Text(
-        leadingDots,
-        style: TextStyle(
-          color: _colors.leadingSpaceDot,
-          fontFamily: _config.useMonospaceFont ? 'monospace' : null,
-        ),
-      ));
-
-      if (mainContent.isNotEmpty) {
-        widgets.add(Text(
-          mainContent,
-          style: TextStyle(
-            color: baseColor,
-            fontFamily: _config.useMonospaceFont ? 'monospace' : null,
-          ),
-        ));
-      }
-    } else {
-      widgets.add(Text(
-        content,
-        style: TextStyle(
-          color: baseColor,
-          fontFamily: _config.useMonospaceFont ? 'monospace' : null,
-        ),
-      ));
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
-    );
-  }
-}
-
-/// Extension on DiffResult for computing diff stats.
-extension DiffResultExtension on DiffResult {
-  /// Get the total number of changed lines
-  int get totalChanges => stats.additions + stats.deletions;
-
-  /// Get the list of added lines
-  List<DiffLine> get addedLines =>
-      hunks.expand(
-        (h) => h.lines,
-      ).where((l) => l.type == DiffLineType.add).toList();
-
-  /// Get the list of removed lines
-  List<DiffLine> get removedLines =>
-      hunks.expand(
-        (h) => h.lines,
-      ).where((l) => l.type == DiffLineType.remove).toList();
-
-  /// Get the list of context lines
-  List<DiffLine> get contextLines =>
-      hunks.expand(
-        (h) => h.lines,
-      ).where((l) => l.type == DiffLineType.normal).toList();
 }

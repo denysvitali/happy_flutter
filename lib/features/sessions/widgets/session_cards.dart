@@ -2,6 +2,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/components/app_badge.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
@@ -214,38 +215,16 @@ class _ArchiveCountdownBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
+    return AppBadge(
+      leading: const Icon(Icons.hourglass_bottom_outlined, size: 10),
+      label: label,
+      backgroundColor: cs.surfaceContainer,
+      borderColor: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
         vertical: 2,
       ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
-          width: AppBorder.hairline,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.hourglass_bottom_outlined,
-            size: 10,
-            color: cs.onSurfaceVariant,
-          ),
-          const SizedBox(width: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: AppFontSize.xxs,
-              fontWeight: FontWeight.w500,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w500),
     );
   }
 }

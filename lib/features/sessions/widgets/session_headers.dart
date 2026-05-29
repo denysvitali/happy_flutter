@@ -82,7 +82,7 @@ class ProjectHeader extends StatelessWidget {
           children: [
             Icon(
               Icons.workspaces_outlined,
-              size: 14,
+              size: AppIconSize.sm,
               color: cs.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.xs),
@@ -105,7 +105,7 @@ class ProjectHeader extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               child: Icon(
                 Icons.keyboard_arrow_down,
-                size: 18,
+                size: AppIconSize.lg,
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -203,7 +203,7 @@ class PathHeader extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               child: Icon(
                 Icons.keyboard_arrow_down,
-                size: 18,
+                size: AppIconSize.lg,
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -299,7 +299,7 @@ class CollapsibleDateHeader extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               child: Icon(
                 Icons.keyboard_arrow_down,
-                size: 18,
+                size: AppIconSize.lg,
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -344,7 +344,8 @@ class CollapsibleFolderHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.folder_outlined, size: 16, color: cs.onSurfaceVariant),
+            Icon(Icons.folder_outlined, size: AppIconSize.md,
+                color: cs.onSurfaceVariant),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
@@ -414,7 +415,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               child: Icon(
                 Icons.keyboard_arrow_down,
-                size: 18,
+                size: AppIconSize.lg,
                 color: cs.onSurfaceVariant,
               ),
             ),
@@ -593,7 +594,7 @@ class _ToggleChip extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            size: 16,
+            size: AppIconSize.md,
             color: selected ? cs.primary : cs.onSurfaceVariant,
           ),
         ),

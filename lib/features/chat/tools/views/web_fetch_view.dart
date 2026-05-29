@@ -181,13 +181,16 @@ class _UrlChip extends StatelessWidget {
     final stateColor = _stateColor(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.smd,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(
           color: theme.colorScheme.outlineVariant,
-          width: 0.5,
+          width: AppBorder.hairline,
         ),
       ),
       child: Row(
@@ -201,11 +204,11 @@ class _UrlChip extends StatelessWidget {
             ),
             child: Icon(
               _stateIcon(),
-              size: 14,
+              size: AppIconSize.sm,
               color: stateColor,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           // URL text
           Expanded(
             child: Text(

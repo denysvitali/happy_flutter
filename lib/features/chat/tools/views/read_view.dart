@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
+import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/file_type_colors.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 
-import '../../../../core/utils/clipboard_utils.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 import '_section_label.dart';
@@ -247,7 +249,8 @@ class _FileHeader extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (content != null) _CopyButton(text: content!, iconSize: 13),
+                if (content != null)
+                  ToolViewCopyButton(text: content!, iconSize: 13),
               ],
             ),
           ),
@@ -269,24 +272,19 @@ class _FileHeader extends StatelessWidget {
                 ),
                 if (extension.isNotEmpty) ...[
                   const SizedBox(width: AppSpacing.xsm),
-                  Container(
+                  AppBadge(
+                    label: extension.replaceFirst('.', ''),
+                    backgroundColor: c.chipBg,
+                    borderColor: c.chipBorder,
+                    foregroundColor: c.blue,
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.xxs2,
                       vertical: 1,
                     ),
-                    decoration: BoxDecoration(
-                      color: c.chipBg,
-                      borderRadius: BorderRadius.circular(AppRadius.xxxs),
-                      border: Border.all(color: c.chipBorder),
-                    ),
-                    child: Text(
-                      extension.replaceFirst('.', ''),
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: AppFontSize.xxs,
-                        color: c.blue,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    labelStyle: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: AppFontSize.xxs,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -306,88 +304,10 @@ class _FileIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Icon(
-      _iconForExtension(extension),
-      size: 14,
-      color: _colorForExtension(extension),
+      FileTypeColors.iconForExtension(extension),
+      size: AppIconSize.sm,
+      color: FileTypeColors.colorForExtension(extension),
     );
-  }
-
-  IconData _iconForExtension(String ext) {
-    switch (ext.toLowerCase()) {
-      case '.dart':
-      case '.js':
-      case '.ts':
-      case '.jsx':
-      case '.tsx':
-      case '.py':
-      case '.rb':
-      case '.go':
-      case '.rs':
-      case '.java':
-      case '.kt':
-      case '.swift':
-      case '.cpp':
-      case '.c':
-      case '.h':
-        return Icons.code;
-      case '.json':
-      case '.yaml':
-      case '.yml':
-      case '.toml':
-      case '.xml':
-        return Icons.data_object;
-      case '.md':
-      case '.txt':
-      case '.rst':
-        return Icons.article_outlined;
-      case '.html':
-      case '.css':
-      case '.scss':
-        return Icons.web;
-      case '.sh':
-      case '.bash':
-      case '.zsh':
-        return Icons.terminal;
-      case '.png':
-      case '.jpg':
-      case '.jpeg':
-      case '.svg':
-      case '.gif':
-        return Icons.image_outlined;
-      default:
-        return Icons.description_outlined;
-    }
-  }
-
-  Color _colorForExtension(String ext) {
-    switch (ext.toLowerCase()) {
-      case '.dart':
-        return const Color(0xFF54C5F8);
-      case '.js':
-      case '.jsx':
-        return const Color(0xFFF7DF1E);
-      case '.ts':
-      case '.tsx':
-        return const Color(0xFF3178C6);
-      case '.py':
-        return const Color(0xFF3572A5);
-      case '.go':
-        return const Color(0xFF00ADD8);
-      case '.rs':
-        return const Color(0xFFDEA584);
-      case '.md':
-        return const Color(0xFF8B949E);
-      case '.json':
-      case '.yaml':
-      case '.yml':
-        return const Color(0xFF85E89D);
-      case '.sh':
-      case '.bash':
-      case '.zsh':
-        return const Color(0xFF3FB950);
-      default:
-        return const Color(0xFF8B949E);
-    }
   }
 }
 
@@ -436,23 +356,19 @@ class _MetaChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = ToolViewColors.of(context);
 
-    return Container(
+    return AppBadge(
+      label: label,
+      backgroundColor: c.chipBg,
+      borderColor: c.chipBorder,
+      foregroundColor: c.mutedText,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xxs2,
         vertical: AppSpacing.xs - 1,
       ),
-      decoration: BoxDecoration(
-        color: c.chipBg,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: Border.all(color: c.chipBorder),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: AppFontSize.xs,
-          color: c.mutedText,
-          fontFamily: 'monospace',
-        ),
+      labelStyle: const TextStyle(
+        fontSize: AppFontSize.xs,
+        fontWeight: FontWeight.normal,
+        fontFamily: 'monospace',
       ),
     );
   }
@@ -522,7 +438,7 @@ class _ContentBlock extends StatelessWidget {
           ),
           // Show more / less button
           if (needsTruncation)
-            _ShowMoreButton(
+            ToolViewShowMoreButton(
               expanded: expanded,
               hiddenCount: totalLines - maxLines,
               onToggle: onToggleExpand,
@@ -560,96 +476,3 @@ class _LineNumbers extends StatelessWidget {
   }
 }
 
-class _ShowMoreButton extends StatelessWidget {
-  const _ShowMoreButton({
-    required this.expanded,
-    required this.hiddenCount,
-    required this.onToggle,
-  });
-  final bool expanded;
-  final int hiddenCount;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
-
-    return InkWell(
-      onTap: onToggle,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsm),
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: c.border)),
-          color: c.headerBg,
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(AppRadius.sm),
-            bottomRight: Radius.circular(AppRadius.sm),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              expanded ? Icons.expand_less : Icons.expand_more,
-              size: 14,
-              color: c.mutedText,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              expanded
-                  ? 'Show less'
-                  : 'Show $hiddenCount more line'
-                        '${hiddenCount == 1 ? '' : 's'}',
-              style: TextStyle(
-                fontSize: AppFontSize.xs,
-                color: c.mutedText,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CopyButton extends StatefulWidget {
-  const _CopyButton({required this.text, this.iconSize = 14});
-  final String text;
-  final double iconSize;
-
-  @override
-  State<_CopyButton> createState() => _CopyButtonState();
-}
-
-class _CopyButtonState extends State<_CopyButton> {
-  bool _copied = false;
-
-  Future<void> _handleCopy() async {
-    await setClipboardTextSafely(widget.text);
-    if (!mounted) return;
-    setState(() => _copied = true);
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _copied = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
-
-    return GestureDetector(
-      onTap: _handleCopy,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: Icon(
-          _copied ? Icons.check : Icons.copy,
-          key: ValueKey(_copied),
-          size: widget.iconSize,
-          color: _copied ? c.copyIconDone : c.copyIcon,
-        ),
-      ),
-    );
-  }
-}

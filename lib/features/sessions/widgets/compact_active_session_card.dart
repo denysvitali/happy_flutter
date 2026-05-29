@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../../../core/components/pressable_card.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../session_avatar.dart';
@@ -42,7 +42,6 @@ class CompactActiveSessionCard extends StatefulWidget {
 }
 
 class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
-  bool _pressed = false;
   late SessionDerived _d;
 
   @override
@@ -84,10 +83,8 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
         ? cs.primary
         : Color(_d.status.statusDotColor);
 
-    return AnimatedScale(
-      scale: _pressed ? 0.98 : 1.0,
-      duration: AppDuration.fast,
-      curve: AppCurve.standard,
+    return PressableCard(
+      onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,
@@ -102,18 +99,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.md),
           clipBehavior: Clip.hardEdge,
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onTap?.call();
-            },
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            splashColor: cs.primary.withValues(alpha: 0.08),
-            highlightColor: cs.primary.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: SizedBox(
+          child: SizedBox(
               height: hasPreview ? 72 : 56,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -125,7 +111,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                     )
                   else
                     Container(
-                      width: 3,
+                      width: AppBorder.accent,
                       decoration: BoxDecoration(
                         color: accentColor,
                         borderRadius: const BorderRadius.only(
@@ -145,7 +131,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                             sessionId: session.id,
                             avatarId: _d.avatarId,
                             sessionFlavor: sessionFlavor,
-                            size: 36,
+                            size: AppAvatarSize.small,
                             showFlavorIcon: widget.showFlavorIcon,
                             hasDraft: hasDraft,
                             avatarStyle: widget.avatarStyle,
@@ -201,7 +187,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                             const SizedBox(width: AppSpacing.sm),
                             Icon(
                               Icons.push_pin,
-                              size: AppSpacing.lg,
+                              size: AppIconSize.md,
                               color: cs.primary,
                             ),
                           ],
@@ -214,7 +200,6 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

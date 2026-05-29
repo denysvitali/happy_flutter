@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/file_type_colors.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 
@@ -27,91 +29,17 @@ class GlobFile {
 }
 
 /// Returns a color for a file based on its extension.
+///
+/// Delegates to the canonical [FileTypeColors] palette, falling back to the
+/// theme's muted on-surface color for unknown extensions.
 Color _fileColor(String ext, ColorScheme cs) {
-  switch (ext) {
-    case 'dart':
-      return const Color(0xFF42A5F5); // blue
-    case 'json':
-      return const Color(0xFFFFCA28); // yellow
-    case 'md':
-    case 'markdown':
-      return const Color(0xFF90A4AE); // blue-grey
-    case 'yaml':
-    case 'yml':
-      return const Color(0xFF66BB6A); // green
-    case 'ts':
-    case 'tsx':
-    case 'js':
-    case 'jsx':
-      return const Color(0xFFFFA726); // orange
-    case 'swift':
-      return const Color(0xFFEF5350); // red
-    case 'kt':
-    case 'kts':
-      return const Color(0xFF7E57C2); // purple
-    case 'py':
-      return const Color(0xFF26A69A); // teal
-    case 'sh':
-    case 'bash':
-      return const Color(0xFF8D6E63); // brown
-    case 'html':
-    case 'htm':
-      return const Color(0xFFEF5350); // red
-    case 'css':
-    case 'scss':
-    case 'less':
-      return const Color(0xFF42A5F5); // blue
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'svg':
-    case 'webp':
-      return const Color(0xFFEC407A); // pink
-    default:
-      return cs.onSurfaceVariant;
-  }
+  if (ext.isEmpty) return cs.onSurfaceVariant;
+  final mapped = FileTypeColors.colorForExtension(ext);
+  return mapped == FileTypeColors.defaultColor ? cs.onSurfaceVariant : mapped;
 }
 
 /// Returns a Material icon for a file based on its extension.
-IconData _fileIcon(String ext) {
-  switch (ext) {
-    case 'dart':
-    case 'ts':
-    case 'tsx':
-    case 'js':
-    case 'jsx':
-    case 'swift':
-    case 'kt':
-    case 'kts':
-    case 'py':
-    case 'sh':
-    case 'bash':
-      return Icons.code;
-    case 'json':
-    case 'yaml':
-    case 'yml':
-      return Icons.data_object;
-    case 'md':
-    case 'markdown':
-      return Icons.article_outlined;
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'svg':
-    case 'webp':
-      return Icons.image_outlined;
-    case 'html':
-    case 'htm':
-    case 'css':
-    case 'scss':
-    case 'less':
-      return Icons.web_outlined;
-    default:
-      return Icons.insert_drive_file_outlined;
-  }
-}
+IconData _fileIcon(String ext) => FileTypeColors.iconForExtension(ext);
 
 /// View for displaying Glob tool results.
 class GlobView extends StatefulWidget {
@@ -219,7 +147,7 @@ class _GlobViewState extends State<GlobView> {
                       _showAll
                           ? Icons.expand_less
                           : Icons.expand_more,
-                      size: 15,
+                      size: AppIconSize.sm,
                       color: cs.primary,
                     ),
                     const SizedBox(width: AppSpacing.xs),
@@ -302,25 +230,17 @@ class _ResultCountChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AppBadge(
+      label: count == 0
+          ? 'No files found'
+          : '$count file${count != 1 ? 's' : ''} found',
+      backgroundColor: cs.primary.withValues(alpha: 0.12),
+      foregroundColor: cs.primary,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 3,
+        vertical: AppSpacing.xxxs,
       ),
-      decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        count == 0
-            ? 'No files found'
-            : '$count file${count != 1 ? 's' : ''} found',
-        style: TextStyle(
-          fontSize: AppFontSize.xs,
-          fontWeight: FontWeight.w600,
-          color: cs.primary,
-        ),
-      ),
+      labelStyle: const TextStyle(fontSize: AppFontSize.xs),
     );
   }
 }
@@ -337,7 +257,7 @@ class _PatternBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.smd,
-        vertical: 5,
+        vertical: AppSpacing.xxs2,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
@@ -351,7 +271,7 @@ class _PatternBadge extends StatelessWidget {
         children: [
           Icon(
             Icons.travel_explore,
-            size: 14,
+            size: AppIconSize.sm,
             color: cs.primary,
           ),
           const SizedBox(width: AppSpacing.xsm),
@@ -367,7 +287,7 @@ class _PatternBadge extends StatelessWidget {
           const SizedBox(width: AppSpacing.xsm),
           Container(
             width: 1,
-            height: 12,
+            height: AppIconSize.xs,
             color: cs.outlineVariant,
           ),
           const SizedBox(width: AppSpacing.xsm),
@@ -401,7 +321,7 @@ class _PathChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 5,
+        vertical: AppSpacing.xxs2,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
@@ -415,7 +335,7 @@ class _PathChip extends StatelessWidget {
         children: [
           Icon(
             Icons.folder_outlined,
-            size: 13,
+            size: AppIconSize.xs,
             color: cs.secondary,
           ),
           const SizedBox(width: AppSpacing.xs),
@@ -469,7 +389,7 @@ class _FileRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.smd,
-          vertical: 7,
+          vertical: AppSpacing.xsm + 1,
         ),
         child: Row(
           children: [
@@ -481,7 +401,7 @@ class _FileRow extends StatelessWidget {
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.xxs2),
               ),
-              child: Icon(icon, size: 15, color: color),
+              child: Icon(icon, size: AppIconSize.sm, color: color),
             ),
             const SizedBox(width: AppSpacing.smd),
             // File info
@@ -513,23 +433,17 @@ class _FileRow extends StatelessWidget {
             ),
             // Extension tag
             if (ext.isNotEmpty)
-              Container(
+              AppBadge(
+                label: ext,
+                backgroundColor: color.withValues(alpha: 0.12),
+                foregroundColor: color,
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.xxs2,
-                  vertical: 2,
+                  vertical: AppSpacing.xxs,
                 ),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                ),
-                child: Text(
-                  ext,
-                  style: TextStyle(
-                    fontSize: AppFontSize.xxs,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                    fontFamily: 'monospace',
-                  ),
+                labelStyle: const TextStyle(
+                  fontSize: AppFontSize.xxs,
+                  fontFamily: 'monospace',
                 ),
               ),
           ],

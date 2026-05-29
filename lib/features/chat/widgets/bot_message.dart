@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/components/pressable_card.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
@@ -8,7 +9,7 @@ import 'message_detail_sheet.dart';
 import 'streaming_cursor.dart';
 
 /// Left-aligned bot message bubble with full markdown rendering.
-class BotMessage extends StatefulWidget {
+class BotMessage extends StatelessWidget {
   const BotMessage({
     required this.text,
     required this.messageData,
@@ -34,13 +35,6 @@ class BotMessage extends StatefulWidget {
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
 
-  @override
-  State<BotMessage> createState() => _BotMessageState();
-}
-
-class _BotMessageState extends State<BotMessage> {
-  bool _pressed = false;
-
   String _truncateForLabel(String text) {
     const maxLength = 100;
     if (text.length <= maxLength) return text;
@@ -49,75 +43,65 @@ class _BotMessageState extends State<BotMessage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
     // Grouped radii: left side pinches for consecutive messages.
     final radius = BorderRadius.only(
-      topLeft: widget.isFirstInGroup ? BotMessage._full : BotMessage._small,
-      topRight: BotMessage._full,
-      bottomLeft: widget.isLastInGroup ? BotMessage._full : BotMessage._small,
-      bottomRight: BotMessage._full,
+      topLeft: isFirstInGroup ? _full : _small,
+      topRight: _full,
+      bottomLeft: isLastInGroup ? _full : _small,
+      bottomRight: _full,
     );
 
-    return GestureDetector(
-      onTap: () => showMessageDetailSheet(context, widget.messageData),
+    return PressableCard(
+      onTap: () => showMessageDetailSheet(context, messageData),
       onLongPress: () {
         HapticFeedback.heavyImpact();
-        showRawMarkdownSheet(context, widget.text);
+        showRawMarkdownSheet(context, text);
       },
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeInOut,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: AppSpacing.sm,
-              right: AppSpacing.sm,
-              top: widget.isCompact
-                  ? 0
-                  : (widget.isFirstInGroup ? AppSpacing.xs : 1),
-              bottom: widget.isCompact
-                  ? 0
-                  : (widget.isLastInGroup ? AppSpacing.xs : 1),
-            ),
-            child: Semantics(
-              label: widget.isStreaming
-                  ? 'AI response streaming'
-                  : 'AI message: ${_truncateForLabel(widget.text)}',
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: widget.isCompact ? AppSpacing.xs : AppSpacing.md,
+      pressedScale: 0.97,
+      enableHaptics: false,
+      duration: const Duration(milliseconds: 100),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: AppSpacing.sm,
+            right: AppSpacing.sm,
+            top: isCompact ? 0 : (isFirstInGroup ? AppSpacing.xs : 1),
+            bottom: isCompact ? 0 : (isLastInGroup ? AppSpacing.xs : 1),
+          ),
+          child: Semantics(
+            label: isStreaming
+                ? 'AI response streaming'
+                : 'AI message: ${_truncateForLabel(text)}',
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: isCompact ? AppSpacing.xs : AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: radius,
+                border: Border.all(
+                  color: cs.outlineVariant.withValues(
+                    alpha: AppOpacity.subtle,
+                  ),
+                  width: AppBorder.hairline,
                 ),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerLow,
-                  borderRadius: radius,
-                  border: Border.all(
-                    color: cs.outlineVariant.withValues(
-                      alpha: AppOpacity.subtle,
+              ),
+              child: DefaultTextStyle.merge(
+                style: TextStyle(color: cs.onSurface),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MarkdownView(
+                      markdown: text,
+                      onOptionPress: onOptionPress,
                     ),
-                    width: 0.5,
-                  ),
-                ),
-                child: DefaultTextStyle.merge(
-                  style: TextStyle(color: cs.onSurface),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      MarkdownView(
-                        markdown: widget.text,
-                        onOptionPress: widget.onOptionPress,
-                      ),
-                      if (widget.isStreaming) const StreamingCursor(),
-                    ],
-                  ),
+                    if (isStreaming) const StreamingCursor(),
+                  ],
                 ),
               ),
             ),

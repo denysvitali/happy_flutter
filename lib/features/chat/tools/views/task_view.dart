@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/components/app_badge.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/wire_parsers.dart';
@@ -317,30 +318,19 @@ class _InfoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AppBadge(
+      leading: Icon(icon, size: AppFontSize.xxs, color: color),
+      label: label,
+      backgroundColor: color.withValues(alpha: 0.15),
+      foregroundColor: color,
       padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 2,
+        horizontal: AppSpacing.xsm,
+        vertical: AppSpacing.xxs,
       ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: AppFontSize.xxs,
-              fontWeight: FontWeight.w500,
-              color: color,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
+      labelStyle: const TextStyle(
+        fontSize: AppFontSize.xxs,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.2,
       ),
     );
   }

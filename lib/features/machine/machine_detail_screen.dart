@@ -10,6 +10,7 @@ import '../../core/components/app_section_header.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/app_tappable.dart';
 import '../../core/components/settings_section.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
@@ -88,28 +89,15 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     String machineId,
     String machineName,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.l10n.commonDelete),
-        content: Text(context.l10n.machineRemoveConfirm(machineName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(context.l10n.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(context.l10n.commonDelete),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: context.l10n.commonDelete,
+      content: context.l10n.machineRemoveConfirm(machineName),
+      confirmLabel: context.l10n.commonDelete,
+      isDestructive: true,
     );
 
-    if (confirmed ?? false) {
+    if (confirmed) {
       final response = await ApiClient().delete('/v1/machines/$machineId');
       if (!context.mounted) return;
       if (ApiClient().isSuccess(response)) {

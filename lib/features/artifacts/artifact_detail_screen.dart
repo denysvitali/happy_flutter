@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/components/components.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
@@ -146,28 +147,15 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
     AppLocalizations l10n,
     DecryptedArtifact artifact,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.commonDelete),
-        content: Text(l10n.artifactsDeleteConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: Text(l10n.commonDelete),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.commonDelete,
+      content: l10n.artifactsDeleteConfirm,
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
 
-    if (confirmed ?? false) {
+    if (confirmed) {
       try {
         await sync.deleteArtifact(artifact.id);
         ref

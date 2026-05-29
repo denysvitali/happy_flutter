@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/file_type_colors.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
@@ -42,81 +44,26 @@ class LSEntry {
   }
 }
 
+/// Folder accent color for directory entries.
+const Color _dirColor = Color(0xFFFFC107);
+
 /// Returns a color for a file entry based on type/extension.
 Color _entryColor(LSEntry entry, ColorScheme cs) {
-  if (entry.isDirectory) return const Color(0xFFFFC107);
+  if (entry.isDirectory) return _dirColor;
   if (entry.isSymlink) return const Color(0xFF26C6DA);
-  switch (entry.extension) {
-    case 'dart':
-      return const Color(0xFF42A5F5);
-    case 'json':
-    case 'yaml':
-    case 'yml':
-      return const Color(0xFFFFCA28);
-    case 'md':
-    case 'markdown':
-      return const Color(0xFF90A4AE);
-    case 'ts':
-    case 'tsx':
-    case 'js':
-    case 'jsx':
-      return const Color(0xFFFFA726);
-    case 'swift':
-      return const Color(0xFFEF5350);
-    case 'kt':
-    case 'kts':
-      return const Color(0xFF7E57C2);
-    case 'py':
-      return const Color(0xFF26A69A);
-    case 'sh':
-    case 'bash':
-      return const Color(0xFF8D6E63);
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'svg':
-    case 'webp':
-      return const Color(0xFFEC407A);
-    default:
-      return cs.onSurfaceVariant;
-  }
+  final ext = entry.extension;
+  if (ext.isEmpty) return cs.onSurfaceVariant;
+  final mapped = FileTypeColors.colorForExtension(ext);
+  // Unknown extensions fall back to the theme's muted on-surface color
+  // rather than the generic FileTypeColors grey.
+  return mapped == FileTypeColors.defaultColor ? cs.onSurfaceVariant : mapped;
 }
 
 /// Returns an icon for a file entry based on type/extension.
 IconData _entryIcon(LSEntry entry) {
   if (entry.isDirectory) return Icons.folder_rounded;
   if (entry.isSymlink) return Icons.link;
-  switch (entry.extension) {
-    case 'dart':
-    case 'ts':
-    case 'tsx':
-    case 'js':
-    case 'jsx':
-    case 'swift':
-    case 'kt':
-    case 'kts':
-    case 'py':
-    case 'sh':
-    case 'bash':
-      return Icons.code;
-    case 'json':
-    case 'yaml':
-    case 'yml':
-      return Icons.data_object;
-    case 'md':
-    case 'markdown':
-      return Icons.article_outlined;
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'svg':
-    case 'webp':
-      return Icons.image_outlined;
-    default:
-      return Icons.insert_drive_file_outlined;
-  }
+  return FileTypeColors.iconForExtension(entry.extension);
 }
 
 /// View for displaying LS tool results.
@@ -176,17 +123,17 @@ class _LSViewState extends State<LSView> {
           // Summary row
           if (state == 'completed' || entries.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(top: AppSpacing.smd),
               child: Row(
                 children: [
                   _CountChip(
                     icon: Icons.folder_rounded,
                     count: dirs.length,
                     label: 'dir${dirs.length != 1 ? 's' : ''}',
-                    color: const Color(0xFFFFC107),
+                    color: _dirColor,
                     colorScheme: cs,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: AppSpacing.xsm),
                   _CountChip(
                     icon: Icons.insert_drive_file_outlined,
                     count: files.length,
@@ -201,7 +148,7 @@ class _LSViewState extends State<LSView> {
           // Entry list
           if (visibleEntries.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -231,7 +178,7 @@ class _LSViewState extends State<LSView> {
           // Show all / collapse button
           if (sorted.length > _initialLimit)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: AppSpacing.xsm),
               child: GestureDetector(
                 onTap: () => setState(() => _showAll = !_showAll),
                 child: Row(
@@ -241,10 +188,10 @@ class _LSViewState extends State<LSView> {
                       _showAll
                           ? Icons.expand_less
                           : Icons.expand_more,
-                      size: 15,
+                      size: AppIconSize.sm,
                       color: cs.primary,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpacing.xs),
                     Text(
                       _showAll
                           ? 'Show less'
@@ -345,7 +292,10 @@ class _PathHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.smd,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xsm),
@@ -357,10 +307,10 @@ class _PathHeader extends StatelessWidget {
         children: [
           const Icon(
             Icons.folder_open_rounded,
-            size: 15,
-            color: Color(0xFFFFC107),
+            size: AppIconSize.sm,
+            color: _dirColor,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: SelectableText(
               resolvedPath,
@@ -396,27 +346,16 @@ class _CountChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+    return AppBadge(
+      leading: Icon(icon, size: AppIconSize.xs, color: color),
+      label: '$count $label',
+      backgroundColor: color.withValues(alpha: 0.10),
+      foregroundColor: color,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xxxs,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(
-            '$count $label',
-            style: TextStyle(
-              fontSize: AppFontSize.xs,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
+      labelStyle: const TextStyle(fontSize: AppFontSize.xs),
     );
   }
 }
@@ -451,8 +390,8 @@ class _EntryRow extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 8,
+          horizontal: AppSpacing.smd,
+          vertical: AppSpacing.sm,
         ),
         child: Row(
           children: [
@@ -464,9 +403,9 @@ class _EntryRow extends StatelessWidget {
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.xxs2),
               ),
-              child: Icon(icon, size: 15, color: color),
+              child: Icon(icon, size: AppIconSize.sm, color: color),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.smd),
             // Name + optional permissions
             Expanded(
               child: Column(
@@ -508,24 +447,18 @@ class _EntryRow extends StatelessWidget {
               ),
             // Extension tag (files only)
             if (!entry.isDirectory && entry.extension.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              Container(
+              const SizedBox(width: AppSpacing.xsm),
+              AppBadge(
+                label: entry.extension,
+                backgroundColor: color.withValues(alpha: 0.12),
+                foregroundColor: color,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 5,
-                  vertical: 2,
+                  horizontal: AppSpacing.xxs2,
+                  vertical: AppSpacing.xxs,
                 ),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                ),
-                child: Text(
-                  entry.extension,
-                  style: TextStyle(
-                    fontSize: AppFontSize.xxs,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                    fontFamily: 'monospace',
-                  ),
+                labelStyle: const TextStyle(
+                  fontSize: AppFontSize.xxs,
+                  fontFamily: 'monospace',
                 ),
               ),
             ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/components/app_badge.dart';
 import '../../../../core/theme/app_tokens.dart';
 import 'grep_view.dart';
 
@@ -20,7 +21,7 @@ class GrepPatternBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.smd,
-        vertical: 5,
+        vertical: AppSpacing.xxs2,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
@@ -34,7 +35,7 @@ class GrepPatternBadge extends StatelessWidget {
         children: [
           Icon(
             Icons.manage_search,
-            size: 14,
+            size: AppIconSize.sm,
             color: cs.tertiary,
           ),
           const SizedBox(width: AppSpacing.xsm),
@@ -50,7 +51,7 @@ class GrepPatternBadge extends StatelessWidget {
           const SizedBox(width: AppSpacing.xsm),
           Container(
             width: 1,
-            height: 12,
+            height: AppIconSize.xs,
             color: cs.outlineVariant,
           ),
           const SizedBox(width: AppSpacing.xsm),
@@ -86,7 +87,7 @@ class GrepPathChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 5,
+        vertical: AppSpacing.xxs2,
       ),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
@@ -98,7 +99,11 @@ class GrepPathChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.folder_outlined, size: 13, color: cs.secondary),
+          Icon(
+            Icons.folder_outlined,
+            size: AppIconSize.xs,
+            color: cs.secondary,
+          ),
           const SizedBox(width: AppSpacing.xs),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 160),
@@ -142,23 +147,15 @@ class MatchCountBadge extends StatelessWidget {
     final cs = colorScheme;
     final displayLabel =
         label ?? '$count match${count != 1 ? 'es' : ''}';
-    return Container(
+    return AppBadge(
+      label: displayLabel,
+      backgroundColor: cs.tertiary.withValues(alpha: 0.12),
+      foregroundColor: cs.tertiary,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 3,
+        vertical: AppSpacing.xxxs,
       ),
-      decoration: BoxDecoration(
-        color: cs.tertiary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        displayLabel,
-        style: TextStyle(
-          fontSize: AppFontSize.xs,
-          fontWeight: FontWeight.w600,
-          color: cs.tertiary,
-        ),
-      ),
+      labelStyle: const TextStyle(fontSize: AppFontSize.xs),
     );
   }
 }
@@ -413,23 +410,15 @@ class MatchCountPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AppBadge(
+      label: '$count',
+      backgroundColor: cs.secondary.withValues(alpha: 0.12),
+      foregroundColor: cs.secondary,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xxs2,
         vertical: 1,
       ),
-      decoration: BoxDecoration(
-        color: cs.secondary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        '$count',
-        style: TextStyle(
-          fontSize: AppFontSize.xxs,
-          fontWeight: FontWeight.w600,
-          color: cs.secondary,
-        ),
-      ),
+      labelStyle: const TextStyle(fontSize: AppFontSize.xxs),
     );
   }
 }

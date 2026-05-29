@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../../syntax_highlighter.dart';
 import '../tool_section_view.dart';
@@ -668,10 +668,10 @@ class _DetailSection extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              _CopyButton(text: content, iconSize: 13),
+              ToolViewCopyButton(text: content, iconSize: 13),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xsm),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.sm),
@@ -687,50 +687,6 @@ class _DetailSection extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Copy button
-// ---------------------------------------------------------------------------
-
-class _CopyButton extends StatefulWidget {
-  const _CopyButton({required this.text, this.iconSize = 14});
-  final String text;
-  final double iconSize;
-
-  @override
-  State<_CopyButton> createState() => _CopyButtonState();
-}
-
-class _CopyButtonState extends State<_CopyButton> {
-  bool _copied = false;
-
-  Future<void> _handleCopy() async {
-    await setClipboardTextSafely(widget.text);
-    if (!mounted) return;
-    setState(() => _copied = true);
-    await Future<void>.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() => _copied = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
-
-    return GestureDetector(
-      onTap: _handleCopy,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: Icon(
-          _copied ? Icons.check : Icons.copy,
-          key: ValueKey(_copied),
-          size: widget.iconSize,
-          color: _copied ? c.copyIconDone : c.copyIcon,
-        ),
       ),
     );
   }

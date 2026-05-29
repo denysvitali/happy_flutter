@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'json_decoders.dart';
+
 /// Parse JWT token to extract user ID from server token format
 String parseToken(String token) {
   try {
@@ -11,12 +13,18 @@ String parseToken(String token) {
     final payload = parts[1];
     final normalized = base64Url.normalize(payload);
     final decoded = utf8.decode(base64Url.decode(normalized));
-    final Map<String, dynamic> claims = jsonDecode(decoded);
+    final claims = JsonDecoders.tryDecodeRawMapOrNull(
+      decoded,
+      context: 'parseToken claims',
+    );
+    if (claims == null) {
+      return token.substring(0, 8);
+    }
 
     return claims['sub'] as String? ??
-           claims['user_id'] as String? ??
-           claims['userId'] as String? ??
-           'unknown';
+        claims['user_id'] as String? ??
+        claims['userId'] as String? ??
+        'unknown';
   } catch (e) {
     return token.substring(0, 8);
   }

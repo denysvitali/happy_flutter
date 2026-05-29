@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/providers/app_providers.dart';
@@ -110,10 +111,9 @@ class _RestoreAccountScreenState
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _restoreAccount,
                 child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    ? const AppLoadingIndicator(
+                        size: AppSpacing.xl,
+                        strokeWidth: 2,
                       )
                     : Text(context.l10n.accountRestoreAccount),
               ),

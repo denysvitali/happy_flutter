@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/sessions_api.dart';
+import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
@@ -65,31 +66,16 @@ class _DismissibleActiveSessionState
     // See GlitchTip HAPPY_FLUTTER-396.
     final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
     final failedArchiveMsg = context.l10n.sessionsFailedToArchive;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final l10n = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(l10n.sessionsArchiveSession),
-          content: Text(l10n.sessionsArchiveConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.commonCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error,
-              ),
-              child: Text(l10n.sessionsArchive),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.sessionsArchiveSession,
+      content: l10n.sessionsArchiveConfirm,
+      confirmLabel: l10n.sessionsArchive,
+      isDestructive: true,
     );
 
-    if (confirmed != true) return false;
+    if (!confirmed) return false;
 
     try {
       await SessionsApi().setSessionArchived(widget.session.id, true);
@@ -117,31 +103,16 @@ class _DismissibleActiveSessionState
     // See GlitchTip HAPPY_FLUTTER-396.
     final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
     final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final l10n = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(l10n.chatDeleteSession),
-          content: Text(l10n.sessionsDeleteConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.commonCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error,
-              ),
-              child: Text(l10n.commonDelete),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.chatDeleteSession,
+      content: l10n.sessionsDeleteConfirm,
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
 
-    if (confirmed != true) return false;
+    if (!confirmed) return false;
 
     // Optimistic: remove from UI immediately, roll back on failure.
     final success = await sessionsNotifier.optimisticDelete(widget.session.id);
@@ -301,31 +272,16 @@ class DismissibleInactiveSession extends ConsumerWidget {
     // See GlitchTip HAPPY_FLUTTER-396.
     final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
     final failedDeleteMsg = context.l10n.sessionsFailedToDelete;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final l10n = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(l10n.chatDeleteSession),
-          content: Text(l10n.sessionsDeleteConfirm),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(l10n.commonCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error,
-              ),
-              child: Text(l10n.commonDelete),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.chatDeleteSession,
+      content: l10n.sessionsDeleteConfirm,
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
 
-    if (confirmed != true) return false;
+    if (!confirmed) return false;
 
     // Optimistic: remove from UI immediately, roll back on failure.
     final success = await sessionsNotifier.optimisticDelete(session.id);

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../../../core/components/pressable_card.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../session_avatar.dart';
@@ -35,7 +35,6 @@ class ActiveSessionCard extends StatefulWidget {
 }
 
 class _ActiveSessionCardState extends State<ActiveSessionCard> {
-  bool _pressed = false;
   late SessionDerived _d;
 
   @override
@@ -74,10 +73,8 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
         ? cs.primary
         : Color(_d.status.statusDotColor);
 
-    return AnimatedScale(
-      scale: _pressed ? 0.98 : 1.0,
-      duration: AppDuration.fast,
-      curve: AppCurve.standard,
+    return PressableCard(
+      onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,
@@ -92,18 +89,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.md),
           clipBehavior: Clip.hardEdge,
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onTap?.call();
-            },
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            splashColor: cs.primary.withValues(alpha: 0.08),
-            highlightColor: cs.primary.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: Stack(
+          child: Stack(
               fit: StackFit.passthrough,
               children: [
                 Padding(
@@ -117,7 +103,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                         sessionId: session.id,
                         avatarId: _d.avatarId,
                         sessionFlavor: sessionFlavor,
-                        size: 44,
+                        size: AppAvatarSize.large,
                         showFlavorIcon: true,
                         hasDraft: hasDraft,
                         avatarStyle: widget.avatarStyle,
@@ -187,7 +173,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                   top: 0,
                   bottom: 0,
                   child: Container(
-                    width: 3,
+                    width: AppBorder.accent,
                     decoration: BoxDecoration(
                       color: accentColor,
                       borderRadius: const BorderRadius.only(
@@ -201,7 +187,6 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }

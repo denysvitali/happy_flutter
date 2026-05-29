@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/components/app_empty_state.dart';
+import '../../core/components/app_error_state.dart';
+import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/changelog_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -76,47 +79,18 @@ class _ChangelogScreenState extends ConsumerState<ChangelogScreen> {
 
   Widget _buildBody(AppLocalizations l10n) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator.adaptive());
+      return const AppLoadingIndicator();
     }
 
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                size: 48,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(_error!, textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      );
+      return AppErrorState(message: _error!, onRetry: _loadChangelog);
     }
 
     final result = _result;
     if (result == null || result.entries.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.check_circle_outline,
-                size: 48,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(l10n.changelogNoEntriesAvailable),
-            ],
-          ),
-        ),
+      return AppEmptyState(
+        icon: Icons.check_circle_outline,
+        title: l10n.changelogNoEntriesAvailable,
       );
     }
 

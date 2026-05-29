@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
@@ -90,7 +91,12 @@ void showSessionMenu(
                 onTap: () {
                   HapticFeedback.lightImpact();
                   Navigator.pop(sheetContext);
-                  showConfirmDeleteDialog(outerContext, sessionId: sessionId);
+                  unawaited(
+                    showConfirmDeleteDialog(
+                      outerContext,
+                      sessionId: sessionId,
+                    ),
+                  );
                 },
               ),
             ],
@@ -136,41 +142,28 @@ void showUnsentMessageDialog(
 }
 
 /// Shows a confirmation dialog for deleting a session.
-void showConfirmDeleteDialog(
+Future<void> showConfirmDeleteDialog(
   BuildContext context, {
   required String sessionId,
-}) {
+}) async {
   final l10n = context.l10n;
-  final cs = Theme.of(context).colorScheme;
-  showDialog(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(l10n.chatDeleteSession),
-      content: Text(l10n.chatDeleteSessionConfirm),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: Text(l10n.commonCancel),
-        ),
-        TextButton(
-          style: TextButton.styleFrom(foregroundColor: cs.error),
-          onPressed: () async {
-            Navigator.pop(dialogContext);
-            final deleted = await ProviderScope.containerOf(context)
-                .read(sessionsNotifierProvider.notifier)
-                .optimisticDelete(sessionId);
-            if (!context.mounted) return;
-            if (deleted) {
-              Navigator.of(context).pop();
-              return;
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.chatFailedToDeleteSession)),
-            );
-          },
-          child: Text(l10n.commonDelete),
-        ),
-      ],
-    ),
+  final confirmed = await showConfirmDialog(
+    context,
+    title: l10n.chatDeleteSession,
+    content: l10n.chatDeleteSessionConfirm,
+    confirmLabel: l10n.commonDelete,
+    isDestructive: true,
+  );
+  if (!confirmed || !context.mounted) return;
+  final deleted = await ProviderScope.containerOf(context)
+      .read(sessionsNotifierProvider.notifier)
+      .optimisticDelete(sessionId);
+  if (!context.mounted) return;
+  if (deleted) {
+    Navigator.of(context).pop();
+    return;
+  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(l10n.chatFailedToDeleteSession)),
   );
 }

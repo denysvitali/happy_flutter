@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../../../core/components/pressable_card.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
@@ -53,7 +53,6 @@ class SessionCard extends StatefulWidget {
 }
 
 class _SessionCardState extends State<SessionCard> {
-  bool _pressed = false;
   late SessionDerived _d;
   late BorderRadius _borderRadius;
   Color? _titleColor;
@@ -117,35 +116,21 @@ class _SessionCardState extends State<SessionCard> {
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget = buildStatusText(_d.status, theme.textTheme);
 
-    return AnimatedScale(
-      scale: _pressed ? 0.98 : 1.0,
-      duration: AppDuration.fast,
-      curve: AppCurve.standard,
-      child: GestureDetector(
-        onLongPress: widget.onLongPress,
-        child: Card(
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: _borderRadius,
-            side: widget.isSelected
-                ? BorderSide(color: cs.primary.withValues(alpha: 0.3))
-                : BorderSide.none,
-          ),
-          elevation: 0,
-          color: _cardColor ?? cs.surfaceContainerHighest,
-          clipBehavior: Clip.hardEdge,
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onTap?.call();
-            },
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            splashColor: cs.primary.withValues(alpha: 0.08),
-            highlightColor: cs.primary.withValues(alpha: 0.04),
-            borderRadius: _borderRadius,
-            child: Stack(
+    return PressableCard(
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
+      child: Card(
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: _borderRadius,
+          side: widget.isSelected
+              ? BorderSide(color: cs.primary.withValues(alpha: 0.3))
+              : BorderSide.none,
+        ),
+        elevation: 0,
+        color: _cardColor ?? cs.surfaceContainerHighest,
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
               fit: StackFit.passthrough,
               children: [
                 Padding(
@@ -164,7 +149,9 @@ class _SessionCardState extends State<SessionCard> {
                           sessionId: session.id,
                           avatarId: _d.avatarId,
                           sessionFlavor: sessionFlavor,
-                          size: widget.compact ? 36.0 : 44.0,
+                          size: widget.compact
+                              ? AppAvatarSize.small
+                              : AppAvatarSize.large,
                           showFlavorIcon: true,
                           hasDraft: hasDraft,
                           avatarStyle: widget.avatarStyle,
@@ -276,10 +263,8 @@ class _SessionCardState extends State<SessionCard> {
                 ),
               ],
             ),
-          ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -301,7 +286,7 @@ class _OfflineAccentBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 3,
+      width: AppBorder.accent,
       color: isConnected ? Color(statusDotColor) : outlineVariant,
     );
   }

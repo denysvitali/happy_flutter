@@ -124,6 +124,47 @@ abstract final class AppFontSize {
   static const double lg = 16;
 }
 
+// ─── Icon sizes ──────────────────────────────────────────────────────────────
+
+/// Icon size tokens (logical pixels).
+///
+/// Usage: `Icon(Icons.check, size: AppIconSize.md)`
+abstract final class AppIconSize {
+  /// 12 px – micro glyphs, inline indicators.
+  static const double xs = 12;
+
+  /// 14 px – compact icons in dense rows.
+  static const double sm = 14;
+
+  /// 16 px – standard inline icon.
+  static const double md = 16;
+
+  /// 18 px – list / button icons.
+  static const double lg = 18;
+
+  /// 20 px – prominent action icons.
+  static const double xl = 20;
+
+  /// 22 px – large feature / header icons.
+  static const double xxl = 22;
+}
+
+// ─── Avatar sizes ────────────────────────────────────────────────────────────
+
+/// Avatar diameter tokens (logical pixels).
+///
+/// Usage: `CircleAvatar(radius: AppAvatarSize.medium / 2)`
+abstract final class AppAvatarSize {
+  /// 36 px – compact list-row avatar.
+  static const double small = 36;
+
+  /// 40 px – standard avatar.
+  static const double medium = 40;
+
+  /// 44 px – prominent header / detail avatar.
+  static const double large = 44;
+}
+
 // ─── Durations ───────────────────────────────────────────────────────────────
 
 /// Animation duration constants.
@@ -141,6 +182,9 @@ abstract final class AppDuration {
 
   /// 500 ms – elaborate animations (onboarding).
   static const Duration slower = Duration(milliseconds: 500);
+
+  /// 1200 ms – looping pulse / breathing animations (typing indicators).
+  static const Duration pulse = Duration(milliseconds: 1200);
 }
 
 // ─── Line height ─────────────────────────────────────────────────────────────
@@ -397,7 +441,12 @@ abstract final class AppBorder {
 
   /// 2.0 px – emphasis border (focus, active).
   static const double thick = 2.0;
+
+  /// 3.0 px – accent border / leading indicator bar.
+  static const double accent = 3.0;
 }
+
+// ─── Opacity ─────────────────────────────────────────────────────────────────
 
 // ─── Responsive breakpoints ─────────────────────────────────────────────────
 

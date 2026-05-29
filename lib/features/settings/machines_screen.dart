@@ -8,6 +8,7 @@ import '../../core/api/api_client.dart';
 import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_status_dot.dart';
 import '../../core/components/settings_section.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
@@ -40,36 +41,18 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen>
 
   Future<void> _deleteMachine(Machine machine) async {
     final machineId = machine.id;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        final l10n = AppLocalizations.of(dialogContext);
-        final cs = Theme.of(dialogContext).colorScheme;
-        return AlertDialog(
-          title: Text(l10n.commonDelete),
-          content: Text(
-            l10n.machineRemoveConfirm(
-              machine.metadata?.displayName ??
-                  machine.metadata?.host ??
-                  machine.id,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(l10n.commonCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: TextButton.styleFrom(foregroundColor: cs.error),
-              child: Text(l10n.commonDelete),
-            ),
-          ],
-        );
-      },
+    final l10n = context.l10n;
+    final machineName =
+        machine.metadata?.displayName ?? machine.metadata?.host ?? machine.id;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.commonDelete,
+      content: l10n.machineRemoveConfirm(machineName),
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
 
-    if (confirmed != true) {
+    if (!confirmed) {
       return;
     }
 

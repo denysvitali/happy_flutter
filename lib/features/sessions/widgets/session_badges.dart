@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/components/app_badge.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Circular checkbox shown at the leading edge in selection
@@ -18,11 +20,11 @@ class SelectionCheckbox extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
-      width: 36,
+      width: AppAvatarSize.small,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: isSelected
-            ? cs.primary.withValues(alpha: 0.06)
+            ? cs.primary.withValues(alpha: AppOpacity.subtle)
             : Colors.transparent,
         borderRadius: BorderRadius.only(
           topLeft: borderRadius.topLeft,
@@ -44,7 +46,7 @@ class SelectionCheckbox extends StatelessWidget {
           ),
         ),
         child: isSelected
-            ? Icon(Icons.check, size: 14, color: cs.onPrimary)
+            ? Icon(Icons.check, size: AppIconSize.sm, color: cs.onPrimary)
             : null,
       ),
     );
@@ -91,35 +93,14 @@ class TodoProgressBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
+    return AppBadge(
+      leading: const Icon(Icons.lightbulb_outline, size: 10),
+      label: '$completed/$total',
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
         vertical: 2,
       ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.lightbulb_outline,
-            size: 10,
-            color: cs.onSurfaceVariant,
-          ),
-          const SizedBox(width: 2),
-          Text(
-            '$completed/$total',
-            style: TextStyle(
-              fontSize: AppFontSize.xxs,
-              fontWeight: FontWeight.w500,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w500),
     );
   }
 }

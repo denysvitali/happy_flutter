@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/components/pressable_card.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
 import 'message_detail_sheet.dart';
@@ -9,7 +10,7 @@ import 'send_status_indicator.dart';
 /// Right-aligned speech bubble for user messages.
 ///
 /// Uses primary color background with iMessage-style grouped radii.
-class UserBubble extends StatefulWidget {
+class UserBubble extends StatelessWidget {
   const UserBubble({
     required this.text,
     super.key,
@@ -33,13 +34,6 @@ class UserBubble extends StatefulWidget {
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
 
-  @override
-  State<UserBubble> createState() => _UserBubbleState();
-}
-
-class _UserBubbleState extends State<UserBubble> {
-  bool _pressed = false;
-
   String _truncateForLabel(String text) {
     const maxLength = 100;
     if (text.length <= maxLength) return text;
@@ -48,15 +42,15 @@ class _UserBubbleState extends State<UserBubble> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = theme.colorScheme.primary;
+    final cs = Theme.of(context).colorScheme;
+    final color = cs.primary;
 
     // Grouped radii: right side pinches for consecutive messages.
     final radius = BorderRadius.only(
-      topLeft: UserBubble._full,
-      topRight: widget.isFirstInGroup ? UserBubble._full : UserBubble._small,
-      bottomLeft: UserBubble._full,
-      bottomRight: widget.isLastInGroup ? UserBubble._full : UserBubble._small,
+      topLeft: _full,
+      topRight: isFirstInGroup ? _full : _small,
+      bottomLeft: _full,
+      bottomRight: isLastInGroup ? _full : _small,
     );
 
     return Align(
@@ -65,62 +59,55 @@ class _UserBubbleState extends State<UserBubble> {
         padding: EdgeInsets.only(
           left: AppSpacing.xxl,
           right: AppSpacing.sm,
-          top: widget.isFirstInGroup ? AppSpacing.xs : 1,
-          bottom: widget.isLastInGroup ? AppSpacing.xs : 1,
+          top: isFirstInGroup ? AppSpacing.xs : 1,
+          bottom: isLastInGroup ? AppSpacing.xs : 1,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
-            GestureDetector(
+            PressableCard(
               onLongPress: () {
                 HapticFeedback.heavyImpact();
-                showRawMarkdownSheet(context, widget.text);
+                showRawMarkdownSheet(context, text);
               },
-              onTapDown: (_) => setState(() => _pressed = true),
-              onTapUp: (_) => setState(() => _pressed = false),
-              onTapCancel: () => setState(() => _pressed = false),
-              child: AnimatedScale(
-                scale: _pressed ? 0.97 : 1.0,
-                duration: const Duration(milliseconds: 100),
-                curve: Curves.easeInOut,
-                child: Semantics(
-                  label: 'User message: ${_truncateForLabel(widget.text)}',
-                  button: false,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md + 2,
-                      vertical: AppSpacing.sm + 2,
-                    ),
-                    constraints: BoxConstraints(
-                      maxWidth:
-                          MediaQuery.sizeOf(context).width *
-                          0.80,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: radius,
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withAlpha(40),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: MarkdownView(
-                      markdown: widget.text,
-                      onOptionPress: widget.onOptionPress,
-                      textColor: theme.colorScheme.onPrimary,
-                    ),
+              pressedScale: 0.97,
+              enableHaptics: false,
+              duration: const Duration(milliseconds: 100),
+              child: Semantics(
+                label: 'User message: ${_truncateForLabel(text)}',
+                button: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md + 2,
+                    vertical: AppSpacing.sm + 2,
+                  ),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width * 0.80,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: radius,
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withAlpha(40),
+                        blurRadius: AppSpacing.sm,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: MarkdownView(
+                    markdown: text,
+                    onOptionPress: onOptionPress,
+                    textColor: cs.onPrimary,
                   ),
                 ),
               ),
             ),
-            if (widget.sendStatus != null)
+            if (sendStatus != null)
               SendStatusIndicator(
-                status: widget.sendStatus!,
-                onRetry: widget.onRetry,
+                status: sendStatus!,
+                onRetry: onRetry,
               ),
           ],
         ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/auth.dart';
 import '../../core/models/auth_models.dart';
@@ -270,11 +271,11 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, size: 18),
+                        icon: const Icon(Icons.close, size: AppIconSize.lg),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(
-                          minWidth: 44,
-                          minHeight: 44,
+                          minWidth: AppTouchTarget.min,
+                          minHeight: AppTouchTarget.min,
                         ),
                         onPressed: () => setState(() => _error = null),
                       ),
@@ -311,7 +312,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         const SizedBox(height: AppSpacing.xxl),
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const AppLoadingIndicator()
               : Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 280),
@@ -367,7 +368,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: cs.outlineVariant),
               ),
-              child: const Center(child: CircularProgressIndicator()),
+              child: const AppLoadingIndicator(),
             )
           else if (_linkingResult != null)
             QRCodeDisplay(data: _linkingResult!.getQRData(), size: 250),
@@ -376,10 +377,9 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                const AppLoadingIndicator(
+                  size: AppIconSize.md,
+                  strokeWidth: 2,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
@@ -440,10 +440,9 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
           child: FilledButton(
             onPressed: _isLoading ? null : _submitUrl,
             child: _isLoading
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                ? const AppLoadingIndicator(
+                    size: AppIconSize.md,
+                    strokeWidth: 2,
                   )
                 : Text(l10n.accountApproveLinking),
           ),

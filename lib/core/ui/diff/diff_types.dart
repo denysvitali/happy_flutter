@@ -2,6 +2,8 @@
 library;
 import 'package:flutter/material.dart';
 
+import 'package:happy_flutter/core/theme/app_colors.dart';
+
 class DiffToken {
 
   const DiffToken({
@@ -207,9 +209,9 @@ class DiffTheme {
 
   const DiffTheme({
     this.addedBg = const Color(0xFFDAF8E5),
-    this.addedText = const Color(0xFF1A7F37),
-    this.removedBg = const Color(0xFFFFEBE9),
-    this.removedText = const Color(0xFFCF222E),
+    this.addedText = AppColors.diffAddedTextLight,
+    this.removedBg = AppColors.diffRemovedBgLight,
+    this.removedText = AppColors.diffRemovedTextLight,
     this.contextBg = Colors.transparent,
     this.contextText = const Color(0xFF1F2328),
     this.lineNumberBg = const Color(0xFFF6F8FA),
@@ -217,9 +219,9 @@ class DiffTheme {
     this.hunkHeaderBg = const Color(0xFFF6F8FA),
     this.hunkHeaderText = const Color(0xFF656D76),
     this.inlineAddedBg = const Color(0xFFDAF8E5),
-    this.inlineAddedText = const Color(0xFF1A7F37),
-    this.inlineRemovedBg = const Color(0xFFFFEBE9),
-    this.inlineRemovedText = const Color(0xFFCF222E),
+    this.inlineAddedText = AppColors.diffAddedTextLight,
+    this.inlineRemovedBg = AppColors.diffRemovedBgLight,
+    this.inlineRemovedText = AppColors.diffRemovedTextLight,
     this.leadingSpaceDot = const Color(0xFFD0D7DE),
   });
   final Color addedBg;

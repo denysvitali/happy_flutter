@@ -13,6 +13,7 @@ import 'dart:convert';
 
 import 'package:idb_shim/idb_browser.dart';
 
+import '../utils/json_decoders.dart';
 import 'logger_service.dart' show logger;
 
 /// Storage key for the sessions cache in IndexedDB.
@@ -62,7 +63,10 @@ class SessionsCacheStorage {
       final result = await store.getObject(_sessionsCacheKey);
       if (result == null) return null;
       if (result is String) {
-        return jsonDecode(result) as Map<String, dynamic>;
+        return JsonDecoders.tryDecodeRawMapOrNull(
+          result,
+          context: 'IndexedDB sessions cache',
+        );
       }
       if (result is Map) {
         return Map<String, dynamic>.from(result);

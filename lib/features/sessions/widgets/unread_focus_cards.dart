@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/components/app_status_dot.dart';
+import '../../../core/components/pressable_card.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -45,7 +46,6 @@ class NeedsAttentionCard extends StatefulWidget {
 }
 
 class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
-  bool _pressed = false;
   late SessionDerived _d;
 
   @override
@@ -84,10 +84,10 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
             cs.surfaceContainerHigh,
           );
 
-    return AnimatedScale(
-      scale: _pressed ? 0.985 : 1.0,
-      duration: AppDuration.fast,
-      curve: AppCurve.standard,
+    return PressableCard(
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
+      pressedScale: 0.985,
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
@@ -108,18 +108,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           clipBehavior: Clip.hardEdge,
-          child: InkWell(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              widget.onTap();
-            },
-            onLongPress: widget.onLongPress,
-            onTapDown: (_) => setState(() => _pressed = true),
-            onTapUp: (_) => setState(() => _pressed = false),
-            onTapCancel: () => setState(() => _pressed = false),
-            splashColor: cs.primary.withValues(alpha: 0.10),
-            highlightColor: cs.primary.withValues(alpha: 0.05),
-            child: IntrinsicHeight(
+          child: IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -143,7 +132,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                             sessionId: session.id,
                             avatarId: _d.avatarId,
                             sessionFlavor: session.metadata?.flavor,
-                            size: 40,
+                            size: AppAvatarSize.medium,
                             showFlavorIcon: widget.showFlavorIcon,
                             hasDraft: hasDraft,
                             avatarStyle: widget.avatarStyle,
@@ -200,7 +189,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                             const SizedBox(width: AppSpacing.sm),
                             Icon(
                               Icons.push_pin,
-                              size: AppSpacing.lg,
+                              size: AppIconSize.md,
                               color: cs.primary,
                             ),
                           ],
@@ -213,8 +202,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -303,7 +291,7 @@ class UnreadFocusListRow extends StatelessWidget {
                   sessionId: session.id,
                   avatarId: derived.avatarId,
                   sessionFlavor: session.metadata?.flavor,
-                  size: 36,
+                  size: AppAvatarSize.small,
                   showFlavorIcon: showFlavorIcon,
                   hasDraft: hasDraft,
                   avatarStyle: avatarStyle,
@@ -361,7 +349,7 @@ class UnreadFocusListRow extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Icon(
                     Icons.push_pin,
-                    size: AppSpacing.md,
+                    size: AppIconSize.xs,
                     color: cs.onSurfaceVariant,
                   ),
                 ],

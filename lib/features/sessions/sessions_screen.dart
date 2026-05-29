@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
 import '../../core/components/app_empty_state.dart';
+import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
@@ -696,27 +697,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (activeIds.isEmpty) return;
 
     final count = activeIds.length;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final dl10n = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(dl10n.sessionsArchiveSession),
-          content: Text(dl10n.sessionsArchiveNConfirm(count)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(dl10n.commonCancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(dl10n.sessionsArchive),
-            ),
-          ],
-        );
-      },
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.sessionsArchiveSession,
+      content: l10n.sessionsArchiveNConfirm(count),
+      confirmLabel: l10n.sessionsArchive,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     _selectionNotifier.value = sel.copyWith(isBatchDeleting: true);
 
@@ -756,30 +743,14 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final l10n = context.l10n;
     final messenger = ScaffoldMessenger.of(context);
     final count = sel.selectedIds.length;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final dl10n = AppLocalizations.of(ctx);
-        return AlertDialog(
-          title: Text(dl10n.chatDeleteSession),
-          content: Text(dl10n.sessionsDeleteNConfirm(count)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(dl10n.commonCancel),
-            ),
-            TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(ctx).colorScheme.error,
-              ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(dl10n.commonDelete),
-            ),
-          ],
-        );
-      },
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l10n.chatDeleteSession,
+      content: l10n.sessionsDeleteNConfirm(count),
+      confirmLabel: l10n.commonDelete,
+      isDestructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     _selectionNotifier.value = sel.copyWith(isBatchDeleting: true);
 
