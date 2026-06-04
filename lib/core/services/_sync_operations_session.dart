@@ -981,11 +981,14 @@ PY
               : spawnedProfileId != effectiveProfileIdForChange)
         : effectiveProfileIdForChange != null;
 
+    final spawnedModel = _sessionSpawnedModel[sessionId];
     final modelChanged =
         modelMode != null &&
         modelMode != 'default' &&
         _sessionSpawnedModel.containsKey(sessionId) &&
-        _sessionSpawnedModel[sessionId] != modelMode;
+        spawnedModel != null &&
+        spawnedModel != 'default' &&
+        spawnedModel != modelMode;
 
     final looksReady = health.looksReady;
     final onlineTrusted = health.isOnlineTrusted;
@@ -1232,8 +1235,17 @@ PY
           );
         }
       }
-      _sessionSpawnedProfile[restoredSessionId] = spawnResult.profile?.id;
+      // Fall back to the requested profileId when the profile object couldn't
+      // be resolved locally (e.g. profile sync hasn't completed yet). Storing
+      // null here causes a null != profileId mismatch on the very next send,
+      // which triggers an infinite kill-restore loop.
+      _sessionSpawnedProfile[restoredSessionId] =
+          spawnResult.profile?.id ?? profileId;
       _sessionSpawnedModel[restoredSessionId] = modelMode;
+      // Register a spawn timestamp so wasRecentlySpawned returns true for
+      // the restored session. Without this, the restored session has no grace
+      // period and is immediately eligible for another profile/model kill.
+      _sessionSpawnedAt[restoredSessionId] = DateTime.now().millisecondsSinceEpoch;
       if (restoredSessionId != sessionId) {
         // Migrate conversation history from the old session to the new
         // one so the user doesn't lose context after an auto-restore
