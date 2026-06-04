@@ -55,11 +55,15 @@ Widget _widget({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // Note: tests that render BotMessage(isStreaming: true) must NOT use
+  // pumpAndSettle — the StreamingCursor's AnimationController.repeat()
+  // never settles, so pumpAndSettle will time out. Use pump() instead.
+
   group('BotMessage streaming integration', () {
     testWidgets('shows StreamingCursor when isStreaming is true',
         (tester) async {
       await tester.pumpWidget(_bot(isStreaming: true));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.byType(StreamingCursor), findsOneWidget);
     });
@@ -67,7 +71,7 @@ void main() {
     testWidgets('hides StreamingCursor when isStreaming is false',
         (tester) async {
       await tester.pumpWidget(_bot(isStreaming: false));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.byType(StreamingCursor), findsNothing);
     });
@@ -75,7 +79,7 @@ void main() {
     testWidgets('hides StreamingCursor by default (isStreaming omitted)',
         (tester) async {
       await tester.pumpWidget(_bot(isStreaming: false));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       // The default in BotMessage's constructor is isStreaming: false,
       // so even with no flag passed the cursor should be absent.
@@ -84,7 +88,7 @@ void main() {
 
     testWidgets('exposes streaming state to semantics', (tester) async {
       await tester.pumpWidget(_bot(isStreaming: true));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       // The Semantics widget around the bubble changes its label
       // when streaming — a screen reader user hears
@@ -101,7 +105,7 @@ void main() {
     testWidgets('forwards isStreaming to BotMessage for agent text',
         (tester) async {
       await tester.pumpWidget(_widget(isStreaming: true));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       // The MessageWidget dispatches to BotMessage for non-user, non-tool
       // messages, and the cursor should appear at the bottom of the bubble.
@@ -111,7 +115,7 @@ void main() {
     testWidgets('omits StreamingCursor for completed agent messages',
         (tester) async {
       await tester.pumpWidget(_widget(isStreaming: false));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.byType(StreamingCursor), findsNothing);
     });
