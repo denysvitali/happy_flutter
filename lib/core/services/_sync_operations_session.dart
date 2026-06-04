@@ -1334,6 +1334,19 @@ PY
           error,
           stack,
         );
+      } else if (error is StateError &&
+          (error.message.contains('Session not found:') ||
+              error.message.contains('Session encryption not found:') ||
+              error.message.contains('empty session id'))) {
+        // Session was permanently deleted on the server — an expected
+        // user-facing condition, not a code defect.  Log at warning so
+        // it doesn't mint a Sentry error event.
+        logger.warning(
+          '[sendMessage] auto-restore permanent session gone '
+          'session=$sessionId',
+          error,
+          stack,
+        );
       } else {
         logger.error(
           '[sendMessage] auto-restore failed for '
