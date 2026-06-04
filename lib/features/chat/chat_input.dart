@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -684,53 +685,62 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Widget _buildInputContainer(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Slightly lower opacity so the blur shows through.
+    final surfaceAlpha = isDark ? 0.82 : 0.88;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            cs.surface.withValues(alpha: 0.95),
-            cs.surface.withValues(alpha: 0.98),
-          ],
-        ),
-        borderRadius: _containerRadius,
-        border: Border(
-          top: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.2),
-            width: 0.5,
-          ),
-        ),
-        boxShadow: _cardBoxShadow,
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.md,
-            AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildCardInputArea(context),
-              const SizedBox(height: AppSpacing.xs),
-              InputToolbar(
-                permissionMode: widget.permissionMode,
-                onPermissionModeChanged: widget.onPermissionModeChanged,
-                modelMode: widget.modelMode,
-                availableModels: widget.availableModels,
-                onShowModelPicker: () => widget.onModelModeChanged != null
-                    ? _showModelPicker(context)
-                    : null,
-                selectedProfile: widget.selectedProfile,
-                onShowProfilePicker: () => _showProfilePicker(context),
-                contextSize: widget.contextSize,
+    return ClipRRect(
+      borderRadius: _containerRadius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                cs.surface.withValues(alpha: surfaceAlpha),
+                cs.surface.withValues(alpha: surfaceAlpha + 0.06),
+              ],
+            ),
+            borderRadius: _containerRadius,
+            border: Border(
+              top: BorderSide(
+                color: cs.outlineVariant.withValues(alpha: 0.2),
+                width: 0.5,
               ),
-            ],
+            ),
+            boxShadow: _cardBoxShadow,
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildCardInputArea(context),
+                  const SizedBox(height: AppSpacing.xs),
+                  InputToolbar(
+                    permissionMode: widget.permissionMode,
+                    onPermissionModeChanged: widget.onPermissionModeChanged,
+                    modelMode: widget.modelMode,
+                    availableModels: widget.availableModels,
+                    onShowModelPicker: () => widget.onModelModeChanged != null
+                        ? _showModelPicker(context)
+                        : null,
+                    selectedProfile: widget.selectedProfile,
+                    onShowProfilePicker: () => _showProfilePicker(context),
+                    contextSize: widget.contextSize,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

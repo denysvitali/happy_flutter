@@ -43,6 +43,7 @@ import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
+import 'widgets/thinking_pill.dart';
 import 'widgets/tts_playback_bar.dart';
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
@@ -849,6 +850,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ).showSnackBar(SnackBar(content: Text(issue.snackBarText)));
   }
 
+  /// True when the newest visible agent message is a text bubble —
+  /// meaning text is already streaming (pill should hide).
+  bool _isNewestMessageAgentText() {
+    for (var i = _messages.length - 1; i >= 0; i--) {
+      final m = _messages[i];
+      if (m['isSidechain'] == true) continue;
+      if (m['role'] != 'agent') return false;
+      final kind = m['kind'] as String?;
+      return kind == null || kind == 'text';
+    }
+    return false;
+  }
+
+  /// Name of the most recent tool-call message, if any.
+  String? _lastRunningToolName() {
+    for (var i = _messages.length - 1; i >= 0; i--) {
+      if (_messages[i]['kind'] == 'tool-call') {
+        return _messages[i]['name'] as String?;
+      }
+    }
+    return null;
+  }
+
   Map<String, dynamic>? _latestUserMessageWithStatus() {
     for (var i = _messages.length - 1; i >= 0; i--) {
       final message = _messages[i];
@@ -1318,6 +1342,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           onNext: _ttsNext,
           canGoPrev: _ttsCanGoPrev(),
           canGoNext: _ttsCanGoNext(),
+        ),
+        ThinkingPill(
+          isThinking: _session?.thinking ?? false,
+          isTextStreaming:
+              (_session?.thinking ?? false) && _isNewestMessageAgentText(),
+          lastToolName: _lastRunningToolName(),
+          thinkingAt: _session?.thinkingAt,
         ),
         ChatInput(
           sessionId: widget.sessionId,
