@@ -572,7 +572,7 @@ class ApiClient {
   /// addition to) [_ensureInitialized] so the underlying Dio
   /// always uses the Cronet / cupertino_http adapter.
   Future<void> _ensureAdapterForRequest() async {
-    await _ensureAdapterForRequest();
+    _ensureInitialized();
     await _ensureNativeAdapter();
   }
 

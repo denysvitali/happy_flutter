@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
@@ -48,6 +50,27 @@ void main() {
         throwsA(isA<StateError>()),
       );
     });
+
+    test(
+      'request pre-flight terminates and does not self-recurse '
+      '(regression: _ensureAdapterForRequest infinite recursion froze '
+      'startup at "Checking sign-in status" → ANR)',
+      () async {
+        // The per-request adapter hook must call the init guard, not
+        // itself.  A recursive _ensureAdapterForRequest() re-enters its
+        // own body before the first await and stack-overflows (or, once
+        // an await is reached, pegs the event loop forever) — on device
+        // this starves checkAuth()'s microtask so the UI never paints
+        // past the auth splash.  After dispose the guard throws a
+        // StateError synchronously, before any adapter/network work;
+        // with the recursion it instead overflows the stack or hangs.
+        apiClient.dispose();
+        await expectLater(
+          apiClient.get('/test').timeout(const Duration(seconds: 5)),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
 
     test('updateToken updates auth header', () async {
       apiClient.updateToken('test-token');
