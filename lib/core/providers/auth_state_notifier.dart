@@ -72,7 +72,22 @@ class AuthStateNotifier extends Notifier<AuthState> {
         socket_io.socketIoClient.updateToken(credentials.token);
         await syncRestore(credentials);
 
-        // Remaining syncs complete in the background.
+        // Kick off the sessions + machines + artifacts + friends
+        // invalidations in the background so the network fetch
+        // overlaps with the SessionsScreen mount.  Without this,
+        // the screens would only see cached state until their
+        // own initState called `refreshFromSync`, adding a
+        // visible spinner (or empty list) on first paint.  The
+        // awaitQueue() pair below only waits for the cheap,
+        // auth-critical syncs.
+        unawaited(sync.sessionsSync.invalidate());
+        unawaited(sync.machinesSync.invalidate());
+        unawaited(sync.artifactsSync.invalidate());
+        unawaited(sync.friendsSync.invalidate());
+        unawaited(sync.feedSync.invalidate());
+        unawaited(sync.todosSync.invalidate());
+
+        // Remaining auth-critical syncs complete in the background.
         unawaited(
           Future.wait<void>([
             sync.settingsSync.awaitQueue(),
