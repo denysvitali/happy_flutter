@@ -25,11 +25,16 @@ import 'widgets/server_url_dialog.dart';
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({
     super.key,
-    this.initialDeepLink,
+    this.initialDeepLinkFuture,
     this.showError = false,
   });
 
-  final String? initialDeepLink;
+  /// Optional future for the initial deep link from the platform
+  /// channel. Resolved in [_AuthScreenState.initState] and used to
+  /// drive the device-linking flow when present. Passing a future
+  /// (vs. a resolved value) lets the platform call run in parallel
+  /// with first frame.
+  final Future<String?>? initialDeepLinkFuture;
 
   /// When [true], a banner is shown saying
   /// authentication failed and the user should sign
@@ -69,13 +74,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     _fadeController.forward();
 
     _checkServerError();
-    final initialDeepLink = widget.initialDeepLink;
-    if (initialDeepLink != null) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) {
-        _handleIncomingLink(
-          initialDeepLink,
-        );
+    final initialDeepLinkFuture = widget.initialDeepLinkFuture;
+    if (initialDeepLinkFuture != null) {
+      // Resolve the platform-channel future in the background and
+      // dispatch device-linking only if a deep link is actually
+      // present.  We don't block the first frame on this — the
+      // future was kicked off in parallel with `runApp`.
+      initialDeepLinkFuture.then((link) {
+        if (!mounted || link == null) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _handleIncomingLink(link);
+        });
       });
     }
 

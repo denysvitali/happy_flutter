@@ -95,8 +95,12 @@ Future<void> _runApp() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
-  // Start all independent startup work concurrently.
-  // These are awaited before the first frame.
+  // Start the initial deep-link platform-channel call in parallel
+  // with first frame.  Previously this was awaited before `runApp`,
+  // adding 10–50ms (or more on cold start) to time-to-first-paint
+  // for every app launch.  The future is now passed down to
+  // HappyApp, which awaits it in parallel with `startupServicesFuture`
+  // and forwards the resolved value to AuthGate / AuthScreen.
   final deepLinkSpan = startupTransaction.startChild(
     'app.startup.deepLink',
     description: 'Resolve initial deep link',
@@ -166,19 +170,19 @@ Future<void> _runApp() async {
     await startupTransaction.finish();
   }();
 
-  // Do NOT block the first frame on storage + API init. `startupServicesFuture`
-  // already runs concurrently and is awaited in `_HappyAppState.initState`
-  // before any auth check or API call; AuthGate renders a loading state until
-  // it settles. Awaiting it here previously added storage+API init latency
-  // (hundreds of ms) to time-to-first-frame on every cold start.
-  final deepLink = await deepLinkFuture;
+  // Do NOT block the first frame on storage + API init or the
+  // initial deep-link platform channel.  Both futures already run
+  // concurrently above; _HappyAppState awaits them in parallel and
+  // AuthGate renders a loading state until they settle.  Awaiting
+  // either here previously added 10–300ms+ to time-to-first-frame
+  // on every cold start.
 
   runApp(
     ErrorBoundary(
       child: ProviderScope(
         child: SentryWidget(
           child: HappyApp(
-            initialDeepLink: deepLink,
+            initialDeepLinkFuture: deepLinkFuture,
             startupServicesFuture: startupServicesFuture,
           ),
         ),
@@ -239,9 +243,17 @@ Future<void> _deferredInit() async {
     }
   }());
 
-  // Android user certificates — JNI calls + ASN.1 parsing.
+  // Android user certificates — JNI calls + ASN.1 parsing.  Fire
+  // and forget so deferred init can finish even before the cert
+  // load completes.  The trust store is only consulted when an
+  // HTTPS call is made, and the first such call in the current
+  // code path happens after auth check, which itself runs from a
+  // microtask scheduled by `_HappyAppState.initState`.  If a user
+  // has zero user-installed certs, the platform call still
+  // completes quickly.  If they have many, the slow path is no
+  // longer on the deferred-init critical path.
   if (!kIsWeb && isAndroid) {
-    futures.add(() async {
+    unawaited(() async {
       final certsSpan = transaction.startChild(
         'app.deferredInit.userCerts',
         description: 'Load Android user certificates',
@@ -351,9 +363,17 @@ Future<String?> _getInitialDeepLink() async {
 }
 
 class HappyApp extends ConsumerStatefulWidget {
-  const HappyApp({super.key, this.initialDeepLink, this.startupServicesFuture});
+  const HappyApp({
+    super.key,
+    this.initialDeepLinkFuture,
+    this.startupServicesFuture,
+  });
 
-  final String? initialDeepLink;
+  /// Future for the initial deep-link from the platform channel.
+  /// Resolved in [initState] so the platform call can run in parallel
+  /// with the first frame instead of blocking `runApp`.
+  final Future<String?>? initialDeepLinkFuture;
+
   final Future<void>? startupServicesFuture;
 
   @override
@@ -412,7 +432,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
       unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
       unawaited(_initializeTheme());
       unawaited(_loadChangelogInfo());
-      _processInitialDeepLink();
+      unawaited(_processInitialDeepLink());
       _maybeShowChangelog();
     });
   }
@@ -472,12 +492,24 @@ class _HappyAppState extends ConsumerState<HappyApp>
     });
   }
 
-  void _processInitialDeepLink() {
-    final initialDeepLink = widget.initialDeepLink;
-    if (initialDeepLink == null) return;
-    ref
-        .read(authStateNotifierProvider.notifier)
-        .handleDeepLink(initialDeepLink);
+  /// Awaits the deep-link platform channel call (kicked off in
+  /// `_runApp` in parallel with first frame) and forwards the
+  /// resolved URL to the auth state notifier. Returns the future
+  /// so the caller can `unawaited` it; the future is fire-and-forget
+  /// because the deep link is best-effort — failure to resolve just
+  /// means the user opens the app at the default screen.
+  Future<void> _processInitialDeepLink() async {
+    final initialDeepLinkFuture = widget.initialDeepLinkFuture;
+    if (initialDeepLinkFuture == null) return;
+    try {
+      final initialDeepLink = await initialDeepLinkFuture;
+      if (!mounted || initialDeepLink == null) return;
+      ref
+          .read(authStateNotifierProvider.notifier)
+          .handleDeepLink(initialDeepLink);
+    } catch (e, stack) {
+      logger.warning('Initial deep link resolution failed', e, stack);
+    }
   }
 
   Future<void> _initializeTheme() async {

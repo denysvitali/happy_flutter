@@ -36,16 +36,32 @@ class NetworkMonitorService {
   /// connectivity state actually changes.
   Stream<bool> get onConnectivityChanged => _controller.stream;
 
-  /// Initialize the service — checks current state and starts
-  /// listening for changes.
+  /// Initialize the service — starts listening for connectivity
+  /// changes immediately and kicks off an initial state check in
+  /// the background. Returns as soon as the subscription is wired
+  /// so callers (e.g. `app.deferredInit`) don't pay the cold-start
+  /// cost of a synchronous platform-channel round-trip before
+  /// the first frame paints.
+  ///
+  /// The [connectivity_plus] stream emits the current state on
+  /// first subscribe, so an explicit initial check is usually
+  /// redundant; we still issue one in the background to cover
+  /// platforms that don't emit a snapshot synchronously. Sync
+  /// tolerates the brief "online" default while the check is
+  /// in flight — it detects real offline state on the first
+  /// HTTP attempt and triggers reconnection when the check
+  /// later disagrees.
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
 
-    await _refreshConnectivity();
     if (!_isSuspended) {
       _startListening();
     }
+    // Background refresh — does not block the caller. Any
+    // disagreement with the default-online state is published
+    // via onConnectivityChanged and consumed by Sync.
+    unawaited(_refreshConnectivity());
   }
 
   Future<void> _refreshConnectivity({bool notify = false}) async {

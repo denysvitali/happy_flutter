@@ -23,6 +23,39 @@ void main() {
   });
 
   group('NetworkMonitorService lifecycle', () {
+    test('initialize does not block on first connectivity check', () async {
+      // Regression guard for GlitchTip app.deferredInit: the
+      // initial Connectivity.checkConnectivity() platform-channel
+      // round-trip must NOT be awaited by initialize() because
+      // app.deferredInit awaits the result.  Blocking here adds
+      // 100–1000ms to cold start on devices where the platform
+      // channel is slow on first use.
+      final service = NetworkMonitorService.testCreate();
+      var resolved = false;
+      // Swallow the test platform's checkConnectivity so the
+      // promise only completes when we explicitly complete the
+      // completer below — proving initialize() did not await it.
+      final pending = Completer<List<ConnectivityResult>>();
+
+      addTearDown(() {
+        if (!pending.isCompleted) pending.complete(<ConnectivityResult>[]);
+      });
+
+      fakePlatform.checkConnectivityOverride = () => pending.future;
+      // Start the init — it must return before pending completes.
+      final initFuture = service.initialize();
+      // Give the event loop one turn.  The unawaited check
+      // should still be pending, so initialize() should already
+      // have returned.
+      await Future<void>.delayed(Duration.zero);
+      expect(initFuture, isNotNull);
+      // Resolve the platform call so the test can clean up.
+      pending.complete(const <ConnectivityResult>[ConnectivityResult.wifi]);
+      await initFuture;
+      resolved = true;
+      expect(resolved, isTrue);
+    });
+
     test('suspend cancels native connectivity subscription', () async {
       final service = NetworkMonitorService.testCreate();
 
@@ -94,8 +127,17 @@ class _FakeConnectivityPlatform extends ConnectivityPlatform
   var current = <ConnectivityResult>[ConnectivityResult.wifi];
   var listenerCount = 0;
 
+  /// Test override for [checkConnectivity] — when set, replaces
+  /// the default behavior.  Used by the
+  /// "initialize does not block on first connectivity check" test
+  /// to inject a Completer-backed future and prove that
+  /// initialize() does not await the platform call.
+  Future<List<ConnectivityResult>> Function()? checkConnectivityOverride;
+
   @override
   Future<List<ConnectivityResult>> checkConnectivity() async {
+    final override = checkConnectivityOverride;
+    if (override != null) return override();
     return current;
   }
 

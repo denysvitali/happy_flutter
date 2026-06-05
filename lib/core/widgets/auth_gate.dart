@@ -9,10 +9,20 @@ import '../theme/app_tokens.dart';
 /// Authentication gate widget that switches between
 /// the auth screen and the main app content.
 class AuthGate extends ConsumerStatefulWidget {
-  const AuthGate({required this.child, super.key, this.initialDeepLink});
+  const AuthGate({
+    required this.child,
+    super.key,
+    this.initialDeepLinkFuture,
+  });
 
   final Widget child;
-  final String? initialDeepLink;
+
+  /// Optional future for the initial deep link from the platform
+  /// channel. Resolved by [AuthGate] and forwarded to [AuthScreen]
+  /// when needed. Passing a future (vs. an already-resolved value)
+  /// lets the platform-channel call run in parallel with the first
+  /// frame instead of blocking it.
+  final Future<String?>? initialDeepLinkFuture;
 
   @override
   ConsumerState<AuthGate> createState() => _AuthGateState();
@@ -25,15 +35,23 @@ class _AuthGateState extends ConsumerState<AuthGate> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateNotifierProvider);
 
-    final initialDeepLink = widget.initialDeepLink;
-    if (initialDeepLink != null &&
+    // If auth has completed and we haven't dispatched the initial
+    // deep link yet, forward it to the auth state notifier.  The
+    // future may already be resolved (cached) or still pending;
+    // `then` is cheap in both cases and runs at most once because
+    // the dispatch is gated on [_deepLinkHandled].  This runs on
+    // every build, but the [authState] watch only triggers rebuilds
+    // when the auth state actually changes, so the cost is bounded.
+    final future = widget.initialDeepLinkFuture;
+    if (future != null &&
         authState == AuthState.authenticated &&
         !_deepLinkHandled) {
-      _deepLinkHandled = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref
-            .read(authStateNotifierProvider.notifier)
-            .handleDeepLink(initialDeepLink);
+      future.then((link) {
+        if (!mounted || link == null) return;
+        if (!_deepLinkHandled) {
+          _deepLinkHandled = true;
+          ref.read(authStateNotifierProvider.notifier).handleDeepLink(link);
+        }
       });
     }
 
@@ -48,14 +66,14 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         ),
         AuthState.unauthenticated => AuthScreen(
           key: const ValueKey('unauth'),
-          initialDeepLink: widget.initialDeepLink,
+          initialDeepLinkFuture: widget.initialDeepLinkFuture,
         ),
         AuthState.authenticating => _AuthenticatingView(
           key: const ValueKey('checking'),
         ),
         AuthState.error => AuthScreen(
           key: const ValueKey('auth-error'),
-          initialDeepLink: widget.initialDeepLink,
+          initialDeepLinkFuture: widget.initialDeepLinkFuture,
           showError: true,
         ),
       },
