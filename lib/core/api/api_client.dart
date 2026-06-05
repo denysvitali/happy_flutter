@@ -34,10 +34,61 @@ class ApiClient {
   String? _authToken;
   String? _cachedServerUrl;
 
-  /// Initialize the Dio client with optional user CA certificates
+  /// Completer for the deferred [NativeAdapter] setup.  Set on
+  /// the first HTTP request; resolves once Cronet / cupertino_http
+  /// is wired into [Dio.httpClientAdapter].  We deliberately keep
+  /// the heavy JNI / FFI adapter creation off the cold-start
+  /// critical path — `app.startup` only awaits the cheap base
+  /// config, and the first HTTP call (during the auth check) pays
+  /// the adapter-init cost in exchange for a faster first frame.
+  Completer<void>? _nativeAdapterCompleter;
+
+  /// Initialize the Dio client with optional user CA certificates.
+  ///
+  /// The native HTTP adapter (Cronet on Android, cupertino_http
+  /// on iOS) is **not** awaited here — it is created lazily on
+  /// the first request via [_ensureNativeAdapter].  Cronet init
+  /// hits the JNI bridge (50-200ms on cold start) and previously
+  /// blocked the entire `app.startup` future.  When no requests
+  /// fire (e.g. user is offline or logout flow), the adapter is
+  /// never created and we save the init cost entirely.
   Future<void> initialize({required String serverUrl}) async {
     _cachedServerUrl = serverUrl;
-    await _configureDio(serverUrl);
+    _configureDio(serverUrl);
+  }
+
+  /// Wire the native HTTP adapter into the underlying [Dio]
+  /// instance.  Idempotent and safe to call from concurrent
+  /// request paths — only the first caller performs the
+  /// [createNativeAdapter] work; subsequent callers wait on the
+  /// same in-flight future.
+  Future<void> _ensureNativeAdapter() {
+    final existing = _nativeAdapterCompleter;
+    if (existing != null) {
+      return existing.future;
+    }
+    final completer = Completer<void>();
+    _nativeAdapterCompleter = completer;
+    // Run on a microtask so the first request doesn't block
+    // synchronously while we set up Cronet.  All callers await
+    // the same completer, so concurrent first-requests serialize
+    // on this single setup pass instead of each spawning their
+    // own.
+    scheduleMicrotask(() async {
+      try {
+        await _configureHttpClient();
+        completer.complete();
+      } catch (e, s) {
+        // Surface the error to the waiting requests but don't
+        // crash the app — the underlying Dio request will fail
+        // and the existing error-handling chain (retry
+        // interceptor, sentry capture) takes over.
+        logger.warning('Error configuring native HTTP adapter: $e');
+        unawaited(Sentry.captureException(e, stackTrace: s));
+        completer.complete();
+      }
+    });
+    return completer.future;
   }
 
   Future<void> _configureDio(String serverUrl) async {
@@ -53,7 +104,9 @@ class ApiClient {
 
     _dio = Dio(baseOptions);
 
-    await _configureHttpClient();
+    // Native HTTP adapter (Cronet / cupertino_http) is wired
+    // lazily on the first request via [_ensureNativeAdapter];
+    // see [initialize] for the rationale.
 
     // Add retry interceptor first (executes last on error)
     _dio!.interceptors.add(
@@ -344,7 +397,7 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
-    _ensureInitialized();
+    await _ensureAdapterForRequest();
     // Generate deduplication key
     final key = _generateRequestKey('GET', path, queryParameters);
 
@@ -371,7 +424,7 @@ class ApiClient {
 
   /// POST request
   Future<Response> post(String path, {dynamic data, Options? options}) async {
-    _ensureInitialized();
+    await _ensureAdapterForRequest();
     // Generate deduplication key (includes data hash for mutations)
     final key = _generateRequestKey('POST', path, null, data);
 
@@ -395,7 +448,7 @@ class ApiClient {
 
   /// PUT request
   Future<Response> put(String path, {dynamic data, Options? options}) async {
-    _ensureInitialized();
+    await _ensureAdapterForRequest();
     // Generate deduplication key (includes data hash for mutations)
     final key = _generateRequestKey('PUT', path, null, data);
 
@@ -419,7 +472,7 @@ class ApiClient {
 
   /// DELETE request
   Future<Response> delete(String path, {Options? options}) async {
-    _ensureInitialized();
+    await _ensureAdapterForRequest();
     // Generate deduplication key for DELETE
     final key = _generateRequestKey('DELETE', path);
 
@@ -448,7 +501,7 @@ class ApiClient {
     ProgressCallback? onSendProgress,
     CancelToken? cancelToken,
   }) async {
-    _ensureInitialized();
+    await _ensureAdapterForRequest();
 
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath),
@@ -469,7 +522,7 @@ class ApiClient {
     ProgressCallback? onReceiveProgress,
     CancelToken? cancelToken,
   }) async {
-    _ensureInitialized();
+    await _ensureAdapterForRequest();
 
     return _dio!.download(
       urlPath,
@@ -510,6 +563,17 @@ class ApiClient {
     if (_dio == null) {
       throw StateError('ApiClient not initialized. Call initialize() first.');
     }
+  }
+
+  /// Called by every request method before issuing a network
+  /// call.  The first call kicks off the native adapter init and
+  /// awaits it; subsequent calls are no-ops once the adapter is
+  /// wired.  Request methods should call this instead of (or in
+  /// addition to) [_ensureInitialized] so the underlying Dio
+  /// always uses the Cronet / cupertino_http adapter.
+  Future<void> _ensureAdapterForRequest() async {
+    await _ensureAdapterForRequest();
+    await _ensureNativeAdapter();
   }
 
   /// Generate a unique key for request deduplication
