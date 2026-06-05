@@ -87,7 +87,6 @@ dependencies:
   flutter_local_notifications: ^21.0.0
   mobile_scanner: ^7.2.0
   cached_network_image: ^3.4.1
-  flutter_gemma: ^0.16.1
 
 dependency_overrides:
   # Keep this explicit until the Flutter toolchain's transitive constraints
@@ -126,7 +125,6 @@ flutter:
   assets:
     - assets/
     - assets/images/
-    - assets/gemma/
     - google_fonts/
 
   generate: true
