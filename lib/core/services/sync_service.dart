@@ -20,6 +20,7 @@ import '../encryption/base64.dart';
 import '../encryption/crypto_secret_box.dart';
 import '../encryption/encryption_cache.dart';
 import '../encryption/encryption_manager.dart';
+import '../encryption/encryptor.dart';
 import '../encryption/session_encryption.dart';
 import '../models/api_update.dart';
 import '../models/artifact.dart';
