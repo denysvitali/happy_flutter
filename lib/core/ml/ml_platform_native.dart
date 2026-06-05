@@ -93,14 +93,30 @@ class GemmaService {
         if (!controller.isClosed) controller.add(1.0);
         await controller.close();
       } catch (e, stack) {
-        logger.error('GemmaService: model download failed', e, stack);
-        unawaited(Sentry.captureException(e, stackTrace: stack));
+        // Auth/token failures (HTTP 401) are an expected user-facing
+        // condition — the model requires a HuggingFace token that was
+        // not provided.  Log at warning and skip Sentry to avoid noise.
+        final isAuthError = _isDownloadAuthError(e);
+        if (isAuthError) {
+          logger.warning('GemmaService: model download auth failure '
+              '(no HuggingFace token configured): $e');
+        } else {
+          logger.error('GemmaService: model download failed', e, stack);
+          unawaited(Sentry.captureException(e, stackTrace: stack));
+        }
         if (!controller.isClosed) controller.addError(e, stack);
         await controller.close();
       }
     });
 
     return controller.stream;
+  }
+
+  static bool _isDownloadAuthError(Object e) {
+    final msg = e.toString();
+    return msg.contains('401') ||
+        msg.contains('Authentication required') ||
+        msg.contains('Unauthorized');
   }
 
   /// Re-registers the already-downloaded model as active (idempotent install
