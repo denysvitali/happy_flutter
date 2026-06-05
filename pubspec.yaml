@@ -56,6 +56,10 @@ dependencies:
   record: ^6.2.1
   archive: ^4.0.9
   sherpa_onnx: ^1.13.0
+  # flutter_gemma removed temporarily to shrink APK (250MB → target 40MB).
+  # Smart features (session ranking, auto-tagging) are P2/P3 and can be
+  # re-enabled later with a lighter embedding or as an optional download.
+  # flutter_gemma: ^0.16.1
 
   # IndexedDB wrapper for web storage (sessions cache quota relief)
   idb_shim: ^2.4.1

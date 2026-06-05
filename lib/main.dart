@@ -26,7 +26,7 @@ import 'core/services/performance_context_service.dart';
 import 'core/services/power_diagnostics_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
-import 'core/services/smart_features_service.dart';
+// import 'core/services/smart_features_service.dart'; // Disabled with flutter_gemma removal
 import 'core/services/storage_service.dart' as storage;
 import 'core/services/sync_service.dart';
 import 'core/utils/package_info_cache.dart';
@@ -276,30 +276,10 @@ Future<void> _deferredInit() async {
     }());
   }
 
-  // flutter_gemma — warm the on-device LLM only when smart features are
-  // already enabled. The SDK runtime is otherwise initialized lazily on first
-  // use (see `ensureGemmaRuntime`), keeping its FFI/HF-token setup off the
-  // post-first-frame window for the majority of users who never opt in.
-  if (!kIsWeb && SmartFeaturesService.instance.smartFeaturesEnabled) {
-    futures.add(() async {
-      final gemmaSpan = transaction.startChild(
-        'app.deferredInit.gemma',
-        description: 'Initialize on-device LLM runtime',
-      );
-      try {
-        // Loads the runtime + the model if it was downloaded in a prior
-        // session. No-op for users who have never downloaded the model.
-        await SmartFeaturesService.instance.initialize();
-      } catch (e) {
-        logger.info('flutter_gemma init skipped: $e');
-        gemmaSpan
-          ..status = const SpanStatus.internalError()
-          ..setData('error', e.toString());
-      } finally {
-        await gemmaSpan.finish();
-      }
-    }());
-  }
+  // flutter_gemma — disabled with smart features removal to reduce APK size
+  // from 250MB → 40MB. Smart features (session ranking, auto-tagging) are P2/P3
+  // and can be re-enabled later with a lighter embedding or optional download.
+  // if (!kIsWeb && SmartFeaturesService.instance.smartFeaturesEnabled) { ... }
 
   // Firebase push notifications — not needed for first screen.
   // Use unawaited() so this never blocks _deferredInit from completing.
