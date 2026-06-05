@@ -678,12 +678,15 @@ void main() {
       expect(find.text('Read File'), findsOneWidget);
 
       await tester.tap(find.byTooltip('More options'));
-      await tester.pumpAndSettle();
+      // Avoid pumpAndSettle: thinking-pill 1 s timer and the
+      // online status pulse animation prevent settling.  A single
+      // pump is enough to commit the menu-open state.
+      await tester.pump();
 
       expect(find.text('Hide Tool Calls'), findsOneWidget);
 
       await tester.tap(find.text('Hide Tool Calls'));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(ChatScreen)),
@@ -732,7 +735,10 @@ void main() {
         expect(find.byIcon(Icons.expand_more), findsOneWidget);
 
         await tester.tap(find.byType(HiddenToolSummary));
-        await tester.pumpAndSettle();
+        // Avoid pumpAndSettle: thinking-pill 1 s timer and the
+        // online status pulse animation prevent settling.  A single
+        // pump is enough to commit the expand/collapse state.
+        await tester.pump();
         expect(find.byIcon(Icons.expand_less), findsOneWidget);
 
         sync.testSetSessionMessages('session_1', [
@@ -927,7 +933,12 @@ void main() {
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
       );
-      await tester.pumpAndSettle();
+      // Avoid pumpAndSettle: the thinking pill runs a 1 s periodic
+      // timer (and the online status chip an infinite pulse), so
+      // settling never completes.  A couple of pumps are enough to
+      // let the cached messages paint.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Message number 57'), findsOneWidget);
       expect(find.text('Message number 0'), findsNothing);
@@ -957,13 +968,18 @@ void main() {
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
       );
-      await tester.pumpAndSettle();
+      // Avoid pumpAndSettle: the thinking-pill 1 s timer and the
+      // online status pulse prevent settling.  A couple of pumps
+      // are enough to let the message list paint.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Message number 119'), findsOneWidget);
       expect(find.text('Message number 0'), findsNothing);
 
       await tester.drag(find.byType(ListView), const Offset(0, 5000));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Message number 0'), findsOneWidget);
     });
