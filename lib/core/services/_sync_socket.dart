@@ -214,11 +214,19 @@ extension SyncSocket on Sync {
     }
 
     // Phase 1: Deferred syncs needed when the user navigates to a
-    // chat / settings tab — fire ~1s in, after fetchSessions has
-    // had its uncontested moment on the wire.
+    // chat / settings tab. Fire on the next event loop tick — this
+    // lets fetchSessions (phase 0) get its HTTP request into Dio's
+    // connection pool first without adding visible latency to the
+    // machine-online indicator. The previous 1 s wait was the
+    // primary cause of "machine stays offline for several seconds
+    // after daemon start" — the daemon's first machine-activity
+    // heartbeat could arrive and patch activeAt before the catalog
+    // fetch even fired, leaving the user staring at a stale
+    // offline indicator. Cancel-on-suspend still guards the
+    // background race.
     if (phase == null || phase == Sync._deferredSyncPhase) {
       _deferredSyncsTimer?.cancel();
-      _deferredSyncsTimer = Timer(const Duration(seconds: 1), () {
+      _deferredSyncsTimer = Timer(Duration.zero, () {
         // Only invalidate if sync is still initialized to avoid
         // errors after logout/dispose
         if (!isInitialized) return;

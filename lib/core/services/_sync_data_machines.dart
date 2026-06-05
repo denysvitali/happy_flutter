@@ -176,10 +176,22 @@ extension SyncDataMachines on Sync {
       // fresh.
       final now = DateTime.now().millisecondsSinceEpoch;
       final activeAt = eventActiveAt ?? ((active ?? false) ? now : null);
+      // ageMs = now - activeAt tells us whether the server's activeAt
+      // is fresh (a few hundred ms old) or stale (caches 30 s+ old
+      // snapshot from a cold daemon). Synthesised activeAt is
+      // reported as 0 so we can spot when the daemon is alive but
+      // the server omitted the timestamp.
+      final ageMs = (activeAt != null) ? now - activeAt : null;
+      final ageLabel = ageMs == null
+          ? 'null'
+          : ageMs < 1000
+          ? '${ageMs}ms'
+          : '${(ageMs / 1000).toStringAsFixed(1)}s';
+      final source = eventActiveAt != null ? 'event' : 'synth';
       logger.debug(
         '[machine-activity] machineId=$machineId '
-        'active=$active activeAt=$activeAt '
-        '(eventActiveAt=$eventActiveAt)',
+        'inMap=${machine != null} active=$active '
+        'activeAt=$activeAt age=$ageLabel source=$source',
       );
       if (machine == null) {
         // A daemon can come online while the app is already running.
@@ -197,6 +209,17 @@ extension SyncDataMachines on Sync {
           active: active ?? machine.active,
           activeAt: activeAt ?? machine.activeAt,
         );
+        // Re-emit ageMs at info so a "stuck offline" report can
+        // confirm the patch landed even when the network log filter
+        // hides the debug stream. Single line, low frequency
+        // (~1/20s per active machine).
+        if (ageMs != null && ageMs > 5 * 1000) {
+          logger.info(
+            '[machine-activity] patched in-memory '
+            'machineId=$machineId age=$ageLabel '
+            '(server cached activeAt; UI will recover on next fetch)',
+          );
+        }
         _notifyDataChanged({SyncDomain.machines});
       }
       return;

@@ -230,7 +230,16 @@ extension SyncLifecycle on Sync {
         final suspendDuration = _lastSuspendedAtMs != null
             ? DateTime.now().millisecondsSinceEpoch - _lastSuspendedAtMs!
             : 0;
-        final shouldRunGlobalInvalidation = suspendDuration > 30 * 1000;
+        // Lowered from 30 s to 5 s: a daemon can come online (and
+        // start heartbeating) within seconds, and the user's mental
+        // model is that foregrounding the app should show fresh
+        // machine state. The 5 s gate still absorbs the rapid-toggle
+        // case (push-notification peek, accidental swipe) without
+        // firing a broad invalidation. The 500 ms
+        // _deferredResumeInvalidationTimer plus suspend-cancel
+        // protection still guards the Android-16 background-abort
+        // race for sub-second cycles.
+        final shouldRunGlobalInvalidation = suspendDuration > 5 * 1000;
         final socketNeedsHttpFallback =
             socketIoClient.connectionStatus != ConnectionStatus.connected;
         final shouldRefreshSessions =

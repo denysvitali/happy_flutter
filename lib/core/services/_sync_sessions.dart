@@ -102,6 +102,21 @@ extension SyncSessions on Sync {
           : null;
 
       if (active != null || activeAt != null) {
+        // Log ageMs at patch time so we can confirm whether the
+        // server's cached activeAt is the bottleneck for
+        // "machine stays offline" reports. null activeAt is
+        // reported as age=null.
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final ageMs = (activeAt != null) ? now - activeAt : null;
+        final ageLabel = ageMs == null
+            ? 'null'
+            : ageMs < 1000
+            ? '${ageMs}ms'
+            : '${(ageMs / 1000).toStringAsFixed(1)}s';
+        logger.debug(
+          '[update-machine] machineId=$machineId '
+          'active=$active activeAt=$activeAt age=$ageLabel',
+        );
         _machines[machineId] = machine.copyWith(
           active: active ?? machine.active,
           activeAt: activeAt ?? machine.activeAt,
