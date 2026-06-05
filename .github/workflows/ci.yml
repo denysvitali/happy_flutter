@@ -70,8 +70,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
-        total_shards: [4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        total_shards: [8]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -101,7 +101,11 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          flutter test --coverage --concurrency=4 "${shard_tests[@]}"
+          # --concurrency=2 (not 4): the k8s runner pods OOM-kill the test
+          # process when 4 test isolates spike RSS at once. --timeout 120s
+          # makes a genuinely hung test fail visibly instead of silently
+          # stalling until the runner is reclaimed.
+          flutter test --coverage --concurrency=2 --timeout 120s "${shard_tests[@]}"
 
       - name: Upload coverage artifact
         if: always()
