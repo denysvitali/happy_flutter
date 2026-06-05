@@ -107,9 +107,15 @@ android {
     // APK past 130MB and ignored `--target-platform`. arm64-v8a covers
     // every modern phone; 32-bit ARM / x86 emulators can `flutter run`.
     //
-    // Native libs are stored *compressed* in the APK via
-    // `android:extractNativeLibs="true"` (AndroidManifest.xml). For a
-    // sideloaded .apk that roughly halves the on-disk size again.
+    // Store native libs *compressed* in the APK (extracted at install
+    // time). AGP 9 rejects `android:extractNativeLibs="true"` in the
+    // manifest and requires this Gradle DSL instead. For a sideloaded
+    // .apk this roughly halves the on-disk size of the .so payload.
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 kotlin {

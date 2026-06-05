@@ -32,7 +32,7 @@ on:
           - production
 
 env:
-  DART_VM_OPTIONS: '--max-gen-heap-size=4096'
+  DART_VM_OPTIONS: '--max-gen-heap-size=2048'
 
 permissions:
   contents: write
@@ -190,9 +190,10 @@ jobs:
     name: Build Debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Gate behind analyze so builds don't join the initial job burst
-    # (the proxied k8s runners get evicted under ~13 concurrent jobs).
-    needs: analyze
+    # Serialize builds AFTER the test phase. The proxied k8s runners get
+    # evicted when memory-heavy gradle builds run concurrently with the
+    # test pods, so builds must not overlap tests.
+    needs: [analyze, test]
     # Run on push/PR events (but not tags), or workflow_dispatch with debug or both selected
     if: |
       (github.event_name != 'workflow_dispatch' &&
@@ -339,7 +340,7 @@ jobs:
     name: Build Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: analyze
+    needs: [analyze, test]
     outputs:
       skip_release: ${{ steps.check_keystore.outputs.skip_release }}
     env:
@@ -524,7 +525,7 @@ jobs:
     name: Build Linux x64
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: analyze
+    needs: [analyze, test]
     if: |
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' &&
@@ -616,7 +617,7 @@ jobs:
   build-web:
     name: Build Web
     runs-on: ubuntu-latest
-    needs: analyze
+    needs: [analyze, test]
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
