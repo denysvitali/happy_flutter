@@ -140,7 +140,18 @@ extension SyncData on Sync {
         }
       }
 
-      await encryption.initializeSessions(sessionKeys);
+      // Parallelize the per-session encryptor open.  Without this
+      // `openEncryption` is awaited sequentially in
+      // `Encryption.initializeSessions` — for a delta fetch with
+      // 50 returned sessions that's 50 sequential FFI round-trips
+      // on the sync.fetch critical path.  Fan out via the same
+      // helper used by `_restoreSessionsCache` so the wait time
+      // is the slowest single call instead of the sum.
+      await Future.wait(
+        sessionKeys.entries.map(
+          (e) => _openAndCacheSessionEncryption(e.key, e.value),
+        ),
+      );
 
       // Pre-decrypt metadata + agentState for every session concurrently
       // before the assembly loop. The loop used to `await` each
