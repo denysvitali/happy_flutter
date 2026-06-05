@@ -17,6 +17,7 @@
 // perf commits added more MMKV call sites on the test path.
 import 'dart:ffi';
 
+import 'package:ffi/ffi.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
 class FakeMmkvPlatform extends MMKVPluginPlatform {
