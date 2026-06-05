@@ -544,7 +544,17 @@ extension SyncSocket on Sync {
           }
         }
         if (sessionKeys.isNotEmpty) {
-          await encryption.initializeSessions(sessionKeys);
+          // Parallelize the per-session encryptor open — without this
+          // `openEncryption` is awaited sequentially, and on a device
+          // with N cached sessions this is N FFI round-trips on the
+          // sync.restore critical path.  Future.wait fans them out
+          // so the wait time is the slowest single call instead of
+          // the sum.
+          await Future.wait(
+            sessionKeys.entries.map(
+              (e) => _openAndCacheSessionEncryption(e.key, e.value),
+            ),
+          );
         }
       }
 
@@ -584,6 +594,31 @@ extension SyncSocket on Sync {
       _sessionEncryptedDataKeys.clear();
       _lastSessionsFetchedAt = null;
       SessionsCacheStorage.instance.clearSessionsCache();
+    }
+  }
+
+  /// Open the [SessionEncryption] for a single session and cache it
+  /// on [Encryption].  Used by [_restoreSessionsCache] to fan out
+  /// per-session encryptor setup in parallel instead of awaiting
+  /// each `openEncryption` FFI call sequentially.
+  Future<void> _openAndCacheSessionEncryption(
+    String sessionId,
+    Uint8List? dataKey,
+  ) async {
+    if (encryption.getSessionEncryption(sessionId) != null) return;
+    final encryptorDecryptor = await encryption.openEncryption(dataKey);
+    if (encryptorDecryptor is Encryptor) {
+      final enc = encryptorDecryptor;
+      final dec = encryptorDecryptor;
+      encryption.setSessionEncryption(
+        sessionId,
+        SessionEncryption(
+          sessionId: sessionId,
+          encryptor: enc,
+          decryptor: dec,
+          cache: encryption.cache,
+        ),
+      );
     }
   }
 

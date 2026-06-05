@@ -243,9 +243,17 @@ Future<void> _deferredInit() async {
     }
   }());
 
-  // Android user certificates — JNI calls + ASN.1 parsing.
+  // Android user certificates — JNI calls + ASN.1 parsing.  Fire
+  // and forget so deferred init can finish even before the cert
+  // load completes.  The trust store is only consulted when an
+  // HTTPS call is made, and the first such call in the current
+  // code path happens after auth check, which itself runs from a
+  // microtask scheduled by `_HappyAppState.initState`.  If a user
+  // has zero user-installed certs, the platform call still
+  // completes quickly.  If they have many, the slow path is no
+  // longer on the deferred-init critical path.
   if (!kIsWeb && isAndroid) {
-    futures.add(() async {
+    unawaited(() async {
       final certsSpan = transaction.startChild(
         'app.deferredInit.userCerts',
         description: 'Load Android user certificates',

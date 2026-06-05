@@ -108,6 +108,20 @@ class Encryption {
     return _sessionEncryptions[sessionId];
   }
 
+  /// Cache a pre-built [SessionEncryption].  Used by callers that
+  /// fan out the per-session FFI encryptor setup in parallel; the
+  /// normal entry point is [initializeSessions] which awaits each
+  /// session's `openEncryption` sequentially.
+  void setSessionEncryption(String sessionId, SessionEncryption enc) {
+    _sessionEncryptions[sessionId] = enc;
+  }
+
+  /// Shared cache used by every [SessionEncryption] this manager
+  /// creates.  Exposed so callers building [SessionEncryption]
+  /// directly (e.g. when parallelizing setup across many sessions)
+  /// can reuse the same cache instance and avoid duplicate entries.
+  EncryptionCache get cache => _cache;
+
   /// Remove session encryption when session is deleted
   void removeSessionEncryption(String sessionId) {
     _sessionEncryptions.remove(sessionId);
