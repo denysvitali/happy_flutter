@@ -79,11 +79,13 @@ android {
             }
         }
         getByName("release") {
-            // R8 + resource shrink on. The root cause of ANR crashes was
-            // flutter_gemma pulling in Qdrant vector DB (250MB). With Qdrant
-            // removed, minification is now safe. Improved ProGuard rules
-            // protect native dependencies (Cronet, OkHttp, MediaPipe, TFLite).
-            // Stack traces stay readable via Sentry's ProGuard mapping upload.
+            // R8 + resource shrink on. The previous ANR/bloat root cause was
+            // flutter_gemma pulling in MediaPipe + Qdrant vector DB (250MB of
+            // native libs loaded at boot via GeneratedPluginRegistrant). With
+            // flutter_gemma fully removed, minification is safe. ProGuard rules
+            // protect reflection/JNI native deps (Cronet, OkHttp, MMKV,
+            // Firebase, libsodium). Stack traces stay readable via Sentry's
+            // ProGuard mapping upload.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -124,7 +126,4 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
-    // TFLite GPU delegate (required by tflite_flutter plugin for R8 resolution)
-    implementation("org.tensorflow:tensorflow-lite-gpu:2.17.0")
 }

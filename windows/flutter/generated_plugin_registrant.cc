@@ -8,7 +8,6 @@
 
 #include <connectivity_plus/connectivity_plus_windows_plugin.h>
 #include <firebase_core/firebase_core_plugin_c_api.h>
-#include <flutter_gemma/flutter_gemma_plugin.h>
 #include <flutter_secure_storage_windows/flutter_secure_storage_windows_plugin.h>
 #include <flutter_tts/flutter_tts_plugin.h>
 #include <mmkv_win32/mmkv_win32_plugin.h>
@@ -21,8 +20,6 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("ConnectivityPlusWindowsPlugin"));
   FirebaseCorePluginCApiRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FirebaseCorePluginCApi"));
-  FlutterGemmaPluginRegisterWithRegistrar(
-      registry->GetRegistrarForPlugin("FlutterGemmaPlugin"));
   FlutterSecureStorageWindowsPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("FlutterSecureStorageWindowsPlugin"));
   FlutterTtsPluginRegisterWithRegistrar(

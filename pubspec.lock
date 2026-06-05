@@ -65,14 +65,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.3"
-  background_downloader:
-    dependency: transitive
-    description:
-      name: background_downloader
-      sha256: aceacec2b2a72ec3a8862ab5895fcbbc71ab33765f3619d57963f3110dd268e3
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.5.5"
   boolean_selector:
     dependency: transitive
     description:
@@ -289,14 +281,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.0"
-  dart_sentencepiece_tokenizer:
-    dependency: transitive
-    description:
-      name: dart_sentencepiece_tokenizer
-      sha256: "85825632845cf6427ea0cd13dfba96b4341cf63525165155e5b9b97011239289"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.3.2"
   dart_style:
     dependency: transitive
     description:
@@ -446,14 +430,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.4.1"
-  flutter_gemma:
-    dependency: "direct main"
-    description:
-      name: flutter_gemma
-      sha256: a56c1745a6218fac9c3456d7449a8dbdd684a870cb73f407fcf47f38f1e3633e
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.16.1"
   flutter_launcher_icons:
     dependency: "direct dev"
     description:
@@ -853,14 +829,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.4.16"
-  large_file_handler:
-    dependency: transitive
-    description:
-      name: large_file_handler
-      sha256: c2ecaf552e8039119bbe3a094d15aecbafe833899f30b2dcfbb513eddf76b36f
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.3.1"
   leak_tracker:
     dependency: transitive
     description:
@@ -893,14 +861,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.0"
-  local_hnsw:
-    dependency: transitive
-    description:
-      name: local_hnsw
-      sha256: "7fb0988e3f850121774d9dfe94068f843d87908d6b1e9ed5039710d8d9ae3f7a"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   logging:
     dependency: transitive
     description:
@@ -1642,14 +1602,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.0"
-  sqlite3:
-    dependency: transitive
-    description:
-      name: sqlite3
-      sha256: "9488c7d2cdb1091c91cacf7e207cff81b28bff8e366f042bad3afe7d34afe189"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.3.2"
   stack_trace:
     dependency: transitive
     description:

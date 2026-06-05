@@ -337,12 +337,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           subtitle: l10n.settingsFeaturesSubtitle,
           onTap: () => context.pushNamed('features'),
         ),
-        SettingsNavRow(
-          icon: Icons.auto_awesome,
-          title: l10n.smartFeaturesTitle,
-          subtitle: l10n.smartFeaturesEnabledDesc,
-          onTap: () => context.pushNamed('smart-features'),
-        ),
       ],
     );
   }

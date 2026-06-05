@@ -19,7 +19,7 @@ import 'package:happy_flutter/features/chat/widgets/empty_chat_view.dart';
 import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
-import '../../../helpers/fake_mmkv_platform.dart';
+import '../../helpers/fake_mmkv_platform.dart';
 
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
   _StorageFreeSettingsNotifier([this._initial]);

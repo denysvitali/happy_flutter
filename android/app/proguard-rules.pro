@@ -39,15 +39,12 @@
 -dontwarn com.google.android.play.core.splitinstall.**
 -dontwarn com.google.android.play.core.tasks.**
 
-# MediaPipe LLM Inference (flutter_gemma)
--keep class com.google.mediapipe.** { *; }
--dontwarn com.google.mediapipe.**
--keep class com.google.protobuf.** { *; }
--dontwarn com.google.protobuf.**
+# MMKV (JNI native bridge — loaded reflectively)
+-keep class com.tencent.mmkv.** { *; }
 
-# TensorFlow Lite / LiteRT (used by MediaPipe GenAI runtime)
--keep class org.tensorflow.lite.** { *; }
--dontwarn org.tensorflow.lite.**
+# Firebase (reflection-based init via ComponentDiscovery / messaging)
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
 
 # Cronet HTTP (native networking)
 -keep class org.chromium.** { *; }
