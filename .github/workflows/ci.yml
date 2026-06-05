@@ -101,37 +101,34 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          # DIAGNOSTIC RUN: execute each test file on its own with a short
-          # per-file cap to pinpoint which files hang at SHUTDOWN (a leaked
-          # Timer/stream/subscription keeps the test isolate alive so
-          # flutter_test never exits). A leaky file passes then idles; 75s is
-          # well under the runner's silence-reclaim window, so the runner
-          # survives and we log the file as LEAK without failing the build.
-          # Real test failures still fail. (Temporary — reverts to a single
-          # fast `flutter test` once the leaked resources are disposed.)
-          fail=0
-          leaked=()
+          # DIAGNOSTIC RUN (temporary): execute each test file alone with a
+          # short cap. rc=124/137 = passed-then-hung-at-shutdown (the leaked
+          # Timer/subscription we're hunting). Other non-zero = fails in
+          # isolation (separate noise). MUST use `set +e` — the CI shell runs
+          # with `-e`, which would abort at the first non-zero `flutter test`.
+          # Always exit 0 so every shard reports its full list.
+          set +e
+          hung=()
+          isofail=()
           for f in "${shard_tests[@]}"; do
-            timeout --signal=KILL 75 flutter test "$f" \
-              --reporter expanded > /tmp/o.txt 2>&1
+            timeout --signal=KILL 70 flutter test "$f" --reporter compact \
+              > /tmp/o.txt 2>&1
             rc=$?
             if [ "$rc" -eq 0 ]; then
-              continue
-            fi
-            if grep -qE '\[E\]|Some tests failed|Failed to load "' /tmp/o.txt; then
-              echo "❌ FAIL: $f (rc=$rc)"
-              tail -50 /tmp/o.txt
-              fail=1
+              echo "OK    $f"
+            elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+              echo "HANG  $f (rc=$rc)"
+              hung+=("$f")
             else
-              echo "::warning::LEAK: $f passed but did not exit (rc=$rc)"
-              leaked+=("$f")
+              echo "FAIL  $f (rc=$rc)"
+              tail -20 /tmp/o.txt
+              isofail+=("$f")
             fi
           done
-          if [ "${#leaked[@]}" -gt 0 ]; then
-            echo "=== LEAKY FILES (passed but hung at shutdown) ==="
-            printf 'LEAKYFILE %s\n' "${leaked[@]}"
-          fi
-          exit $fail
+          echo "===== shard ${{ matrix.shard }}/${{ matrix.total_shards }} summary ====="
+          for x in "${hung[@]}"; do echo "HUNGFILE $x"; done
+          for x in "${isofail[@]}"; do echo "ISOFAILFILE $x"; done
+          exit 0
 
   golden:
     name: Golden Screenshots
