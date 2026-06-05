@@ -550,6 +550,10 @@ extension SyncSocket on Sync {
           // sync.restore critical path.  Future.wait fans them out
           // so the wait time is the slowest single call instead of
           // the sum.
+          //
+          // Errors are caught per-session inside the helper so a
+          // single bad row cannot fail the whole fan-out and abort
+          // the cold-start restore (unhandled async error → crash).
           await Future.wait(
             sessionKeys.entries.map(
               (e) => _openAndCacheSessionEncryption(e.key, e.value),
@@ -598,25 +602,51 @@ extension SyncSocket on Sync {
   }
 
   /// Open the [SessionEncryption] for a single session and cache it
-  /// on [Encryption].  Used by [_restoreSessionsCache] to fan out
-  /// per-session encryptor setup in parallel instead of awaiting
-  /// each `openEncryption` FFI call sequentially.
+  /// on [Encryption].  Used by [_restoreSessionsCache] and
+  /// [SyncData.fetchSessions] to fan out per-session encryptor setup
+  /// in parallel instead of awaiting each `openEncryption` FFI call
+  /// sequentially.
+  ///
+  /// Errors are caught per-session: a corrupt cache row, an FFI
+  /// hiccup, or a key-mismatch on one session must not abort the
+  /// whole fan-out (which would surface as an unhandled async error
+  /// and crash the app on cold start). The session is simply
+  /// skipped — the user can re-fetch it from the server on the
+  /// next sync, and a Sentry breadcrumb is captured with the
+  /// session id + error for post-mortem correlation.
   Future<void> _openAndCacheSessionEncryption(
     String sessionId,
     Uint8List? dataKey,
   ) async {
     if (encryption.getSessionEncryption(sessionId) != null) return;
-    final encryptorDecryptor = await encryption.openEncryption(dataKey);
-    if (encryptorDecryptor is Encryptor) {
-      final enc = encryptorDecryptor;
-      final dec = encryptorDecryptor;
-      encryption.setSessionEncryption(
-        sessionId,
-        SessionEncryption(
-          sessionId: sessionId,
-          encryptor: enc,
-          decryptor: dec,
-          cache: encryption.cache,
+    try {
+      final encryptorDecryptor = await encryption.openEncryption(dataKey);
+      if (encryptorDecryptor is Encryptor) {
+        final enc = encryptorDecryptor;
+        final dec = encryptorDecryptor;
+        encryption.setSessionEncryption(
+          sessionId,
+          SessionEncryption(
+            sessionId: sessionId,
+            encryptor: enc,
+            decryptor: dec,
+            cache: encryption.cache,
+          ),
+        );
+      }
+    } catch (e, stack) {
+      logger.warning(
+        'Failed to open encryption for session=$sessionId, '
+        'skipping (other sessions continue)',
+        e,
+        stack,
+      );
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'session encryption open failed',
+          category: 'sync.encryption',
+          level: SentryLevel.warning,
+          data: {'sessionId': sessionId, 'error': e.toString()},
         ),
       );
     }
