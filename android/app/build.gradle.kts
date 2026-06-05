@@ -98,22 +98,18 @@ android {
         }
     }
 
-    // Per-ABI APK splits. Without this, every native library is
-    // bundled four times (arm64-v8a, armeabi-v7a, x86, x86_64) and
-    // the universal APK is ~4x larger than the per-ABI one. Modern
-    // devices are arm64-v8a; older 32-bit devices are armeabi-v7a.
-    // x86/x86_64 are kept off — emulators can use the universal APK
-    // or be installed via `flutter run`. `isUniversalApk = true`
-    // keeps a single fat APK in the build output for sideloading
-    // on devices with unknown ABIs.
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = true
-        }
-    }
+    // ABI selection is driven by Flutter's `--target-platform` flag —
+    // CI passes `android-arm64`, producing a single arm64-v8a APK.
+    //
+    // We intentionally do NOT use `splits { abi { isUniversalApk = true } }`
+    // here. That emitted a *universal* fat APK bundling arm64-v8a +
+    // armeabi-v7a + x86_64 (~124MB of .so), which is what blew the release
+    // APK past 130MB and ignored `--target-platform`. arm64-v8a covers
+    // every modern phone; 32-bit ARM / x86 emulators can `flutter run`.
+    //
+    // Native libs are stored *compressed* in the APK via
+    // `android:extractNativeLibs="true"` (AndroidManifest.xml). For a
+    // sideloaded .apk that roughly halves the on-disk size again.
 }
 
 kotlin {
