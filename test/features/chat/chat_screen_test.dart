@@ -19,71 +19,7 @@ import 'package:happy_flutter/features/chat/widgets/empty_chat_view.dart';
 import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
-/// Fake MMKV platform that returns no-op stubs so DraftStorage/MMKVStorage
-/// initialisation succeeds in widget tests without native libraries.
-class _FakeMMKVPlatform extends MMKVPluginPlatform {
-  @override
-  Future<String> getApplicationDocumentsPath() async => '/tmp/mmkv_test';
-
-  @override
-  Future<String> initialize(
-    String rootDir, {
-    String? groupDir,
-    int logLevel = 1,
-    Pointer<NativeFunction<LogCallbackWrap>>? logHandler,
-  }) async => rootDir;
-
-  @override
-  Pointer<Void> Function(int, Pointer<Utf8>, int, int, int, int, int, int, int)
-  getDefaultMMKVFunc() =>
-      (
-        int mode,
-        Pointer<Utf8> cryptKey,
-        int aes256,
-        int expectedCapacity,
-        int enableKeyExpire,
-        int expiredInSeconds,
-        int enableCompareBeforeSet,
-        int recover,
-        int itemSizeLimit,
-      ) => Pointer<Void>.fromAddress(1);
-
-  @override
-  ContentCallbackRegister registerContentLoadedHandlerFunc() =>
-      (Pointer<NativeFunction<ContentCallbackWrap>> handler) {};
-
-  @override
-  int Function(Pointer<Void>, Pointer<Utf8>, int) decodeBoolFunc() =>
-      (Pointer<Void> h, Pointer<Utf8> k, int d) => 1;
-
-  @override
-  int Function(Pointer<Void>, Pointer<Utf8>, int) encodeBoolFunc() =>
-      (Pointer<Void> h, Pointer<Utf8> k, int v) => 1;
-
-  @override
-  int Function(Pointer<Void>, Pointer<Utf8>, int, int) encodeBoolV2Func() =>
-      (Pointer<Void> h, Pointer<Utf8> k, int v, int e) => 1;
-
-  @override
-  Pointer<Uint8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint64>)
-  decodeBytesFunc() =>
-      (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint64> l) =>
-          Pointer<Uint8>.fromAddress(0);
-
-  @override
-  int Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint8>, int)
-  encodeBytesFunc() =>
-      (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l) => 1;
-
-  @override
-  int Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint8>, int, int)
-  encodeBytesV2Func() =>
-      (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l, int e) => 1;
-
-  @override
-  void Function(Pointer<Void>, Pointer<Utf8>) removeValueForKeyFunc() =>
-      (Pointer<Void> h, Pointer<Utf8> k) {};
-}
+import '../../../helpers/fake_mmkv_platform.dart';
 
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
   _StorageFreeSettingsNotifier([this._initial]);
@@ -147,7 +83,7 @@ void main() {
     // Register a fake MMKV platform so DraftStorage and MMKVStorage can
     // initialise without the native MMKV library.
     originalMMKVPlatform = MMKVPluginPlatform.instance;
-    MMKVPluginPlatform.instance = _FakeMMKVPlatform();
+    MMKVPluginPlatform.instance = FakeMmkvPlatform();
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(ttsChannel, (call) async => 1);

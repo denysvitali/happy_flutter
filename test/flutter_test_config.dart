@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
+
+import 'helpers/fake_mmkv_platform.dart';
 
 /// Global test configuration — ensures google_fonts uses the bundled
 /// TTF assets in `google_fonts/` instead of attempting runtime downloads,
@@ -11,9 +14,16 @@ import 'package:google_fonts/google_fonts.dart';
 ///
 /// Also loads Roboto Mono as `monospace` since widgets reference that
 /// generic family name directly via `fontFamily: 'monospace'`.
+///
+/// And registers a no-op [FakeMmkvPlatform] on
+/// [MMKVPluginPlatform.instance] so `MMKV.initialize()` /
+/// `MMKV.defaultMMKV()` calls in the code under test don't crash with
+/// `Null check operator used on a null value` from the real FFI plugin
+/// (which is unavailable in the `flutter test` environment).
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = false;
+  MMKVPluginPlatform.instance = FakeMmkvPlatform();
   await _loadMonospaceFont();
   await testMain();
 }
