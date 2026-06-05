@@ -14,3 +14,4 @@ export 'sessions_notifier.dart';
 export 'settings_notifier.dart';
 export 'sidebar_notifier.dart';
 export 'sync_state_notifier.dart';
+export 'todo_state_notifier.dart';

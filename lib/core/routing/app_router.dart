@@ -53,6 +53,7 @@ import '../../features/sftp/screens/sftp_directory_manager_screen.dart';
 import '../../features/sftp/screens/sftp_log_viewer_screen.dart';
 import '../../features/terminal/terminal_connect_screen.dart';
 import '../../features/terminal/terminal_screen.dart';
+import '../../features/zen/zen_home.dart';
 import '../../sentry_widget.dart'
     if (dart.library.js_interop) '../../sentry_widget_stub.dart';
 import '../models/auth.dart';
@@ -220,6 +221,12 @@ GoRouter createRouter() {
         name: 'settings',
         pageBuilder: (context, state) =>
             _fadePage(const AuthGate(child: SettingsScreen()), state),
+      ),
+      GoRoute(
+        path: '/tasks',
+        name: 'tasks',
+        pageBuilder: (context, state) =>
+            _fadePage(const AuthGate(child: ZenHomeScreen()), state),
       ),
       GoRoute(
         path: '/settings/account',

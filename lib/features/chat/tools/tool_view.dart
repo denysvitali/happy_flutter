@@ -831,8 +831,10 @@ class _ToolViewState extends ConsumerState<ToolView>
         metadata: m,
         onNavigate: () => widget.onPress?.call(),
       ),
-      'TodoWrite': (t, m, s) => TodoView(tool: t, metadata: m),
-      'todo_list': (t, m, s) => TodoView(tool: t, metadata: m),
+      'TodoWrite': (t, m, s) =>
+          TodoView(tool: t, metadata: m, sessionId: s),
+      'todo_list': (t, m, s) =>
+          TodoView(tool: t, metadata: m, sessionId: s),
       'WebFetch': (t, m, s) => WebFetchView(tool: t, metadata: m),
       'ExitPlanMode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
       'exit_plan_mode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),

@@ -1,12 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/todo.dart';
+import '../../core/providers/app_providers.dart';
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/todo_item.dart';
-import 'zen_todo_state.dart';
 
 /// Zen home screen — displays the current todo list.
+///
+/// Tasks are pushed into [todoStateNotifierProvider] by the chat
+/// layer whenever the agent issues a TodoWrite / todo_list tool call,
+/// so this view always reflects the most recent agent task state.
 ///
 /// Each row supports a left-to-right swipe gesture to toggle completion.
 /// The gesture triggers [HapticFeedback.lightImpact] and a spring-back
@@ -19,81 +26,40 @@ class ZenHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
+  StreamSubscription<void>? _syncSubscription;
+
   @override
   void initState() {
     super.initState();
-    // Seed with demo items so the screen is not empty out-of-the-box.
-    // In production these are replaced by server-fetched todos via setItems().
-    Future<void>.microtask(() {
-      final notifier = ref.read(todoStateNotifierProvider.notifier);
-      if (ref.read(todoStateNotifierProvider).items.isEmpty) {
-        notifier.setItems(_demoItems());
-      }
+    // Tasks are pushed by the chat layer (TodoView) into the global
+    // notifier. We also subscribe to `sync.onDataChanged` so the Zen
+    // home picks up coalesced updates even if no TodoView is mounted.
+    _syncSubscription = sync.onDataChanged.listen((_) {
+      if (!mounted) return;
+      // Touch the provider to force a rebuild — the notifier already
+      // holds the canonical list, this is just a wakeup.
+      ref.read(todoStateNotifierProvider);
+      setState(() {});
     });
   }
 
-  List<TodoItem> _demoItems() {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    return [
-      TodoItem(
-        id: 'demo-1',
-        content: 'Review pull requests',
-        status: TodoState.pending,
-        priority: 'high',
-        order: 0,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      TodoItem(
-        id: 'demo-2',
-        content: 'Write unit tests for messaging layer',
-        status: TodoState.inProgress,
-        priority: 'critical',
-        order: 1,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      TodoItem(
-        id: 'demo-3',
-        content: 'Update documentation',
-        status: TodoState.pending,
-        priority: 'medium',
-        order: 2,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      TodoItem(
-        id: 'demo-4',
-        content: 'Deploy to staging',
-        status: TodoState.completed,
-        priority: 'high',
-        order: 3,
-        createdAt: now,
-        updatedAt: now,
-        completedAt: now - 3600000,
-      ),
-      TodoItem(
-        id: 'demo-5',
-        content: 'Triage open issues',
-        status: TodoState.pending,
-        priority: 'low',
-        order: 4,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    ];
+  @override
+  void dispose() {
+    _syncSubscription?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(todoStateNotifierProvider);
     final items = state.items;
-    final completedCount = items.where((i) => i.status == TodoState.completed).length;
+    final completedCount =
+        items.where((i) => i.status == TodoState.completed).length;
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Zen'),
+        title: const Text('Tasks'),
         actions: [
           if (items.isNotEmpty)
             Padding(
@@ -110,7 +76,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen> {
         ],
       ),
       body: items.isEmpty
-          ? _EmptyState(theme: theme)
+          ? const _EmptyState()
           : _TodoList(
               items: items,
               onToggleComplete: (id) {
@@ -201,36 +167,44 @@ class _SectionHeader extends StatelessWidget {
 
 /// Placeholder shown when the todo list is empty.
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.theme});
-
-  final ThemeData theme;
+  const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.check_circle_outline_rounded,
-            size: 48,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'No tasks',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.checklist_rounded,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'All caught up!',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'No tasks yet',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Agent task lists from chat will appear here. '
+              'Open a session and ask the agent to plan a task '
+              'to see TodoWrite items surface on this screen.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant
+                    .withValues(alpha: 0.7),
+                height: AppLineHeight.relaxed,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

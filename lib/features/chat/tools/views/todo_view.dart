@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/models/todo.dart';
+import '../../../../core/providers/app_providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 
-/// Task list item model.
-class TodoItem {
-  TodoItem({
+/// View-local task list item (the on-the-wire shape from TodoWrite).
+///
+/// Kept separate from the domain [TodoItem] in `core/models/todo.dart`
+/// because the tool input only carries a subset of fields. Conversion
+/// to the domain model happens in [_pushToGlobalState].
+class TodoViewItem {
+  TodoViewItem({
     required this.content,
     required this.status,
     this.priority,
@@ -23,22 +31,48 @@ class TodoItem {
 }
 
 /// View for displaying TodoWrite tool todo lists.
-class TodoView extends StatefulWidget {
-  const TodoView({required this.tool, super.key, this.metadata});
+///
+/// Each time the tool data changes the view also pushes the parsed
+/// items into [todoStateNotifierProvider] so they remain visible to
+/// the user outside of the chat (e.g. on the Zen home screen).
+class TodoView extends ConsumerStatefulWidget {
+  const TodoView({
+    required this.tool,
+    super.key,
+    this.metadata,
+    this.sessionId,
+  });
   final Map<String, dynamic> tool;
   final Map<String, dynamic>? metadata;
 
+  /// Owning chat session — used to scope the global todo state.
+  ///
+  /// When `null`, items are stored under a synthetic global key so the
+  /// Zen home can still display them.
+  final String? sessionId;
+
   @override
-  State<TodoView> createState() => _TodoViewState();
+  ConsumerState<TodoView> createState() => _TodoViewState();
 }
 
-class _TodoViewState extends State<TodoView> {
-  List<TodoItem> _todos = [];
+class _TodoViewState extends ConsumerState<TodoView> {
+  List<TodoViewItem> _todos = const [];
+
+  /// Stable identifier for this tool call. Used to derive deterministic
+  /// item ids when the wire format doesn't carry one — guarantees a
+  /// second render of the same TodoWrite produces the same item ids.
+  String get _toolId {
+    final id = widget.tool['toolUseId'] as String? ??
+        widget.tool['id'] as String?;
+    if (id != null && id.isNotEmpty) return id;
+    return widget.tool['name']?.toString() ?? 'todo';
+  }
 
   @override
   void initState() {
     super.initState();
     _todos = _resolveTodos();
+    _pushToGlobalState(_todos);
   }
 
   @override
@@ -55,10 +89,52 @@ class _TodoViewState extends State<TodoView> {
         }
       }
     }
-    if (changed) setState(() => _todos = next);
+    if (!changed) return;
+    setState(() => _todos = next);
+    _pushToGlobalState(next);
   }
 
-  List<TodoItem> _resolveTodos() {
+  void _pushToGlobalState(List<TodoViewItem> items) {
+    if (items.isEmpty) {
+      // Empty TodoWrite is still a meaningful state — clear the
+      // session's list so the Zen home doesn't show stale tasks.
+      final container = ProviderScope.containerOf(context, listen: false);
+      container.read(todoStateNotifierProvider.notifier).setItemsForSession(
+            widget.sessionId,
+            const [],
+          );
+      return;
+    }
+    final container = ProviderScope.containerOf(context, listen: false);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final domain = <TodoItem>[];
+    for (var i = 0; i < items.length; i++) {
+      final it = items[i];
+      // Canonical id: prefer the wire id, then content-hash, then a
+      // tool-stable synthetic key. Falls back to position so the same
+      // tool call always yields the same id.
+      final id = (it.id?.isNotEmpty ?? false)
+          ? it.id!
+          : '$_toolId#${it.content.hashCode}';
+      domain.add(
+        TodoItem(
+          id: id,
+          content: it.content,
+          status: TodoState.fromString(it.status),
+          priority: it.priority ?? 'medium',
+          order: i,
+          createdAt: now,
+          updatedAt: now,
+          sessionId: widget.sessionId,
+        ),
+      );
+    }
+    container
+        .read(todoStateNotifierProvider.notifier)
+        .setItemsForSession(widget.sessionId, domain);
+  }
+
+  List<TodoViewItem> _resolveTodos() {
     final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final rawResult = widget.tool['result'];
     final result = rawResult is Map<String, dynamic> ? rawResult : null;
@@ -72,7 +148,7 @@ class _TodoViewState extends State<TodoView> {
       if (newTodos != null) {
         todos = newTodos
             .map(
-              (t) => TodoItem(
+              (t) => TodoViewItem(
                 content: t['content'] as String? ?? '',
                 status: t['status'] as String? ?? 'pending',
                 priority: t['priority'] as String?,
@@ -100,9 +176,9 @@ class _TodoViewState extends State<TodoView> {
     return todos;
   }
 
-  List<TodoItem> _parseTodos(dynamic todos) {
-    if (todos == null) return [];
-    if (todos is! List) return [];
+  List<TodoViewItem> _parseTodos(dynamic todos) {
+    if (todos == null) return const [];
+    if (todos is! List) return const [];
     return todos
         .map((t) {
           if (t is! Map<String, dynamic>) return null;
@@ -110,14 +186,14 @@ class _TodoViewState extends State<TodoView> {
           final completed = t['completed'] == true;
           final status =
               t['status'] as String? ?? (completed ? 'completed' : 'pending');
-          return TodoItem(
+          return TodoViewItem(
             content: text,
             status: status,
             priority: t['priority'] as String?,
             id: t['id'] as String?,
           );
         })
-        .whereType<TodoItem>()
+        .whereType<TodoViewItem>()
         .toList();
   }
 
@@ -200,7 +276,7 @@ class _CountSummary extends StatelessWidget {
 class _TodoRow extends StatelessWidget {
   const _TodoRow({required this.todo, super.key});
 
-  final TodoItem todo;
+  final TodoViewItem todo;
 
   @override
   Widget build(BuildContext context) {
