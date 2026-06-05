@@ -78,7 +78,7 @@ class FakeMmkvPlatform extends MMKVPluginPlatform {
   @override
   int Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint8>, int, int)
   encodeBytesV2Func() =>
-      (Pointer<Void> h, Pointer<Utf8> k, Pointer<Utf8> v, int l, int e) => 1;
+      (Pointer<Void> h, Pointer<Utf8> k, Pointer<Uint8> v, int l, int e) => 1;
 
   @override
   void Function(Pointer<Void>, Pointer<Utf8>) removeValueForKeyFunc() =>
