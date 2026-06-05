@@ -79,17 +79,11 @@ android {
             }
         }
         getByName("release") {
-            // R8 + resource shrink on. The previous `false`/`false`
-            // config was producing a ~250 MB universal APK; the bulk
-            // of that was the same set of native libs duplicated
-            // across 4 ABIs plus every Java/Kotlin class reachable
-            // from a manifest entry. R8 strips the dead ones and
-            // resource shrink drops unreferenced assets. Stack
-            // traces in GlitchTip stay readable because the
-            // Sentry dart plugin already uploads ProGuard mapping
-            // files automatically.
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // R8 minification disabled temporarily to debug ANR crashes
+            // (HAPPY_FLUTTER-3CN, 3CO, 3CM, 3CL — 9 fatal today).
+            // Reverting to debug mode until root cause is identified.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

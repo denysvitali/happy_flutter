@@ -48,3 +48,25 @@
 # TensorFlow Lite / LiteRT (used by MediaPipe GenAI runtime)
 -keep class org.tensorflow.lite.** { *; }
 -dontwarn org.tensorflow.lite.**
+
+# Cronet HTTP (native networking)
+-keep class org.chromium.** { *; }
+-dontwarn org.chromium.**
+
+# Mobile Scanner (native camera/ML)
+-keep class mobile.scanner.** { *; }
+
+# Socket.IO and WebSocket dependencies
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
+
+# Native libraries — keep symbol exports intact even with minification
+-keepnames class **
+
+# Preserve method signatures for reflection-based code
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Keep annotation retention for reflection
+-keepattributes *Annotation*,InnerClasses
