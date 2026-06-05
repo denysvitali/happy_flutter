@@ -79,11 +79,17 @@ android {
             }
         }
         getByName("release") {
-            // Symbols are NOT stripped when minifyEnabled=false, so stack
-            // traces remain readable in GlitchTip. This is safe for open
-            // source apps where symbol leaking is not a concern.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 + resource shrink on. The previous `false`/`false`
+            // config was producing a ~250 MB universal APK; the bulk
+            // of that was the same set of native libs duplicated
+            // across 4 ABIs plus every Java/Kotlin class reachable
+            // from a manifest entry. R8 strips the dead ones and
+            // resource shrink drops unreferenced assets. Stack
+            // traces in GlitchTip stay readable because the
+            // Sentry dart plugin already uploads ProGuard mapping
+            // files automatically.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -91,6 +97,23 @@ android {
             if (!keystorePath.isNullOrBlank()) {
                 signingConfig = signingConfigs.findByName("release")
             }
+        }
+    }
+
+    // Per-ABI APK splits. Without this, every native library is
+    // bundled four times (arm64-v8a, armeabi-v7a, x86, x86_64) and
+    // the universal APK is ~4x larger than the per-ABI one. Modern
+    // devices are arm64-v8a; older 32-bit devices are armeabi-v7a.
+    // x86/x86_64 are kept off — emulators can use the universal APK
+    // or be installed via `flutter run`. `isUniversalApk = true`
+    // keeps a single fat APK in the build output for sideloading
+    // on devices with unknown ABIs.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = true
         }
     }
 }
