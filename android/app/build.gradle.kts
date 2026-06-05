@@ -33,6 +33,18 @@ android {
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Force arm64-v8a only. `flutter build apk --target-platform
+        // android-arm64` filters the Flutter ENGINE libs but NOT the plugin
+        // AAR native libs (libonnxruntime/sherpa/barhopper ship arm64 +
+        // armeabi-v7a + x86_64), so the release APK still bundled three ABIs
+        // (~124MB of .so). arm64-v8a covers every modern phone; 32-bit ARM /
+        // x86 emulators can use a debug `flutter run`. Clear first so a
+        // plugin-populated filter list can't re-add the other ABIs.
+        ndk {
+            abiFilters.clear()
+            abiFilters.add("arm64-v8a")
+        }
     }
 
     flavorDimensions += "environment"
@@ -98,14 +110,10 @@ android {
         }
     }
 
-    // ABI selection is driven by Flutter's `--target-platform` flag —
-    // CI passes `android-arm64`, producing a single arm64-v8a APK.
-    //
+    // ABI is pinned to arm64-v8a via defaultConfig.ndk.abiFilters above.
     // We intentionally do NOT use `splits { abi { isUniversalApk = true } }`
-    // here. That emitted a *universal* fat APK bundling arm64-v8a +
-    // armeabi-v7a + x86_64 (~124MB of .so), which is what blew the release
-    // APK past 130MB and ignored `--target-platform`. arm64-v8a covers
-    // every modern phone; 32-bit ARM / x86 emulators can `flutter run`.
+    // — that emitted a *universal* fat APK bundling all three ABIs (~124MB
+    // of .so) and is what blew the release APK past 130MB.
     //
     // Store native libs *compressed* in the APK (extracted at install
     // time). AGP 9 rejects `android:extractNativeLibs="true"` in the
