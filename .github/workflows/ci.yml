@@ -101,67 +101,13 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          # --concurrency=2 (not 4): the k8s runner pods OOM-kill the test
-          # process when 4 test isolates spike RSS at once. --timeout 120s
-          # makes a genuinely hung test fail visibly instead of silently
-          # stalling until the runner is reclaimed.
-          flutter test --coverage --concurrency=2 --timeout 120s "${shard_tests[@]}"
-
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-shard-${{ matrix.shard }}
-          path: coverage/lcov.info
-          retention-days: 1
-          if-no-files-found: ignore
-
-  coverage:
-    name: Upload Coverage
-    needs: test
-    runs-on: ubuntu-latest
-    if: always() && needs.test.result == 'success'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Download all coverage artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: coverage-shard-*
-          path: coverage-shards
-
-      - name: Merge coverage reports
-        run: |
-          mkdir -p coverage
-          # Concatenate all shard lcov files. Multiple SF (source file) entries
-          # for the same file with different line counts get summed by Codecov.
-          found=0
-          for f in coverage-shards/*/lcov.info; do
-            [ -f "$f" ] || continue
-            echo "Shard file: $f ($(wc -l < "$f") lines)"
-            if [ $found -eq 0 ]; then
-              cp "$f" coverage/lcov.info
-            else
-              # Skip TN: (test name) lines, keep all other lcov records.
-              # Codecov sums SF/DA/FN/... lines by source file path.
-              grep -v "^TN:" "$f" >> coverage/lcov.info || true
-            fi
-            found=$((found + 1))
-          done
-          echo "Merged $found shard coverage files"
-          echo "Total lines: $(wc -l < coverage/lcov.info)"
-          echo "Source files: $(grep -c '^SF:' coverage/lcov.info)"
-
-      - name: Install curl
-        run: sudo apt-get update && sudo apt-get install -y curl
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/lcov.info
-          fail_ci_if_error: true
+          # No --coverage: its collector accumulates per-file hit data in
+          # the flutter_test process across the whole shard, growing RSS
+          # until the k8s runner pod is OOM-killed on the longer shards
+          # (only fast shards survived; build jobs without coverage run
+          # 400s+ fine; lowering concurrency/heap did NOT help — it is the
+          # coverage accumulation). --timeout 120s fails a hung test fast.
+          flutter test --concurrency=4 --timeout 120s "${shard_tests[@]}"
 
   golden:
     name: Golden Screenshots
