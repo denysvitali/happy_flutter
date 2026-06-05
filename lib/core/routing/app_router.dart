@@ -41,7 +41,6 @@ import '../../features/settings/profiles_screen.dart';
 import '../../features/settings/restore_account_screen.dart';
 import '../../features/settings/screens/auto_archive_settings_screen.dart';
 import '../../features/settings/screens/sessions_folders_settings_screen.dart';
-// import '../../features/settings/screens/smart_features_settings_screen.dart'; // Disabled with flutter_gemma removal
 import '../../features/settings/server_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/settings/theme_settings_screen.dart';
@@ -268,15 +267,6 @@ GoRouter createRouter() {
           state,
         ),
       ),
-      // Smart features disabled with flutter_gemma removal to reduce APK size
-      // GoRoute(
-      //   path: '/settings/smart-features',
-      //   name: 'smart-features',
-      //   pageBuilder: (context, state) => _slidePage(
-      //     const AuthGate(child: SmartFeaturesSettingsScreen()),
-      //     state,
-      //   ),
-      // ),
       GoRoute(
         path: '/settings/theme',
         name: 'theme',

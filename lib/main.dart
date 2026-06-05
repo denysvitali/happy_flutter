@@ -26,7 +26,6 @@ import 'core/services/performance_context_service.dart';
 import 'core/services/power_diagnostics_service.dart';
 import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
-// import 'core/services/smart_features_service.dart'; // Disabled with flutter_gemma removal
 import 'core/services/storage_service.dart' as storage;
 import 'core/services/sync_service.dart';
 import 'core/utils/package_info_cache.dart';
@@ -276,10 +275,6 @@ Future<void> _deferredInit() async {
     }());
   }
 
-  // flutter_gemma — disabled with smart features removal to reduce APK size
-  // from 250MB → 40MB. Smart features (session ranking, auto-tagging) are P2/P3
-  // and can be re-enabled later with a lighter embedding or optional download.
-  // if (!kIsWeb && SmartFeaturesService.instance.smartFeaturesEnabled) { ... }
 
   // Firebase push notifications — not needed for first screen.
   // Use unawaited() so this never blocks _deferredInit from completing.

@@ -79,11 +79,13 @@ android {
             }
         }
         getByName("release") {
-            // R8 minification disabled temporarily to debug ANR crashes
-            // (HAPPY_FLUTTER-3CN, 3CO, 3CM, 3CL — 9 fatal today).
-            // Reverting to debug mode until root cause is identified.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 + resource shrink on. The root cause of ANR crashes was
+            // flutter_gemma pulling in Qdrant vector DB (250MB). With Qdrant
+            // removed, minification is now safe. Improved ProGuard rules
+            // protect native dependencies (Cronet, OkHttp, MediaPipe, TFLite).
+            // Stack traces stay readable via Sentry's ProGuard mapping upload.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
