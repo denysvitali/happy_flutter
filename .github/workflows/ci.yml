@@ -161,21 +161,16 @@ jobs:
     name: Build Debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Serialize builds AFTER the test phase. The proxied k8s runners get
-    # evicted when memory-heavy gradle builds run concurrently with the
-    # test pods, so builds must not overlap tests.
-    needs: [analyze, test]
-    # Run on push/PR events (but not tags), or workflow_dispatch with debug or both selected.
-    # Gate on analyze only (via always()) so a hanging/failing test phase
-    # does not skip the build — the `needs: test` above still serializes it
-    # after tests to avoid OOM-evicting the runners.
+    # Gate on analyze only — builds run in parallel with the test phase so a
+    # hanging/failing test shard never blocks the APK/Linux artifacts.
+    needs: [analyze]
+    # Run on push/PR events (but not tags), or workflow_dispatch with debug or both selected
     if: |
-      always() && needs.analyze.result == 'success' && (
       (github.event_name != 'workflow_dispatch' &&
        !startsWith(github.ref, 'refs/tags/v') &&
        github.ref != 'refs/heads/main') ||
       github.event.inputs.build_type == 'debug' ||
-      github.event.inputs.build_type == 'both')
+      github.event.inputs.build_type == 'both'
 
     steps:
       - name: Checkout repository
@@ -315,21 +310,19 @@ jobs:
     name: Build Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [analyze, test]
+    # Gate on analyze only — runs in parallel with tests so a hung/failed
+    # test shard never blocks the release APK + GitHub release.
+    needs: [analyze]
     outputs:
       skip_release: ${{ steps.check_keystore.outputs.skip_release }}
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     # Run on main pushes, workflow_dispatch (release/both), and version tags.
-    # Gate on analyze only (via always()) so a hanging/failing test phase
-    # does not skip the build — the `needs: test` above still serializes it
-    # after tests to avoid OOM-evicting the runners.
     if: |
-      always() && needs.analyze.result == 'success' && (
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
-      startsWith(github.ref, 'refs/tags/v'))
+      startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout repository
@@ -504,16 +497,14 @@ jobs:
     name: Build Linux x64
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [analyze, test]
-    # Gate on analyze only (via always()) so a hanging/failing test phase
-    # does not skip the build — the `needs: test` above still serializes it
-    # after tests to avoid OOM-evicting the runners.
+    # Gate on analyze only — runs in parallel with tests so a hung/failed
+    # test shard never blocks the Linux build.
+    needs: [analyze]
     if: |
-      always() && needs.analyze.result == 'success' && (
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
-      startsWith(github.ref, 'refs/tags/v'))
+      startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout repository
