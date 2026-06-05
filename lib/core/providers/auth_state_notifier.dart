@@ -81,10 +81,12 @@ class AuthStateNotifier extends Notifier<AuthState> {
         // auth-critical syncs.  `invalidate()` is idempotent on
         // InvalidateSync (debounced / single-flight), so the later
         // refreshFromSync() from the screen is a cheap no-op.
-        unawaited(sync.sessionsSync.invalidate());
-        unawaited(sync.machinesSync.invalidate());
-        unawaited(sync.artifactsSync.invalidate());
-        unawaited(sync.sessionGitStatusSync.invalidate());
+        // invalidate() returns void (not Future) so we just call
+        // it directly without unawaited().
+        sync.sessionsSync.invalidate();
+        sync.machinesSync.invalidate();
+        sync.artifactsSync.invalidate();
+        sync.sessionGitStatusSync.invalidate();
 
         // Remaining auth-critical syncs complete in the background.
         unawaited(
