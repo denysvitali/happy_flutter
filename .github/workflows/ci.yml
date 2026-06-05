@@ -124,7 +124,14 @@ jobs:
             echo "✅ flutter test exited cleanly"
             exit 0
           fi
-          if grep -qE '\+[0-9]+ -[1-9][0-9]*:|\[E\]|Some tests failed|Failed to load' /tmp/test_output.txt; then
+          # Match ONLY flutter_test failure markers — not app log noise.
+          # (An earlier broad 'Failed to load' wrongly matched the benign
+          # log "Failed to load dynamic library 'libsherpa-onnx-c-api.so'"
+          # that a passing OfflineTtsService test deliberately produces.)
+          # The expanded reporter prints "[E]" on every failed/errored test,
+          # "Some tests failed." in the summary, and 'Failed to load "<file>"'
+          # for a file that won't compile.
+          if grep -qE '\[E\]|Some tests failed|Failed to load "' /tmp/test_output.txt; then
             echo "❌ Real test failures detected (rc=$rc)"
             exit 1
           fi
