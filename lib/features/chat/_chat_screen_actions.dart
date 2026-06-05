@@ -416,6 +416,15 @@ extension _ChatScreenActions on _ChatScreenState {
         _codexModelModes = modes;
         _codexModelModesMachineId = machineId;
       });
+    } catch (e) {
+      // Encryption not initialized (syncRestore hasn't run yet) or
+      // RPC transient failure.  Either way, fall back to the default
+      // model list rather than crashing the screen.  The next
+      // applyUpdates / onSessionVisible cycle can retry once sync
+      // is ready.
+      logger.warning(
+        '_refreshCodexModelModes: skipping — $e',
+      );
     } finally {
       _isLoadingCodexModelModes = false;
     }
