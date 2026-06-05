@@ -679,14 +679,17 @@ void main() {
 
       await tester.tap(find.byTooltip('More options'));
       // Avoid pumpAndSettle: thinking-pill 1 s timer and the
-      // online status pulse animation prevent settling.  A single
-      // pump is enough to commit the menu-open state.
+      // online status pulse animation prevent settling.  Pump a
+      // short duration to let the menu open + lay out so the
+      // "Hide Tool Calls" item is hit-testable.
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Hide Tool Calls'), findsOneWidget);
 
       await tester.tap(find.text('Hide Tool Calls'));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(ChatScreen)),
@@ -978,8 +981,12 @@ void main() {
       expect(find.text('Message number 0'), findsNothing);
 
       await tester.drag(find.byType(ListView), const Offset(0, 5000));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      // The drag triggers a fling; pump a few short frames to let
+      // it settle without waiting for the thinking-pill 1 s
+      // timer / status pulse animation to fire.
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
 
       expect(find.text('Message number 0'), findsOneWidget);
     });
