@@ -37,4 +37,35 @@ void main() {
       expect(content, isNot(contains(r'{\"query\"')));
     });
   });
+
+  group('SmartOutputContainer', () {
+    testWidgets('provides horizontal scrolling for wide JSON output', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 120,
+              child: SmartOutputContainer(
+                content: <String, dynamic>{
+                  'very_long_key_that_should_not_fit_without_scrolling':
+                      'very_long_value_that_should_not_fit_without_scrolling',
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SingleChildScrollView &&
+              widget.scrollDirection == Axis.horizontal,
+        ),
+        findsOneWidget,
+      );
+    });
+  });
 }

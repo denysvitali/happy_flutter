@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 
+const double _jsonIndent = 12;
+
 // ---------------------------------------------------------------------------
 // Syntax-highlight color palettes
 // ---------------------------------------------------------------------------
@@ -101,21 +103,24 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
         ),
       ),
       child: SingleChildScrollView(
-        child: isJson
-            ? JsonTreeViewer(value: jsonValue)
-            : SelectableText(
-                plainText ??
-                    (widget.content is String
-                        ? widget.content as String
-                        : widget.content.toString()),
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontFamilyFallback: const ['Courier New', 'Courier'],
-                  fontSize: AppFontSize.sm,
-                  color: theme.colorScheme.onSurface,
-                  height: AppLineHeight.relaxed,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: isJson
+              ? JsonTreeViewer(value: jsonValue)
+              : SelectableText(
+                  plainText ??
+                      (widget.content is String
+                          ? widget.content as String
+                          : widget.content.toString()),
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontFamilyFallback: const ['Courier New', 'Courier'],
+                    fontSize: AppFontSize.sm,
+                    color: theme.colorScheme.onSurface,
+                    height: AppLineHeight.relaxed,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -334,7 +339,7 @@ class _JsonNodeState extends State<_JsonNode> {
           child: Text('{', style: mono.copyWith(color: colors.bracket)),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: AppSpacing.lg),
+          padding: const EdgeInsets.only(left: _jsonIndent),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -412,7 +417,7 @@ class _JsonNodeState extends State<_JsonNode> {
           child: Text('[', style: mono.copyWith(color: colors.bracket)),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: AppSpacing.lg),
+          padding: const EdgeInsets.only(left: _jsonIndent),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,

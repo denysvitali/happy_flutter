@@ -94,7 +94,10 @@ class _ScreenShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!embedded) {
-      return Scaffold(appBar: AppBar(title: Text(title)), body: body);
+      return Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: body,
+      );
     }
     final theme = Theme.of(context);
     return Column(
@@ -731,7 +734,10 @@ class _JsonTreeBlock extends StatelessWidget {
             onSurface: const Color(0xFFD4D4D4),
           ),
         ),
-        child: JsonTreeViewer(value: value),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: JsonTreeViewer(value: value),
+        ),
       ),
     );
   }
@@ -752,12 +758,15 @@ class _CodeBlock extends StatelessWidget {
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: SelectableText(
-        content,
-        style: const TextStyle(
-          fontFamily: 'monospace',
-          fontSize: AppFontSize.sm,
-          color: Color(0xFFD4D4D4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SelectableText(
+          content,
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: AppFontSize.sm,
+            color: Color(0xFFD4D4D4),
+          ),
         ),
       ),
     );
