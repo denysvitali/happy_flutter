@@ -93,10 +93,9 @@ extension SyncMessagingMerge on Sync {
   static final _outputDigitsRegex = RegExp(r'_\d+$');
 
   /// Default throttle between consecutive orphan-recovery
-  /// fetchOlderMessages attempts when the orphan set is *not* known
-  /// to carry `parent_tool_use_id`. Pagination alone can't make
-  /// progress in that case, so we space attempts widely to protect
-  /// the API.
+  /// fetchOlderMessages attempts. Prevents tight retry loops when
+  /// pagination alone is paginating in circles (e.g. parent Task
+  /// lives outside the loaded window).
   static const int _orphanFetchOlderDefaultThrottleMs = 60000;
 
   Map<String, dynamic>? _extractUsageMap(dynamic value) {
@@ -469,8 +468,8 @@ extension SyncMessagingMerge on Sync {
             .toSet() ??
         const <String>{};
 
-    // Progress was made — orphans were attached to real Tasks or
-    // dissolved synthetics.  Reset counter and let normal flow continue.
+    // Progress was made — orphans were attached to real Tasks.
+    // Reset counter and let normal flow continue.
     if (afterOrphans.isEmpty || afterOrphans.length < beforeOrphans.length) {
       _sidechainRegroupSweepCount.remove(sessionId);
       final messagesUpdated = !identical(beforeMessages, after);
@@ -481,24 +480,19 @@ extension SyncMessagingMerge on Sync {
       return;
     }
 
-    // Same orphans persist — increment failure counter.
-    final sweepCount = (_sidechainRegroupSweepCount[sessionId] ?? 0) + 1;
-    _sidechainRegroupSweepCount[sessionId] = sweepCount;
-
-    // Strong promise from the wire: every Claude sidechain message
-    // stamps `parent_tool_use_id` matching the spawning Task/Agent
-    // tool_use id (see _attachParentToolUseId in _sync_messaging_parse).
-    // When every visible orphan in the window carries that field we
-    // know a real parent Task exists upstream — synthesising a
-    // "Subagent output (recovered)" tile would be premature.
+    // Orphans still present after grouping. We do NOT absorb them
+    // into synthetic Tasks anymore — that hid real subagent output
+    // behind a "Subagent output (recovered)" tile the user couldn't
+    // open. Instead: try to page older history to find the real
+    // parent, and otherwise let the sidechain messages render in
+    // place at the top level of the chat list.
     //
     // For sessions with many Agent spawns deep in history (worst-case
     // 15 Agents at seqs 13..494 inside a 1000+ message session,
     // cache=200, page=100), the user needs ~8 fetchOlder pages to walk
-    // back to the first Agent. The default 60s throttle stretches that
-    // across 8 minutes — too slow. In aggressive mode, skip the
-    // throttle and the 2-sweep / 30s-suppression absorb fallback until
-    // we either find the parent or exhaust history.
+    // back to the first Agent. Aggressive cadence fires when every
+    // orphan carries parent_tool_use_id (Claude's strong wire
+    // promise that a real parent exists upstream).
     final messagesNow =
         _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];
     final visibleOrphanMessages = messagesNow
@@ -514,12 +508,9 @@ extension SyncMessagingMerge on Sync {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final lastFetchAttempt = _orphanFetchOlderAttemptedMs[sessionId] ?? 0;
 
-    // Aggressive cadence applies only when the wire promises a real
-    // parent AND history still has older pages to walk back through.
-    // Otherwise the slower 60s throttle protects the API: pagination
-    // alone can't recover when parentToolUseId is missing.
     final hasMoreOlder = hasOlderMessages(sessionId);
-    final useAggressiveThrottle = everyOrphanHasParentToolUseId && hasMoreOlder;
+    final useAggressiveThrottle =
+        everyOrphanHasParentToolUseId && hasMoreOlder;
     final canRetryFetch =
         useAggressiveThrottle ||
         nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
@@ -529,15 +520,15 @@ extension SyncMessagingMerge on Sync {
       logger.info(
         '[sidechain] orphans persist for session=$sessionId — '
         'attempting fetchOlderMessages to locate parent Task '
-        '(aggressive=$useAggressiveThrottle)',
+        '(aggressive=$useAggressiveThrottle, '
+        'orphanCount=${beforeOrphans.length})',
       );
       unawaited(
         fetchOlderMessages(sessionId)
             .then((_) {
-              // The fetch path upserts and notifies; the next grouper pass
-              // will rerun automatically. Reset the no-progress counter so
-              // we get a fresh shot at converging before falling back to
-              // synthetic absorption.
+              // The fetch path upserts and notifies; the next grouper
+              // pass will rerun automatically. Reset the no-progress
+              // counter so we get a fresh shot at convergence.
               _sidechainRegroupSweepCount.remove(sessionId);
               _scheduleSidechainRegroup(sessionId);
             })
@@ -553,484 +544,25 @@ extension SyncMessagingMerge on Sync {
       return;
     }
 
-    // If every orphan still carries parentToolUseId AND there is more
-    // history to walk, never absorb — keep scheduling sweeps so the
-    // next completed fetch can trigger another walk-back attempt. Do
-    // NOT enter the 30s suppression window; that would freeze
-    // pagination for sessions where the parent Task is genuinely just
-    // a few pages back.
-    if (useAggressiveThrottle) {
-      logger.debug(
-        '[sidechain] orphans for session=$sessionId all carry '
-        'parentToolUseId and history has more pages — deferring '
-        'absorb and re-scheduling sweep',
-      );
+    // No more history to walk, or the throttle is in effect. Surface
+    // the orphans as-is — the chat list will render them inline (see
+    // _chat_screen_builders). A debug breadcrumb lets us confirm the
+    // orphan count without spamming Sentry; this path is the expected
+    // end-state for sessions whose parent Task is outside the loaded
+    // window or never arrives.
+    if (hasMoreOlder) {
+      // Throttled: re-schedule so we eventually retry.
       _scheduleSidechainRegroup(sessionId);
-      return;
-    }
-
-    // Never synthesize when older history is still available but we
-    // have not actually attempted to fetch it yet. Without this gate
-    // the default 60s throttle could let the no-progress sweep
-    // counter race ahead and absorb before pagination ever got a
-    // chance, producing user-visible "Subagent output (recovered)"
-    // tiles whose real parent Task lives one fetchOlder page away.
-    // See GlitchTip HAPPY_FLUTTER-3C9.
-    if (hasMoreOlder && lastFetchAttempt == 0) {
-      logger.debug(
-        '[sidechain] orphans for session=$sessionId — older history '
-        'available but fetchOlder never attempted; deferring absorb',
-      );
-      _scheduleSidechainRegroup(sessionId);
-      return;
-    }
-
-    // Require several consecutive no-progress sweeps before absorbing.
-    // This prevents premature absorption when a parent Task is still
-    // in-flight (e.g. in a REST batch or socket burst). With the 300ms
-    // debounce, 4 sweeps = ~1.2s minimum; the burst cap at 2s would
-    // fire immediately if needed. Raised from 2 in response to
-    // GlitchTip HAPPY_FLUTTER-3C9 still firing on caught-up sessions
-    // where socket bursts occasionally took 800ms+ to deliver the
-    // parent Task.
-    const kMinSweepsBeforeAbsorb = 4;
-    if (sweepCount < kMinSweepsBeforeAbsorb) {
-      logger.debug(
-        '[sidechain] $sweepCount/$kMinSweepsBeforeAbsorb no-progress '
-        'sweeps for session=$sessionId — deferring absorb',
-      );
-      return;
-    }
-
-    // Confident the orphans are genuinely stuck.  Cancel timers and
-    // suppress further catch-up fetches for 30 seconds so we stop
-    // burning CPU on re-group attempts.
-    _sidechainRegroupTimers[sessionId]?.cancel();
-    _sidechainRegroupTimers.remove(sessionId);
-    _sidechainRegroupFirstRequestMs.remove(sessionId);
-    _orphanSuppressedUntilMs[sessionId] = nowMs + 30000;
-    _sessionsNeedingVisibleRegroup.remove(sessionId);
-
-    final orphanCount = afterOrphans.length;
-    final absorbed = _absorbOrphansIntoSyntheticTasks(sessionId);
-    if (absorbed) {
-      _reportOrphanAbsorbToSentry(
-        sessionId: sessionId,
-        orphanCount: orphanCount,
-        triedFetchOlder: lastFetchAttempt > 0,
-        hasMoreOlder: hasOlderMessages(sessionId),
-      );
-      _scheduleSaveMessages(sessionId);
-      _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged({SyncDomain.messages});
-    }
-  }
-
-  /// Threshold for treating an orphan absorption as anomalous enough to
-  /// warrant a Sentry warning. Below this, absorption is the normal
-  /// happy path for sidechain recovery and only deserves a local
-  /// breadcrumb. See GlitchTip HAPPY_FLUTTER-3C9.
-  @visibleForTesting
-  static const int kOrphanAbsorbSentryMinCount = 5;
-
-  /// Emits a Sentry warning only when synthetic "Subagent output
-  /// (recovered)" recovery indicates a *real* data gap we couldn't
-  /// repair: we already paged back through history (triedFetchOlder)
-  /// AND a non-trivial number of orphans (>= [kOrphanAbsorbSentryMinCount])
-  /// remained stuck.
-  ///
-  /// Normal-path absorption (parent simply isn't in history; we either
-  /// already exhausted older messages or never needed to walk back)
-  /// emits a local `logger.info` breadcrumb instead of a Sentry event.
-  /// GlitchTip HAPPY_FLUTTER-3C9 was firing 100+ events/week on the
-  /// happy path; this gate keeps Sentry signal focused on anomalies.
-  ///
-  /// Returns true when a Sentry event was queued.
-  bool _reportOrphanAbsorbToSentry({
-    required String sessionId,
-    required int orphanCount,
-    required bool triedFetchOlder,
-    required bool hasMoreOlder,
-  }) {
-    final isAnomalous =
-        triedFetchOlder &&
-        hasMoreOlder &&
-        orphanCount >= kOrphanAbsorbSentryMinCount;
-
-    if (!isAnomalous) {
+    } else {
+      // History exhausted: keep the orphans visible in the chat, no
+      // further work needed. Clear the sweep counter so we stop
+      // running the grouper on every refresh for these sessions.
+      _sidechainRegroupSweepCount.remove(sessionId);
       logger.info(
-        '[sidechain] absorbed $orphanCount orphan(s) into synthetic Task '
-        'for session=$sessionId '
-        '(triedFetchOlder=$triedFetchOlder, hasMoreOlder=$hasMoreOlder) '
-        '- happy path, not reporting to Sentry',
+        '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
+        'session=$sessionId — history exhausted, rendering inline',
       );
-      return false;
     }
-
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final lastReportedAt = _orphanAbsorbReportedAtMs[sessionId] ?? 0;
-    if (nowMs - lastReportedAt < 5 * 60 * 1000) return false;
-    _orphanAbsorbReportedAtMs[sessionId] = nowMs;
-
-    final messages = _sessionMessages[sessionId];
-    final messageCount = messages?.length ?? 0;
-    final firstLoadedSeq = _sessionFirstLoadedSeq[sessionId] ?? 0;
-    final isVisible = sessionId == _visibleSessionId;
-
-    // Surface the diagnostic fields as event tags and context so they
-    // are visible on the GlitchTip event detail. `Hint.withMap` is a
-    // sink for SDK hooks and does NOT propagate to the wire event —
-    // we lost orphanCount/triedFetchOlder/etc. for the whole life of
-    // issue #3497 before this change.
-    Sentry.captureMessage(
-      'Sidechain orphans absorbed into synthetic Task '
-      '(parent Task missing from history)',
-      level: SentryLevel.warning,
-      params: [sessionId],
-      withScope: (scope) {
-        scope
-          ..setTag('sessionId', sessionId)
-          ..setTag('orphanCount', orphanCount.toString())
-          ..setTag('triedFetchOlder', triedFetchOlder.toString())
-          ..setTag('hasMoreOlderAfterFetch', hasMoreOlder.toString())
-          ..setContexts('orphan_absorb', {
-            'sessionId': sessionId,
-            'orphanCount': orphanCount,
-            'messageCount': messageCount,
-            'firstLoadedSeq': firstLoadedSeq,
-            'isVisibleSession': isVisible,
-            'triedFetchOlder': triedFetchOlder,
-            'hasMoreOlderAfterFetch': hasMoreOlder,
-          });
-      },
-    );
-    return true;
-  }
-
-  /// Absorb stuck orphan sidechain messages into synthetic Task
-  /// placeholders so they become visible in the UI.
-  ///
-  /// Called from [_runDeferredRegroupSweep] once it confirms a set of
-  /// orphans cannot be matched to any real Task in the message list
-  /// (parent never arrived, was truncated from cache, or lives outside
-  /// the loaded window).  Without this, the chat's isSidechain filter
-  /// drops them silently and the AgentsListSheet — which enumerates
-  /// only top-level Task tool-calls — never sees them either.
-  ///
-  /// Orphans are grouped by **chain root** — the earliest ancestor
-  /// uuid reachable by walking parentUuid through the orphan set
-  /// itself.  Subagent transcripts chain via the prior message's
-  /// uuid, so naively bucketing by `parentUuid` produces one
-  /// synthetic per turn (each turn has a distinct parentUuid),
-  /// fragmenting one logical subagent run into many "Subagent
-  /// output (recovered)" tiles.  Chain-root coalescing yields one
-  /// synthetic per logical subagent.
-  ///
-  /// The synthetic Task is inserted at the position of the first
-  /// orphan in its chain; remaining orphans are removed from the
-  /// top-level list.  Setting the synthetic's uuid to the chain
-  /// root lets any future sidechain for that parent attach
-  /// naturally on the next grouper pass.
-  ///
-  /// Returns `true` when at least one orphan was absorbed.
-  bool _absorbOrphansIntoSyntheticTasks(String sessionId) {
-    final messages = _sessionMessages[sessionId];
-    if (messages == null || messages.isEmpty) return false;
-
-    // Index orphans by uuid so we can walk chains within the orphan
-    // set itself.  Each orphan's parentUuid either resolves inside
-    // this set (intra-chain link) or terminates outside it (true
-    // chain root from the absorber's perspective).
-    final orphanByUuid = <String, Map<String, dynamic>>{};
-    final orphans = <Map<String, dynamic>>[];
-    // Hidden chain-bridge entries (sidechain-link) are not real
-    // messages; they exist only so the grouper can walk parentUuid
-    // through user-tool_result messages. Even if their resolution
-    // failed (no anchor Task in window) we never want to absorb them
-    // into a visible synthetic Task — they would render as empty
-    // "Subagent output (recovered)" tiles and trigger the
-    // "parent Task missing from history" warning.
-    for (final m in messages) {
-      if (!isVisibleSidechainOrphan(m)) continue;
-      orphans.add(m);
-      final uuid = m['uuid'] as String?;
-      if (uuid != null && uuid.isNotEmpty) {
-        orphanByUuid[uuid] = m;
-      }
-    }
-    if (orphans.isEmpty) return false;
-
-    // Walk each orphan's parentUuid chain through the orphan set
-    // until it terminates at a uuid not present in the set.  That
-    // terminal value is the "chain root" — every orphan with the
-    // same root belongs to the same logical subagent transcript.
-    String chainRootFor(Map<String, dynamic> orphan) {
-      // Authoritative path for Claude orphans: parent_tool_use_id is
-      // stamped on every message in a subagent run and identifies
-      // the spawning Task/Agent directly. Coalesce by it whenever
-      // available so one logical subagent never fragments into many
-      // synthetic tiles even when the parentUuid chain is broken.
-      final ptu = orphan['parentToolUseId'] as String?;
-      if (ptu != null && ptu.isNotEmpty) return ptu;
-      var current = (orphan['parentUuid'] as String?) ?? '';
-      final visited = <String>{};
-      while (current.isNotEmpty && visited.add(current)) {
-        final next = orphanByUuid[current];
-        if (next == null) return current;
-        final np = next['parentUuid'] as String?;
-        if (np == null || np.isEmpty) {
-          final nu = next['uuid'] as String?;
-          return (nu != null && nu.isNotEmpty) ? nu : current;
-        }
-        current = np;
-      }
-      return current;
-    }
-
-    final orphansByRoot = <String, List<Map<String, dynamic>>>{};
-    final orphanIds = <String>{};
-    for (final m in orphans) {
-      final root = chainRootFor(m);
-      orphansByRoot.putIfAbsent(root, () => []).add(m);
-      final id = m['id'] as String?;
-      if (id != null) orphanIds.add(id);
-    }
-
-    final syntheticByRoot = <String, Map<String, dynamic>>{};
-    orphansByRoot.forEach((rootUuid, children) {
-      // Sort children by seq so the synthetic transcript reads in
-      // wire order even if orphans arrived out of seq.
-      children.sort((a, b) {
-        final sa = a['seq'] as int? ?? 0;
-        final sb = b['seq'] as int? ?? 0;
-        return sa.compareTo(sb);
-      });
-      var minSeq = (children.first['seq'] as int?) ?? 0;
-      var minCreatedAt = (children.first['createdAt'] as int?) ?? 0;
-      for (final c in children) {
-        final s = c['seq'] as int? ?? minSeq;
-        final ca = c['createdAt'] as int? ?? minCreatedAt;
-        if (s < minSeq) minSeq = s;
-        if (ca < minCreatedAt) minCreatedAt = ca;
-      }
-      final syntheticId = rootUuid.isEmpty
-          ? 'orphan-recovery-seq-$minSeq'
-          : 'orphan-recovery-$rootUuid';
-      syntheticByRoot[rootUuid] = <String, dynamic>{
-        'id': syntheticId,
-        if (rootUuid.isNotEmpty) 'uuid': rootUuid,
-        'kind': 'tool-call',
-        'name': 'Task',
-        'role': 'agent',
-        'state': 'completed',
-        'input': <String, dynamic>{
-          'description': 'Subagent output (recovered)',
-          'prompt':
-              '${children.length} message(s) — '
-              'parent Task missing from history',
-        },
-        'seq': minSeq,
-        'createdAt': minCreatedAt,
-        'children': List<Map<String, dynamic>>.from(children),
-        '_orphanRecovery': true,
-      };
-    });
-
-    final orphanIdToRoot = <String, String>{};
-    orphansByRoot.forEach((rootUuid, children) {
-      for (final c in children) {
-        final id = c['id'] as String?;
-        if (id != null) orphanIdToRoot[id] = rootUuid;
-      }
-    });
-
-    final result = <Map<String, dynamic>>[];
-    final inserted = <String>{};
-    for (final m in messages) {
-      final id = m['id'] as String?;
-      if (m['isSidechain'] == true && id != null && orphanIds.contains(id)) {
-        final root = orphanIdToRoot[id] ?? '';
-        if (!inserted.contains(root)) {
-          // Defensive null guard. By construction every orphan id maps to
-          // an entry in syntheticByRoot, but a future refactor or an
-          // out-of-order mutation must not be able to surface a
-          // "Null check operator used on a null value" crash on the
-          // sessions cold path.
-          final synthetic = syntheticByRoot[root];
-          if (synthetic != null) {
-            result.add(synthetic);
-            inserted.add(root);
-          } else {
-            logger.warning(
-              '[sidechain] missing synthetic root entry for orphan id=$id '
-              'root="$root" — keeping orphan as-is',
-            );
-            result.add(m);
-          }
-        }
-        continue;
-      }
-      result.add(m);
-    }
-
-    _sessionMessages[sessionId] = result;
-    _sessionMessagesCache = null;
-    _sessionMessagesViewCache.remove(sessionId);
-
-    logger.info(
-      '[sidechain] absorbed ${orphanIds.length} orphan(s) into '
-      '${syntheticByRoot.length} synthetic Task(s) (chain-root coalesce) '
-      'for session=$sessionId',
-    );
-    return true;
-  }
-
-  /// Dissolve any `_orphanRecovery: true` synthetic Task whose chain
-  /// can now reach a real Task in the message list — flatten its
-  /// children back to the top level so the regular grouper pass can
-  /// re-attach them to the genuine Task.
-  ///
-  /// Runs before [_groupSidechainMessages] delegates to the grouper.
-  /// Without this, a synthetic that absorbed orphans during a
-  /// cache-restore window stays in place forever; the real Task that
-  /// arrives later via fetchMessages adds itself as a separate tile
-  /// while the synthetic ghost continues to hold the children.
-  ///
-  /// Resolution is conservative: we only dissolve a synthetic when
-  /// some real Task uuid/toolUseId is present anywhere in the
-  /// orphan's chain (via the synthetic's children or top-level
-  /// sidechain peers).  A synthetic with no resolvable chain is
-  /// left alone — that case still legitimately needs the placeholder.
-  ///
-  /// Returns true when at least one synthetic was dissolved.
-  bool _dissolveStaleOrphanSynthetics(String sessionId) {
-    final messages = _sessionMessages[sessionId];
-    if (messages == null || messages.isEmpty) return false;
-
-    final realTaskKeys = <String>{};
-    for (final m in messages) {
-      if (m['_orphanRecovery'] == true) continue;
-      if (m['kind'] != 'tool-call') continue;
-      final name = m['name'];
-      if (name != 'Task' && name != 'Agent') continue;
-      final id = m['id'] as String?;
-      if (id != null && id.isNotEmpty) realTaskKeys.add(id);
-      final uuid = m['uuid'] as String?;
-      if (uuid != null && uuid.isNotEmpty) realTaskKeys.add(uuid);
-      final toolUseId = m['toolUseId'] as String?;
-      if (toolUseId != null && toolUseId.isNotEmpty) {
-        realTaskKeys.add(toolUseId);
-      }
-    }
-    if (realTaskKeys.isEmpty) return false;
-
-    // Index every sidechain message that is currently NOT inside a
-    // synthetic (top-level isSidechain entries) by uuid, so we can
-    // walk parentUuid chains across the synthetic boundary.
-    final peerByUuid = <String, Map<String, dynamic>>{};
-    for (final m in messages) {
-      if (m['isSidechain'] != true) continue;
-      final uuid = m['uuid'] as String?;
-      if (uuid != null && uuid.isNotEmpty) peerByUuid[uuid] = m;
-    }
-
-    final toDissolve = <Map<String, dynamic>>[];
-    for (final m in messages) {
-      if (m['_orphanRecovery'] != true) continue;
-      // Quick win: synthetic uuid (the chain root) IS a real Task key.
-      final syntheticUuid = m['uuid'] as String?;
-      if (syntheticUuid != null && realTaskKeys.contains(syntheticUuid)) {
-        toDissolve.add(m);
-        continue;
-      }
-      // Check children: walk each child's parentUuid up through
-      // siblings and synthetic.children to see if it hits a real
-      // Task key.  If any child resolves, the whole synthetic is
-      // stale.
-      final children = m['children'] as List<dynamic>?;
-      if (children == null || children.isEmpty) continue;
-      // Index synthetic's own children by uuid for chain walking.
-      final innerByUuid = <String, Map<String, dynamic>>{};
-      for (final c in children) {
-        if (c is Map<String, dynamic>) {
-          final cu = c['uuid'] as String?;
-          if (cu != null && cu.isNotEmpty) innerByUuid[cu] = c;
-        }
-      }
-      var resolvable = false;
-      // Fast-path: if any child carries parentToolUseId (Claude
-      // `parent_tool_use_id`) and it matches a real Task key, the
-      // whole synthetic is stale — no chain walking required.
-      outerPtu:
-      for (final c in children) {
-        if (c is! Map<String, dynamic>) continue;
-        final ptu = c['parentToolUseId'] as String?;
-        if (ptu != null && ptu.isNotEmpty && realTaskKeys.contains(ptu)) {
-          resolvable = true;
-          break outerPtu;
-        }
-      }
-      if (!resolvable) {
-        outer:
-        for (final c in children) {
-          if (c is! Map<String, dynamic>) continue;
-          var current = (c['parentUuid'] as String?) ?? '';
-          final visited = <String>{};
-          while (current.isNotEmpty && visited.add(current)) {
-            if (realTaskKeys.contains(current)) {
-              resolvable = true;
-              break outer;
-            }
-            final next = innerByUuid[current] ?? peerByUuid[current];
-            if (next == null) break;
-            current = (next['parentUuid'] as String?) ?? '';
-          }
-        }
-      }
-      if (resolvable) toDissolve.add(m);
-    }
-    if (toDissolve.isEmpty) return false;
-
-    // Re-flatten dissolved synthetics' children back into the
-    // top-level list at the synthetic's old position, preserving
-    // wire order for downstream sort stability.
-    final dissolveSet = Set<Map<String, dynamic>>.identity()
-      ..addAll(toDissolve);
-    final result = <Map<String, dynamic>>[];
-    var dissolvedCount = 0;
-    var reattachedCount = 0;
-    for (final m in messages) {
-      if (dissolveSet.contains(m)) {
-        dissolvedCount++;
-        final children = m['children'] as List<dynamic>?;
-        if (children != null) {
-          for (final c in children) {
-            if (c is Map<String, dynamic>) {
-              // Defensive: ensure child still claims sidechain
-              // status so the grouper picks it up.
-              if (c['isSidechain'] != true) c['isSidechain'] = true;
-              result.add(c);
-              reattachedCount++;
-            }
-          }
-        }
-        continue;
-      }
-      result.add(m);
-    }
-
-    _sessionMessages[sessionId] = result;
-    _sessionMessagesCache = null;
-    _sessionMessagesViewCache.remove(sessionId);
-    // Lift any orphan suppression so the grouper re-runs immediately.
-    _orphanSuppressedUntilMs.remove(sessionId);
-
-    logger.info(
-      '[sidechain] dissolved $dissolvedCount stale synthetic Task(s); '
-      're-attached $reattachedCount sidechain message(s) '
-      'for session=$sessionId',
-    );
-    return true;
   }
 
   /// Delegates to [SidechainGrouper] and updates session message
@@ -1038,11 +570,6 @@ extension SyncMessagingMerge on Sync {
   void _groupSidechainMessages(String sessionId, {Set<String>? changedIds}) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
-
-    // Reconcile any stale orphan-recovery synthetics whose real
-    // parent Task has since arrived.  Must happen BEFORE grouping
-    // so the released children participate in the same pass.
-    _dissolveStaleOrphanSynthetics(sessionId);
 
     final result = _sidechainGrouper.groupMessages(
       _sessionMessages[sessionId] ?? messages,
@@ -1053,10 +580,6 @@ extension SyncMessagingMerge on Sync {
 
     if (result.hasOrphans) {
       _scheduleSidechainRegroup(sessionId);
-    } else {
-      // Grouping succeeded — clear any suppression so future orphans
-      // (from new streaming content) trigger the grouper naturally.
-      _orphanSuppressedUntilMs.remove(sessionId);
     }
 
     // Always update _sessionMessages when the grouper ran and returned a

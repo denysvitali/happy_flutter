@@ -88,8 +88,6 @@ extension SyncTestHelpers on Sync {
     _previewCacheVersion.remove(sessionId);
     _sidechainRegroupSweepCount.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
-    _orphanSuppressedUntilMs.remove(sessionId);
-    _orphanAbsorbReportedAtMs.remove(sessionId);
   }
 
   /// Test helper: clear the throttle timestamp for orphan-recovery
@@ -128,8 +126,10 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: directly invoke the deferred regroup sweep.  This
   /// bypasses the 300ms debounce timer and runs the full sweep
-  /// including orphan detection, chain-root coalescing, and (if
-  /// configured) absorb into synthetic Task placeholders.
+  /// including orphan detection and the fetchOlder retry path.
+  /// Orphans that remain after grouping are left in the message list
+  /// (no synthetic absorption) so tests can assert they are
+  /// preserved for inline rendering.
   @visibleForTesting
   void testRunDeferredRegroupSweep(String sessionId) {
     _runDeferredRegroupSweep(sessionId);
@@ -148,39 +148,6 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testResetSidechainRegroupSweepCount(String sessionId) {
     _resetSidechainRegroupSweepCount(sessionId);
-  }
-
-  /// Test helper: invoke orphan absorption directly without waiting
-  /// for the 300ms deferred sweep timer.  Returns true if any orphans
-  /// were absorbed into synthetic Task placeholders.
-  @visibleForTesting
-  bool testAbsorbOrphansIntoSyntheticTasks(String sessionId) {
-    return _absorbOrphansIntoSyntheticTasks(sessionId);
-  }
-
-  /// Test helper: returns whether orphan absorption would emit a
-  /// Sentry warning for the supplied history state.
-  @visibleForTesting
-  bool testReportOrphanAbsorbToSentry({
-    required String sessionId,
-    required int orphanCount,
-    required bool triedFetchOlder,
-    required bool hasMoreOlder,
-  }) {
-    return _reportOrphanAbsorbToSentry(
-      sessionId: sessionId,
-      orphanCount: orphanCount,
-      triedFetchOlder: triedFetchOlder,
-      hasMoreOlder: hasMoreOlder,
-    );
-  }
-
-  /// Test helper: invoke synthetic dissolution directly.  Returns
-  /// true when at least one stale `_orphanRecovery` synthetic was
-  /// flattened back to top-level isSidechain messages.
-  @visibleForTesting
-  bool testDissolveStaleOrphanSynthetics(String sessionId) {
-    return _dissolveStaleOrphanSynthetics(sessionId);
   }
 
   /// Test helper: invoke the cache-write transformation that strips

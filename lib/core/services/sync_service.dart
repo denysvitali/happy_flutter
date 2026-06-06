@@ -453,24 +453,12 @@ what you have, you must use the options mode.
   final Set<String> _sessionsNeedingVisibleRegroup = <String>{};
   final Set<String> _sessionsNeedingSidechainRegroup = <String>{};
 
-  /// Per-session epoch-ms until which orphan sidechain re-grouping is
-  /// suppressed.  Set when the deferred sweep detects stuck orphans that
-  /// cannot be resolved (parent Task never arrived).  Prevents the
-  /// fetchMessages catch-up path from re-running the O(4n) grouper on
-  /// every invocation for sessions where orphans are known-stuck.
-  final Map<String, int> _orphanSuppressedUntilMs = {};
-
   /// Per-session epoch-ms of the last attempt to recover orphans by
   /// fetching older message pages. The parent Task is often just below
   /// the loaded window; one extra page usually pulls it in so the next
   /// grouper pass can re-attach the children. Throttled so a session
   /// with genuinely missing parents can't hammer the API.
   final Map<String, int> _orphanFetchOlderAttemptedMs = {};
-
-  /// Per-session epoch-ms of the last loud Sentry breadcrumb for
-  /// synthetic orphan absorption. Throttled so a noisy session doesn't
-  /// flood the issue tracker.
-  final Map<String, int> _orphanAbsorbReportedAtMs = {};
 
   /// Sessions that received `new-message` socket events while they were
   /// not visible. When the user navigates to one of these sessions,

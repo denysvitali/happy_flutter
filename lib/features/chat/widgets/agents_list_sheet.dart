@@ -171,9 +171,11 @@ class AgentsListSheet extends StatelessWidget {
     void collect(List<dynamic> msgs) {
       for (final msg in msgs) {
         if (msg is! Map<String, dynamic>) continue;
-        // Skip orphan-recovery synthetic Tasks — placeholders
-        // created by _absorbOrphansIntoSyntheticTasks, not real
-        // subagent invocations.
+        // Skip orphan-recovery synthetic Tasks — legacy placeholders
+        // that may still exist in older caches. They are not real
+        // subagent invocations and should not appear in the agents
+        // list. The live code path no longer creates these
+        // (orphans are rendered inline in the chat instead).
         if (msg['_orphanRecovery'] == true) continue;
 
         final kind = msg['kind'] as String?;

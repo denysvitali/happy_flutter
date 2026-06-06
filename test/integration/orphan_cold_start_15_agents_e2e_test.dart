@@ -18,10 +18,16 @@ import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 ///
 /// Reproduces session `c3758ad7b964191fd6b96c6dc` shape.
 ///
-/// This test encodes the contract that the absorber+restore fixes are
-/// supposed to enforce.  On `main` today it FAILS — that's intentional.
-/// Inline comments call out which expectation breaks on main vs which
-/// already holds.
+/// Contract:
+///   * The cache-only state is full of sidechain orphans. We never
+///     absorb them into a synthetic Task; the sync layer keeps
+///     trying `fetchOlderMessages` aggressively to bring the real
+///     parent Agents into the loaded window.
+///   * The grouper attaches each sidechain child to its real parent
+///     Agent via `parent_tool_use_id` once enough pages have been
+///     walked back. No `_orphanRecovery` synthetic ever appears.
+///   * At end state: 15 real Agent tool_uses, each with non-empty
+///     children, and zero orphan top-level sidechain messages.
 void main() {
   group('orphan cold start: 15 agents @ session ~1000 msgs', () {
     // Agent seqs taken verbatim from the user's session.
@@ -177,19 +183,18 @@ void main() {
         // ASSERTION 1 (the cache window itself): trigger the first
         // grouper sweep against the cache-only state.
         //
-        // On main: every cached msg is a sidechain orphan (its
+        // Every cached msg is a sidechain orphan (its
         // parent_tool_use_id resolves nowhere in the loaded window).
-        // The deferred sweep will eventually absorb them into one or
-        // more synthetic `_orphanRecovery: true` Task tiles.  This is
-        // the bug.  The contract says: as long as hasOlderMessages is
-        // true AND every orphan has parent_tool_use_id, NO synthetic
-        // should ever be created.
+        // The contract says: as long as hasOlderMessages is true AND
+        // every orphan has parent_tool_use_id, NO synthetic should
+        // ever be created.  Sidechains are preserved at the top level
+        // so the user still sees them while pagination walks back to
+        // find the real parent.
         // ------------------------------------------------------------
         sync.testGroupSidechainMessages(sessionId);
-        // Two sweeps without progress is the threshold for absorb.
+        // Drive enough sweeps to exercise the legacy absorb path —
+        // none of them should ever create a synthetic.
         sync.testRunDeferredRegroupSweep(sessionId);
-        // The first sweep should kick off ONE fetchOlder. Give that
-        // microtask a chance to run, then run sweep #2.
         await _drain();
         sync.testRunDeferredRegroupSweep(sessionId);
         await _drain();
@@ -200,18 +205,17 @@ void main() {
         final syntheticAfterFirstSweep = afterFirstSweep
             .where((m) => m['_orphanRecovery'] == true)
             .toList();
-        // CONTRACT ASSERTION (fails on main today):
-        // The absorber currently creates a synthetic placeholder for
-        // every chain root after 2 no-progress sweeps even though
-        // hasOlderMessages == true AND parent_tool_use_id is present.
+        // CONTRACT ASSERTION: no synthetic Task placeholder is ever
+        // created, regardless of how many sweeps fire.  Sidechain
+        // messages are preserved at the top level.
         expect(
           syntheticAfterFirstSweep,
           isEmpty,
           reason:
-              'CONTRACT (broken on main): with hasOlderMessages=true '
-              'and every orphan carrying parent_tool_use_id, the '
-              'absorber must defer to fetchOlder instead of inserting '
-              '_orphanRecovery synthetic Task tiles.',
+              'CONTRACT: sidechain messages must never be absorbed '
+              'into a _orphanRecovery synthetic Task. They are '
+              'preserved at the top level for the chat to render '
+              'inline.',
         );
 
         // ------------------------------------------------------------

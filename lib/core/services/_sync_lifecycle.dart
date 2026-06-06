@@ -80,7 +80,6 @@ extension SyncLifecycle on Sync {
     }
     _sidechainRegroupTimers.clear();
     _sidechainRegroupFirstRequestMs.clear();
-    _orphanSuppressedUntilMs.clear();
     _inlineProcessor.clear();
     _sessionsRefreshDebounceTimer?.cancel();
     _artifactsSyncDebounceTimer?.cancel();
@@ -715,7 +714,6 @@ extension SyncLifecycle on Sync {
     }
     _sidechainRegroupTimers.clear();
     _sidechainRegroupFirstRequestMs.clear();
-    _orphanSuppressedUntilMs.clear();
     _inlineProcessor.clear();
     // Flush any pending seq write before shutdown so cursors aren't lost.
     _saveSeqDebounceTimer?.cancel();

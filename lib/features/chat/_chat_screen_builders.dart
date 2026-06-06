@@ -62,13 +62,25 @@ extension _ChatScreenBuilders on _ChatScreenState {
 
       for (final msg in visibleMessages) {
         try {
-          // Sidechain (agent) messages should only appear inside
-          // the AgentConversationScreen, never in the main chat.
-          if (msg['isSidechain'] == true) continue;
-          // Synthetic "Subagent output (recovered)" tiles produced by
-          // _absorbOrphansIntoSyntheticTasks are diagnostic-only; surface
-          // them in AgentsListSheet, never in the main chat list. They
-          // were the user-visible noise behind GlitchTip HAPPY_FLUTTER-3C9.
+          // Sidechain (subagent) messages whose parent Task is in the
+          // loaded window are attached to that Task's `children` array
+          // by the grouper and are NOT in the top-level list here, so
+          // they only appear inside the AgentConversationScreen for
+          // their parent.
+          //
+          // Sidechain messages that landed in the top-level list are
+          // orphans — their parent Task is not in the loaded window
+          // (or never arrived).  We render them inline in the main
+          // chat rather than absorbing them into a synthetic
+          // "Subagent output (recovered)" tile, so the user can see
+          // the actual content (text, tool-calls) and never loses
+          // subagent output.  See _absorbOrphansIntoSyntheticTasks
+          // removal in _sync_messaging_merge.
+          //
+          // Defense-in-depth: if a legacy cache still has a synthetic
+          // `_orphanRecovery: true` placeholder, drop it — the chat
+          // already has the real children rendered inline now, and
+          // the synthetic would render as an empty duplicate.
           if (msg['_orphanRecovery'] == true) continue;
           if (_shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
             hiddenToolCalls.add(msg);

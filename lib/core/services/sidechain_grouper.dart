@@ -213,10 +213,11 @@ class SidechainGrouper {
     // resolution is iteration-order-sensitive: a chain message
     // whose direct parent (the prior sidechain message) hasn't
     // been processed yet stays orphaned, even though the chain
-    // ultimately terminates at an indexed Task.  In production
-    // this manifests as long subagent runs fragmenting into
-    // many singleton "Subagent output (recovered)" tiles via
-    // _absorbOrphansIntoSyntheticTasks.
+    // ultimately terminates at an indexed Task.  Orphan sidechain
+    // messages are preserved at the top level (no synthetic
+    // absorption) so the chat renders them inline; the worst case
+    // here is subagent runs arriving as several top-level bubbles
+    // instead of being grouped under one Task.
     final sidechainByUuid = <String, Map<String, dynamic>>{};
     for (final msg in messages) {
       if (msg['isSidechain'] == true ||
