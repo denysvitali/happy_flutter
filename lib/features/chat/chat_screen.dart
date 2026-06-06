@@ -43,6 +43,7 @@ import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
+import 'widgets/session_tasks_banner.dart';
 import 'widgets/thinking_pill.dart';
 import 'widgets/tts_playback_bar.dart';
 
@@ -1336,6 +1337,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
         if (_sessionSendIssue case final issue?)
           _SessionIssueBanner(issue: issue),
+        SessionTasksBanner(sessionId: widget.sessionId),
         TtsPlaybackBar(
           onPrev: _ttsPrev,
           onStop: _ttsStop,
