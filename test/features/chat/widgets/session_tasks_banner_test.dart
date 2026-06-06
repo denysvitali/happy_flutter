@@ -52,11 +52,10 @@ void main() {
       );
     }
 
-    testWidgets('renders nothing when no tasks for the session',
-        (tester) async {
-      await tester.pumpWidget(
-        wrap(const SessionTasksBanner(sessionId: 's1')),
-      );
+    testWidgets('renders nothing when no tasks for the session', (
+      tester,
+    ) async {
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
       await tester.pumpAndSettle();
 
       // Banner is hidden — no header, no list.
@@ -65,20 +64,18 @@ void main() {
       expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
     });
 
-    testWidgets('shows "X/Y done" header for the active session',
-        (tester) async {
-      container.read(todoStateNotifierProvider.notifier).setItemsForSession(
-            's1',
-            [
-              item('a', TodoState.completed),
-              item('b', TodoState.inProgress),
-              item('c', TodoState.pending),
-            ],
-          );
+    testWidgets('shows "X/Y done" header for the active session', (
+      tester,
+    ) async {
+      container
+          .read(todoStateNotifierProvider.notifier)
+          .setItemsForSession('s1', [
+            item('a', TodoState.completed),
+            item('b', TodoState.inProgress),
+            item('c', TodoState.pending),
+          ]);
 
-      await tester.pumpWidget(
-        wrap(const SessionTasksBanner(sessionId: 's1')),
-      );
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('1/3 done'), findsOneWidget);
@@ -86,19 +83,17 @@ void main() {
       expect(find.text('View all'), findsOneWidget);
     });
 
-    testWidgets('expands on header tap and reveals the full list',
-        (tester) async {
-      container.read(todoStateNotifierProvider.notifier).setItemsForSession(
-            's1',
-            [
-              item('a', TodoState.completed, content: 'First task'),
-              item('b', TodoState.inProgress, content: 'Second task'),
-            ],
-          );
+    testWidgets('expands on header tap and reveals the full list', (
+      tester,
+    ) async {
+      container
+          .read(todoStateNotifierProvider.notifier)
+          .setItemsForSession('s1', [
+            item('a', TodoState.completed, content: 'First task'),
+            item('b', TodoState.inProgress, content: 'Second task'),
+          ]);
 
-      await tester.pumpWidget(
-        wrap(const SessionTasksBanner(sessionId: 's1')),
-      );
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
       await tester.pumpAndSettle();
 
       // Collapsed: per-item text is NOT in the tree.
@@ -111,24 +106,22 @@ void main() {
 
       expect(find.text('First task'), findsOneWidget);
       expect(find.text('Second task'), findsOneWidget);
+      expect(find.text('Running'), findsOneWidget);
     });
 
     testWidgets('does not leak tasks from other sessions', (tester) async {
       container.read(todoStateNotifierProvider.notifier).setItemsForSession(
-            's1',
-            [item('a', TodoState.pending)],
-          );
-      container.read(todoStateNotifierProvider.notifier).setItemsForSession(
-            's2',
-            [
-              item('b', TodoState.pending, content: 'Other session task'),
-              item('c', TodoState.pending, content: 'Also other session'),
-            ],
-          );
-
-      await tester.pumpWidget(
-        wrap(const SessionTasksBanner(sessionId: 's1')),
+        's1',
+        [item('a', TodoState.pending)],
       );
+      container
+          .read(todoStateNotifierProvider.notifier)
+          .setItemsForSession('s2', [
+            item('b', TodoState.pending, content: 'Other session task'),
+            item('c', TodoState.pending, content: 'Also other session'),
+          ]);
+
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
       await tester.pumpAndSettle();
 
       // s1 has 1 task.
@@ -143,17 +136,13 @@ void main() {
       expect(find.text('Also other session'), findsNothing);
     });
 
-    testWidgets('header counts update reactively when todos change',
-        (tester) async {
-      final notifier =
-          container.read(todoStateNotifierProvider.notifier);
-      notifier.setItemsForSession('s1', [
-        item('a', TodoState.pending),
-      ]);
+    testWidgets('header counts update reactively when todos change', (
+      tester,
+    ) async {
+      final notifier = container.read(todoStateNotifierProvider.notifier);
+      notifier.setItemsForSession('s1', [item('a', TodoState.pending)]);
 
-      await tester.pumpWidget(
-        wrap(const SessionTasksBanner(sessionId: 's1')),
-      );
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
       await tester.pumpAndSettle();
       expect(find.textContaining('0/1 done'), findsOneWidget);
 
@@ -168,15 +157,12 @@ void main() {
     });
 
     testWidgets('toggling a task flips its count', (tester) async {
-      final notifier =
-          container.read(todoStateNotifierProvider.notifier);
+      final notifier = container.read(todoStateNotifierProvider.notifier);
       notifier.setItemsForSession('s1', [
         item('a', TodoState.pending, content: 'Toggle me'),
       ]);
 
-      await tester.pumpWidget(
-        wrap(const SessionTasksBanner(sessionId: 's1')),
-      );
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
       await tester.pumpAndSettle();
       expect(find.textContaining('0/1 done'), findsOneWidget);
 
@@ -190,15 +176,10 @@ void main() {
     });
 
     testWidgets('banner hides once the session is cleared', (tester) async {
-      final notifier =
-          container.read(todoStateNotifierProvider.notifier);
-      notifier.setItemsForSession('s1', [
-        item('a', TodoState.pending),
-      ]);
+      final notifier = container.read(todoStateNotifierProvider.notifier);
+      notifier.setItemsForSession('s1', [item('a', TodoState.pending)]);
 
-      await tester.pumpWidget(
-        wrap(const SessionTasksBanner(sessionId: 's1')),
-      );
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
       await tester.pumpAndSettle();
       expect(find.textContaining('done'), findsOneWidget);
 

@@ -204,22 +204,28 @@ void main() {
       expect(first, startsWith('tool-1#'));
     });
 
-    test('different tool ids produce different derived ids for same content',
-        () {
-      final a = _resolveItemId(null, 'same content', 'tool-a');
-      final b = _resolveItemId(null, 'same content', 'tool-b');
-      expect(a, isNot(equals(b)));
+    test(
+      'different tool ids produce different derived ids for same content',
+      () {
+        final a = _resolveItemId(null, 'same content', 'tool-a');
+        final b = _resolveItemId(null, 'same content', 'tool-b');
+        expect(a, isNot(equals(b)));
+      },
+    );
+  });
+
+  group('TodoState', () {
+    test('parses snake-case in-progress wire status', () {
+      expect(TodoState.fromString('in_progress'), TodoState.inProgress);
+      expect(TodoState.fromString('in-progress'), TodoState.inProgress);
+      expect(TodoState.fromString('in progress'), TodoState.inProgress);
     });
   });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-TodoItem _domainItem(
-  String id,
-  TodoState status, {
-  required int order,
-}) {
+TodoItem _domainItem(String id, TodoState status, {required int order}) {
   final now = DateTime.now().millisecondsSinceEpoch;
   return TodoItem(
     id: id,

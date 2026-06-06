@@ -6,15 +6,18 @@ enum TodoState {
   pending,
   inProgress,
   completed,
-  canceled,
-  ;
+  canceled;
 
   static TodoState fromString(String value) {
     switch (value) {
+      case 'in_progress':
+      case 'in-progress':
+      case 'in progress':
       case 'inProgress':
         return inProgress;
       case 'completed':
         return completed;
+      case 'cancelled':
       case 'canceled':
         return canceled;
       default:
@@ -76,7 +79,8 @@ class TodoItem {
       priority: json['priority'] as String,
       order: json['order'] as int,
       parentId: json['parentId'] as String?,
-      dependencies: (json['dependencies'] as List<dynamic>?)
+      dependencies:
+          (json['dependencies'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -151,4 +155,3 @@ class TodoItem {
     );
   }
 }
-
