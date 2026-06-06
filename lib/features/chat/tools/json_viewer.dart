@@ -79,13 +79,11 @@ class SmartOutputContainer extends StatefulWidget {
   final dynamic content;
 
   @override
-  State<SmartOutputContainer> createState() =>
-      _SmartOutputContainerState();
+  State<SmartOutputContainer> createState() => _SmartOutputContainerState();
 }
 
 class _SmartOutputContainerState extends State<SmartOutputContainer> {
-  late final (bool, dynamic, String?) _parsed =
-      _tryParseJson(widget.content);
+  late final (bool, dynamic, String?) _parsed = _tryParseJson(widget.content);
 
   @override
   Widget build(BuildContext context) {
@@ -148,8 +146,7 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
           final inner = _unwrapMcpContentBlocks(decoded);
           if (inner is String) {
             final innerTrimmed = inner.trim();
-            if (innerTrimmed.startsWith('{') ||
-                innerTrimmed.startsWith('[')) {
+            if (innerTrimmed.startsWith('{') || innerTrimmed.startsWith('[')) {
               try {
                 return (true, jsonDecode(inner), null);
               } catch (_) {
@@ -201,8 +198,41 @@ class JsonTreeViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _JsonNode(value: value, depth: 0, trailingComma: false);
+    return _JsonNode(
+      value: _decodeNestedJsonStrings(value),
+      depth: 0,
+      trailingComma: false,
+    );
   }
+}
+
+dynamic _decodeNestedJsonStrings(dynamic value) {
+  if (value is Map) {
+    return Map<String, dynamic>.fromEntries(
+      value.entries.map(
+        (entry) => MapEntry(
+          entry.key.toString(),
+          _decodeNestedJsonStrings(entry.value),
+        ),
+      ),
+    );
+  }
+  if (value is List) {
+    return value.map(_decodeNestedJsonStrings).toList();
+  }
+  if (value is String) {
+    final trimmed = value.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return value;
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map || decoded is List) {
+        return _decodeNestedJsonStrings(decoded);
+      }
+    } catch (_) {
+      // Keep non-JSON strings as strings.
+    }
+  }
+  return value;
 }
 
 // ---------------------------------------------------------------------------
@@ -277,7 +307,10 @@ class _JsonNodeState extends State<_JsonNode> {
           text: TextSpan(
             style: mono,
             children: [
-              TextSpan(text: '{ ', style: TextStyle(color: colors.bracket)),
+              TextSpan(
+                text: '{ ',
+                style: TextStyle(color: colors.bracket),
+              ),
               TextSpan(
                 text: '... ${map.length} ${map.length == 1 ? 'key' : 'keys'}',
                 style: TextStyle(color: colors.muted),
@@ -350,9 +383,13 @@ class _JsonNodeState extends State<_JsonNode> {
           text: TextSpan(
             style: mono,
             children: [
-              TextSpan(text: '[ ', style: TextStyle(color: colors.bracket)),
               TextSpan(
-                text: '... ${list.length} '
+                text: '[ ',
+                style: TextStyle(color: colors.bracket),
+              ),
+              TextSpan(
+                text:
+                    '... ${list.length} '
                     '${list.length == 1 ? 'item' : 'items'}',
                 style: TextStyle(color: colors.muted),
               ),
@@ -430,7 +467,10 @@ class _JsonNodeState extends State<_JsonNode> {
       text: TextSpan(
         style: mono,
         children: [
-          TextSpan(text: text, style: TextStyle(color: color)),
+          TextSpan(
+            text: text,
+            style: TextStyle(color: color),
+          ),
           if (trail.isNotEmpty)
             TextSpan(
               text: trail,
@@ -501,7 +541,10 @@ class _ObjectEntryRow extends StatelessWidget {
           children: [
             keySpan,
             colonSpan,
-            TextSpan(text: valueText, style: TextStyle(color: valueColor)),
+            TextSpan(
+              text: valueText,
+              style: TextStyle(color: valueColor),
+            ),
             if (trail.isNotEmpty)
               TextSpan(
                 text: trail,
@@ -519,10 +562,7 @@ class _ObjectEntryRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         RichText(
-          text: TextSpan(
-            style: mono,
-            children: [keySpan, colonSpan],
-          ),
+          text: TextSpan(style: mono, children: [keySpan, colonSpan]),
         ),
         Flexible(
           child: _JsonNode(
