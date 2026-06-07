@@ -559,6 +559,41 @@ void main() {
       expect(find.text('Terminal'), findsOneWidget);
     });
 
+    testWidgets('shows running tool calls without permission when hidden', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'msg_1',
+          'role': 'assistant',
+          'kind': 'tool-call',
+          'name': 'CodexBash',
+          'toolUseId': 'tool_1',
+          'state': 'running',
+          'input': {
+            'args': {
+              'command': ['pwd'],
+            },
+          },
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(
+          settings: Settings()..hideToolCalls = true,
+          child: const ChatScreen(sessionId: 'session_1'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Terminal'), findsOneWidget);
+      expect(find.byType(HiddenToolSummary), findsNothing);
+    });
+
     testWidgets('shows errored tool calls when hiding completed tools', (
       tester,
     ) async {

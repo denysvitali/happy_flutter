@@ -232,8 +232,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final sameSender = nextRole == currentRole;
     final isToolCall = message['kind'] == 'tool-call';
     final nextIsToolCall = nextMessage?['kind'] == 'tool-call';
-    final isToolLike =
-        isToolCall || message['kind'] == 'hidden-tool-summary';
+    final isToolLike = isToolCall || message['kind'] == 'hidden-tool-summary';
     final nextIsToolLike =
         nextIsToolCall || nextMessage?['kind'] == 'hidden-tool-summary';
     final bottomPad = (isToolLike && nextIsToolLike)
@@ -315,7 +314,10 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final toolName = message['name'] as String?;
     if (toolName == 'Task' || toolName == 'Agent') return false;
 
-    if (message['state'] == 'error') return false;
+    final state = message['state'] as String?;
+    if (state == 'pending' || state == 'running' || state == 'error') {
+      return false;
+    }
 
     final permission = WireParsers.asMap(message['permission']);
     if (permission == null) return true;
