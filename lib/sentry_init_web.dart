@@ -33,7 +33,7 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..dist = _sentryDist.isNotEmpty ? _sentryDist : null
       ..environment = kReleaseMode ? 'production' : 'debug'
       // ── Breadcrumb limits ──
-      ..maxBreadcrumbs = 200
+      ..maxBreadcrumbs = sentryMaxBreadcrumbs
       ..attachStacktrace = true
       // ── Session replay ──
       ..replay.sessionSampleRate = sentryReplaySessionSampleRate
@@ -51,7 +51,9 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
 
   logger.info(
     '[Sentry] Web SDK initialized (filterNonActionable='
-    '$sentryFilterNonActionable, dropReasons=${sentryDropReasonSet.join(',')})',
+    '$sentryFilterNonActionable, '
+    'dropReasons=${sentryDropReasonSet.join(',')}, '
+    'maxBreadcrumbs=$sentryMaxBreadcrumbs)',
   );
 }
 

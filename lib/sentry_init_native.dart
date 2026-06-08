@@ -52,7 +52,8 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       // unmount during navigation and generates noise in GlitchTip.
       ..enableUserInteractionTracing = false
       // ── Breadcrumb limits ──
-      ..maxBreadcrumbs = 200
+      ..maxBreadcrumbs = sentryMaxBreadcrumbs
+      ..enableAutoNativeBreadcrumbs = sentryEnableAutoNativeBreadcrumbs
       ..attachStacktrace = true
       // ── Attach screenshots on errors/ANRs ──
       ..attachScreenshot = sentryAttachScreenshot
@@ -75,7 +76,9 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
 
   logger.info(
     '[Sentry] filterNonActionable=$sentryFilterNonActionable '
-    'dropReasons=${sentryDropReasonSet.join(',')}',
+    'dropReasons=${sentryDropReasonSet.join(',')} '
+    'maxBreadcrumbs=$sentryMaxBreadcrumbs '
+    'nativeBreadcrumbs=$sentryEnableAutoNativeBreadcrumbs',
   );
 }
 
@@ -207,8 +210,6 @@ bool _isNonActionableNativeEvent(SentryEvent event) {
 FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
   if (!sentryFilterNonActionable) return event;
 
-  if (event.level == SentryLevel.fatal) return event;
-
   // Drop background ANRs — on Android these are almost always
   // false positives caused by the OS deprioritising the app.
   for (final exception in event.exceptions ?? <SentryException>[]) {
@@ -219,6 +220,8 @@ FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
       return null;
     }
   }
+
+  if (event.level == SentryLevel.fatal) return event;
 
   // Drop transient network errors (DNS, timeout, etc.) — these
   // are expected when the device briefly loses connectivity.

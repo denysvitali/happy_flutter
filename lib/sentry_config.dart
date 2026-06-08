@@ -28,6 +28,14 @@ const sentryReplayOnErrorSampleRate = 0.0;
 const sentryAttachScreenshot = false;
 const sentryEnableFrameMetrics = false;
 const sentryCaptureWarnings = false;
+const sentryMaxBreadcrumbs = int.fromEnvironment(
+  'SENTRY_MAX_BREADCRUMBS',
+  defaultValue: 50,
+);
+const sentryEnableAutoNativeBreadcrumbs = bool.fromEnvironment(
+  'SENTRY_ENABLE_AUTO_NATIVE_BREADCRUMBS',
+  defaultValue: false,
+);
 bool get sentryEnableDioInterceptor => sentryTracesSampleRate > 0;
 bool get sentryEnableNavigationObserver => sentryTracesSampleRate > 0;
 
@@ -39,8 +47,9 @@ const sentryDropReasons = String.fromEnvironment(
   defaultValue: _defaultSentryDropReasons,
 );
 
-final Set<String> sentryDropReasonSet =
-    _parseSentryDropReasons(sentryDropReasons);
+final Set<String> sentryDropReasonSet = _parseSentryDropReasons(
+  sentryDropReasons,
+);
 
 /// Kill switch for local validation: set
 /// `--dart-define=SENTRY_FILTER_NON_ACTIONABLE=false`
