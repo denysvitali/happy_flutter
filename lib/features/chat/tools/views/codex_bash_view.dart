@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/code_block_widget.dart';
 
+import '../json_viewer.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
@@ -143,6 +144,7 @@ class CodexBashView extends StatelessWidget {
         stderr: stderr,
         exitCode: exitCode,
         error: error,
+        rawResult: result,
       ),
     );
   }
@@ -150,7 +152,7 @@ class CodexBashView extends StatelessWidget {
   String? _getStdout(dynamic result) {
     if (result is String) return result;
     if (result is Map<String, dynamic>) {
-      return result['stdout'] as String?;
+      return result['stdout'] as String? ?? result['output'] as String?;
     }
     return null;
   }
@@ -328,6 +330,7 @@ class _CodexCommandView extends StatefulWidget {
     this.stderr,
     this.exitCode,
     this.error,
+    this.rawResult,
   });
   final String command;
   final String? cwd;
@@ -335,6 +338,7 @@ class _CodexCommandView extends StatefulWidget {
   final String? stderr;
   final int? exitCode;
   final String? error;
+  final dynamic rawResult;
 
   @override
   State<_CodexCommandView> createState() => _CodexCommandViewState();
@@ -342,6 +346,7 @@ class _CodexCommandView extends StatefulWidget {
 
 class _CodexCommandViewState extends State<_CodexCommandView> {
   static const int _maxLines = 20;
+  bool _rawJsonExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -372,6 +377,23 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
             maxLines: _maxLines,
           ),
         if (widget.exitCode != null) ExitCodeBadge(exitCode: widget.exitCode!),
+        if (widget.rawResult != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          TextButton.icon(
+            onPressed: () =>
+                setState(() => _rawJsonExpanded = !_rawJsonExpanded),
+            icon: Icon(
+              _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
+              size: AppIconSize.sm,
+            ),
+            label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            ),
+          ),
+          if (_rawJsonExpanded) SmartOutputContainer(content: widget.rawResult),
+        ],
       ],
     );
   }
@@ -605,4 +627,3 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
     );
   }
 }
-
