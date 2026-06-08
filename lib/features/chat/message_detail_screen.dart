@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/ansi_parser.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/wire_parsers.dart';
 import 'tools/json_viewer.dart';
@@ -210,6 +211,7 @@ class _ToolDetailView extends StatelessWidget {
     }
 
     final state = _parseToolState(toolState);
+    final resultText = _commandResultText(toolName, result);
 
     return ListView(
       padding: AppScreenPadding.standard,
@@ -264,8 +266,12 @@ class _ToolDetailView extends StatelessWidget {
                 ? context.l10n.commonError
                 : context.l10n.messageDetailOutput,
             icon: state == ToolState.error ? Icons.error_outline : Icons.output,
-            json: result is Map || result is List ? result : null,
-            text: result is! Map && result is! List ? result.toString() : null,
+            json: resultText == null && (result is Map || result is List)
+                ? result
+                : null,
+            text:
+                resultText ??
+                (result is! Map && result is! List ? result.toString() : null),
             isError: state == ToolState.error,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -294,6 +300,39 @@ class _ToolDetailView extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+String? _commandResultText(String toolName, dynamic result) {
+  if (!_isCommandTool(toolName)) return null;
+  if (result is String) return result;
+
+  final map = WireParsers.asMap(result);
+  if (map == null) return null;
+
+  final stdout = map['stdout'];
+  if (stdout is String && stdout.isNotEmpty) return stdout;
+
+  final output = map['output'];
+  if (output is String && output.isNotEmpty) return output;
+
+  final stderr = map['stderr'];
+  if (stderr is String && stderr.isNotEmpty) return stderr;
+
+  return null;
+}
+
+bool _isCommandTool(String toolName) {
+  switch (toolName) {
+    case 'Bash':
+    case 'CodexBash':
+    case 'GeminiBash':
+    case 'execute':
+    case 'exec_command':
+    case 'functions.exec_command':
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -384,7 +423,7 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
     super.initState();
     _copyText = widget.json != null
         ? _jsonEncoder.convert(widget.json)
-        : (widget.text ?? '');
+        : AnsiParser.strip(widget.text ?? '');
     _jsonValue = _resolveJson();
   }
 
@@ -449,7 +488,7 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
             if (_jsonValue != null)
               _JsonTreeBlock(value: _jsonValue)
             else
-              _CodeBlock(content: _copyText),
+              _CodeBlock(content: widget.text ?? ''),
           ],
         ),
       ),
@@ -563,6 +602,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
     final state = tool['state'] as String? ?? 'pending';
     final input = WireParsers.asMap(tool['input']);
     final result = tool['result'];
+    final resultText = _commandResultText(toolName, result);
 
     return Column(
       children: [
@@ -607,10 +647,14 @@ class _ToolDetailBottomSheet extends StatelessWidget {
                       ? context.l10n.commonError
                       : context.l10n.messageDetailOutput,
                   icon: state == 'error' ? Icons.error_outline : Icons.output,
-                  json: result is Map<String, dynamic> ? result : null,
-                  text: result is! Map<String, dynamic>
-                      ? result.toString()
+                  json: resultText == null && result is Map<String, dynamic>
+                      ? result
                       : null,
+                  text:
+                      resultText ??
+                      (result is! Map<String, dynamic>
+                          ? result.toString()
+                          : null),
                   isError: state == 'error',
                 ),
               ],
@@ -751,6 +795,14 @@ class _CodeBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const defaultStyle = TextStyle(
+      fontFamily: 'monospace',
+      fontSize: AppFontSize.sm,
+      color: Color(0xFFD4D4D4),
+      height: AppLineHeight.relaxed,
+    );
+    final spans = AnsiParser.parse(content, defaultStyle: defaultStyle);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.smd),
@@ -760,13 +812,9 @@ class _CodeBlock extends StatelessWidget {
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: SelectableText(
-          content,
-          style: const TextStyle(
-            fontFamily: 'monospace',
-            fontSize: AppFontSize.sm,
-            color: Color(0xFFD4D4D4),
-          ),
+        child: SelectableText.rich(
+          TextSpan(children: spans),
+          style: defaultStyle,
         ),
       ),
     );
