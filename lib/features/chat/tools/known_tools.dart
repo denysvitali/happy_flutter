@@ -426,7 +426,9 @@ class KnownTools {
     'TaskCreate': ToolDefinition(
       icon: todoIcon,
       title: 'Create Task',
-      minimal: true,
+      // NOT minimal — the body widget must mount so its initState can
+      // push the parsed item into todoStateNotifierProvider. Collapsed
+      // tools skip body instantiation entirely.
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
         return input?['subject'] as String? ??
@@ -436,7 +438,6 @@ class KnownTools {
     'TaskUpdate': ToolDefinition(
       icon: todoIcon,
       title: 'Update Task',
-      minimal: true,
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
         return input?['activeForm'] as String? ??
@@ -446,12 +447,10 @@ class KnownTools {
     'TaskList': ToolDefinition(
       icon: todoIcon,
       title: 'List Tasks',
-      minimal: true,
     ),
     'TaskGet': ToolDefinition(
       icon: todoIcon,
       title: 'Get Task',
-      minimal: true,
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
         final taskId = input?['taskId'] as String? ??
