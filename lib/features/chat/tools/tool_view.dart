@@ -118,6 +118,8 @@ class _ToolViewState extends ConsumerState<ToolView>
   void initState() {
     super.initState();
 
+    _maybePushTaskTool();
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -162,6 +164,14 @@ class _ToolViewState extends ConsumerState<ToolView>
   void didUpdateWidget(ToolView oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // Task tool results need to reach the global notifier even when this
+    // tool is auto-collapsed — the body that would normally push the state
+    // is unmounted in that case. Push from here so the session banner and
+    // Zen list stay in sync with the latest tool data.
+    if (!identical(widget.tool, oldWidget.tool)) {
+      _maybePushTaskTool();
+    }
+
     final newState = parseToolState(
       widget.tool['state'] as String? ?? 'pending',
     );
@@ -201,6 +211,28 @@ class _ToolViewState extends ConsumerState<ToolView>
   bool get _isPlanTool {
     final name = widget.tool['name'] as String? ?? '';
     return name == 'ExitPlanMode' || name == 'exit_plan_mode';
+  }
+
+  bool get _isTaskTool {
+    final name = widget.tool['name'] as String? ?? '';
+    return name == 'TaskCreate' ||
+        name == 'TaskUpdate' ||
+        name == 'TaskList' ||
+        name == 'TaskGet';
+  }
+
+  /// Forward task-tool data to the global todo notifier.
+  ///
+  /// Done at the [ToolView] level (always mounted) rather than inside the
+  /// task-specific body (only mounted while expanded) so a tool that
+  /// completes while collapsed still updates the session banner / Zen list.
+  void _maybePushTaskTool() {
+    if (!_isTaskTool) return;
+    TaskToolView.pushToolToGlobalState(
+      context,
+      widget.tool,
+      widget.sessionId,
+    );
   }
 
   void _scheduleAutoCollapse() {

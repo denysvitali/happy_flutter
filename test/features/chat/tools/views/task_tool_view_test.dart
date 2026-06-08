@@ -373,4 +373,59 @@ void main() {
       expect(state.bySession['s2']!.first.content, 'B');
     });
   });
+
+  group('TaskToolView — collapsed parent still drives global state', () {
+    // Regression: the in-app task list (session banner, Zen home) used to
+    // stay stale until the user expanded the inline tool view. Root cause:
+    // TaskToolView's body lived inside an AnimatedSize that unmounts when
+    // collapsed, so its initState/didUpdateWidget never fired for tools
+    // that completed while hidden. The fix is to drive the global notifier
+    // push from the always-mounted parent (ToolView) too.
+
+    testWidgets(
+      'ToolView pushes task data even when its body never mounts',
+      (tester) async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        const sessionId = 's-collapsed';
+
+        // Use the static entry point directly — this is what ToolView
+        // calls from didUpdateWidget. We bypass the body mount entirely
+        // to prove the global state path works without the conditional
+        // AnimatedSize subtree.
+        final tool = <String, dynamic>{
+          'name': 'TaskCreate',
+          'toolUseId': 'call-collapsed',
+          'state': 'completed',
+          'input': {
+            'subject': 'Item created while collapsed',
+            'status': 'in_progress',
+          },
+        };
+
+        late BuildContext ctx;
+        await tester.pumpWidget(
+          _wrap(
+            container,
+            Builder(
+              builder: (context) {
+                ctx = context;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        TaskToolView.pushToolToGlobalState(ctx, tool, sessionId);
+
+        final items = container
+            .read(todoStateNotifierProvider)
+            .bySession[sessionId];
+        expect(items, isNotNull);
+        expect(items, hasLength(1));
+        expect(items!.first.content, 'Item created while collapsed');
+        expect(items.first.status, TodoState.inProgress);
+      },
+    );
+  });
 }

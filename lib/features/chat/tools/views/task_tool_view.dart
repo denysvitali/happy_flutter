@@ -23,69 +23,51 @@ class TaskToolView extends ConsumerStatefulWidget {
   final Map<String, dynamic>? metadata;
   final String? sessionId;
 
-  @override
-  ConsumerState<TaskToolView> createState() => _TaskToolViewState();
-}
-
-class _TaskToolViewState extends ConsumerState<TaskToolView> {
-  /// Stable id for this tool call — used to derive deterministic item ids
-  /// when the wire format doesn't carry one. Same pattern as `TodoView`.
-  String get _toolId {
-    final id = widget.tool['toolUseId'] as String? ??
-        widget.tool['id'] as String?;
-    if (id != null && id.isNotEmpty) return id;
-    return widget.tool['name']?.toString() ?? 'task';
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Defer to post-frame so we don't mutate the provider during build.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _pushToGlobalState();
-    });
-  }
-
-  @override
-  void didUpdateWidget(TaskToolView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _pushToGlobalState();
-    });
-  }
-
-  String get _name => (widget.tool['name'] as String?) ?? '';
-
-  void _pushToGlobalState() {
-    final items = _resolveItems();
-    final container = ProviderScope.containerOf(context, listen: false);
-    container
+  /// Pushes the task-tool items into the global [todoStateNotifierProvider]
+  /// so they surface in the in-app task list (session banner + Zen home).
+  ///
+  /// Called from [ToolView.initState]/[ToolView.didUpdateWidget] rather
+  /// than this widget's own lifecycle because the body is mounted inside
+  /// an [AnimatedSize] that is removed from the tree when the tool is
+  /// collapsed. Driving the push from the always-mounted parent keeps the
+  /// global state fresh even when the user has a tool auto-collapsed.
+  static void pushToolToGlobalState(
+    BuildContext context,
+    Map<String, dynamic> tool,
+    String? sessionId,
+  ) {
+    final items = _resolveItemsFromTool(tool, sessionId, context);
+    ProviderScope.containerOf(context, listen: false)
         .read(todoStateNotifierProvider.notifier)
-        .setItemsForSession(widget.sessionId, items);
+        .setItemsForSession(sessionId, items);
   }
 
   /// Resolves the domain [TodoItem] list implied by the current tool call.
   ///
-  /// Strategy differs per tool:
-  /// - TaskCreate: add a single item with the subject.
-  /// - TaskUpdate: mutate the matching item's status in place.
-  /// - TaskList: replace the session's list with the listed tasks.
-  /// - TaskGet: add a single item from the result snapshot.
-  List<TodoItem> _resolveItems() {
-    final session = widget.sessionId;
-    final existing = _currentSessionItems(session);
+  /// Static so it can be called from [pushToolToGlobalState] (driven by
+  /// [ToolView.didUpdateWidget]) regardless of whether this widget's body
+  /// is currently mounted. The body lives inside an [AnimatedSize] that
+  /// unmounts when the tool is collapsed, so its own lifecycle would skip
+  /// pushes for tools that complete while hidden.
+  static List<TodoItem> _resolveItemsFromTool(
+    Map<String, dynamic> tool,
+    String? session,
+    BuildContext context,
+  ) {
+    final existing = _currentSessionItemsFor(session, context);
     final now = DateTime.now().millisecondsSinceEpoch;
+    final name = (tool['name'] as String?) ?? '';
+    final toolId = _toolIdFor(tool);
 
-    switch (_name) {
+    switch (name) {
       case 'TaskCreate':
-        final input = WireParsers.asMap(widget.tool['input']) ?? const {};
+        final input = WireParsers.asMap(tool['input']) ?? const {};
         final subject = input['subject'] as String?;
         if (subject == null || subject.isEmpty) return existing;
-        final itemId = _deriveId(
+        final itemId = _deriveIdStatic(
           explicit: input['id'] as String?,
           fallback: 'create-$subject',
+          toolId: toolId,
         );
         // De-dupe: if the same id is already present, leave the list alone.
         if (existing.any((e) => e.id == itemId)) return existing;
@@ -104,7 +86,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
         ];
 
       case 'TaskUpdate':
-        final input = WireParsers.asMap(widget.tool['input']) ?? const {};
+        final input = WireParsers.asMap(tool['input']) ?? const {};
         final explicitId = input['taskId'] as String? ?? input['id'] as String?;
         if (explicitId == null) return existing;
         final updated = existing.map((e) {
@@ -120,7 +102,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
         return updated;
 
       case 'TaskList':
-        final result = WireParsers.asMap(widget.tool['result']);
+        final result = WireParsers.asMap(tool['result']);
         final raw = WireParsers.asList(result?['tasks']) ??
             WireParsers.asList(result?['items']) ??
             WireParsers.asList(result?['todos']) ??
@@ -128,18 +110,19 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
         return _domainFromList(raw, session, now);
 
       case 'TaskGet':
-        final result = WireParsers.asMap(widget.tool['result']);
+        final result = WireParsers.asMap(tool['result']);
         if (result == null) return existing;
         final subject = (result['subject'] as String?) ??
             (result['title'] as String?) ??
             (result['description'] as String?) ??
             (result['content'] as String?);
         if (subject == null || subject.isEmpty) return existing;
-        final itemId = _deriveId(
+        final itemId = _deriveIdStatic(
           explicit: (result['id'] as String?) ??
               (result['taskId'] as String?) ??
-              (WireParsers.asMap(widget.tool['input'])?['taskId'] as String?),
+              (WireParsers.asMap(tool['input'])?['taskId'] as String?),
           fallback: 'get-$subject',
+          toolId: toolId,
         );
         if (existing.any((e) => e.id == itemId)) {
           return existing.map((e) {
@@ -169,18 +152,34 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
     }
   }
 
-  List<TodoItem> _currentSessionItems(String? sessionId) {
+  /// Static read of the current session's items — used by the static
+  /// resolver so the notifier push works without a live `WidgetRef`.
+  static List<TodoItem> _currentSessionItemsFor(
+    String? sessionId,
+    BuildContext context,
+  ) {
     if (sessionId == null) return const [];
-    // Read once (non-reactive) — we just need the current snapshot.
-    final state = ref.read(todoStateNotifierProvider);
+    final state = ProviderScope.containerOf(context, listen: false)
+        .read(todoStateNotifierProvider);
     return state.bySession[sessionId] ?? const [];
   }
 
-  String _deriveId({required String fallback, String? explicit}) {
+  /// Static tool-id derivation — mirrors the instance getter so that
+  /// both the static resolver and the existing instance build path
+  /// produce the same id for the same wire payload.
+  static String _toolIdFor(Map<String, dynamic> tool) {
+    final id = tool['toolUseId'] as String? ?? tool['id'] as String?;
+    if (id != null && id.isNotEmpty) return id;
+    return tool['name']?.toString() ?? 'task';
+  }
+
+  static String _deriveIdStatic({
+    required String fallback,
+    required String toolId,
+    String? explicit,
+  }) {
     if (explicit != null && explicit.isNotEmpty) return explicit;
-    // Use toolId + fallback key so repeated calls with the same wire
-    // payload yield the same id.
-    return '$_toolId#$fallback';
+    return '$toolId#$fallback';
   }
 
   static bool _isCompletedString(String? s) {
@@ -219,6 +218,41 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
       );
     }
     return out;
+  }
+
+  @override
+  ConsumerState<TaskToolView> createState() => _TaskToolViewState();
+}
+
+class _TaskToolViewState extends ConsumerState<TaskToolView> {
+  String get _name => (widget.tool['name'] as String?) ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer to post-frame so we don't mutate the provider during build.
+    // [ToolView] also pushes; dedup in the resolver keeps double-pushes safe.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      TaskToolView.pushToolToGlobalState(
+        context,
+        widget.tool,
+        widget.sessionId,
+      );
+    });
+  }
+
+  @override
+  void didUpdateWidget(TaskToolView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      TaskToolView.pushToolToGlobalState(
+        context,
+        widget.tool,
+        widget.sessionId,
+      );
+    });
   }
 
   @override
