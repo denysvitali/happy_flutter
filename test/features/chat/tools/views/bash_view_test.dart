@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/bash_view.dart';
 
 Widget _wrap(Widget child) {
@@ -9,6 +11,23 @@ Widget _wrap(Widget child) {
     supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(body: SingleChildScrollView(child: child)),
   );
+}
+
+Widget _wrapTool(Map<String, dynamic> tool) {
+  return ProviderScope(
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: ToolView(tool: tool)),
+    ),
+  );
+}
+
+String _richTextContent(WidgetTester tester) {
+  return tester
+      .widgetList<RichText>(find.byType(RichText))
+      .map((widget) => widget.text.toPlainText())
+      .join('\n');
 }
 
 void main() {
@@ -253,6 +272,67 @@ void main() {
       );
 
       expect(find.textContaining('Show'), findsOneWidget);
+    });
+  });
+
+  group('ExecCommandView', () {
+    testWidgets('renders stdout and toggles raw JSON', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          ExecCommandView(
+            tool: {
+              'input': {'cmd': 'go version', 'workdir': '/repo'},
+              'state': 'completed',
+              'result': {
+                'exitCode': 0,
+                'output': 'go version go1.23.12 linux/amd64',
+                'stdout': 'go version go1.23.12 linux/amd64',
+                'status': 'completed',
+              },
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('go version'), findsOneWidget);
+      expect(find.text('/repo'), findsOneWidget);
+      expect(find.textContaining('go1.23.12'), findsWidgets);
+      expect(find.text('exit 0'), findsOneWidget);
+      expect(find.text('Show JSON'), findsOneWidget);
+      expect(find.textContaining('"exitCode"'), findsNothing);
+
+      await tester.tap(find.text('Show JSON'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hide JSON'), findsOneWidget);
+      expect(_richTextContent(tester), contains('"exitCode"'));
+    });
+
+    testWidgets('ToolView activates renderer by function tool name', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrapTool({
+          'name': 'functions.exec_command',
+          'toolUseId': 'cmd-1',
+          'input': {'cmd': 'printf ok', 'workdir': '/repo'},
+          'state': 'completed',
+          'result': {
+            'exitCode': 0,
+            'output': 'ok',
+            'stdout': 'ok',
+            'status': 'completed',
+          },
+        }),
+      );
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('printf ok'), findsWidgets);
+      expect(find.text('stdout'), findsOneWidget);
+      expect(find.text('Show JSON'), findsOneWidget);
+      expect(find.textContaining('"exitCode"'), findsNothing);
     });
   });
 

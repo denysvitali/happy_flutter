@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
+import '../json_viewer.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 import '_section_label.dart';
@@ -105,6 +106,89 @@ class BashView extends StatelessWidget {
   }
 }
 
+/// View for function-style command execution tools.
+///
+/// Codex function tools use input/result field names that differ from Claude's
+/// `Bash` tool, but they should still render as terminal output.
+class ExecCommandView extends StatelessWidget {
+  const ExecCommandView({required this.tool, super.key});
+
+  /// The tool data map containing input and result.
+  final Map<String, dynamic> tool;
+
+  @override
+  Widget build(BuildContext context) {
+    final input = WireParsers.asMap(tool['input']) ?? {};
+    final result = tool['result'];
+    final state = tool['state'] as String? ?? 'pending';
+
+    final command =
+        input['cmd'] as String? ?? input['command'] as String? ?? '';
+    final cwd = input['workdir'] as String? ?? input['cwd'] as String?;
+
+    final stdout = state == 'completed' && result != null
+        ? _getStdout(result)
+        : null;
+    final stderr = state == 'completed' && result != null
+        ? _getStderr(result)
+        : null;
+    final exitCode = state == 'completed' && result != null
+        ? _getExitCode(result)
+        : null;
+    final error = state == 'error' && result != null
+        ? (_getErrorText(result) ?? result.toString())
+        : null;
+
+    return ToolSectionView(
+      child: CommandView(
+        command: command,
+        description: cwd,
+        stdout: stdout,
+        stderr: stderr,
+        exitCode: exitCode,
+        error: error,
+        rawResult: result,
+      ),
+    );
+  }
+
+  String? _getStdout(dynamic result) {
+    if (result is String) return result;
+    if (result is Map<String, dynamic>) {
+      return result['stdout'] as String? ?? result['output'] as String?;
+    }
+    return null;
+  }
+
+  String? _getStderr(dynamic result) {
+    if (result is Map<String, dynamic>) {
+      return result['stderr'] as String?;
+    }
+    return null;
+  }
+
+  String? _getErrorText(dynamic result) {
+    if (result is String) return result;
+    if (result is Map<String, dynamic>) {
+      return (result['stderr'] ??
+              result['stdout'] ??
+              result['output'] ??
+              result['error'])
+          as String?;
+    }
+    return null;
+  }
+
+  int? _getExitCode(dynamic result) {
+    if (result is Map<String, dynamic>) {
+      final raw = result['exitCode'] ?? result['exit_code'];
+      if (raw is int) return raw;
+      if (raw is String) return int.tryParse(raw);
+    }
+    return null;
+  }
+}
+
 /// Command view showing the command being executed and its output.
 class CommandView extends StatefulWidget {
   const CommandView({
@@ -115,6 +199,7 @@ class CommandView extends StatefulWidget {
     this.stderr,
     this.exitCode,
     this.error,
+    this.rawResult,
     this.hideEmptyOutput = true,
   });
 
@@ -136,6 +221,9 @@ class CommandView extends StatefulWidget {
   /// Generic error message.
   final String? error;
 
+  /// Raw command result shown behind the optional JSON toggle.
+  final dynamic rawResult;
+
   /// Whether to hide sections when output is empty.
   final bool hideEmptyOutput;
 
@@ -148,6 +236,7 @@ class _CommandViewState extends State<CommandView> {
 
   bool _stdoutExpanded = false;
   bool _stderrExpanded = false;
+  bool _rawJsonExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -192,6 +281,23 @@ class _CommandViewState extends State<CommandView> {
                 setState(() => _stderrExpanded = !_stderrExpanded),
           ),
         if (widget.exitCode != null) ExitCodeBadge(exitCode: widget.exitCode!),
+        if (widget.rawResult != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          TextButton.icon(
+            onPressed: () =>
+                setState(() => _rawJsonExpanded = !_rawJsonExpanded),
+            icon: Icon(
+              _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
+              size: AppIconSize.sm,
+            ),
+            label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            ),
+          ),
+          if (_rawJsonExpanded) SmartOutputContainer(content: widget.rawResult),
+        ],
         if (widget.stdout == null &&
             widget.stderr == null &&
             widget.error == null &&

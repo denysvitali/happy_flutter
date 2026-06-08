@@ -212,6 +212,26 @@ class KnownTools {
         return cmd.length > 20 ? '${cmd.substring(0, 20)}...' : cmd;
       },
     ),
+    'exec_command': ToolDefinition(
+      icon: bashIcon,
+      title: 'Terminal',
+      minimal: false,
+      hideDefaultError: true,
+      extractSubtitle: (tool, _) {
+        final input = WireParsers.asMap(tool['input']);
+        return input?['cmd'] as String? ?? input?['command'] as String?;
+      },
+    ),
+    'functions.exec_command': ToolDefinition(
+      icon: bashIcon,
+      title: 'Terminal',
+      minimal: false,
+      hideDefaultError: true,
+      extractSubtitle: (tool, _) {
+        final input = WireParsers.asMap(tool['input']);
+        return input?['cmd'] as String? ?? input?['command'] as String?;
+      },
+    ),
     'Glob': ToolDefinition(
       icon: searchIcon,
       title: 'Search Files',
