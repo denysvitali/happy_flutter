@@ -41,6 +41,19 @@ void main() {
       expect(metadata.summary?.updatedAt, 1700000000000);
       expect(metadata.sandboxEnabled, isTrue);
     });
+
+    test('accepts legacy string summary from restored Claude sessions', () {
+      final metadata = Metadata.fromJson(<String, dynamic>{
+        'host': 'devbox',
+        'summary': 'The existing loops differ by agent, but they all',
+      });
+
+      expect(
+        metadata.summary?.text,
+        'The existing loops differ by agent, but they all',
+      );
+      expect(metadata.summary?.updatedAt, 0);
+    });
   });
 
   group('AgentState.fromJson compatibility', () {

@@ -42,6 +42,11 @@ List<String>? _asApiStringListNullable(dynamic value) {
 }
 
 Summary? _summaryFromJson(dynamic value) {
+  if (value is String) {
+    if (value.isEmpty) return null;
+    return Summary(text: value, updatedAt: 0);
+  }
+
   Map<String, dynamic>? map;
   if (value is Map<String, dynamic>) {
     map = value;
