@@ -423,6 +423,42 @@ class KnownTools {
         return null;
       },
     ),
+    'TaskCreate': ToolDefinition(
+      icon: todoIcon,
+      title: 'Create Task',
+      minimal: true,
+      extractSubtitle: (tool, _) {
+        final input = WireParsers.asMap(tool['input']);
+        return input?['subject'] as String? ??
+            input?['description'] as String?;
+      },
+    ),
+    'TaskUpdate': ToolDefinition(
+      icon: todoIcon,
+      title: 'Update Task',
+      minimal: true,
+      extractSubtitle: (tool, _) {
+        final input = WireParsers.asMap(tool['input']);
+        return input?['activeForm'] as String? ??
+            input?['subject'] as String?;
+      },
+    ),
+    'TaskList': ToolDefinition(
+      icon: todoIcon,
+      title: 'List Tasks',
+      minimal: true,
+    ),
+    'TaskGet': ToolDefinition(
+      icon: todoIcon,
+      title: 'Get Task',
+      minimal: true,
+      extractSubtitle: (tool, _) {
+        final input = WireParsers.asMap(tool['input']);
+        final taskId = input?['taskId'] as String? ??
+            input?['id'] as String?;
+        return taskId != null ? '#$taskId' : null;
+      },
+    ),
     'ExitPlanMode': ToolDefinition(icon: exitIcon, title: 'Plan Proposal'),
     'exit_plan_mode': ToolDefinition(icon: exitIcon, title: 'Plan Proposal'),
     'AskUserQuestion': ToolDefinition(

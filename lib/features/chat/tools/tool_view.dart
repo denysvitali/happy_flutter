@@ -30,6 +30,7 @@ import 'views/grep_view.dart';
 import 'views/ls_view.dart';
 import 'views/multi_edit_view.dart';
 import 'views/read_view.dart';
+import 'views/task_tool_view.dart';
 import 'views/task_view.dart';
 import 'views/todo_view.dart';
 import 'views/web_fetch_view.dart';
@@ -792,6 +793,10 @@ class _ToolViewState extends ConsumerState<ToolView>
     'CodexDiff',
     'Task',
     'Agent',
+    'TaskCreate',
+    'TaskUpdate',
+    'TaskList',
+    'TaskGet',
     'TodoWrite',
     'todo_list',
     'WebFetch',
@@ -842,6 +847,10 @@ class _ToolViewState extends ConsumerState<ToolView>
         metadata: m,
         onNavigate: () => widget.onPress?.call(),
       ),
+      'TaskCreate': (t, m, s) => TaskToolView(tool: t, metadata: m),
+      'TaskUpdate': (t, m, s) => TaskToolView(tool: t, metadata: m),
+      'TaskList': (t, m, s) => TaskToolView(tool: t, metadata: m),
+      'TaskGet': (t, m, s) => TaskToolView(tool: t, metadata: m),
       'TodoWrite': (t, m, s) =>
           TodoView(tool: t, metadata: m, sessionId: s),
       'todo_list': (t, m, s) =>
