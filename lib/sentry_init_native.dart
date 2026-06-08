@@ -34,7 +34,7 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
   await SentryFlutter.init((options) {
     options
       ..dsn = sentryDsn
-      ..sendDefaultPii = true
+      ..sendDefaultPii = sentrySendDefaultPii
       ..tracesSampleRate = sentryTracesSampleRate
       // ignore: experimental_member_use
       ..profilesSampleRate = sentryProfilesSampleRate
@@ -77,6 +77,7 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
   logger.info(
     '[Sentry] filterNonActionable=$sentryFilterNonActionable '
     'dropReasons=${sentryDropReasonSet.join(',')} '
+    'sendDefaultPii=$sentrySendDefaultPii '
     'maxBreadcrumbs=$sentryMaxBreadcrumbs '
     'nativeBreadcrumbs=$sentryEnableAutoNativeBreadcrumbs',
   );

@@ -28,9 +28,13 @@ const sentryReplayOnErrorSampleRate = 0.0;
 const sentryAttachScreenshot = false;
 const sentryEnableFrameMetrics = false;
 const sentryCaptureWarnings = false;
+const sentrySendDefaultPii = bool.fromEnvironment(
+  'SENTRY_SEND_DEFAULT_PII',
+  defaultValue: false,
+);
 const sentryMaxBreadcrumbs = int.fromEnvironment(
   'SENTRY_MAX_BREADCRUMBS',
-  defaultValue: 50,
+  defaultValue: 20,
 );
 const sentryEnableAutoNativeBreadcrumbs = bool.fromEnvironment(
   'SENTRY_ENABLE_AUTO_NATIVE_BREADCRUMBS',
