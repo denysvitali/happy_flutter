@@ -504,6 +504,11 @@ what you have, you must use the options mode.
   // machineId → epoch-ms of last offline warning. Deduplicates the
   // "Machine appears offline" warning that fires on every createSession().
   final Map<String, int> _machineOfflineWarnedAtMs = {};
+  // Track sessions where a profile/model-change kill is in flight. Prevents
+  // a concurrent or outbox-retry sendMessage call from firing a second kill
+  // for the same session before the first auto-restore has completed and
+  // re-registered _sessionSpawnedProfile. Cleared in the auto-restore finally.
+  final Set<String> _profileModelKillInFlight = {};
   // Track sessions currently undergoing auto-restore. Concurrent sendMessage
   // calls await the in-flight Completer instead of silently returning the
   // stale offline session.

@@ -1006,42 +1006,50 @@ PY
     if (looksReady && (profileChanged || modelChanged)) {
       final machineId = session.metadata?.machineId;
       if (machineId != null && machineId.isNotEmpty) {
-        final spawnedChange = _spawnedValueChange(
-          profileChanged: profileChanged,
-          sessionId: sessionId,
-          profileId: profileId,
-          modelMode: modelMode,
-        );
-        logger.info(
-          '[sendMessage] ${profileChanged ? "profile" : "model"} changed '
-          'for session=$sessionId '
-          '$spawnedChange; '
-          'killing session for respawn',
-        );
-        // Clear spawned data BEFORE killSession so that if kill fails,
-        // looksReady becomes false on the next sendMessage call and
-        // auto-restore picks up the new profile/model instead of re-using
-        // the old one.
-        _sessionSpawnedAt.remove(sessionId);
-        _sessionSpawnedProfile.remove(sessionId);
-        _sessionSpawnedModel.remove(sessionId);
-        _sessionSpawnedAgent.remove(sessionId);
-        // Fire-and-forget: the kill is best-effort (spawned data is already
-        // cleared, so auto-restore handles offline outcomes). Awaiting blocked
-        // the user's send for ~10s when the server-side Redis RPC dispatcher
-        // timed out waiting for a replica.
-        unawaited(() async {
-          try {
-            await killSession(sessionId).timeout(const Duration(seconds: 3));
-          } catch (e, st) {
-            logger.warning(
-              '[sendMessage] killSession failed during profile/model '
-              'switch for session=$sessionId: $e',
-              e,
-              st,
-            );
-          }
-        }());
+        if (_profileModelKillInFlight.contains(sessionId)) {
+          logger.info(
+            '[sendMessage] profile/model kill already in-flight for '
+            'session=$sessionId; skipping duplicate kill',
+          );
+        } else {
+          final spawnedChange = _spawnedValueChange(
+            profileChanged: profileChanged,
+            sessionId: sessionId,
+            profileId: profileId,
+            modelMode: modelMode,
+          );
+          logger.info(
+            '[sendMessage] ${profileChanged ? "profile" : "model"} changed '
+            'for session=$sessionId '
+            '$spawnedChange; '
+            'killing session for respawn',
+          );
+          _profileModelKillInFlight.add(sessionId);
+          // Clear spawned data BEFORE killSession so that if kill fails,
+          // looksReady becomes false on the next sendMessage call and
+          // auto-restore picks up the new profile/model instead of re-using
+          // the old one.
+          _sessionSpawnedAt.remove(sessionId);
+          _sessionSpawnedProfile.remove(sessionId);
+          _sessionSpawnedModel.remove(sessionId);
+          _sessionSpawnedAgent.remove(sessionId);
+          // Fire-and-forget: the kill is best-effort (spawned data is already
+          // cleared, so auto-restore handles offline outcomes). Awaiting blocked
+          // the user's send for ~10s when the server-side Redis RPC dispatcher
+          // timed out waiting for a replica.
+          unawaited(() async {
+            try {
+              await killSession(sessionId).timeout(const Duration(seconds: 3));
+            } catch (e, st) {
+              logger.warning(
+                '[sendMessage] killSession failed during profile/model '
+                'switch for session=$sessionId: $e',
+                e,
+                st,
+              );
+            }
+          }());
+        }
       }
     } else if (looksReady || recentlySpawned) {
       return (
@@ -1385,6 +1393,7 @@ PY
       }
       return fallback;
     } finally {
+      _profileModelKillInFlight.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);
       _autoRestoreCompleters.remove(sessionId);
       _autoRestoreProfileIds.remove(sessionId);
