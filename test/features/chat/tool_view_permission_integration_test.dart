@@ -37,6 +37,13 @@ Map<String, dynamic> _planTool({Map<String, dynamic>? permission}) {
   };
 }
 
+String _richTextContent(WidgetTester tester) {
+  return tester
+      .widgetList<RichText>(find.byType(RichText))
+      .map((widget) => widget.text.toPlainText())
+      .join('\n');
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -163,6 +170,62 @@ void main() {
       await tester.pump();
 
       expect(onPressCalled, isTrue);
+    });
+
+    testWidgets('mcp text result renders as text with raw JSON toggle', (
+      tester,
+    ) async {
+      const statusText =
+          'Workflow Status for bda45616\n'
+          'Overall: pending\n'
+          'Workflows: 1\n'
+          'Filter Mode: latest\n'
+          'By Conclusion:\n'
+          '  in_progress: 1\n'
+          'Workflow Details:\n'
+          '  - Happy Flutter CI/CD: in_progress/- (id: 27120557489)\n';
+
+      await tester.pumpWidget(
+        _wrapToolView(
+          tool: <String, dynamic>{
+            'name': 'mcp__gh_actions__get_check_status',
+            'state': 'completed',
+            'toolUseId': 'mcp-2',
+            'input': <String, dynamic>{},
+            'result': <String, dynamic>{
+              'content': <Map<String, dynamic>>[
+                <String, dynamic>{'text': statusText, 'type': 'text'},
+              ],
+              'result': <String, dynamic>{
+                'content': <Map<String, dynamic>>[
+                  <String, dynamic>{'text': statusText, 'type': 'text'},
+                ],
+                'structured_content': null,
+              },
+              'status': 'completed',
+            },
+          },
+        ),
+      );
+
+      await tester.tap(find.text('Gh Actions: Get Check Status'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Workflow Status for bda45616'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Happy Flutter CI/CD'), findsOneWidget);
+      expect(find.text('Show JSON'), findsOneWidget);
+      expect(find.textContaining('"structured_content"'), findsNothing);
+
+      final showJsonButton = find.widgetWithText(TextButton, 'Show JSON');
+      await tester.ensureVisible(showJsonButton);
+      await tester.tap(showJsonButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hide JSON'), findsOneWidget);
+      expect(_richTextContent(tester), contains('"structured_content"'));
     });
 
     testWidgets('codex Yes emits codex-approve action', (tester) async {

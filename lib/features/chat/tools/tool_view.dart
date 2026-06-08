@@ -458,6 +458,8 @@ class _ToolViewState extends ConsumerState<ToolView>
     final bool minimal;
     if (knownTool != null) {
       minimal = knownTool.minimal;
+    } else if (isMCP && _mcpTextResult(toolResult) != null) {
+      minimal = false;
     } else {
       // Unknown/MCP tools: always minimal — details via tap/long-press only.
       minimal = true;
@@ -701,6 +703,9 @@ class _ToolViewState extends ConsumerState<ToolView>
     Map<String, dynamic>? permission,
   ) {
     final toolName = widget.tool['name'] as String? ?? '';
+    final mcpTextResult = toolName.startsWith('mcp__')
+        ? _mcpTextResult(toolResult)
+        : null;
     final toolCallDebug = ref.watch(
       settingsNotifierProvider.select((s) => s.toolCallDebugEnabled),
     );
@@ -748,7 +753,9 @@ class _ToolViewState extends ConsumerState<ToolView>
               toolId: toolId,
               child: ToolSectionView(
                 title: 'OUTPUT',
-                child: SmartOutputContainer(content: toolResult),
+                child: mcpTextResult != null
+                    ? _McpTextOutput(text: mcpTextResult, rawResult: toolResult)
+                    : SmartOutputContainer(content: toolResult),
               ),
             ),
           if (state == ToolState.error &&
@@ -860,6 +867,104 @@ class _ToolViewState extends ConsumerState<ToolView>
       tool: tool,
       metadata: metadata,
       sessionId: widget.sessionId,
+    );
+  }
+
+  static String? _mcpTextResult(dynamic result) {
+    final direct = _mcpTextFromContentBlocks(result);
+    if (direct != null) return direct;
+
+    final map = WireParsers.asMap(result);
+    if (map == null) return null;
+
+    final content = _mcpTextFromContentBlocks(map['content']);
+    if (content != null) return content;
+
+    final nestedResult = WireParsers.asMap(map['result']);
+    return _mcpTextFromContentBlocks(nestedResult?['content']);
+  }
+
+  static String? _mcpTextFromContentBlocks(dynamic value) {
+    final blocks = WireParsers.asList(value);
+    if (blocks == null || blocks.isEmpty) return null;
+
+    final texts = <String>[];
+    for (final block in blocks) {
+      final map = WireParsers.asMap(block);
+      if (map == null || map['type'] != 'text') return null;
+      final text = map['text'];
+      if (text is! String) return null;
+      texts.add(text);
+    }
+
+    if (texts.isEmpty) return null;
+    return texts.join('\n');
+  }
+}
+
+class _McpTextOutput extends StatefulWidget {
+  const _McpTextOutput({required this.text, required this.rawResult});
+
+  final String text;
+  final dynamic rawResult;
+
+  @override
+  State<_McpTextOutput> createState() => _McpTextOutputState();
+}
+
+class _McpTextOutputState extends State<_McpTextOutput> {
+  bool _rawJsonExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextButton.icon(
+          onPressed: () => setState(() => _rawJsonExpanded = !_rawJsonExpanded),
+          icon: Icon(
+            _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
+            size: AppIconSize.sm,
+          ),
+          label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          ),
+        ),
+        if (_rawJsonExpanded) ...[
+          SmartOutputContainer(content: widget.rawResult),
+          const SizedBox(height: AppSpacing.xs),
+        ],
+        Container(
+          constraints: const BoxConstraints(maxHeight: 300),
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+            border: Border.all(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+            ),
+          ),
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SelectableText(
+                widget.text,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontFamilyFallback: const ['Courier New', 'Courier'],
+                  fontSize: AppFontSize.sm,
+                  color: theme.colorScheme.onSurface,
+                  height: AppLineHeight.relaxed,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
