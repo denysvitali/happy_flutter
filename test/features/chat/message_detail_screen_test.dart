@@ -69,6 +69,46 @@ void main() {
       expect(renderedText, isNot(contains('"exitCode"')));
     });
 
+    testWidgets('renders command input maps as text in tool details', (
+      tester,
+    ) async {
+      const command =
+          '/bin/bash -lc "find opt/odin/odin_bundle/odin_bundle/networks '
+          '-type f -name \'*.py\' -print0 | xargs -0 rg -l -- '
+          r'\"odin-notoken-servicemode|odin-notoken-repair-and-maintenance|'
+          r'odin-notoken-qtcar\" | wc -l"';
+
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'CodexBash',
+              'state': 'completed',
+              'input': <String, dynamic>{
+                'command': <String>[command],
+                'parsed_cmd': <Map<String, dynamic>>[
+                  <String, dynamic>{'cmd': command},
+                ],
+              },
+              'result': <String, dynamic>{'exitCode': 0, 'stdout': '12\n'},
+            },
+          ),
+        ),
+      );
+
+      final renderedText = _renderedText(tester);
+      expect(
+        renderedText,
+        contains('find opt/odin/odin_bundle/odin_bundle/networks'),
+      );
+      expect(renderedText, contains('odin-notoken-servicemode'));
+      expect(renderedText, isNot(contains('"parsed_cmd"')));
+      expect(renderedText, isNot(contains('"command"')));
+    });
+
     testWidgets('renders ANSI in command result details', (tester) async {
       const output =
           '\x1B[36mINFO\x1B[0m[0000] conditions\r\n'

@@ -7,6 +7,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/ansi_parser.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/command_utils.dart';
 import '../../core/utils/wire_parsers.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
@@ -211,6 +212,7 @@ class _ToolDetailView extends StatelessWidget {
     }
 
     final state = _parseToolState(toolState);
+    final inputText = _commandInputText(toolName, input);
     final resultText = _commandResultText(toolName, result);
 
     return ListView(
@@ -254,7 +256,8 @@ class _ToolDetailView extends StatelessWidget {
           _ToolResultSection(
             title: context.l10n.messageDetailInput,
             icon: Icons.input,
-            json: input,
+            json: inputText == null ? input : null,
+            text: inputText,
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -318,6 +321,32 @@ String? _commandResultText(String toolName, dynamic result) {
 
   final stderr = map['stderr'];
   if (stderr is String && stderr.isNotEmpty) return stderr;
+
+  return null;
+}
+
+String? _commandInputText(String toolName, Map<String, dynamic>? input) {
+  if (!_isCommandTool(toolName) || input == null) return null;
+
+  final parsedCmd = WireParsers.asList(input['parsed_cmd']);
+  if (parsedCmd != null && parsedCmd.isNotEmpty) {
+    final firstCmd = WireParsers.asMap(parsedCmd.first);
+    final cmd = firstCmd?['cmd'];
+    if (cmd is String && cmd.isNotEmpty) return cleanShellCommand(cmd);
+  }
+
+  final cmd = input['cmd'];
+  if (cmd is String && cmd.isNotEmpty) return cleanShellCommand(cmd);
+
+  final command = input['command'];
+  if (command is String && command.isNotEmpty) {
+    return cleanShellCommand(command);
+  }
+
+  final commandList = WireParsers.asList(command);
+  if (commandList != null && commandList.isNotEmpty) {
+    return cleanShellCommand(commandList.join(' '));
+  }
 
   return null;
 }
@@ -602,6 +631,7 @@ class _ToolDetailBottomSheet extends StatelessWidget {
     final state = tool['state'] as String? ?? 'pending';
     final input = WireParsers.asMap(tool['input']);
     final result = tool['result'];
+    final inputText = _commandInputText(toolName, input);
     final resultText = _commandResultText(toolName, result);
 
     return Column(
@@ -638,7 +668,8 @@ class _ToolDetailBottomSheet extends StatelessWidget {
                 _ToolResultSection(
                   title: context.l10n.messageDetailInput,
                   icon: Icons.input,
-                  json: input,
+                  json: inputText == null ? input : null,
+                  text: inputText,
                 ),
               if (input != null) const SizedBox(height: AppSpacing.md),
               if (result != null) ...[
