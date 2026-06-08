@@ -24,10 +24,15 @@ Widget _wrapTool(Map<String, dynamic> tool) {
 }
 
 String _richTextContent(WidgetTester tester) {
-  return tester
+  final richText = tester
       .widgetList<RichText>(find.byType(RichText))
       .map((widget) => widget.text.toPlainText())
       .join('\n');
+  final selectableText = tester
+      .widgetList<SelectableText>(find.byType(SelectableText))
+      .map((widget) => widget.data ?? widget.textSpan?.toPlainText() ?? '')
+      .join('\n');
+  return '$richText\n$selectableText';
 }
 
 void main() {
@@ -333,6 +338,35 @@ void main() {
       expect(find.text('stdout'), findsOneWidget);
       expect(find.text('Show JSON'), findsOneWidget);
       expect(find.textContaining('"exitCode"'), findsNothing);
+    });
+
+    testWidgets('renders ANSI escape sequences as styled text', (tester) async {
+      const output =
+          '\x1B[36mINFO\x1B[0m[0000] conditions\r\n'
+          '\x1B[31mFATA\x1B[0m[0000] missing file\r\n';
+
+      await tester.pumpWidget(
+        _wrap(
+          ExecCommandView(
+            tool: {
+              'input': {'cmd': 'service-shell-command'},
+              'state': 'completed',
+              'result': {
+                'exitCode': 1,
+                'output': output,
+                'status': 'failed',
+                'stdout': output,
+              },
+            },
+          ),
+        ),
+      );
+
+      final renderedText = _richTextContent(tester);
+      expect(renderedText, contains('INFO'));
+      expect(renderedText, contains('FATA'));
+      expect(renderedText, isNot(contains('\x1B[')));
+      expect(find.text('exit 1'), findsOneWidget);
     });
   });
 

@@ -12,10 +12,15 @@ Widget _wrap(Widget child) {
 }
 
 String _richTextContent(WidgetTester tester) {
-  return tester
+  final richText = tester
       .widgetList<RichText>(find.byType(RichText))
       .map((widget) => widget.text.toPlainText())
       .join('\n');
+  final selectableText = tester
+      .widgetList<SelectableText>(find.byType(SelectableText))
+      .map((widget) => widget.data ?? widget.textSpan?.toPlainText() ?? '')
+      .join('\n');
+  return '$richText\n$selectableText';
 }
 
 void main() {
@@ -67,6 +72,46 @@ void main() {
 
       expect(find.text('Hide JSON'), findsOneWidget);
       expect(_richTextContent(tester), contains('"exitCode"'));
+    });
+
+    testWidgets('renders ANSI escape sequences as styled text', (tester) async {
+      const output =
+          '\x1B[36mINFO\x1B[0m[0000] conditions '
+          '\x1B[36mdelivered\x1B[0m=false '
+          '\x1B[36mfactory-gated\x1B[0m=false '
+          '\x1B[36mfused\x1B[0m=false\r\n'
+          '\x1B[31mFATA\x1B[0m[0000] open '
+          '/etc/service-shell/principals.d/tcp: '
+          'no such file or directory \r\n';
+
+      await tester.pumpWidget(
+        _wrap(
+          CodexBashView(
+            tool: {
+              'input': {
+                'command': ['service-shell-command'],
+                'parsed_cmd': [
+                  {'cmd': 'service-shell-command'},
+                ],
+              },
+              'state': 'completed',
+              'result': {
+                'exitCode': 1,
+                'output': output,
+                'status': 'failed',
+                'stdout': output,
+              },
+            },
+          ),
+        ),
+      );
+
+      final renderedText = _richTextContent(tester);
+      expect(renderedText, contains('INFO'));
+      expect(renderedText, contains('FATA'));
+      expect(renderedText, contains('/etc/service-shell/principals.d/tcp'));
+      expect(renderedText, isNot(contains('\x1B[')));
+      expect(find.text('exit 1'), findsOneWidget);
     });
   });
 }

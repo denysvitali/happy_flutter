@@ -7,7 +7,6 @@ import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
-import 'package:happy_flutter/features/chat/code_block_widget.dart';
 
 import '../json_viewer.dart';
 import '../tool_section_view.dart';
@@ -540,13 +539,27 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
     final c = ToolViewColors.of(context);
     final totalLines = widget.output.split('\n').length;
     final needsTruncation = totalLines > widget.maxLines;
-    final maxLines = _expanded ? 999 : widget.maxLines;
 
     final labelColor = widget.isError ? c.red : c.mutedText;
     final borderColor = widget.isError ? c.errorBorder : c.border;
     final bgColor = widget.isError ? c.errorBg : c.bg;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final lines = widget.output.split('\n');
+    final visibleLines = _expanded || !needsTruncation
+        ? lines
+        : lines.take(widget.maxLines).toList();
+    final visibleText = visibleLines.join('\n');
+    final defaultStyle = TextStyle(
+      fontFamily: 'monospace',
+      fontFamilyFallback: const ['Courier New', 'Courier'],
+      fontSize: AppFontSize.sm,
+      color: c.primaryText,
+      height: AppLineHeight.relaxed,
+    );
+    final parsedSpans = AnsiParser.parse(
+      visibleText,
+      defaultStyle: defaultStyle,
+    );
 
     return Container(
       margin: const EdgeInsets.only(top: AppSpacing.xsm),
@@ -609,12 +622,12 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
               ],
             ),
           ),
-          CodeBlockWidget(
-            code: widget.output,
-            language: 'bash',
-            isDarkMode: isDark,
-            fontSize: AppFontSize.sm,
-            maxVisibleLines: maxLines,
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.smd),
+            child: SelectableText.rich(
+              TextSpan(children: parsedSpans),
+              style: defaultStyle,
+            ),
           ),
           if (needsTruncation)
             ToolViewShowMoreButton(
