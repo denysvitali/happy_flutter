@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
 
-const double _jsonIndent = 12;
+const double _jsonIndent = 8;
 
 // ---------------------------------------------------------------------------
 // Syntax-highlight color palettes
@@ -207,6 +207,7 @@ class JsonTreeViewer extends StatelessWidget {
       value: _decodeNestedJsonStrings(value),
       depth: 0,
       trailingComma: false,
+      prefixSpans: const [],
     );
   }
 }
@@ -249,11 +250,13 @@ class _JsonNode extends StatefulWidget {
     required this.value,
     required this.depth,
     required this.trailingComma,
+    required this.prefixSpans,
   });
 
   final dynamic value;
   final int depth;
   final bool trailingComma;
+  final List<InlineSpan> prefixSpans;
 
   @override
   State<_JsonNode> createState() => _JsonNodeState();
@@ -302,7 +305,18 @@ class _JsonNodeState extends State<_JsonNode> {
     final trail = widget.trailingComma ? ',' : '';
 
     if (map.isEmpty) {
-      return Text('{}$trail', style: mono.copyWith(color: colors.bracket));
+      return RichText(
+        text: TextSpan(
+          style: mono,
+          children: [
+            ...widget.prefixSpans,
+            TextSpan(
+              text: '{}$trail',
+              style: TextStyle(color: colors.bracket),
+            ),
+          ],
+        ),
+      );
     }
 
     if (!_expanded) {
@@ -312,6 +326,7 @@ class _JsonNodeState extends State<_JsonNode> {
           text: TextSpan(
             style: mono,
             children: [
+              ...widget.prefixSpans,
               TextSpan(
                 text: '{ ',
                 style: TextStyle(color: colors.bracket),
@@ -336,7 +351,18 @@ class _JsonNodeState extends State<_JsonNode> {
       children: [
         GestureDetector(
           onTap: () => setState(() => _expanded = false),
-          child: Text('{', style: mono.copyWith(color: colors.bracket)),
+          child: RichText(
+            text: TextSpan(
+              style: mono,
+              children: [
+                ...widget.prefixSpans,
+                TextSpan(
+                  text: '{',
+                  style: TextStyle(color: colors.bracket),
+                ),
+              ],
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.only(left: _jsonIndent),
@@ -378,7 +404,18 @@ class _JsonNodeState extends State<_JsonNode> {
     final trail = widget.trailingComma ? ',' : '';
 
     if (list.isEmpty) {
-      return Text('[]$trail', style: mono.copyWith(color: colors.bracket));
+      return RichText(
+        text: TextSpan(
+          style: mono,
+          children: [
+            ...widget.prefixSpans,
+            TextSpan(
+              text: '[]$trail',
+              style: TextStyle(color: colors.bracket),
+            ),
+          ],
+        ),
+      );
     }
 
     if (!_expanded) {
@@ -388,6 +425,7 @@ class _JsonNodeState extends State<_JsonNode> {
           text: TextSpan(
             style: mono,
             children: [
+              ...widget.prefixSpans,
               TextSpan(
                 text: '[ ',
                 style: TextStyle(color: colors.bracket),
@@ -414,7 +452,18 @@ class _JsonNodeState extends State<_JsonNode> {
       children: [
         GestureDetector(
           onTap: () => setState(() => _expanded = false),
-          child: Text('[', style: mono.copyWith(color: colors.bracket)),
+          child: RichText(
+            text: TextSpan(
+              style: mono,
+              children: [
+                ...widget.prefixSpans,
+                TextSpan(
+                  text: '[',
+                  style: TextStyle(color: colors.bracket),
+                ),
+              ],
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.only(left: _jsonIndent),
@@ -427,6 +476,7 @@ class _JsonNodeState extends State<_JsonNode> {
                 value: list[i],
                 depth: widget.depth + 1,
                 trailingComma: !isLast,
+                prefixSpans: const [],
               );
             }),
           ),
@@ -560,23 +610,11 @@ class _ObjectEntryRow extends StatelessWidget {
       );
     }
 
-    // For nested objects/arrays, render the key + colon on the same line as
-    // the opening bracket by using a Row.
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        RichText(
-          text: TextSpan(style: mono, children: [keySpan, colonSpan]),
-        ),
-        Flexible(
-          child: _JsonNode(
-            value: value,
-            depth: depth,
-            trailingComma: trailingComma,
-          ),
-        ),
-      ],
+    return _JsonNode(
+      value: value,
+      depth: depth,
+      trailingComma: trailingComma,
+      prefixSpans: [keySpan, colonSpan],
     );
   }
 }

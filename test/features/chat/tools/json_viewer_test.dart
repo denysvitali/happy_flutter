@@ -36,6 +36,44 @@ void main() {
       expect(content, contains('"results"'));
       expect(content, isNot(contains(r'{\"query\"')));
     });
+
+    testWidgets('uses compact fixed indentation for nested JSON', (
+      tester,
+    ) async {
+      const longKey = 'very_long_key_that_should_not_indent_nested_children';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: JsonTreeViewer(
+              value: <String, dynamic>{
+                longKey: <String, dynamic>{
+                  'child': <String, dynamic>{'leaf': true},
+                },
+              },
+            ),
+          ),
+        ),
+      );
+
+      final parent = find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains('"$longKey": {'),
+      );
+      final child = find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains('"child": {'),
+      );
+
+      expect(parent, findsOneWidget);
+      expect(child, findsOneWidget);
+      expect(
+        tester.getTopLeft(child).dx - tester.getTopLeft(parent).dx,
+        lessThanOrEqualTo(12),
+      );
+    });
   });
 
   group('SmartOutputContainer', () {
