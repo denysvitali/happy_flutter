@@ -41,11 +41,10 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..dist = _sentryDist.isNotEmpty ? _sentryDist : null
       ..environment = kReleaseMode ? 'production' : 'debug'
-      // Keep Android ANR reporting enabled. Background ANRs are filtered below
-      // when the SDK routes them through beforeSend, but disabling this option
-      // prevents foreground "Application Not Responding" events from reaching
-      // GlitchTip at all.
-      ..anrEnabled = true
+      // Native Android ANR envelopes exceed GlitchTip's 5 MiB decompressed
+      // intake limit on real devices. Keep this behind a build flag so crash
+      // capture remains enabled without repeatedly sending rejected payloads.
+      ..anrEnabled = sentryAnrEnabled
       // Automatic user interaction tracing creates a transaction for
       // every tap (back button, list items, etc.) with a 3-second idle
       // timeout. This produces false "error" transactions when widgets
@@ -77,6 +76,7 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
   logger.info(
     '[Sentry] filterNonActionable=$sentryFilterNonActionable '
     'dropReasons=${sentryDropReasonSet.join(',')} '
+    'anrEnabled=$sentryAnrEnabled '
     'sendDefaultPii=$sentrySendDefaultPii '
     'maxBreadcrumbs=$sentryMaxBreadcrumbs '
     'nativeBreadcrumbs=$sentryEnableAutoNativeBreadcrumbs',
