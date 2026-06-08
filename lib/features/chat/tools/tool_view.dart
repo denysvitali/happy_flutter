@@ -847,10 +847,14 @@ class _ToolViewState extends ConsumerState<ToolView>
         metadata: m,
         onNavigate: () => widget.onPress?.call(),
       ),
-      'TaskCreate': (t, m, s) => TaskToolView(tool: t, metadata: m),
-      'TaskUpdate': (t, m, s) => TaskToolView(tool: t, metadata: m),
-      'TaskList': (t, m, s) => TaskToolView(tool: t, metadata: m),
-      'TaskGet': (t, m, s) => TaskToolView(tool: t, metadata: m),
+      'TaskCreate': (t, m, s) =>
+          TaskToolView(tool: t, metadata: m, sessionId: s),
+      'TaskUpdate': (t, m, s) =>
+          TaskToolView(tool: t, metadata: m, sessionId: s),
+      'TaskList': (t, m, s) =>
+          TaskToolView(tool: t, metadata: m, sessionId: s),
+      'TaskGet': (t, m, s) =>
+          TaskToolView(tool: t, metadata: m, sessionId: s),
       'TodoWrite': (t, m, s) =>
           TodoView(tool: t, metadata: m, sessionId: s),
       'todo_list': (t, m, s) =>
