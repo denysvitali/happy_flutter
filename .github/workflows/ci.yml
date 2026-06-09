@@ -2,7 +2,9 @@ name: Happy Flutter CI/CD
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel stale PR runs; never cancel main-branch runs so the
+  # deploy-web → deploy-pages flow is not interrupted (see fa072b98).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
   push:
@@ -32,7 +34,7 @@ on:
           - production
 
 env:
-  DART_VM_OPTIONS: '--max-gen-heap-size=2048'
+  DART_VM_OPTIONS: '--max-gen-heap-size=4096'
 
 permissions:
   contents: write
@@ -48,6 +50,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          fetch-depth: 1
           lfs: true
 
       - name: Setup Flutter
@@ -56,6 +59,16 @@ jobs:
           channel: stable
           flutter-version: 3.44.0
           cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
 
       - name: Get dependencies
         run: flutter pub get
@@ -70,11 +83,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        total_shards: [12]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        total_shards: [8]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -82,6 +97,16 @@ jobs:
           channel: stable
           flutter-version: 3.44.0
           cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
 
       - name: Get dependencies
         run: flutter pub get
@@ -101,34 +126,65 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          # DIAGNOSTIC RUN (temporary): execute each test file alone with a
-          # short cap. rc=124/137 = passed-then-hung-at-shutdown (the leaked
-          # Timer/subscription we're hunting). Other non-zero = fails in
-          # isolation (separate noise). MUST use `set +e` — the CI shell runs
-          # with `-e`, which would abort at the first non-zero `flutter test`.
-          # Always exit 0 so every shard reports its full list.
-          set +e
-          hung=()
-          isofail=()
-          for f in "${shard_tests[@]}"; do
-            timeout --signal=KILL 70 flutter test "$f" --reporter compact \
-              > /tmp/o.txt 2>&1
-            rc=$?
-            if [ "$rc" -eq 0 ]; then
-              echo "OK    $f"
-            elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
-              echo "HANG  $f (rc=$rc)"
-              hung+=("$f")
+          flutter test --coverage --concurrency=4 "${shard_tests[@]}"
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-shard-${{ matrix.shard }}
+          path: coverage/lcov.info
+          retention-days: 1
+          if-no-files-found: ignore
+
+  coverage:
+    name: Upload Coverage
+    needs: test
+    runs-on: ubuntu-latest
+    if: always() && needs.test.result == 'success'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-shard-*
+          path: coverage-shards
+
+      - name: Merge coverage reports
+        run: |
+          mkdir -p coverage
+          # Concatenate all shard lcov files. Multiple SF (source file) entries
+          # for the same file with different line counts get summed by Codecov.
+          found=0
+          for f in coverage-shards/*/lcov.info; do
+            [ -f "$f" ] || continue
+            echo "Shard file: $f ($(wc -l < "$f") lines)"
+            if [ $found -eq 0 ]; then
+              cp "$f" coverage/lcov.info
             else
-              echo "FAIL  $f (rc=$rc)"
-              tail -20 /tmp/o.txt
-              isofail+=("$f")
+              # Skip TN: (test name) lines, keep all other lcov records.
+              # Codecov sums SF/DA/FN/... lines by source file path.
+              grep -v "^TN:" "$f" >> coverage/lcov.info || true
             fi
+            found=$((found + 1))
           done
-          echo "===== shard ${{ matrix.shard }}/${{ matrix.total_shards }} summary ====="
-          for x in "${hung[@]}"; do echo "HUNGFILE $x"; done
-          for x in "${isofail[@]}"; do echo "ISOFAILFILE $x"; done
-          exit 0
+          echo "Merged $found shard coverage files"
+          echo "Total lines: $(wc -l < coverage/lcov.info)"
+          echo "Source files: $(grep -c '^SF:' coverage/lcov.info)"
+
+      - name: Install curl
+        run: sudo apt-get update && sudo apt-get install -y curl
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          fail_ci_if_error: true
 
   golden:
     name: Golden Screenshots
@@ -140,6 +196,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          fetch-depth: 1
           lfs: true
 
       - name: Setup Flutter
@@ -148,6 +205,16 @@ jobs:
           channel: stable
           flutter-version: 3.44.0
           cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
 
       - name: Get dependencies
         run: flutter pub get
@@ -161,9 +228,6 @@ jobs:
     name: Build Debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Gate on analyze only — builds run in parallel with the test phase so a
-    # hanging/failing test shard never blocks the APK/Linux artifacts.
-    needs: [analyze]
     # Run on push/PR events (but not tags), or workflow_dispatch with debug or both selected
     if: |
       (github.event_name != 'workflow_dispatch' &&
@@ -175,6 +239,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Determine build metadata
         id: build_meta
@@ -238,42 +304,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Patch plugin compileSdk for AGP 9.x compatibility
-        run: |
-          # AGP 9.x enforces strict AAR metadata validation. Flutter plugins
-          # that hardcode compileSdkVersion < 35 cause BundleAar / checkReleaseAarMetadata
-          # failures. Gradle-level overrides arrive too late (plugin build.gradle
-          # overwrites them). Patch all plugin build.gradle files in the pub cache.
-          DART_TOOL=".dart_tool/package_config.json"
-          if [ -f "$DART_TOOL" ]; then
-            python3 -c "
-          import json, urllib.parse, os
-          d = json.load(open('$DART_TOOL'))
-          for p in d['packages']:
-              uri = p.get('rootUri','')
-              path = urllib.parse.urlparse(uri).path
-              bg = os.path.join(path, 'android', 'build.gradle')
-              if os.path.isfile(bg):
-                  print(bg)
-          " | while read -r f; do
-              if grep -q 'compileSdkVersion' "$f"; then
-                OLD=$(grep -o 'compileSdkVersion [0-9]*' "$f" | head -1)
-                # Bump any compileSdkVersion < 36 to 36
-                sed -i 's/compileSdkVersion \([0-9]\{1,2\}\)/compileSdkVersion 36/' "$f"
-                NEW=$(grep -o 'compileSdkVersion [0-9]*' "$f" | head -1)
-                if [ "$OLD" != "$NEW" ]; then
-                  echo "Patched $f: $OLD -> $NEW"
-                fi
-              fi
-            done
-            echo "Patched plugin compileSdk values for AGP 9.x"
-          fi
-
-      - name: Clear Gradle build cache
-        run: rm -rf ~/.gradle/caches/build-cache-*
 
       - name: Determine flavor
         id: flavor
@@ -290,8 +332,7 @@ jobs:
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
-            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
-            --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
+            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ steps.debug_keystore.outputs.KEYSTORE_PATH }}
@@ -310,11 +351,6 @@ jobs:
     name: Build Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Gate on analyze only — runs in parallel with tests so a hung/failed
-    # test shard never blocks the release APK + GitHub release.
-    needs: [analyze]
-    outputs:
-      skip_release: ${{ steps.check_keystore.outputs.skip_release }}
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     # Run on main pushes, workflow_dispatch (release/both), and version tags.
@@ -327,6 +363,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Determine build metadata
         id: build_meta
@@ -401,44 +439,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Cache pub dependencies
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: flutter pub get
-
-      - name: Patch plugin compileSdk for AGP 9.x compatibility
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: |
-          # AGP 9.x enforces strict AAR metadata validation. Flutter plugins
-          # that hardcode compileSdkVersion < 35 cause BundleAar / checkReleaseAarMetadata
-          # failures. Gradle-level overrides arrive too late (plugin build.gradle
-          # overwrites them). Patch all plugin build.gradle files in the pub cache.
-          DART_TOOL=".dart_tool/package_config.json"
-          if [ -f "$DART_TOOL" ]; then
-            python3 -c "
-          import json, urllib.parse, os
-          d = json.load(open('$DART_TOOL'))
-          for p in d['packages']:
-              uri = p.get('rootUri','')
-              path = urllib.parse.urlparse(uri).path
-              bg = os.path.join(path, 'android', 'build.gradle')
-              if os.path.isfile(bg):
-                  print(bg)
-          " | while read -r f; do
-              if grep -q 'compileSdkVersion' "$f"; then
-                OLD=$(grep -o 'compileSdkVersion [0-9]*' "$f" | head -1)
-                sed -i 's/compileSdkVersion \([0-9]\{1,2\}\)/compileSdkVersion 36/' "$f"
-                NEW=$(grep -o 'compileSdkVersion [0-9]*' "$f" | head -1)
-                if [ "$OLD" != "$NEW" ]; then
-                  echo "Patched $f: $OLD -> $NEW"
-                fi
-              fi
-            done
-            echo "Patched plugin compileSdk values for AGP 9.x"
-          fi
-
-      - name: Clear Gradle build cache
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: rm -rf ~/.gradle/caches/build-cache-*
 
       - name: Determine flavor
         id: flavor
@@ -464,7 +478,6 @@ jobs:
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
-            --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --split-debug-info=build/debug-info \
             --obfuscate
 
@@ -493,13 +506,32 @@ jobs:
           path: build/debug-info/
           retention-days: 90
 
+      - name: Determine release version
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        id: release_version
+        run: |
+          SEMVER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1 | tr -d ' ')
+          RELEASE_TAG="v${SEMVER}-${{ steps.build_meta.outputs.BUILD_NUMBER }}"
+          echo "SEMVER=$SEMVER" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.release_version.outputs.RELEASE_TAG }}
+          name: Happy Flutter ${{ steps.release_version.outputs.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          files: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-linux:
     name: Build Linux x64
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Gate on analyze only — runs in parallel with tests so a hung/failed
-    # test shard never blocks the Linux build.
-    needs: [analyze]
     if: |
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' &&
@@ -509,6 +541,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Install Linux build dependencies
         run: |
@@ -522,6 +556,16 @@ jobs:
           flutter-version: 3.44.0
           cache: true
 
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
       - name: Get dependencies
         run: flutter pub get
 
@@ -534,8 +578,7 @@ jobs:
       - name: Build Linux x64 Release
         run: |
           flutter build linux --release \
-            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
-            --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
+            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Bundle release archive
         run: |
@@ -549,49 +592,9 @@ jobs:
           path: happy-flutter-linux-x64.tar.gz
           retention-days: 14
 
-  release:
-    name: Publish GitHub Release
-    needs: [build-release, build-linux]
-    runs-on: ubuntu-latest
-    # Publish only when a signed release APK was produced. build-linux may
-    # fail without blocking the release — the Linux asset is simply omitted.
-    if: ${{ always() && needs.build-release.result == 'success' && needs.build-release.outputs.skip_release != 'true' }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Determine release version
-        id: release_version
-        run: |
-          BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
-          SEMVER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1 | tr -d ' ')
-          RELEASE_TAG="v${SEMVER}-${BUILD_NUMBER}"
-          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: dist
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.release_version.outputs.RELEASE_TAG }}
-          name: Happy Flutter ${{ steps.release_version.outputs.RELEASE_TAG }}
-          draft: false
-          prerelease: false
-          generate_release_notes: false
-          fail_on_unmatched_files: false
-          files: |
-            dist/**/*-release.apk
-            dist/**/happy-flutter-linux-x64.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-web:
     name: Build Web
     runs-on: ubuntu-latest
-    needs: [analyze, test]
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -599,6 +602,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -607,14 +612,18 @@ jobs:
           flutter-version: 3.44.0
           cache: true
 
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Compute build metadata
-        id: build_meta
-        run: |
-          BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
 
       - name: Build Web
         run: |
@@ -622,8 +631,7 @@ jobs:
             --base-href '/' \
             --source-maps \
             --dart-define=COMMIT_SHA=${{ github.sha }} \
-            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
-            --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
+            --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Upload web source maps to Sentry
         if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
