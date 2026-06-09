@@ -447,7 +447,7 @@ void main() {
     );
 
     test(
-      'activity event fires onDataChanged',
+      'activity event fires onDomainChanged(sessions)',
       () async {
         const sessionId = 'sess-think-notify';
 
@@ -458,7 +458,9 @@ void main() {
         );
 
         var notified = false;
-        final sub = sync.onDataChanged.listen((_) => notified = true);
+        final sub = sync.onDomainChanged
+            .where((d) => d == SyncDomain.sessions)
+            .listen((_) => notified = true);
 
         sync.handleEphemeralUpdate({
           't': 'activity',
@@ -477,8 +479,8 @@ void main() {
           notified,
           isTrue,
           reason:
-              'onDataChanged should fire after an activity ephemeral '
-              'event updates session state',
+              'onDomainChanged(sessions) should fire after an activity '
+              'ephemeral event updates session state',
         );
       },
     );

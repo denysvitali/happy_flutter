@@ -274,6 +274,14 @@ extension SyncSocket on Sync {
   /// into a single trailing emission.  This prevents the old
   /// cancel-and-restart pattern from deferring the emission
   /// indefinitely during sustained streaming (events every 20-50ms).
+  ///
+  /// Scoping rule (perf P0): when [domains] is a non-null subset, this
+  /// method emits ONLY on the per-domain stream ([onDomainChanged]).
+  /// The global firehose [onDataChanged] is reserved for the
+  /// "truly everything" case where the caller passes `null`. Screens
+  /// using [SyncSubscriptionMixin.subscribeToDomains] receive the
+  /// scoped event; the dataChangeCounter still ticks so any
+  /// counter-based dedup paths see progress.
   void _notifyDataChanged([Set<SyncDomain>? domains]) {
     _dataChangeCounter++;
     final effectiveDomains = domains ?? SyncDomain.values.toSet();
@@ -297,6 +305,13 @@ extension SyncSocket on Sync {
       } else {
         _domainChangePendingTrailing.add(domain);
       }
+    }
+    // Only fire the global firehose for the truly-everything case
+    // (domains == null). Scoped callers are already routed through
+    // onDomainChanged above; emitting globally too would wake every
+    // subscriber app-wide on every per-domain change.
+    if (domains != null) {
+      return;
     }
     // If no timer is running, fire immediately (leading edge) and
     // start a cooldown window.
@@ -322,8 +337,11 @@ extension SyncSocket on Sync {
 
   /// Immediately emit data change notification, bypassing debounce.
   /// Use sparingly when listeners need to be notified synchronously.
+  ///
+  /// Scoping rule (perf P0): a non-null [domains] only emits on the
+  /// per-domain stream. `domains == null` flushes the global firehose
+  /// too, matching the [_notifyDataChanged] semantics.
   void _flushDataChanged([Set<SyncDomain>? domains]) {
-    _dataChangeDebounceTimer?.cancel();
     _dataChangeCounter++;
     final effectiveDomains = domains ?? SyncDomain.values.toSet();
     for (final domain in effectiveDomains) {
@@ -333,6 +351,10 @@ extension SyncSocket on Sync {
         _domainChangeController.add(domain);
       }
     }
+    if (domains != null) {
+      return;
+    }
+    _dataChangeDebounceTimer?.cancel();
     if (!_dataChangeController.isClosed) {
       _dataChangeController.add(null);
     }
@@ -420,20 +442,32 @@ extension SyncSocket on Sync {
   /// Debounced MMKV persist for a single session's message list.
   ///
   /// Batches rapid upserts (e.g. streaming tokens) into one disk write
-  /// per session every 500 ms, keeping only the last ~200 messages in
+  /// per session every 1000 ms, keeping only the last ~200 messages in
   /// the persisted copy. The in-memory list retains all messages.
+  ///
+  /// Perf P0: a hard ceiling of [_saveMsgsMaxDelayMs] guarantees the
+  /// disk write fires even under sustained streaming where the 1s
+  /// debounce would otherwise keep resetting every token (~20-50ms),
+  /// preventing the cache from ever flushing until streaming stops.
   void _scheduleSaveMessages(String sessionId) {
-    // Always use the debounce path. The previous immediate-persist for
-    // 'sending' messages ran jsonEncode on the full 200-message list
-    // synchronously on the main thread for every streaming token.
-    // The 500ms debounce is short enough that messages survive brief
-    // backgrounding, and _flushPendingMessageSaves() handles app
-    // lifecycle transitions.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final firstScheduledAt = _saveMsgsFirstScheduledAtMs[sessionId];
+    _saveMsgsFirstScheduledAtMs[sessionId] = firstScheduledAt ?? nowMs;
+    // Remaining budget before the max-delay ceiling kicks in.
+    final elapsed =
+        firstScheduledAt == null ? 0 : nowMs - firstScheduledAt;
+    final remainingBudget = _saveMsgsMaxDelayMs - elapsed;
+    final delayMs = remainingBudget <= 0
+        ? 0
+        : remainingBudget < _saveMsgsDebounceMs
+            ? remainingBudget
+            : _saveMsgsDebounceMs;
     _saveMsgsDebounceTimers[sessionId]?.cancel();
     _saveMsgsDebounceTimers[sessionId] = Timer(
-      const Duration(milliseconds: 1000),
+      Duration(milliseconds: delayMs),
       () {
         _saveMsgsDebounceTimers.remove(sessionId);
+        _saveMsgsFirstScheduledAtMs.remove(sessionId);
         final msgs = _sessionMessages[sessionId];
         if (msgs != null) {
           // Persist all messages including sidechain entries.  The
@@ -450,6 +484,9 @@ extension SyncSocket on Sync {
     );
   }
 
+  static const int _saveMsgsDebounceMs = 1000;
+  static const int _saveMsgsMaxDelayMs = 2500;
+
   /// Immediately flush all pending debounced message saves so the MMKV
   /// cache is not stale when the app is backgrounded or killed.
   void _flushPendingMessageSaves() {
@@ -465,6 +502,7 @@ extension SyncSocket on Sync {
       }
     }
     _saveMsgsDebounceTimers.clear();
+    _saveMsgsFirstScheduledAtMs.clear();
   }
 
   /// Immediately deliver any pending trailing-edge session message

@@ -449,6 +449,12 @@ what you have, you must use the options mode.
   Timer? _saveSeqDebounceTimer;
   Timer? _saveSessionsCacheDebounceTimer;
   final Map<String, Timer> _saveMsgsDebounceTimers = {};
+
+  /// Epoch-ms of the first call to [_scheduleSaveMessages] in the
+  /// current debounce window for each session. Used to enforce a
+  /// max-delay ceiling so the MMKV save cannot be perpetually deferred
+  /// by sustained streaming traffic.
+  final Map<String, int> _saveMsgsFirstScheduledAtMs = {};
   final Map<String, Timer> _postSendCatchUpTimers = {};
   final Set<String> _sessionsNeedingTailRefresh = <String>{};
   final Set<String> _sessionsNeedingVisibleRegroup = <String>{};

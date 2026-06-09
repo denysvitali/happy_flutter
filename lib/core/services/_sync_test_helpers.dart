@@ -188,6 +188,27 @@ extension SyncTestHelpers on Sync {
     }
   }
 
+  /// Test helper: invoke [_scheduleSaveMessages] directly so the
+  /// debounce/max-delay behaviour can be asserted without spinning
+  /// the full streaming pipeline.
+  @visibleForTesting
+  void testScheduleSaveMessages(String sessionId) {
+    _scheduleSaveMessages(sessionId);
+  }
+
+  /// Test helper: read the active per-session save debounce timer
+  /// count.  Returns 0 if there is no pending save for the session.
+  @visibleForTesting
+  bool testHasPendingSaveTimer(String sessionId) =>
+      _saveMsgsDebounceTimers.containsKey(sessionId);
+
+  /// Test helper: invoke [_flushPendingMessageSaves] so the lifecycle
+  /// flush behaviour can be asserted in isolation.
+  @visibleForTesting
+  void testFlushPendingMessageSaves() {
+    _flushPendingMessageSaves();
+  }
+
   /// Sets the in-memory seq cursor for a session (bypasses the normal
   /// inline-processing path that normally updates this from socket
   /// events).
