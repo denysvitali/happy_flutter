@@ -76,6 +76,61 @@ void main() {
       expect(now - spawnedAt, lessThan(5000));
     });
 
+    test('createSession passes requested sessionId to spawn RPC', () async {
+      const sessionId = 'c1af40f2f18914fb43a9d19b4';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        expect(method, 'spawn-happy-session');
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': params['sessionId'],
+          'dataEncryptionKey': null,
+        };
+      };
+
+      final result = await sync.createSession(
+        agent: 'claude',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        sessionId: sessionId,
+      );
+
+      expect(result, sessionId);
+      expect(capturedParams, isNotNull);
+      expect(capturedParams!['sessionId'], sessionId);
+      expect(sync.sessions.containsKey(sessionId), isTrue);
+      expect(sync.testSessionSpawnedAt.containsKey(sessionId), isTrue);
+    });
+
+    test(
+      'createSession preallocates CUID-like sessionId for spawn RPC',
+      () async {
+        Map<String, dynamic>? capturedParams;
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          capturedParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': params['sessionId'],
+            'dataEncryptionKey': null,
+          };
+        };
+
+        final result = await sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+        );
+
+        expect(capturedParams, isNotNull);
+        final requestedId = capturedParams!['sessionId'] as String?;
+        expect(requestedId, isNotNull);
+        expect(requestedId, matches(RegExp(r'^c[0-9a-f]{24}$')));
+        expect(result, requestedId);
+        expect(sync.sessions.containsKey(requestedId), isTrue);
+      },
+    );
+
     test('successful spawn creates optimistic placeholder when server '
         'has not propagated session', () async {
       final sessionId = 'spawn-opt-1';
@@ -170,10 +225,7 @@ void main() {
           isFalse,
           reason: 'createSession should not force a catalog-wide refresh',
         );
-        expect(
-          sync.sessions[sessionId],
-          isNotNull,
-        );
+        expect(sync.sessions[sessionId], isNotNull);
       },
     );
 
@@ -460,7 +512,11 @@ void main() {
           },
         );
 
-        await sync.createSession(agent: 'claude', machineId: 'machine-1', path: '/p');
+        await sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/p',
+        );
         expect(
           sync.sessions.containsKey(sessionId),
           isTrue,
@@ -1400,45 +1456,44 @@ void main() {
         await sync.lastCompleteSendFuture;
 
         final updatedMsgs = sync.testSessionMessages(sessionId)!;
-        final sentMsg =
-            updatedMsgs.firstWhere((m) => m['content'] == 'First message');
+        final sentMsg = updatedMsgs.firstWhere(
+          (m) => m['content'] == 'First message',
+        );
         expect(sentMsg['sendStatus'], 'sent');
       },
     );
 
-    test(
-      'createSession → sendMessage marks failed when fresh session '
-      'never becomes ready',
-      () async {
-        final sessionId = 'e2e-startup-timeout';
+    test('createSession → sendMessage marks failed when fresh session '
+        'never becomes ready', () async {
+      final sessionId = 'e2e-startup-timeout';
 
-        sync.testMachineRPCOverride = (machineId, method, params) async {
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
         };
+      };
 
-        await sync.createSession(
-          agent: 'claude',
-          machineId: 'machine-1',
-          path: '/home/user/project',
-        );
+      await sync.createSession(
+        agent: 'claude',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
 
-        sync.testFetchSingleSessionOverride = (_) async => null;
+      sync.testFetchSingleSessionOverride = (_) async => null;
 
-        final sentId = await sync.sendMessage(sessionId, 'Will fail');
-        expect(sentId, sessionId);
+      final sentId = await sync.sendMessage(sessionId, 'Will fail');
+      expect(sentId, sessionId);
 
-        await sync.lastCompleteSendFuture;
+      await sync.lastCompleteSendFuture;
 
-        final updatedMsgs = sync.testSessionMessages(sessionId)!;
-        final failedMsg =
-            updatedMsgs.firstWhere((m) => m['content'] == 'Will fail');
-        expect(failedMsg['sendStatus'], 'failed');
-      },
-    );
+      final updatedMsgs = sync.testSessionMessages(sessionId)!;
+      final failedMsg = updatedMsgs.firstWhere(
+        (m) => m['content'] == 'Will fail',
+      );
+      expect(failedMsg['sendStatus'], 'failed');
+    });
 
     test('createSession → auto-restore → redirected sendMessage', () async {
       final originalId = 'e2e-original';
@@ -1465,7 +1520,11 @@ void main() {
         }
       };
 
-      await sync.createSession(agent: 'claude', machineId: 'machine-1', path: '/project');
+      await sync.createSession(
+        agent: 'claude',
+        machineId: 'machine-1',
+        path: '/project',
+      );
 
       // Phase 2: Make the session look stale (expired spawn timestamp)
       sync.testSetSessionSpawnedAt(

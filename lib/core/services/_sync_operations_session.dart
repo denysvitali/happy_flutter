@@ -13,7 +13,6 @@ extension SyncSessionOperations on Sync {
   Future<String> createSession({
     required String machineId,
     required String path,
-    bool approvedNewDirectoryCreation = false,
 
     /// Explicit agent type for this session. Takes precedence over
     /// [_settingsSnapshot.lastUsedAgent]. Should always be passed when creating
@@ -21,6 +20,8 @@ extension SyncSessionOperations on Sync {
     /// [lastUsedAgent] which can change between applySettings and createSession
     /// due to async settings sync reloads.
     required String agent,
+    bool approvedNewDirectoryCreation = false,
+    String? sessionId,
 
     /// Explicit profile ID for this session. Takes precedence over
     /// [_settingsSnapshot.lastUsedProfile]. Should be passed when creating a
@@ -43,6 +44,7 @@ extension SyncSessionOperations on Sync {
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
     }
+    final requestedSessionId = sessionId ?? _createClientSessionId();
     // Check socket connectivity.  When the test override is set, use it
     // directly (supports true/false).  Otherwise, wait for the socket to
     // connect instead of failing immediately — during brief disconnects
@@ -126,6 +128,7 @@ extension SyncSessionOperations on Sync {
     final req = SpawnSessionRequest(
       type: 'spawn-in-directory',
       directory: resolvedPath,
+      sessionId: requestedSessionId,
       approvedNewDirectoryCreation: true, // Always approve like React Native
       agent: agent,
       permissionMode: permMode,
@@ -139,6 +142,7 @@ extension SyncSessionOperations on Sync {
 
     logger.info(
       '[createSession] START machine=$machineId '
+      'session=$requestedSessionId '
       'agent=$agent model=$normalizedModelMode '
       'path=$resolvedPath hasInitialMessage=${message?.isNotEmpty ?? false}',
     );
@@ -190,7 +194,8 @@ extension SyncSessionOperations on Sync {
       logger.info(
         '[createSession] Registered session $sessionId '
         'in _sessionSpawnedAt '
-        '(profile=$effectiveProfileId, model=$normalizedModelMode, agent=$agent)',
+        '(profile=$effectiveProfileId, '
+        'model=$normalizedModelMode, agent=$agent)',
       );
 
       await _hydrateSpawnedSession(
@@ -254,7 +259,11 @@ extension SyncSessionOperations on Sync {
         machineId: machineId,
         path: resolvedPath,
         approvedNewDirectoryCreation: true,
+        sessionId: requestedSessionId,
         agent: agent,
+        profileId: profileId,
+        message: message,
+        modelMode: modelMode,
       );
     }
 
@@ -320,6 +329,16 @@ extension SyncSessionOperations on Sync {
     }
 
     throw StateError(errorMsg);
+  }
+
+  String _createClientSessionId() {
+    final random = Random.secure();
+    const alphabet = '0123456789abcdef';
+    final chars = StringBuffer('c');
+    for (var i = 0; i < 24; i++) {
+      chars.write(alphabet[random.nextInt(alphabet.length)]);
+    }
+    return chars.toString();
   }
 
   Future<void> _hydrateSpawnedSession(
@@ -1034,9 +1053,9 @@ PY
           _sessionSpawnedModel.remove(sessionId);
           _sessionSpawnedAgent.remove(sessionId);
           // Fire-and-forget: the kill is best-effort (spawned data is already
-          // cleared, so auto-restore handles offline outcomes). Awaiting blocked
-          // the user's send for ~10s when the server-side Redis RPC dispatcher
-          // timed out waiting for a replica.
+          // cleared, so auto-restore handles offline outcomes). Awaiting
+          // blocked the user's send for ~10s when the server-side Redis RPC
+          // dispatcher timed out waiting for a replica.
           unawaited(() async {
             try {
               await killSession(sessionId).timeout(const Duration(seconds: 3));
@@ -1253,7 +1272,8 @@ PY
       // Register a spawn timestamp so wasRecentlySpawned returns true for
       // the restored session. Without this, the restored session has no grace
       // period and is immediately eligible for another profile/model kill.
-      _sessionSpawnedAt[restoredSessionId] = DateTime.now().millisecondsSinceEpoch;
+      _sessionSpawnedAt[restoredSessionId] =
+          DateTime.now().millisecondsSinceEpoch;
       if (restoredSessionId != sessionId) {
         // Migrate conversation history from the old session to the new
         // one so the user doesn't lose context after an auto-restore
@@ -1264,8 +1284,9 @@ PY
             '[sendMessage] migrating ${oldMessages.length} messages '
             'from $sessionId -> $restoredSessionId',
           );
-          _sessionMessages[restoredSessionId] =
-              List<Map<String, dynamic>>.from(oldMessages);
+          _sessionMessages[restoredSessionId] = List<Map<String, dynamic>>.from(
+            oldMessages,
+          );
           _rebuildSessionContentSignatures(restoredSessionId);
           _sessionMessagesViewCache.remove(restoredSessionId);
           if (_sessionsNeedingSidechainRegroup.contains(sessionId)) {

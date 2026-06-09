@@ -2,6 +2,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 
 void main() {
+  group('SpawnSessionRequest.toJson', () {
+    test('includes sessionId when provided', () {
+      final request = SpawnSessionRequest(
+        type: 'spawn-in-directory',
+        directory: '/tmp/project',
+        sessionId: 'c1af40f2f18914fb43a9d19b4',
+        agent: 'claude',
+      );
+
+      expect(
+        request.toJson(),
+        containsPair('sessionId', 'c1af40f2f18914fb43a9d19b4'),
+      );
+    });
+  });
+
   group('SpawnSessionResponse.fromJson', () {
     test('parses camelCase fields', () {
       final response = SpawnSessionResponse.fromJson({
