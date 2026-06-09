@@ -80,6 +80,24 @@ class ToolDefinition {
 
 /// Registry of known tool definitions.
 class KnownTools {
+  /// Canonical display-definition names for aliases emitted by different
+  /// agents or provider adapters.
+  static const Map<String, String> aliases = {
+    'file-edit': 'Edit',
+    'read': 'Read',
+    'write': 'Write',
+    'bash': 'Bash',
+    'grep': 'Grep',
+    'ls': 'LS',
+    'functions.exec_command': 'exec_command',
+    'functions.apply_patch': 'CodexPatch',
+    'apply_patch': 'CodexPatch',
+    'exit_plan_mode': 'ExitPlanMode',
+  };
+
+  /// Returns the canonical definition name for [name].
+  static String canonicalName(String name) => aliases[name] ?? name;
+
   /// Icon factory for task/agent tools.
   static Widget taskIcon(double size, Color color) =>
       Icon(Icons.rocket_launch, size: size, color: color);
@@ -286,10 +304,14 @@ class KnownTools {
     ),
     'Edit': ToolDefinition(
       icon: editIcon,
-      title: 'Edit File',
+      title: 'Apply Changes',
       isMutable: true,
       extractSubtitle: (tool, metadata) {
-        final filePath = tool['input']?['file_path'] as String?;
+        final input = WireParsers.asMap(tool['input']);
+        final filePath =
+            input?['filePath'] as String? ??
+            input?['file_path'] as String? ??
+            input?['path'] as String?;
         if (filePath != null) {
           return resolvePath(filePath, metadata);
         }
@@ -314,7 +336,7 @@ class KnownTools {
     ),
     'MultiEdit': ToolDefinition(
       icon: editIcon,
-      title: 'Multi-Edit File',
+      title: 'Apply Changes',
       isMutable: true,
       minimal: false,
       extractSubtitle: (tool, metadata) {
@@ -342,7 +364,7 @@ class KnownTools {
     ),
     'Write': ToolDefinition(
       icon: editIcon,
-      title: 'Write File',
+      title: 'Apply Changes',
       isMutable: true,
       extractSubtitle: (tool, metadata) {
         final filePath = tool['input']?['file_path'] as String?;
@@ -659,7 +681,8 @@ class KnownTools {
       hideDefaultError: true,
       isMutable: true,
       extractSubtitle: (tool, _) {
-        final changes = WireParsers.asMap(tool['input']?['changes']);
+        final input = WireParsers.asMap(tool['input']);
+        final changes = WireParsers.asMap(input?['changes']);
         if (changes != null && changes.isNotEmpty) {
           final files = changes.keys.toList();
           if (files.length == 1) {
@@ -667,7 +690,7 @@ class KnownTools {
           }
           return '${files.length} files';
         }
-        return null;
+        return _extractPatchSubtitle(tool);
       },
     ),
     'apply_patch': ToolDefinition(
@@ -760,15 +783,16 @@ class KnownTools {
 
   /// Get tool definition for a tool name.
   static ToolDefinition? get(String name) {
-    return tools[name];
+    return tools[canonicalName(name)];
   }
 
   /// Check if a tool is known.
-  static bool has(String name) => tools.containsKey(name);
+  static bool has(String name) => tools.containsKey(canonicalName(name));
 
   /// Get icon for a tool name.
   static Widget iconFor(String name, double size, Color color) {
-    return tools[name]?.icon(size, color) ?? defaultIcon(size, color);
+    return tools[canonicalName(name)]?.icon(size, color) ??
+        defaultIcon(size, color);
   }
 
   /// Get title for a tool.
@@ -777,7 +801,7 @@ class KnownTools {
     Map<String, dynamic> tool,
     Map<String, dynamic>? metadata,
   ) {
-    final definition = tools[name];
+    final definition = tools[canonicalName(name)];
     if (definition == null) return name;
 
     if (definition.title is String) {
@@ -791,7 +815,8 @@ class KnownTools {
 
   /// Check if a tool is mutable (can modify files).
   static bool isMutable(String name) {
-    return tools[name]?.isMutable ?? true; // Default to true for unknown tools
+    return tools[canonicalName(name)]?.isMutable ??
+        true; // Default to true for unknown tools
   }
 
   /// Check if a tool should show minimal representation.
@@ -800,7 +825,7 @@ class KnownTools {
     Map<String, dynamic> tool,
     Map<String, dynamic>? metadata,
   ) {
-    final definition = tools[name];
+    final definition = tools[canonicalName(name)];
     if (definition == null) return true; // Unknown tools are minimal by default
     return definition.minimal;
   }

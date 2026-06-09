@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/tools/known_tools.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/codex_patch_view.dart';
 
@@ -108,6 +109,54 @@ void main() {
       expect(find.text('1 file changed'), findsOneWidget);
       expect(_findRichTextContaining('new_file.dart'), findsAtLeastNWidgets(1));
       expect(find.text('INPUT'), findsNothing);
+    });
+
+    testWidgets('uses the patch view for provider-prefixed apply_patch', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          ToolView(
+            tool: {
+              'name': 'functions.apply_patch',
+              'state': 'running',
+              'input': '''
+*** Begin Patch
+*** Update File: lib/changed_file.dart
+@@
+-const value = 1;
++const value = 2;
+*** End Patch
+''',
+            },
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      expect(find.text('Apply Changes'), findsOneWidget);
+      expect(find.text('1 file changed'), findsOneWidget);
+      expect(
+        _findRichTextContaining('changed_file.dart'),
+        findsAtLeastNWidgets(1),
+      );
+      expect(find.text('INPUT'), findsNothing);
+    });
+  });
+
+  group('KnownTools aliases', () {
+    test('maps provider and agent aliases to canonical definitions', () {
+      expect(
+        KnownTools.titleFor('functions.apply_patch', {}, null),
+        'Apply Changes',
+      );
+      expect(KnownTools.titleFor('file-edit', {}, null), 'Apply Changes');
+      expect(KnownTools.titleFor('write', {}, null), 'Apply Changes');
+      expect(KnownTools.titleFor('bash', {}, null), 'Terminal');
+      expect(KnownTools.titleFor('grep', {}, null), 'Search Content');
+      expect(KnownTools.titleFor('ls', {}, null), 'List Files');
+      expect(KnownTools.titleFor('todo_list', {}, null), 'Todo List');
     });
   });
 }

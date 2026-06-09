@@ -806,15 +806,19 @@ class _ToolViewState extends ConsumerState<ToolView>
   static const Set<String> _knownToolNames = {
     'Glob',
     'Grep',
+    'grep',
     'LS',
+    'ls',
     'Read',
     'read',
     'Edit',
     'file-edit',
     'MultiEdit',
     'Write',
+    'write',
     'edit',
     'Bash',
+    'bash',
     'exec_command',
     'functions.exec_command',
     'CodexBash',
@@ -847,6 +851,7 @@ class _ToolViewState extends ConsumerState<ToolView>
   ToolViewBuilder? _getToolViewComponent(String toolName) {
     // Fast path: avoid allocating the map for unknown tool names.
     if (!_knownToolNames.contains(toolName)) return null;
+    final canonicalName = KnownTools.canonicalName(toolName);
 
     final views = <String, ToolViewBuilder>{
       'Glob': (t, m, s) => GlobView(tool: t, metadata: m),
@@ -898,7 +903,7 @@ class _ToolViewState extends ConsumerState<ToolView>
       'NotebookRead': (t, m, s) => ReadView(tool: t, metadata: m, sessionId: s),
       'NotebookEdit': (t, m, s) => EditView(tool: t, metadata: m, sessionId: s),
     };
-    return views[toolName];
+    return views[canonicalName] ?? views[toolName];
   }
 
   Widget _buildAskUserQuestionView(
