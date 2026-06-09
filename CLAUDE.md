@@ -77,7 +77,7 @@ See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key
 Happy Flutter is **happy's mobile app**, built with Flutter.
 
 **Tech Stack:**
-- Flutter 3.38.7, Dart 3.10+
+- Flutter 3.41.x (pinned via devenv; nixpkgs `flutterPackages.v3_41`), Dart 3.11+
 - Riverpod v3 (manual NotifierProvider, no code generation)
 - Dio + NativeAdapter (Cronet on Android, cupertino_http on iOS) for HTTP
 - Socket.IO for real-time updates
@@ -105,8 +105,8 @@ devenv shell -- flutter test test/services/sync_service_test.dart
 # Golden screenshots — update after UI changes
 devenv shell -- flutter test test/golden/golden_test.dart --update-goldens
 
-# Code generation (after changing ApiClient public API)
-devenv shell -- flutter pub run build_runner build
+# Code generation (after changing freezed/json_serializable models or ApiClient public API)
+devenv shell -- flutter pub run build_runner build --delete-conflicting-outputs
 
 # Build APK (flavors: development, preview, production)
 devenv shell -- flutter build apk --debug --flavor development
@@ -132,7 +132,7 @@ lib/
 │   ├── api/               # ApiClient (Dio), SocketIoClient, per-domain API classes
 │   ├── encryption/        # NaCl (legacy), AES-256-GCM (new), key derivation
 │   ├── i18n/              # Internationalization helpers
-│   ├── models/            # Manual fromJson/toJson/copyWith (16 model files)
+│   ├── models/            # freezed/json_serializable + a few manual models
 │   ├── providers/         # Riverpod NotifierProvider state (app_providers.dart barrel)
 │   ├── routing/           # GoRouter setup (createRouter())
 │   ├── rpc/               # RPC layer
@@ -251,7 +251,9 @@ Some domains have both `XxxService` (production) and `XxxApi` (injectable for te
 
 ## Models
 
-**Manual `fromJson`/`toJson`/`copyWith`** — no `json_serializable` or `freezed`. Timestamps are integers (milliseconds), not `DateTime`.
+**`freezed` + `json_serializable`** for most core models (`session`, `message`, `machine`, `artifact`, `usage`, `auth`, `kv`, `local_settings`, `purchases`, `api_update`, `claude_usage_limits`) since the freezed migration (a1e03c3f); a few simpler models (`profile`, `todo`, `friend_request`, `settings_update`) remain manual `fromJson`/`toJson`/`copyWith`. Timestamps are integers (milliseconds), not `DateTime`.
+
+**NEVER hand-edit `*.g.dart` or `*.freezed.dart` files.** After changing any annotated model, regenerate with `devenv shell -- flutter pub run build_runner build --delete-conflicting-outputs` and commit the regenerated output together with the source change.
 
 **Exception:** `Settings` uses mutable public fields (`var`, not `final`) and roundtrips through `toJson()`/`fromJson()` in `updateSetting`. Nested config classes within Settings use `final` fields normally.
 
@@ -331,16 +333,14 @@ Then commit the updated PNGs. Do not leave stale goldens — they will cause fal
 - **Avoid:** `print` — use `logger.info/warning/error()`; use `unawaited()` for fire-and-forget
 - **Platform code:** Conditional exports: `platform_io.dart`/`platform_stub.dart`, `mmkv_storage_native.dart`/`mmkv_storage_web.dart`, `sodium_loader_native.dart`/`sodium_loader_web.dart`, `sentry_*.dart`
 - **Sync part files:** `lib/core/services/_sync_*.dart` — add new methods to the appropriate part file
-- **Models:** Manual `fromJson`/`toJson`/`copyWith` — no `json_serializable` or `freezed`. Timestamps are integers (milliseconds), not `DateTime`
+- **Models:** `freezed` + `json_serializable` for core models, manual `fromJson`/`toJson`/`copyWith` for a few simple ones (see Models section). Never hand-edit generated files — run build_runner. Timestamps are integers (milliseconds), not `DateTime`
 - **Error handling:** Log via `logger.warning`/`logger.error`. For data loss/corruption risks, also call `Sentry.captureException`
 
 **Analysis:** `test/**/*.dart` excluded. CI runs `flutter analyze --no-fatal-infos --no-fatal-warnings` (errors only block build).
 
 ## Dependency Overrides
 
-`pubspec.yaml` has `dependency_overrides` for compatibility with Flutter 3.38.7:
-- `shared_preferences_android: 2.4.20` (2.4.18 and 2.4.21 lack `SharedPreferencesPlugin`)
-- `sodium_libs: 3.4.6+3`
+`pubspec.yaml` has `dependency_overrides` — check the inline comments there for the current set (as of Jun 2026: `shared_preferences_android`, `mmkv_platform_interface`, `flutter_secure_storage_linux`, `go_router`).
 
 ## Additional Documentation
 

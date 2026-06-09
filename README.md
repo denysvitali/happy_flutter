@@ -66,7 +66,7 @@ lib/
 
 ## Technology Stack
 
-- **Flutter**: 3.38.7 (Dart 3.10+)
+- **Flutter**: 3.41.x via devenv (Dart 3.11+)
 - **State Management**: Riverpod v3
 - **HTTP Client**: Dio with NativeAdapter (Cronet/cupertino_http)
 - **WebSocket**: Socket.IO protocol implementation
@@ -232,7 +232,7 @@ test/
 ## References
 
 - **Source of Truth**: `../happy` (React Native implementation)
-- **Flutter Version**: 3.38.7 (Dart 3.10+)
+- **Flutter Version**: 3.41.x via devenv (Dart 3.11+)
 - **CI/CD**: GitHub Actions with build flavors
 
 ## License
