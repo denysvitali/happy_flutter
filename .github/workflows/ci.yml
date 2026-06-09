@@ -482,13 +482,23 @@ jobs:
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g'
         run: |
+          set +e
           flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --split-debug-info=build/debug-info \
-            --obfuscate
+            --obfuscate 2>&1 | tee build-release.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Release APK build failed with status $status"
+            grep -E -i \
+              'FAILURE:|What went wrong|Execution failed|Missing class|OutOfMemory|Could not|Exception|Error:' \
+              build-release.log || true
+            exit "$status"
+          fi
 
       - name: Upload debug symbols to Sentry
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' && env.SENTRY_AUTH_TOKEN != '' }}

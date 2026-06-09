@@ -421,6 +421,7 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
 
     try {
       final suggestions = await widget.fetchSuggestions(query);
+      if (!mounted) return;
       // Hoist normalization out of the per-element loop: the query is
       // constant for this filter pass, so lowercase it exactly once.
       final queryLower = query.toLowerCase();
@@ -439,14 +440,17 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
         e,
         st,
       );
+      if (!mounted) return;
       setState(() {
         _suggestions = [];
         _showOverlay = false;
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
