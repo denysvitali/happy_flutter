@@ -97,6 +97,11 @@ extension SyncSessionOperations on Sync {
       }
     }
 
+    // A fresh heartbeat doesn't guarantee the daemon will answer RPCs —
+    // probe with a short ping so a wedged daemon fails in seconds
+    // instead of eating the full 60 s spawn timeout.
+    await ensureMachineReachable(machineId);
+
     final resolvedPath = (machine != null && machine.metadata?.homeDir != null)
         ? resolveAbsolutePath(path, homeDir: machine.metadata!.homeDir)
         : path;

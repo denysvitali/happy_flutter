@@ -599,6 +599,11 @@ what you have, you must use the options mode.
   )?
   testMachineRPCOverride;
 
+  /// Override [SyncMessagingRpc.ensureMachineReachable] for testing the
+  /// pre-flight liveness probe without a real socket connection.
+  @visibleForTesting
+  Future<void> Function(String machineId)? testEnsureMachineReachableOverride;
+
   /// Override fetchSingleSession for testing sendMessage encryption
   /// recovery without a real API call.
   @visibleForTesting

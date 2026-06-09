@@ -50,6 +50,7 @@ void main() {
       sync.testFetchSingleSessionOverride = null;
       sync.testFetchMessagesOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;
+      sync.testEnsureMachineReachableOverride = null;
     });
 
     test('successful spawn registers session in _sessionSpawnedAt', () async {
@@ -348,6 +349,65 @@ void main() {
       );
     });
 
+    test('createSession fails fast when liveness probe times out', () async {
+      var spawnCalled = false;
+      sync.testEnsureMachineReachableOverride = (machineId) async {
+        expect(machineId, 'machine-1');
+        throw StateError('Machine is unreachable');
+      };
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        spawnCalled = true;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': 'should-not-spawn',
+          'dataEncryptionKey': null,
+        };
+      };
+
+      await expectLater(
+        () => sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('unreachable'),
+          ),
+        ),
+      );
+      expect(
+        spawnCalled,
+        isFalse,
+        reason: 'spawn RPC must not run when the probe fails',
+      );
+    });
+
+    test('createSession proceeds when liveness probe succeeds', () async {
+      var probed = false;
+      sync.testEnsureMachineReachableOverride = (machineId) async {
+        probed = true;
+      };
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': 'probe-ok',
+          'dataEncryptionKey': null,
+        };
+      };
+
+      final result = await sync.createSession(
+        agent: 'claude',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
+
+      expect(result, 'probe-ok');
+      expect(probed, isTrue);
+    });
+
     test('createSession throws when RPC returns empty session ID', () {
       sync.testMachineRPCOverride = (machineId, method, params) async {
         return <String, dynamic>{
@@ -484,6 +544,7 @@ void main() {
       sync.testFetchSingleSessionOverride = null;
       sync.testFetchMessagesOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;
+      sync.testEnsureMachineReachableOverride = null;
     });
 
     test(

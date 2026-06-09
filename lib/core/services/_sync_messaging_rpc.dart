@@ -80,6 +80,42 @@ extension SyncMessagingRpc on Sync {
     throw StateError('Machine RPC $method failed: $errorMsg');
   }
 
+  /// Cheap pre-flight liveness probe before long-running spawn RPCs.
+  ///
+  /// A fresh `activeAt` heartbeat only proves the daemon was alive
+  /// recently — a wedged daemon (or dead socket on the server side)
+  /// still ACKs nothing and previously burned the full 60 s spawn
+  /// timeout before failing. This sends a `ping` RPC with a short
+  /// timeout instead: any reply — even `Method not found` from daemons
+  /// that predate the `ping` handler — proves the machine is reachable
+  /// within seconds.
+  ///
+  /// Throws [StateError] (`Machine is unreachable`) when the ping ACK
+  /// times out. Socket connection errors propagate as-is.
+  Future<void> ensureMachineReachable(String machineId) async {
+    final override = testEnsureMachineReachableOverride;
+    if (override != null) {
+      return override(machineId);
+    }
+    // Unit tests stub the typed RPC layer — the probe would otherwise
+    // hit the real socket and fail every createSession test.
+    if (testMachineRPCOverride != null) return;
+    try {
+      await machineRPC(
+        machineId,
+        'ping',
+        const {},
+        timeout: const Duration(seconds: 8),
+      );
+    } on SocketAckTimeoutException {
+      throw StateError('Machine is unreachable');
+    } on StateError {
+      // The daemon replied with an application-level error (older
+      // daemons have no `ping` handler and answer `Method not found`).
+      // Any reply proves liveness — that is all this probe checks.
+    }
+  }
+
   /// RPC call for sessions - uses session-specific encryption.
   Future<dynamic> sessionRPC(
     String sessionId,
