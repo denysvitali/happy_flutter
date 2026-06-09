@@ -137,10 +137,34 @@ class _MessageWidgetState extends State<MessageWidget>
   }
 
   Widget _buildCachedBody(BuildContext context) {
+    // Cache signature is derived from STABLE message identifiers and
+    // content, not from Map/List object identity. The parent (sync) may
+    // hand us a fresh Map for the same logical message; identity-based
+    // hashing would invalidate the cache on every parent rebuild.
+    //
+    // Callback identity is intentionally excluded — parent closures churn
+    // on every rebuild but the bubble's rendered output depends only on
+    // whether a callback is present, not on which closure instance it is.
+    final msg = widget.messageData;
+    final messageId =
+        msg['id'] as String? ??
+        msg['localId'] as String? ??
+        msg['key'] as String?;
+    final sigContent = msg['content'] ?? msg['text'];
     final signature = Object.hash(
-      widget.messageData,
-      widget.metadata,
-      widget.messages,
+      messageId,
+      msg['kind'],
+      msg['role'],
+      msg['name'],
+      msg['sendStatus'],
+      msg['isThinking'],
+      msg['updatedAt'] ?? msg['createdAt'],
+      sigContent is String ? sigContent : sigContent?.toString(),
+      // Tool/Agent messages also need to invalidate when the messages
+      // list reference changes meaningfully. List identity is acceptable
+      // because chat_screen only passes `_messages` for Task/Agent and
+      // recreates it deliberately when contents change.
+      widget.messages == null ? 0 : widget.messages!.length,
       widget.sessionId,
       widget.isSessionOnline,
       widget.isFromCurrentUser,

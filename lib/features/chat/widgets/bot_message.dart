@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/components/pressable_card.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
@@ -9,7 +8,7 @@ import 'message_detail_sheet.dart';
 import 'streaming_cursor.dart';
 
 /// Left-aligned bot message bubble with full markdown rendering.
-class BotMessage extends StatelessWidget {
+class BotMessage extends StatefulWidget {
   const BotMessage({
     required this.text,
     required this.messageData,
@@ -35,73 +34,119 @@ class BotMessage extends StatelessWidget {
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
 
+  @override
+  State<BotMessage> createState() => _BotMessageState();
+}
+
+class _BotMessageState extends State<BotMessage> {
+  bool _pressed = false;
+
+  // Precomputed border-radius variants. Selecting one is just an indexed
+  // lookup — avoids allocating a fresh BorderRadius on every build.
+  static const BorderRadius _radiusFirstLast = BorderRadius.only(
+    topLeft: BotMessage._full,
+    topRight: BotMessage._full,
+    bottomLeft: BotMessage._full,
+    bottomRight: BotMessage._full,
+  );
+  static const BorderRadius _radiusFirstOnly = BorderRadius.only(
+    topLeft: BotMessage._full,
+    topRight: BotMessage._full,
+    bottomLeft: BotMessage._small,
+    bottomRight: BotMessage._full,
+  );
+  static const BorderRadius _radiusLastOnly = BorderRadius.only(
+    topLeft: BotMessage._small,
+    topRight: BotMessage._full,
+    bottomLeft: BotMessage._full,
+    bottomRight: BotMessage._full,
+  );
+  static const BorderRadius _radiusMiddle = BorderRadius.only(
+    topLeft: BotMessage._small,
+    topRight: BotMessage._full,
+    bottomLeft: BotMessage._small,
+    bottomRight: BotMessage._full,
+  );
+
   String _truncateForLabel(String text) {
     const maxLength = 100;
     if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength)}...';
   }
 
+  BorderRadius _radius() {
+    if (widget.isFirstInGroup && widget.isLastInGroup) return _radiusFirstLast;
+    if (widget.isFirstInGroup) return _radiusFirstOnly;
+    if (widget.isLastInGroup) return _radiusLastOnly;
+    return _radiusMiddle;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     // Grouped radii: left side pinches for consecutive messages.
-    final radius = BorderRadius.only(
-      topLeft: isFirstInGroup ? _full : _small,
-      topRight: _full,
-      bottomLeft: isLastInGroup ? _full : _small,
-      bottomRight: _full,
-    );
+    final radius = _radius();
 
-    return PressableCard(
-      onTap: () => showMessageDetailSheet(context, messageData),
+    return GestureDetector(
+      onTap: () => showMessageDetailSheet(context, widget.messageData),
       onLongPress: () {
         HapticFeedback.heavyImpact();
-        showRawMarkdownSheet(context, text);
+        showRawMarkdownSheet(context, widget.text);
       },
-      pressedScale: 0.97,
-      enableHaptics: false,
-      duration: const Duration(milliseconds: 100),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: AppSpacing.sm,
-            right: AppSpacing.sm,
-            top: isCompact ? 0 : (isFirstInGroup ? AppSpacing.xs : 1),
-            bottom: isCompact ? 0 : (isLastInGroup ? AppSpacing.xs : 1),
-          ),
-          child: Semantics(
-            label: isStreaming
-                ? 'AI response streaming'
-                : 'AI message: ${_truncateForLabel(text)}',
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: isCompact ? AppSpacing.xs : AppSpacing.md,
-              ),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerLow,
-                borderRadius: radius,
-                border: Border.all(
-                  color: cs.outlineVariant.withValues(
-                    alpha: AppOpacity.subtle,
-                  ),
-                  width: AppBorder.hairline,
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeInOut,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: AppSpacing.sm,
+              right: AppSpacing.sm,
+              top: widget.isCompact
+                  ? 0
+                  : (widget.isFirstInGroup ? AppSpacing.xs : 1),
+              bottom: widget.isCompact
+                  ? 0
+                  : (widget.isLastInGroup ? AppSpacing.xs : 1),
+            ),
+            child: Semantics(
+              label: widget.isStreaming
+                  ? 'AI response streaming'
+                  : 'AI message: ${_truncateForLabel(widget.text)}',
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: widget.isCompact ? AppSpacing.xs : AppSpacing.md,
                 ),
-              ),
-              child: DefaultTextStyle.merge(
-                style: TextStyle(color: cs.onSurface),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    MarkdownView(
-                      markdown: text,
-                      onOptionPress: onOptionPress,
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerLow,
+                  borderRadius: radius,
+                  border: Border.all(
+                    color: cs.outlineVariant.withValues(
+                      alpha: AppOpacity.subtle,
                     ),
-                    if (isStreaming) const StreamingCursor(),
-                  ],
+                    width: 0.5,
+                  ),
+                ),
+                child: DefaultTextStyle.merge(
+                  style: TextStyle(color: cs.onSurface),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MarkdownView(
+                        markdown: widget.text,
+                        onOptionPress: widget.onOptionPress,
+                      ),
+                      if (widget.isStreaming) const StreamingCursor(),
+                    ],
+                  ),
                 ),
               ),
             ),

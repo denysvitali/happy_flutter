@@ -60,6 +60,13 @@ class _MarkdownViewState extends State<MarkdownView> {
   /// unless the options builder instance changes.
   Map<String, MarkdownElementBuilder>? _builders;
 
+  /// Cached MarkdownBody widget. Reused as long as the inputs that
+  /// affect rendering (theme, textColor, markdown content, builders)
+  /// are unchanged — avoids re-parsing identical markdown when the
+  /// parent rebuilds for unrelated reasons (sync events, etc.).
+  Widget? _cachedBody;
+  String? _cachedBodyMarkdown;
+
   @override
   void didUpdateWidget(MarkdownView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -67,6 +74,10 @@ class _MarkdownViewState extends State<MarkdownView> {
     if (widget.onOptionPress != oldWidget.onOptionPress ||
         widget.textColor != oldWidget.textColor) {
       _builders = null;
+      _cachedBody = null;
+    }
+    if (widget.markdown != oldWidget.markdown) {
+      _cachedBody = null;
     }
   }
 
@@ -134,17 +145,27 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   Widget _buildMarkdownBody(BuildContext context) {
     final theme = Theme.of(context);
-    if (_styleSheet == null ||
+    final themeChanged = _styleSheet == null ||
         !identical(theme, _lastTheme) ||
-        widget.textColor != _lastTextColor) {
+        widget.textColor != _lastTextColor;
+    if (themeChanged) {
       _styleSheet = _buildStyleSheet(theme);
       _lastTheme = theme;
       _lastTextColor = widget.textColor;
+      _cachedBody = null;
     }
 
     final markdown = widget.markdown;
 
-    return RepaintBoundary(
+    // Reuse the previously built MarkdownBody when both the markdown
+    // content and the styling inputs are unchanged. MarkdownBody parses
+    // its data string on every build, so caching the widget short-circuits
+    // the parse on no-op rebuilds.
+    if (_cachedBody != null && _cachedBodyMarkdown == markdown) {
+      return _cachedBody!;
+    }
+
+    final body = RepaintBoundary(
       child: MarkdownBody(
         data: markdown,
         extensionSet: _gitHubFlavoredExtensionSet,
@@ -154,6 +175,9 @@ class _MarkdownViewState extends State<MarkdownView> {
         onTapLink: (text, href, title) => _openMarkdownLink(href),
       ),
     );
+    _cachedBody = body;
+    _cachedBodyMarkdown = markdown;
+    return body;
   }
 }
 
