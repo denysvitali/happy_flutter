@@ -732,6 +732,9 @@ extension SyncSocket on Sync {
   ) async {
     final existingEncryption = encryption.getSessionEncryption(sessionId);
     final cachedKey = _sessionDataKeys[sessionId];
+    if (existingEncryption != null && cachedKey == null) {
+      return;
+    }
     if (existingEncryption != null &&
         _sessionDataKeysEqual(cachedKey, dataKey)) {
       return;
