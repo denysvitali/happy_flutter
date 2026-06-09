@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -126,17 +127,43 @@ class SettingsStorage {
   SettingsStorage._();
   static final SettingsStorage _instance = SettingsStorage._();
 
+  /// MMKV key for the "api-key migration completed" flag.
+  ///
+  /// Bumping [_apiKeyMigrationVersion] forces the migration to re-run
+  /// (e.g. if the migration shape changes). The flag short-circuits the
+  /// hot path on subsequent launches once a given version has run
+  /// successfully, eliminating a small amount of CPU on every cold start.
+  static const String _apiKeyMigrationFlagKey = 'api-key-migration-version';
+  static const int _apiKeyMigrationVersion = 1;
+
   final _storage = MMKVStorage();
   final _apiKeyStorage = APIKeyStorage();
   bool _migrationChecked = false;
   Settings? _cachedSettings;
 
+  /// Profile IDs whose API keys have already been hydrated from
+  /// secure storage into [_cachedSettings]. Tracked separately so
+  /// repeat hydrations are cheap (no secure-storage round-trip).
+  final Set<String> _hydratedProfileIds = <String>{};
+
+  /// True once the (process-wide) inference OpenAI key has been
+  /// hydrated into [_cachedSettings].
+  bool _inferenceKeyHydrated = false;
+
   // Debounce timer for settings updates to reduce MMKV writes
   Timer? _debounceTimer;
   static const Duration _debounceDelay = Duration(milliseconds: 500);
 
-  /// Get settings from storage
-  /// This loads API keys from secure storage and injects them into the settings
+  /// Get settings from storage.
+  ///
+  /// **Cold-start optimization**: API keys are NOT loaded eagerly. The
+  /// returned settings expose profiles with `apiKey: null`. Call
+  /// [hydrateProfileApiKeys] to populate keys for a specific profile on
+  /// demand (typically when spawning a session that uses that profile).
+  ///
+  /// This avoids N sequential FlutterSecureStorage reads (≈50–150ms each
+  /// on Android) on every cold start for users with multiple profiles —
+  /// a significant contributor to the production cold-start p95 of ~9s.
   Future<Settings> getSettings() async {
     final cachedSettings = _cachedSettings;
     if (cachedSettings != null) {
@@ -151,15 +178,16 @@ class SettingsStorage {
       _migrationChecked = true;
     }
 
-    // Load API keys from secure storage
-    await _loadAPIKeysIntoSettings(settings);
-
     _cacheSettings(settings);
     return _cloneSettings(settings);
   }
 
   /// Get settings from MMKV only, without hydrating API keys from secure
   /// storage. Useful on startup when only local UI settings are needed.
+  ///
+  /// Equivalent to [getSettings] now that API key hydration is lazy, but
+  /// kept as a distinct entry point for call sites that explicitly want
+  /// to communicate "I don't need API keys".
   Future<Settings> getLocalSettings() async {
     final settings = await _storage.getSettings();
     if (!_migrationChecked) {
@@ -170,8 +198,114 @@ class SettingsStorage {
     return _cloneSettings(settings);
   }
 
+  /// Eagerly hydrate every profile's API key from secure storage.
+  ///
+  /// Use sparingly — only for screens that need to display or edit
+  /// every key at once (e.g. settings editor). The session-spawn path
+  /// should use [hydrateProfileApiKeys] instead so it only pays the
+  /// cost for the profile actually being used.
+  Future<Settings> getSettingsWithApiKeys() async {
+    final settings = await getSettings();
+    await _loadAPIKeysIntoSettings(settings);
+    _cacheSettings(settings);
+    for (final p in settings.profiles) {
+      _hydratedProfileIds.add(p.id);
+    }
+    _inferenceKeyHydrated = true;
+    return _cloneSettings(settings);
+  }
+
+  /// Hydrate API keys for a single profile from secure storage.
+  ///
+  /// Idempotent: returns immediately if the profile's keys have already
+  /// been loaded. Mutates the in-memory cache so subsequent [getSettings]
+  /// callers see the populated keys.
+  ///
+  /// Returns the hydrated profile (or null if the profile is not in the
+  /// current settings). Designed for the session-spawn hot path so we
+  /// pay one secure-storage round-trip per profile, the first time it
+  /// is used.
+  Future<AIBackendProfile?> hydrateProfileApiKeys(String profileId) async {
+    if (_hydratedProfileIds.contains(profileId)) {
+      final cached = _cachedSettings;
+      if (cached != null) {
+        for (final p in cached.profiles) {
+          if (p.id == profileId) return _cloneProfile(p);
+        }
+      }
+      return null;
+    }
+
+    // Ensure base settings are loaded.
+    final cached = _cachedSettings ?? await () async {
+      await getSettings();
+      return _cachedSettings;
+    }();
+    if (cached == null) return null;
+
+    AIBackendProfile? target;
+    for (final p in cached.profiles) {
+      if (p.id == profileId) {
+        target = p;
+        break;
+      }
+    }
+    if (target == null) return null;
+
+    final hydrated = await _profileWithApiKeys(target);
+    // Replace the cached profile in-place so subsequent reads pick up
+    // the populated keys.
+    cached.profiles = [
+      for (final p in cached.profiles)
+        if (p.id == profileId) hydrated else p,
+    ];
+    _hydratedProfileIds.add(profileId);
+    return _cloneProfile(hydrated);
+  }
+
+  /// Hydrate the inference OpenAI key (used by `inferenceOpenAIKey`,
+  /// not tied to a specific profile).
+  Future<String?> hydrateInferenceOpenAIKey() async {
+    if (_inferenceKeyHydrated) {
+      return _cachedSettings?.inferenceOpenAIKey;
+    }
+    final key = await _apiKeyStorage.getInferenceOpenAIKey();
+    final cached = _cachedSettings;
+    if (cached != null) {
+      cached.inferenceOpenAIKey = key;
+    }
+    _inferenceKeyHydrated = true;
+    return key;
+  }
+
+  @visibleForTesting
+  bool isProfileHydrated(String profileId) =>
+      _hydratedProfileIds.contains(profileId);
+
+  AIBackendProfile _cloneProfile(AIBackendProfile profile) {
+    return AIBackendProfile.fromJson(profile.toJson());
+  }
+
   /// Check if migration is needed and perform it
   Future<void> _performMigrationIfNeeded(Settings settings) async {
+    // Fast-path: if we've already completed migration at the current
+    // schema version on a previous launch, skip the in-memory scan of
+    // every profile's API key fields.
+    try {
+      final completed = _storage.getString(_apiKeyMigrationFlagKey);
+      if (completed != null) {
+        final v = int.tryParse(completed);
+        if (v != null && v >= _apiKeyMigrationVersion) {
+          return;
+        }
+      }
+    } catch (e) {
+      // Defensive: if the MMKV read throws (e.g. in tests with a stub
+      // platform), fall through to the legacy scan path rather than
+      // skipping migration entirely.
+      logger.info('SettingsStorage: migration flag read failed: $e');
+    }
+
     // Check if there are API keys in the settings (old format)
     final needsMigration =
         settings.inferenceOpenAIKey != null ||
@@ -229,6 +363,21 @@ class SettingsStorage {
       // Save the cleaned settings back to MMKV
       await _storage.saveSettings(settings);
       logger.info('SettingsStorage: API key migration complete');
+    }
+
+    // Persist the "migration completed" flag so subsequent launches
+    // can short-circuit the in-memory scan above. Even when no
+    // migration was needed this run, we still set the flag — the
+    // determination ("no inline keys present") is itself the result
+    // we want to cache.
+    try {
+      _storage.setString(
+        _apiKeyMigrationFlagKey,
+        _apiKeyMigrationVersion.toString(),
+      );
+    } catch (e) {
+      // Non-fatal: flag persistence is purely a perf optimization.
+      logger.info('SettingsStorage: migration flag write failed: $e');
     }
   }
 
@@ -311,6 +460,15 @@ class SettingsStorage {
     final settingsForStorage = _createSettingsCopyWithoutApiKeys(settings);
     await _storage.saveSettings(settingsForStorage);
     _cacheSettings(settings);
+    // Any profile we just persisted has its key in secure storage
+    // *and* in the in-memory cache, so subsequent reads should not
+    // need to re-hit secure storage.
+    for (final p in settings.profiles) {
+      _hydratedProfileIds.add(p.id);
+    }
+    if (settings.inferenceOpenAIKey != null) {
+      _inferenceKeyHydrated = true;
+    }
   }
 
   /// Save API keys from settings to secure storage
@@ -404,6 +562,23 @@ class SettingsStorage {
     _debounceTimer?.cancel();
     _debounceTimer = null;
     await _storage.clearSettings();
+    // Reset hydration tracking — a future re-login may pull different
+    // profiles, and we must not assume their keys are already in cache.
+    _hydratedProfileIds.clear();
+    _inferenceKeyHydrated = false;
+    _cachedSettings = null;
+  }
+
+  /// Test-only hook so unit tests can re-exercise the migration flag
+  /// path on a single [SettingsStorage] singleton.
+  @visibleForTesting
+  void resetForTests() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _hydratedProfileIds.clear();
+    _inferenceKeyHydrated = false;
+    _cachedSettings = null;
+    _migrationChecked = false;
   }
 
   /// Suspend the debounce timer when app goes to background.
