@@ -1,7 +1,9 @@
 import 'package:riverpod/riverpod.dart';
 
+import '../models/artifact.dart';
 import '../models/machine.dart';
 import '../models/session.dart';
+import 'artifacts_notifier.dart';
 import 'machines_notifier.dart';
 import 'sessions_notifier.dart';
 
@@ -109,4 +111,28 @@ final recentPathsForMachineProvider = Provider.family<List<String>, String>((
   final sessions = ref.watch(sessionsNotifierProvider);
   _recentSessionsCache.update(sessions);
   return _recentSessionsCache.pathsForMachine(machineId);
+});
+
+/// Identity-stable list of [Machine] values. Recomputes only when the
+/// upstream map identity changes (i.e. when a machine is added/removed or
+/// any field on any machine changes — `MachinesNotifier.loadFromSync` uses
+/// `mapValuesIdentical` to skip no-op refreshes, so this provider only
+/// emits when there's a real change).
+final machinesListProvider = Provider<List<Machine>>((ref) {
+  final machines = ref.watch(machinesNotifierProvider);
+  return List<Machine>.unmodifiable(machines.values);
+});
+
+/// Identity-stable list of all [Session] values. Same caching guarantee as
+/// [machinesListProvider]: only emits when the sessions map identity
+/// actually changes.
+final sessionsListProvider = Provider<List<Session>>((ref) {
+  final sessions = ref.watch(sessionsNotifierProvider);
+  return List<Session>.unmodifiable(sessions.values);
+});
+
+/// Identity-stable list of all [DecryptedArtifact] values.
+final artifactsListProvider = Provider<List<DecryptedArtifact>>((ref) {
+  final artifacts = ref.watch(artifactsNotifierProvider);
+  return List<DecryptedArtifact>.unmodifiable(artifacts.values);
 });

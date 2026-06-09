@@ -87,8 +87,10 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final machines = ref.watch(machinesNotifierProvider);
-    final machineList = machines.values.toList()
+    // Watch the identity-stable derived list to avoid rebuilds when other
+    // map-shaped providers change. The list is unmodifiable, so copy before
+    // sorting.
+    final machineList = ref.watch(machinesListProvider).toList()
       ..sort((a, b) {
         if (a.active == b.active) {
           return b.activeAt.compareTo(a.activeAt);

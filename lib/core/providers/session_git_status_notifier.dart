@@ -28,7 +28,7 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
 
   void setGitStatus(String sessionId, GitStatus status) {
     if (identical(state[sessionId], status)) return;
-    state = {...state, sessionId: status};
+    state = Map<String, GitStatus>.from(state)..[sessionId] = status;
   }
 
   void clearGitStatus(String sessionId) {

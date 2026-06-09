@@ -44,8 +44,7 @@ class _TerminalConnectScreenState
 
   @override
   Widget build(BuildContext context) {
-    final machines = ref.watch(machinesNotifierProvider);
-    final machineList = machines.values.toList();
+    final machineList = ref.watch(machinesListProvider);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 

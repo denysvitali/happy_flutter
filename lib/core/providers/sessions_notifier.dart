@@ -152,7 +152,12 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   Future<void> pinSession(String id) async {
     final session = state[id];
     if (session == null) return;
-    state = {...state, id: session.copyWith(pinned: true)};
+    // Short-circuit when already pinned — avoids an unnecessary state
+    // assignment and the resulting rebuild for every watcher.
+    if (!session.pinned) {
+      state = Map<String, Session>.from(state)
+        ..[id] = session.copyWith(pinned: true);
+    }
     await _pinnedStorage.pinSession(id);
   }
 
@@ -160,7 +165,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   Future<void> unpinSession(String id) async {
     final session = state[id];
     if (session == null) return;
-    state = {...state, id: session.copyWith(pinned: false)};
+    if (session.pinned) {
+      state = Map<String, Session>.from(state)
+        ..[id] = session.copyWith(pinned: false);
+    }
     await _pinnedStorage.unpinSession(id);
   }
 
@@ -168,7 +176,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   Future<void> setSessionFolder(String id, String? folder) async {
     final session = state[id];
     if (session == null) return;
-    state = {...state, id: session.copyWith(folder: folder)};
+    if (session.folder != folder) {
+      state = Map<String, Session>.from(state)
+        ..[id] = session.copyWith(folder: folder);
+    }
     if (folder != null) {
       await _foldersStorage.setFolder(id, folder);
     } else {

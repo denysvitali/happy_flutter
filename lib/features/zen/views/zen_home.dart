@@ -128,9 +128,9 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
 
   // ─── Data helpers ─────────────────────────────────────────────────────────
 
-  List<_SessionTodo> _collectTodos(Map<String, Session> sessions) {
+  List<_SessionTodo> _collectTodos(List<Session> sessions) {
     final result = <_SessionTodo>[];
-    for (final session in sessions.values) {
+    for (final session in sessions) {
       final todos = session.todos;
       if (todos == null || todos.isEmpty) continue;
       for (final item in todos) {
@@ -176,7 +176,10 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final sessions = ref.watch(sessionsNotifierProvider);
+    // Watch the identity-stable derived list — only emits when the sessions
+    // map identity actually changes (gated by mapValuesIdentical in
+    // SessionsNotifier.loadFromSync).
+    final sessions = ref.watch(sessionsListProvider);
     final todos = _collectTodos(sessions);
     final grouped = _groupByPriority(todos);
 
