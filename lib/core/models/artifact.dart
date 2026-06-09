@@ -138,9 +138,9 @@ abstract class ArtifactCreateRequest with _$ArtifactCreateRequest {
 }
 
 /// Request to update an existing artifact
-@JsonSerializable(includeIfNull: false)
 @freezed
 abstract class ArtifactUpdateRequest with _$ArtifactUpdateRequest {
+  @JsonSerializable(includeIfNull: false)
   const factory ArtifactUpdateRequest({
     String? header, // Base64 encoded encrypted header
     int? expectedHeaderVersion,

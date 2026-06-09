@@ -764,8 +764,8 @@ return $default(_that.sessionId,_that.startTime,_that.endTime,_that.groupBy);cas
 }
 
 /// @nodoc
-@JsonSerializable()
 
+@JsonSerializable(includeIfNull: false)
 class _UsageQueryParams extends UsageQueryParams {
   const _UsageQueryParams({this.sessionId, this.startTime, this.endTime, this.groupBy}): super._();
   factory _UsageQueryParams.fromJson(Map<String, dynamic> json) => _$UsageQueryParamsFromJson(json);

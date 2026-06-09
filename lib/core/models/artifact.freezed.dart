@@ -1629,8 +1629,8 @@ return $default(_that.header,_that.expectedHeaderVersion,_that.body,_that.expect
 }
 
 /// @nodoc
-@JsonSerializable()
 
+@JsonSerializable(includeIfNull: false)
 class _ArtifactUpdateRequest extends ArtifactUpdateRequest {
   const _ArtifactUpdateRequest({this.header, this.expectedHeaderVersion, this.body, this.expectedBodyVersion}): super._();
   factory _ArtifactUpdateRequest.fromJson(Map<String, dynamic> json) => _$ArtifactUpdateRequestFromJson(json);

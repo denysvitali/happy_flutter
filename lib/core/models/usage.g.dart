@@ -48,11 +48,10 @@ _UsageQueryParams _$UsageQueryParamsFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$UsageQueryParamsToJson(_UsageQueryParams instance) =>
     <String, dynamic>{
-      if (instance.sessionId != null) 'sessionId': instance.sessionId,
-      if (instance.startTime != null) 'startTime': instance.startTime,
-      if (instance.endTime != null) 'endTime': instance.endTime,
-      if (instance.groupBy != null)
-        'groupBy': _$UsageGroupByEnumMap[instance.groupBy],
+      'sessionId': ?instance.sessionId,
+      'startTime': ?instance.startTime,
+      'endTime': ?instance.endTime,
+      'groupBy': ?_$UsageGroupByEnumMap[instance.groupBy],
     };
 
 const _$UsageGroupByEnumMap = {

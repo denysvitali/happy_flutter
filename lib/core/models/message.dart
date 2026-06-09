@@ -119,9 +119,9 @@ abstract class Permission with _$Permission {
 }
 
 /// Message metadata
-@JsonSerializable(includeIfNull: false)
 @freezed
 abstract class MessageMeta with _$MessageMeta {
+  @JsonSerializable(includeIfNull: false)
   const factory MessageMeta({
     String? sentFrom,
     String? permissionMode,

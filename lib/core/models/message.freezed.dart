@@ -1392,8 +1392,8 @@ return $default(_that.sentFrom,_that.permissionMode,_that.model,_that.fallbackMo
 }
 
 /// @nodoc
-@JsonSerializable()
 
+@JsonSerializable(includeIfNull: false)
 class _MessageMeta implements MessageMeta {
   const _MessageMeta({this.sentFrom, this.permissionMode, this.model, this.fallbackModel, this.customSystemPrompt, this.appendSystemPrompt, @JsonKey(fromJson: _stringListOrNull) final  List<String>? allowedTools, @JsonKey(fromJson: _stringListOrNull) final  List<String>? disallowedTools, this.displayText}): _allowedTools = allowedTools,_disallowedTools = disallowedTools;
   factory _MessageMeta.fromJson(Map<String, dynamic> json) => _$MessageMetaFromJson(json);

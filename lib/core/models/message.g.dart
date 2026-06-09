@@ -93,18 +93,13 @@ _MessageMeta _$MessageMetaFromJson(Map<String, dynamic> json) => _MessageMeta(
 
 Map<String, dynamic> _$MessageMetaToJson(_MessageMeta instance) =>
     <String, dynamic>{
-      if (instance.sentFrom != null) 'sentFrom': instance.sentFrom,
-      if (instance.permissionMode != null)
-        'permissionMode': instance.permissionMode,
-      if (instance.model != null) 'model': instance.model,
-      if (instance.fallbackModel != null)
-        'fallbackModel': instance.fallbackModel,
-      if (instance.customSystemPrompt != null)
-        'customSystemPrompt': instance.customSystemPrompt,
-      if (instance.appendSystemPrompt != null)
-        'appendSystemPrompt': instance.appendSystemPrompt,
-      if (instance.allowedTools != null) 'allowedTools': instance.allowedTools,
-      if (instance.disallowedTools != null)
-        'disallowedTools': instance.disallowedTools,
-      if (instance.displayText != null) 'displayText': instance.displayText,
+      'sentFrom': ?instance.sentFrom,
+      'permissionMode': ?instance.permissionMode,
+      'model': ?instance.model,
+      'fallbackModel': ?instance.fallbackModel,
+      'customSystemPrompt': ?instance.customSystemPrompt,
+      'appendSystemPrompt': ?instance.appendSystemPrompt,
+      'allowedTools': ?instance.allowedTools,
+      'disallowedTools': ?instance.disallowedTools,
+      'displayText': ?instance.displayText,
     };

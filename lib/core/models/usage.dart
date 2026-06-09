@@ -57,9 +57,9 @@ abstract class UsageResponse with _$UsageResponse {
 }
 
 /// Usage query parameters
-@JsonSerializable(includeIfNull: false)
 @freezed
 abstract class UsageQueryParams with _$UsageQueryParams {
+  @JsonSerializable(includeIfNull: false)
   const factory UsageQueryParams({
     String? sessionId,
     int? startTime, // Unix timestamp in seconds

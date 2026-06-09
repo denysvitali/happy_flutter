@@ -16,7 +16,10 @@ T _$identity<T>(T value) => value;
 mixin _$AutoArchiveSettings {
 
 /// Archive sessions older than N days. Null = disabled.
- int? get autoArchiveAfterDays;/// Archive sessions with no messages for N days. Null = disabled.
+ int? get autoArchiveAfterDays;/// Archive sessions with no messages for the configured idle duration.
+///
+/// Positive values are legacy day-based values. Negative values encode
+/// minute-based durations, e.g. -120 means 2 hours. Null = disabled.
  int? get autoArchiveIdleAfterDays;/// Whether to archive sessions when the app closes.
  bool get autoArchiveOnAppClose;
 /// Create a copy of AutoArchiveSettings
@@ -219,7 +222,10 @@ class _AutoArchiveSettings implements AutoArchiveSettings {
 
 /// Archive sessions older than N days. Null = disabled.
 @override final  int? autoArchiveAfterDays;
-/// Archive sessions with no messages for N days. Null = disabled.
+/// Archive sessions with no messages for the configured idle duration.
+///
+/// Positive values are legacy day-based values. Negative values encode
+/// minute-based durations, e.g. -120 means 2 hours. Null = disabled.
 @override final  int? autoArchiveIdleAfterDays;
 /// Whether to archive sessions when the app closes.
 @override@JsonKey() final  bool autoArchiveOnAppClose;
