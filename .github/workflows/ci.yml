@@ -520,6 +520,9 @@ jobs:
             grep -E -i \
               'FAILURE:|What went wrong|Execution failed|Missing class|OutOfMemory|Could not|Exception|Error:' \
               build-release.log || true
+            echo "::group::Release build log tail"
+            tail -n 200 build-release.log
+            echo "::endgroup::"
             exit "$status"
           fi
 

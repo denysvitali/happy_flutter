@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/services/logger_service.dart';
@@ -367,7 +369,11 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
   }
 
   void _onTextChanged() {
-    _updateAutocomplete();
+    unawaited(
+      _updateAutocomplete().catchError((Object e) {
+        logger.warning('[FileAutocomplete] update failed: $e');
+      }),
+    );
   }
 
   void _onFocusChanged() {
@@ -434,12 +440,8 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
         _selectedIndex = filtered.isNotEmpty ? 0 : -1;
         _showOverlay = filtered.isNotEmpty;
       });
-    } catch (e, st) {
-      logger.warning(
-        '[FileAutocomplete] _fetchSuggestions failed: $e',
-        e,
-        st,
-      );
+    } catch (e) {
+      logger.warning('[FileAutocomplete] _fetchSuggestions failed: $e');
       if (!mounted) return;
       setState(() {
         _suggestions = [];
