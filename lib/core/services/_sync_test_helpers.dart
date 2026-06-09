@@ -88,6 +88,7 @@ extension SyncTestHelpers on Sync {
     _previewCacheVersion.remove(sessionId);
     _sidechainRegroupSweepCount.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
+    _orphanSuppressedUntilMs.remove(sessionId);
   }
 
   /// Test helper: clear the throttle timestamp for orphan-recovery

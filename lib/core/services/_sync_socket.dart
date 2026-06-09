@@ -595,9 +595,7 @@ extension SyncSocket on Sync {
           );
           for (var i = 0; i < decrypted.length; i++) {
             final dk = decrypted[i];
-            if (dk == null) continue;
             final sessionId = entries[i].$1;
-            _sessionDataKeys[sessionId] = dk;
             sessionKeys[sessionId] = dk;
           }
         }
@@ -614,7 +612,7 @@ extension SyncSocket on Sync {
           // the cold-start restore (unhandled async error → crash).
           await Future.wait(
             sessionKeys.entries.map(
-              (e) => _openAndCacheSessionEncryption(e.key, e.value),
+              (e) => _ensureSessionEncryptionInitialized(e.key, e.value),
             ),
           );
         }
@@ -676,7 +674,6 @@ extension SyncSocket on Sync {
     String sessionId,
     Uint8List? dataKey,
   ) async {
-    if (encryption.getSessionEncryption(sessionId) != null) return;
     try {
       final encryptorDecryptor = await encryption.openEncryption(dataKey);
       if (encryptorDecryptor is Encryptor) {
@@ -691,8 +688,14 @@ extension SyncSocket on Sync {
             cache: encryption.cache,
           ),
         );
+        if (dataKey != null) {
+          _sessionDataKeys[sessionId] = dataKey;
+        } else {
+          _sessionDataKeys.remove(sessionId);
+        }
       }
     } catch (e, stack) {
+      _sessionDataKeys.remove(sessionId);
       logger.warning(
         'Failed to open encryption for session=$sessionId, '
         'skipping (other sessions continue)',
@@ -708,6 +711,36 @@ extension SyncSocket on Sync {
         ),
       );
     }
+  }
+
+  bool _sessionDataKeysEqual(Uint8List? a, Uint8List? b) {
+    if (a == null || b == null) {
+      return a == null && b == null;
+    }
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  /// Ensure a session encryption is initialized with the freshest DEK for
+  /// the session. If the cached key changed, replace the existing encryptor.
+  Future<void> _ensureSessionEncryptionInitialized(
+    String sessionId,
+    Uint8List? dataKey,
+  ) async {
+    final existingEncryption = encryption.getSessionEncryption(sessionId);
+    final cachedKey = _sessionDataKeys[sessionId];
+    if (existingEncryption != null &&
+        _sessionDataKeysEqual(cachedKey, dataKey)) {
+      return;
+    }
+    if (existingEncryption != null) {
+      encryption.removeSessionEncryption(sessionId);
+      _sessionDataKeys.remove(sessionId);
+    }
+    await _openAndCacheSessionEncryption(sessionId, dataKey);
   }
 
   /// Maximum sessions to store in the on-disk sessions cache.
@@ -936,8 +969,10 @@ extension SyncSocket on Sync {
         result.dataEncryptionKey!,
       );
       if (decryptedKey != null) {
-        _sessionDataKeys[restoredSessionId] = decryptedKey;
-        await encryption.initializeSessions({restoredSessionId: decryptedKey});
+        await _ensureSessionEncryptionInitialized(
+          restoredSessionId,
+          decryptedKey,
+        );
       } else {
         logger.warning(
           '[sendMessage] auto-restore DEK decrypt failed '

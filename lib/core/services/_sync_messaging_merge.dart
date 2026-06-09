@@ -509,8 +509,7 @@ extension SyncMessagingMerge on Sync {
     final lastFetchAttempt = _orphanFetchOlderAttemptedMs[sessionId] ?? 0;
 
     final hasMoreOlder = hasOlderMessages(sessionId);
-    final useAggressiveThrottle =
-        everyOrphanHasParentToolUseId && hasMoreOlder;
+    final useAggressiveThrottle = everyOrphanHasParentToolUseId && hasMoreOlder;
     final canRetryFetch =
         useAggressiveThrottle ||
         nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
@@ -558,6 +557,8 @@ extension SyncMessagingMerge on Sync {
       // further work needed. Clear the sweep counter so we stop
       // running the grouper on every refresh for these sessions.
       _sidechainRegroupSweepCount.remove(sessionId);
+      _orphanSuppressedUntilMs[sessionId] =
+          nowMs + _orphanFetchOlderDefaultThrottleMs;
       logger.info(
         '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
         'session=$sessionId — history exhausted, rendering inline',

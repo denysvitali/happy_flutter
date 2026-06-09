@@ -127,7 +127,6 @@ extension SyncData on Sync {
           final decryptedKey = decryptedKeys[i];
           if (decryptedKey != null) {
             sessionKeys[sessionId] = decryptedKey;
-            _sessionDataKeys[sessionId] = decryptedKey;
           } else {
             logger.warning(
               '[Encryption] DEK decryption failed for session '
@@ -160,7 +159,7 @@ extension SyncData on Sync {
       // is the slowest single call instead of the sum.
       await Future.wait(
         sessionKeys.entries.map(
-          (e) => _openAndCacheSessionEncryption(e.key, e.value),
+          (e) => _ensureSessionEncryptionInitialized(e.key, e.value),
         ),
       );
 
@@ -497,9 +496,6 @@ extension SyncData on Sync {
         _sessionEncryptedDataKeys[sessionId] = dataEncryptionKey;
         try {
           sessionKey = await encryption.decryptEncryptionKey(dataEncryptionKey);
-          if (sessionKey != null) {
-            _sessionDataKeys[sessionId] = sessionKey;
-          }
         } catch (e) {
           logger.info(
             '[Encryption] DEK decryption threw for single session '
@@ -509,7 +505,7 @@ extension SyncData on Sync {
       } else {
         _sessionEncryptedDataKeys.remove(sessionId);
       }
-      await encryption.initializeSessions({sessionId: sessionKey});
+      await _ensureSessionEncryptionInitialized(sessionId, sessionKey);
 
       final sessionEncryption = encryption.getSessionEncryption(sessionId);
 

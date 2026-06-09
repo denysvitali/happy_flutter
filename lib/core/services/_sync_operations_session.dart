@@ -195,7 +195,7 @@ extension SyncSessionOperations on Sync {
       if (dek != null && dek.isNotEmpty) {
         final decryptedKey = await encryption.decryptEncryptionKey(dek);
         if (decryptedKey != null) {
-          await encryption.initializeSessions({sessionId: decryptedKey});
+          await _ensureSessionEncryptionInitialized(sessionId, decryptedKey);
         }
       }
       _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;

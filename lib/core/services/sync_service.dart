@@ -42,6 +42,7 @@ import '../services/performance_context_service.dart';
 import '../services/power_diagnostics_service.dart';
 import '../services/server_config.dart';
 import '../services/sessions_cache_storage.dart';
+import '../services/storage_service.dart';
 // Compile-time identity types — see ROADMAP P0 "one canonical localId".
 // Imported once at the part-file root so every `_sync_messaging*` part can
 // reference [LocalId], [ServerMessageId], [SessionId], and the sealed
@@ -466,6 +467,11 @@ what you have, you must use the options mode.
   /// grouper pass can re-attach the children. Throttled so a session
   /// with genuinely missing parents can't hammer the API.
   final Map<String, int> _orphanFetchOlderAttemptedMs = {};
+
+  /// Per-session epoch-ms until which orphan regroup work is suppressed.
+  /// Used after history is exhausted so caught-up fetches don't repeatedly
+  /// run the O(n) grouper for sidechain children that must render inline.
+  final Map<String, int> _orphanSuppressedUntilMs = {};
 
   /// Sessions that received `new-message` socket events while they were
   /// not visible. When the user navigates to one of these sessions,
