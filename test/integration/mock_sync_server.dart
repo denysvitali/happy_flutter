@@ -37,7 +37,7 @@ import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 class MockSyncServer {
   MockSyncServer();
 
-  DioInterceptor? _interceptor;
+  Interceptor? _interceptor;
   String? _capturedSocketEvent;
   dynamic _capturedSocketData;
   final List<Map<String, dynamic>> _capturedSocketEvents = [];
@@ -47,6 +47,17 @@ class MockSyncServer {
   final Map<String, Session> _stubbedSessions = {};
   List<Session> _stubbedSessionList = [];
   Map<String, dynamic>? _stubbedSessionsResponse;
+
+  /// Server-side cap on the message page size, mirroring production
+  /// servers that return fewer messages than the client's `limit`.
+  /// When set, pages are clamped to this size (forcing hasMore=true
+  /// pagination even when the client asks for more).
+  int? maxMessagePageSize;
+
+  /// `after_seq` values of every /v3 message-page GET, in arrival order.
+  /// Lets tests assert exactly which pages were requested (e.g. that
+  /// prefetch pipelining neither duplicates nor skips pages).
+  final List<int> messageRequestLog = [];
 
   // Deferred response controllers
   final Map<String, Completer<Response<dynamic>>> _pendingRequests = {};
@@ -71,6 +82,8 @@ class MockSyncServer {
     _capturedSocketEvents.clear();
     _capturedSocketEvent = null;
     _capturedSocketData = null;
+    messageRequestLog.clear();
+    maxMessagePageSize = null;
     ApiClient().dispose();
   }
 
@@ -89,7 +102,9 @@ class MockSyncServer {
   void stubSessions(List<Session> sessions) {
     _stubbedSessionList = sessions;
     _stubbedSessionsResponse = null;
-    _stubbedSessions = {for (final s in sessions) s.id: s};
+    _stubbedSessions
+      ..clear()
+      ..addEntries(sessions.map((s) => MapEntry(s.id, s)));
   }
 
   /// Configure a stubbed sessions response with custom shape.
@@ -117,7 +132,10 @@ class MockSyncServer {
     _pendingRequests.clear();
   }
 
-  Response<dynamic> _handleRequest(RequestOptions options, handler) {
+  void _handleRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) {
     final path = options.uri.path;
 
     // /v2/sessions — session list
@@ -171,7 +189,12 @@ class MockSyncServer {
       final sessionId = messagesMatch.group(1)!;
       final messages = _stubbedMessages[sessionId] ?? [];
       final afterSeq = options.queryParameters['after_seq'] as int? ?? 0;
-      final limit = options.queryParameters['limit'] as int? ?? 100;
+      var limit = options.queryParameters['limit'] as int? ?? 100;
+      final cap = maxMessagePageSize;
+      if (cap != null && limit > cap) {
+        limit = cap;
+      }
+      messageRequestLog.add(afterSeq);
 
       // Filter messages by seq > afterSeq
       final filtered = messages.where((m) {
@@ -213,7 +236,6 @@ class MockSyncServer {
       'agentStateVersion': s.agentStateVersion,
       'thinking': s.thinking,
       'presence': s.presence,
-      if (s.title != null) 'title': s.title,
       if (s.lastSeq != null) 'lastSeq': s.lastSeq,
       if (s.archived != null) 'archived': s.archived,
     };
@@ -246,9 +268,7 @@ class SyncTestHarness {
 
     // Socket is "connected" for these tests
     sync.testSocketConnectedOverride = true;
-    sync.testSocketSendOverride = (event, data) {
-      sync.testHandleSocketSend(event, data);
-    };
+    sync.testSocketSendOverride = (event, data) {};
 
     await mockServer.setUp();
   }
