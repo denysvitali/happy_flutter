@@ -72,7 +72,12 @@ class LoggerService {
 
   static const int _maxLogs = 5000;
 
-  final Queue<LogEntry> _logs = Queue<LogEntry>();
+  /// `Queue()` returns a [ListQueue] under the hood, which gives us
+  /// O(1) `add` (push tail) and O(1) `removeFirst` (pop head) — exactly
+  /// what a ring buffer needs. We intentionally do not use `List<E>`
+  /// here because `List.removeAt(0)` is O(n) and would degrade hot
+  /// logging paths under the 5000-entry cap.
+  final ListQueue<LogEntry> _logs = ListQueue<LogEntry>(_maxLogs);
   final List<void Function()> _listeners = [];
 
   /// Current minimum log level (logs below this level are discarded)
@@ -103,10 +108,27 @@ class LoggerService {
     dynamic error,
     StackTrace? stackTrace,
   }) {
+    // Level / mode gate — bail before doing any allocation work.
     if (!shouldLog(level)) {
       return;
     }
 
+    // All three downstream flags collapse to the same predicate
+    // (`!release || devMode || error`). Compute it once.
+    final shouldBufferAndNotify =
+        !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
+    final shouldWriteConsole =
+        kDebugMode || (kReleaseMode && _developerModeEnabled);
+
+    // If nothing downstream will consume this entry, skip allocation
+    // entirely. `shouldLog` already filtered out below-min levels and
+    // non-errors in release-without-dev-mode, so this is just a final
+    // guard for safety.
+    if (!shouldBufferAndNotify && !shouldWriteConsole) {
+      return;
+    }
+
+    // Now that we know the entry will be used somewhere, allocate it.
     final entry = LogEntry(
       timestamp: DateTime.now(),
       level: level,
@@ -115,35 +137,28 @@ class LoggerService {
       stackTrace: stackTrace,
     );
 
-    // Add to circular buffer (in release mode without dev mode, only errors)
-    final shouldBuffer =
-        !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
-    if (shouldBuffer) {
+    // Add to circular buffer (in release mode without dev mode, only errors).
+    if (shouldBufferAndNotify) {
       _version++;
       _logs.add(entry);
 
-      // Maintain circular buffer limit
+      // Maintain circular buffer limit. `ListQueue.removeFirst` is O(1).
       if (_logs.length > _maxLogs) {
         _logs.removeFirst();
       }
-    }
 
-    // Forward to Sentry (errors only in release mode without dev mode)
-    final shouldForwardToSentry =
-        !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
-    if (shouldForwardToSentry) {
       _forwardToSentry(entry);
     }
 
-    // Write to console in debug mode (or release with dev mode)
-    if (kDebugMode || (kReleaseMode && _developerModeEnabled)) {
+    // Write to console in debug mode (or release with dev mode). ANSI
+    // formatting only happens inside this guard so release builds pay
+    // nothing for escape-code interpolation.
+    if (shouldWriteConsole) {
       _writeToConsole(entry);
     }
 
-    // Notify listeners
-    final shouldNotify =
-        !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
-    if (shouldNotify) {
+    // Notify listeners.
+    if (shouldBufferAndNotify) {
       for (final listener in _listeners) {
         try {
           listener();
@@ -218,19 +233,28 @@ class LoggerService {
     }
   }
 
-  /// Write log entry to console with appropriate styling
+  /// Write log entry to console with appropriate styling.
+  ///
+  /// ANSI escape codes are only interpolated under [kDebugMode]; release
+  /// builds (even with developer mode enabled) emit plain strings so
+  /// device log viewers / Sentry breadcrumbs don't have to strip them.
   void _writeToConsole(LogEntry entry) {
     final formatted = entry.toFormattedString();
-    switch (entry.level) {
-      case LogLevel.debug:
-        debugPrint(formatted);
-      case LogLevel.info:
-        debugPrint('\x1B[32m$formatted\x1B[0m'); // Green
-      case LogLevel.warning:
-        debugPrint('\x1B[33m$formatted\x1B[0m'); // Yellow
-      case LogLevel.error:
-        debugPrint('\x1B[31m$formatted\x1B[0m'); // Red
+    if (kDebugMode) {
+      switch (entry.level) {
+        case LogLevel.debug:
+          debugPrint(formatted);
+        case LogLevel.info:
+          debugPrint('\x1B[32m$formatted\x1B[0m'); // Green
+        case LogLevel.warning:
+          debugPrint('\x1B[33m$formatted\x1B[0m'); // Yellow
+        case LogLevel.error:
+          debugPrint('\x1B[31m$formatted\x1B[0m'); // Red
+      }
+      return;
     }
+    // Release-with-dev-mode: plain output, no ANSI interp.
+    debugPrint(formatted);
   }
 
   /// Log a debug message
@@ -266,6 +290,7 @@ class LoggerService {
   void insertEntry(LogEntry entry) {
     _version++;
     _logs.add(entry);
+    // `ListQueue.removeFirst` is O(1).
     if (_logs.length > _maxLogs) _logs.removeFirst();
   }
 
@@ -283,9 +308,10 @@ class LoggerService {
 
   /// Get the last N logs
   List<LogEntry> getRecentLogs(int n) {
-    final list = _logs.toList();
-    final start = list.length > n ? list.length - n : 0;
-    return list.sublist(start);
+    final len = _logs.length;
+    if (n >= len) return _logs.toList();
+    // Skip the head without materializing the full buffer first.
+    return _logs.skip(len - n).toList(growable: false);
   }
 
   /// Get logs filtered by level

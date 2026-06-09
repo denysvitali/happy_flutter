@@ -41,29 +41,28 @@ class LoggerState {
   }
 
   List<LogEntry> _computeFilteredLogs() {
-    var result = service.allLogs.toList();
+    // Compose filters as a lazy Iterable chain so we only allocate a
+    // backing list once, at the consumer boundary. The previous
+    // implementation copied the entire 5000-entry buffer up front and
+    // again after each filter pass.
+    Iterable<LogEntry> view = service.allLogs;
 
-    // Apply level filter
-    if (filterLevel != null) {
-      result = result.where(
-        (entry) => entry.level.index >= filterLevel!,
-      ).toList();
+    final minIndex = filterLevel;
+    if (minIndex != null) {
+      view = view.where((entry) => entry.level.index >= minIndex);
     }
 
-    // Apply search filter
     if (searchQuery.isNotEmpty) {
       final query = searchQuery.toLowerCase();
-      result = result
-          .where(
-            (entry) =>
-                entry.message.toLowerCase().contains(query) ||
-                (entry.error?.toString().toLowerCase().contains(query)
-                    ?? false),
-          )
-          .toList();
+      view = view.where(
+        (entry) =>
+            entry.message.toLowerCase().contains(query) ||
+            (entry.error?.toString().toLowerCase().contains(query) ?? false),
+      );
     }
 
-    return result;
+    // Single materialisation at the end.
+    return view.toList(growable: false);
   }
 }
 

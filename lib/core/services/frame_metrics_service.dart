@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -45,7 +45,9 @@ class FrameMetricsService {
       (_) => _flush(),
     );
 
-    logger.debug('[FrameMetrics] Attached');
+    if (kDebugMode) {
+      logger.debug('[FrameMetrics] Attached');
+    }
   }
 
   void _onTimings(List<FrameTiming> timings) {
@@ -97,6 +99,8 @@ class FrameMetricsService {
     _flushTimer?.cancel();
     _flushTimer = null;
     _flush();
-    logger.debug('[FrameMetrics] Detached');
+    if (kDebugMode) {
+      logger.debug('[FrameMetrics] Detached');
+    }
   }
 }

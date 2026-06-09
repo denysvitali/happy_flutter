@@ -244,16 +244,19 @@ extension RemoteLoggerIsolate on RemoteLogger {
       ),
     );
 
-    // Handle messages from the isolate
+    // Handle messages from the isolate. Gate string interpolation
+    // behind a cheap level check so messages that wouldn't survive
+    // `shouldLog` don't pay the `[Isolate] $msg` allocation cost on the
+    // hot receivePort callback.
     receivePort.listen((message) {
-      if (message is LogMessage) {
-        logger.log(
-          '[Isolate] ${message.message}',
-          level: message.logLevel,
-          error: message.error,
-          stackTrace: message.stackTrace,
-        );
-      }
+      if (message is! LogMessage) return;
+      if (!logger.shouldLog(message.logLevel)) return;
+      logger.log(
+        '[Isolate] ${message.message}',
+        level: message.logLevel,
+        error: message.error,
+        stackTrace: message.stackTrace,
+      );
     });
 
     return completer.future;
