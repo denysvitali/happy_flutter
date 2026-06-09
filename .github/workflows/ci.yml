@@ -287,11 +287,15 @@ jobs:
           path: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
           key: ${{ runner.os }}-android-ndk-28.2.13676358
 
+      - name: Accept Android SDK licenses
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses || true
+
       - name: Setup Android NDK
         if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "ndk;28.2.13676358"
 
       - name: Cache Gradle
@@ -421,11 +425,16 @@ jobs:
           path: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
           key: ${{ runner.os }}-android-ndk-28.2.13676358
 
+      - name: Accept Android SDK licenses
+        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses || true
+
       - name: Setup Android NDK
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' && steps.ndk-cache.outputs.cache-hit != 'true' }}
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "ndk;28.2.13676358"
 
       - name: Cache Gradle
