@@ -167,6 +167,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   String _previousText = '';
   bool _showAutocomplete = false;
+
+  // Debounce timer for the autocomplete search/filter pass. Cursor and
+  // cancel behavior remain synchronous; only the regex match + list
+  // filter + setState are deferred so rapid keystrokes don't rebuild
+  // the suggestion list on every character.
+  Timer? _autocompleteDebounce;
+  static const Duration _autocompleteDebounceDuration =
+      Duration(milliseconds: 100);
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _isStoppingDictation = false;
@@ -221,6 +229,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   @override
   void dispose() {
+    _autocompleteDebounce?.cancel();
     _sendScaleController.dispose();
     _draftAutoSave.dispose();
     _stopDictationWatchers();
@@ -260,7 +269,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   void _onTextChanged() {
     final currentText = widget.controller.text;
-    _updateAutocomplete(currentText);
+    _scheduleAutocompleteUpdate(currentText);
 
     if (currentText.trim().isEmpty) {
       _draftAutoSave.discardPending();
@@ -275,6 +284,33 @@ class _ChatInputState extends ConsumerState<ChatInput>
     }
 
     _previousText = currentText;
+  }
+
+  /// Debounce the autocomplete search/filter pass. If the cursor is no
+  /// longer at a trigger position, we cancel immediately (no debounce
+  /// needed for close behavior). Otherwise we coalesce keystrokes at
+  /// [_autocompleteDebounceDuration].
+  void _scheduleAutocompleteUpdate(String text) {
+    final cursorPosition = widget.controller.selection.base.offset;
+    if (cursorPosition < 0) {
+      _autocompleteDebounce?.cancel();
+      _clearAutocomplete();
+      return;
+    }
+    final textBeforeCursor = text.substring(0, cursorPosition);
+    final hasTrigger =
+        RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor) != null;
+    if (!hasTrigger) {
+      // No active trigger: close immediately, no debounce.
+      _autocompleteDebounce?.cancel();
+      _clearAutocomplete();
+      return;
+    }
+    _autocompleteDebounce?.cancel();
+    _autocompleteDebounce = Timer(_autocompleteDebounceDuration, () {
+      if (!mounted) return;
+      _updateAutocomplete(widget.controller.text);
+    });
   }
 
   void _updateAutocomplete(String text) {
@@ -294,10 +330,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
     final trigger = lastWordMatch.group(0)!.substring(0, 1);
     final query = lastWordMatch.group(1) ?? '';
+    // Hoist normalization out of the per-element loop.
+    final queryLower = query.toLowerCase();
 
     if (trigger == '@') {
       final suggestions = widget.fileSuggestions
-          .where((s) => s.label.toLowerCase().contains(query.toLowerCase()))
+          .where((s) => s.label.toLowerCase().contains(queryLower))
           .toList();
       _autocompleteController.setSuggestions(suggestions, query);
       if (_showAutocomplete != suggestions.isNotEmpty) {
@@ -305,7 +343,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       }
     } else if (trigger == '/') {
       final suggestions = slashCommands
-          .where((c) => c.command.toLowerCase().contains(query.toLowerCase()))
+          .where((c) => c.command.toLowerCase().contains(queryLower))
           .map(
             (c) => AutocompleteSuggestion(
               id: c.command,
@@ -326,6 +364,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   void _clearAutocomplete() {
+    // Always cancel any pending debounced filter so a close/submit can't
+    // be undone by a stale timer firing afterwards.
+    _autocompleteDebounce?.cancel();
     if (!_showAutocomplete) return;
     _autocompleteController.clear();
     setState(() => _showAutocomplete = false);
@@ -415,6 +456,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (widget.isSendDisabled || widget.isSending) {
       return;
     }
+    // Cancel any pending debounced autocomplete filter — submit is a
+    // close-equivalent action and should never leave a stale timer
+    // around to flash suggestions over an empty input.
+    _autocompleteDebounce?.cancel();
     _cancelDictationForSend();
     HapticFeedback.mediumImpact();
     _sendScaleController

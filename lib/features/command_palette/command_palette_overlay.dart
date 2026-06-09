@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fuzzy/fuzzy.dart';
@@ -82,6 +84,13 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   String _searchQuery = '';
   int _selectedIndex = 0;
 
+  // Debounce timer for the Fuzzy<CommandItem> search pass. Arrow-key
+  // navigation and Enter execution stay synchronous; only the
+  // _filterCommands() call triggered by keystrokes is debounced.
+  Timer? _filterDebounce;
+  static const Duration _filterDebounceDuration =
+      Duration(milliseconds: 100);
+
   List<CommandCategory> _filteredCategories = [];
   List<CommandItem> _allCommands = [];
 
@@ -105,6 +114,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
 
   @override
   void dispose() {
+    _filterDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _keyboardFocusNode.dispose();
@@ -128,6 +138,29 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
       }
     }
     return positions;
+  }
+
+  /// Debounced handler for the search TextField. Updates [_searchQuery]
+  /// immediately so other handlers see the latest value, but defers the
+  /// heavy `Fuzzy<CommandItem>` match + highlight rebuild by
+  /// [_filterDebounceDuration]. Arrow-key navigation and Enter execution
+  /// remain responsive (they don't go through this path).
+  ///
+  /// Clearing the query is treated as an immediate "show everything"
+  /// signal so the empty-query view never lags behind a clear.
+  void _onSearchChanged(String value) {
+    _searchQuery = value;
+    _filterDebounce?.cancel();
+    if (value.isEmpty) {
+      // No fuzzy work to do; run synchronously so the recent/full list
+      // appears instantly when the user clears the field.
+      setState(_filterCommands);
+      return;
+    }
+    _filterDebounce = Timer(_filterDebounceDuration, () {
+      if (!mounted) return;
+      setState(_filterCommands);
+    });
   }
 
   void _filterCommands() {
@@ -367,12 +400,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                             fontSize: AppFontSize.lg,
                             color: colorScheme.onSurface,
                           ),
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value;
-                              _filterCommands();
-                            });
-                          },
+                          onChanged: _onSearchChanged,
                         ),
                       ),
                       Container(
