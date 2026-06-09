@@ -28,7 +28,6 @@ import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'core/services/sync_service.dart';
-import 'core/services/ui_hang_watchdog.dart';
 import 'core/utils/package_info_cache.dart';
 import 'core/utils/theme_helper.dart';
 import 'core/widgets/error_boundary.dart';
@@ -77,7 +76,6 @@ Future<void> _runApp() async {
   );
   // Installed here so Sentry's Zone and error handlers are set up first.
   remoteLoggerAutoInstall();
-  UiHangWatchdog.start();
 
   // Cap Flutter's image cache to avoid unbounded memory growth from
   // decoded network images (avatars, etc.).  The default is 1000 images /

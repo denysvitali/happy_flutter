@@ -1,11 +1,10 @@
 // Native platform Sentry initialization
-import 'dart:async' show FutureOr, unawaited;
+import 'dart:async' show unawaited;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
-import 'core/services/dart_sentry_transport.dart';
 import 'core/services/logger_service.dart';
 import 'sentry_config.dart';
 
@@ -42,16 +41,8 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..dist = _sentryDist.isNotEmpty ? _sentryDist : null
       ..environment = kReleaseMode ? 'production' : 'debug'
       // ANR detection: capture foreground "Application Not Responding" events.
-      // Bodies are stripped down (breadcrumbs/stacktraces/sdk/debugMeta) by the
-      // native beforeSend in MainActivity so the envelope stays under the 2 MiB
-      // cap enforced by DartSentryTransport.
       ..anrEnabled = sentryAnrEnabled
       ..anrTimeoutInterval = Duration(seconds: sentryAnrTimeoutSeconds)
-      // Automatic user interaction tracing creates a transaction for
-      // every tap (back button, list items, etc.) with a 3-second idle
-      // timeout. This produces false "error" transactions when widgets
-      // unmount during navigation and generates noise in GlitchTip.
-      ..enableUserInteractionTracing = false
       // ── Breadcrumb limits ──
       ..maxBreadcrumbs = sentryMaxBreadcrumbs
       ..enableAutoNativeBreadcrumbs = sentryEnableAutoNativeBreadcrumbs
@@ -62,23 +53,14 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..replay.sessionSampleRate = sentryReplaySessionSampleRate
       ..replay.onErrorSampleRate = sentryReplayOnErrorSampleRate
       // Print Sentry diagnostics to console in debug builds.
-      ..debug = kDebugMode
-      // Use Dart HTTP for Dart-originated events so delivery is observable
-      // and bounded by explicit timeouts. TLS still relies on the platform
-      // trust store; do not bypass certificate validation here.
-      ..transport = DartSentryTransport(options)
-      // ── Filter noisy events ──
-      ..beforeBreadcrumb = _beforeBreadcrumb
-      ..beforeSend = _beforeSend;
+      ..debug = kDebugMode;
   }, appRunner: appRunner != null ? () => appRunner() : null);
 
   // Fire-and-forget: verify Sentry connectivity.
   unawaited(_pingSentry());
 
   logger.info(
-    '[Sentry] filterNonActionable=$sentryFilterNonActionable '
-    'dropReasons=${sentryDropReasonSet.join(',')} '
-    'anrEnabled=$sentryAnrEnabled '
+    '[Sentry] anrEnabled=$sentryAnrEnabled '
     'anrTimeout=${sentryAnrTimeoutSeconds}s '
     'sendDefaultPii=$sentrySendDefaultPii '
     'maxBreadcrumbs=$sentryMaxBreadcrumbs '
@@ -123,165 +105,4 @@ Future<void> _pingSentry() async {
   }
 
   logger.info('[Sentry] Server healthy (HTTP $statusCode)');
-}
-
-/// Patterns that indicate a transient network error (DNS failure,
-/// connection timeout, etc.) — not actionable and expected on mobile.
-const _transientNetworkPatterns = [
-  'err_name_not_resolved',
-  'err_connection_timed_out',
-  'err_connection_aborted',
-  'err_connection_reset',
-  'err_network_changed',
-  'err_internet_disconnected',
-  'err_address_unreachable',
-  'failed host lookup',
-  'no address associated',
-  'connection closed',
-  'software caused connection abort',
-];
-
-/// Patterns that indicate a non-actionable error on native.
-/// These are expected transient infra issues or framework quirks
-/// that do not represent app bugs.
-const _nonActionableNativePatterns = [
-  // Android clipboard overflow when copying large text.
-  'transactiontoolargeexception',
-  'data parcel size',
-  // Expected RPC failures when machine/session is transiently
-  // unavailable (daemon reconnecting, handler not yet registered).
-  'machine encryption not found',
-  'session encryption not found',
-  'rpc handler',
-  'is not registered',
-  'operation has timed out',
-  'rpc call',
-  'forwarded via redis',
-  'no replica responded',
-  'machine rpc',
-  'session rpc',
-  // Session was restarted while user was acting on a permission.
-  'session was restarted',
-  // Machine offline warnings (already logged at warning level).
-  'machine is offline',
-  'machine appears offline',
-  // Server-side errors not actionable in the client.
-  'sessionsapiexception: failed to fetch sessions: 500',
-  'sessionsapiexception: failed to archive session: 500',
-  'failed to send message: 500',
-  '[sendmessage] failed: status=500',
-  // Riverpod lifecycle: widget unmounted while async work in flight.
-  'using "ref" when a widget is about to or has been unmounted',
-  // Legacy NaCl decryption failures — expected on key rotation or
-  // corrupt historical ciphertext; rate-limited in code but still
-  // leaks through when many distinct keys are involved.
-  'cryptosecretbox.decrypt failed',
-];
-
-const _transientNetworkPatternsLower = _transientNetworkPatterns;
-const _nonActionableNativePatternsLower = _nonActionableNativePatterns;
-
-bool _isTransientNetworkEvent(SentryEvent event) {
-  final patterns = _transientNetworkPatterns;
-  for (final exception in event.exceptions ?? <SentryException>[]) {
-    final value = (exception.value ?? '').toLowerCase();
-    for (final pattern in patterns) {
-      if (value.contains(pattern)) return true;
-    }
-  }
-  final message = (event.message?.formatted ?? '').toLowerCase();
-  for (final pattern in patterns) {
-    if (message.contains(pattern)) return true;
-  }
-  return false;
-}
-
-bool _isNonActionableNativeEvent(SentryEvent event) {
-  const patterns = _nonActionableNativePatternsLower;
-  for (final exception in event.exceptions ?? <SentryException>[]) {
-    final value = (exception.value ?? '').toLowerCase();
-    for (final pattern in patterns) {
-      if (value.contains(pattern)) return true;
-    }
-  }
-  final message = (event.message?.formatted ?? '').toLowerCase();
-  for (final pattern in patterns) {
-    if (message.contains(pattern)) return true;
-  }
-  return false;
-}
-
-FutureOr<SentryEvent?> _beforeSend(SentryEvent event, Hint hint) {
-  if (!sentryFilterNonActionable) return event;
-
-  // Drop background ANRs — on Android these are almost always
-  // false positives caused by the OS deprioritising the app.
-  for (final exception in event.exceptions ?? <SentryException>[]) {
-    if (shouldDropSentryReason('background_anr') &&
-        exception.type == 'ApplicationNotResponding' &&
-        (exception.value?.toLowerCase().contains('background') ?? false)) {
-      _logDroppedSentryEvent('background_anr', event);
-      return null;
-    }
-  }
-
-  if (event.level == SentryLevel.fatal) return event;
-
-  // Drop transient network errors (DNS, timeout, etc.) — these
-  // are expected when the device briefly loses connectivity.
-  if (shouldDropSentryReason('transient_network') &&
-      _isTransientNetworkEvent(event)) {
-    _logDroppedSentryEvent('transient_network', event);
-    return null;
-  }
-
-  // Drop non-actionable native errors (clipboard overflow, expected
-  // RPC failures, server 500s, machine offline, etc.).
-  if (shouldDropSentryReason('non_actionable') &&
-      _isNonActionableNativeEvent(event)) {
-    _logDroppedSentryEvent('non_actionable', event);
-    return null;
-  }
-
-  // Drop expected permission-expiry events (session restarted while user
-  // was approving/denying — the agent re-requests automatically).
-  for (final exception in event.exceptions ?? <SentryException>[]) {
-    if (shouldDropSentryReason('session_restart') &&
-        (exception.value?.toLowerCase().contains('session was restarted') ??
-            false)) {
-      _logDroppedSentryEvent('session_restart', event);
-      return null;
-    }
-  }
-
-  return event;
-}
-
-final _droppedSentryEventReasonCounts = <String, int>{};
-
-void _logDroppedSentryEvent(String reason, SentryEvent event) {
-  final count = (_droppedSentryEventReasonCounts[reason] ?? 0) + 1;
-  _droppedSentryEventReasonCounts[reason] = count;
-  if (count == 1 || count == 5 || count % 25 == 0) {
-    final eventId = event.eventId.toString();
-    logger.warning(
-      '[Sentry] beforeSend dropped event as "$reason" (#$count) id=$eventId',
-    );
-  }
-}
-
-Breadcrumb? _beforeBreadcrumb(Breadcrumb? breadcrumb, Hint hint) {
-  if (breadcrumb == null) return null;
-  final message = breadcrumb.message ?? '';
-  if (breadcrumb.category == 'websocket' &&
-      (message == 'ws event: ephemeral' || message == 'ws event: update')) {
-    return null;
-  }
-
-  if (breadcrumb.category == 'console' &&
-      message.contains('[machine-activity]')) {
-    return null;
-  }
-
-  return breadcrumb;
 }

@@ -5,8 +5,7 @@
 
 import 'package:flutter/foundation.dart' show kReleaseMode;
 
-/// Keep GlitchTip enabled for crash capture, but disable the expensive
-/// runtime hooks that were hurting responsiveness.
+/// Keep GlitchTip enabled for crash capture.
 const sentryEnabled = true;
 
 /// Hostname of the self-hosted GlitchTip instance (private CA).
@@ -27,7 +26,6 @@ const sentryReplaySessionSampleRate = 0.0;
 const sentryReplayOnErrorSampleRate = 0.0;
 const sentryAttachScreenshot = false;
 const sentryEnableFrameMetrics = false;
-const sentryCaptureWarnings = false;
 const sentrySendDefaultPii = bool.fromEnvironment(
   'SENTRY_SEND_DEFAULT_PII',
   defaultValue: false,
@@ -43,62 +41,10 @@ const sentryAnrTimeoutSeconds = int.fromEnvironment(
 );
 const sentryMaxBreadcrumbs = int.fromEnvironment(
   'SENTRY_MAX_BREADCRUMBS',
-  defaultValue: 20,
+  defaultValue: 100,
 );
 const sentryEnableAutoNativeBreadcrumbs = bool.fromEnvironment(
   'SENTRY_ENABLE_AUTO_NATIVE_BREADCRUMBS',
-  defaultValue: false,
-);
-bool get sentryEnableDioInterceptor => sentryTracesSampleRate > 0;
-bool get sentryEnableNavigationObserver => sentryTracesSampleRate > 0;
-
-const _defaultSentryDropReasons =
-    'background_anr,transient_network,non_actionable,session_restart';
-
-const sentryDropReasons = String.fromEnvironment(
-  'SENTRY_DROP_REASONS',
-  defaultValue: _defaultSentryDropReasons,
-);
-
-final Set<String> sentryDropReasonSet = _parseSentryDropReasons(
-  sentryDropReasons,
-);
-
-/// Kill switch for local validation: set
-/// `--dart-define=SENTRY_FILTER_NON_ACTIONABLE=false`
-/// to bypass all non-actionable/transient beforeSend filtering.
-const sentryFilterNonActionable = bool.fromEnvironment(
-  'SENTRY_FILTER_NON_ACTIONABLE',
   defaultValue: true,
 );
-
-bool shouldDropSentryReason(String reason) {
-  return sentryDropReasonSet.contains(reason.toLowerCase().trim());
-}
-
-Set<String> _parseSentryDropReasons(String input) {
-  final cleaned = input.trim().toLowerCase();
-  if (cleaned.isEmpty || cleaned == 'none') {
-    return <String>{};
-  }
-
-  if (cleaned == 'all') {
-    return Set<String>.from(
-      _defaultSentryDropReasons.split(',').map((value) => value.trim()),
-    );
-  }
-
-  final parsed = input
-      .split(',')
-      .map((value) => value.trim().toLowerCase())
-      .where((value) => value.isNotEmpty)
-      .toSet();
-
-  if (parsed.contains('all')) {
-    return Set<String>.from(
-      _defaultSentryDropReasons.split(',').map((value) => value.trim()),
-    );
-  }
-
-  return parsed;
-}
+bool get sentryEnableDioInterceptor => sentryTracesSampleRate > 0;

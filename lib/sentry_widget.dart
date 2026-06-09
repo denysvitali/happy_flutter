@@ -15,44 +15,6 @@ class SentryWidget extends StatelessWidget {
   }
 }
 
-class SentryNavigatorObserver extends NavigatorObserver {
-  SentryNavigatorObserver()
-    : _delegate = sentryEnabled && sentryEnableNavigationObserver
-          ? sentry.SentryNavigatorObserver()
-          : null;
-
-  final NavigatorObserver? _delegate;
-
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _delegate?.didPush(route, previousRoute);
-  }
-
-  @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _delegate?.didPop(route, previousRoute);
-  }
-
-  @override
-  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _delegate?.didRemove(route, previousRoute);
-  }
-
-  @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    _delegate?.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-  }
-
-  @override
-  void didStartUserGesture(
-    Route<dynamic> route,
-    Route<dynamic>? previousRoute,
-  ) {
-    _delegate?.didStartUserGesture(route, previousRoute);
-  }
-
-  @override
-  void didStopUserGesture() {
-    _delegate?.didStopUserGesture();
-  }
+class SentryNavigatorObserver extends sentry.SentryNavigatorObserver {
+  SentryNavigatorObserver();
 }

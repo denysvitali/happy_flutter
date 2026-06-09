@@ -177,11 +177,7 @@ class LoggerService {
   void _forwardToSentry(LogEntry entry) {
     if (!sentryEnabled) return;
 
-    // Only forward error levels by default. Warning forwarding can create
-    // large event volume and noticeable overhead during reconnect/failure
-    // storms, which is exactly when the app is already under stress.
-    if (entry.level != LogLevel.error &&
-        !(sentryCaptureWarnings && entry.level == LogLevel.warning)) {
+    if (entry.level != LogLevel.error && entry.level != LogLevel.warning) {
       return;
     }
     // Break circular forwarding for our own diagnostics.
