@@ -406,6 +406,7 @@ extension _ChatScreenActions on _ChatScreenState {
       return;
     }
     if (_isLoadingCodexModelModes) return;
+    if (!sync.isEncryptionInitialized) return;
 
     _isLoadingCodexModelModes = true;
     try {

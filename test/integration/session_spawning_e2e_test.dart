@@ -1861,6 +1861,7 @@ class _FakeEncryption implements Encryption {
   _FakeEncryption({this.customSessionEncryption});
 
   final Map<String, _FakeSessionEncryption> _sessions = {};
+  final EncryptionCache _cache = EncryptionCache();
   final List<String> decryptedKeys = [];
   final List<String> initializedSessions = [];
   bool blockSessionEncryption = false;
@@ -1886,6 +1887,22 @@ class _FakeEncryption implements Encryption {
   Future<void> initializeSessions(Map<String, Uint8List?> sessionKeys) async {
     initializedSessions.addAll(sessionKeys.keys);
   }
+
+  @override
+  Future<dynamic> openEncryption(Uint8List? dataEncryptionKey) async {
+    return _FakeEncryptor();
+  }
+
+  @override
+  void setSessionEncryption(String sessionId, SessionEncryption enc) {
+    initializedSessions.add(sessionId);
+    if (enc is _FakeSessionEncryption) {
+      _sessions[sessionId] = enc;
+    }
+  }
+
+  @override
+  EncryptionCache get cache => _cache;
 
   @override
   String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';

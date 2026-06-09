@@ -718,6 +718,7 @@ what you have, you must use the options mode.
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
   Profile? get profile => _profile;
   bool get isReady => _isReady;
+  bool get isEncryptionInitialized => _encryptionInitialized;
   ConnectionStatus get connectionStatus => _connectionStatus;
   String? get nativeUpdateUrl => _nativeUpdateUrl;
   bool get hasNativeUpdate => _nativeUpdateUrl != null;
