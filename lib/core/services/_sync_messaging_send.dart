@@ -205,6 +205,10 @@ extension SyncMessagingSend on Sync {
       _notifyDataChanged({SyncDomain.sessions});
     }
 
+    // Register the minted localId with the invariant monitor so a later ack
+    // can distinguish an unknown id (never sent) from an unmatched one (sent,
+    // but the optimistic row went missing). Pure observation.
+    messageInvariantMonitor.recordOptimisticSent(localId);
     _upsertSessionMessages(targetSessionId, [
       {
         'id': localId,
@@ -702,6 +706,14 @@ extension SyncMessagingSend on Sync {
         optimisticFound: matchCount > 0,
         sessionId: sessionId,
       );
+      // Always-on runtime tap (unlike CanaryAssert, not gated on kCanary):
+      // observes unmatched-optimistic, duplicate-localId, and unknown-acked
+      // localId on every server ack. Pure observation, never throws.
+      messageInvariantMonitor.recordAck(
+        localId: localId,
+        optimisticRowCount: matchCount,
+        sessionId: sessionId,
+      );
     }
     if (firstIdx >= 0) {
       msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
@@ -755,6 +767,19 @@ extension SyncMessagingSend on Sync {
     CanaryAssert.retryPreservesLocalId(
       expected: localId,
       observed: observedLocalId,
+    );
+    // Always-on runtime tap: a retry must reuse the original localId and
+    // must not spawn a second logical row. Count the rows matching the
+    // original id so a retry-created duplicate is observable in production.
+    var retryRowCount = 0;
+    for (final m in msgs) {
+      if (m['localId'] == localId || m['id'] == localId) retryRowCount++;
+    }
+    messageInvariantMonitor.recordRetry(
+      expected: localId,
+      observed: observedLocalId,
+      rowCount: retryRowCount,
+      sessionId: sessionId,
     );
 
     final text =

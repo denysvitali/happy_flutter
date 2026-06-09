@@ -52,6 +52,7 @@ import '../types/identity_types.dart';
 // ignore: unused_import
 import '../types/message_state.dart';
 import '../utils/invalidate_sync.dart';
+import '../utils/message_invariant_monitor.dart';
 import '../utils/parse_token.dart';
 import '../utils/path_utils.dart' show resolveAbsolutePath;
 import '../utils/wire_parsers.dart';
@@ -523,6 +524,12 @@ what you have, you must use the options mode.
   // failures (scope=session:<id>:messages). DEK decryption re-runs on
   // every fetchSessions, so without this set the capture would repeat.
   final Set<String> _dekFallbackCaptured = {};
+  // Live runtime guard for the chat-send contract. Observes the merge / ack
+  // / retry path and forwards typed, per-session-rate-limited violations to
+  // Sentry. Pure observation — never changes send behavior. See
+  // `message_invariant_monitor.dart`.
+  final MessageInvariantMonitor messageInvariantMonitor =
+      MessageInvariantMonitor();
   // Track sessions where a profile/model-change kill is in flight. Prevents
   // a concurrent or outbox-retry sendMessage call from firing a second kill
   // for the same session before the first auto-restore has completed and
