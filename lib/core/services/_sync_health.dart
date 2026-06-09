@@ -46,7 +46,7 @@ class SyncHealth {
   /// - The agent is starting/running AND the lifecycle state timestamp
   ///   is recent (guards against stale 'running' after a crash)
   bool get looksReady {
-    final lifecycleState = session.metadata?.lifecycleState;
+    final lifecycleState = session.effectiveLifecycleState;
     final isArchived = lifecycleState == 'archived';
     final agentIsStartingOrRunning =
         lifecycleState == 'starting' || lifecycleState == 'running';

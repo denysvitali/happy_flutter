@@ -893,7 +893,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
     final isReady = sync.isSessionReadyForMessages(session.id);
-    final lifecycleState = session.metadata?.lifecycleState;
+    final lifecycleState = session.effectiveLifecycleState;
     final lifecycleSince = session.metadata?.lifecycleStateSince;
     final lifecycleIsRecent =
         lifecycleSince != null &&

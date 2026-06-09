@@ -121,6 +121,9 @@ _Session _$SessionFromJson(Map<String, dynamic> json) => _Session(
   permissionMode: _asApiStringNullable(json['permissionMode']),
   modelMode: _asApiStringNullable(json['modelMode']),
   latestUsage: _usageDataFromJson(json['latestUsage']),
+  lifecycleStateCleartext: json['lifecycleStateCleartext'] == null
+      ? ''
+      : _asApiStringOrEmpty(json['lifecycleStateCleartext']),
   lastSeq: _asApiIntNullable(json['lastSeq']),
   lastMessageAt: _lastMessageAtFromJson(json['lastMessage']),
 );
@@ -145,6 +148,7 @@ Map<String, dynamic> _$SessionToJson(_Session instance) => <String, dynamic>{
   'permissionMode': instance.permissionMode,
   'modelMode': instance.modelMode,
   'latestUsage': instance.latestUsage?.toJson(),
+  'lifecycleStateCleartext': instance.lifecycleStateCleartext,
   'lastSeq': instance.lastSeq,
   'lastMessage': instance.lastMessageAt,
 };

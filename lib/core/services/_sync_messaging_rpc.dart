@@ -199,7 +199,7 @@ extension SyncMessagingRpc on Sync {
     final session = _sessions[sessionId];
     if (session == null) return false;
 
-    final lifecycleState = session.metadata?.lifecycleState;
+    final lifecycleState = session.effectiveLifecycleState;
     // Guard against stale lifecycleState
     // (same logic as _resolveSendTargetSession).
     final lifecycleStateSince = session.metadata?.lifecycleStateSince;
@@ -825,7 +825,7 @@ extension SyncMessagingRpc on Sync {
         lastEphemeral != null &&
         DateTime.now().millisecondsSinceEpoch - lastEphemeral < 90000;
     if (s.isOnline && recentEphemeral) return true;
-    final lc = s.metadata?.lifecycleState;
+    final lc = s.effectiveLifecycleState;
     if (lc != 'running') return false;
     // Only trust "running" if the timestamp is recent (< 2 minutes).
     final since = s.metadata?.lifecycleStateSince;
@@ -865,7 +865,7 @@ extension SyncMessagingRpc on Sync {
     logger.info(
       '[sendMessage] waitForAgentReady waiting '
       'session=$sessionId isOnline=${session?.isOnline} '
-      'lifecycleState=${session?.metadata?.lifecycleState}',
+      'lifecycleState=${session?.effectiveLifecycleState}',
     );
 
     // Event-driven: resolve as soon as onDataChanged fires with session

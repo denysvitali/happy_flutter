@@ -28,6 +28,11 @@ String? _asApiStringNullable(dynamic value) {
   return null;
 }
 
+String _asApiStringOrEmpty(dynamic value) {
+  if (value is String) return value;
+  return '';
+}
+
 bool? _asApiBoolNullable(dynamic value) {
   if (value == null) return null;
   if (value is bool) return value;
@@ -359,6 +364,18 @@ abstract class Session with _$Session {
     @JsonKey(fromJson: _asApiStringNullable) String? modelMode,
     @JsonKey(fromJson: _usageDataFromJson) UsageData? latestUsage,
 
+    /// Server-owned cleartext mirror of [Metadata.lifecycleState]. The
+    /// server flips this to `'running'` the moment it accepts a user
+    /// message (with a conditional UPDATE so a live daemon's write
+    /// always wins), so a client that has been seeing `'errored'` from
+    /// a stale encrypted metadata blob can clear the "Session process
+    /// stopped" banner immediately on first send. Empty string on older
+    /// servers; check [hasLifecycleError] rather than reading this
+    /// directly.
+    @JsonKey(name: 'lifecycleStateCleartext', fromJson: _asApiStringOrEmpty)
+    @Default('')
+    String lifecycleStateCleartext,
+
     /// The highest message seq number in the session, as reported by the
     /// server. Used for lazy tail-loading to avoid fetching all history.
     @JsonKey(fromJson: _asApiIntNullable) int? lastSeq,
@@ -394,15 +411,43 @@ abstract class Session with _$Session {
 
   /// Returns `true` when the backend has marked the local agent process as
   /// failed. Sends to this session may be stored but cannot be processed.
-  bool get hasLifecycleError => metadata?.lifecycleState == 'errored';
+  ///
+  /// Cleartext wins over the encrypted metadata blob: the server flips
+  /// [lifecycleStateCleartext] to `'running'` the moment it accepts a
+  /// user message, so a stale encrypted `'errored'` from a dead daemon
+  /// is no longer reported as soon as the user sends something. When
+  /// cleartext is unset (`''`) we fall back to the encrypted blob, so
+  /// older servers without the new column keep behaving as before.
+  bool get hasLifecycleError {
+    final c = lifecycleStateCleartext;
+    if (c == 'errored') return true;
+    if (c == 'running' || c == 'starting') return false;
+    return metadata?.lifecycleState == 'errored';
+  }
 
   /// Returns `true` when a failed local agent process has enough metadata for
   /// the daemon to restart it in the same project path.
   bool get canAttemptLifecycleRestore {
+    if (!hasLifecycleError) return false;
     final meta = metadata;
-    return hasLifecycleError &&
-        (meta?.machineId?.isNotEmpty ?? false) &&
+    return (meta?.machineId?.isNotEmpty ?? false) &&
         (meta?.path?.isNotEmpty ?? false);
+  }
+
+  /// Effective lifecycle state, with the server-owned cleartext column
+  /// winning over the encrypted [Metadata.lifecycleState] blob.
+  ///
+  /// The server flips [lifecycleStateCleartext] to `'running'` the
+  /// moment it accepts a user message (with a conditional UPDATE so a
+  /// live daemon's later write always wins), so a stale encrypted
+  /// `'errored'` from a dead daemon is no longer reported as soon as
+  /// the user sends something. When cleartext is unset (`''`) we fall
+  /// back to the encrypted blob, so older servers without the new
+  /// column keep behaving as before.
+  String? get effectiveLifecycleState {
+    final c = lifecycleStateCleartext;
+    if (c.isNotEmpty) return c;
+    return metadata?.lifecycleState;
   }
 }
 

@@ -365,7 +365,7 @@ bool isSessionActive(Session session) {
 const int _sessionLifecycleRecentMs = 120000;
 
 bool _hasRecentRunningLifecycle(Session session) {
-  final lc = session.metadata?.lifecycleState;
+  final lc = session.effectiveLifecycleState;
   if (lc != 'running' && lc != 'starting') return false;
   final since = session.metadata?.lifecycleStateSince;
   if (since == null) return false;

@@ -1012,7 +1012,7 @@ PY
     final looksReady = health.looksReady;
     final onlineTrusted = health.isOnlineTrusted;
 
-    final lifecycleState = session.metadata?.lifecycleState;
+    final lifecycleState = session.effectiveLifecycleState;
     final lifecycleErrored = lifecycleState == 'errored';
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
@@ -1120,7 +1120,7 @@ PY
     logger.info(
       '[sendMessage] session=$sessionId appears offline '
       '(presence=${session.presence}, '
-      'lifecycleState=${session.metadata?.lifecycleState}); '
+      'lifecycleState=${session.effectiveLifecycleState}); '
       'attempting auto-restore',
     );
 
