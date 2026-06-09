@@ -5,12 +5,27 @@ import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.sentry.Sentry
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.happy_flutter/deep_links"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // Sentry SDK is initialized during Flutter engine attach (before this
+        // callback runs), so we can safely mutate the options here. The plugin
+        // has already set a beforeSend for sdk-name tagging — we chain after it
+        // so ANR body shrinking runs as the innermost step.
+        try {
+            AnrBodyShrinker.install(Sentry.getCurrentScopes().options)
+        } catch (e: Throwable) {
+            android.util.Log.w(
+                "HappyFlutter",
+                "Failed to install AnrBodyShrinker; ANR events will not be shrunk",
+                e,
+            )
+        }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "getInitialDeepLink") {

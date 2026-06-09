@@ -34,7 +34,12 @@ const sentrySendDefaultPii = bool.fromEnvironment(
 );
 const sentryAnrEnabled = bool.fromEnvironment(
   'SENTRY_ANR_ENABLED',
-  defaultValue: false,
+  defaultValue: true,
+);
+
+const sentryAnrTimeoutSeconds = int.fromEnvironment(
+  'SENTRY_ANR_TIMEOUT_SECONDS',
+  defaultValue: 5,
 );
 const sentryMaxBreadcrumbs = int.fromEnvironment(
   'SENTRY_MAX_BREADCRUMBS',

@@ -41,10 +41,12 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..dist = _sentryDist.isNotEmpty ? _sentryDist : null
       ..environment = kReleaseMode ? 'production' : 'debug'
-      // Native Android ANR envelopes exceed GlitchTip's 5 MiB decompressed
-      // intake limit on real devices. Keep this behind a build flag so crash
-      // capture remains enabled without repeatedly sending rejected payloads.
+      // ANR detection: capture foreground "Application Not Responding" events.
+      // Bodies are stripped down (breadcrumbs/stacktraces/sdk/debugMeta) by the
+      // native beforeSend in MainActivity so the envelope stays under the 2 MiB
+      // cap enforced by DartSentryTransport.
       ..anrEnabled = sentryAnrEnabled
+      ..anrTimeoutInterval = Duration(seconds: sentryAnrTimeoutSeconds)
       // Automatic user interaction tracing creates a transaction for
       // every tap (back button, list items, etc.) with a 3-second idle
       // timeout. This produces false "error" transactions when widgets
@@ -77,6 +79,7 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
     '[Sentry] filterNonActionable=$sentryFilterNonActionable '
     'dropReasons=${sentryDropReasonSet.join(',')} '
     'anrEnabled=$sentryAnrEnabled '
+    'anrTimeout=${sentryAnrTimeoutSeconds}s '
     'sendDefaultPii=$sentrySendDefaultPii '
     'maxBreadcrumbs=$sentryMaxBreadcrumbs '
     'nativeBreadcrumbs=$sentryEnableAutoNativeBreadcrumbs',
