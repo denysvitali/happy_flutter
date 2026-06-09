@@ -100,16 +100,13 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       behavior: HitTestBehavior.opaque,
       child: Row(
         children: [
-          Hero(
-            tag: 'session-avatar-${currentSession.id}',
-            child: SessionAvatar(
-              id: avatarId,
-              flavor: flavor,
-              size: 34,
-              showFlavorIcon: true,
-              square: true,
-              style: avatarStyle,
-            ),
+          SessionAvatar(
+            id: avatarId,
+            flavor: flavor,
+            size: 34,
+            showFlavorIcon: true,
+            square: true,
+            style: avatarStyle,
           ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
