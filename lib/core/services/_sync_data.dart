@@ -135,6 +135,17 @@ extension SyncData on Sync {
               'encryption. Run `happy auth debug` and test the printed '
               'vector in Flutter to confirm key mismatch.',
             );
+            if (_dekFallbackCaptured.add(sessionId)) {
+              unawaited(
+                Sentry.captureMessage(
+                  '[Encryption] DEK decryption failed — legacy fallback',
+                  level: SentryLevel.warning,
+                  withScope: (scope) {
+                    scope.setTag('dek_fallback_session', sessionId);
+                  },
+                ),
+              );
+            }
             sessionKeys[sessionId] = null;
           }
         }

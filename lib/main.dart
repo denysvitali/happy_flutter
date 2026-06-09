@@ -28,6 +28,8 @@ import 'core/services/remote_logger.dart';
 import 'core/services/server_config.dart';
 import 'core/services/storage_service.dart' as storage;
 import 'core/services/sync_service.dart';
+import 'core/theme/app_scroll_behavior.dart';
+import 'core/theme/app_tokens.dart';
 import 'core/utils/package_info_cache.dart';
 import 'core/utils/theme_helper.dart';
 import 'core/widgets/error_boundary.dart';
@@ -599,9 +601,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
                 MaterialApp.router(
                   title: 'Happy',
                   debugShowCheckedModeBanner: false,
+                  scrollBehavior: const AppScrollBehavior(),
                   theme: ThemeHelper.buildLightTheme(),
                   darkTheme: ThemeHelper.buildDarkTheme(),
                   themeMode: _getThemeMode(themeMode),
+                  themeAnimationDuration: AppDuration.slow,
+                  themeAnimationCurve: AppCurve.standard,
                   localizationsDelegates:
                       AppLocalizations.localizationsDelegates,
                   supportedLocales: AppLocalizations.supportedLocales,

@@ -23,6 +23,7 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/wire_parsers.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
@@ -141,6 +142,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Session? _session;
   List<Map<String, dynamic>> _messages = const [];
   Map<String, dynamic>? _metadataJson;
+
+  // Memoized scan results over _messages, recomputed only when the list is
+  // reassigned (see _recomputeMessageScanCache). _buildStatusChips runs on
+  // every screen build, so it must not re-scan thousands of messages.
+  Map<String, dynamic>? _latestUserStatusMessage;
+  int _lastVisibleNonSidechainCreatedAt = 0;
+  int _debugMaxSeq = -1;
   static const int _pageSize = 50;
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
@@ -248,6 +256,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           : _pageSize;
       setState(() {
         _messages = cached;
+        _recomputeMessageScanCache();
         _isLoadingMessages = false;
         // Mark cached messages as seen so they don't animate
         for (final m in cached) {
@@ -300,6 +309,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         : _pageSize;
     setState(() {
       _messages = cached;
+      _recomputeMessageScanCache();
       _isLoadingMessages = false;
       for (final m in cached) {
         _seenMessageIds.add(_messageKey(m));
@@ -485,6 +495,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
 
         _messages = latestMessages;
+        _recomputeMessageScanCache();
         _lastMessageFingerprint = latestMessageFingerprint;
         _prevMessagesLength = latestMessages.length;
 
@@ -874,15 +885,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return null;
   }
 
-  Map<String, dynamic>? _latestUserMessageWithStatus() {
+  /// Recomputes the memoized backward scans over [_messages]:
+  /// the latest user message carrying a sendStatus, the createdAt of the
+  /// last visible (non-sidechain) message, and (debug only) the max seq.
+  ///
+  /// Must be called whenever [_messages] is reassigned. Keeping these in
+  /// fields lets _buildStatusChips stay O(1) per build instead of
+  /// re-scanning the full list (up to 3000 entries) on every rebuild.
+  void _recomputeMessageScanCache() {
+    Map<String, dynamic>? latestUserStatus;
+    var lastVisibleCreatedAt = 0;
+    var foundVisible = false;
+    var maxSeq = -1;
     for (var i = _messages.length - 1; i >= 0; i--) {
       final message = _messages[i];
-      if (message['role'] != 'user') continue;
-      final status = message['sendStatus'] as String?;
-      if (status == null || status.isEmpty) continue;
-      return message;
+      if (!foundVisible && message['isSidechain'] != true) {
+        final ts = message['createdAt'];
+        if (ts is int) {
+          lastVisibleCreatedAt = ts;
+          foundVisible = true;
+        }
+      }
+      if (latestUserStatus == null && message['role'] == 'user') {
+        final status = message['sendStatus'] as String?;
+        if (status != null && status.isNotEmpty) {
+          latestUserStatus = message;
+        }
+      }
+      if (kDebugMode) {
+        // Debug seq watermark needs the full list; skip early exit.
+        final s = message['seq'];
+        if (s is int && s > maxSeq) maxSeq = s;
+      } else if (foundVisible && latestUserStatus != null) {
+        break;
+      }
     }
-    return null;
+    _latestUserStatusMessage = latestUserStatus;
+    _lastVisibleNonSidechainCreatedAt = lastVisibleCreatedAt;
+    _debugMaxSeq = maxSeq;
   }
 
   List<ChatAppBarStatusChip> _buildStatusChips(BuildContext context) {
@@ -964,15 +1004,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // the long-running session diagnosis on c8400ba… where 2000+ server
       // messages produced almost no visible bubbles.
       const subTaskSwitchMs = 30000;
-      var lastVisibleCreatedAt = 0;
-      for (var i = _messages.length - 1; i >= 0; i--) {
-        if (_messages[i]['isSidechain'] == true) continue;
-        final ts = _messages[i]['createdAt'];
-        if (ts is int) {
-          lastVisibleCreatedAt = ts;
-          break;
-        }
-      }
+      final lastVisibleCreatedAt = _lastVisibleNonSidechainCreatedAt;
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       final stale =
           lastVisibleCreatedAt > 0 &&
@@ -992,11 +1024,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // sidechain). The user requested this after observing seq=2000+ with
     // few visible messages.
     if (kDebugMode) {
-      var maxSeq = -1;
-      for (final m in _messages) {
-        final s = m['seq'];
-        if (s is int && s > maxSeq) maxSeq = s;
-      }
+      final maxSeq = _debugMaxSeq;
       if (maxSeq >= 0) {
         chips.add(
           ChatAppBarStatusChip(
@@ -1008,7 +1036,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     }
 
-    final latestUserMessage = _latestUserMessageWithStatus();
+    final latestUserMessage = _latestUserStatusMessage;
     final sendStatus = latestUserMessage?['sendStatus'] as String?;
     if (sendStatus != null) {
       switch (sendStatus) {
@@ -1371,7 +1399,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
           isSessionOnline: _session?.isPresenceOnline ?? false,
           enterToSend: enterToSend,
-          lastDeliveryStatus: _latestUserMessageWithStatus()?['sendStatus']
+          lastDeliveryStatus: _latestUserStatusMessage?['sendStatus']
               as String?,
         ),
       ],

@@ -504,6 +504,12 @@ what you have, you must use the options mode.
   // machineId → epoch-ms of last offline warning. Deduplicates the
   // "Machine appears offline" warning that fires on every createSession().
   final Map<String, int> _machineOfflineWarnedAtMs = {};
+  // Sessions whose DEK failed to decrypt and fell back to legacy NaCl —
+  // captured to Sentry once per session per app run so DEK-fallback
+  // sessions can be correlated with later CryptoSecretBox.decrypt
+  // failures (scope=session:<id>:messages). DEK decryption re-runs on
+  // every fetchSessions, so without this set the capture would repeat.
+  final Set<String> _dekFallbackCaptured = {};
   // Track sessions where a profile/model-change kill is in flight. Prevents
   // a concurrent or outbox-retry sendMessage call from firing a second kill
   // for the same session before the first auto-restore has completed and

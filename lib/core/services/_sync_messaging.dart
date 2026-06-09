@@ -100,6 +100,39 @@ extension SyncMessaging on Sync {
   /// [Session.lastSeq] hint to jump straight to the tail of the history,
   /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent
   /// calls (incremental delta syncs) continue from [_sessionLastSeq] as before.
+  /// Speculatively downloads the next message page during decryption of
+  /// the current one (see the pipelining comment in [fetchMessages]).
+  ///
+  /// Errors are swallowed and surface as `null` — the caller then issues
+  /// a normal fetch for the same cursor, which reports the error through
+  /// the existing failure paths.
+  Future<Response<dynamic>?> _prefetchMessagePage(
+    ApiClient apiClient,
+    String sessionId,
+    int afterSeq,
+  ) async {
+    try {
+      return await apiClient.get(
+        '/v3/sessions/$sessionId/messages',
+        queryParameters: {
+          'after_seq': afterSeq,
+          'limit': Sync._messageFetchPageSize,
+        },
+        options: Options(
+          extra: const {'bypassCache': true, 'disableRetry': true},
+          connectTimeout: Sync._messageFetchConnectTimeout,
+          receiveTimeout: Sync._messageFetchReceiveTimeout,
+        ),
+      );
+    } catch (error) {
+      logger.debug(
+        '[fetchMessages] $sessionId prefetch after_seq=$afterSeq '
+        'failed: $error',
+      );
+      return null;
+    }
+  }
+
   Future<void> fetchMessages(String sessionId) async {
     logger.debug('Fetching messages for session: $sessionId');
     final fetchStopwatch = Stopwatch()..start();
@@ -383,6 +416,16 @@ extension SyncMessaging on Sync {
       var totalHttpMs = 0;
       var hitBudget = false;
       final droppedReasonCounts = <String, int>{};
+      // HTTP/decrypt pipelining: while a page is decrypting and merging,
+      // the next page is already downloading.  The wire `seq` field is
+      // plaintext, so the next-page cursor is computable before
+      // decryption.  The prefetched response is only used when its
+      // cursor matches the authoritative afterSeq advanced from
+      // processed.maxSeq; on any mismatch (or prefetch error) it is
+      // discarded and the page is fetched normally, preserving the
+      // exact pre-pipelining semantics.
+      Future<Response<dynamic>?>? prefetchedPage;
+      var prefetchedAfterSeq = -1;
       while (true) {
         // ── Check visibility ──
         // Continue fetching even when the session is no longer visible so
@@ -424,18 +467,26 @@ extension SyncMessaging on Sync {
             data: overrideResult,
           );
         } else {
-          response = await apiClient.get(
-            '/v3/sessions/$sessionId/messages',
-            queryParameters: {
-              'after_seq': afterSeq,
-              'limit': Sync._messageFetchPageSize,
-            },
-            options: Options(
-              extra: const {'bypassCache': true, 'disableRetry': true},
-              connectTimeout: Sync._messageFetchConnectTimeout,
-              receiveTimeout: Sync._messageFetchReceiveTimeout,
-            ),
-          );
+          Response<dynamic>? prefetched;
+          if (prefetchedPage != null && prefetchedAfterSeq == afterSeq) {
+            prefetched = await prefetchedPage;
+          }
+          prefetchedPage = null;
+          httpSpan.setData('usedPrefetch', prefetched != null);
+          response =
+              prefetched ??
+              await apiClient.get(
+                '/v3/sessions/$sessionId/messages',
+                queryParameters: {
+                  'after_seq': afterSeq,
+                  'limit': Sync._messageFetchPageSize,
+                },
+                options: Options(
+                  extra: const {'bypassCache': true, 'disableRetry': true},
+                  connectTimeout: Sync._messageFetchConnectTimeout,
+                  receiveTimeout: Sync._messageFetchReceiveTimeout,
+                ),
+              );
         }
         final fetchMs = fetchStart.elapsedMilliseconds;
         totalHttpMs += fetchMs;
@@ -508,6 +559,30 @@ extension SyncMessaging on Sync {
           'msgs=${messages.length} hasMore=$hasMore '
           'fetchMs=$fetchMs',
         );
+
+        // Kick off the next page download while this page decrypts and
+        // merges.  Guarded to pages that will actually be consumed this
+        // cycle (page limit + soft budget), so an abandoned prefetch is
+        // rare and at worst costs one extra GET.
+        if (hasMore &&
+            testFetchMessagesOverride == null &&
+            messages.isNotEmpty &&
+            page + 1 < maxPages &&
+            fetchStopwatch.elapsed < Sync._messageFetchBudget) {
+          var rawMaxSeq = afterSeq;
+          for (final m in messages) {
+            final s = m['seq'];
+            if (s is int && s > rawMaxSeq) rawMaxSeq = s;
+          }
+          if (rawMaxSeq > afterSeq) {
+            prefetchedAfterSeq = rawMaxSeq;
+            prefetchedPage = _prefetchMessagePage(
+              apiClient,
+              sessionId,
+              rawMaxSeq,
+            );
+          }
+        }
 
         // ── Decrypt + process (isolate for large batches) ──
         // Pre-filter messages already decrypted and stored, so we

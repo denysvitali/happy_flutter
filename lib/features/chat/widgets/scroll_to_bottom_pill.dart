@@ -1,4 +1,7 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -28,9 +31,6 @@ class _ScrollToBottomPillState
     extends State<ScrollToBottomPill>
     with TickerProviderStateMixin {
   late final AnimationController _entryCtrl;
-  late final Animation<double> _scale;
-  late final Animation<double> _opacity;
-  late final Animation<Offset> _slide;
 
   late final AnimationController _pulseCtrl;
   late final Animation<double> _pulseScale;
@@ -41,32 +41,13 @@ class _ScrollToBottomPillState
   @override
   void initState() {
     super.initState();
-    _entryCtrl = AnimationController(
-      vsync: this,
-      duration: AppDuration.normal,
+    // Physics-driven entry: the pill pops in on a real spring
+    // (AppSpring.standard) rather than a fixed-duration curve, so the
+    // overshoot and settle follow natural motion.
+    _entryCtrl = AnimationController.unbounded(vsync: this);
+    _entryCtrl.animateWith(
+      SpringSimulation(AppSpring.standard, 0.0, 1.0, 0.0),
     );
-    _scale = Tween(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entryCtrl,
-        curve: Curves.easeOutBack,
-      ),
-    );
-    _opacity = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _entryCtrl,
-        curve: Curves.easeOut,
-      ),
-    );
-    _slide = Tween(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _entryCtrl,
-        curve: Curves.easeOutCubic,
-      ),
-    );
-    _entryCtrl.forward();
 
     _pulseCtrl = AnimationController(
       vsync: this,
@@ -128,16 +109,21 @@ class _ScrollToBottomPillState
 
     return AnimatedBuilder(
       animation: _entryCtrl,
-      builder: (context, child) => FadeTransition(
-        opacity: _opacity,
-        child: SlideTransition(
-          position: _slide,
-          child: ScaleTransition(
-            scale: _scale,
-            child: child,
+      builder: (context, child) {
+        // Spring value overshoots 1.0 slightly; scale and slide may
+        // follow the overshoot, but opacity must stay in range.
+        final t = _entryCtrl.value;
+        return Opacity(
+          opacity: t.clamp(0.0, 1.0),
+          child: Transform.translate(
+            offset: Offset(0, (1 - t) * 14),
+            child: Transform.scale(
+              scale: lerpDouble(0.7, 1.0, t)!,
+              child: child,
+            ),
           ),
-        ),
-      ),
+        );
+      },
       child: Semantics(
         label: 'Scroll to latest message',
         button: true,

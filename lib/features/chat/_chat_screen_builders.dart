@@ -168,6 +168,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
         }
       },
     );
+    // Messages dissolve under the app bar instead of hard-clipping.
+    final fadedList = ScrollEdgeFade(topExtent: 28, child: listView);
     stopwatch.stop();
     if (stopwatch.elapsedMilliseconds >= 8 &&
         logger.shouldLog(LogLevel.debug)) {
@@ -179,7 +181,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
         'elapsedMs=${stopwatch.elapsedMilliseconds}',
       );
     }
-    return listView;
+    return fadedList;
   }
 
   Widget _buildMessageItem({

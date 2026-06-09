@@ -62,17 +62,28 @@ import '../providers/app_providers.dart';
 import '../services/logger_service.dart';
 import '../services/opentelemetry_service.dart';
 import '../services/performance_context_service.dart';
+import '../theme/app_tokens.dart';
 import '../widgets/auth_gate.dart';
 
-/// Fade transition for tab-level routes.
+/// Fade-through transition for tab-level routes: the incoming screen
+/// fades in while settling from a subtle 98 % scale, giving tab
+/// switches a sense of depth instead of a flat crossfade.
 Page<void> _fadePage(Widget child, GoRouterState state) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
     transitionsBuilder: (context, animation, _, child) {
-      return FadeTransition(opacity: animation, child: child);
+      final eased = CurvedAnimation(parent: animation, curve: AppCurve.enter);
+      return FadeTransition(
+        opacity: eased,
+        child: ScaleTransition(
+          scale: Tween(begin: 0.98, end: 1.0).animate(eased),
+          child: child,
+        ),
+      );
     },
-    transitionDuration: const Duration(milliseconds: 200),
+    transitionDuration: AppDuration.fast,
+    reverseTransitionDuration: AppDuration.fast,
   );
 }
 
@@ -87,11 +98,12 @@ Page<void> _slideUpPage(Widget child, GoRouterState state) {
         end: Offset.zero,
       ).chain(CurveTween(curve: Curves.easeOutCubic));
       return FadeTransition(
-        opacity: animation,
+        opacity: CurvedAnimation(parent: animation, curve: AppCurve.enter),
         child: SlideTransition(position: animation.drive(tween), child: child),
       );
     },
-    transitionDuration: const Duration(milliseconds: 300),
+    transitionDuration: AppDuration.slow,
+    reverseTransitionDuration: AppDuration.normal,
   );
 }
 

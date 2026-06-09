@@ -87,6 +87,8 @@ class _SendButtonState extends State<SendButton>
 
   void _triggerMorph() {
     _revertTimer?.cancel();
+    // Confirm delivery with a tactile tick alongside the checkmark.
+    HapticFeedback.lightImpact();
     setState(() => _justSent = true);
     _morphCtrl.forward(from: 0);
     _revertTimer = Timer(

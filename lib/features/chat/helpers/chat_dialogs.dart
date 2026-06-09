@@ -5,11 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/components/app_sheet.dart';
+import '../../../core/dialogs/app_dialog.dart';
 import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
-import '../../../core/theme/app_tokens.dart';
 
 /// Shows a modal bottom sheet with session actions (settings, stop,
 /// delete).
@@ -20,12 +21,8 @@ void showSessionMenu(
 }) {
   final l10n = outerContext.l10n;
   final cs = Theme.of(outerContext).colorScheme;
-  showModalBottomSheet(
-    context: outerContext,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-    ),
-    backgroundColor: cs.surface,
+  showAppSheet<void>(
+    outerContext,
     builder: (sheetContext) => Consumer(
       builder: (context, ref, _) {
         final hideToolCalls = ref.watch(
@@ -116,8 +113,8 @@ void showUnsentMessageDialog(
 }) {
   final cs = Theme.of(context).colorScheme;
   final l10n = context.l10n;
-  showDialog(
-    context: context,
+  showAppDialog<void>(
+    context,
     builder: (dialogContext) => AlertDialog(
       title: Text(l10n.chatUnsentMessageTitle),
       content: Text(l10n.chatUnsentMessageContent),

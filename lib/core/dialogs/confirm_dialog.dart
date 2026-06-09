@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../i18n/app_localizations.dart';
+import 'app_dialog.dart';
 
 /// Shows a confirmation dialog and resolves to `true` if confirmed.
 Future<bool> showConfirmDialog(
@@ -13,8 +14,8 @@ Future<bool> showConfirmDialog(
 }) async {
   final l10n = context.l10n;
   final cs = Theme.of(context).colorScheme;
-  final result = await showDialog<bool>(
-    context: context,
+  final result = await showAppDialog<bool>(
+    context,
     builder: (dialogContext) => AlertDialog(
       title: Text(title),
       content: content == null ? null : Text(content),

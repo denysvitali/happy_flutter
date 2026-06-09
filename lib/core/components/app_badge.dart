@@ -82,7 +82,28 @@ class AppBadge extends StatelessWidget {
               leading!,
               const SizedBox(width: AppSpacing.xs),
             ],
-            Text(label, style: resolvedLabelStyle),
+            // Label changes (e.g. counts ticking up) crossfade with a
+            // slight upward slide instead of snapping.
+            AnimatedSwitcher(
+              duration: AppDuration.fast,
+              switchInCurve: AppCurve.enter,
+              switchOutCurve: AppCurve.exit,
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: SlideTransition(
+                  position: Tween(
+                    begin: const Offset(0, 0.4),
+                    end: Offset.zero,
+                  ).animate(anim),
+                  child: child,
+                ),
+              ),
+              child: Text(
+                label,
+                key: ValueKey(label),
+                style: resolvedLabelStyle,
+              ),
+            ),
             if (trailing != null) ...[
               const SizedBox(width: AppSpacing.xs),
               trailing!,

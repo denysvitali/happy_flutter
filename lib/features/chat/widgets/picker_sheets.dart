@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/components/app_sheet.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -85,7 +86,16 @@ Widget _buildModelTile(
             ),
           ),
           if (isSelected)
-            Icon(Icons.check_rounded, size: 18, color: cs.primary),
+            // Checkmark pops in with a soft overshoot when a row
+            // becomes the active selection.
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: AppDuration.normal,
+              curve: Curves.easeOutBack,
+              builder: (context, t, child) =>
+                  Transform.scale(scale: t, child: child),
+              child: Icon(Icons.check_rounded, size: 18, color: cs.primary),
+            ),
         ],
       ),
     ),
@@ -102,16 +112,11 @@ void showModelPickerSheet(
   ValueChanged<List<String>>? onCustomModelsChanged,
 }) {
   final theme = Theme.of(context);
-  final cs = theme.colorScheme;
   final hasGroupedModels = models.any((m) => m.modelSlug != null);
 
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: cs.surface,
+  showAppSheet<void>(
+    context,
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-    ),
     builder: (ctx) => SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -625,12 +630,8 @@ void showProfilePickerSheet(
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
 
-  showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: cs.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-    ),
+  showAppSheet<void>(
+    context,
     builder: (ctx) {
       final sheetL10n = AppLocalizations.of(ctx);
       return SafeArea(
