@@ -100,39 +100,6 @@ extension SyncMessaging on Sync {
   /// [Session.lastSeq] hint to jump straight to the tail of the history,
   /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent
   /// calls (incremental delta syncs) continue from [_sessionLastSeq] as before.
-  /// Speculatively downloads the next message page during decryption of
-  /// the current one (see the pipelining comment in [fetchMessages]).
-  ///
-  /// Errors are swallowed and surface as `null` — the caller then issues
-  /// a normal fetch for the same cursor, which reports the error through
-  /// the existing failure paths.
-  Future<Response<dynamic>?> _prefetchMessagePage(
-    ApiClient apiClient,
-    String sessionId,
-    int afterSeq,
-  ) async {
-    try {
-      return await apiClient.get(
-        '/v3/sessions/$sessionId/messages',
-        queryParameters: {
-          'after_seq': afterSeq,
-          'limit': Sync._messageFetchPageSize,
-        },
-        options: Options(
-          extra: const {'bypassCache': true, 'disableRetry': true},
-          connectTimeout: Sync._messageFetchConnectTimeout,
-          receiveTimeout: Sync._messageFetchReceiveTimeout,
-        ),
-      );
-    } catch (error) {
-      logger.debug(
-        '[fetchMessages] $sessionId prefetch after_seq=$afterSeq '
-        'failed: $error',
-      );
-      return null;
-    }
-  }
-
   Future<void> fetchMessages(String sessionId) async {
     logger.debug('Fetching messages for session: $sessionId');
     final fetchStopwatch = Stopwatch()..start();
@@ -304,11 +271,25 @@ extension SyncMessaging on Sync {
         final hasOrphans =
             messages != null && messages.any((m) => m['isSidechain'] == true);
         if (hasOrphans || _sessionsNeedingVisibleRegroup.contains(sessionId)) {
+          // Skip the grouper if orphan processing is suppressed — the
+          // deferred sweep determined these orphans are stuck (parent
+          // Task never arrived) and 30s haven't elapsed yet.  Without
+          // this guard, every fetchMessages call re-runs the O(4n)
+          // grouper for sessions with persistent orphans.
+          if (hasOrphans) {
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+            final suppressedUntil = _orphanSuppressedUntilMs[sessionId];
+            if (suppressedUntil != null && nowMs < suppressedUntil) {
+              // Clear the flag so onSessionVisible doesn't retry grouping
+              // for these stuck orphans during the suppression window.
+              _sessionsNeedingVisibleRegroup.remove(sessionId);
+              _notifySessionMessagesChangedUiOnly(sessionId);
+              _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+              return;
+            }
+          }
           // Log orphan count for telemetry — helps quantify how often
-          // this catch-up path fixes sidechain orphans. Orphans that
-          // remain after grouping are rendered inline in the chat
-          // (see _chat_screen_builders) instead of being absorbed into
-          // a synthetic Task — we never drop sidechain content.
+          // this catch-up path fixes sidechain orphans.
           if (hasOrphans) {
             // hasOrphans is only true when messages != null
             final orphanCount = messages
@@ -404,7 +385,7 @@ extension SyncMessaging on Sync {
         ..setData('cursorSeq', cursorSeq)
         ..setData('serverLastSeq', serverLastSeq)
         ..setData('pageSize', Sync._messageFetchPageSize)
-        ..setData('budgetMs', Sync._messageFetchBudget.inMilliseconds);
+        ..setData('budgetMs', _activeMessageFetchBudget.inMilliseconds);
 
       var totalFetchedMessages = 0;
       var totalDecryptedMessages = 0;
@@ -416,17 +397,34 @@ extension SyncMessaging on Sync {
       var totalHttpMs = 0;
       var hitBudget = false;
       final droppedReasonCounts = <String, int>{};
-      // HTTP/decrypt pipelining: while a page is decrypting and merging,
-      // the next page is already downloading.  The wire `seq` field is
-      // plaintext, so the next-page cursor is computable before
-      // decryption.  The prefetched response is only used when its
-      // cursor matches the authoritative afterSeq advanced from
-      // processed.maxSeq; on any mismatch (or prefetch error) it is
-      // discarded and the page is fetched normally, preserving the
-      // exact pre-pipelining semantics.
-      Future<Response<dynamic>?>? prefetchedPage;
-      var prefetchedAfterSeq = -1;
+      // Track every message id we upserted across pages so the final
+      // sidechain pass can use the changedIds fast path instead of
+      // re-walking the entire history — a major contributor to p95
+      // latency on large sessions (~O(4n) per page previously).
+      final upsertedIdsThisCycle = <String>{};
+      final activeBudget = _activeMessageFetchBudget;
       while (true) {
+        // ── Hard budget check (pre-page) ──
+        // Production p95 for fetchMessages was ~54 s because slow servers
+        // could serialize multiple 8 s receiveTimeout pages back-to-back.
+        // The post-page check below caught those that returned, but a page
+        // that began near the budget could still run for another full
+        // receive timeout. Stop BEFORE starting a new fetch so the worst
+        // case is one in-flight page, not 1 + receiveTimeout.
+        if (page > 0 && fetchStopwatch.elapsed >= activeBudget) {
+          hitBudget = true;
+          final budgetMs = activeBudget.inMilliseconds;
+          logger.info(
+            '[fetchMessages] $sessionId hit ${budgetMs}ms hard budget '
+            '(page=$page afterSeq=$afterSeq httpMs=$totalHttpMs '
+            'decryptMs=$totalDecryptMs) '
+            '— deferring remaining pages to next cycle',
+          );
+          // Re-trigger so the next cycle continues from the advanced
+          // cursor; the user keeps the messages already merged.
+          messagesSync[sessionId]?.invalidate();
+          break;
+        }
         // ── Check visibility ──
         // Continue fetching even when the session is no longer visible so
         // messages are not lost.  The user may navigate back at any time
@@ -467,26 +465,18 @@ extension SyncMessaging on Sync {
             data: overrideResult,
           );
         } else {
-          Response<dynamic>? prefetched;
-          if (prefetchedPage != null && prefetchedAfterSeq == afterSeq) {
-            prefetched = await prefetchedPage;
-          }
-          prefetchedPage = null;
-          httpSpan.setData('usedPrefetch', prefetched != null);
-          response =
-              prefetched ??
-              await apiClient.get(
-                '/v3/sessions/$sessionId/messages',
-                queryParameters: {
-                  'after_seq': afterSeq,
-                  'limit': Sync._messageFetchPageSize,
-                },
-                options: Options(
-                  extra: const {'bypassCache': true, 'disableRetry': true},
-                  connectTimeout: Sync._messageFetchConnectTimeout,
-                  receiveTimeout: Sync._messageFetchReceiveTimeout,
-                ),
-              );
+          response = await apiClient.get(
+            '/v3/sessions/$sessionId/messages',
+            queryParameters: {
+              'after_seq': afterSeq,
+              'limit': Sync._messageFetchPageSize,
+            },
+            options: Options(
+              extra: const {'bypassCache': true, 'disableRetry': true},
+              connectTimeout: Sync._messageFetchConnectTimeout,
+              receiveTimeout: Sync._messageFetchReceiveTimeout,
+            ),
+          );
         }
         final fetchMs = fetchStart.elapsedMilliseconds;
         totalHttpMs += fetchMs;
@@ -559,30 +549,6 @@ extension SyncMessaging on Sync {
           'msgs=${messages.length} hasMore=$hasMore '
           'fetchMs=$fetchMs',
         );
-
-        // Kick off the next page download while this page decrypts and
-        // merges.  Guarded to pages that will actually be consumed this
-        // cycle (page limit + soft budget), so an abandoned prefetch is
-        // rare and at worst costs one extra GET.
-        if (hasMore &&
-            testFetchMessagesOverride == null &&
-            messages.isNotEmpty &&
-            page + 1 < maxPages &&
-            fetchStopwatch.elapsed < Sync._messageFetchBudget) {
-          var rawMaxSeq = afterSeq;
-          for (final m in messages) {
-            final s = m['seq'];
-            if (s is int && s > rawMaxSeq) rawMaxSeq = s;
-          }
-          if (rawMaxSeq > afterSeq) {
-            prefetchedAfterSeq = rawMaxSeq;
-            prefetchedPage = _prefetchMessagePage(
-              apiClient,
-              sessionId,
-              rawMaxSeq,
-            );
-          }
-        }
 
         // ── Decrypt + process (isolate for large batches) ──
         // Pre-filter messages already decrypted and stored, so we
@@ -696,20 +662,41 @@ extension SyncMessaging on Sync {
             '(existing=${_sessionMessages[sessionId]?.length ?? 0})',
           );
         }
+        final pageHasSidechain = processed.messages.any(
+          (message) =>
+              message['isSidechain'] == true ||
+              message['kind'] == 'sidechain-root',
+        );
         if (processed.messages.isNotEmpty) {
           _upsertSessionMessages(sessionId, processed.messages);
           didMutateMessages = true;
           shouldRegroupWhenVisible =
-              shouldRegroupWhenVisible ||
-              processed.messages.any(
-                (message) =>
-                    message['isSidechain'] == true ||
-                    message['kind'] == 'sidechain-root',
-              );
+              shouldRegroupWhenVisible || pageHasSidechain;
+          for (final m in processed.messages) {
+            final id = m['id'];
+            if (id is String) upsertedIdsThisCycle.add(id);
+          }
         }
 
         // ── Yield ──
         await Future<void>.delayed(Duration.zero);
+
+        // ── Incremental sidechain grouping (per-page, visible only) ──
+        // Previously the full O(4n) grouper ran ONCE after all pages
+        // finished — quadratic on large histories and a major
+        // contributor to p95 latency. Run it incrementally per-page
+        // using the changedIds hint so only newly-arrived rows are
+        // re-walked, and only when this page actually contained
+        // sidechain content. Non-visible sessions still defer
+        // grouping until they become visible (background sync must
+        // not pay the regroup cost).
+        if (pageHasSidechain && isStillVisible) {
+          final changedIds = <String>{
+            for (final m in processed.messages)
+              if (m['id'] is String) m['id'] as String,
+          };
+          _groupSidechainMessages(sessionId, changedIds: changedIds);
+        }
 
         // ── Apply tool results + usage ──
         if (processed.toolResults.isNotEmpty) {
@@ -810,11 +797,11 @@ extension SyncMessaging on Sync {
         // pinning fetchMessages for ~60s (the Dio receive-timeout
         // ceiling × maxPages) and gives the UI a chance to render the
         // tail messages it already merged on earlier pages.
-        if (fetchStopwatch.elapsed >= Sync._messageFetchBudget) {
+        if (fetchStopwatch.elapsed >= activeBudget) {
           hitBudget = true;
-          final budgetSec = Sync._messageFetchBudget.inSeconds;
+          final budgetMs = activeBudget.inMilliseconds;
           logger.info(
-            '[fetchMessages] $sessionId hit ${budgetSec}s budget '
+            '[fetchMessages] $sessionId hit ${budgetMs}ms budget '
             '(page=$page afterSeq=$afterSeq httpMs=$totalHttpMs '
             'decryptMs=$totalDecryptMs) '
             '— deferring remaining pages to next cycle',
@@ -844,7 +831,17 @@ extension SyncMessaging on Sync {
           'sync.fetchMessages.finalize',
           description: 'Finalize visible fetch state',
         );
-        _groupSidechainMessages(sessionId);
+        // Pass changedIds so the grouper can short-circuit when none of
+        // the upserted rows are sidechain-relevant (fast path). When
+        // they are, the per-page incremental pass already did most of
+        // the work; this final call covers cross-page parent/child
+        // pairs (e.g. parent on page 1, child on page 3).
+        _groupSidechainMessages(
+          sessionId,
+          changedIds: upsertedIdsThisCycle.isEmpty
+              ? null
+              : upsertedIdsThisCycle,
+        );
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
         await finalizeSpan.finish();

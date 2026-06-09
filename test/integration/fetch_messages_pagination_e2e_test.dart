@@ -740,6 +740,348 @@ void main() {
       },
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // Group 5: hard budget enforcement
+  // ---------------------------------------------------------------------------
+  //
+  // Contract tests for the per-cycle hard budget that protects against
+  // production p95 = 54s `fetchMessages` outliers. When the elapsed wall
+  // time crosses the budget, the loop must:
+  //
+  //   1. Stop fetching additional pages BEFORE starting a new HTTP call.
+  //   2. Keep every message already merged (no orphans).
+  //   3. Re-trigger `messagesSync` so the next cycle resumes from the
+  //      advanced cursor.
+  //   4. Not throw — InvalidateSync must not retry budget aborts.
+  //   5. Preserve cached messages that were already on screen.
+
+  group('hard budget enforcement', () {
+    late Sync sync;
+    late _FakeEncryption encryption;
+
+    setUp(() {
+      sync = Sync();
+      encryption = _FakeEncryption();
+      _clearSyncState(sync);
+      _stubAllSyncs(sync);
+      sync.testSocketConnectedOverride = true;
+      sync.testSocketSendOverride = (_, __) {};
+      sync.encryption = encryption;
+      sync.testIsInitialized = true;
+    });
+
+    tearDown(() {
+      sync.testSocketConnectedOverride = null;
+      sync.testSocketSendOverride = null;
+      sync.testFetchMessagesOverride = null;
+      sync.testVisibleSessionId = null;
+      sync.testMessageFetchBudgetOverride = null;
+    });
+
+    test(
+      'budget aborts pagination before the next HTTP fetch',
+      () async {
+        const sessionId = 'sess-budget-1';
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 50,
+        );
+        sync.testVisibleSessionId = sessionId;
+        sync.testMessageFetchBudgetOverride =
+            const Duration(milliseconds: 30);
+        var invalidateCount = 0;
+        sync.messagesSync[sessionId] = InvalidateSync(
+          () async {
+            invalidateCount++;
+          },
+        );
+
+        var callCount = 0;
+        sync.testFetchMessagesOverride =
+            (sid, afterSeq, limit) async {
+          callCount++;
+          await Future<void>.delayed(
+            const Duration(milliseconds: 80),
+          );
+          return _buildMessagesResponse(
+            [
+              _makeEncryptedMessage(
+                'msg-$callCount',
+                seq: callCount,
+                content: 'Msg$callCount',
+              ),
+            ],
+            hasMore: true,
+          );
+        };
+
+        await sync.fetchMessages(sessionId);
+
+        expect(
+          callCount,
+          1,
+          reason:
+              'Hard budget must stop the loop after the first page; '
+              'page 2 must NOT be fetched once budget is exceeded.',
+        );
+        expect(
+          invalidateCount,
+          greaterThan(0),
+          reason:
+              'After hitting the budget, messagesSync must be '
+              're-invalidated so the next cycle resumes the crawl.',
+        );
+        final msgs = sync.testSessionMessages(sessionId);
+        expect(msgs, isNotNull);
+        expect(
+          msgs!.length,
+          1,
+          reason: 'The first page must be preserved on budget abort.',
+        );
+      },
+    );
+
+    test(
+      'no duplicate ids across cached messages and a '
+      'budget-truncated fetch',
+      () async {
+        const sessionId = 'sess-budget-dedup';
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 50,
+        );
+        sync.testVisibleSessionId = sessionId;
+        sync.testMessageFetchBudgetOverride =
+            const Duration(milliseconds: 30);
+        sync.messagesSync[sessionId] = InvalidateSync(() async {});
+
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'msg-1',
+            'seq': 1,
+            'role': 'user',
+            'localId': 'local-msg-1',
+          },
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 1);
+
+        sync.testFetchMessagesOverride =
+            (sid, afterSeq, limit) async {
+          await Future<void>.delayed(
+            const Duration(milliseconds: 60),
+          );
+          return _buildMessagesResponse(
+            [
+              _makeEncryptedMessage(
+                'msg-1',
+                seq: 1,
+                content: 'duplicate id',
+              ),
+              _makeEncryptedMessage(
+                'msg-2',
+                seq: 2,
+                content: 'fresh',
+              ),
+            ],
+            hasMore: true,
+          );
+        };
+
+        await sync.fetchMessages(sessionId);
+
+        final msgs = sync.testSessionMessages(sessionId);
+        expect(msgs, isNotNull);
+        final ids = msgs!.map((m) => m['id'] as String).toList();
+        expect(
+          ids.toSet().length,
+          ids.length,
+          reason:
+              'Upsert must deduplicate by id even when a budget '
+              'abort cuts pagination short.',
+        );
+      },
+    );
+
+    test(
+      'budget abort does not orphan messages from earlier pages',
+      () async {
+        const sessionId = 'sess-budget-orphan';
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 50,
+        );
+        sync.testVisibleSessionId = sessionId;
+        sync.testMessageFetchBudgetOverride =
+            const Duration(milliseconds: 50);
+        sync.messagesSync[sessionId] = InvalidateSync(() async {});
+
+        var callCount = 0;
+        sync.testFetchMessagesOverride =
+            (sid, afterSeq, limit) async {
+          callCount++;
+          await Future<void>.delayed(
+            Duration(milliseconds: callCount == 1 ? 5 : 80),
+          );
+          return _buildMessagesResponse(
+            [
+              _makeEncryptedMessage(
+                'msg-${callCount * 10}',
+                seq: callCount * 10,
+                content: 'page$callCount',
+              ),
+              _makeEncryptedMessage(
+                'msg-${callCount * 10 + 1}',
+                seq: callCount * 10 + 1,
+                content: 'page$callCount-b',
+              ),
+            ],
+            hasMore: true,
+          );
+        };
+
+        await sync.fetchMessages(sessionId);
+
+        final msgs = sync.testSessionMessages(sessionId);
+        expect(msgs, isNotNull);
+        for (var c = 1; c <= callCount; c++) {
+          final ids = msgs!.map((m) => m['id'] as String).toSet();
+          expect(
+            ids.contains('msg-${c * 10}'),
+            isTrue,
+            reason:
+                'Page $c first message must survive budget abort.',
+          );
+          expect(
+            ids.contains('msg-${c * 10 + 1}'),
+            isTrue,
+            reason:
+                'Page $c second message must survive budget abort.',
+          );
+        }
+      },
+    );
+
+    test(
+      'budget abort completes without throwing (no upstream retry)',
+      () async {
+        const sessionId = 'sess-budget-no-throw';
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 50,
+        );
+        sync.testVisibleSessionId = sessionId;
+        sync.testMessageFetchBudgetOverride =
+            const Duration(milliseconds: 20);
+        sync.messagesSync[sessionId] = InvalidateSync(() async {});
+
+        sync.testFetchMessagesOverride =
+            (sid, afterSeq, limit) async {
+          await Future<void>.delayed(
+            const Duration(milliseconds: 40),
+          );
+          return _buildMessagesResponse(
+            [
+              _makeEncryptedMessage(
+                'msg-1',
+                seq: 1,
+                content: 'first',
+              ),
+            ],
+            hasMore: true,
+          );
+        };
+
+        await expectLater(
+          sync.fetchMessages(sessionId),
+          completes,
+          reason:
+              'fetchMessages must complete normally on budget '
+              'abort so InvalidateSync does not retry.',
+        );
+      },
+    );
+
+    test(
+      'next cycle resumes from the advanced cursor after a budget '
+      'abort',
+      () async {
+        const sessionId = 'sess-budget-resume';
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 100,
+        );
+        sync.testVisibleSessionId = sessionId;
+        sync.testMessageFetchBudgetOverride =
+            const Duration(milliseconds: 30);
+        sync.messagesSync[sessionId] = InvalidateSync(() async {});
+
+        final captured = <int>[];
+        var callCount = 0;
+        sync.testFetchMessagesOverride =
+            (sid, afterSeq, limit) async {
+          callCount++;
+          captured.add(afterSeq);
+          await Future<void>.delayed(
+            Duration(milliseconds: callCount == 1 ? 80 : 1),
+          );
+          if (callCount == 1) {
+            return _buildMessagesResponse(
+              [
+                _makeEncryptedMessage(
+                  'msg-1',
+                  seq: 1,
+                  content: 'first',
+                ),
+                _makeEncryptedMessage(
+                  'msg-2',
+                  seq: 2,
+                  content: 'second',
+                ),
+              ],
+              hasMore: true,
+            );
+          }
+          return _buildMessagesResponse(
+            [
+              _makeEncryptedMessage(
+                'msg-3',
+                seq: 3,
+                content: 'third',
+              ),
+            ],
+          );
+        };
+
+        await sync.fetchMessages(sessionId);
+        expect(callCount, 1);
+        expect(captured.first, 0);
+
+        await sync.fetchMessages(sessionId);
+        expect(
+          callCount,
+          greaterThanOrEqualTo(2),
+          reason: 'Cycle 2 must perform at least one new fetch.',
+        );
+        expect(
+          captured.last,
+          2,
+          reason:
+              'Cycle 2 must start at afterSeq=2 (max seq from '
+              'cycle 1) so messages already merged are not refetched.',
+        );
+
+        final msgs = sync.testSessionMessages(sessionId);
+        final ids = msgs!.map((m) => m['id'] as String).toSet();
+        expect(ids, containsAll(['msg-1', 'msg-2', 'msg-3']));
+        expect(
+          ids.length,
+          3,
+          reason: 'No duplicate ids across cycles.',
+        );
+      },
+    );
+  });
 }
 
 // ---------------------------------------------------------------------------
