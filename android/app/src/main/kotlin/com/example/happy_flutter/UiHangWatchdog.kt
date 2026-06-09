@@ -27,9 +27,9 @@ object UiHangWatchdog {
 
     fun start() {
         if (!started.compareAndSet(false, true)) return
-        mainHandler.post(::heartbeat)
+        mainHandler.post { heartbeat() }
 
-        Thread(::watch, "happy-ui-hang-watchdog").apply {
+        Thread({ watch() }, "happy-ui-hang-watchdog").apply {
             isDaemon = true
             start()
         }
@@ -38,7 +38,7 @@ object UiHangWatchdog {
     private fun heartbeat() {
         lastHeartbeatMs = SystemClock.uptimeMillis()
         reportedCurrentHang = false
-        mainHandler.postDelayed(::heartbeat, HEARTBEAT_MS)
+        mainHandler.postDelayed({ heartbeat() }, HEARTBEAT_MS)
     }
 
     private fun watch() {
