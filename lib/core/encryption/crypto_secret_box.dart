@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:meta/meta.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sodium/sodium.dart';
 
 import '../services/logger_service.dart' show logger;
+import 'nacl_isolate_worker.dart' as nacl_iso;
 import 'sodium_singleton.dart';
 
 /// Identifies the envelope the failing ciphertext appears to use.
@@ -411,24 +413,78 @@ class CryptoSecretBox {
     );
   }
 
-  /// Decrypt a batch of items, yielding to the event loop between items.
+  /// Threshold under which inline decrypt is faster than spawning an
+  /// isolate. Mirrors [nacl_iso.kNaClIsolateBatchThreshold] and the
+  /// AES-256-GCM threshold in `session_encryption.dart`.
+  static const int batchIsolateThreshold = nacl_iso.kNaClIsolateBatchThreshold;
+
+  /// Overrides batch isolate behaviour for tests.
   ///
-  /// Each CryptoSecretBox.decrypt call blocks the main isolate on native
-  /// FFI (libsodium crypto_secretbox_open_easy).  This method yields
-  /// every item so the UI stays responsive during large legacy NaCl
-  /// batch decryptions.
+  ///   - `null` (default): use isolate when batch >= threshold on native
+  ///   - `false`: always inline (used by tests that cannot spawn isolates)
+  ///   - `true`: force the isolate path even for small batches (only used
+  ///     by tests asserting the worker contract)
+  @visibleForTesting
+  static bool? batchIsolateOverrideForTesting;
+
+  /// Decrypt a batch of items.
   ///
-  /// Note: A true isolate-based approach (Isolate.run) is not viable here
-  /// because Sodium initialization (SodiumInit.init()) is async and must
-  /// complete before decryption.  The per-item yield is the simplest
-  /// approach that keeps the UI thread-free without complex worker-isolate
-  /// machinery.
+  /// Each [CryptoSecretBox.decrypt] call blocks the main isolate on
+  /// native FFI (libsodium `crypto_secretbox_open_easy`). For large
+  /// batches (>= [batchIsolateThreshold]) the work is offloaded to a
+  /// worker isolate via [nacl_iso.decryptNaClBatchInIsolate], which
+  /// initialises its own `Sodium` instance and never receives a
+  /// `SecureKey` across the isolate boundary (only sendable
+  /// `Uint8List`s).
+  ///
+  /// Smaller batches stay on the main isolate with a per-item event-loop
+  /// yield — the ~10–50ms `Isolate.run` spawn cost isn't worth amortising
+  /// across a handful of items.
+  ///
+  /// Failed items (`null` from the isolate worker) are replayed through
+  /// the main-isolate [decrypt] so structured failure diagnostics
+  /// (envelope detection, Sentry scope) still reach GlitchTip — the
+  /// worker has no access to the logger or Sentry SDK.
   static Future<List<dynamic>> decryptBatchInIsolate(
     List<Uint8List> data,
     Uint8List secretKey, {
     String? scope,
   }) async {
     if (data.isEmpty) return [];
+
+    final override = batchIsolateOverrideForTesting;
+    final useIsolate = override ??
+        (!kIsWeb && data.length >= batchIsolateThreshold);
+
+    if (useIsolate) {
+      try {
+        final isolateResults = await nacl_iso.decryptNaClBatchInIsolate(
+          cipherTexts: data,
+          secretKey: secretKey,
+          nonceSize: _nonceSize,
+          macSize: _macSize,
+        );
+        // Replay nulls on the main isolate so we capture structured
+        // failure diagnostics (Sentry scope, envelope detection). The
+        // worker can only signal failure as `null` — it has no logger.
+        final results = List<dynamic>.from(isolateResults);
+        for (var i = 0; i < results.length; i++) {
+          if (results[i] != null) continue;
+          results[i] = await decrypt(data[i], secretKey, scope: scope);
+        }
+        return results;
+      } catch (e, stack) {
+        // Isolate spawn failed (e.g. some test environments lack the
+        // ability to spawn isolates). Fall back to the inline path.
+        logger.warning(
+          'CryptoSecretBox.decryptBatchInIsolate: '
+          'isolate spawn failed, falling back to inline decrypt',
+          e,
+          stack,
+        );
+      }
+    }
+
     final results = <dynamic>[];
     for (var i = 0; i < data.length; i++) {
       results.add(await decrypt(data[i], secretKey, scope: scope));
