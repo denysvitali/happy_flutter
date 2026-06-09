@@ -7,8 +7,7 @@ import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/logger_service.dart';
-import '../../core/services/sync_service.dart';
+import '../../core/services/sync_service.dart' show SyncDomain;
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
@@ -156,29 +155,24 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
     );
 
     if (confirmed) {
-      try {
-        await sync.deleteArtifact(artifact.id);
-        ref
-            .read(artifactsNotifierProvider.notifier)
-            .removeArtifact(artifact.id);
-        if (!context.mounted) return;
-        if (widget.embedded) {
-          widget.onClose?.call();
-        } else {
-          safePop<void>(context, fallbackRouteName: 'artifacts');
-        }
-      } catch (e, st) {
-        logger.warning(
-          '[ArtifactDetailScreen] deleteArtifact failed: '
-          'artifactId=${artifact.id} $e',
-          e,
-          st,
+      if (!context.mounted) return;
+      // Hoist the messenger before navigating away — this screen is
+      // unmounted by the time a failed delete needs to surface feedback.
+      final messenger = ScaffoldMessenger.of(context);
+      // Leave the screen immediately — the notifier removes the artifact
+      // optimistically and restores it (with a warning log) on failure.
+      if (widget.embedded) {
+        widget.onClose?.call();
+      } else {
+        safePop<void>(context, fallbackRouteName: 'artifacts');
+      }
+      final deleted = await ref
+          .read(artifactsNotifierProvider.notifier)
+          .optimisticRemove(artifact.id);
+      if (!deleted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.artifactsFailedToDelete)),
         );
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l10n.artifactsFailedToDelete)));
-        }
       }
     }
   }
