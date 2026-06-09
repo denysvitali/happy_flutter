@@ -97,7 +97,6 @@ extension SyncMessagingMerge on Sync {
   /// pagination alone is paginating in circles (e.g. parent Task
   /// lives outside the loaded window).
   static const int _orphanFetchOlderDefaultThrottleMs = 60000;
-
   Map<String, dynamic>? _extractUsageMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {
