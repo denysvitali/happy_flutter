@@ -10,13 +10,18 @@ extension SyncOperations on Sync {
       // Apply pending settings
       var postedSuccessfully = false;
       if (pendingSettings.isNotEmpty) {
-        final mergedSettings = Settings.fromJson({
+        // Compute the merged JSON once and reuse it for both the
+        // encrypted wire payload and the local `Settings` materialization.
+        // Previously we called `_settingsSnapshot.toJson()` to build the
+        // merge, then `Settings.fromJson` → `mergedSettings.toJson()` for
+        // the wire payload — three serializations to express one logical
+        // patch (perf #11).
+        final mergedJson = <String, dynamic>{
           ..._settingsSnapshot.toJson(),
           ...pendingSettings,
-        });
-        final encryptedPending = await encryption.encryptRaw(
-          mergedSettings.toJson(),
-        );
+        };
+        final mergedSettings = Settings.fromJson(mergedJson);
+        final encryptedPending = await encryption.encryptRaw(mergedJson);
 
         final updateResponse = await apiClient.post(
           '/v1/account/settings',
@@ -56,7 +61,8 @@ extension SyncOperations on Sync {
                   _settingsSnapshot,
                 )
               : _settingsSnapshot;
-          _settingsSnapshot = Settings.fromJson({
+          // Single serialization for the merge (perf #11).
+          _settingsSnapshot = Settings.fromJson(<String, dynamic>{
             ...serverSettings.toJson(),
             ...pendingSettings,
           });

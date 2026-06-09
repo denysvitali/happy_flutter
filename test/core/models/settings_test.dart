@@ -238,6 +238,74 @@ void main() {
     );
   });
 
+  group('Settings.shallowClone', () {
+    test('produces an equal-by-value copy of all primitive fields', () {
+      final original = Settings()
+        ..themeMode = 'dark'
+        ..viewInline = true
+        ..hideToolCalls = true
+        ..avatarStyle = 'wave'
+        ..ttsEnabled = true
+        ..ttsUseOffline = false
+        ..ttsEngine = 'system'
+        ..ttsVoiceId = 'voice-a'
+        ..voiceAssistantLanguage = 'en-US'
+        ..preferredLanguage = 'en'
+        ..usagePeriod = 'sevenDays'
+        ..lastUsedAgent = 'codex'
+        ..lastUsedPermissionMode = 'plan'
+        ..lastUsedModelMode = 'fast'
+        ..lastUsedProfile = 'openai'
+        ..folders = ['Work', 'Personal']
+        ..favoriteDirectories = ['~/dev']
+        ..favoriteMachines = ['m-1']
+        ..lastUsedProfilesByAgent = {'codex': 'openai', 'claude': 'anth'};
+
+      final clone = original.shallowClone();
+
+      // Roundtrip JSON equality is the contract that the old
+      // `Settings.fromJson(toJson())` clone provided. shallowClone
+      // must preserve it.
+      expect(clone.toJson(), equals(original.toJson()));
+    });
+
+    test('detaches collection fields so mutations do not leak back', () {
+      final original = Settings()
+        ..folders = ['Work']
+        ..favoriteDirectories = ['~/dev']
+        ..favoriteMachines = ['m-1']
+        ..lastUsedProfilesByAgent = {'codex': 'openai'};
+
+      final clone = original.shallowClone();
+
+      // Mutating the clone's collections must not affect the original.
+      clone.folders.add('Personal');
+      clone.favoriteDirectories.add('~/projects');
+      clone.favoriteMachines.add('m-2');
+      clone.lastUsedProfilesByAgent['claude'] = 'anth';
+
+      expect(original.folders, ['Work']);
+      expect(original.favoriteDirectories, ['~/dev']);
+      expect(original.favoriteMachines, ['m-1']);
+      expect(original.lastUsedProfilesByAgent, {'codex': 'openai'});
+    });
+
+    test('mutating top-level fields on the clone leaves original intact', () {
+      final original = Settings()
+        ..themeMode = 'dark'
+        ..ttsEnabled = true;
+
+      final clone = original.shallowClone()
+        ..themeMode = 'light'
+        ..ttsEnabled = false;
+
+      expect(original.themeMode, 'dark');
+      expect(original.ttsEnabled, isTrue);
+      expect(clone.themeMode, 'light');
+      expect(clone.ttsEnabled, isFalse);
+    });
+  });
+
   group('Settings legacy/unknown key handling', () {
     test('Settings.fromJson silently drops persisted legacy keys '
         '(regression: HAPPY_FLUTTER-3C6 ttsUseOffline crash)', () {

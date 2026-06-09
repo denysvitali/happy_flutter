@@ -443,7 +443,17 @@ class SettingsStorage {
   }
 
   Settings _cloneSettings(Settings settings) {
-    return Settings.fromJson(settings.toJson());
+    // Shallow clone — top-level primitives copied by value, collection
+    // fields copied into fresh List/Map instances so callers can mutate
+    // them without leaking back into the cached snapshot. Element
+    // objects (e.g. AIBackendProfile) are shared since their fields are
+    // final.
+    //
+    // Replaces `Settings.fromJson(settings.toJson())`, which round-
+    // tripped through JSON encoding for the same effect on every cache
+    // read/write and accounted for ~30% of settings-related allocations
+    // (perf #11).
+    return settings.shallowClone();
   }
 
   void _cacheSettings(Settings settings) {
@@ -501,9 +511,16 @@ class SettingsStorage {
     }
   }
 
-  /// Create a copy of settings without API keys for MMKV storage
+  /// Create a copy of settings without API keys for MMKV storage.
+  ///
+  /// `MMKVStorage.saveSettings` persists via `settings.toJson()`, which
+  /// already strips profile API keys (see `Settings.toJson` →
+  /// `AIBackendProfile.toJsonWithoutApiKeys`). The MMKV layer never
+  /// observes API keys regardless of what is passed in, so a shallow
+  /// clone is sufficient — we don't need a `fromJson(toJson())` round-
+  /// trip to materially scrub the in-memory object (perf #11).
   Settings _createSettingsCopyWithoutApiKeys(Settings settings) {
-    return Settings.fromJson(settings.toJson());
+    return settings.shallowClone();
   }
 
   /// Update a single setting
