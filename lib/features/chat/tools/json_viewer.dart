@@ -102,25 +102,22 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
           color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
         ),
       ),
-      child: SingleChildScrollView(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: isJson
-              ? JsonTreeViewer(value: jsonValue)
-              : SelectableText(
-                  plainText ??
-                      (widget.content is String
-                          ? widget.content as String
-                          : widget.content.toString()),
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontFamilyFallback: const ['Courier New', 'Courier'],
-                    fontSize: AppFontSize.sm,
-                    color: theme.colorScheme.onSurface,
-                    height: AppLineHeight.relaxed,
-                  ),
+      child: ToolOutputScrollFrame(
+        child: isJson
+            ? JsonTreeViewer(value: jsonValue)
+            : SelectableText(
+                plainText ??
+                    (widget.content is String
+                        ? widget.content as String
+                        : widget.content.toString()),
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontFamilyFallback: const ['Courier New', 'Courier'],
+                  fontSize: AppFontSize.sm,
+                  color: theme.colorScheme.onSurface,
+                  height: AppLineHeight.relaxed,
                 ),
-        ),
+              ),
       ),
     );
   }
@@ -191,6 +188,78 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
       texts.add(text);
     }
     return texts.length == 1 ? texts.first : texts.join('\n');
+  }
+}
+
+/// Two-axis scroll frame for bounded tool output panes.
+///
+/// Tool result widgets are often nested inside chat lists or draggable detail
+/// sheets. Explicit non-primary controllers keep the output pane independent
+/// from the surrounding scrollable and make both scrollbars target the right
+/// viewport.
+class ToolOutputScrollFrame extends StatefulWidget {
+  const ToolOutputScrollFrame({
+    required this.child,
+    super.key,
+    this.maxHeight,
+  });
+
+  final Widget child;
+  final double? maxHeight;
+
+  @override
+  State<ToolOutputScrollFrame> createState() => _ToolOutputScrollFrameState();
+}
+
+class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
+  late final ScrollController _verticalController;
+  late final ScrollController _horizontalController;
+
+  @override
+  void initState() {
+    super.initState();
+    _verticalController = ScrollController();
+    _horizontalController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _verticalController.dispose();
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget content = Scrollbar(
+      controller: _verticalController,
+      notificationPredicate: (notification) =>
+          notification.metrics.axis == Axis.vertical,
+      child: SingleChildScrollView(
+        controller: _verticalController,
+        primary: false,
+        child: Scrollbar(
+          controller: _horizontalController,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            controller: _horizontalController,
+            primary: false,
+            scrollDirection: Axis.horizontal,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+
+    if (widget.maxHeight != null) {
+      content = ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: widget.maxHeight!),
+        child: content,
+      );
+    }
+
+    return content;
   }
 }
 

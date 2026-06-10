@@ -799,18 +799,18 @@ class _JsonTreeBlock extends StatelessWidget {
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Theme(
-        // Force dark brightness so JsonTreeViewer always uses the dark palette
-        // inside the always-dark code container.
-        data: Theme.of(context).copyWith(
-          brightness: Brightness.dark,
-          colorScheme: Theme.of(context).colorScheme.copyWith(
+      child: ToolOutputScrollFrame(
+        maxHeight: 320,
+        child: Theme(
+          // Force dark brightness so JsonTreeViewer always uses the dark
+          // palette inside the always-dark code container.
+          data: Theme.of(context).copyWith(
             brightness: Brightness.dark,
-            onSurface: const Color(0xFFD4D4D4),
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              brightness: Brightness.dark,
+              onSurface: const Color(0xFFD4D4D4),
+            ),
           ),
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
           child: JsonTreeViewer(value: value),
         ),
       ),
@@ -841,8 +841,8 @@ class _CodeBlock extends StatelessWidget {
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      child: ToolOutputScrollFrame(
+        maxHeight: 320,
         child: SelectableText.rich(
           TextSpan(children: spans),
           style: defaultStyle,

@@ -998,18 +998,15 @@ class _McpTextOutputState extends State<_McpTextOutput> {
               color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
             ),
           ),
-          child: SingleChildScrollView(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SelectableText(
-                widget.text,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontFamilyFallback: const ['Courier New', 'Courier'],
-                  fontSize: AppFontSize.sm,
-                  color: theme.colorScheme.onSurface,
-                  height: AppLineHeight.relaxed,
-                ),
+          child: ToolOutputScrollFrame(
+            child: SelectableText(
+              widget.text,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontFamilyFallback: const ['Courier New', 'Courier'],
+                fontSize: AppFontSize.sm,
+                color: theme.colorScheme.onSurface,
+                height: AppLineHeight.relaxed,
               ),
             ),
           ),
