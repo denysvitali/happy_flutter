@@ -41,10 +41,26 @@ const sentryAnrTimeoutSeconds = int.fromEnvironment(
 );
 const sentryMaxBreadcrumbs = int.fromEnvironment(
   'SENTRY_MAX_BREADCRUMBS',
-  defaultValue: 100,
+  // Keep small.  Sentry serializes every breadcrumb on the calling
+  // thread when an event is captured, and the ANR watchdog (default
+  // 5 s) often fires from the main thread where our 39
+  // `Sentry.addBreadcrumb` call sites live.  Lower cap = smaller
+  // serialization cost in the ANR capture path itself.
+  defaultValue: 50,
 );
 const sentryEnableAutoNativeBreadcrumbs = bool.fromEnvironment(
   'SENTRY_ENABLE_AUTO_NATIVE_BREADCRUMBS',
-  defaultValue: true,
+  // Default off: Sentry's `SystemEventsBreadcrumbsIntegration` runs its
+  // `BroadcastReceiver.onReceive()` synchronously on the main thread for
+  // every BATTERY_CHANGED / NETWORK broadcast (getsentry/sentry-java#4907,
+  // JAVA-241). The leaf functions in those receivers — `__vfprintf`
+  // and `__memmove_aarch64_nt` — show up as ANR group-by keys in
+  // GlitchTip (HAPPY_FLUTTER-3D8, -3DN, -3D7). Disabling auto native
+  // breadcrumbs trades that main-thread pressure for a slightly thinner
+  // event trail; the lifecycle / navigation integrations we add
+  // explicitly still capture state transitions, and Dart-side
+  // `logger.info/warning/error` calls go through our own breadcrumb
+  // queue (see LoggerService).
+  defaultValue: false,
 );
 bool get sentryEnableDioInterceptor => sentryTracesSampleRate > 0;
