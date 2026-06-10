@@ -434,7 +434,9 @@ extension SyncLifecycle on Sync {
                   _advanceResumeConversationProgress(sessionsToRefresh.length);
                 }),
           );
-        } else if (shouldRefreshSessions) {
+        } else if (socketNeedsHttpFallback && !shouldRunGlobalInvalidation) {
+          // _invalidateAllSyncs() above already invalidated sessionsSync;
+          // re-invalidating here would start a second fetch cycle.
           sessionsSync.invalidate();
         }
       },

@@ -259,8 +259,12 @@ void main() {
             sessionsSyncRuns++;
           });
 
+          // Clearly below the 5 s global-invalidation gate. fakeAsync does
+          // not mock DateTime.now(), so a value near the gate (e.g. -5000)
+          // flips to global invalidation when real wall-clock milliseconds
+          // elapse before the deferred timer fires — a CI-only flake.
           sync.testLastSuspendedAtMs =
-              DateTime.now().millisecondsSinceEpoch - 5000;
+              DateTime.now().millisecondsSinceEpoch - 1000;
           sync.testSetVisibleSessionId(null);
           sync.testClearSessionsWithPendingSocketMessages();
 
@@ -275,6 +279,39 @@ void main() {
                 'socket is still disconnected after a short background '
                 'period, otherwise foreground recovery stalls until the '
                 'watchdog fires',
+          );
+        });
+      },
+    );
+
+    test(
+      'long resume with disconnected socket refreshes sessions exactly once',
+      () {
+        fakeAsync((async) {
+          var sessionsSyncRuns = 0;
+
+          sync.sessionsSync = InvalidateSync(() async {
+            sessionsSyncRuns++;
+          });
+
+          // Clearly above the 5 s gate: the global invalidation path runs.
+          sync.testLastSuspendedAtMs =
+              DateTime.now().millisecondsSinceEpoch - 60000;
+          // The singleton's 10 s global-invalidation cooldown could otherwise
+          // swallow the invalidation if an earlier test triggered one.
+          sync.testLastInvalidateAllSyncsAtMs = null;
+          sync.testSetVisibleSessionId(null);
+          sync.testClearSessionsWithPendingSocketMessages();
+
+          sync.resume();
+          async.elapse(const Duration(milliseconds: 600));
+
+          expect(
+            sessionsSyncRuns,
+            equals(1),
+            reason:
+                '_invalidateAllSyncs already refreshes sessions; the HTTP '
+                'fallback must not start a second fetch cycle on top of it',
           );
         });
       },
