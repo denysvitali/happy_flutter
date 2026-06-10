@@ -10,6 +10,13 @@ class AgentEventWidget extends StatelessWidget {
 
   final dynamic event;
 
+  /// Resolves the user-visible label for an agent event, or `null` when
+  /// the event has no renderable representation (unknown or telemetry-only
+  /// types such as `usage_report`). Callers building message lists use
+  /// this to skip label-less events entirely so they never occupy a
+  /// padded list row.
+  static String? labelFor(dynamic event) => _eventLabel(event);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -50,7 +57,7 @@ class AgentEventWidget extends StatelessWidget {
     );
   }
 
-  String? _eventLabel(dynamic event) {
+  static String? _eventLabel(dynamic event) {
     if (event is! Map<String, dynamic>) return null;
     final type = event['type'] as String?;
     switch (type) {

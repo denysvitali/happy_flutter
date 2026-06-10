@@ -36,6 +36,7 @@ import 'message_widget.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
+import 'widgets/agent_event_widget.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_loading_shimmer.dart';
 import 'widgets/cleared_divider.dart';

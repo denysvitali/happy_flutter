@@ -901,6 +901,33 @@ void main() {
 
         expect(result.messages, isEmpty);
       });
+
+      test('skips usage_report events', () {
+        // The CLI emits a usage_report session event after every agent
+        // turn (tokens + cost telemetry). It must never become a chat
+        // row — usage is extracted from the output content path.
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'event',
+                'data': {
+                  'type': 'usage_report',
+                  'tokens': {'Total': 100, 'Input': 60, 'Output': 40},
+                  'cost': 0.0123,
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+      });
     });
 
     group('codex content', () {

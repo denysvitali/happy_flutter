@@ -57,4 +57,50 @@ void main() {
       expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
     });
   });
+
+  group('AgentEventWidget.labelFor', () {
+    test('returns labels for renderable event types', () {
+      expect(
+        AgentEventWidget.labelFor(
+          <String, dynamic>{'type': 'switch', 'mode': 'remote'},
+        ),
+        'Switched to remote mode',
+      );
+      expect(
+        AgentEventWidget.labelFor(
+          <String, dynamic>{'type': 'message', 'message': 'hi'},
+        ),
+        'hi',
+      );
+      expect(
+        AgentEventWidget.labelFor(<String, dynamic>{'type': 'limit-reached'}),
+        'Usage limit reached',
+      );
+      expect(
+        AgentEventWidget.labelFor(<String, dynamic>{'type': 'unrendered'}),
+        'Unsupported agent message',
+      );
+    });
+
+    test('returns null for label-less events so list builders skip them', () {
+      // usage_report / ready rows still exist in older message caches;
+      // the chat list must not give them a padded row.
+      expect(
+        AgentEventWidget.labelFor(
+          <String, dynamic>{'type': 'usage_report', 'cost': 0.1},
+        ),
+        isNull,
+      );
+      expect(
+        AgentEventWidget.labelFor(<String, dynamic>{'type': 'ready'}),
+        isNull,
+      );
+      expect(
+        AgentEventWidget.labelFor(<String, dynamic>{'type': 'unknown-x'}),
+        isNull,
+      );
+      expect(AgentEventWidget.labelFor(null), isNull);
+      expect(AgentEventWidget.labelFor('not-a-map'), isNull);
+    });
+  });
 }
