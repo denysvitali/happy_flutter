@@ -54,7 +54,12 @@ Future<T?> showAppSheet<T>(
             mainAxisSize: MainAxisSize.min,
             children: [
               const _SheetDragHandle(),
-              Flexible(child: Builder(builder: builder)),
+              Flexible(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Builder(builder: builder),
+                ),
+              ),
             ],
           ),
         ),
