@@ -83,6 +83,17 @@ void main() {
         sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet:high'),
         isNull,
       );
+      expect(
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'claude-fable-5'),
+        isNull,
+      );
+      expect(
+        sync.testGetModelOverride(
+          agent: 'codex',
+          modelMode: 'anthropic/claude-opus-4-6',
+        ),
+        isNull,
+      );
     });
 
     test('drops explicit Claude alias for Codex-only profiles', () {
@@ -130,6 +141,17 @@ void main() {
         sync.testNormalizeModelModeForAgent('sonnet:high', 'codex'),
         'default',
       );
+      expect(
+        sync.testNormalizeModelModeForAgent('claude-fable-5', 'codex'),
+        'default',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent(
+          'anthropic/claude-opus-4-6',
+          'codex',
+        ),
+        'default',
+      );
     });
 
     test('preserves non-Claude model names for Codex profiles', () {
@@ -164,6 +186,10 @@ void main() {
     test('preserves Claude aliases for Claude sessions', () {
       expect(sync.testNormalizeModelModeForAgent('opus', 'claude'), 'opus');
       expect(sync.testNormalizeModelModeForAgent('sonnet', 'claude'), 'sonnet');
+      expect(
+        sync.testNormalizeModelModeForAgent('claude-fable-5', 'claude'),
+        'claude-fable-5',
+      );
     });
 
     test('preserves Claude-compatible custom model names', () {

@@ -260,12 +260,31 @@ void main() {
   test('raw model normalization drops Claude effort modes for Codex', () {
     expect(ChatModelMode.normalizeRawForFlavor('opus:max', 'codex'), 'default');
     expect(
+      ChatModelMode.normalizeRawForFlavor('claude-fable-5', 'codex'),
+      'default',
+    );
+    expect(
+      ChatModelMode.normalizeRawForFlavor('anthropic/claude-opus-4-6', 'codex'),
+      'default',
+    );
+    expect(
       ChatModelMode.normalizeRawForFlavor('sonnet:high', 'codex'),
       'default',
     );
   });
 
   test('raw model normalization preserves provider-owned strings', () {
+    expect(
+      ChatModelMode.normalizeRawForFlavor('claude-fable-5', 'claude'),
+      'claude-fable-5',
+    );
+    expect(
+      ChatModelMode.normalizeRawForFlavor(
+        'anthropic/claude-opus-4-6',
+        'claude',
+      ),
+      'anthropic/claude-opus-4-6',
+    );
     expect(ChatModelMode.normalizeRawForFlavor('GLM-5', 'claude'), 'GLM-5');
     expect(
       ChatModelMode.normalizeRawForFlavor('MiniMax-Text-01', 'claude'),

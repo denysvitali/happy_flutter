@@ -42,10 +42,7 @@ class ChatModelMode {
 
   static const _knownSlugs = {'fable', 'sonnet', 'opus'};
 
-  factory ChatModelMode.custom({
-    required String slug,
-    String? effort,
-  }) {
+  factory ChatModelMode.custom({required String slug, String? effort}) {
     final effortLabel = effort != null ? _capitalizeEffort(effort) : null;
     return ChatModelMode._(
       label: effortLabel != null ? '$slug $effortLabel' : slug,
@@ -149,10 +146,10 @@ class ChatModelMode {
       'sonnet' => sonnet,
       'opus' => opus,
       final raw? when raw.contains(':') => _fromColonSelection(raw),
-      final raw? when raw.isNotEmpty && raw != 'default' => ChatModelMode._(
-        label: raw,
-        modeString: raw,
-      ),
+      final raw? when raw.isNotEmpty && raw != 'default' =>
+        _isClaudeModelSlug(raw)
+            ? ChatModelMode.custom(slug: raw)
+            : ChatModelMode._(label: raw, modeString: raw),
       _ => defaultModel,
     };
   }
@@ -262,7 +259,7 @@ class ChatModelMode {
   }
 
   static bool _isClaudeModelSlug(String slug) {
-    return slug.startsWith('claude-');
+    return slug.startsWith('claude-') || slug.contains('/claude-');
   }
 
   static String _displayNameFromSlug(String slug) {

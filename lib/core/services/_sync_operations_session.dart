@@ -801,8 +801,7 @@ PY
     // Built-in profiles do not have API keys in secure storage and
     // [hydrateProfileApiKeys] would return null for them. Short-circuit
     // so we always return a usable profile.
-    final hydrated =
-        await SettingsStorage().hydrateProfileApiKeys(profile.id);
+    final hydrated = await SettingsStorage().hydrateProfileApiKeys(profile.id);
     return hydrated ?? profile;
   }
 
@@ -907,7 +906,11 @@ PY
   bool _isClaudeModelAlias(String modelMode) {
     final separator = modelMode.lastIndexOf(':');
     final slug = separator > 0 ? modelMode.substring(0, separator) : modelMode;
-    return slug == 'opus' || slug == 'sonnet' || slug == 'fable';
+    return slug == 'opus' ||
+        slug == 'sonnet' ||
+        slug == 'fable' ||
+        slug.startsWith('claude-') ||
+        slug.contains('/claude-');
   }
 
   /// Recognize known non-Claude model identifiers so they can be stripped
