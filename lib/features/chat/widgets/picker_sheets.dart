@@ -16,6 +16,7 @@ IconData iconForModel(ChatModelMode model) {
   if (model.isCustom) return Icons.tune_outlined;
   if (model.modelSlug == 'opus') return Icons.diamond_outlined;
   if (model.modelSlug == 'sonnet') return Icons.auto_awesome_outlined;
+  if (model.modelSlug == 'fable') return Icons.auto_stories_outlined;
   if (model == ChatModelMode.defaultModel) return Icons.smart_toy_outlined;
   return Icons.smart_toy_outlined;
 }
@@ -199,6 +200,7 @@ class _GroupedModelPickerContent extends StatefulWidget {
 class _GroupedModelPickerContentState
     extends State<_GroupedModelPickerContent> {
   late String? _selectedSlug = widget.current.modelSlug ?? _firstSlug;
+  late ChatModelMode _current = widget.current;
   late final List<String> _customModels = List<String>.from(
     widget.settings?.customModelModes ?? const [],
   );
@@ -261,7 +263,7 @@ class _GroupedModelPickerContentState
             _buildModelTile(
               context,
               defaultModel.first,
-              widget.current,
+              _current,
               theme,
               widget.onChanged,
             ),
@@ -272,7 +274,7 @@ class _GroupedModelPickerContentState
               displayName: _displayNameForSlug(entry.value),
               selected: entry.key == _selectedSlug,
             ),
-          if (selectedModels.isNotEmpty) ...[
+          if (selectedModels.length >= 2) ...[
             Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -288,11 +290,14 @@ class _GroupedModelPickerContentState
                 ),
               ),
             ),
+            _buildEffortSlider(context, selectedModels),
+          ] else if (selectedModels.isNotEmpty) ...[
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
             for (final model in selectedModels)
               _buildModelTile(
                 context,
                 model,
-                widget.current,
+                _current,
                 theme,
                 widget.onChanged,
                 labelOverride: model.hasEffort
@@ -337,7 +342,15 @@ class _GroupedModelPickerContentState
     return InkWell(
       onTap: () {
         HapticFeedback.selectionClick();
-        setState(() => _selectedSlug = model.modelSlug);
+        // Selecting a family commits its effort-less base variant (Auto) so
+        // closing the sheet applies the choice. The effort slider then refines
+        // it. Without this, tapping a family only swapped the visible slider
+        // and committed nothing unless the user dragged the slider.
+        setState(() {
+          _selectedSlug = model.modelSlug;
+          _current = model;
+        });
+        widget.onChanged(model);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -365,6 +378,79 @@ class _GroupedModelPickerContentState
               Icon(Icons.chevron_right_rounded, size: 18, color: cs.primary),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Discrete slider over the effort levels of the selected model.
+  ///
+  /// The first stop is the effort-less "Auto" variant; subsequent stops map to
+  /// the model's `claudeEfforts` (Low → Max). Dragging applies the selection
+  /// live without dismissing the sheet so the user can fine-tune.
+  Widget _buildEffortSlider(
+    BuildContext context,
+    List<ChatModelMode> models,
+  ) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final labels = [
+      for (final model in models)
+        model.hasEffort ? model.reasoningEffortLabel : 'Auto',
+    ];
+    final selectedIndex = models.indexWhere((m) => m == _current);
+    final currentIndex = selectedIndex < 0 ? 0 : selectedIndex;
+
+    void apply(double value) {
+      final model = models[value.round().clamp(0, models.length - 1)];
+      if (model == _current) return;
+      HapticFeedback.selectionClick();
+      setState(() => _current = model);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Slider(
+            value: currentIndex.toDouble(),
+            max: (models.length - 1).toDouble(),
+            divisions: models.length - 1,
+            label: labels[currentIndex],
+            onChanged: apply,
+            onChangeEnd: (value) => widget.onChanged(
+              models[value.round().clamp(0, models.length - 1)],
+            ),
+          ),
+          Row(
+            children: [
+              for (var i = 0; i < labels.length; i++)
+                Expanded(
+                  child: Text(
+                    labels[i],
+                    textAlign: i == 0
+                        ? TextAlign.start
+                        : i == labels.length - 1
+                        ? TextAlign.end
+                        : TextAlign.center,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: i == currentIndex
+                          ? cs.primary
+                          : cs.onSurfaceVariant,
+                      fontWeight: i == currentIndex
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

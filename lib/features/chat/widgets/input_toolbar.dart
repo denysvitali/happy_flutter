@@ -57,6 +57,8 @@ class ModelChip extends StatelessWidget {
                     ? Icons.diamond_outlined
                     : model.modelSlug == 'sonnet'
                     ? Icons.auto_awesome_outlined
+                    : model.modelSlug == 'fable'
+                    ? Icons.auto_stories_outlined
                     : Icons.smart_toy_outlined,
                 size: 11,
                 color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),

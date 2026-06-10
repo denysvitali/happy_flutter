@@ -40,7 +40,7 @@ class ChatModelMode {
     );
   }
 
-  static const _knownSlugs = {'sonnet', 'opus'};
+  static const _knownSlugs = {'fable', 'sonnet', 'opus'};
 
   factory ChatModelMode.custom({
     required String slug,
@@ -60,6 +60,14 @@ class ChatModelMode {
   static const defaultModel = ChatModelMode._(
     label: 'Default',
     modeString: 'default',
+  );
+
+  /// Fable-class mode (Claude Fable 5; no effort override).
+  static const fable = ChatModelMode._(
+    label: 'Fable',
+    modeString: 'fable',
+    modelSlug: 'fable',
+    flavor: 'claude',
   );
 
   /// Sonnet-class mode (no effort override).
@@ -82,30 +90,28 @@ class ChatModelMode {
   static const claudeEfforts = ['low', 'medium', 'high', 'xhigh', 'max'];
 
   static List<ChatModelMode> _buildClaudeModels() {
-    final list = <ChatModelMode>[defaultModel, sonnet];
-    for (final effort in claudeEfforts) {
-      list.add(
-        ChatModelMode.fromClaudeModel(
-          tier: 'sonnet',
-          displayName: 'Sonnet',
-          effort: effort,
-        ),
-      );
-    }
-    list.add(opus);
-    for (final effort in claudeEfforts) {
-      list.add(
-        ChatModelMode.fromClaudeModel(
-          tier: 'opus',
-          displayName: 'Opus',
-          effort: effort,
-        ),
-      );
+    final list = <ChatModelMode>[defaultModel];
+    const tiers = [
+      (base: fable, displayName: 'Fable'),
+      (base: sonnet, displayName: 'Sonnet'),
+      (base: opus, displayName: 'Opus'),
+    ];
+    for (final tier in tiers) {
+      list.add(tier.base);
+      for (final effort in claudeEfforts) {
+        list.add(
+          ChatModelMode.fromClaudeModel(
+            tier: tier.base.modeString,
+            displayName: tier.displayName,
+            effort: effort,
+          ),
+        );
+      }
     }
     return list;
   }
 
-  static const values = [defaultModel, sonnet, opus];
+  static const values = [defaultModel, fable, sonnet, opus];
 
   static final List<ChatModelMode> claudeModels = _buildClaudeModels();
 
@@ -139,6 +145,7 @@ class ChatModelMode {
   /// Parse a wire-format string back to a [ChatModelMode].
   static ChatModelMode fromString(String? value) {
     return switch (value) {
+      'fable' => fable,
       'sonnet' => sonnet,
       'opus' => opus,
       final raw? when raw.contains(':') => _fromColonSelection(raw),
@@ -233,10 +240,14 @@ class ChatModelMode {
     }
     final slug = raw.substring(0, separator);
     final effort = raw.substring(separator + 1);
-    if (slug == 'opus' || slug == 'sonnet') {
+    if (slug == 'opus' || slug == 'sonnet' || slug == 'fable') {
       return ChatModelMode.fromClaudeModel(
         tier: slug,
-        displayName: slug == 'opus' ? 'Opus' : 'Sonnet',
+        displayName: switch (slug) {
+          'opus' => 'Opus',
+          'sonnet' => 'Sonnet',
+          _ => 'Fable',
+        },
         effort: effort,
       );
     }

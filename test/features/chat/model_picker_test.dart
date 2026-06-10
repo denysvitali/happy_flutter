@@ -92,10 +92,12 @@ void main() {
     );
 
     expect(find.text('Default'), findsOneWidget);
+    expect(find.text('Fable'), findsOneWidget);
     expect(find.text('Sonnet'), findsOneWidget);
     expect(find.text('Opus'), findsOneWidget);
     expect(find.text('Effort'), findsOneWidget);
-    // Sonnet is the first slug — its effort sub-list should be visible.
+    // The effort levels are rendered as labels under a slider.
+    expect(find.byType(Slider), findsOneWidget);
     expect(find.text('Auto'), findsOneWidget);
     expect(find.text('Low'), findsOneWidget);
     expect(find.text('Medium'), findsOneWidget);
@@ -145,9 +147,60 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Opus'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('High'));
+    // Drag the effort slider fully to the right → Max.
+    await tester.drag(find.byType(Slider), const Offset(1000, 0));
     await tester.pumpAndSettle();
-    expect(selected, 'opus:high');
+    expect(selected, 'opus:max');
+  });
+
+  testWidgets('fable effort selection emits the wire-format string', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: TextButton(
+                onPressed: () {
+                  showModelPickerSheet(
+                    context,
+                    ChatModelMode.defaultModel,
+                    ChatModelMode.availableForFlavor('claude'),
+                    (m) => selected = m.modeString,
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fable'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Slider), const Offset(1000, 0));
+    await tester.pumpAndSettle();
+    expect(selected, 'fable:max');
+  });
+
+  test('fromString round-trips the fable tier and its effort variants', () {
+    expect(ChatModelMode.fromString('fable'), ChatModelMode.fable);
+    final fableHigh = ChatModelMode.fromString('fable:high');
+    expect(fableHigh.modeString, 'fable:high');
+    expect(fableHigh.modelSlug, 'fable');
+    expect(fableHigh.reasoningEffort, 'high');
+    expect(fableHigh.isClaude, isTrue);
+    expect(fableHigh.isCustom, isFalse);
   });
 
   testWidgets('custom models can be removed from the picker', (tester) async {
