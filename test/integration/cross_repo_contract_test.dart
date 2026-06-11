@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/models/built_in_profiles.dart';
 
 void main() {
   group('happy-cli-go cross-repo contract', () {
@@ -97,6 +98,64 @@ void main() {
       expect(goSessionSync, contains('/v1/updates'));
       expect(goWsEvents, contains('EventMessage'));
       expect(goWsEvents, contains('EventUpdate'));
+    });
+
+    test('daemon cannot hijack provider choice via its own shell env', () {
+      final cliRoot = _cliRoot();
+      if (cliRoot == null) {
+        markTestSkipped(_missingCliMessage);
+        return;
+      }
+      final goFiles = _requireGoFiles(cliRoot, [
+        'internal/daemon/daemon_runtime.go',
+        'internal/daemon/spawn_env_validation_test.go',
+      ]);
+      if (goFiles == null) return;
+
+      // App side of the contract: "Anthropic (Default)" intentionally sends
+      // NO provider env vars — their absence on the wire means "use the
+      // machine's plain Anthropic login", not "daemon may fill the gap".
+      final anthropic = getBuiltInProfile('anthropic');
+      expect(anthropic, isNotNull);
+      expect(
+        anthropic!.environmentVariables,
+        isEmpty,
+        reason:
+            'The built-in Anthropic profile must stay env-var-free; the '
+            'daemon interprets absence as "plain Anthropic"',
+      );
+      expect(
+        anthropic.anthropicConfig,
+        isNull,
+        reason: 'No base-URL/auth-token/model overrides for plain Anthropic',
+      );
+
+      // Daemon side: buildSpawnEnvMap must strip provider-routing vars
+      // inherited from the daemon's own process environment. Without this, a
+      // daemon started from a shell with a third-party provider exported
+      // (e.g. MiniMax) silently overrides the user's explicit provider
+      // choice — incident: a fable:high Anthropic session was answered by
+      // MiniMax-M3 (session cf84f290ef71e368788c4ac66).
+      final goRuntime = goFiles[0];
+      expect(goRuntime, contains('stripInheritedProviderEnv(envMap)'));
+      expect(goRuntime, contains('"ANTHROPIC_BASE_URL"'));
+      expect(goRuntime, contains('"ANTHROPIC_AUTH_TOKEN"'));
+      expect(goRuntime, contains('"ANTHROPIC_MODEL"'));
+      expect(goRuntime, contains('ANTHROPIC_DEFAULT_'));
+      expect(goRuntime, contains('HAPPY_INHERIT_PROVIDER_ENV'));
+
+      // And the Go regression test pinning the incident must stay in place.
+      final goSpawnTests = goFiles[1];
+      expect(
+        goSpawnTests,
+        contains(
+          'TestSpawnEnv_DaemonShellProviderConfigCannotHijackAnthropicSpawn',
+        ),
+      );
+      expect(
+        goSpawnTests,
+        contains('TestSpawnEnv_AnthropicBaseURLNotInheritedFromDaemonEnv'),
+      );
     });
   });
 }
