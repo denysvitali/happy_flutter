@@ -1,4 +1,7 @@
+import 'dart:async' show unawaited;
+
 import 'package:riverpod/riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../models/session.dart';
 import '../services/logger_service.dart' show logger;
@@ -31,12 +34,27 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       final session = source[id];
       if (session == null) continue;
       var updated = session;
-      if (pinned.contains(id) && !session.pinned) {
-        updated = updated.copyWith(pinned: true);
-      }
-      final folder = folders[id];
-      if (folder != null && session.folder != folder) {
-        updated = updated.copyWith(folder: folder);
+      // Defensive: a malformed entry from storage (e.g. a typed Map
+      // that the freezed copyWith cast rejects as `_pca<String>` in
+      // release) used to take down the whole merge and leave the
+      // sessions list stale. Skip the offending session and warn so
+      // a future release can pinpoint the shape.
+      try {
+        if (pinned.contains(id) && !session.pinned) {
+          updated = updated.copyWith(pinned: true);
+        }
+        final folder = folders[id];
+        if (folder != null && session.folder != folder) {
+          updated = updated.copyWith(folder: folder);
+        }
+      } catch (e, st) {
+        logger.warning(
+          'SessionsNotifier._mergeLocalState: copyWith failed for $id '
+          '— skipping local-state merge. $e',
+          e,
+          st,
+        );
+        continue;
       }
       if (!identical(updated, session)) {
         nextState ??= Map<String, Session>.from(state);
@@ -58,8 +76,31 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     // each time, so identical() on the maps themselves is useless — but
     // per-entry identical() catches the common no-op refresh.
     if (mapValuesIdentical(state, next)) return;
-    state = Map<String, Session>.from(next);
-    _mergeLocalState();
+    try {
+      state = Map<String, Session>.from(next);
+      _mergeLocalState();
+    } catch (e, st) {
+      // A session envelope that doesn't satisfy the model (e.g. a
+      // wrapped type for a String? field) used to abort the whole
+      // loadFromSync and leave the sessions list stale for the rest
+      // of the app lifetime. Capture the offending shape so the next
+      // GlitchTip event carries the real culprit, then keep the
+      // previous state intact.
+      logger.warning(
+        'SessionsNotifier.loadFromSync: merge failed, keeping previous state. '
+        '$e',
+        e,
+        st,
+      );
+      unawaited(Sentry.captureException(
+        e,
+        stackTrace: st,
+        hint: Hint.withMap({
+          'source': 'loadFromSync',
+          'sessionCount': next.length,
+        }),
+      ));
+    }
   }
 
   /// Reload session state from sync.

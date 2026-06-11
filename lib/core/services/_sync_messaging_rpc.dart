@@ -68,9 +68,28 @@ extension SyncMessagingRpc on Sync {
       final decrypted = await machineEncryption.decryptRaw(encryptedResult);
       final elapsedMs = stopwatch.elapsedMilliseconds;
       if (elapsedMs >= 2000) {
-        logger.info(
+        // Pre-flight pings over 2s usually mean a wedged daemon or
+        // a saturated socket — surface as a warning so daemons and
+        // operators see the cluster health drift, not just the slow
+        // path. Stays well under the 8 s createSession budget.
+        logger.warning(
           '[machineRPC] SLOW method=$method machine=$machineId '
           'elapsedMs=$elapsedMs preSendMs=$rpcElapsedBeforeSend',
+        );
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'machineRPC SLOW',
+              category: 'sync.machines',
+              level: SentryLevel.warning,
+              data: {
+                'machineId': machineId,
+                'method': method,
+                'elapsedMs': elapsedMs,
+                'preSendMs': rpcElapsedBeforeSend,
+              },
+            ),
+          ),
         );
       }
       if (decrypted == null) {

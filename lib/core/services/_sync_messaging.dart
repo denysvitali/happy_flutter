@@ -953,6 +953,55 @@ extension SyncMessaging on Sync {
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
       rethrow;
+    } on TypeError catch (typeError, stack) {
+      // Defensive net for the 3EV/3EU cluster: a freshly-spawned
+      // session's first fetch can hand a parser a Map whose values
+      // are typed wrappers (e.g. `_pca<String>`) instead of the
+      // `String?` shape the freezed cast expects. The catch-all
+      // below would log it as a generic error and leave the
+      // sessionId un-notified, so the UI hangs on its loading
+      // spinner. Capture, tag, and notify so the user sees a
+      // recoverable empty state instead of a blank chat.
+      fetchSpan
+        ..status = SpanStatus.internalError()
+        ..setData('error', typeError.toString())
+        ..setData('errorKind', 'TypeError')
+        ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+      unawaited(fetchSpan.finish());
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'fetchMessages: TypeError (envelope shape)',
+            category: 'sync.messages',
+            level: SentryLevel.error,
+            data: {
+              'sessionId': sessionId,
+              'error': typeError.toString(),
+              'isFirstLoad': true,
+              'elapsedMs': fetchStopwatch.elapsedMilliseconds,
+            },
+          ),
+        ),
+      );
+      unawaited(
+        Sentry.captureException(
+          typeError,
+          stackTrace: stack,
+          hint: Hint.withMap({
+            'source': 'fetchMessages',
+            'sessionId': sessionId,
+            'isFirstLoad': true,
+          }),
+        ),
+      );
+      logger.error(
+        'fetchMessages: TypeError decoding envelope (likely a wrapped '
+        'type for a String? field). Treating as empty page.',
+        typeError,
+        stack,
+      );
+      _notifySessionMessagesChanged(sessionId);
+      _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
     } catch (error, stack) {
       fetchSpan
         ..status = SpanStatus.internalError()
