@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../models/auth.dart';
+import '../models/built_in_profiles.dart';
 import '../models/settings.dart';
 import '../models/settings_update.dart';
 import 'logger_service.dart' show logger;
@@ -175,6 +176,7 @@ class SettingsStorage {
     // Perform one-time migration if needed
     if (!_migrationChecked) {
       await _performMigrationIfNeeded(settings);
+      await _normalizeStaleBuiltInProfileDefaults(settings);
       _migrationChecked = true;
     }
 
@@ -192,6 +194,7 @@ class SettingsStorage {
     final settings = await _storage.getSettings();
     if (!_migrationChecked) {
       await _performMigrationIfNeeded(settings);
+      await _normalizeStaleBuiltInProfileDefaults(settings);
       _migrationChecked = true;
     }
     _cacheSettings(settings);
@@ -379,6 +382,22 @@ class SettingsStorage {
       // Non-fatal: flag persistence is purely a perf optimization.
       logger.info('SettingsStorage: migration flag write failed: $e');
     }
+  }
+
+  Future<void> _normalizeStaleBuiltInProfileDefaults(Settings settings) async {
+    var changed = false;
+    final updatedProfiles = settings.profiles.map((profile) {
+      final updated = normalizeBuiltInProfileDefaults(profile);
+      if (!identical(updated, profile)) changed = true;
+      return updated;
+    }).toList();
+    if (!changed) return;
+
+    settings.profiles = updatedProfiles;
+    await _storage.saveSettings(settings);
+    logger.info(
+      'SettingsStorage: normalized stale MiniMax profile model defaults',
+    );
   }
 
   /// Load API keys from secure storage into settings object

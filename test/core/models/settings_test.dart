@@ -112,6 +112,40 @@ void main() {
       expect(restored.usagePeriod, 'sevenDays');
       expect(restored.folders, ['Work', 'Personal']);
     });
+
+    test('stale MiniMax-M3 defaultModelMode is normalized to MiniMax-M2.7', () {
+      final stale = AIBackendProfile(
+        id: 'minimax',
+        name: 'MiniMax',
+        defaultModelMode: 'MiniMax-M3',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_MODEL',
+            value: r'${MINIMAX_MODEL:-MiniMax-M3}',
+          ),
+        ],
+      );
+
+      final normalized = normalizeBuiltInProfileDefaults(stale);
+
+      expect(normalized.defaultModelMode, 'MiniMax-M2.7');
+      expect(
+        normalized.environmentVariables.single.value,
+        r'${MINIMAX_MODEL:-MiniMax-M2.7}',
+      );
+    });
+
+    test('user-edited MiniMax defaultModelMode is preserved', () {
+      final edited = AIBackendProfile(
+        id: 'minimax',
+        name: 'MiniMax',
+        defaultModelMode: 'MiniMax-custom',
+      );
+
+      final normalized = normalizeBuiltInProfileDefaults(edited);
+
+      expect(normalized.defaultModelMode, 'MiniMax-custom');
+    });
   });
 
   group('Pi agent profile bucketing', () {

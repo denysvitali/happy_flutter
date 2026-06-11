@@ -110,28 +110,33 @@ extension SyncSessionOperations on Sync {
     // async settings sync reloads overwriting _settingsSnapshot.lastUsedAgent.
     // Use explicit profileId if provided, otherwise fall back to the
     // profile last used for this agent.
-    final effectiveProfileId =
+    final selectedProfileId =
         profileId ?? resolveSelectedProfileIdForAgent(_settingsSnapshot, agent);
-    final profile = effectiveProfileId != null
-        ? _resolveProfile(effectiveProfileId)
+    final selectedProfile = selectedProfileId != null
+        ? _resolveProfile(selectedProfileId)
         : null;
+    final normalizedModelMode = _normalizeModelModeForAgent(modelMode, agent);
+    final spawnProfileResolution = _resolveEffectiveProfileForSpawn(
+      profile: selectedProfile,
+      modelMode: normalizedModelMode,
+      agent: agent,
+    );
+    final effectiveProfileId = spawnProfileResolution.profile != null
+        ? selectedProfileId
+        : null;
+    final effectiveModelMode = spawnProfileResolution.modelMode;
     // Cold-start optimization: API keys live in secure storage and are
     // hydrated on demand. Hydrate the selected profile now so its
     // `apiKey` fields are populated before we build the env vars.
-    final hydratedProfile = profile != null
-        ? await _hydrateProfileForSpawn(profile)
+    final hydratedProfile = spawnProfileResolution.profile != null
+        ? await _hydrateProfileForSpawn(spawnProfileResolution.profile!)
         : null;
     final profileEnvVars = hydratedProfile != null
         ? _profileEnvironmentVariables(hydratedProfile)
         : null;
     final permMode =
-        profile?.defaultPermissionMode ??
+        spawnProfileResolution.profile?.defaultPermissionMode ??
         _settingsSnapshot.lastUsedPermissionMode;
-    // Pass only model modes that are valid for the target agent so stale
-    // Claude aliases do not leak into Codex/Gemini sessions. Profile env
-    // vars are always forwarded as-is because the profile defines the
-    // backend (API keys, base URLs, model names).
-    final normalizedModelMode = _normalizeModelModeForAgent(modelMode, agent);
     final envVars = _spawnEnvironmentVariables(profileEnvVars);
     if (message != null && message.isNotEmpty) {
       envVars['HAPPY_INITIAL_PROMPT'] = message;
@@ -145,8 +150,8 @@ extension SyncSessionOperations on Sync {
       permissionMode: permMode,
       model: _getModelOverride(
         agent: agent,
-        profile: profile,
-        modelMode: normalizedModelMode,
+        profile: spawnProfileResolution.profile,
+        modelMode: effectiveModelMode,
       ),
       environmentVariables: envVars,
     );
@@ -154,7 +159,7 @@ extension SyncSessionOperations on Sync {
     logger.info(
       '[createSession] START machine=$machineId '
       'session=$requestedSessionId '
-      'agent=$agent model=$normalizedModelMode '
+      'agent=$agent model=$effectiveModelMode '
       'path=$resolvedPath hasInitialMessage=${message?.isNotEmpty ?? false}',
     );
 
@@ -200,13 +205,13 @@ extension SyncSessionOperations on Sync {
       }
       _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
       _sessionSpawnedProfile[sessionId] = effectiveProfileId;
-      _sessionSpawnedModel[sessionId] = normalizedModelMode;
+      _sessionSpawnedModel[sessionId] = effectiveModelMode;
       _sessionSpawnedAgent[sessionId] = agent;
       logger.info(
         '[createSession] Registered session $sessionId '
         'in _sessionSpawnedAt '
         '(profile=$effectiveProfileId, '
-        'model=$normalizedModelMode, agent=$agent)',
+        'model=$effectiveModelMode, agent=$agent)',
       );
 
       await _hydrateSpawnedSession(
@@ -885,6 +890,35 @@ PY
     return <String, String>{...?base};
   }
 
+  ({AIBackendProfile? profile, String? modelMode})
+  _resolveEffectiveProfileForSpawn({
+    required AIBackendProfile? profile,
+    required String? modelMode,
+    required String? agent,
+  }) {
+    if (profile == null) {
+      return (profile: null, modelMode: modelMode);
+    }
+    if (!profile.compatibility.supportsAgent(agent ?? 'claude')) {
+      logger.warning(
+        '[createSession] profile ${profile.id} is not compatible with '
+        'agent=$agent; spawning without profile env vars',
+      );
+      return (profile: null, modelMode: modelMode);
+    }
+    final baseUrl = _anthropicBaseUrlForProfile(profile);
+    if (agent == 'claude' &&
+        _isClaudeModelAlias(modelMode ?? '') &&
+        _isThirdPartyAnthropicBaseUrl(baseUrl)) {
+      logger.warning(
+        '[createSession] dropping incompatible Claude model override '
+        'profile=${profile.id} modelMode=$modelMode baseUrl=$baseUrl',
+      );
+      return (profile: profile, modelMode: 'default');
+    }
+    return (profile: profile, modelMode: modelMode);
+  }
+
   String? _normalizeModelModeForAgent(String? modelMode, String? agent) {
     if (modelMode == null || modelMode == 'default') {
       return modelMode;
@@ -908,9 +942,44 @@ PY
     final slug = separator > 0 ? modelMode.substring(0, separator) : modelMode;
     return slug == 'opus' ||
         slug == 'sonnet' ||
+        slug == 'haiku' ||
         slug == 'fable' ||
         slug.startsWith('claude-') ||
         slug.contains('/claude-');
+  }
+
+  bool _isThirdPartyAnthropicBaseUrl(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return false;
+    return !_isOfficialAnthropicBaseUrl(raw);
+  }
+
+  bool _isOfficialAnthropicBaseUrl(String raw) {
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null) return false;
+    if (uri.scheme.toLowerCase() != 'https') return false;
+    if (uri.host.toLowerCase() != 'api.anthropic.com') return false;
+    final normalizedPath = uri.path.endsWith('/')
+        ? uri.path.substring(0, uri.path.length - 1)
+        : uri.path;
+    return normalizedPath.isEmpty || normalizedPath == '/v1';
+  }
+
+  String? _anthropicBaseUrlForProfile(AIBackendProfile profile) {
+    final configBaseUrl = profile.anthropicConfig?.baseUrl;
+    if (configBaseUrl != null && configBaseUrl.isNotEmpty) {
+      return _extractDefaultEnvValue(configBaseUrl);
+    }
+    for (final env in profile.environmentVariables) {
+      if (env.name == 'ANTHROPIC_BASE_URL' && env.value.isNotEmpty) {
+        return _extractDefaultEnvValue(env.value);
+      }
+    }
+    return null;
+  }
+
+  String _extractDefaultEnvValue(String value) {
+    final match = RegExp(r'^\$\{[^:}]+:-(.*)\}$').firstMatch(value);
+    return match?.group(1) ?? value;
   }
 
   /// Recognize known non-Claude model identifiers so they can be stripped

@@ -430,6 +430,17 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       if (!mounted) return;
       navigator.pop(sessionId);
+    } on IncompatibleProviderAndModelError catch (e, st) {
+      logger.warning(
+        '[NewSessionDialog] incompatible provider/model: $e',
+        e,
+        st,
+      );
+      if (!mounted) return;
+      setState(() {
+        _isCreating = false;
+        _createError = e.message;
+      });
     } catch (e, st) {
       logger.warning('[NewSessionDialog] createSession failed: $e', e, st);
       if (!mounted) return;

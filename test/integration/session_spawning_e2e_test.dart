@@ -10,6 +10,7 @@ import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
@@ -102,6 +103,144 @@ void main() {
       expect(capturedParams!['sessionId'], sessionId);
       expect(sync.sessions.containsKey(sessionId), isTrue);
       expect(sync.testSessionSpawnedAt.containsKey(sessionId), isTrue);
+    });
+
+    test(
+      'fable:high with minimax profile downgrades to profile default',
+      () async {
+        Map<String, dynamic>? capturedParams;
+        sync.testSettingsSnapshot = Settings()
+          ..lastUsedProfilesByAgent = {'claude': 'minimax'};
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          expect(method, 'spawn-happy-session');
+          capturedParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': params['sessionId'],
+            'dataEncryptionKey': null,
+          };
+        };
+
+        await sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          modelMode: 'fable:high',
+        );
+
+        expect(capturedParams, isNotNull);
+        expect(capturedParams!.containsKey('model'), isFalse);
+        final env = capturedParams!['environmentVariables'] as Map;
+        expect(
+          env['ANTHROPIC_BASE_URL'],
+          r'${MINIMAX_BASE_URL:-https://api.minimax.io/anthropic}',
+        );
+        expect(env['ANTHROPIC_MODEL'], r'${MINIMAX_MODEL:-MiniMax-M2.7}');
+      },
+    );
+
+    test('fable:high with anthropic profile passes through', () async {
+      Map<String, dynamic>? capturedParams;
+      sync.testSettingsSnapshot = Settings()
+        ..lastUsedProfilesByAgent = {'claude': 'anthropic'};
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        expect(method, 'spawn-happy-session');
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': params['sessionId'],
+          'dataEncryptionKey': null,
+        };
+      };
+
+      await sync.createSession(
+        agent: 'claude',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        modelMode: 'fable:high',
+      );
+
+      expect(capturedParams, isNotNull);
+      expect(capturedParams!['model'], 'fable:high');
+      expect(capturedParams!.containsKey('environmentVariables'), isFalse);
+    });
+
+    test('sonnet:high with codex profile strips modelMode', () async {
+      Map<String, dynamic>? capturedParams;
+      sync.testSettingsSnapshot = Settings()
+        ..lastUsedProfilesByAgent = {'codex': 'openai'};
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        expect(method, 'spawn-happy-session');
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': params['sessionId'],
+          'dataEncryptionKey': null,
+        };
+      };
+
+      await sync.createSession(
+        agent: 'codex',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        modelMode: 'sonnet:high',
+      );
+
+      expect(capturedParams, isNotNull);
+      expect(capturedParams!.containsKey('model'), isFalse);
+      final env = capturedParams!['environmentVariables'] as Map;
+      expect(env.containsKey('ANTHROPIC_BASE_URL'), isFalse);
+      expect(env['OPENAI_BASE_URL'], 'https://api.openai.com/v1');
+    });
+
+    test('null profile forwards env-less spawn', () async {
+      Map<String, dynamic>? capturedParams;
+      sync.testSettingsSnapshot = Settings();
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        expect(method, 'spawn-happy-session');
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': params['sessionId'],
+          'dataEncryptionKey': null,
+        };
+      };
+
+      await sync.createSession(
+        agent: 'claude',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+      );
+
+      expect(capturedParams, isNotNull);
+      expect(capturedParams!.containsKey('environmentVariables'), isFalse);
+    });
+
+    test('provider mismatch RPC error surfaces typed exception', () async {
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        expect(method, 'spawn-happy-session');
+        return <String, dynamic>{
+          'error':
+              'provider_model_mismatch: session aborted: profile sets '
+              'ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic but the '
+              'resolved model is Claude Sonnet 4.6',
+        };
+      };
+
+      await expectLater(
+        () => sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+        ),
+        throwsA(
+          isA<IncompatibleProviderAndModelError>().having(
+            (e) => e.message,
+            'message',
+            contains('https://api.minimax.io/anthropic'),
+          ),
+        ),
+      );
     });
 
     test(

@@ -24,6 +24,39 @@ List<String> get builtInProfileIds => List<String>.unmodifiable(_builtInIds);
 List<AIBackendProfile> get builtInProfiles =>
     _builtInIds.map(getBuiltInProfile).whereType<AIBackendProfile>().toList();
 
+/// Normalize stale built-in profile defaults persisted by older app versions.
+AIBackendProfile normalizeBuiltInProfileDefaults(AIBackendProfile profile) {
+  if (profile.id != 'minimax') return profile;
+  final canonicalMiniMax = getBuiltInProfile('minimax')?.defaultModelMode;
+  if (canonicalMiniMax == null) return profile;
+
+  var changed = false;
+  final updatedEnv = <EnvironmentVariable>[];
+  for (final env in profile.environmentVariables) {
+    if (env.value.contains('MiniMax-M3')) {
+      changed = true;
+      updatedEnv.add(
+        EnvironmentVariable(
+          name: env.name,
+          value: env.value.replaceAll('MiniMax-M3', canonicalMiniMax),
+        ),
+      );
+    } else {
+      updatedEnv.add(env);
+    }
+  }
+
+  final staleDefault = profile.defaultModelMode == 'MiniMax-M3';
+  if (!changed && !staleDefault) return profile;
+
+  return profile.copyWith(
+    defaultModelMode: staleDefault
+        ? canonicalMiniMax
+        : profile.defaultModelMode,
+    environmentVariables: updatedEnv,
+  );
+}
+
 /// Return the built-in [AIBackendProfile] for [id], or `null` if unknown.
 AIBackendProfile? getBuiltInProfile(String id) {
   switch (id) {

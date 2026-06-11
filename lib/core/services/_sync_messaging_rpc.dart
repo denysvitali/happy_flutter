@@ -1,5 +1,14 @@
 part of 'sync_service.dart';
 
+class IncompatibleProviderAndModelError implements Exception {
+  const IncompatibleProviderAndModelError(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 extension SyncMessagingRpc on Sync {
   Future<dynamic> machineRPC(
     String machineId,
@@ -192,6 +201,14 @@ extension SyncMessagingRpc on Sync {
       throw StateError(
         'Machine RPC $method returned unexpected type: ${raw.runtimeType} '
         '(value: $raw)',
+      );
+    }
+    final error = raw['error'];
+    if (method == 'spawn-happy-session' &&
+        error is String &&
+        error.contains('provider_model_mismatch')) {
+      throw IncompatibleProviderAndModelError(
+        error.replaceFirst('provider_model_mismatch: ', ''),
       );
     }
     return fromJson(raw);
