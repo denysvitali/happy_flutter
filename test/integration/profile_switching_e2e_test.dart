@@ -115,7 +115,7 @@ void main() {
       await sync.applySettings({'lastUsedProfile': 'openai'});
 
       await sync.createSession(
-        agent: 'claude',
+        agent: 'codex',
         machineId: 'machine-1',
         path: '/home/user/project',
         profileId: 'openai',
@@ -163,7 +163,7 @@ void main() {
       await sync.applySettings({'lastUsedProfile': 'azure-openai'});
 
       await sync.createSession(
-        agent: 'claude',
+        agent: 'codex',
         machineId: 'machine-1',
         path: '/home/user/project',
         profileId: 'azure-openai',
@@ -851,13 +851,13 @@ void main() {
         profileId: 'deepseek',
       );
 
-      // Switch to OpenAI
-      await sync.applySettings({'lastUsedProfile': 'openai'});
+      // Switch to MiniMax, another Claude-compatible profile.
+      await sync.applySettings({'lastUsedProfile': 'minimax'});
       final session2 = await sync.createSession(
         agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project-b',
-        profileId: 'openai',
+        profileId: 'minimax',
       );
 
       final env1 =
@@ -873,13 +873,13 @@ void main() {
       );
       expect(env1.containsKey('OPENAI_BASE_URL'), isFalse);
 
-      // Session 2 should have OpenAI vars
+      // Session 2 should have MiniMax vars
       expect(
-        env2['OPENAI_BASE_URL'],
-        'https://api.openai.com/v1',
-        reason: 'Second session must use OpenAI profile',
+        env2['ANTHROPIC_BASE_URL'],
+        contains('minimax'),
+        reason: 'Second session must use MiniMax profile',
       );
-      expect(env2.containsKey('ANTHROPIC_BASE_URL'), isFalse);
+      expect(env2.containsKey('OPENAI_BASE_URL'), isFalse);
     });
 
     test('switching from profile to no profile removes env vars', () async {
