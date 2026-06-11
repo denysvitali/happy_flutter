@@ -56,6 +56,13 @@ class TaskToolView extends ConsumerStatefulWidget {
   ) {
     final existing = _currentSessionItemsFor(session, context);
     final now = DateTime.now().millisecondsSinceEpoch;
+    // Wall-clock of the tool event itself. Pushes can replay out of
+    // chronological order (the chat ListView is reversed, so a cold load
+    // mounts the newest tool first) — per-item guards below use this to
+    // keep older events from clobbering newer state.
+    final eventAt = WireParsers.parseInt(tool['completedAt']) ??
+        WireParsers.parseInt(tool['createdAt']) ??
+        now;
     final name = (tool['name'] as String?) ?? '';
     final toolId = _toolIdFor(tool);
 
@@ -64,13 +71,34 @@ class TaskToolView extends ConsumerStatefulWidget {
         final input = WireParsers.asMap(tool['input']) ?? const {};
         final subject = input['subject'] as String?;
         if (subject == null || subject.isEmpty) return existing;
-        final itemId = _deriveIdStatic(
-          explicit: input['id'] as String?,
+        // The harness assigns the real task id in the tool *result*
+        // ("Task #1 created successfully: <subject>"), not the input.
+        // Prefer it so later TaskUpdate calls (which reference that id)
+        // can find the item.
+        final realId = (input['id'] as String?) ?? _idFromCreateResult(tool);
+        final syntheticId = _deriveIdStatic(
+          explicit: null,
           fallback: 'create-$subject',
           toolId: toolId,
         );
-        // De-dupe: if the same id is already present, leave the list alone.
-        if (existing.any((e) => e.id == itemId)) return existing;
+        final itemId = realId ?? syntheticId;
+        // Migrate: an earlier push (while the tool was still running, before
+        // the result arrived) stored this item under the synthetic id.
+        if (realId != null && existing.any((e) => e.id == syntheticId)) {
+          return existing.map((e) {
+            if (e.id != syntheticId) return e;
+            return e.copyWith(id: realId);
+          }).toList();
+        }
+        // De-dupe — but fill in the subject when a reverse-order replay
+        // inserted a placeholder row from a TaskUpdate processed first.
+        if (existing.any((e) => e.id == itemId)) {
+          return existing.map((e) {
+            if (e.id != itemId) return e;
+            if (e.content != _placeholderContent(itemId)) return e;
+            return e.copyWith(content: subject);
+          }).toList();
+        }
         return [
           ...existing,
           TodoItem(
@@ -79,8 +107,8 @@ class TaskToolView extends ConsumerStatefulWidget {
             status: _statusFromString(input['status'] as String?),
             priority: 'medium',
             order: existing.length,
-            createdAt: now,
-            updatedAt: now,
+            createdAt: eventAt,
+            updatedAt: eventAt,
             sessionId: session,
           ),
         ];
@@ -89,37 +117,98 @@ class TaskToolView extends ConsumerStatefulWidget {
         final input = WireParsers.asMap(tool['input']) ?? const {};
         final explicitId = input['taskId'] as String? ?? input['id'] as String?;
         if (explicitId == null) return existing;
+        final rawStatus = input['status'] as String?;
+        if (rawStatus == 'deleted') {
+          return existing.where((e) => e.id != explicitId).toList();
+        }
+        final newSubject = input['subject'] as String?;
+        final idx = existing.indexWhere((e) => e.id == explicitId);
+        if (idx == -1) {
+          // Reverse-order replay can deliver the update before its create.
+          // Insert a placeholder so the status isn't lost; the create
+          // merges the real subject in when it is processed.
+          if (rawStatus == null) return existing;
+          return [
+            ...existing,
+            TodoItem(
+              id: explicitId,
+              content: (newSubject != null && newSubject.isNotEmpty)
+                  ? newSubject
+                  : _placeholderContent(explicitId),
+              status: _statusFromString(rawStatus),
+              priority: 'medium',
+              order: existing.length,
+              createdAt: eventAt,
+              updatedAt: eventAt,
+              sessionId: session,
+              completedAt: _isCompletedString(rawStatus) ? eventAt : null,
+            ),
+          ];
+        }
+        // Stale-event guard: an older replayed update must not clobber
+        // state written by a newer event.
+        if (eventAt < existing[idx].updatedAt) return existing;
         final updated = existing.map((e) {
           if (e.id != explicitId) return e;
           return e.copyWith(
-            status: _statusFromString(input['status'] as String?),
-            updatedAt: now,
-            completedAt: _isCompletedString(input['status'] as String?)
-                ? (e.completedAt ?? now)
+            // A TaskUpdate may change only the subject/owner/metadata —
+            // absence of `status` must not reset the item to pending.
+            status: rawStatus == null ? e.status : _statusFromString(rawStatus),
+            content: (newSubject != null && newSubject.isNotEmpty)
+                ? newSubject
+                : e.content,
+            updatedAt: eventAt,
+            completedAt: _isCompletedString(rawStatus)
+                ? (e.completedAt ?? eventAt)
                 : null,
           );
         }).toList();
         return updated;
 
       case 'TaskList':
-        final result = WireParsers.asMap(tool['result']);
-        final raw = WireParsers.asList(result?['tasks']) ??
-            WireParsers.asList(result?['items']) ??
-            WireParsers.asList(result?['todos']) ??
-            const [];
-        return _domainFromList(raw, session, now);
+        final result = tool['result'];
+        // No result yet (tool still running) — don't wipe the bucket.
+        if (result == null) return existing;
+        final map = WireParsers.asMap(result);
+        final List<TodoItem> parsed;
+        if (map != null) {
+          final raw = WireParsers.asList(map['tasks']) ??
+              WireParsers.asList(map['items']) ??
+              WireParsers.asList(map['todos']) ??
+              const [];
+          parsed = _domainFromList(raw, session, eventAt);
+        } else if (result is String) {
+          // Plain-text result: one "#<id> [<status>] <subject>" per line.
+          parsed = _domainFromListText(result, session, eventAt);
+        } else {
+          return existing;
+        }
+        // An unparseable / empty result must not clobber known tasks, and
+        // neither may a snapshot older than per-item state we already hold.
+        if (parsed.isEmpty) return existing;
+        final newestKnown = existing.fold<int>(
+          0,
+          (max, e) => e.updatedAt > max ? e.updatedAt : max,
+        );
+        if (eventAt < newestKnown) return existing;
+        return parsed;
 
       case 'TaskGet':
-        final result = WireParsers.asMap(tool['result']);
-        if (result == null) return existing;
-        final subject = (result['subject'] as String?) ??
-            (result['title'] as String?) ??
-            (result['description'] as String?) ??
-            (result['content'] as String?);
+        final result = tool['result'];
+        var map = WireParsers.asMap(result);
+        if (map == null && result is String) {
+          // Plain-text result: "Task #<id>: <subject>\nStatus: <status>\n…"
+          map = _mapFromGetResultText(result);
+        }
+        if (map == null) return existing;
+        final subject = (map['subject'] as String?) ??
+            (map['title'] as String?) ??
+            (map['description'] as String?) ??
+            (map['content'] as String?);
         if (subject == null || subject.isEmpty) return existing;
         final itemId = _deriveIdStatic(
-          explicit: (result['id'] as String?) ??
-              (result['taskId'] as String?) ??
+          explicit: (map['id'] as String?) ??
+              (map['taskId'] as String?) ??
               (WireParsers.asMap(tool['input'])?['taskId'] as String?),
           fallback: 'get-$subject',
           toolId: toolId,
@@ -127,9 +216,11 @@ class TaskToolView extends ConsumerStatefulWidget {
         if (existing.any((e) => e.id == itemId)) {
           return existing.map((e) {
             if (e.id != itemId) return e;
+            // Stale-event guard for reverse-order replays.
+            if (eventAt < e.updatedAt) return e;
             return e.copyWith(
-              status: _statusFromString(result['status'] as String?),
-              updatedAt: now,
+              status: _statusFromString(map!['status'] as String?),
+              updatedAt: eventAt,
             );
           }).toList();
         }
@@ -138,11 +229,11 @@ class TaskToolView extends ConsumerStatefulWidget {
           TodoItem(
             id: itemId,
             content: subject,
-            status: _statusFromString(result['status'] as String?),
+            status: _statusFromString(map['status'] as String?),
             priority: 'medium',
             order: existing.length,
-            createdAt: now,
-            updatedAt: now,
+            createdAt: eventAt,
+            updatedAt: eventAt,
             sessionId: session,
           ),
         ];
@@ -150,6 +241,75 @@ class TaskToolView extends ConsumerStatefulWidget {
       default:
         return existing;
     }
+  }
+
+  /// Subject shown for an item whose TaskUpdate was processed before its
+  /// TaskCreate (reverse-order replay). The create call replaces it.
+  static String _placeholderContent(String id) => 'Task #$id';
+
+  /// Extracts the harness-assigned task id from a TaskCreate result.
+  ///
+  /// Handles both structured results (`{id: "1"}`) and the production
+  /// plain-text shape: `Task #1 created successfully: <subject>`.
+  static String? _idFromCreateResult(Map<String, dynamic> tool) {
+    final result = tool['result'];
+    final map = WireParsers.asMap(result);
+    if (map != null) {
+      final id = (map['id'] ?? map['taskId'])?.toString();
+      if (id != null && id.isNotEmpty) return id;
+      return null;
+    }
+    if (result is String) {
+      final m = RegExp(r'Task\s+#([A-Za-z0-9_-]+)\s+created').firstMatch(result);
+      return m?.group(1);
+    }
+    return null;
+  }
+
+  /// Parses a plain-text TaskList result into domain items.
+  ///
+  /// Production line shape: `#<id> [<status>] <subject>`.
+  static List<TodoItem> _domainFromListText(
+    String text,
+    String? sessionId,
+    int now,
+  ) {
+    final lineRe = RegExp(r'^#([A-Za-z0-9_-]+)\s+\[([^\]]+)\]\s+(.+)$');
+    final out = <TodoItem>[];
+    for (final line in text.split('\n')) {
+      final m = lineRe.firstMatch(line.trim());
+      if (m == null) continue;
+      out.add(
+        TodoItem(
+          id: m.group(1)!,
+          content: m.group(3)!,
+          status: TodoState.fromString(m.group(2)!),
+          priority: 'medium',
+          order: out.length,
+          createdAt: now,
+          updatedAt: now,
+          sessionId: sessionId,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Parses a plain-text TaskGet result into the map shape the structured
+  /// path consumes.
+  ///
+  /// Production shape: `Task #<id>: <subject>` followed by `Status: <s>`.
+  static Map<String, dynamic>? _mapFromGetResultText(String text) {
+    final head = RegExp(r'^Task\s+#([A-Za-z0-9_-]+):\s+(.+)$', multiLine: true)
+        .firstMatch(text);
+    if (head == null) return null;
+    final status =
+        RegExp(r'^Status:\s+(\S+)', multiLine: true).firstMatch(text);
+    return {
+      'id': head.group(1),
+      'subject': head.group(2)!.trim(),
+      if (status != null) 'status': status.group(1),
+    };
   }
 
   /// Static read of the current session's items — used by the static

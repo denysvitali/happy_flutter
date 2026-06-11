@@ -226,13 +226,21 @@ class _ToolViewState extends ConsumerState<ToolView>
   /// Done at the [ToolView] level (always mounted) rather than inside the
   /// task-specific body (only mounted while expanded) so a tool that
   /// completes while collapsed still updates the session banner / Zen list.
+  ///
+  /// Deferred to post-frame: this runs from initState/didUpdateWidget
+  /// (i.e. during build), and the notifier push rebuilds widgets outside
+  /// this subtree (session banner), which is illegal mid-build.
   void _maybePushTaskTool() {
     if (!_isTaskTool) return;
-    TaskToolView.pushToolToGlobalState(
-      context,
-      widget.tool,
-      widget.sessionId,
-    );
+    final tool = widget.tool;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      TaskToolView.pushToolToGlobalState(
+        context,
+        tool,
+        widget.sessionId,
+      );
+    });
   }
 
   void _scheduleAutoCollapse() {
