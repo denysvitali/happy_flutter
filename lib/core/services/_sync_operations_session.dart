@@ -1159,9 +1159,21 @@ PY
           // cleared, so auto-restore handles offline outcomes). Awaiting
           // blocked the user's send for ~10s when the server-side Redis RPC
           // dispatcher timed out waiting for a replica.
+          //
+          // 3s was too aggressive (HAPPY_FLUTTER-3EO/3EM/3ER — the kill
+          // ACK can legitimately take 3-6s when the dispatcher forwards
+          // to a busy replica, and a false timeout stranded sessions in
+          // `lifecycleState=exited` so the next send's auto-restore was
+          // refused with "session is in terminal state"). 8s sits well
+          // under the 60s createSession budget but absorbs dispatcher
+          // variance. On timeout we still clear the in-flight flag so
+          // the user can retry without a phantom "already in flight"
+          // skip.
           unawaited(() async {
             try {
-              await killSession(sessionId).timeout(const Duration(seconds: 3));
+              await killSession(sessionId).timeout(
+                const Duration(seconds: 8),
+              );
             } catch (e, st) {
               logger.warning(
                 '[sendMessage] killSession failed during profile/model '
@@ -1169,6 +1181,24 @@ PY
                 e,
                 st,
               );
+              unawaited(
+                Sentry.addBreadcrumb(
+                  Breadcrumb(
+                    message:
+                        'sendMessage: killSession timed out during '
+                        'profile/model switch',
+                    category: 'sync.messaging',
+                    level: SentryLevel.warning,
+                    data: {'sessionId': sessionId},
+                  ),
+                ),
+              );
+            } finally {
+              // Clear the in-flight flag whether the kill succeeded or
+              // timed out.  The flag exists to dedupe concurrent kills
+              // for the same session; once the await is done, a future
+              // send can issue a new kill if it needs to.
+              _profileModelKillInFlight.remove(sessionId);
             }
           }());
         }
@@ -1315,12 +1345,45 @@ PY
             errorMsg.contains('not found') ||
             errorMsg.contains('does not exist') ||
             errorMsg.contains('not exist');
+        // HAPPY_FLUTTER-3EP/3EN: the killSession ACK can legitimately
+        // lag the in-flight `lifecycleState=exited` write (server
+        // forwards through Redis).  When auto-restore arrives before
+        // the server has cleared the terminal flag, the daemon
+        // responds "is in terminal state; refusing stale spawn".
+        // This is NOT permanent — the next send (after the server
+        // eventually reconciles) will succeed. Throw here and we
+        // lose the message AND strand the user. Treat as
+        // recoverable: return the fallback, drop the lifecycleState
+        // so the next _resolveSendTargetSession sees the local
+        // session as restartable, and let the user retry.
+        final isTerminalStateRace =
+            errorMsg.contains('terminal state') ||
+            errorMsg.contains('refusing stale spawn');
         logger.warning(
           '[sendMessage] auto-restore not successful '
           'session=$sessionId type=${result.type ?? 'null'} '
           'error=$errorMsg '
-          'isPermanent=$isPermanent',
+          'isPermanent=$isPermanent isTerminalStateRace=$isTerminalStateRace',
         );
+        if (isTerminalStateRace) {
+          // Strip the terminal flag locally so the very next send
+          // doesn't re-hit the same race.  We don't change the
+          // server's view — that's controlled by the kill
+          // reconciliation — but we stop pretending the session is
+          // un-restartable from the client.
+          if (session.metadata != null) {
+            _sessions[sessionId] = session.copyWith(
+              metadata: session.metadata!.copyWith(
+                lifecycleState: 'starting',
+                lifecycleStateError: null,
+                lifecycleStateSince:
+                    DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
+          }
+          completer.complete(fallback);
+          return fallback;
+        }
         if (isPermanent || lifecycleErrored) {
           final reason = errorMsg.isEmpty
               ? result.type ?? 'unknown restore failure'
