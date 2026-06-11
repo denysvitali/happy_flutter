@@ -446,7 +446,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       if (!mounted) return;
       setState(() {
         _isCreating = false;
-        _createError = e.toString().replaceFirst('Bad state: ', '');
+        // The raw exception text (e.g. "type 'String' is not a
+        // subtype of type '_pca<String>?' of 'result'") is fine for
+        // the logger but useless — and alarming — in the UI.  Show
+        // a friendly retryable message; the full text is still
+        // captured in the [logger.warning] above and in the Sentry
+        // captureException chain.
+        _createError = 'Could not start session. Please try again.';
       });
     }
   }
