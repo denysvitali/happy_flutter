@@ -490,13 +490,23 @@ extension SyncMessaging on Sync {
           pageSpan
             ..status = const SpanStatus.internalError()
             ..setData('statusCode', statusCode ?? 0);
-          logger.warning('Failed to fetch messages: $statusCode');
+          // 404 means the session was deleted on the server.  Expected
+          // when a user navigates to a session that no longer exists,
+          // so log at info and let the cleanup branch below handle the
+          // local state.  Any other status is a real failure — warn.
+          // (HAPPY_FLUTTER-3EK was inflating GlitchTip warning counts
+          // by ~1/day from exactly this expected 404 path.)
+          if (statusCode == 404) {
+            logger.info('fetchMessages: $statusCode (session deleted)');
+          } else {
+            logger.warning('Failed to fetch messages: $statusCode');
+          }
           unawaited(
             Sentry.addBreadcrumb(
               Breadcrumb(
                 message: 'fetchMessages: HTTP error',
                 category: 'sync.messages',
-                level: SentryLevel.warning,
+                level: statusCode == 404 ? SentryLevel.info : SentryLevel.warning,
                 data: {
                   'sessionId': sessionId,
                   'statusCode': statusCode,
