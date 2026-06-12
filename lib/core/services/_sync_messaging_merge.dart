@@ -97,6 +97,18 @@ extension SyncMessagingMerge on Sync {
   /// pagination alone is paginating in circles (e.g. parent Task
   /// lives outside the loaded window).
   static const int _orphanFetchOlderDefaultThrottleMs = 60000;
+
+  /// Number of consecutive no-progress fetchOlder attempts allowed in
+  /// aggressive mode. While a parent Task likely exists just below the
+  /// loaded window, we want to paginate quickly; after this many futile
+  /// pages we fall back to the default throttle to avoid hammering the
+  /// server when the parent is genuinely missing.
+  static const int _orphanFetchOlderAggressiveAttempts = 3;
+
+  /// Hard cap on total no-progress fetchOlder attempts. Once reached,
+  /// orphan recovery gives up and the sidechain messages render inline
+  /// until new activity (new messages arriving) resets the counter.
+  static const int _orphanFetchOlderMaxAttempts = 12;
   Map<String, dynamic>? _extractUsageMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {
@@ -446,6 +458,17 @@ extension SyncMessagingMerge on Sync {
     if (beforeOrphans.isEmpty) {
       // No orphans left — clear any leftover counter state.
       _sidechainRegroupSweepCount.remove(sessionId);
+      _orphanFetchOlderNoProgressCount.remove(sessionId);
+      return;
+    }
+
+    // If we've already given up on this session's orphans (history exhausted
+    // or hard cap reached), don't keep running the O(n) grouper on every
+    // scheduled sweep. New messages reset the counter and clear suppression,
+    // which allows recovery to retry naturally.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final suppressedUntil = _orphanSuppressedUntilMs[sessionId];
+    if (suppressedUntil != null && nowMs < suppressedUntil) {
       return;
     }
 
@@ -504,11 +527,33 @@ extension SyncMessagingMerge on Sync {
           return ptu is String && ptu.isNotEmpty;
         });
 
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
     final lastFetchAttempt = _orphanFetchOlderAttemptedMs[sessionId] ?? 0;
+    final noProgressCount = _orphanFetchOlderNoProgressCount[sessionId] ?? 0;
 
     final hasMoreOlder = hasOlderMessages(sessionId);
-    final useAggressiveThrottle = everyOrphanHasParentToolUseId && hasMoreOlder;
+    final useAggressiveThrottle =
+        everyOrphanHasParentToolUseId &&
+        hasMoreOlder &&
+        noProgressCount < _orphanFetchOlderAggressiveAttempts;
+
+    // Hard cap: if we've walked back many pages without attaching a single
+    // orphan, the parent Task is probably outside the available history or
+    // the wire data is inconsistent. Stop trying and render inline until
+    // new messages arrive (which resets the counter).
+    if (noProgressCount >= _orphanFetchOlderMaxAttempts) {
+      _sidechainRegroupSweepCount.remove(sessionId);
+      _orphanFetchOlderNoProgressCount.remove(sessionId);
+      _orphanFetchOlderAttemptedMs.remove(sessionId);
+      _orphanSuppressedUntilMs[sessionId] =
+          nowMs + _orphanFetchOlderDefaultThrottleMs;
+      logger.info(
+        '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
+        'session=$sessionId — gave up after '
+        '$_orphanFetchOlderMaxAttempts fetchOlder attempts, rendering inline',
+      );
+      return;
+    }
+
     final canRetryFetch =
         useAggressiveThrottle ||
         nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
@@ -519,14 +564,31 @@ extension SyncMessagingMerge on Sync {
         '[sidechain] orphans persist for session=$sessionId — '
         'attempting fetchOlderMessages to locate parent Task '
         '(aggressive=$useAggressiveThrottle, '
-        'orphanCount=${beforeOrphans.length})',
+        'orphanCount=${beforeOrphans.length}, '
+        'noProgressCount=$noProgressCount)',
       );
       unawaited(
         fetchOlderMessages(sessionId)
             .then((_) {
               // The fetch path upserts and notifies; the next grouper
               // pass will rerun automatically. Reset the no-progress
-              // counter so we get a fresh shot at convergence.
+              // counter if we actually made progress, otherwise bump it.
+              final afterSweep = _sessionMessages[sessionId];
+              final afterSweepOrphans = afterSweep
+                      ?.where(isVisibleSidechainOrphan)
+                      .map((m) => m['id'] as String?)
+                      .whereType<String>()
+                      .toSet() ??
+                  const <String>{};
+              if (afterSweepOrphans.isEmpty ||
+                  afterSweepOrphans.length < beforeOrphans.length) {
+                _orphanFetchOlderNoProgressCount.remove(sessionId);
+              } else {
+                final currentNoProgress =
+                    _orphanFetchOlderNoProgressCount[sessionId] ?? 0;
+                _orphanFetchOlderNoProgressCount[sessionId] =
+                    currentNoProgress + 1;
+              }
               _sidechainRegroupSweepCount.remove(sessionId);
               _scheduleSidechainRegroup(sessionId);
             })
@@ -549,13 +611,26 @@ extension SyncMessagingMerge on Sync {
     // end-state for sessions whose parent Task is outside the loaded
     // window or never arrives.
     if (hasMoreOlder) {
-      // Throttled: re-schedule so we eventually retry.
-      _scheduleSidechainRegroup(sessionId);
+      // Throttled because of no progress. Suppress further sweeps for the
+      // default throttle window instead of rescheduling every 300 ms.
+      // New messages arriving for this session reset the no-progress counter
+      // and allow another attempt; otherwise the next fetchMessages catch-up
+      // path will retry once the suppression window expires.
+      _orphanSuppressedUntilMs[sessionId] =
+          nowMs + _orphanFetchOlderDefaultThrottleMs;
+      logger.info(
+        '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
+        'session=$sessionId — throttled after $noProgressCount '
+        'no-progress attempt(s), retry in '
+        '${_orphanFetchOlderDefaultThrottleMs}ms',
+      );
     } else {
       // History exhausted: keep the orphans visible in the chat, no
       // further work needed. Clear the sweep counter so we stop
       // running the grouper on every refresh for these sessions.
       _sidechainRegroupSweepCount.remove(sessionId);
+      _orphanFetchOlderNoProgressCount.remove(sessionId);
+      _orphanFetchOlderAttemptedMs.remove(sessionId);
       _orphanSuppressedUntilMs[sessionId] =
           nowMs + _orphanFetchOlderDefaultThrottleMs;
       logger.info(
@@ -768,6 +843,12 @@ extension SyncMessagingMerge on Sync {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
+    // New messages for this session may change the orphan landscape
+    // (e.g. the parent Task arrives, or the user sends a new message).
+    // Reset the no-progress counter so recovery gets a fresh budget of
+    // aggressive fetchOlder attempts.
+    _orphanFetchOlderNoProgressCount.remove(sessionId);
+
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
     final maxMessages = sessionId == _visibleSessionId
         ? Sync._maxVisibleSessionMessages

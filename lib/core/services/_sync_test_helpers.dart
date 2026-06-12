@@ -72,6 +72,9 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testClearSessionMessageState(String sessionId) {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
+    _sidechainRegroupTimers[sessionId]?.cancel();
+    _sidechainRegroupTimers.remove(sessionId);
+    _sidechainRegroupFirstRequestMs.remove(sessionId);
     messagesSync.remove(sessionId)?.dispose();
     _sessionMessages.remove(sessionId);
     _sessionLastSeq.remove(sessionId);
@@ -88,6 +91,7 @@ extension SyncTestHelpers on Sync {
     _previewCacheVersion.remove(sessionId);
     _sidechainRegroupSweepCount.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
+    _orphanFetchOlderNoProgressCount.remove(sessionId);
     _orphanSuppressedUntilMs.remove(sessionId);
   }
 
@@ -119,6 +123,23 @@ extension SyncTestHelpers on Sync {
     seedSession: seedSession,
     result: result,
   );
+
+  /// Test helper: set the orphan-recovery no-progress counter directly.
+  /// Used to exercise the hard cap without waiting for real wall-clock
+  /// throttle windows.
+  @visibleForTesting
+  void testSetOrphanFetchOlderNoProgressCount(
+    String sessionId,
+    int count,
+  ) {
+    _orphanFetchOlderNoProgressCount[sessionId] = count;
+  }
+
+  /// Test helper: read the orphan-recovery no-progress counter.
+  @visibleForTesting
+  int testOrphanFetchOlderNoProgressCount(String sessionId) {
+    return _orphanFetchOlderNoProgressCount[sessionId] ?? 0;
+  }
 
   @visibleForTesting
   void testGroupSidechainMessages(String sessionId) {

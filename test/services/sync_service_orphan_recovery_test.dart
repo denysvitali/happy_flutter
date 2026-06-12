@@ -616,6 +616,179 @@ void main() {
           );
         },
       );
+
+      test(
+        'aggressive mode stops after 3 no-progress attempts and falls '
+        'back to the default throttle',
+        () async {
+          syncWithEnc.testSetSessionMessages('s2', [
+            <String, dynamic>{
+              'id': 'orph-1',
+              'isSidechain': true,
+              'uuid': 'u1',
+              'parentUuid': 'task-A',
+              'parentToolUseId': 'toolu_A',
+              'role': 'agent',
+              'kind': 'text',
+              'seq': 102,
+            },
+          ]);
+          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+          expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
+
+          // Run enough sweeps to exhaust the aggressive budget.
+          for (var i = 0; i < 3; i++) {
+            syncWithEnc.testRunDeferredRegroupSweep('s2');
+            await _drainAsyncWork();
+            // Re-seed the orphan because the sweep's then() schedules a
+            // regroup but the fake fetchOlder returns no messages, so the
+            // grouper would otherwise see an empty list on the next pass.
+            syncWithEnc.testSetSessionMessages('s2', [
+              <String, dynamic>{
+                'id': 'orph-1',
+                'isSidechain': true,
+                'uuid': 'u1',
+                'parentUuid': 'task-A',
+                'parentToolUseId': 'toolu_A',
+                'role': 'agent',
+                'kind': 'text',
+                'seq': 102,
+              },
+            ]);
+          }
+
+          expect(
+            fetchOlderCount,
+            3,
+            reason: 'aggressive mode should fire for the first 3 attempts',
+          );
+
+          // The next sweep is within the 60s throttle window, so it must
+          // NOT fire another fetchOlder and must set suppression.
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+          await _drainAsyncWork();
+
+          expect(
+            fetchOlderCount,
+            3,
+            reason: 'after aggressive budget is exhausted, sweep must '
+                'respect the default throttle and not call fetchOlder',
+          );
+          expect(
+            syncWithEnc.testGetSessionMessages('s2').where(
+              (m) => m['_orphanRecovery'] == true,
+            ),
+            isEmpty,
+          );
+        },
+      );
+
+      test(
+        'new messages reset the no-progress counter so recovery can try '
+        'again',
+        () async {
+          syncWithEnc.testSetSessionMessages('s2', [
+            <String, dynamic>{
+              'id': 'orph-1',
+              'isSidechain': true,
+              'uuid': 'u1',
+              'parentUuid': 'task-A',
+              'parentToolUseId': 'toolu_A',
+              'role': 'agent',
+              'kind': 'text',
+              'seq': 102,
+            },
+          ]);
+          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+
+          // Burn through the aggressive budget.
+          for (var i = 0; i < 3; i++) {
+            syncWithEnc.testRunDeferredRegroupSweep('s2');
+            await _drainAsyncWork();
+            syncWithEnc.testSetSessionMessages('s2', [
+              <String, dynamic>{
+                'id': 'orph-1',
+                'isSidechain': true,
+                'uuid': 'u1',
+                'parentUuid': 'task-A',
+                'parentToolUseId': 'toolu_A',
+                'role': 'agent',
+                'kind': 'text',
+                'seq': 102,
+              },
+            ]);
+          }
+          expect(fetchOlderCount, 3);
+
+          // Simulate a new message arriving for the session.
+          syncWithEnc.testUpsertSessionMessages('s2', [
+            <String, dynamic>{
+              'id': 'new-msg',
+              'kind': 'text',
+              'role': 'user',
+              'content': 'hello',
+              'seq': 200,
+              'createdAt': 1700000002000,
+            },
+          ]);
+
+          // The next sweep should be allowed to use aggressive mode again
+          // because the no-progress counter was reset.
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+          await _drainAsyncWork();
+
+          expect(
+            fetchOlderCount,
+            4,
+            reason: 'new messages must reset the no-progress counter',
+          );
+        },
+      );
+
+      test(
+        'hard cap gives up and suppresses further work once the no-progress '
+        'counter reaches the limit',
+        () async {
+          syncWithEnc.testSetSessionMessages('s2', [
+            <String, dynamic>{
+              'id': 'orph-1',
+              'isSidechain': true,
+              'uuid': 'u1',
+              'parentUuid': 'task-A',
+              'parentToolUseId': 'toolu_A',
+              'role': 'agent',
+              'kind': 'text',
+              'seq': 102,
+            },
+          ]);
+          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+
+          // Set the counter at the cap. The next sweep must give up
+          // immediately without calling fetchOlder and must suppress
+          // further work.
+          syncWithEnc.testSetOrphanFetchOlderNoProgressCount('s2', 12);
+
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+          await _drainAsyncWork();
+
+          expect(
+            fetchOlderCount,
+            0,
+            reason: 'at the hard cap sweep must not call fetchOlder',
+          );
+
+          // Subsequent sweeps are also suppressed.
+          for (var i = 0; i < 5; i++) {
+            syncWithEnc.testRunDeferredRegroupSweep('s2');
+            await _drainAsyncWork();
+          }
+          expect(
+            fetchOlderCount,
+            0,
+            reason: 'suppression must persist across repeated sweeps',
+          );
+        },
+      );
     });
 
   });

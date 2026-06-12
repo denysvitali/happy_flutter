@@ -469,6 +469,13 @@ what you have, you must use the options mode.
   /// with genuinely missing parents can't hammer the API.
   final Map<String, int> _orphanFetchOlderAttemptedMs = {};
 
+  /// Per-session count of consecutive orphan-recovery fetchOlder attempts
+  /// that did not reduce the orphan set. Resets when a fetchOlder page
+  /// actually attaches orphans or when new messages are upserted for the
+  /// session. Used to cap the aggressive walk-back so a session whose
+  /// parent Task is genuinely missing cannot poll the server indefinitely.
+  final Map<String, int> _orphanFetchOlderNoProgressCount = {};
+
   /// Per-session epoch-ms until which orphan regroup work is suppressed.
   /// Used after history is exhausted so caught-up fetches don't repeatedly
   /// run the O(n) grouper for sidechain children that must render inline.
