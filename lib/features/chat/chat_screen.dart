@@ -749,7 +749,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _continueLocalHistoryLoadIfStillAtEdge() {
     if (!mounted || _isLoadingMore || !_isAtHistoryEdge()) return;
-    if (_visibleCount >= _messages.length) return;
     _canTriggerHistoryLoad = true;
     _loadMore();
   }
