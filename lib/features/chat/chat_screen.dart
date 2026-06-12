@@ -334,6 +334,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Allow the session activity notification to surface again now
     // that the user has left the chat screen.
     unawaited(sessionActivityCoordinator.setVisibleSession(null));
+    // Tell sync the chat is no longer visible so it can tear down the
+    // per-session message-sync timer and stop background fetches.
+    unawaited(sync.onSessionInvisible());
     super.dispose();
   }
 

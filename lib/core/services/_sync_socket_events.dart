@@ -318,9 +318,11 @@ extension SyncSocketEvents on Sync {
         // Dedup rapid-fire duplicates: the server often broadcasts the
         // same event 7-18 times; without this gate each duplicate
         // triggers a wasteful fetchMessages HTTP call and logger flood.
+        // Use the same window as messagesSync's minInterval so we don't
+        // schedule fetches more often than they can actually run.
         final nowMs = DateTime.now().millisecondsSinceEpoch;
         final lastMs = _lastNoEmbedEventMs[sessionId] ?? 0;
-        if (nowMs - lastMs < 50) return;
+        if (nowMs - lastMs < 500) return;
         _lastNoEmbedEventMs[sessionId] = nowMs;
         _sessionsNeedingFetchProbe.add(sessionId);
         messagesSync[sessionId]?.invalidate();

@@ -708,7 +708,18 @@ extension SyncMessagingRpc on Sync {
 
   /// On session visible handler
   Future<void> onSessionVisible(String sessionId) async {
+    final previousVisibleSessionId = _visibleSessionId;
     _visibleSessionId = sessionId;
+    // When the user switches chats, tear down the previous session's
+    // message-sync timer.  Otherwise the old session's InvalidateSync
+    // keeps firing (every 500ms minInterval) for every pending socket
+    // event that arrived while it was visible, causing the fetch storm
+    // seen in the logs where multiple non-visible sessions fetch forever.
+    if (previousVisibleSessionId != null &&
+        previousVisibleSessionId != sessionId) {
+      messagesSync[previousVisibleSessionId]?.dispose();
+      messagesSync.remove(previousVisibleSessionId);
+    }
     _sessionUnreadCounts.remove(sessionId);
     _sessionUnreadLastIncrementMs.remove(sessionId);
     // Clear any residual failed Future from the inline queue so that
@@ -939,6 +950,18 @@ extension SyncMessagingRpc on Sync {
           messagesSync[sessionId]?.invalidate();
         }),
       );
+    }
+  }
+
+  /// Called when the user leaves a chat screen entirely (not just switches
+  /// to another chat).  Clears the visible-session pointer and tears down
+  /// the message-sync timer so background sessions stop fetching.
+  Future<void> onSessionInvisible() async {
+    final previousVisibleSessionId = _visibleSessionId;
+    _visibleSessionId = null;
+    if (previousVisibleSessionId != null) {
+      messagesSync[previousVisibleSessionId]?.dispose();
+      messagesSync.remove(previousVisibleSessionId);
     }
   }
 
