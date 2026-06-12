@@ -640,6 +640,18 @@ what you have, you must use the options mode.
   @visibleForTesting
   Future<void> Function(String machineId)? testEnsureMachineReachableOverride;
 
+  /// Override the raw RPC call inside [SyncMessagingRpc.ensureMachineReachable]
+  /// so the retry loop can be exercised without a real socket connection.
+  /// Generic [testMachineRPCOverride] stubs continue to short-circuit the
+  /// probe to avoid breaking createSession tests that do not care about pings.
+  @visibleForTesting
+  Future<dynamic> Function(
+    String machineId,
+    String method,
+    Map<String, dynamic> params,
+  )?
+  testEnsureMachineReachableMachineRPCOverride;
+
   /// Override fetchSingleSession for testing sendMessage encryption
   /// recovery without a real API call.
   @visibleForTesting

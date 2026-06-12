@@ -108,6 +108,47 @@ extension SyncMessagingRpc on Sync {
     throw StateError('Machine RPC $method failed: $errorMsg');
   }
 
+  /// Test-aware wrapper for [machineRPC] used by the pre-flight
+  /// liveness probe.
+  ///
+  /// Unit tests stub the typed RPC layer via [testMachineRPCOverride],
+  /// but [ensureMachineReachable] calls the raw [machineRPC] path so
+  /// it can treat any reply (including `Method not found`) as proof of
+  /// liveness. This helper bridges the two: in tests it simulates the
+  /// raw response path, in production it delegates to [machineRPC].
+  Future<dynamic> _probeMachineRPC(
+    String machineId,
+    String method,
+    Map<String, dynamic> params, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final override = testEnsureMachineReachableMachineRPCOverride;
+    if (override != null) {
+      final raw = await override(machineId, method, params);
+      if (raw == null) {
+        throw StateError(
+          'Machine RPC $method returned null — '
+          'test override may be misconfigured',
+        );
+      }
+      if (raw is! Map<String, dynamic>) {
+        throw StateError(
+          'Machine RPC $method returned unexpected type: ${raw.runtimeType} '
+          '(value: $raw)',
+        );
+      }
+      final error = raw['error'];
+      if (error != null) {
+        throw StateError('Machine RPC $method failed: $error');
+      }
+      if (raw['ok'] == true) {
+        return raw['result'];
+      }
+      throw StateError('Machine RPC $method failed: $raw');
+    }
+    return machineRPC(machineId, method, params, timeout: timeout);
+  }
+
   /// Cheap pre-flight liveness probe before long-running spawn RPCs.
   ///
   /// A fresh `activeAt` heartbeat only proves the daemon was alive
@@ -118,29 +159,61 @@ extension SyncMessagingRpc on Sync {
   /// that predate the `ping` handler — proves the machine is reachable
   /// within seconds.
   ///
-  /// Throws [StateError] (`Machine is unreachable`) when the ping ACK
-  /// times out. Socket connection errors propagate as-is.
+  /// Throws [StateError] (`Machine is unreachable`) when both pings
+  /// ACK-timeout. Socket connection errors propagate as-is.
+  ///
+  /// HAPPY_FLUTTER-3DF: 8s was too aggressive for slow daemons
+  /// (production user `cbd5a4df` hit the 8s ceiling 35× in two
+  /// days, every occurrence blocking a session spawn). 12s gives
+  /// a real daemon a fair window; the single retry absorbs the
+  /// common "first ACK lost to dispatcher variance" race that the
+  /// killSession fix (4394b339) already proved real.
   Future<void> ensureMachineReachable(String machineId) async {
     final override = testEnsureMachineReachableOverride;
     if (override != null) {
       return override(machineId);
     }
-    // Unit tests stub the typed RPC layer — the probe would otherwise
-    // hit the real socket and fail every createSession test.
-    if (testMachineRPCOverride != null) return;
-    try {
-      await machineRPC(
-        machineId,
-        'ping',
-        const {},
-        timeout: const Duration(seconds: 8),
-      );
-    } on SocketAckTimeoutException {
-      throw StateError('Machine is unreachable');
-    } on StateError {
-      // The daemon replied with an application-level error (older
-      // daemons have no `ping` handler and answer `Method not found`).
-      // Any reply proves liveness — that is all this probe checks.
+    // Generic createSession tests stub the typed RPC layer and do not
+    // expect a pre-flight ping. Keep the probe a no-op there unless the
+    // test explicitly opts in via [testEnsureMachineReachableMachineRPCOverride].
+    if (testMachineRPCOverride != null &&
+        testEnsureMachineReachableMachineRPCOverride == null) {
+      return;
+    }
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      try {
+        await _probeMachineRPC(
+          machineId,
+          'ping',
+          const {},
+          timeout: const Duration(seconds: 12),
+        );
+        return;
+      } on SocketAckTimeoutException {
+        if (attempt == 2) {
+          unawaited(
+            Sentry.addBreadcrumb(
+              Breadcrumb(
+                message: 'ensureMachineReachable: 2 consecutive ping timeouts',
+                category: 'sync.machines',
+                level: SentryLevel.warning,
+                data: {'machineId': machineId},
+              ),
+            ),
+          );
+          throw StateError('Machine is unreachable');
+        }
+        // First attempt timed out — try once more. The first ACK
+        // is the most likely to lose the race because the daemon
+        // is still warming up the RPC handler; a second attempt
+        // a few hundred ms later usually succeeds.
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      } on StateError {
+        // The daemon replied with an application-level error (older
+        // daemons have no `ping` handler and answer `Method not found`).
+        // Any reply proves liveness — that is all this probe checks.
+        return;
+      }
     }
   }
 

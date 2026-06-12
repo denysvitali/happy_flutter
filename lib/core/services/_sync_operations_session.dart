@@ -459,11 +459,20 @@ extension SyncSessionOperations on Sync {
     required String machineId,
   }) async {
     try {
+      // HAPPY_FLUTTER-3D5: usage limits is a UI-blocking call from
+      // claude_limits_screen. The 30s default machineRPC timeout
+      // burned the user out of patience 10× in 2 days — every
+      // failure pinned the screen on a spinner for 30s. 15s is
+      // well over the 3.2s p99 we see for healthy daemons (the
+      // SLOW get-codex-models breadcrumb for this same user) and
+      // bounded enough that a stuck daemon doesn't lock the user
+      // out of the screen.
       return await _typedMachineRPC(
         machineId,
         'get-claude-usage-limits',
         <String, dynamic>{},
         ClaudeUsageLimitsResponse.fromJson,
+        timeout: const Duration(seconds: 15),
       );
     } catch (error, stackTrace) {
       if (error is StateError && error.message.contains('not connected')) {
@@ -482,6 +491,9 @@ extension SyncSessionOperations on Sync {
           error: 'RPC method not available',
         );
       } else if (Sync._isTransientRpcError(error)) {
+        // Daemon flakiness, not a client bug — log at info so we
+        // still get the breadcrumb without inflating the warning
+        // count. The screen handles the error in its UI.
         logger.info(
           'machineGetClaudeUsageLimits: transient RPC failure — $error',
         );
