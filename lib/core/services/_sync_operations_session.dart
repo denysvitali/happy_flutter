@@ -1186,6 +1186,30 @@ PY
               await killSession(sessionId).timeout(
                 const Duration(seconds: 8),
               );
+            } on TimeoutException catch (e, st) {
+              // Timeouts are expected when the server-side Redis RPC
+              // dispatcher is slow; the kill is best-effort and
+              // auto-restore handles the offline outcome. Log at info so
+              // operators can still see the distribution without inflating
+              // the warning count (HAPPY_FLUTTER-3F5/3F4).
+              logger.info(
+                '[sendMessage] killSession timed out during profile/model '
+                'switch for session=$sessionId: $e',
+                e,
+                st,
+              );
+              unawaited(
+                Sentry.addBreadcrumb(
+                  Breadcrumb(
+                    message:
+                        'sendMessage: killSession timed out during '
+                        'profile/model switch',
+                    category: 'sync.messaging',
+                    level: SentryLevel.info,
+                    data: {'sessionId': sessionId},
+                  ),
+                ),
+              );
             } catch (e, st) {
               logger.warning(
                 '[sendMessage] killSession failed during profile/model '
@@ -1197,7 +1221,7 @@ PY
                 Sentry.addBreadcrumb(
                   Breadcrumb(
                     message:
-                        'sendMessage: killSession timed out during '
+                        'sendMessage: killSession failed during '
                         'profile/model switch',
                     category: 'sync.messaging',
                     level: SentryLevel.warning,
