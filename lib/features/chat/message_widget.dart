@@ -250,7 +250,10 @@ class _MessageWidgetState extends State<MessageWidget>
     // Thinking blocks get a collapsible container instead of a bubble.
     final isThinking = widget.messageData['isThinking'] == true;
     if (isThinking && !widget.isFromCurrentUser) {
-      return _cacheBody(signature, ThinkingBlock(content: text));
+      return _cacheBody(
+        signature,
+        ThinkingBlock(content: text, storageKey: messageId),
+      );
     }
 
     final sendStatus = widget.messageData['sendStatus'] as String?;

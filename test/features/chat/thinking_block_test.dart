@@ -4,25 +4,38 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/message_widget.dart';
 
 /// Wraps [child] in a minimal app shell for widget tests.
-Widget _app(Widget child) {
+///
+/// When [bucket] is provided, the child is wrapped in a [PageStorage] with
+/// that bucket so tests can assert state restoration across rebuilds.
+Widget _app(Widget child, {PageStorageBucket? bucket}) {
+  Widget home = Scaffold(body: child);
+  if (bucket != null) {
+    home = PageStorage(bucket: bucket, child: home);
+  }
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(body: child),
+    home: home,
   );
 }
 
 /// Builds a [MessageWidget] configured as a thinking block.
-Widget _thinkingMessage({String content = 'Some reasoning'}) {
+Widget _thinkingMessage({
+  String content = 'Some reasoning',
+  String? id,
+  PageStorageBucket? bucket,
+}) {
   return _app(
     MessageWidget(
       messageData: <String, dynamic>{
         'kind': 'message',
+        'id': id,
         'content': content,
         'isThinking': true,
       },
       isFromCurrentUser: false,
     ),
+    bucket: bucket,
   );
 }
 
@@ -188,6 +201,87 @@ void main() {
       );
       final decoration = container.decoration as BoxDecoration?;
       expect(decoration?.color, isNull);
+    });
+
+    testWidgets('expanded state restores after widget rebuild', (tester) async {
+      final bucket = PageStorageBucket();
+      const messageId = 'msg-thinking-persist';
+
+      await tester.pumpWidget(
+        _thinkingMessage(
+          content: 'Reasoning to preserve',
+          id: messageId,
+          bucket: bucket,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Expand the thinking block.
+      await tester.tap(find.text('Thinking'));
+      await tester.pumpAndSettle();
+
+      SizeTransition sizeTransition = tester.widget<SizeTransition>(
+        find.byType(SizeTransition),
+      );
+      expect(sizeTransition.sizeFactor.value, 1.0);
+
+      // Rebuild with a fresh MessageWidget / ThinkingBlock instance but the
+      // same PageStorage bucket. This simulates a ListView.builder rebuild or
+      // scroll-off/scroll-on where the StatefulWidget is recreated.
+      await tester.pumpWidget(
+        _thinkingMessage(
+          content: 'Reasoning to preserve',
+          id: messageId,
+          bucket: bucket,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      sizeTransition = tester.widget<SizeTransition>(
+        find.byType(SizeTransition),
+      );
+      expect(sizeTransition.sizeFactor.value, 1.0);
+      expect(find.textContaining('Reasoning to preserve'), findsOneWidget);
+    });
+
+    testWidgets('collapsed state restores after widget rebuild', (tester) async {
+      final bucket = PageStorageBucket();
+      const messageId = 'msg-thinking-collapsed';
+
+      await tester.pumpWidget(
+        _thinkingMessage(
+          content: 'Keep me collapsed',
+          id: messageId,
+          bucket: bucket,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Explicitly expand then collapse so PageStorage records false.
+      await tester.tap(find.text('Thinking'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Thinking'));
+      await tester.pumpAndSettle();
+
+      SizeTransition sizeTransition = tester.widget<SizeTransition>(
+        find.byType(SizeTransition),
+      );
+      expect(sizeTransition.sizeFactor.value, 0.0);
+
+      // Rebuild with a fresh instance and assert it stays collapsed.
+      await tester.pumpWidget(
+        _thinkingMessage(
+          content: 'Keep me collapsed',
+          id: messageId,
+          bucket: bucket,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      sizeTransition = tester.widget<SizeTransition>(
+        find.byType(SizeTransition),
+      );
+      expect(sizeTransition.sizeFactor.value, 0.0);
     });
   });
 }

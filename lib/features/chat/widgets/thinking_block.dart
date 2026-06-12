@@ -7,9 +7,15 @@ import '../markdown/markdown.dart';
 
 /// Collapsible block showing model thinking/reasoning content.
 class ThinkingBlock extends StatefulWidget {
-  const ThinkingBlock({required this.content, super.key});
+  const ThinkingBlock({required this.content, super.key, this.storageKey});
 
   final String content;
+
+  /// Optional stable identifier used to persist the expanded/collapsed state
+  /// across [ListView.builder] rebuilds and scroll-off disposal. When provided,
+  /// tapping the header writes the current state to [PageStorage] so the block
+  /// can restore itself if the widget is recreated.
+  final String? storageKey;
 
   @override
   State<ThinkingBlock> createState() => _ThinkingBlockState();
@@ -50,10 +56,24 @@ class _ThinkingBlockState extends State<ThinkingBlock>
   void initState() {
     super.initState();
     _cleanedContent = _computeCleanContent(widget.content);
+    final key = widget.storageKey;
+    if (key != null && key.isNotEmpty) {
+      final saved = PageStorage.of(context).readState(
+        context,
+        identifier: 'thinking_expanded_$key',
+      );
+      if (saved is bool) {
+        _expanded = saved;
+      }
+    }
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
+    if (_expanded) {
+      _controller.value = 1.0;
+      _animationComplete = false;
+    }
     _expandAnimation = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
@@ -93,6 +113,14 @@ class _ThinkingBlockState extends State<ThinkingBlock>
   void _toggle() {
     HapticFeedback.selectionClick();
     setState(() => _expanded = !_expanded);
+    final key = widget.storageKey;
+    if (key != null && key.isNotEmpty) {
+      PageStorage.of(context).writeState(
+        context,
+        _expanded,
+        identifier: 'thinking_expanded_$key',
+      );
+    }
     if (_expanded) {
       // About to expand — ensure markdown is in the tree before animating.
       _animationComplete = false;
