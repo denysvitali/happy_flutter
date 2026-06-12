@@ -18,6 +18,7 @@ import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../../core/components/tablet/resizable_pane_divider.dart';
 import '../chat/chat_screen.dart';
+import '../providers/providers_usage_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/connection_status_badge.dart';
 import 'widgets/new_session_dialog.dart';
@@ -122,6 +123,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   AppTab _parseTab(String? tab) {
     return switch (tab) {
       'settings' => AppTab.settings,
+      'providers' => AppTab.providers,
       'sessions' => AppTab.sessions,
       _ => AppTab.sessions,
     };
@@ -130,6 +132,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   String _tabToString(AppTab tab) {
     return switch (tab) {
       AppTab.sessions => 'sessions',
+      AppTab.providers => 'providers',
       AppTab.settings => 'settings',
     };
   }
@@ -259,6 +262,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   ) {
     if (_activeTab == AppTab.sessions) {
       return _buildSessionsAppBar(context, l10n);
+    }
+    if (_activeTab == AppTab.providers) {
+      return AppBar(title: Text(l10n.providersTitle));
     }
     if (_activeTab == AppTab.settings) {
       return AppBar(title: Text(l10n.settingsTitle));
@@ -593,6 +599,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               onClearSearch: _clearSearch,
               scrollController: _scrollController,
             ),
+            _buildProvidersTab(),
             _buildSettingsTab(),
           ],
         ),
@@ -611,6 +618,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   Widget _buildSettingsTab() {
     if (_builtTabs.contains(AppTab.settings)) {
       return const SettingsScreen(embedded: true);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildProvidersTab() {
+    if (_builtTabs.contains(AppTab.providers)) {
+      return const ProvidersUsageScreen();
     }
     return const SizedBox.shrink();
   }

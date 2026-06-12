@@ -1348,6 +1348,10 @@ extension SyncMessaging on Sync {
     _sessionsWithPendingUpdates.remove(sessionId);
     _sessionsWithPendingSocketMessages.remove(sessionId);
     _sessionsNeedingFetchProbe.remove(sessionId);
+    _orphanFetchOlderAttemptedMs.remove(sessionId);
+    _orphanFetchOlderNoProgressCount.remove(sessionId);
+    _orphanWalkbackSignature.remove(sessionId);
+    _orphanSuppressedUntilMs.remove(sessionId);
     _sessionSpawnedAt.remove(sessionId);
     _sessionSpawnedProfile.remove(sessionId);
     _sessionSpawnedModel.remove(sessionId);

@@ -37,6 +37,24 @@ void main() {
       expect(r.droppedReasons, isEmpty);
     });
 
+    test('system init renders available sub-agents', () {
+      final r = _run({
+        'isMeta': true,
+        'type': 'system',
+        'subtype': 'init',
+        'agents': ['Explore', 'general-purpose', 'Plan', 'statusline-setup'],
+      });
+      expect(r.messages, hasLength(1));
+      expect(r.messages.first['kind'], 'agent-event');
+      expect(r.messages.first['event']['type'], 'message');
+      expect(
+        r.messages.first['event']['message'],
+        contains('Available sub-agents: Explore, general-purpose, Plan, '
+            'statusline-setup'),
+      );
+      expect(r.droppedReasons, isEmpty);
+    });
+
     test('task_started emits event with description, preserving uuid chain',
         () {
       final r = _run({

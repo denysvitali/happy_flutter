@@ -57,10 +57,14 @@ void main() {
 
     setUp(() {
       sync = createTestSync();
+      // The deferred sweep only does work for the visible session —
+      // background sessions defer regrouping until onSessionVisible.
+      sync.testSetVisibleSessionId('s1');
     });
 
     tearDown(() {
       sync.testClearSessionMessageState('s1');
+      sync.testSetVisibleSessionId(null);
     });
 
     // ── Top-level invariant: no absorb path may create synthetics ──
@@ -452,6 +456,8 @@ void main() {
         syncWithEnc = createTestSync();
         syncWithEnc.encryption = _OrphanFakeEncryption();
         syncWithEnc.testIsInitialized = true;
+        // Walk-back only runs for the visible session.
+        syncWithEnc.testSetVisibleSessionId('s2');
         syncWithEnc.testSessions['s2'] = _makeOrphanSession(
           's2',
           lastSeq: 500,
@@ -470,6 +476,7 @@ void main() {
       tearDown(() {
         syncWithEnc.testFetchOlderMessagesOverride = null;
         syncWithEnc.testClearSessionMessageState('s2');
+        syncWithEnc.testSetVisibleSessionId(null);
       });
 
       test(
@@ -684,9 +691,15 @@ void main() {
       );
 
       test(
-        'new messages reset the no-progress counter so recovery can try '
-        'again',
+        'message upserts do NOT reset the no-progress counter — the '
+        'walk-back\'s own fetched pages must not refresh its budget',
         () async {
+          // Production regression: fetchOlderMessages upserts every page
+          // it fetches. A blanket counter reset in _upsertSessionMessages
+          // pinned the counter at 1 (reset-then-increment each cycle),
+          // so neither the aggressive cutoff (3) nor the hard cap (12)
+          // could ever fire — the walk-back fetched a 100-message page
+          // every ~450ms indefinitely.
           syncWithEnc.testSetSessionMessages('s2', [
             <String, dynamic>{
               'id': 'orph-1',
@@ -719,8 +732,14 @@ void main() {
             ]);
           }
           expect(fetchOlderCount, 3);
+          expect(
+            syncWithEnc.testOrphanFetchOlderNoProgressCount('s2'),
+            3,
+          );
 
-          // Simulate a new message arriving for the session.
+          // A message upsert that does not change the orphan set (e.g.
+          // an older page fetched by the walk-back itself, or a new tail
+          // message) must NOT refresh the budget.
           syncWithEnc.testUpsertSessionMessages('s2', [
             <String, dynamic>{
               'id': 'new-msg',
@@ -731,16 +750,139 @@ void main() {
               'createdAt': 1700000002000,
             },
           ]);
+          expect(
+            syncWithEnc.testOrphanFetchOlderNoProgressCount('s2'),
+            3,
+            reason: 'upserts must not reset the no-progress counter — '
+                'this is what kept the production walk-back looping',
+          );
 
-          // The next sweep should be allowed to use aggressive mode again
-          // because the no-progress counter was reset.
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+          await _drainAsyncWork();
+
+          expect(
+            fetchOlderCount,
+            3,
+            reason: 'with the aggressive budget exhausted and the orphan '
+                'set unchanged, the sweep must not fetch again',
+          );
+        },
+      );
+
+      test(
+        'a changed orphan set opens a fresh walk-back budget',
+        () async {
+          syncWithEnc.testSetSessionMessages('s2', [
+            <String, dynamic>{
+              'id': 'orph-1',
+              'isSidechain': true,
+              'uuid': 'u1',
+              'parentUuid': 'task-A',
+              'parentToolUseId': 'toolu_A',
+              'role': 'agent',
+              'kind': 'text',
+              'seq': 102,
+            },
+          ]);
+          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+
+          // Burn through the aggressive budget on orph-1.
+          for (var i = 0; i < 3; i++) {
+            syncWithEnc.testRunDeferredRegroupSweep('s2');
+            await _drainAsyncWork();
+            syncWithEnc.testSetSessionMessages('s2', [
+              <String, dynamic>{
+                'id': 'orph-1',
+                'isSidechain': true,
+                'uuid': 'u1',
+                'parentUuid': 'task-A',
+                'parentToolUseId': 'toolu_A',
+                'role': 'agent',
+                'kind': 'text',
+                'seq': 102,
+              },
+            ]);
+          }
+          expect(fetchOlderCount, 3);
+
+          // A NEW orphan (fresh sidechain burst) changes the orphan-set
+          // signature: budget resets, suppression lifts, recovery retries.
+          syncWithEnc.testSetSessionMessages('s2', [
+            <String, dynamic>{
+              'id': 'orph-1',
+              'isSidechain': true,
+              'uuid': 'u1',
+              'parentUuid': 'task-A',
+              'parentToolUseId': 'toolu_A',
+              'role': 'agent',
+              'kind': 'text',
+              'seq': 102,
+            },
+            <String, dynamic>{
+              'id': 'orph-NEW',
+              'isSidechain': true,
+              'uuid': 'u9',
+              'parentUuid': 'task-B',
+              'parentToolUseId': 'toolu_B',
+              'role': 'agent',
+              'kind': 'text',
+              'seq': 300,
+            },
+          ]);
+
           syncWithEnc.testRunDeferredRegroupSweep('s2');
           await _drainAsyncWork();
 
           expect(
             fetchOlderCount,
             4,
-            reason: 'new messages must reset the no-progress counter',
+            reason: 'a changed orphan set must grant a fresh budget',
+          );
+        },
+      );
+
+      test(
+        'background sessions never walk back — recovery is deferred '
+        'until the session becomes visible',
+        () async {
+          // Production regression: a background session (trimmed to the
+          // newest 200 messages on every upsert) looped fetchOlderMessages
+          // even though each fetched page was discarded by the trim
+          // before the grouper could see the parent Task.
+          syncWithEnc.testSetVisibleSessionId('other-session');
+          syncWithEnc.testSetSessionMessages('s2', [
+            <String, dynamic>{
+              'id': 'orph-1',
+              'isSidechain': true,
+              'uuid': 'u1',
+              'parentUuid': 'task-A',
+              'parentToolUseId': 'toolu_A',
+              'role': 'agent',
+              'kind': 'text',
+              'seq': 102,
+            },
+          ]);
+          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+
+          for (var i = 0; i < 5; i++) {
+            syncWithEnc.testRunDeferredRegroupSweep('s2');
+            await _drainAsyncWork();
+          }
+          expect(
+            fetchOlderCount,
+            0,
+            reason: 'background sessions must not fetch older pages — '
+                'the background trim cap discards them anyway',
+          );
+
+          // Once the session is visible, the sweep may walk back.
+          syncWithEnc.testSetVisibleSessionId('s2');
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+          await _drainAsyncWork();
+          expect(
+            fetchOlderCount,
+            1,
+            reason: 'visible session gets a fresh walk-back budget',
           );
         },
       );
@@ -763,9 +905,10 @@ void main() {
           ]);
           syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
 
-          // Set the counter at the cap. The next sweep must give up
-          // immediately without calling fetchOlder and must suppress
-          // further work.
+          // Set the counter at the cap. The signature must be primed so
+          // the sweep treats this orphan set as already-seen — otherwise
+          // first sight grants a fresh budget by design.
+          syncWithEnc.testPrimeOrphanWalkbackSignature('s2');
           syncWithEnc.testSetOrphanFetchOlderNoProgressCount('s2', 12);
 
           syncWithEnc.testRunDeferredRegroupSweep('s2');
@@ -777,7 +920,8 @@ void main() {
             reason: 'at the hard cap sweep must not call fetchOlder',
           );
 
-          // Subsequent sweeps are also suppressed.
+          // Subsequent sweeps are also suppressed, and the counter
+          // stays at the cap so the give-up cannot undo itself.
           for (var i = 0; i < 5; i++) {
             syncWithEnc.testRunDeferredRegroupSweep('s2');
             await _drainAsyncWork();
@@ -786,6 +930,11 @@ void main() {
             fetchOlderCount,
             0,
             reason: 'suppression must persist across repeated sweeps',
+          );
+          expect(
+            syncWithEnc.testOrphanFetchOlderNoProgressCount('s2'),
+            12,
+            reason: 'hard-cap give-up must keep the counter sticky',
           );
         },
       );

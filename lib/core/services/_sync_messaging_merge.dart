@@ -459,14 +459,41 @@ extension SyncMessagingMerge on Sync {
       // No orphans left — clear any leftover counter state.
       _sidechainRegroupSweepCount.remove(sessionId);
       _orphanFetchOlderNoProgressCount.remove(sessionId);
+      _orphanWalkbackSignature.remove(sessionId);
       return;
     }
 
-    // If we've already given up on this session's orphans (history exhausted
-    // or hard cap reached), don't keep running the O(n) grouper on every
-    // scheduled sweep. New messages reset the counter and clear suppression,
-    // which allows recovery to retry naturally.
+    // Walk-back only helps the visible session: background sessions are
+    // trimmed to the newest _maxBackgroundSessionMessages (200) on every
+    // upsert, so a fetched older page — and any parent Task it contains —
+    // is discarded before the grouper can see it. Don't burn network and
+    // decrypt work on a chat the user isn't looking at; flag it so
+    // onSessionVisible regroups and re-arms the walk-back budget instead.
+    if (sessionId != _visibleSessionId) {
+      _sessionsNeedingVisibleRegroup.add(sessionId);
+      return;
+    }
+
     final nowMs = DateTime.now().millisecondsSinceEpoch;
+
+    // A changed orphan set (new sidechain burst, partial attach) opens a
+    // fresh walk-back budget and lifts any suppression. This is the ONLY
+    // reset path besides explicit progress: in particular, message
+    // upserts must not reset the counter — the walk-back's own
+    // fetchOlderMessages upserts every page it fetches, and a blanket
+    // reset pinned the counter below both caps, looping a 100-message
+    // fetch+decrypt every ~450ms indefinitely.
+    final orphanSignature = Object.hashAllUnordered(beforeOrphans);
+    if (_orphanWalkbackSignature[sessionId] != orphanSignature) {
+      _orphanWalkbackSignature[sessionId] = orphanSignature;
+      _orphanFetchOlderNoProgressCount.remove(sessionId);
+      _orphanSuppressedUntilMs.remove(sessionId);
+    }
+
+    // If we've already given up on exactly this orphan set (throttled,
+    // hard cap reached, or history exhausted), don't keep running the
+    // O(n) grouper on every scheduled sweep. A changed orphan set lifts
+    // the suppression above.
     final suppressedUntil = _orphanSuppressedUntilMs[sessionId];
     if (suppressedUntil != null && nowMs < suppressedUntil) {
       return;
@@ -494,6 +521,8 @@ extension SyncMessagingMerge on Sync {
     // Reset counter and let normal flow continue.
     if (afterOrphans.isEmpty || afterOrphans.length < beforeOrphans.length) {
       _sidechainRegroupSweepCount.remove(sessionId);
+      _orphanFetchOlderNoProgressCount.remove(sessionId);
+      _orphanWalkbackSignature.remove(sessionId);
       final messagesUpdated = !identical(beforeMessages, after);
       if (messagesUpdated) {
         _notifySessionMessagesChanged(sessionId);
@@ -538,11 +567,13 @@ extension SyncMessagingMerge on Sync {
 
     // Hard cap: if we've walked back many pages without attaching a single
     // orphan, the parent Task is probably outside the available history or
-    // the wire data is inconsistent. Stop trying and render inline until
-    // new messages arrive (which resets the counter).
+    // the wire data is inconsistent. Stop trying and render inline. The
+    // counter intentionally stays at the cap — only a changed orphan set
+    // (signature reset above) or an onSessionVisible re-arm grants a new
+    // budget, so the give-up can't silently undo itself when the
+    // suppression window lapses.
     if (noProgressCount >= _orphanFetchOlderMaxAttempts) {
       _sidechainRegroupSweepCount.remove(sessionId);
-      _orphanFetchOlderNoProgressCount.remove(sessionId);
       _orphanFetchOlderAttemptedMs.remove(sessionId);
       _orphanSuppressedUntilMs[sessionId] =
           nowMs + _orphanFetchOlderDefaultThrottleMs;
@@ -843,12 +874,13 @@ extension SyncMessagingMerge on Sync {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
-    // New messages for this session may change the orphan landscape
-    // (e.g. the parent Task arrives, or the user sends a new message).
-    // Reset the no-progress counter so recovery gets a fresh budget of
-    // aggressive fetchOlder attempts.
-    _orphanFetchOlderNoProgressCount.remove(sessionId);
-
+    // NOTE: do NOT reset _orphanFetchOlderNoProgressCount here. The
+    // orphan walk-back's own fetchOlderMessages upserts every page it
+    // fetches, so a blanket reset on upsert pinned the counter below
+    // both caps and the walk-back looped forever. If an upsert delivers
+    // the missing parent Task, the grouper attaches the orphans and the
+    // sweep's progress path clears the counter; if it delivers new
+    // orphans, the sweep's signature check opens a fresh budget.
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
     final maxMessages = sessionId == _visibleSessionId
         ? Sync._maxVisibleSessionMessages

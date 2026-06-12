@@ -11,6 +11,7 @@ import '../../theme/app_tokens.dart';
 /// Tab type for the app
 enum AppTab {
   sessions,
+  providers,
   settings,
 }
 
@@ -160,6 +161,12 @@ const _kAppTabs = <AppTabInfo>[
     label: 'Sessions',
   ),
   AppTabInfo(
+    key: AppTab.providers,
+    icon: Icons.cloud_outlined,
+    activeIcon: Icons.cloud,
+    label: 'Providers',
+  ),
+  AppTabInfo(
     key: AppTab.settings,
     icon: Icons.settings_outlined,
     activeIcon: Icons.settings,
@@ -204,6 +211,7 @@ class _TabBarState extends State<TabBar> {
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.sessions => l10n.sessionHistoryTitle,
+      AppTab.providers => l10n.tabsProviders,
       AppTab.settings => l10n.tabsSettings,
     };
   }
@@ -293,6 +301,7 @@ class CompactTabBar extends StatelessWidget {
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.sessions => l10n.sessionHistoryTitle,
+      AppTab.providers => l10n.tabsProviders,
       AppTab.settings => l10n.tabsSettings,
     };
   }

@@ -743,6 +743,15 @@ extension SyncMessagingRpc on Sync {
         _groupSidechainMessages(sessionId);
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages});
+        // Orphan walk-back was deferred while this session was in the
+        // background (the background trim cap discards fetched pages).
+        // Now that the session is visible the larger cap applies —
+        // grant a fresh budget and schedule a sweep so the deferred
+        // recovery actually runs.
+        _orphanWalkbackSignature.remove(sessionId);
+        _orphanFetchOlderNoProgressCount.remove(sessionId);
+        _orphanSuppressedUntilMs.remove(sessionId);
+        _scheduleSidechainRegroup(sessionId);
       }
     }
 

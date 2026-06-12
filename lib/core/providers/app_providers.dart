@@ -9,6 +9,7 @@ export 'machines_notifier.dart';
 export 'network_notifier.dart';
 export 'offline_dictation_notifier.dart';
 export 'profile_notifier.dart';
+export 'provider_usage_notifier.dart';
 export 'session_git_status_notifier.dart';
 export 'sessions_notifier.dart';
 export 'settings_notifier.dart';

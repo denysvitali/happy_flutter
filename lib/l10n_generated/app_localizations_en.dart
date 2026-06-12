@@ -4702,4 +4702,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get friendsSearchHint => 'Search by username or email';
+
+  @override
+  String get tabsProviders => 'Providers';
+
+  @override
+  String get providersTitle => 'Providers';
+
+  @override
+  String get providersAddAccount => 'Add account';
+
+  @override
+  String get providersAddAccountFailed => 'Failed to save account';
+
+  @override
+  String get providersRemoveAccount => 'Remove account';
+
+  @override
+  String get providersRemoveAccountFailed => 'Failed to remove account';
+
+  @override
+  String get providersEmptyTitle => 'No provider accounts';
+
+  @override
+  String get providersEmptySubtitle =>
+      'Add your Kimi or MiniMax account to track usage.';
+
+  @override
+  String get providersNoUsageData => 'No usage data available';
+
+  @override
+  String get providersSubscription => 'Subscription';
+
+  @override
+  String get providersTypeLabel => 'Provider';
+
+  @override
+  String get providersAccountNameLabel => 'Account name';
+
+  @override
+  String get providersAccountNameHint => 'Optional';
+
+  @override
+  String get providersKimiApiKeyLabel => 'API key';
+
+  @override
+  String get providersKimiApiKeyHint => 'Paste your Kimi API key';
+
+  @override
+  String get providersMiniMaxCookieLabel => 'Cookie';
+
+  @override
+  String get providersMiniMaxCookieHint => 'Paste your MiniMax cookie';
+
+  @override
+  String get providersMiniMaxGroupIdLabel => 'Group ID';
+
+  @override
+  String get providersMiniMaxGroupIdHint => 'Paste your MiniMax Group ID';
+
+  @override
+  String get providersNotImplemented => 'This provider is not yet supported.';
 }

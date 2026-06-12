@@ -707,6 +707,36 @@ void _processMetaOutput({
     });
   }
 
+  void addSubagentsCatalog(List<String> agents) {
+    if (agents.isEmpty) return;
+
+    const maxVisible = 6;
+    final visibleCount =
+        agents.length < maxVisible ? agents.length : maxVisible;
+    final visibleAgents = agents.take(visibleCount).join(', ');
+    final extraCount = agents.length - visibleCount;
+    final suffix = extraCount > 0 ? ' (+${extraCount} more)' : '';
+
+    addEvent(
+      'in',
+      'message',
+      'Available sub-agents: $visibleAgents$suffix',
+    );
+  }
+
+  if (dataType == 'system' && subtype == 'init') {
+    final agents = WireParsers.asList(data['agents']);
+    if (agents != null) {
+      addSubagentsCatalog(
+        agents
+            .whereType<String>()
+            .where((agent) => agent.isNotEmpty)
+            .toList(),
+      );
+    }
+    return;
+  }
+
   if (dataType == 'system') {
     if (subtype == 'task_started' ||
         subtype == 'task_progress' ||

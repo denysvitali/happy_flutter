@@ -92,6 +92,7 @@ extension SyncTestHelpers on Sync {
     _sidechainRegroupSweepCount.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
     _orphanFetchOlderNoProgressCount.remove(sessionId);
+    _orphanWalkbackSignature.remove(sessionId);
     _orphanSuppressedUntilMs.remove(sessionId);
   }
 
@@ -139,6 +140,22 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   int testOrphanFetchOlderNoProgressCount(String sessionId) {
     return _orphanFetchOlderNoProgressCount[sessionId] ?? 0;
+  }
+
+  /// Test helper: prime the orphan walk-back signature from the current
+  /// persisting orphan set, as if a sweep had already seen it. Lets
+  /// tests exercise the no-progress caps directly without the sweep's
+  /// signature check granting a fresh budget on first sight.
+  @visibleForTesting
+  void testPrimeOrphanWalkbackSignature(String sessionId) {
+    final messages =
+        _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];
+    final orphans = messages
+        .where(isVisibleSidechainOrphan)
+        .map((m) => m['id'] as String?)
+        .whereType<String>()
+        .toSet();
+    _orphanWalkbackSignature[sessionId] = Object.hashAllUnordered(orphans);
   }
 
   @visibleForTesting

@@ -194,6 +194,34 @@ void main() {
       expect(result.$1.first['event']['mode'], 'remote');
     });
 
+    test('renders system init as sub-agent catalog event', () {
+      final result = instance.testProcessDecryptedMessage(
+        id: 'msg_init_1',
+        seq: 6,
+        sessionId: 'session_1',
+        content: {
+          'role': 'agent',
+          'content': {
+            'type': 'output',
+            'data': {
+              'isMeta': true,
+              'type': 'system',
+              'subtype': 'init',
+              'agents': ['Explore', 'general-purpose', 'Plan'],
+            },
+          },
+        },
+      );
+
+      expect(result.$1, hasLength(1));
+      expect(result.$1.first['kind'], 'agent-event');
+      expect(result.$1.first['event']['type'], 'message');
+      expect(
+        result.$1.first['event']['message'],
+        contains('Available sub-agents: Explore, general-purpose, Plan'),
+      );
+    });
+
     test('falls back to text for unknown agent content shapes', () {
       final result = instance.testProcessDecryptedMessage(
         id: 'msg_unknown_fallback',

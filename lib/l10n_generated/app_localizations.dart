@@ -8598,6 +8598,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search by username or email'**
   String get friendsSearchHint;
+
+  /// No description provided for @tabsProviders.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers'**
+  String get tabsProviders;
+
+  /// No description provided for @providersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Providers'**
+  String get providersTitle;
+
+  /// No description provided for @providersAddAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add account'**
+  String get providersAddAccount;
+
+  /// No description provided for @providersAddAccountFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save account'**
+  String get providersAddAccountFailed;
+
+  /// No description provided for @providersRemoveAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove account'**
+  String get providersRemoveAccount;
+
+  /// No description provided for @providersRemoveAccountFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to remove account'**
+  String get providersRemoveAccountFailed;
+
+  /// No description provided for @providersEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No provider accounts'**
+  String get providersEmptyTitle;
+
+  /// No description provided for @providersEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your Kimi or MiniMax account to track usage.'**
+  String get providersEmptySubtitle;
+
+  /// No description provided for @providersNoUsageData.
+  ///
+  /// In en, this message translates to:
+  /// **'No usage data available'**
+  String get providersNoUsageData;
+
+  /// No description provided for @providersSubscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription'**
+  String get providersSubscription;
+
+  /// No description provided for @providersTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider'**
+  String get providersTypeLabel;
+
+  /// No description provided for @providersAccountNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account name'**
+  String get providersAccountNameLabel;
+
+  /// No description provided for @providersAccountNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get providersAccountNameHint;
+
+  /// No description provided for @providersKimiApiKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get providersKimiApiKeyLabel;
+
+  /// No description provided for @providersKimiApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your Kimi API key'**
+  String get providersKimiApiKeyHint;
+
+  /// No description provided for @providersMiniMaxCookieLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cookie'**
+  String get providersMiniMaxCookieLabel;
+
+  /// No description provided for @providersMiniMaxCookieHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your MiniMax cookie'**
+  String get providersMiniMaxCookieHint;
+
+  /// No description provided for @providersMiniMaxGroupIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Group ID'**
+  String get providersMiniMaxGroupIdLabel;
+
+  /// No description provided for @providersMiniMaxGroupIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your MiniMax Group ID'**
+  String get providersMiniMaxGroupIdHint;
+
+  /// No description provided for @providersNotImplemented.
+  ///
+  /// In en, this message translates to:
+  /// **'This provider is not yet supported.'**
+  String get providersNotImplemented;
 }
 
 class _AppLocalizationsDelegate

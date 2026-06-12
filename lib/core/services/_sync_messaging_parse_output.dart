@@ -35,6 +35,47 @@ extension SyncMessagingParseOutput on Sync {
       if (dataType == 'system') {
         final subtype = data['subtype'] as String?;
 
+        if (subtype == 'init') {
+          final agents = data['agents'];
+          if (agents is List) {
+            final names = <String>[];
+            for (final agent in agents) {
+              if (agent is String && agent.isNotEmpty) {
+                names.add(agent);
+              }
+            }
+            if (names.isNotEmpty) {
+              const maxVisible = 6;
+              final visibleCount =
+                  names.length < maxVisible ? names.length : maxVisible;
+              final visibleAgents = names.take(visibleCount).join(', ');
+              final extraCount = names.length - visibleCount;
+              final suffix =
+                  extraCount > 0 ? ' (+${extraCount} more)' : '';
+              return (
+                [
+                  {
+                    'id': '${message.id}_in',
+                    'seq': message.seq,
+                    'createdAt': createdAt,
+                    'role': 'agent',
+                    'kind': 'agent-event',
+                    'event': {
+                      'type': 'message',
+                      'message':
+                          'Available sub-agents: '
+                          '$visibleAgents$suffix',
+                    },
+                  },
+                ],
+                [],
+              );
+            }
+          }
+
+          return ([], []);
+        }
+
         // Task lifecycle events are sidechain-linked by the CLI via
         // tool_use_id. Forward them so the sidechain grouper can attach
         // them as children of Agent/Task tool calls.
