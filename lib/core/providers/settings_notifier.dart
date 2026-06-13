@@ -6,6 +6,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../crdt/settings_crdt.dart';
 import '../models/settings.dart';
 import '../models/settings_update.dart';
+import '../repositories/settings_repository.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
@@ -25,6 +26,8 @@ class SettingsNotifier extends Notifier<Settings> {
 
   @override
   Settings build() => Settings();
+
+  SettingsRepository get _repository => ref.read(settingsRepositoryProvider);
 
   Future<void> loadSettings() async {
     final settings = await _storage.getSettings();
@@ -49,7 +52,7 @@ class SettingsNotifier extends Notifier<Settings> {
     final counter = sync.domainChangeCounter(SyncDomain.settings);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
-    final next = sync.settingsSnapshot;
+    final next = _repository.settingsSnapshot;
     if (state == next) return;
     // Preserve local-only settings that the server doesn't
     // know about — sync.settingsSnapshot defaults them to
@@ -60,11 +63,15 @@ class SettingsNotifier extends Notifier<Settings> {
     state = preserved;
   }
 
-  Future<void> refreshFromSync() => refreshSyncDomain(
-        invalidate: () => sync.settingsSync,
-        name: 'settings',
-        reload: loadFromSync,
-      );
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) return;
+    try {
+      await _repository.syncSettings();
+    } catch (e, stack) {
+      logger.warning('Failed to refresh settings', e, stack);
+    }
+    loadFromSync();
+  }
 
   Future<void> updateSetting<T>(String key, T value) async {
     // Update provider state synchronously (before yielding to the event
@@ -111,7 +118,7 @@ class SettingsNotifier extends Notifier<Settings> {
 
     if (sync.isInitialized) {
       final syncValue = SettingsUpdate.toSyncValue(key, value);
-      await sync.applySettings({key: syncValue});
+      await _repository.applySettings({key: syncValue});
     }
   }
 

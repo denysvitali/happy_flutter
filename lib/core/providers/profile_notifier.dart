@@ -1,7 +1,9 @@
 import 'package:riverpod/riverpod.dart';
 
 import '../models/profile.dart';
-import '../services/sync_service.dart';
+import '../repositories/settings_repository.dart';
+import '../services/logger_service.dart' show logger;
+import '../services/sync_service.dart' show SyncDomain, sync;
 import '_shared.dart';
 
 class ProfileNotifier extends Notifier<Profile?> {
@@ -10,21 +12,27 @@ class ProfileNotifier extends Notifier<Profile?> {
   @override
   Profile? build() => null;
 
+  SettingsRepository get _repository => ref.read(settingsRepositoryProvider);
+
   void loadFromSync() {
     if (!sync.isInitialized) return;
     final counter = sync.domainChangeCounter(SyncDomain.profile);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
-    final next = sync.profile;
+    final next = _repository.profile;
     if (state == next) return;
     state = next;
   }
 
-  Future<void> refreshFromSync() => refreshSyncDomain(
-        invalidate: () => sync.profileSync,
-        name: 'profile',
-        reload: loadFromSync,
-      );
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) return;
+    try {
+      await _repository.fetchProfile();
+    } catch (e, stack) {
+      logger.warning('Failed to refresh profile', e, stack);
+    }
+    loadFromSync();
+  }
 
   void updateProfile(Profile profile) {
     state = profile;
