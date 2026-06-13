@@ -31,6 +31,8 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
 
   // Kimi
   final _kimiKeyController = TextEditingController();
+  final _kimiBaseUrlController =
+      TextEditingController(text: kimiDefaultBaseUrl);
 
   // MiniMax
   final _miniMaxCookieController = TextEditingController();
@@ -53,6 +55,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     _miniMaxGroupIdController.removeListener(_onFieldChanged);
     _nameController.dispose();
     _kimiKeyController.dispose();
+    _kimiBaseUrlController.dispose();
     _miniMaxCookieController.dispose();
     _miniMaxGroupIdController.dispose();
     super.dispose();
@@ -61,7 +64,12 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
   void _submit() {
     final credentials = switch (_selectedType) {
       ProviderUsageType.kimi => ProviderCredentials.kimi(
-          KimiCredentials(apiKey: _kimiKeyController.text.trim()),
+          KimiCredentials(
+            apiKey: _kimiKeyController.text.trim(),
+            baseUrl: _kimiBaseUrlController.text.trim().isEmpty
+                ? kimiDefaultBaseUrl
+                : _kimiBaseUrlController.text.trim(),
+          ),
         ),
       ProviderUsageType.minimax => ProviderCredentials.miniMax(
           MiniMaxCredentials(
@@ -163,6 +171,16 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
               hintText: l10n.providersKimiApiKeyHint,
             ),
             obscureText: true,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          TextField(
+            controller: _kimiBaseUrlController,
+            decoration: InputDecoration(
+              labelText: l10n.providersKimiBaseUrlLabel,
+              hintText: l10n.providersKimiBaseUrlHint,
+            ),
+            keyboardType: TextInputType.url,
+            autocorrect: false,
           ),
         ],
       ProviderUsageType.minimax => [

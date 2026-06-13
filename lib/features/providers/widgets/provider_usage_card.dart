@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/provider_usage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/utils.dart' show formatDuration;
 
 /// Card displaying usage for a single provider account.
 class ProviderUsageCard extends StatelessWidget {
@@ -188,8 +189,26 @@ class _UsageWindowRow extends StatelessWidget {
             ),
           ),
         ],
+        if (_resetLabel(context, window.resetsAtMs) case final reset?) ...[
+          const SizedBox(height: AppSpacing.xsm),
+          Text(
+            reset,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  /// Localized "Resets in …" label, or null when there is no future reset.
+  String? _resetLabel(BuildContext context, int? resetsAtMs) {
+    if (resetsAtMs == null) return null;
+    final remaining = DateTime.fromMillisecondsSinceEpoch(resetsAtMs)
+        .difference(DateTime.now());
+    if (remaining.inSeconds <= 0) return null;
+    return context.l10n.providersResetsIn(formatDuration(remaining));
   }
 
   Color _utilizationColor(double utilization) {

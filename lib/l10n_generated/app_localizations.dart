@@ -8686,8 +8686,20 @@ abstract class AppLocalizations {
   /// No description provided for @providersKimiApiKeyHint.
   ///
   /// In en, this message translates to:
-  /// **'Paste your Kimi API key'**
+  /// **'Paste your Kimi Coding Plan API key'**
   String get providersKimiApiKeyHint;
+
+  /// No description provided for @providersKimiBaseUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get providersKimiBaseUrlLabel;
+
+  /// No description provided for @providersKimiBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://api.kimi.com/coding/v1'**
+  String get providersKimiBaseUrlHint;
 
   /// No description provided for @providersMiniMaxCookieLabel.
   ///
@@ -8718,6 +8730,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This provider is not yet supported.'**
   String get providersNotImplemented;
+
+  /// No description provided for @providersResetsIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets in {time}'**
+  String providersResetsIn(String time);
 }
 
 class _AppLocalizationsDelegate

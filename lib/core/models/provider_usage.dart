@@ -18,14 +18,23 @@ enum ProviderUsageType {
   codex,
 }
 
+/// Default base URL for the Kimi Coding Plan usage API.
+///
+/// The usage data is served from the coding-plan gateway (NOT the consumer
+/// `www.kimi.com` web app). Power users running a custom gateway can override
+/// it per account.
+const String kimiDefaultBaseUrl = 'https://api.kimi.com/coding/v1';
+
 /// Credentials required to authenticate with Kimi.
 ///
-/// Kimi uses a simple Bearer API key that can be created from the Kimi
-/// developer console.
+/// Kimi uses a Bearer Coding Plan API key (`KIMI_API_KEY` /
+/// `KIMI_CODING_API_KEY`) against the coding-plan usage API. [baseUrl] defaults
+/// to [kimiDefaultBaseUrl] and only needs overriding for custom gateways.
 @freezed
 abstract class KimiCredentials with _$KimiCredentials {
   const factory KimiCredentials({
     required String apiKey,
+    @Default(kimiDefaultBaseUrl) String baseUrl,
     String? accountName,
   }) = _KimiCredentials;
 

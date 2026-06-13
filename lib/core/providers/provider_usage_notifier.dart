@@ -76,6 +76,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
       return await account.credentials.when(
         kimi: (c) => _kimiApi.getUsage(
           apiKey: c.apiKey,
+          baseUrl: c.baseUrl,
           accountId: account.id,
           accountName: account.name,
         ),

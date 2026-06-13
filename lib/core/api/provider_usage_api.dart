@@ -14,7 +14,11 @@ class ProviderUsageApiException extends BaseApiException {
   String toString() => 'ProviderUsageApiException: $message';
 }
 
-Dio _createDio(String baseUrl) {
+/// User-Agent sent with every provider usage request. Some provider gateways
+/// reject requests without one.
+const String _userAgent = 'happy-flutter';
+
+Dio _createDio([String baseUrl = '']) {
   return Dio(
     BaseOptions(
       baseUrl: baseUrl,
@@ -30,253 +34,210 @@ Dio _createDio(String baseUrl) {
 
 /// Kimi usage API client.
 ///
-/// Wraps the undocumented-but-stable Kimi billing endpoints used by
-/// https://github.com/denysvitali/llm-usage.
+/// Talks to the Kimi **Coding Plan** usage API (`{baseUrl}/usages`, default
+/// host [kimiDefaultBaseUrl]) using a Bearer coding-plan API key, mirroring
+/// https://github.com/Golden0Voyager/kimi-code-usage. This is NOT the consumer
+/// `www.kimi.com` web billing service — a coding-plan key cannot authenticate
+/// there, which is why earlier builds showed no usage.
 class KimiUsageApi {
-  KimiUsageApi({Dio? dio}) : _dio = dio ?? _createDio('https://www.kimi.com');
+  KimiUsageApi({Dio? dio}) : _dio = dio ?? _createDio();
 
   final Dio _dio;
-
-  static const String _usageEndpoint =
-      '/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages';
-  static const String _subscriptionEndpoint =
-      '/apiv2/kimi.gateway.order.v1.SubscriptionService/GetSubscription';
 
   /// Fetches usage for the account identified by [apiKey].
   Future<ProviderUsage> getUsage({
     required String apiKey,
     required String accountId,
     String? accountName,
+    String baseUrl = kimiDefaultBaseUrl,
   }) async {
-    final usageResponse = await _fetchUsage(apiKey);
-    final windows = _parseWindows(usageResponse);
-
-    Map<String, dynamic>? subscriptionExtra;
-    try {
-      final subscription = await _fetchSubscription(apiKey);
-      subscriptionExtra = _formatSubscriptionExtra(subscription);
-    } catch (e, stack) {
-      // Subscription is best-effort; do not fail the whole request.
-      logger.warning('Kimi subscription fetch failed', e, stack);
-    }
-
+    final payload = await _fetchUsage(apiKey, baseUrl);
     return ProviderUsage(
       accountId: accountId,
       type: ProviderUsageType.kimi,
       accountName: accountName,
-      windows: windows,
-      extra: subscriptionExtra ?? const <String, dynamic>{},
+      windows: _parseWindows(payload),
     );
   }
 
-  Future<Map<String, dynamic>> _fetchUsage(String apiKey) async {
-    final response = await _dio.post<dynamic>(
-      _usageEndpoint,
-      data: const <String, dynamic>{
-        'scope': <String>['FEATURE_CODING'],
-      },
-      options: Options(
+  /// GETs `{base}/usages`, falling back to `{base}/usage` on a non-200 — some
+  /// gateways expose the singular path. Throws with the server's error detail
+  /// if both fail.
+  Future<Map<String, dynamic>> _fetchUsage(
+    String apiKey,
+    String baseUrl,
+  ) async {
+    final trimmed = baseUrl.trim();
+    final base = trimmed.isEmpty ? kimiDefaultBaseUrl : trimmed;
+    final root = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+
+    final primary = await _dio.get<dynamic>(
+      '$root/usages',
+      options: _authOptions(apiKey),
+    );
+    if (primary.statusCode == 200) return _asMap(primary.data, 'Kimi');
+
+    final fallback = await _dio.get<dynamic>(
+      '$root/usage',
+      options: _authOptions(apiKey),
+    );
+    if (fallback.statusCode == 200) return _asMap(fallback.data, 'Kimi');
+
+    // Surface the primary failure — it carries the canonical error body.
+    _throwHttpError('Kimi', 'usage', primary);
+  }
+
+  Options _authOptions(String apiKey) => Options(
         headers: <String, dynamic>{
           'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'User-Agent': _userAgent,
         },
-      ),
-    );
-
-    if (response.statusCode != 200) {
-      throw ProviderUsageApiException(
-        'Kimi usage request failed: ${response.statusCode}',
-        statusCode: response.statusCode,
       );
-    }
 
-    return response.data! as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> _fetchSubscription(String apiKey) async {
-    final response = await _dio.post<dynamic>(
-      _subscriptionEndpoint,
-      data: const <String, dynamic>{},
-      options: Options(
-        headers: <String, dynamic>{
-          'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ),
-    );
-
-    if (response.statusCode != 200) {
-      throw ProviderUsageApiException(
-        'Kimi subscription request failed: ${response.statusCode}',
-        statusCode: response.statusCode,
-      );
-    }
-
-    return response.data! as Map<String, dynamic>;
-  }
-
-  List<ProviderUsageWindow> _parseWindows(Map<String, dynamic> response) {
-    final usages = response['usages'];
-    if (usages is! List<dynamic>) return const <ProviderUsageWindow>[];
-
+  /// Parses the two payload shapes used by the Kimi coding-plan API:
+  ///   A) `{ "data": [ { "model_name": "all"|<model>, ... } ] }`
+  ///   B) `{ "usage": {...}, "limits": [ { "detail", "window" }, ... ] }`
+  List<ProviderUsageWindow> _parseWindows(Map<String, dynamic> payload) {
     final windows = <ProviderUsageWindow>[];
-    for (final raw in usages) {
-      if (raw is! Map<String, dynamic>) continue;
-      final scope = raw['scope'] as String? ?? '';
-      final detail = raw['detail'];
-      final limits = raw['limits'];
 
-      if (detail is Map<String, dynamic>) {
-        final window = _parseScopeWindow(scope, detail);
+    final data = payload['data'];
+    if (data is List) {
+      for (final raw in data) {
+        if (raw is! Map<String, dynamic>) continue;
+        final modelName = raw['model_name']?.toString();
+        final isSummary = modelName == 'all';
+        final fallbackLabel = isSummary
+            ? 'Weekly Usage'
+            : (modelName == null || modelName.isEmpty ? 'Limit' : modelName);
+        final window = _rowToWindow(raw, fallbackLabel);
         if (window != null) windows.add(window);
       }
+      return windows;
+    }
 
-      if (limits is List<dynamic>) {
-        for (final rawLimit in limits) {
-          if (rawLimit is! Map<String, dynamic>) continue;
-          final window = _parseLimitWindow(scope, rawLimit);
-          if (window != null) windows.add(window);
-        }
+    final usage = payload['usage'];
+    if (usage is Map<String, dynamic>) {
+      final window = _rowToWindow(usage, 'Weekly Usage');
+      if (window != null) windows.add(window);
+    }
+
+    final limits = payload['limits'];
+    if (limits is List) {
+      for (var i = 0; i < limits.length; i++) {
+        final item = limits[i];
+        if (item is! Map<String, dynamic>) continue;
+        final detail = item['detail'] is Map<String, dynamic>
+            ? item['detail'] as Map<String, dynamic>
+            : item;
+        final win = item['window'] is Map<String, dynamic>
+            ? item['window'] as Map<String, dynamic>
+            : const <String, dynamic>{};
+        final window = _rowToWindow(detail, _limitLabel(item, detail, win, i));
+        if (window != null) windows.add(window);
       }
     }
 
     return windows;
   }
 
-  ProviderUsageWindow? _parseScopeWindow(
-    String scope,
+  /// Converts a usage row into a [ProviderUsageWindow].
+  ///
+  /// Tolerates the field aliases the upstream tools accept (`limit_amount`,
+  /// `used_amount`, `remaining`) and derives `used` from `remaining` when only
+  /// the latter is reported. `utilization` is the percentage **used** so it
+  /// lines up with the card's quota-warning colors and the
+  /// [ProviderUsageWindow] contract.
+  ProviderUsageWindow? _rowToWindow(
+    Map<String, dynamic> data,
+    String fallbackLabel,
+  ) {
+    final limit = _parseDouble(data['limit'] ?? data['limit_amount']);
+    var used = _parseDouble(data['used'] ?? data['used_amount']);
+
+    if (used == null) {
+      final remaining = _parseDouble(data['remaining']);
+      if (remaining != null && limit != null) used = limit - remaining;
+    }
+    if (used == null && limit == null) return null;
+
+    final usedVal = (used ?? 0) < 0 ? 0.0 : (used ?? 0);
+    final limitVal = (limit ?? 0) < 0 ? 0.0 : (limit ?? 0);
+    final utilization = limitVal > 0 ? (usedVal / limitVal) * 100 : 0.0;
+
+    final name = data['name'] ?? data['title'];
+    final label = (name != null && name.toString().isNotEmpty)
+        ? name.toString()
+        : fallbackLabel;
+
+    return ProviderUsageWindow(
+      label: label,
+      utilization: utilization.clamp(0, 100).toDouble(),
+      resetsAtMs: _parseResetMs(data),
+      limit: limit == null ? null : limitVal,
+      used: used == null ? null : usedVal,
+      remaining: limit == null ? null : (limitVal - usedVal).clamp(0, limitVal),
+    );
+  }
+
+  String _limitLabel(
+    Map<String, dynamic> item,
     Map<String, dynamic> detail,
+    Map<String, dynamic> window,
+    int idx,
   ) {
-    final limit = _parseDouble(detail['limit']);
-    final used = _parseDouble(detail['used']);
-    if (limit == null || used == null || limit <= 0) return null;
-
-    final utilization = (used / limit) * 100;
-    final resetTime = _parseDateTime(detail['resetTime']);
-
-    return ProviderUsageWindow(
-      label: _formatScopeLabel(scope),
-      utilization: utilization.clamp(0, 100),
-      resetsAtMs: resetTime?.millisecondsSinceEpoch,
-      limit: limit,
-      used: used,
-      remaining: (limit - used).clamp(0, double.infinity),
-    );
-  }
-
-  ProviderUsageWindow? _parseLimitWindow(
-    String scope,
-    Map<String, dynamic> rawLimit,
-  ) {
-    final window = rawLimit['window'];
-    final detail = rawLimit['detail'];
-    if (window is! Map<String, dynamic> || detail is! Map<String, dynamic>) {
-      return null;
+    for (final key in const ['name', 'title', 'scope']) {
+      final value = item[key] ?? detail[key];
+      if (value != null && value.toString().isNotEmpty) return value.toString();
     }
 
-    final limit = _parseDouble(detail['limit']);
-    final used = _parseDouble(detail['used']);
-    if (limit == null || used == null || limit <= 0) return null;
+    final duration =
+        _parseInt(window['duration'] ?? item['duration'] ?? detail['duration']);
+    final timeUnit =
+        (window['timeUnit'] ?? item['timeUnit'] ?? detail['timeUnit'] ?? '')
+            .toString()
+            .toUpperCase();
 
-    final utilization = (used / limit) * 100;
-    final resetTime = _parseDateTime(detail['resetTime']);
-    final duration = window['duration'] as int? ?? 0;
-    final timeUnit = window['timeUnit'] as String? ?? '';
+    if (duration != null) {
+      if (timeUnit.contains('MINUTE')) {
+        return duration >= 60 && duration % 60 == 0
+            ? '${duration ~/ 60}h Limit'
+            : '${duration}m Limit';
+      }
+      if (timeUnit.contains('HOUR')) return '${duration}h Limit';
+      if (timeUnit.contains('DAY')) return '${duration}d Limit';
+      if (timeUnit.contains('MONTH')) return '${duration}mo Limit';
+      return '${duration}s Limit';
+    }
 
-    return ProviderUsageWindow(
-      label: _formatDurationLabel(duration, timeUnit),
-      utilization: utilization.clamp(0, 100),
-      resetsAtMs: resetTime?.millisecondsSinceEpoch,
-      limit: limit,
-      used: used,
-      remaining: (limit - used).clamp(0, double.infinity),
-    );
+    return 'Limit #${idx + 1}';
   }
 
-  Map<String, dynamic> _formatSubscriptionExtra(
-    Map<String, dynamic> subscription,
-  ) {
-    final result = <String, dynamic>{
-      'subscribed': subscription['subscribed'] ?? false,
-    };
-
-    final sub = subscription['subscription'];
-    if (sub is Map<String, dynamic>) {
-      final goods = sub['goods'];
-      if (goods is Map<String, dynamic>) {
-        result['plan'] = <String, dynamic>{
-          'title': goods['title'] ?? '',
-          'level': _formatMembershipLevel(goods['membershipLevel'] as String?),
-          'status': _formatSubscriptionStatus(sub['status'] as String?),
-        };
-      }
-      final currentEndTime = sub['currentEndTime'] as String?;
-      if (currentEndTime != null && currentEndTime.isNotEmpty) {
-        final expiresAt = _parseDateTime(currentEndTime);
-        if (expiresAt != null) {
-          result['expires_at'] = expiresAt.toIso8601String();
-        }
+  /// Extracts a reset timestamp (ms since epoch) from the assorted reset field
+  /// names, accepting ISO-8601 strings, epoch numbers, or relative seconds.
+  static int? _parseResetMs(Map<String, dynamic> data) {
+    const isoKeys = ['reset_at', 'resetAt', 'reset_time', 'resetTime'];
+    for (final key in isoKeys) {
+      final value = data[key];
+      if (value is String && value.isNotEmpty) {
+        final dt = DateTime.tryParse(value);
+        if (dt != null) return dt.millisecondsSinceEpoch;
+      } else if (value is num) {
+        // Epoch: treat large values as ms, smaller as seconds.
+        return value > 1e12 ? value.toInt() : (value * 1000).toInt();
       }
     }
 
-    final memberships = subscription['memberships'];
-    if (memberships is List<dynamic>) {
-      result['features'] = memberships
-          .whereType<Map<String, dynamic>>()
-          .map(
-            (m) => <String, dynamic>{
-              'feature': _formatFeatureName(m['feature'] as String?),
-              'left': m['leftCount'] ?? 0,
-              'total': m['totalCount'] ?? 0,
-            },
-          )
-          .toList();
+    for (final key in const ['reset_in', 'resetIn', 'ttl']) {
+      final seconds = _parseInt(data[key]);
+      if (seconds != null) {
+        return DateTime.now()
+            .add(Duration(seconds: seconds))
+            .millisecondsSinceEpoch;
+      }
     }
 
-    return result;
-  }
-
-  static String _formatScopeLabel(String scope) {
-    final parts = scope.split('_').where((p) => p.isNotEmpty).toList();
-    return parts
-        .map(
-          (p) =>
-              '${p.substring(0, 1).toUpperCase()}${p.substring(1).toLowerCase()}',
-        )
-        .join(' ');
-  }
-
-  static String _formatDurationLabel(int duration, String timeUnit) {
-    var unit = timeUnit.toLowerCase().replaceFirst('time_unit_', '');
-    if (unit.endsWith('s')) unit = unit.substring(0, unit.length - 1);
-    if (unit.isEmpty) unit = 'window';
-    return '$duration-${unit[0].toUpperCase()}${unit.substring(1)} Rate Limit';
-  }
-
-  static String _formatSubscriptionStatus(String? status) {
-    return switch (status) {
-      'SUBSCRIPTION_STATUS_ACTIVE' => 'Active',
-      'SUBSCRIPTION_STATUS_CANCELLED' => 'Cancelled',
-      'SUBSCRIPTION_STATUS_EXPIRED' => 'Expired',
-      _ => status?.replaceFirst('SUBSCRIPTION_STATUS_', '') ?? 'Unknown',
-    };
-  }
-
-  static String _formatMembershipLevel(String? level) {
-    return switch (level) {
-      'LEVEL_BASIC' => 'Basic',
-      'LEVEL_STANDARD' => 'Standard',
-      'LEVEL_PREMIUM' => 'Premium',
-      _ => level?.replaceFirst('LEVEL_', '') ?? 'Unknown',
-    };
-  }
-
-  static String _formatFeatureName(String? feature) {
-    final name = feature?.replaceFirst('FEATURE_', '') ?? '';
-    if (name.isEmpty) return name;
-    return '${name[0].toUpperCase()}${name.substring(1).toLowerCase()}';
+    return null;
   }
 
   static double? _parseDouble(dynamic value) {
@@ -286,9 +247,14 @@ class KimiUsageApi {
     return null;
   }
 
-  static DateTime? _parseDateTime(dynamic value) {
-    if (value == null || value is! String || value.isEmpty) return null;
-    return DateTime.tryParse(value);
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value) ?? double.tryParse(value)?.toInt();
+    }
+    return null;
   }
 }
 
@@ -338,6 +304,14 @@ class MiniMaxUsageApi {
     );
   }
 
+  Options _authOptions(String cookie) => Options(
+        headers: <String, dynamic>{
+          'Cookie': cookie,
+          'Accept': 'application/json',
+          'User-Agent': _userAgent,
+        },
+      );
+
   Future<Map<String, dynamic>> _fetchUsage(
     String cookie,
     String groupId,
@@ -345,22 +319,14 @@ class MiniMaxUsageApi {
     final response = await _dio.get<dynamic>(
       _usageEndpoint,
       queryParameters: <String, dynamic>{'GroupId': groupId},
-      options: Options(
-        headers: <String, dynamic>{
-          'Cookie': cookie,
-          'Accept': 'application/json',
-        },
-      ),
+      options: _authOptions(cookie),
     );
 
     if (response.statusCode != 200) {
-      throw ProviderUsageApiException(
-        'MiniMax usage request failed: ${response.statusCode}',
-        statusCode: response.statusCode,
-      );
+      _throwHttpError('MiniMax', 'usage', response);
     }
 
-    return response.data! as Map<String, dynamic>;
+    return _asMap(response.data, 'MiniMax');
   }
 
   Future<Map<String, dynamic>> _fetchSubscription(
@@ -375,22 +341,14 @@ class MiniMaxUsageApi {
         'cycle_type': '3',
         'resource_package_type': '7',
       },
-      options: Options(
-        headers: <String, dynamic>{
-          'Cookie': cookie,
-          'Accept': 'application/json',
-        },
-      ),
+      options: _authOptions(cookie),
     );
 
     if (response.statusCode != 200) {
-      throw ProviderUsageApiException(
-        'MiniMax subscription request failed: ${response.statusCode}',
-        statusCode: response.statusCode,
-      );
+      _throwHttpError('MiniMax', 'subscription', response);
     }
 
-    return response.data! as Map<String, dynamic>;
+    return _asMap(response.data, 'MiniMax');
   }
 
   List<ProviderUsageWindow> _parseWindows(Map<String, dynamic> response) {
@@ -426,6 +384,75 @@ class MiniMaxUsageApi {
   }
 }
 
-/// Kimi + MiniMax response helper kept private to this library.
-Map<String, dynamic> decodeJsonBody(String body) =>
-    jsonDecode(body) as Map<String, dynamic>;
+/// Builds a [ProviderUsageApiException] for a non-200 response, surfacing the
+/// server's error detail so a failure (e.g. an expired/invalid token) is
+/// diagnosable instead of an opaque status code.
+Never _throwHttpError(String provider, String action, Response<dynamic> r) {
+  final status = r.statusCode ?? 0;
+  final detail = _extractErrorDetail(r.data);
+  final reason = switch (status) {
+    401 || 403 =>
+      '$provider authentication failed — check the API key/token is valid and '
+          'not expired',
+    429 => '$provider rate limited',
+    >= 500 => '$provider server error',
+    _ => '$provider $action request failed',
+  };
+  final suffix = (detail != null && detail.isNotEmpty) ? ' ($detail)' : '';
+  throw ProviderUsageApiException(
+    '$reason: HTTP $status$suffix',
+    statusCode: status,
+  );
+}
+
+/// Extracts a short human-readable detail from a provider error body.
+String? _extractErrorDetail(dynamic data) {
+  Map<String, dynamic>? map;
+  if (data is Map<String, dynamic>) {
+    map = data;
+  } else if (data is String && data.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(data);
+      map = decoded is Map<String, dynamic> ? decoded : null;
+      if (map == null) return _clip(data);
+    } catch (_) {
+      return _clip(data);
+    }
+  }
+  if (map == null) return null;
+
+  // Common shapes: {"code":"unauthenticated"}, {"message":"..."},
+  // {"error":"..."} or {"error":{"message":"..."}}, {"msg":"..."}, and the
+  // MiniMax {"base_resp":{"status_msg":"..."}} envelope.
+  final error = map['error'];
+  if (error is Map<String, dynamic>) {
+    final m = error['message'];
+    if (m is String && m.isNotEmpty) return m;
+  }
+  for (final key in const ['message', 'error', 'msg', 'detail', 'code']) {
+    final value = map[key];
+    if (value is String && value.isNotEmpty) return value;
+  }
+  final baseResp = map['base_resp'];
+  if (baseResp is Map<String, dynamic>) {
+    final msg = baseResp['status_msg'];
+    if (msg is String && msg.isNotEmpty) return msg;
+  }
+  return null;
+}
+
+String _clip(String value) =>
+    value.length <= 200 ? value : '${value.substring(0, 197)}...';
+
+/// Decodes a response body into a JSON map, tolerating providers that hand
+/// back a JSON string body instead of an already-parsed map.
+Map<String, dynamic> _asMap(dynamic data, String provider) {
+  if (data is Map<String, dynamic>) return data;
+  if (data is String && data.isNotEmpty) {
+    final decoded = jsonDecode(data);
+    if (decoded is Map<String, dynamic>) return decoded;
+  }
+  throw ProviderUsageApiException(
+    '$provider returned an unexpected response format',
+  );
+}

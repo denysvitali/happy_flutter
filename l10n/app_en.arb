@@ -1875,10 +1875,20 @@
   "providersAccountNameLabel": "Account name",
   "providersAccountNameHint": "Optional",
   "providersKimiApiKeyLabel": "API key",
-  "providersKimiApiKeyHint": "Paste your Kimi API key",
+  "providersKimiApiKeyHint": "Paste your Kimi Coding Plan API key",
+  "providersKimiBaseUrlLabel": "Base URL",
+  "providersKimiBaseUrlHint": "https://api.kimi.com/coding/v1",
   "providersMiniMaxCookieLabel": "Cookie",
   "providersMiniMaxCookieHint": "Paste your MiniMax cookie",
   "providersMiniMaxGroupIdLabel": "Group ID",
   "providersMiniMaxGroupIdHint": "Paste your MiniMax Group ID",
-  "providersNotImplemented": "This provider is not yet supported."
+  "providersNotImplemented": "This provider is not yet supported.",
+  "providersResetsIn": "Resets in {time}",
+  "@providersResetsIn": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

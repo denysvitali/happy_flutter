@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$KimiCredentials {
 
- String get apiKey; String? get accountName;
+ String get apiKey; String get baseUrl; String? get accountName;
 /// Create a copy of KimiCredentials
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $KimiCredentialsCopyWith<KimiCredentials> get copyWith => _$KimiCredentialsCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is KimiCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.accountName, accountName) || other.accountName == accountName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KimiCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.accountName, accountName) || other.accountName == accountName));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,apiKey,accountName);
+int get hashCode => Object.hash(runtimeType,apiKey,baseUrl,accountName);
 
 @override
 String toString() {
-  return 'KimiCredentials(apiKey: $apiKey, accountName: $accountName)';
+  return 'KimiCredentials(apiKey: $apiKey, baseUrl: $baseUrl, accountName: $accountName)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $KimiCredentialsCopyWith<$Res>  {
   factory $KimiCredentialsCopyWith(KimiCredentials value, $Res Function(KimiCredentials) _then) = _$KimiCredentialsCopyWithImpl;
 @useResult
 $Res call({
- String apiKey, String? accountName
+ String apiKey, String baseUrl, String? accountName
 });
 
 
@@ -65,9 +65,10 @@ class _$KimiCredentialsCopyWithImpl<$Res>
 
 /// Create a copy of KimiCredentials
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? apiKey = null,Object? accountName = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? apiKey = null,Object? baseUrl = null,Object? accountName = freezed,}) {
   return _then(_self.copyWith(
 apiKey: null == apiKey ? _self.apiKey : apiKey // ignore: cast_nullable_to_non_nullable
+as String,baseUrl: null == baseUrl ? _self.baseUrl : baseUrl // ignore: cast_nullable_to_non_nullable
 as String,accountName: freezed == accountName ? _self.accountName : accountName // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
@@ -154,10 +155,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apiKey,  String? accountName)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apiKey,  String baseUrl,  String? accountName)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _KimiCredentials() when $default != null:
-return $default(_that.apiKey,_that.accountName);case _:
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
   return orElse();
 
 }
@@ -175,10 +176,10 @@ return $default(_that.apiKey,_that.accountName);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apiKey,  String? accountName)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apiKey,  String baseUrl,  String? accountName)  $default,) {final _that = this;
 switch (_that) {
 case _KimiCredentials():
-return $default(_that.apiKey,_that.accountName);case _:
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -195,10 +196,10 @@ return $default(_that.apiKey,_that.accountName);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apiKey,  String? accountName)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apiKey,  String baseUrl,  String? accountName)?  $default,) {final _that = this;
 switch (_that) {
 case _KimiCredentials() when $default != null:
-return $default(_that.apiKey,_that.accountName);case _:
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
   return null;
 
 }
@@ -210,10 +211,11 @@ return $default(_that.apiKey,_that.accountName);case _:
 @JsonSerializable()
 
 class _KimiCredentials implements KimiCredentials {
-  const _KimiCredentials({required this.apiKey, this.accountName});
+  const _KimiCredentials({required this.apiKey, this.baseUrl = kimiDefaultBaseUrl, this.accountName});
   factory _KimiCredentials.fromJson(Map<String, dynamic> json) => _$KimiCredentialsFromJson(json);
 
 @override final  String apiKey;
+@override@JsonKey() final  String baseUrl;
 @override final  String? accountName;
 
 /// Create a copy of KimiCredentials
@@ -229,16 +231,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _KimiCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.accountName, accountName) || other.accountName == accountName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _KimiCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.accountName, accountName) || other.accountName == accountName));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,apiKey,accountName);
+int get hashCode => Object.hash(runtimeType,apiKey,baseUrl,accountName);
 
 @override
 String toString() {
-  return 'KimiCredentials(apiKey: $apiKey, accountName: $accountName)';
+  return 'KimiCredentials(apiKey: $apiKey, baseUrl: $baseUrl, accountName: $accountName)';
 }
 
 
@@ -249,7 +251,7 @@ abstract mixin class _$KimiCredentialsCopyWith<$Res> implements $KimiCredentials
   factory _$KimiCredentialsCopyWith(_KimiCredentials value, $Res Function(_KimiCredentials) _then) = __$KimiCredentialsCopyWithImpl;
 @override @useResult
 $Res call({
- String apiKey, String? accountName
+ String apiKey, String baseUrl, String? accountName
 });
 
 
@@ -266,9 +268,10 @@ class __$KimiCredentialsCopyWithImpl<$Res>
 
 /// Create a copy of KimiCredentials
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? apiKey = null,Object? accountName = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? apiKey = null,Object? baseUrl = null,Object? accountName = freezed,}) {
   return _then(_KimiCredentials(
 apiKey: null == apiKey ? _self.apiKey : apiKey // ignore: cast_nullable_to_non_nullable
+as String,baseUrl: null == baseUrl ? _self.baseUrl : baseUrl // ignore: cast_nullable_to_non_nullable
 as String,accountName: freezed == accountName ? _self.accountName : accountName // ignore: cast_nullable_to_non_nullable
 as String?,
   ));

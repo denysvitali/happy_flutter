@@ -9,12 +9,14 @@ part of 'provider_usage.dart';
 _KimiCredentials _$KimiCredentialsFromJson(Map<String, dynamic> json) =>
     _KimiCredentials(
       apiKey: json['apiKey'] as String,
+      baseUrl: json['baseUrl'] as String? ?? kimiDefaultBaseUrl,
       accountName: json['accountName'] as String?,
     );
 
 Map<String, dynamic> _$KimiCredentialsToJson(_KimiCredentials instance) =>
     <String, dynamic>{
       'apiKey': instance.apiKey,
+      'baseUrl': instance.baseUrl,
       'accountName': instance.accountName,
     };
 

@@ -4747,7 +4747,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersKimiApiKeyLabel => 'API key';
 
   @override
-  String get providersKimiApiKeyHint => 'Paste your Kimi API key';
+  String get providersKimiApiKeyHint => 'Paste your Kimi Coding Plan API key';
+
+  @override
+  String get providersKimiBaseUrlLabel => 'Base URL';
+
+  @override
+  String get providersKimiBaseUrlHint => 'https://api.kimi.com/coding/v1';
 
   @override
   String get providersMiniMaxCookieLabel => 'Cookie';
@@ -4763,4 +4769,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get providersNotImplemented => 'This provider is not yet supported.';
+
+  @override
+  String providersResetsIn(String time) {
+    return 'Resets in $time';
+  }
 }
