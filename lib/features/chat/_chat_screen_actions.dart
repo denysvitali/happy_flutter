@@ -410,7 +410,9 @@ extension _ChatScreenActions on _ChatScreenState {
 
     _isLoadingCodexModelModes = true;
     try {
-      final response = await sync.machineGetCodexModels(machineId: machineId);
+      final response = await ref
+          .read(chatActionNotifierProvider.notifier)
+          .loadCodexModels(machineId);
       if (!mounted || !response.success || response.models.isEmpty) return;
       final modes = ChatModelMode.fromCodexCatalog(response.models);
       setState(() {
@@ -578,7 +580,9 @@ extension _ChatScreenActions on _ChatScreenState {
     if (localId == null) return;
 
     try {
-      await sync.retryFailedMessage(widget.sessionId, localId);
+      await ref
+          .read(chatActionNotifierProvider.notifier)
+          .retryFailedMessage(widget.sessionId, localId);
     } catch (e, st) {
       logger.warning(
         '[ChatScreen] _retryMessage failed: '
@@ -602,7 +606,9 @@ extension _ChatScreenActions on _ChatScreenState {
       _showSendBlockedSnackBar(sendIssue);
       return;
     }
-    final localId = sync.createLocalMessageId();
+    final localId = ref
+        .read(chatActionNotifierProvider.notifier)
+        .createLocalMessageId();
 
     unawaited(TtsService().stop());
 

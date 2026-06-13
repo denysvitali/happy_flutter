@@ -383,7 +383,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       // Re-read settings after applySettings so we use the current
       // lastUsedModelMode (the user's last explicit selection), not a stale
       // snapshot from initState.
-      await sync.applySettings({
+      await ref.read(settingsNotifierProvider.notifier).applySettings({
         'lastUsedAgent': _selectedAgent,
         'lastUsedProfile': profileId,
         'lastUsedProfilesByAgent': settings.lastUsedProfilesWithAgent(
@@ -404,20 +404,21 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       // switches don't regress the model choice.
       modelMode ??= updatedSettings.lastUsedModelMode;
       final String sessionPath;
+      final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
       if (_sessionType == 'worktree') {
-        sessionPath = await sync.createWorktree(
+        sessionPath = await sessionsNotifier.createWorktree(
           machineId: machineId,
           basePath: path,
         );
       } else {
         sessionPath = path;
       }
-      final sessionId = await sync.createSession(
+      final sessionId = await sessionsNotifier.createSession(
         machineId: machineId,
         path: sessionPath,
+        agent: _selectedAgent,
         profileId: profileId,
         modelMode: modelMode,
-        agent: _selectedAgent,
       );
       // Persist the profile so auto-restore reads correct env vars.
       if (profileId != null) {

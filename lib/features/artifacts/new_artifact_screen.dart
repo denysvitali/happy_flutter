@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
-import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -70,10 +70,12 @@ class _NewArtifactScreenState
     final failedMsg = context.l10n.artifactsFailedToCreate;
     setState(() => _isBusy = true);
     try {
-      final artifactId = await sync.createArtifact(
-        title.isNotEmpty ? title : null,
-        content.isNotEmpty ? content : null,
-      );
+      final artifactId = await ref
+          .read(artifactsNotifierProvider.notifier)
+          .createArtifact(
+            title.isNotEmpty ? title : null,
+            content.isNotEmpty ? content : null,
+          );
       if (!mounted) return;
       if (widget.embedded) {
         widget.onCreated?.call(artifactId);

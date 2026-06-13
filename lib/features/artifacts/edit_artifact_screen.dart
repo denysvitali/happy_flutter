@@ -5,7 +5,6 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
-import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -78,11 +77,13 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     final failedMsg = context.l10n.artifactsFailedToSave;
     setState(() => _isBusy = true);
     try {
-      await sync.updateArtifact(
-        widget.artifactId,
-        title.isNotEmpty ? title : null,
-        content.isNotEmpty ? content : null,
-      );
+      await ref
+          .read(artifactsNotifierProvider.notifier)
+          .saveArtifact(
+            widget.artifactId,
+            title: title.isNotEmpty ? title : null,
+            body: content.isNotEmpty ? content : null,
+          );
       if (!mounted) return;
       if (widget.embedded) {
         widget.onClose?.call();

@@ -10,7 +10,6 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
-import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/safe_pop.dart';
@@ -238,7 +237,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final sessionId = widget.session.id;
     final embedded = widget.embedded;
     final api = SessionsApi();
-    final syncService = sync;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -270,7 +268,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     setState(() => _isArchiving = true);
     try {
       await api.setSessionArchived(sessionId, true);
-      syncService.markSessionArchived(sessionId);
+      await ref
+          .read(sessionsNotifierProvider.notifier)
+          .markSessionArchived(sessionId, true);
       if (!mounted) return;
       if (!embedded) {
         safePop<void>(context);

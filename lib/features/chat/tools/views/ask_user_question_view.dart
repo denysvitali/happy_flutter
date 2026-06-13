@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/app_providers.dart';
 import '../../../../core/services/logger_service.dart' show logger;
-import '../../../../core/services/sync_service.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/wire_parsers.dart';
 import 'ask_user_question_widgets.dart';
@@ -29,7 +30,7 @@ class Question {
 }
 
 /// View for displaying AskUserQuestion tool with interactive options.
-class AskUserQuestionView extends StatefulWidget {
+class AskUserQuestionView extends ConsumerStatefulWidget {
 
   const AskUserQuestionView({
     required this.tool, super.key,
@@ -46,11 +47,11 @@ class AskUserQuestionView extends StatefulWidget {
   final String? sessionId;
 
   @override
-  State<AskUserQuestionView> createState() =>
+  ConsumerState<AskUserQuestionView> createState() =>
       _AskUserQuestionViewState();
 }
 
-class _AskUserQuestionViewState extends State<AskUserQuestionView>
+class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     with TickerProviderStateMixin {
   final Map<int, Set<int>> _selections = {};
   bool _isSubmitting = false;
@@ -540,24 +541,28 @@ class _AskUserQuestionViewState extends State<AskUserQuestionView>
       if (permId != null) {
         // Include answers in updatedInput so the CLI
         // receives them via the permission response.
-        await sync.sessionAllow(
-          widget.sessionId!,
-          permId,
-          updatedInput: <String, dynamic>{
-            ...input,
-            'answers': answers,
-          },
-        );
+        await ref
+            .read(permissionsNotifierProvider.notifier)
+            .allow(
+              widget.sessionId!,
+              permId,
+              updatedInput: <String, dynamic>{
+                ...input,
+                'answers': answers,
+              },
+            );
       } else {
         // Fallback: send as a chat message if there
         // is no permission to approve.
         final lines = answers.entries
             .map((e) => '${e.key}: ${e.value}')
             .toList();
-        await sync.sendMessage(
-          widget.sessionId!,
-          lines.join('\n'),
-        );
+        await ref
+            .read(chatActionNotifierProvider.notifier)
+            .sendMessage(
+              widget.sessionId!,
+              lines.join('\n'),
+            );
       }
       // Only mark as submitted after the RPC/message
       // actually succeeds — if the CLI agent has

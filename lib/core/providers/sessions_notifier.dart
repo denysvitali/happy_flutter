@@ -227,6 +227,47 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       await _foldersStorage.removeSession(id);
     }
   }
+
+  /// Archive a session on the server. Unarchiving is not supported by the
+  /// current sync API; passing [archived] = false is a no-op.
+  Future<void> markSessionArchived(String id, bool archived) async {
+    if (!sync.isInitialized || !archived) return;
+    sync.markSessionArchived(id);
+  }
+
+  /// Create a new session.
+  Future<String> createSession({
+    required String machineId,
+    required String path,
+    required String agent,
+    String? profileId,
+    String? modelMode,
+  }) async {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    return sync.createSession(
+      machineId: machineId,
+      path: path,
+      agent: agent,
+      profileId: profileId,
+      modelMode: modelMode,
+    );
+  }
+
+  /// Create a worktree for a session.
+  Future<String> createWorktree({
+    required String machineId,
+    required String basePath,
+  }) async {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    return sync.createWorktree(
+      machineId: machineId,
+      basePath: basePath,
+    );
+  }
 }
 
 final sessionsNotifierProvider =

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
-import '../../core/services/sync_service.dart';
+import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart'
     show AppFontSize, AppSpacing, AppDuration, AppCurve, AppTouchTarget;
 import '../../core/utils/ansi_parser.dart';
@@ -87,11 +87,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     }
 
     try {
-      final result = await sync.machineBash(
-        machineId: machineId,
-        command: trimmed,
-        cwd: _cwd ?? '/',
-      );
+      final result = await ref
+          .read(machinesNotifierProvider.notifier)
+          .bash(
+            machineId: machineId,
+            command: trimmed,
+            cwd: _cwd ?? '/',
+          );
       final stdout = result.stdout.trim();
       final stderr = result.stderr.trim();
       setState(() {

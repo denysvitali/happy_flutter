@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/settings_section.dart';
+import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -192,7 +193,9 @@ class EncryptionDebugScreen extends ConsumerWidget {
                     label: const Text('Clear caches'),
                     onPressed: () {
                       if (syncInitialized) {
-                        sync.encryption.clearAllCaches();
+                        ref
+                            .read(encryptionNotifierProvider.notifier)
+                            .clearAllCaches();
                         logger.info('Encryption caches cleared');
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

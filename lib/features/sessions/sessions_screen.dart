@@ -725,7 +725,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     for (final id in activeIds) {
       try {
         await SessionsApi().setSessionArchived(id, true);
-        sync.markSessionArchived(id);
+        await ref
+            .read(sessionsNotifierProvider.notifier)
+            .markSessionArchived(id, true);
       } catch (e, st) {
         logger.error(
           'Failed to archive session in batch: '

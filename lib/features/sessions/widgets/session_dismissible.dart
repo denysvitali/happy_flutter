@@ -7,7 +7,6 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
-import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
 enum _SwipeAction { archive, delete }
@@ -80,7 +79,7 @@ class _DismissibleActiveSessionState
     try {
       await SessionsApi().setSessionArchived(widget.session.id, true);
       // Mark optimistically archived to prevent reappear during server lag.
-      sync.markSessionArchived(widget.session.id);
+      await sessionsNotifier.markSessionArchived(widget.session.id, true);
       sessionsNotifier.loadFromSync();
       return true;
     } catch (e, st) {

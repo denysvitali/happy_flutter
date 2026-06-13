@@ -80,6 +80,44 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
       return false;
     }
   }
+
+  /// Creates a new artifact on the server and returns its ID.
+  Future<String> createArtifact(String? title, String? body) async {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    try {
+      return await sync.createArtifact(title, body);
+    } catch (e, stack) {
+      logger.warning(
+        'ArtifactsNotifier.createArtifact($title) failed',
+        e,
+        stack,
+      );
+      rethrow;
+    }
+  }
+
+  /// Updates an existing artifact's title and/or body on the server.
+  Future<void> saveArtifact(
+    String id, {
+    String? title,
+    String? body,
+  }) async {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    try {
+      await sync.updateArtifact(id, title, body);
+    } catch (e, stack) {
+      logger.warning(
+        'ArtifactsNotifier.saveArtifact($id) failed',
+        e,
+        stack,
+      );
+      rethrow;
+    }
+  }
 }
 
 final artifactsNotifierProvider =

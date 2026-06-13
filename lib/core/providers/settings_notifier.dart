@@ -115,6 +115,44 @@ class SettingsNotifier extends Notifier<Settings> {
     }
   }
 
+  /// Applies multiple settings in a single sync round-trip.
+  ///
+  /// Updates local state, CRDT, and storage for each key, then calls
+  /// [sync.applySettings] once with the batched values. Use this when a
+  /// screen needs to atomically update several related settings (e.g.
+  /// lastUsedAgent + lastUsedProfile + lastUsedProfilesByAgent).
+  Future<void> applySettings(Map<String, dynamic> values) async {
+    if (values.isEmpty) return;
+    var updated = state;
+    for (final entry in values.entries) {
+      try {
+        updated = SettingsUpdate.copyWithUpdated(updated, entry.key, entry.value);
+      } on UnknownSettingsKeyException catch (e) {
+        logger.warning('Dropping unknown settings key "${e.key}"');
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'Settings: dropped unknown key from batch update',
+              category: 'settings.unknownKey',
+              level: SentryLevel.warning,
+              data: {'key': e.key},
+            ),
+          ),
+        );
+        continue;
+      }
+      _crdt.updateSetting(entry.key, entry.value);
+      await _storage.updateSetting(entry.key, entry.value);
+      if (entry.key == 'developerModeEnabled') {
+        logger.setDeveloperMode(entry.value as bool);
+      }
+    }
+    state = updated;
+    if (sync.isInitialized) {
+      await sync.applySettings(values);
+    }
+  }
+
   /// Applies a remote LWW-tagged settings patch (item #3). Idempotent
   /// and commutative; safe to call from socket pushes that arrive out
   /// of order. Returns whether anything changed.

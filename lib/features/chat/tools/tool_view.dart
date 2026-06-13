@@ -7,7 +7,6 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
-import '../../../core/services/sync_service.dart';
 import '../../../core/utils/tool_error_parser.dart';
 import '../../../core/utils/wire_parsers.dart';
 import 'json_viewer.dart';
@@ -366,13 +365,14 @@ class _ToolViewState extends ConsumerState<ToolView>
   }
 
   Future<void> _performPermissionAction(PermissionAction action) async {
+    final notifier = ref.read(permissionsNotifierProvider.notifier);
     switch (action.kind) {
       case PermissionActionKind.allow:
-        await sync.sessionAllow(action.sessionId, action.permissionId);
+        await notifier.allow(action.sessionId, action.permissionId);
       case PermissionActionKind.deny:
-        await sync.sessionDeny(action.sessionId, action.permissionId);
+        await notifier.deny(action.sessionId, action.permissionId);
       case PermissionActionKind.allowAllEdits:
-        await sync.sessionAllow(
+        await notifier.allow(
           action.sessionId,
           action.permissionId,
           mode: 'acceptEdits',
@@ -385,31 +385,31 @@ class _ToolViewState extends ConsumerState<ToolView>
         } else {
           allowTools = [action.toolName];
         }
-        await sync.sessionAllow(
+        await notifier.allow(
           action.sessionId,
           action.permissionId,
           allowTools: allowTools,
         );
       case PermissionActionKind.yolo:
-        await sync.sessionAllow(
+        await notifier.allow(
           action.sessionId,
           action.permissionId,
           mode: 'yolo',
         );
       case PermissionActionKind.codexApprove:
-        await sync.sessionAllow(
+        await notifier.allow(
           action.sessionId,
           action.permissionId,
           decision: 'approved',
         );
       case PermissionActionKind.codexApproveForSession:
-        await sync.sessionAllow(
+        await notifier.allow(
           action.sessionId,
           action.permissionId,
           decision: 'approved_for_session',
         );
       case PermissionActionKind.codexAbort:
-        await sync.sessionDeny(
+        await notifier.deny(
           action.sessionId,
           action.permissionId,
           decision: 'abort',

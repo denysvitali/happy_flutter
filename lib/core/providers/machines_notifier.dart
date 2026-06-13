@@ -1,6 +1,7 @@
 import 'package:riverpod/riverpod.dart';
 
 import '../models/machine.dart';
+import '../rpc/rpc_types.dart' show BashResponse, ReadFileResponse;
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
 import '_shared.dart';
@@ -53,6 +54,54 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
 
   void clear() {
     state = {};
+  }
+
+  /// Runs a bash command on [machineId].
+  Future<BashResponse> bash({
+    required String machineId,
+    required String command,
+    required String cwd,
+  }) async {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    try {
+      return await sync.machineBash(
+        machineId: machineId,
+        command: command,
+        cwd: cwd,
+      );
+    } catch (e, stack) {
+      logger.warning(
+        'MachinesNotifier.bash($machineId, $command) failed',
+        e,
+        stack,
+      );
+      rethrow;
+    }
+  }
+
+  /// Reads a file from [machineId] at [filePath].
+  Future<ReadFileResponse> readFile({
+    required String machineId,
+    required String filePath,
+  }) async {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    try {
+      return await sync.machineReadFile(
+        machineId: machineId,
+        filePath: filePath,
+      );
+    } catch (e, stack) {
+      logger.warning(
+        'MachinesNotifier.readFile($machineId, $filePath) failed',
+        e,
+        stack,
+      );
+      rethrow;
+    }
   }
 }
 

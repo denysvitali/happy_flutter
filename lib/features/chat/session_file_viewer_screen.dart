@@ -1,12 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
-import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/providers/app_providers.dart';
 import 'markdown/markdown_view.dart';
 import 'syntax_highlighter.dart';
 
@@ -32,7 +33,7 @@ enum _ViewMode { code, preview }
 ///
 /// Code files are rendered with syntax highlighting and line numbers.
 /// Markdown files offer a toggle between rendered preview and source.
-class SessionFileViewerScreen extends StatefulWidget {
+class SessionFileViewerScreen extends ConsumerStatefulWidget {
   /// Creates a [SessionFileViewerScreen].
   const SessionFileViewerScreen({
     required this.path,
@@ -60,11 +61,11 @@ class SessionFileViewerScreen extends StatefulWidget {
   final VoidCallback? onClose;
 
   @override
-  State<SessionFileViewerScreen> createState() =>
+  ConsumerState<SessionFileViewerScreen> createState() =>
       _SessionFileViewerScreenState();
 }
 
-class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
+class _SessionFileViewerScreenState extends ConsumerState<SessionFileViewerScreen> {
   String? _content;
   int _lineCount = 0;
   String? _error;
@@ -92,7 +93,7 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
     });
 
     try {
-      final session = sync.sessions[widget.sessionId];
+      final session = ref.read(sessionsNotifierProvider)[widget.sessionId];
       final machineId = session?.metadata?.machineId;
       if (machineId == null || machineId.isEmpty) {
         setState(() {
@@ -102,10 +103,12 @@ class _SessionFileViewerScreenState extends State<SessionFileViewerScreen> {
         return;
       }
 
-      final response = await sync.machineReadFile(
-        machineId: machineId,
-        filePath: widget.path,
-      );
+      final response = await ref
+          .read(machinesNotifierProvider.notifier)
+          .readFile(
+            machineId: machineId,
+            filePath: widget.path,
+          );
 
       if (!mounted) return;
 

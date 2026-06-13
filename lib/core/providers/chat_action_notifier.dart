@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 
 import 'package:riverpod/riverpod.dart';
 
+import '../rpc/rpc_types.dart' show CodexModelsResponse;
 import '../services/draft_storage.dart';
 import '../services/sync_service.dart';
 import 'settings_notifier.dart';
@@ -43,6 +44,30 @@ class ChatActionNotifier extends Notifier<void> {
       throw StateError('Sync is not initialized');
     }
     await sync.abortSession(sessionId, reason: reason);
+  }
+
+  /// Mint a new canonical local message ID for optimistic UI.
+  String createLocalMessageId() {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    return sync.createLocalMessageId();
+  }
+
+  /// Retry a failed message, preserving its original localId.
+  Future<void> retryFailedMessage(String sessionId, String localId) async {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    await sync.retryFailedMessage(sessionId, localId);
+  }
+
+  /// Load available Codex models for a machine.
+  Future<CodexModelsResponse> loadCodexModels(String machineId) async {
+    if (!sync.isInitialized) {
+      throw StateError('Sync is not initialized');
+    }
+    return sync.machineGetCodexModels(machineId: machineId);
   }
 
   /// Delete a session. Returns true on success.
