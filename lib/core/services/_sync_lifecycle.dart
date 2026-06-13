@@ -764,8 +764,7 @@ extension SyncLifecycle on Sync {
     _sessionDataKeys.clear();
     _sessionEncryptedDataKeys.clear();
     _machineDataKeys.clear();
-    _artifactDataKeys.clear();
-    _artifacts.clear();
+    artifactManager?.clear();
     for (final timer in _saveMsgsDebounceTimers.values) {
       timer.cancel();
     }

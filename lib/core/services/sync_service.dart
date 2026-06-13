@@ -34,6 +34,7 @@ import '../models/purchases.dart';
 import '../models/session.dart';
 import '../models/settings.dart';
 import '../rpc/rpc_types.dart';
+import '../sync/artifact_manager.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
 import '../services/mmkv_storage.dart';
@@ -55,6 +56,8 @@ import '../utils/invalidate_sync.dart';
 import '../utils/message_invariant_monitor.dart';
 import '../utils/parse_token.dart';
 import '../utils/path_utils.dart' show resolveAbsolutePath;
+import '../utils/sync_domain.dart';
+export '../utils/sync_domain.dart' show SyncDomain;
 import '../utils/wire_parsers.dart';
 // Canary mode — runtime invariant assertions.  No-ops when kCanary
 // is false, so the part files can call CanaryAssert.* freely without
@@ -88,17 +91,6 @@ part '_sync_socket_events.dart';
 part 'message_pipeline/message_models.dart';
 part 'message_pipeline/message_ingestion_orchestrator.dart';
 part '_sync_test_helpers.dart';
-
-enum SyncDomain {
-  sessions,
-  messages,
-  machines,
-  settings,
-  profile,
-  artifacts,
-  gitStatus,
-  friendRequests,
-}
 
 class SyncProgress {
   const SyncProgress({required this.label, this.completed, this.total});
@@ -209,6 +201,7 @@ what you have, you must use the options mode.
 
   // Core dependencies
   late Encryption encryption;
+  ArtifactManager? artifactManager;
   bool _encryptionInitialized = false;
   late String serverID;
   late String anonID;
@@ -222,7 +215,6 @@ what you have, you must use the options mode.
   final Map<String, Uint8List> _sessionDataKeys = {};
   final Map<String, String> _sessionEncryptedDataKeys = {};
   final Map<String, Uint8List> _machineDataKeys = {};
-  final Map<String, Uint8List> _artifactDataKeys = {};
 
   // Sync managers
   late InvalidateSync sessionsSync;
@@ -341,7 +333,6 @@ what you have, you must use the options mode.
 
   // Pending settings
   Map<String, dynamic> pendingSettings = {};
-  final List<DecryptedArtifact> _artifacts = <DecryptedArtifact>[];
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   final Map<String, Map<String, String?>> _sessionContentSignatures = {};
   Map<String, List<Map<String, dynamic>>>? _sessionMessagesCache;
@@ -609,7 +600,13 @@ what you have, you must use the options mode.
   @visibleForTesting
   Future<void>? lastCompleteSendFuture;
 
-  List<DecryptedArtifact> get artifacts => List.unmodifiable(_artifacts);
+  List<DecryptedArtifact> get artifacts =>
+      List.unmodifiable(artifactManager?.artifacts ?? []);
+
+  // Backward-compatible aliases for part files still migrating to the manager.
+  List<DecryptedArtifact> get _artifacts => artifactManager?.artifacts ?? [];
+  Map<String, Uint8List> get _artifactDataKeys =>
+      artifactManager?.dataKeys ?? {};
 
   /// Get usage data for a session (contextSize, inputTokens, outputTokens).
   Map<String, Map<String, dynamic>> get sessionUsage =>

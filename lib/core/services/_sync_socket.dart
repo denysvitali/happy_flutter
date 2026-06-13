@@ -24,6 +24,11 @@ extension SyncSocket on Sync {
     _encryptionInitialized = true;
     anonID = encryption.anonId;
     serverID = parseToken(credentials.token);
+    artifactManager = ArtifactManager(
+      encryption: encryption,
+      artifactsSyncGetter: () => artifactsSync,
+      onDataChanged: _notifyDataChanged,
+    );
     await _init();
 
     // Await initial syncs in parallel — these are independent HTTP
@@ -53,6 +58,11 @@ extension SyncSocket on Sync {
     _encryptionInitialized = true;
     anonID = encryption.anonId;
     serverID = parseToken(credentials.token);
+    artifactManager = ArtifactManager(
+      encryption: encryption,
+      artifactsSyncGetter: () => artifactsSync,
+      onDataChanged: _notifyDataChanged,
+    );
     await _init();
     // isInitialized is set early inside _init() after cache restore.
   }
