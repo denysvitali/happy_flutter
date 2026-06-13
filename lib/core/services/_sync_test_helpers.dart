@@ -200,6 +200,15 @@ extension SyncTestHelpers on Sync {
     return MessageCacheService.stripOrphanSynthetics(messages);
   }
 
+  /// Test helper: directly set usage data for a session.
+  @visibleForTesting
+  void testSetSessionUsage(
+    String sessionId,
+    Map<String, dynamic> usage,
+  ) {
+    _sessionUsage[sessionId] = usage;
+  }
+
   @visibleForTesting
   List<Map<String, dynamic>> testGetSessionMessages(String sessionId) {
     return _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];

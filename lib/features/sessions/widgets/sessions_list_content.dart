@@ -126,15 +126,19 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     super.initState();
     _sel.addListener(_onSelectionChanged);
     widget.folderNotifier.addListener(_onFolderChanged);
-    // Sessions list cards read sync.getLastMessageTimestamp/Preview/Role
-    // directly. The parent SessionsScreen subscribes only to the sessions
-    // domain, so when message previews are warmed (e.g. during cold-start
-    // batched cache restore) without any session-metadata change, we need
-    // a separate trigger to rebuild and re-render the previews.
-    subscribeToDomains({SyncDomain.messages}, () {
-      if (!mounted) return;
-      setState(() {});
-    });
+    // Hoisted Phase 2: the build method now reads previews/timestamps/
+    // unread counts/optimistic-archive state from the
+    // [SessionUiStateNotifier] via `ref.watch`, which only rebuilds
+    // the cards whose per-session entry actually changed. We still
+    // need to nudge the notifier whenever sessions or messages change
+    // so the derived state stays fresh.
+    subscribeToDomains(
+      const {SyncDomain.sessions, SyncDomain.messages},
+      () {
+        if (!mounted) return;
+        ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+      },
+    );
   }
 
   @override
@@ -238,7 +242,18 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     );
 
     final searchQuery = widget.searchQuery;
-    final optimisticallyArchivedIds = sync.getOptimisticallyArchivedIds();
+    final optimisticallyArchivedIds = ref.watch(
+      optimisticallyArchivedIdsProvider,
+    );
+    // Local timestamp lookup table — replaces the
+    // `sync.getLastMessageTimestamp` callback that used to be called
+    // from inside the sort comparators and the signature helper.
+    final uiState = ref.watch(sessionUiStateNotifierProvider);
+    final tsLookup = <String, int?>{
+      for (final entry in uiState.bySessionId.entries)
+        entry.key: entry.value.lastMessageTimestamp,
+    };
+    int? getTs(String id) => tsLookup[id];
 
     final sorted = computeSortedSessions(
       sessions,
@@ -246,7 +261,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       lastSessions: _lastSessionsMap,
       lastSearchQuery: _lastSearchQuery,
       optimisticallyArchivedIds: optimisticallyArchivedIds,
-      getLastMessageTimestamp: sync.getLastMessageTimestamp,
+      getLastMessageTimestamp: getTs,
       searchQuery: searchQuery,
     );
     _sortedCache = sorted;
@@ -259,6 +274,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     if (!_hasLoaded && (sessionListCount > 0 || sync.isInitialized)) {
       _hasLoaded = true;
+    }
+
+    // Eagerly load derived UI state on first successful build so the
+    // card widgets have data before the first domain-change event.
+    if (_hasLoaded) {
+      ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
     }
 
     if (sessionListCount == 0 && !_hasLoaded) {
@@ -288,6 +309,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         activeSessions,
         inactiveSessions,
         machines,
+        uiState,
         sessionsViewStyle: sessionsViewStyle,
         triggerStagger: triggerStagger,
         hideInactive: hideInactive,
@@ -351,7 +373,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     BuildContext context,
     List<Session> activeSessions,
     List<Session> inactiveSessions,
-    Map<String, Machine> machines, {
+    Map<String, Machine> machines,
+    SessionUiState uiState, {
     required String sessionsViewStyle,
     required bool triggerStagger,
     required bool hideInactive,
@@ -364,6 +387,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         activeSessions,
         inactiveSessions,
         machines,
+        uiState,
         triggerStagger: triggerStagger,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
@@ -375,6 +399,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         context,
         activeSessions,
         inactiveSessions,
+        uiState,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       );
@@ -385,6 +410,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       activeSessions,
       inactiveSessions,
       machines,
+      uiState,
       sessionsViewStyle: sessionsViewStyle,
       hideInactive: hideInactive,
     );
@@ -403,6 +429,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         final child = _buildItemWidget(
           context,
           item,
+          uiState: uiState,
           showFlavorIcons: showFlavorIcons,
           avatarStyle: avatarStyle,
           triggerStagger: triggerStagger,
@@ -417,8 +444,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     );
   }
 
-  bool _sessionNeedsAttention(String sessionId, Session session) {
-    if (sync.getUnreadCount(sessionId) > 0) return true;
+  bool _sessionNeedsAttention(
+    String sessionId,
+    Session session,
+    SessionUiState uiState,
+  ) {
+    final entry = uiState.bySessionId[sessionId] ?? SessionUiEntry.empty;
+    if (entry.unreadCount > 0) return true;
     final status = getSessionStatus(session);
     return status.isPulsing;
   }
@@ -426,7 +458,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   Widget _buildUnreadFocusView(
     BuildContext context,
     List<Session> activeSessions,
-    List<Session> inactiveSessions, {
+    List<Session> inactiveSessions,
+    SessionUiState uiState, {
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
@@ -434,7 +467,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final needsAttention = <Session>[];
     final allOthers = <Session>[];
     for (final session in activeSessions) {
-      if (_sessionNeedsAttention(session.id, session)) {
+      if (_sessionNeedsAttention(session.id, session, uiState)) {
         needsAttention.add(session);
       } else {
         allOthers.add(session);
@@ -472,9 +505,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       );
 
       for (final session in needsAttention) {
+        final entry = uiState.bySessionId[session.id] ?? SessionUiEntry.empty;
         items.add(
           _buildNeedsAttentionCard(
             session,
+            entry: entry,
             showFlavorIcons: showFlavorIcons,
             avatarStyle: avatarStyle,
           ),
@@ -486,31 +521,35 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       if (needsAttention.isNotEmpty) {
         items.add(const SizedBox(height: AppSpacing.md));
       }
-      items.add(
-        SectionHeader(
-          title: l10n.sessionsAllSessions,
-          trailing: Text(
-            '${allOthers.length}',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-              fontSize: AppFontSize.xs,
-              fontFeatures: const [FontFeature.tabularFigures()],
+      items
+        ..add(
+          SectionHeader(
+            title: l10n.sessionsAllSessions,
+            trailing: Text(
+              '${allOthers.length}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                fontSize: AppFontSize.xs,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
-        ),
-      );
-      items.add(
-        UnreadFocusListGroup(
-          children: [
-            for (final session in allOthers)
-              _buildUnreadFocusListRow(
-                session,
-                showFlavorIcons: showFlavorIcons,
-                avatarStyle: avatarStyle,
-              ),
-          ],
-        ),
-      );
+        )
+        ..add(
+          UnreadFocusListGroup(
+            children: [
+              for (final session in allOthers)
+                _buildUnreadFocusListRow(
+                  session,
+                  entry:
+                      uiState.bySessionId[session.id] ??
+                      SessionUiEntry.empty,
+                  showFlavorIcons: showFlavorIcons,
+                  avatarStyle: avatarStyle,
+                ),
+            ],
+          ),
+        );
     }
 
     return ListView.builder(
@@ -528,6 +567,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   Widget _buildNeedsAttentionCard(
     Session session, {
+    required SessionUiEntry entry,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
@@ -540,12 +580,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       onLongPress: () => _onSessionLongPress(session.id),
       showFlavorIcon: showFlavorIcons,
       avatarStyle: avatarStyle,
-      lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
-      lastMessagePreview: sync.getLastMessagePreview(session.id),
-      lastMessageRole: sync.getLastMessageRole(session.id),
+      lastMessageTimestamp: entry.lastMessageTimestamp,
+      lastMessagePreview: entry.lastMessagePreview,
+      lastMessageRole: entry.lastMessageRole,
       isSelected: sel.selectedIds.contains(session.id),
       selectionMode: sel.isActive,
-      unreadCount: sync.getUnreadCount(session.id),
+      unreadCount: entry.unreadCount,
     );
     return sel.isActive
         ? card
@@ -554,6 +594,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   Widget _buildUnreadFocusListRow(
     Session session, {
+    required SessionUiEntry entry,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
@@ -566,9 +607,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       onLongPress: () => _onSessionLongPress(session.id),
       showFlavorIcon: showFlavorIcons,
       avatarStyle: avatarStyle,
-      lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
-      lastMessagePreview: sync.getLastMessagePreview(session.id),
-      lastMessageRole: sync.getLastMessageRole(session.id),
+      lastMessageTimestamp: entry.lastMessageTimestamp,
+      lastMessagePreview: entry.lastMessagePreview,
+      lastMessageRole: entry.lastMessageRole,
       isSelected: sel.selectedIds.contains(session.id),
       selectionMode: sel.isActive,
     );
@@ -581,17 +622,26 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     BuildContext context,
     List<Session> activeSessions,
     List<Session> inactiveSessions,
-    Map<String, Machine> machines, {
+    Map<String, Machine> machines,
+    SessionUiState uiState, {
     required bool triggerStagger,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
+    final tsLookup = <String, int?>{
+      for (final entry in uiState.bySessionId.entries)
+        entry.key: entry.value.lastMessageTimestamp,
+    };
+    final unreadLookup = <String, int>{
+      for (final entry in uiState.bySessionId.entries)
+        entry.key: entry.value.unreadCount,
+    };
     final folders = groupAllSessionsByFolder(
       activeSessions,
       inactiveSessions,
       machines,
-      getLastMessageTimestamp: sync.getLastMessageTimestamp,
-      getUnreadCount: sync.getUnreadCount,
+      getLastMessageTimestamp: (id) => tsLookup[id],
+      getUnreadCount: (id) => unreadLookup[id] ?? 0,
     );
 
     SessionFolderGroup? selectedFolder;
@@ -647,7 +697,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final olderArchived = <Session>[];
     for (final session in folder.inactiveSessions) {
       final activityAt =
-          sync.getLastMessageTimestamp(session.id) ?? session.updatedAt;
+          uiState.bySessionId[session.id]?.lastMessageTimestamp ??
+          session.updatedAt;
       if (activityAt >= sevenDaysAgo) {
         recentArchived.add(session);
       } else {
@@ -683,6 +734,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           if (folder.activeSessions.isNotEmpty)
             _buildFolderSessionGroup(
               folder.activeSessions,
+              uiState: uiState,
               showFlavorIcons: showFlavorIcons,
               avatarStyle: avatarStyle,
             ),
@@ -717,6 +769,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             if (recentArchived.isNotEmpty)
               _buildFolderSessionGroup(
                 recentArchived,
+                uiState: uiState,
                 showFlavorIcons: showFlavorIcons,
                 avatarStyle: avatarStyle,
                 archived: true,
@@ -744,6 +797,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             if (olderArchived.isNotEmpty && isOlderArchivedExpanded)
               _buildFolderSessionGroup(
                 olderArchived,
+                uiState: uiState,
                 showFlavorIcons: showFlavorIcons,
                 avatarStyle: avatarStyle,
                 archived: true,
@@ -756,6 +810,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   Widget _buildFolderSessionGroup(
     List<Session> sessions, {
+    required SessionUiState uiState,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
     bool archived = false,
@@ -765,6 +820,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       final session = sessions[i];
       final row = _buildFolderSessionRow(
         session,
+        entry: uiState.bySessionId[session.id] ?? SessionUiEntry.empty,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
         archived: archived,
@@ -776,6 +832,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   Widget _buildFolderSessionRow(
     Session session, {
+    required SessionUiEntry entry,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
     required bool archived,
@@ -796,13 +853,14 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       onLongPress: () => _onSessionLongPress(session.id),
       showFlavorIcon: showFlavorIcons,
       avatarStyle: avatarStyle,
-      lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
-      lastMessagePreview: sync.getLastMessagePreview(session.id),
-      lastMessageRole: sync.getLastMessageRole(session.id),
+      lastMessageTimestamp: entry.lastMessageTimestamp,
+      lastMessagePreview: entry.lastMessagePreview,
+      lastMessageRole: entry.lastMessageRole,
       isSelected: sel.selectedIds.contains(session.id),
       selectionMode: sel.isActive,
-      unreadCount: archived ? 0 : sync.getUnreadCount(session.id),
-      archiveCountdownLabel: archived ? _archiveCountdownLabel(session) : null,
+      unreadCount: archived ? 0 : entry.unreadCount,
+      archiveCountdownLabel:
+          archived ? _archiveCountdownLabel(session, entry) : null,
       muted: archived,
     );
 
@@ -816,10 +874,15 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     BuildContext context,
     List<Session> activeSessions,
     List<Session> inactiveSessions,
-    Map<String, Machine> machines, {
+    Map<String, Machine> machines,
+    SessionUiState uiState, {
     required String sessionsViewStyle,
     required bool hideInactive,
   }) {
+    final tsLookup = <String, int?>{
+      for (final entry in uiState.bySessionId.entries)
+        entry.key: entry.value.lastMessageTimestamp,
+    };
     final signature = Object.hashAll(<Object?>[
       sessionsViewStyle,
       activeSessions.length,
@@ -840,6 +903,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             entry.value.metadata?.displayName,
             entry.value.metadata?.host,
           ),
+      // Invalidate the list-items cache when any per-session UI state
+      // (last message timestamp) changes, otherwise the cached order
+      // becomes stale.
+      for (final entry in tsLookup.entries)
+        Object.hash(entry.key, entry.value),
     ]);
 
     final cachedItems = _listItemsCache;
@@ -942,9 +1010,14 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           ? _buildFolderGroupedItems(
               inactiveSessions,
               machines,
+              uiState,
               startIndex: staggerIndex,
             )
-          : _buildDateGroupedItems(inactiveSessions, startIndex: staggerIndex);
+          : _buildDateGroupedItems(
+              inactiveSessions,
+              uiState,
+              startIndex: staggerIndex,
+            );
       items.addAll(archivedItems);
     }
 
@@ -959,6 +1032,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   Widget _buildArchivedCard(
     BuildContext context,
     ListItem item, {
+    required SessionUiEntry entry,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
@@ -988,10 +1062,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           isSelected: sel.selectedIds.contains(session.id),
           showFlavorIcon: showFlavorIcons,
           avatarStyle: avatarStyle,
-          lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
-          lastMessagePreview: sync.getLastMessagePreview(session.id),
-          lastMessageRole: sync.getLastMessageRole(session.id),
-          archiveCountdownLabel: _archiveCountdownLabel(session),
+          lastMessageTimestamp: entry.lastMessageTimestamp,
+          lastMessagePreview: entry.lastMessagePreview,
+          lastMessageRole: entry.lastMessageRole,
+          archiveCountdownLabel: _archiveCountdownLabel(session, entry),
         ),
         if (!item.isLast! && !item.isSingle!)
           Divider(
@@ -1011,6 +1085,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   Widget _buildItemWidget(
     BuildContext context,
     ListItem item, {
+    required SessionUiState uiState,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
     required bool triggerStagger,
@@ -1058,6 +1133,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         final session = item.session!;
         return _buildActiveSessionCard(
           session,
+          entry: uiState.bySessionId[session.id] ?? SessionUiEntry.empty,
           showFlavorIcons: showFlavorIcons,
           avatarStyle: avatarStyle,
         );
@@ -1094,6 +1170,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         return _buildArchivedCard(
           context,
           item,
+          entry: uiState.bySessionId[item.session!.id] ?? SessionUiEntry.empty,
           showFlavorIcons: showFlavorIcons,
           avatarStyle: avatarStyle,
         );
@@ -1118,6 +1195,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   Widget _buildActiveSessionCard(
     Session session, {
+    required SessionUiEntry entry,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
@@ -1137,12 +1215,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         onTap: handleTap,
         showFlavorIcon: showFlavorIcons,
         avatarStyle: avatarStyle,
-        lastMessageTimestamp: sync.getLastMessageTimestamp(session.id),
-        lastMessagePreview: sync.getLastMessagePreview(session.id),
-        lastMessageRole: sync.getLastMessageRole(session.id),
+        lastMessageTimestamp: entry.lastMessageTimestamp,
+        lastMessagePreview: entry.lastMessagePreview,
+        lastMessageRole: entry.lastMessageRole,
         isSelected: sel.selectedIds.contains(session.id),
         selectionMode: sel.isActive,
-        unreadCount: sync.getUnreadCount(session.id),
+        unreadCount: entry.unreadCount,
         archiveCountdownLabel: null,
       ),
     );
@@ -1151,7 +1229,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         : DismissibleActiveSession(session: session, child: card);
   }
 
-  String? _archiveCountdownLabel(Session session) {
+  String? _archiveCountdownLabel(Session session, SessionUiEntry entry) {
     final settings = AutoArchiveService.instance.getSettings();
     final duration = AutoArchiveService.idleArchiveDuration(settings);
     if (duration == null) return null;
@@ -1160,9 +1238,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       return null;
     }
     if (session.draft != null && session.draft!.isNotEmpty) return null;
-    if (AutoArchiveService.hasUnsettledSend(
-      sync.messagesForSession(session.id),
-    )) {
+    if (entry.hasUnsettledSend) {
       return null;
     }
 
@@ -1183,12 +1259,17 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   }
 
   List<ListItem> _buildDateGroupedItems(
-    List<Session> sessions, {
+    List<Session> sessions,
+    SessionUiState uiState, {
     required int startIndex,
   }) {
+    final tsLookup = <String, int?>{
+      for (final entry in uiState.bySessionId.entries)
+        entry.key: entry.value.lastMessageTimestamp,
+    };
     final grouped = groupSessionsByDateCategory(
       sessions,
-      getLastMessageTimestamp: sync.getLastMessageTimestamp,
+      getLastMessageTimestamp: (id) => tsLookup[id],
     );
 
     var itemIndex = startIndex;
@@ -1249,13 +1330,18 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   List<ListItem> _buildFolderGroupedItems(
     List<Session> sessions,
-    Map<String, Machine> machines, {
+    Map<String, Machine> machines,
+    SessionUiState uiState, {
     required int startIndex,
   }) {
+    final tsLookup = <String, int?>{
+      for (final entry in uiState.bySessionId.entries)
+        entry.key: entry.value.lastMessageTimestamp,
+    };
     final folderItems = groupSessionsByFolder(
       sessions,
       machines,
-      getLastMessageTimestamp: sync.getLastMessageTimestamp,
+      getLastMessageTimestamp: (id) => tsLookup[id],
     );
 
     var itemIndex = startIndex;

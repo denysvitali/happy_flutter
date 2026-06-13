@@ -5,6 +5,7 @@ import '../models/machine.dart';
 import '../models/session.dart';
 import 'artifacts_notifier.dart';
 import 'machines_notifier.dart';
+import 'session_ui_state_notifier.dart';
 import 'sessions_notifier.dart';
 
 class _RecentSessionsCache {
@@ -135,4 +136,24 @@ final sessionsListProvider = Provider<List<Session>>((ref) {
 final artifactsListProvider = Provider<List<DecryptedArtifact>>((ref) {
   final artifacts = ref.watch(artifactsNotifierProvider);
   return List<DecryptedArtifact>.unmodifiable(artifacts.values);
+});
+
+// ─── Phase 2: per-session UI state (hoisted from sync.* getters) ───
+
+/// Per-session derived UI data: lastMessageTimestamp/Preview/Role,
+/// unreadCount, hasOlderMessages, isLoadingOlderMessages,
+/// isSessionReadyForMessages, sessionUsage. Watch this from widget
+/// `build()` instead of calling `sync.getLastMessage*(id)` etc.
+final sessionUiEntryProvider =
+    Provider.family<SessionUiEntry, String>((ref, sessionId) {
+  final state = ref.watch(sessionUiStateNotifierProvider);
+  return state.bySessionId[sessionId] ?? SessionUiEntry.empty;
+});
+
+/// Set of session ids that have been optimistically archived
+/// (deletion in flight) but not yet confirmed by the server.
+final optimisticallyArchivedIdsProvider = Provider<Set<String>>((ref) {
+  return ref.watch(
+    sessionUiStateNotifierProvider.select((s) => s.optimisticallyArchivedIds),
+  );
 });

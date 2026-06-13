@@ -11,6 +11,7 @@ export 'offline_dictation_notifier.dart';
 export 'profile_notifier.dart';
 export 'provider_usage_notifier.dart';
 export 'session_git_status_notifier.dart';
+export 'session_ui_state_notifier.dart';
 export 'sessions_notifier.dart';
 export 'settings_notifier.dart';
 export 'sidebar_notifier.dart';

@@ -25,10 +25,10 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final hasLocalMore = startIndex > 0;
 
     final allLocalVisible = _visibleCount >= totalCount;
+    final entry = ref.watch(sessionUiEntryProvider(widget.sessionId));
     final isLoadingFromServer =
-        allLocalVisible && sync.isLoadingOlderMessages(widget.sessionId);
-    final hasServerMore =
-        allLocalVisible && sync.hasOlderMessages(widget.sessionId);
+        allLocalVisible && entry.isLoadingOlderMessages;
+    final hasServerMore = allLocalVisible && entry.hasOlderMessages;
 
     final showHeader =
         hasLocalMore ||

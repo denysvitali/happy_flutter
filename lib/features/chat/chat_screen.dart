@@ -36,7 +36,6 @@ import 'message_widget.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
-import 'widgets/agent_event_widget.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_loading_shimmer.dart';
 import 'widgets/cleared_divider.dart';
@@ -345,7 +344,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messageSyncSubscription = sync.onSessionMessagesChanged
         .where((id) => id == widget.sessionId)
         .listen((_) {
-          if (mounted) _refreshFromSync();
+          if (!mounted) return;
+          ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+          _refreshFromSync();
         });
     _dataSyncSubscription = sync.onDomainChanged
         .where((domain) => domain == SyncDomain.sessions)
@@ -354,6 +355,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final counter = sync.domainChangeCounter(SyncDomain.sessions);
           if (counter == _lastDataChangeCounter) return;
           _lastDataChangeCounter = counter;
+          ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
           if (!_didStartInitialLoad && sync.isInitialized) {
             _doInitialLoad();
           } else {
@@ -946,7 +948,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chips = <ChatAppBarStatusChip>[];
     final colorScheme = Theme.of(context).colorScheme;
     final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
-    final isReady = sync.isSessionReadyForMessages(session.id);
+    final sessionUiEntry = ref.watch(sessionUiEntryProvider(session.id));
+    final isReady = sessionUiEntry.isSessionReadyForMessages;
     final lifecycleState = session.effectiveLifecycleState;
     final lifecycleSince = session.metadata?.lifecycleStateSince;
     final lifecycleIsRecent =
@@ -1300,6 +1303,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     required bool enterToSend,
     required List<ChatModelMode> availableModels,
   }) {
+    final sessionUiEntry = ref.watch(sessionUiEntryProvider(widget.sessionId));
     return Column(
       children: [
         Expanded(
@@ -1409,8 +1413,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           onProfileChanged: _onProfileChanged,
           machineName: _session?.metadata?.host,
           currentPath: _session?.metadata?.path,
-          contextSize:
-              sync.sessionUsage[widget.sessionId]?['contextSize'] as int?,
+          contextSize: sessionUiEntry.sessionUsage['contextSize'] as int?,
           isSessionOnline: _session?.isPresenceOnline ?? false,
           enterToSend: enterToSend,
           lastDeliveryStatus: _latestUserStatusMessage?['sendStatus']
