@@ -70,7 +70,10 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
 
   Future<ProviderUsage> _fetchAccountUsage(ProviderAccount account) async {
     try {
-      return account.credentials.when(
+      // Await inside the try so async failures (e.g. a 401
+      // ProviderUsageApiException) are caught here instead of escaping as an
+      // unhandled async error to PlatformDispatcher.onError.
+      return await account.credentials.when(
         kimi: (c) => _kimiApi.getUsage(
           apiKey: c.apiKey,
           accountId: account.id,
@@ -117,7 +120,14 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     if (!saved) return false;
 
     await loadAccounts();
-    unawaited(refreshUsage());
+    // Fire-and-forget refresh: guard so a provider auth failure (e.g. 401)
+    // never escapes as an unhandled async error.
+    unawaited(
+      refreshUsage().catchError(
+        (Object e, StackTrace stack) =>
+            logger.warning('Background provider usage refresh failed', e, stack),
+      ),
+    );
     return true;
   }
 
