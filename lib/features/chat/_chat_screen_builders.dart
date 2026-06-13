@@ -82,13 +82,11 @@ extension _ChatScreenBuilders on _ChatScreenState {
           // already has the real children rendered inline now, and
           // the synthetic would render as an empty duplicate.
           if (msg['_orphanRecovery'] == true) continue;
-          // Agent events with no renderable label (telemetry-only types
-          // like usage_report still present in older message caches, or
-          // unknown future event types) render as zero-size widgets but
-          // would still occupy a padded list row each — visible as the
-          // chat "growing" with empty messages. Skip them entirely.
+          // Agent events that are telemetry-only are intentionally not
+          // rendered in the main chat timeline. Unknown events now
+          // get a safe fallback label so they stay visible.
           if (msg['kind'] == 'agent-event' &&
-              AgentEventWidget.labelFor(msg['event']) == null) {
+              !AgentEventWidget.shouldRenderInChat(msg['event'])) {
             continue;
           }
           if (_shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {

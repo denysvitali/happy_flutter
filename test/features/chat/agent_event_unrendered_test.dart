@@ -41,8 +41,7 @@ void main() {
       expect(find.text('Unsupported agent message'), findsOneWidget);
     });
 
-    testWidgets('renders nothing for genuinely unknown event types',
-        (tester) async {
+    testWidgets('renders fallback text for unknown event types', (tester) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
@@ -51,10 +50,92 @@ void main() {
         ),
       );
 
-      // No text, no icon — the chat stays clean for events we have not
-      // explicitly opted into (legacy behaviour preserved).
-      expect(find.byType(Text), findsNothing);
+      expect(find.text('Unsupported agent message'), findsNothing);
+      expect(
+        find.text('Unsupported agent event (totally-unknown)'),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
+    });
+
+    testWidgets('uses explicit message over generated fallback', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const AgentEventWidget(
+            event: <String, dynamic>{
+              'type': 'totally-unknown',
+              'message': 'Something happened',
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Something happened'), findsOneWidget);
+      expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
+    });
+
+    testWidgets('renders generic fallback for malformed event payload', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const AgentEventWidget(
+            event: <String, dynamic>{'not': 'a-type-field'},
+          ),
+        ),
+      );
+
+      expect(find.text('Unsupported agent event'), findsOneWidget);
+      expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
+    });
+  });
+
+  group('AgentEventWidget.shouldRenderInChat', () {
+    test('hides telemetry-only event types from chat list', () {
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'usage_report'},
+        ),
+        isFalse,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{'type': 'ready'}),
+        isFalse,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'tool-execution-update'},
+        ),
+        isFalse,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'thinking'},
+        ),
+        isFalse,
+      );
+    });
+
+    test('shows unknown and unsupported agent events in chat', () {
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'totally-unknown'},
+        ),
+        isTrue,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'unrendered'},
+        ),
+        isTrue,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{}),
+        isTrue,
+      );
+    });
+
+    test('ignores malformed event payloads', () {
+      expect(AgentEventWidget.shouldRenderInChat(null), isFalse);
+      expect(AgentEventWidget.shouldRenderInChat('not-a-map'), isFalse);
     });
   });
 
@@ -82,7 +163,7 @@ void main() {
       );
     });
 
-    test('returns null for label-less events so list builders skip them', () {
+    test('returns null for label-less events not shown in timeline', () {
       // usage_report / ready rows still exist in older message caches;
       // the chat list must not give them a padded row.
       expect(

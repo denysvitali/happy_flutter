@@ -15,7 +15,6 @@ import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_loading_shimmer.dart';
-import 'package:happy_flutter/features/chat/widgets/empty_chat_view.dart';
 import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
@@ -171,6 +170,82 @@ void main() {
 
       expect(find.text('Hello there'), findsOneWidget);
       expect(find.text('Hi! How can I help?'), findsOneWidget);
+    });
+
+    testWidgets('renders unknown agent-event types as fallback rows', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'msg_evt',
+          'role': 'agent',
+          'kind': 'agent-event',
+          'event': <String, dynamic>{
+            'type': 'legacy-status',
+            'message': 'Legacy status update',
+          },
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Legacy status update'), findsOneWidget);
+    });
+
+    testWidgets('renders malformed agent-event payload as fallback row', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'msg_evt',
+          'role': 'agent',
+          'kind': 'agent-event',
+          'event': <String, dynamic>{'unexpected': 'value'},
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Unsupported agent event'), findsOneWidget);
+    });
+
+    testWidgets('skips telemetry-only agent events in chat list', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'msg_evt',
+          'role': 'agent',
+          'kind': 'agent-event',
+          'event': <String, dynamic>{'type': 'usage_report', 'cost': 3},
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('usage_report'), findsNothing);
+      expect(find.byKey(const ValueKey('header-beginning')), findsOneWidget);
     });
 
     testWidgets('updates when session messages change via sync', (
