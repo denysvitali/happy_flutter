@@ -324,7 +324,8 @@ extension SyncSocketEvents on Sync {
         final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
         final lastMs = _lastNoEmbedEventMs[sessionId] ?? 0;
         final lastSeq = _lastNoEmbedEventCursorSeq[sessionId];
-        if (cursorSeq == lastSeq && nowMs - lastMs < _noEmbedProbeCooldownMs) {
+        if (cursorSeq == lastSeq &&
+            nowMs - lastMs < Sync._noEmbedProbeCooldownMs) {
           return;
         }
         _lastNoEmbedEventMs[sessionId] = nowMs;

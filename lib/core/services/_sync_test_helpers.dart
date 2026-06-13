@@ -81,6 +81,7 @@ extension SyncTestHelpers on Sync {
     _sessionFirstLoadedSeq.remove(sessionId);
     _sessionContentSignatures.remove(sessionId);
     _sessionsNeedingFetchProbe.remove(sessionId);
+    _lastNoEmbedEventCursorSeq.remove(sessionId);
     _sessionsNeedingTailRefresh.remove(sessionId);
     _sessionsNeedingVisibleRegroup.remove(sessionId);
     _sessionsWithPendingUpdates.remove(sessionId);
