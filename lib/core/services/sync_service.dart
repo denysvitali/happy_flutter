@@ -355,6 +355,12 @@ what you have, you must use the options mode.
   /// Identity of the message list when the preview was computed.
   final Map<String, int> _previewCacheVersion = {};
   final Map<String, List<Map<String, dynamic>>> _sessionMessagesViewCache = {};
+
+  /// Monotonic per-session message revision, bumped on every real
+  /// message-list change (see [_notifySessionMessagesChanged]). Lets the
+  /// chat UI detect in-place edits that an identical()/tail-fingerprint
+  /// comparison would otherwise miss.
+  final Map<String, int> _sessionMessagesRevision = {};
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
   Settings _settingsSnapshot = Settings();
   int _settingsVersion = 0;
@@ -780,6 +786,17 @@ what you have, you must use the options mode.
       ),
     );
     return _sessionMessagesCache!;
+  }
+
+  /// Monotonic revision for a session's message list, bumped on every real
+  /// mutation. Subscribers compare it to detect in-place content changes
+  /// that an identical()/tail-fingerprint check cannot see.
+  int messagesRevision(String sessionId) =>
+      _sessionMessagesRevision[sessionId] ?? 0;
+
+  void _bumpMessagesRevision(String sessionId) {
+    _sessionMessagesRevision[sessionId] =
+        (_sessionMessagesRevision[sessionId] ?? 0) + 1;
   }
 
   /// Returns the messages for a single session without copying all sessions.

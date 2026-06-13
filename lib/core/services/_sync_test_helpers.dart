@@ -223,6 +223,11 @@ extension SyncTestHelpers on Sync {
 
   @visibleForTesting
   void testNotifySessionMessagesChanged(String sessionId) {
+    // Mirror production: a real message-change notification bumps the
+    // per-session revision (see _notifySessionMessagesChanged) so the
+    // chat UI can detect the change even when the tail fingerprint is
+    // unchanged.
+    _bumpMessagesRevision(sessionId);
     if (!_sessionMessageChangeController.isClosed) {
       _sessionMessageChangeController.add(sessionId);
     }

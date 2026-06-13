@@ -187,6 +187,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // Track when the actual messages list changes (not just rebuilds)
   List<Map<String, dynamic>>? _lastMessagesList;
   int _lastMessageFingerprint = 0;
+  int _lastMessagesRevision = -1;
 
   // Pre-computed neighbor cache for message list items (replacing O(N)
   // scans).
@@ -390,6 +391,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) {
     final latestSession = sync.sessions[widget.sessionId];
     final latestMessages = sync.messagesForSession(widget.sessionId);
+    final latestRevision = sync.messagesRevision(widget.sessionId);
 
     final sessionChanged = latestSession != _session;
     var messagesChanged = !identical(latestMessages, _messages);
@@ -407,6 +409,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (latestMessages.length == _messages.length &&
         _lastMessageFingerprint != 0) {
       messagesChanged = latestMessageFingerprint != _lastMessageFingerprint;
+    }
+
+    // The store bumps a per-session revision on every real message-list
+    // mutation. Trust it over the tail-of-5 fingerprint, which misses
+    // in-place edits to messages outside the tail — the "a message silently
+    // goes stale / disappears mid-thread" class of bug.
+    if (latestRevision != _lastMessagesRevision) {
+      messagesChanged = true;
     }
 
     // When the session changes, always refresh messages — the session
@@ -501,6 +511,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _messages = latestMessages;
         _recomputeMessageScanCache();
         _lastMessageFingerprint = latestMessageFingerprint;
+        _lastMessagesRevision = latestRevision;
         _prevMessagesLength = latestMessages.length;
 
         if (markLoaded) {

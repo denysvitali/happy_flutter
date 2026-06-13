@@ -364,6 +364,9 @@ extension SyncSocket on Sync {
   /// Coalesces rapid token-level updates into one emission per 200ms window
   /// per session, preventing the chat screen from rebuilding on every token.
   void _notifySessionMessagesChanged(String sessionId) {
+    // Bump first: this is the single funnel for every real message-list
+    // change, so the revision reliably moves whenever content mutates.
+    _bumpMessagesRevision(sessionId);
     _notifySessionMessagesChangedUiOnly(sessionId);
     // Persist updated messages to MMKV for instant cold-start load.
     _scheduleSaveMessages(sessionId);
