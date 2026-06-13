@@ -65,8 +65,7 @@ extension SyncTestHelpers on Sync {
     List<Map<String, dynamic>> messages,
   ) {
     _sessionMessages[sessionId] = List<Map<String, dynamic>>.from(messages);
-    _sessionMessagesCache = null;
-    _sessionMessagesViewCache.remove(sessionId);
+    _invalidateMessageCaches(sessionId);
   }
 
   @visibleForTesting
@@ -86,8 +85,7 @@ extension SyncTestHelpers on Sync {
     _sessionsNeedingVisibleRegroup.remove(sessionId);
     _sessionsWithPendingUpdates.remove(sessionId);
     _sessionsWithPendingSocketMessages.remove(sessionId);
-    _sessionMessagesCache = null;
-    _sessionMessagesViewCache.remove(sessionId);
+    _invalidateMessageCaches(sessionId);
     _previewCache.remove(sessionId);
     _previewCacheVersion.remove(sessionId);
     _sidechainRegroupSweepCount.remove(sessionId);

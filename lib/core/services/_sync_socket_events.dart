@@ -487,8 +487,7 @@ extension SyncSocketEvents on Sync {
       _loadingOlderMessages.remove(sessionId);
       _sessionMessages.remove(sessionId);
       _invalidatePreviewCache(sessionId);
-      _sessionMessagesCache = null;
-      _sessionMessagesViewCache.remove(sessionId);
+      _invalidateMessageCaches(sessionId);
       _sessions.remove(sessionId);
       _sessionsNeedingVisibleRegroup.remove(sessionId);
       _presenceTimers.remove(sessionId)?.cancel();

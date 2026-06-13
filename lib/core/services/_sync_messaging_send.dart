@@ -717,8 +717,7 @@ extension SyncMessagingSend on Sync {
     }
     if (firstIdx >= 0) {
       msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
-      _sessionMessagesCache = null;
-      _sessionMessagesViewCache.remove(sessionId);
+      _invalidateMessageCaches(sessionId);
     }
   }
 

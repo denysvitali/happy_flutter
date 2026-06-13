@@ -579,8 +579,7 @@ extension SyncMessagingRpc on Sync {
       }
       if (changed) {
         _sessionMessages[sessionId] = updated;
-        _sessionMessagesCache = null;
-        _sessionMessagesViewCache.remove(sessionId);
+        _invalidateMessageCaches(sessionId);
         _notifySessionMessagesChanged(sessionId);
       }
     }
@@ -896,8 +895,7 @@ extension SyncMessagingRpc on Sync {
         }
         if (cached.isNotEmpty) {
           _sessionMessages[sessionId] = cached;
-          _sessionMessagesCache = null;
-          _sessionMessagesViewCache.remove(sessionId);
+          _invalidateMessageCaches(sessionId);
           hasMessages = true;
           // Re-run the sidechain grouper so cached sidechain messages
           // are correctly re-parented into their parent Task messages.

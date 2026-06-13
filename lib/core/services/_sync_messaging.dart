@@ -1388,8 +1388,7 @@ extension SyncMessaging on Sync {
     _sessionMessages.remove(sessionId);
     _invalidatePreviewCache(sessionId);
     _sessionContentSignatures.remove(sessionId);
-    _sessionMessagesCache = null;
-    _sessionMessagesViewCache.remove(sessionId);
+    _invalidateMessageCaches(sessionId);
     if (sessionId == _visibleSessionId) {
       _visibleSessionId = null;
     }

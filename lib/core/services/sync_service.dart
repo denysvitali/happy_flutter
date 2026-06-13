@@ -799,6 +799,14 @@ what you have, you must use the options mode.
         (_sessionMessagesRevision[sessionId] ?? 0) + 1;
   }
 
+  /// Invalidate the cached all-sessions snapshot and the per-session
+  /// message view so the next read rebuilds from [_sessionMessages].
+  /// Call after any in-place mutation of a session's message list.
+  void _invalidateMessageCaches(String sessionId) {
+    _sessionMessagesCache = null;
+    _sessionMessagesViewCache.remove(sessionId);
+  }
+
   /// Returns the messages for a single session without copying all sessions.
   List<Map<String, dynamic>> messagesForSession(String sessionId) =>
       _sessionMessagesViewCache.putIfAbsent(

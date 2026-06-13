@@ -417,8 +417,7 @@ extension SyncMessagingMerge on Sync {
     _sessionMessages[sessionId] = result.messages;
     // Always invalidate cache after assigning — the list reference may be
     // identical even when the list contents changed (hasOrphans path).
-    _sessionMessagesCache = null;
-    _sessionMessagesViewCache.remove(sessionId);
+    _invalidateMessageCaches(sessionId);
   }
 
   /// Apply tool results to existing tool-call messages in a session.
@@ -445,8 +444,7 @@ extension SyncMessagingMerge on Sync {
 
     if (result.changed) {
       _sessionMessages[sessionId] = result.messages;
-      _sessionMessagesCache = null;
-      _sessionMessagesViewCache.remove(sessionId);
+      _invalidateMessageCaches(sessionId);
     }
 
     return result.matchedIds;
@@ -480,8 +478,7 @@ extension SyncMessagingMerge on Sync {
 
     if (result.changed) {
       _sessionMessages[sessionId] = result.messages;
-      _sessionMessagesCache = null;
-      _sessionMessagesViewCache.remove(sessionId);
+      _invalidateMessageCaches(sessionId);
     }
     return result.changed;
   }
@@ -622,8 +619,7 @@ extension SyncMessagingMerge on Sync {
           'mode=append',
         );
       }
-      _sessionMessagesCache = null;
-      _sessionMessagesViewCache.remove(sessionId);
+      _invalidateMessageCaches(sessionId);
       if (trimmed.length == appended.length) {
         _updateSessionContentSignatures(sessionId, messages);
       } else {
@@ -777,8 +773,7 @@ extension SyncMessagingMerge on Sync {
         'mode=merge',
       );
     }
-    _sessionMessagesCache = null;
-    _sessionMessagesViewCache.remove(sessionId);
+    _invalidateMessageCaches(sessionId);
     _ensureFirstLoadedSeq(sessionId);
   }
 }
