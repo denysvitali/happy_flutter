@@ -1,6 +1,4 @@
-part of 'sync_service.dart';
-
-import 'dart:math';
+part of '../sync_service.dart';
 
 extension SyncMessagePipeline on Sync {
   String _newTraceId(String sessionId, String suffix) {

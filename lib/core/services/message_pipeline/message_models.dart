@@ -1,4 +1,4 @@
-part of 'sync_service.dart';
+part of '../sync_service.dart';
 
 enum MessagePipelineSource {
   socket,

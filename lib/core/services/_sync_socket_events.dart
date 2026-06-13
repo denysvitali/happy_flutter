@@ -460,7 +460,7 @@ extension SyncSocketEvents on Sync {
     final msgId = message['id'] ?? 'no-id';
     final msgSeq = message['seq'];
     final segment = msgSeq == null ? 'no-seq' : 'seq$msgSeq';
-    return '${sessionId}_socket_$segment_$msgId';
+    return '${sessionId}_socket_${segment}_$msgId';
   }
 
   /// Handle new session update
