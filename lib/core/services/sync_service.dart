@@ -280,6 +280,10 @@ what you have, you must use the options mode.
   /// used to collapse rapid-fire duplicate socket broadcasts.
   final Map<String, int> _lastNoEmbedEventMs = {};
 
+  /// Cursor sequence associated with the last visible no-embed probe per
+  /// session.
+  final Map<String, int> _lastNoEmbedEventCursorSeq = {};
+
   /// Sessions that have an explicit reason to probe the messages API even when
   /// the local cursor appears caught up to session.lastSeq.
   ///
@@ -1096,6 +1100,10 @@ what you have, you must use the options mode.
   /// Prevents rapid-fire HTTP refetches when many socket events arrive
   /// in quick succession (e.g. during streaming).
   static const Duration _messagesSyncMinInterval = Duration(milliseconds: 500);
+
+  /// Extra cooldown for visible no-embed probes when the cursor has not
+  /// advanced since the previous probe.
+  static const int _noEmbedProbeCooldownMs = 2000;
 
   static const Duration _machinesRefreshDebounce = Duration(milliseconds: 250);
 

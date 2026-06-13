@@ -318,12 +318,17 @@ extension SyncSocketEvents on Sync {
         // Dedup rapid-fire duplicates: the server often broadcasts the
         // same event 7-18 times; without this gate each duplicate
         // triggers a wasteful fetchMessages HTTP call and logger flood.
-        // Use the same window as messagesSync's minInterval so we don't
-        // schedule fetches more often than they can actually run.
+        // If the session cursor has not advanced since the last
+        // no-embed probe, avoid re-arming the same no-op fetch repeatedly.
         final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
         final lastMs = _lastNoEmbedEventMs[sessionId] ?? 0;
-        if (nowMs - lastMs < 500) return;
+        final lastSeq = _lastNoEmbedEventCursorSeq[sessionId];
+        if (cursorSeq == lastSeq && nowMs - lastMs < _noEmbedProbeCooldownMs) {
+          return;
+        }
         _lastNoEmbedEventMs[sessionId] = nowMs;
+        _lastNoEmbedEventCursorSeq[sessionId] = cursorSeq;
         _sessionsNeedingFetchProbe.add(sessionId);
         messagesSync[sessionId]?.invalidate();
       }
@@ -621,6 +626,7 @@ extension SyncSocketEvents on Sync {
       _lastNoEmbedEventMs.remove(sessionId);
       _sidechainRegroupTimers.remove(sessionId)?.cancel();
       _sidechainRegroupFirstRequestMs.remove(sessionId);
+      _lastNoEmbedEventCursorSeq.remove(sessionId);
       _sessionMessageDebounceTimers.remove(sessionId)?.cancel();
       _sessionUnreadCounts.remove(sessionId);
       _sessionUnreadLastIncrementMs.remove(sessionId);

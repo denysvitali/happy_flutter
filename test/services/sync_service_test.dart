@@ -176,6 +176,33 @@ void main() {
     });
 
     test(
+      'visible new-message without embedded payload does not probe repeatedly '
+      'for unchanged cursor',
+      () async {
+        var invalidations = 0;
+        instance.testVisibleSessionId = 'session_1';
+        instance.testSetSessionLastSeq('session_1', 7);
+        instance.messagesSync['session_1'] = InvalidateSync(() async {
+          invalidations++;
+        });
+
+        instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
+        await instance.messagesSync['session_1']?.awaitQueue();
+        expect(invalidations, 1);
+
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
+        await instance.messagesSync['session_1']?.awaitQueue();
+        expect(invalidations, 1);
+
+        instance.testSetSessionLastSeq('session_1', 8);
+        instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
+        await instance.messagesSync['session_1']?.awaitQueue();
+        expect(invalidations, 2);
+      },
+    );
+
+    test(
       'update-session bursts are debounced into one sessions refresh',
       () async {
         instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
