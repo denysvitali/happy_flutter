@@ -321,17 +321,6 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Patch plugin compileSdk for AGP 9.x (cronet_http jni)
-        run: |
-          # cronet_http (and other plugins) hardcode compileSdkVersion 34, but
-          # their :jni dependency requires android-35+. AGP 9.x enforces this via
-          # check*AarMetadata. Bump any plugin's compileSdkVersion below 36 to 36
-          # in the pub cache before Gradle evaluates plugins. A Gradle-level
-          # override does not work (see android/build.gradle.kts). Idempotent.
-          CACHE="${PUB_CACHE:-$HOME/.pub-cache}"
-          find "$CACHE" -path '*/android/build.gradle' -type f \
-            -exec sed -i -E 's/compileSdkVersion 3[0-5]([^0-9]|$)/compileSdkVersion 36\1/g' {} +
-
       - name: Determine flavor
         id: flavor
         run: |
@@ -473,18 +462,6 @@ jobs:
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: flutter pub get
-
-      - name: Patch plugin compileSdk for AGP 9.x (cronet_http jni)
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: |
-          # cronet_http (and other plugins) hardcode compileSdkVersion 34, but
-          # their :jni dependency requires android-35+. AGP 9.x enforces this via
-          # check*AarMetadata. Bump any plugin's compileSdkVersion below 36 to 36
-          # in the pub cache before Gradle evaluates plugins. A Gradle-level
-          # override does not work (see android/build.gradle.kts). Idempotent.
-          CACHE="${PUB_CACHE:-$HOME/.pub-cache}"
-          find "$CACHE" -path '*/android/build.gradle' -type f \
-            -exec sed -i -E 's/compileSdkVersion 3[0-5]([^0-9]|$)/compileSdkVersion 36\1/g' {} +
 
       - name: Determine flavor
         id: flavor

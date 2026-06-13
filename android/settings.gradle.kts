@@ -104,9 +104,9 @@ dependencyResolutionManagement {
     }
 }
 
-// audio_session 0.2.3 (transitive via just_audio) still applies the obsolete
-// kotlin-android plugin and pins compileSdk 35, which AGP 9 rejects. Patch it
-// in-place before evaluation until a compatible version is published.
+// Apply the AGP 9 compatibility patch to every Flutter plugin in the pub cache
+// before Gradle evaluates it. This handles the obsolete kotlin-android plugin,
+// low compileSdk values, and the kotlinOptions DSL that AGP 9 no longer supports.
 gradle.beforeProject(Action<Project> {
     // Only patch Flutter plugin build.gradle(.kts) files in the pub cache.
     if (buildFile.path.contains("hosted/pub.dev/") &&
