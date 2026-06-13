@@ -78,8 +78,6 @@ part '_sync_isolate_helpers.dart';
 part '_sync_lifecycle.dart';
 part '_sync_messaging.dart';
 part '_sync_messaging_merge.dart';
-part '_sync_messaging_parse.dart';
-part '_sync_messaging_parse_output.dart';
 part '_sync_messaging_rpc.dart';
 part '_sync_messaging_send.dart';
 part '_sync_operations.dart';
@@ -1177,11 +1175,9 @@ what you have, you must use the options mode.
     'desert',
   ];
 
-  // Message processing methods (_processDecryptedMessage,
-  // _processOutputContent, _processEventContent, _processCodexContent,
-  // _processAcpContent, _processSessionContent, _extractUsageMap,
-  // _extractAgentFallbackText, _looksLikeSessionEnvelope,
-  // _extractTextFromContentBlocks) are in _sync_messaging.dart.
+  // Message decryption + parsing live in the standalone pipeline:
+  // lib/core/encryption/message_processor.dart (processDecryptedMessages),
+  // driven by message_pipeline/message_ingestion_orchestrator.dart.
   // Lifecycle methods (suspend, resume, shutdown) are in
   // _sync_lifecycle.dart.
   // @visibleForTesting helpers are in _sync_test_helpers.dart.
