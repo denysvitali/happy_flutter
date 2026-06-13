@@ -36,6 +36,18 @@ fun patchPluginBuildForAgp9(buildFile: java.io.File) {
         "\n    // Patched for AGP 9: kotlinOptions removed\n"
     )
 
+    // Remove top-level kotlin { compilerOptions { ... } } blocks from Kotlin DSL
+    // plugin build files; they rely on the Kotlin Gradle Plugin extension which is
+    // gone once kotlin-android is disabled.
+    text = text.replace(
+        Regex("""\n\s+kotlin\s*\{\s*compilerOptions\s*\{\s*[\s\S]*?\}\s*\}\s*\n"""),
+        "\n    // Patched for AGP 9: kotlin compilerOptions removed\n"
+    )
+    text = text.replace(
+        Regex("""import\s+org\.jetbrains\.kotlin\.gradle\.dsl\.JvmTarget\s*\n"""),
+        ""
+    )
+
     if (text != original) {
         buildFile.writeText(text)
     }
