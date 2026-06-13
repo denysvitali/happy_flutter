@@ -459,6 +459,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (selected == null || selected == sessionsViewStyle) {
       return;
     }
+    if (!context.mounted) return;
     await notifier.updateSetting('sessionsViewStyle', selected);
   }
 

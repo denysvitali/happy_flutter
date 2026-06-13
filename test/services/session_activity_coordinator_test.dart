@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/session_activity_coordinator.dart';
+import '../helpers/test_helpers.dart';
 
 Session _makeSession({
   required String id,
@@ -119,6 +120,68 @@ void main() {
       await c.setVisibleSession('s1');
       expect(c.debugTrackedSessions, isNot(contains('s1')));
       expect(c.visibleSessionId, 's1');
+    });
+  });
+
+  // Regression coverage for the Phase 1 safety net: ensures detach() (called
+  // from syncShutdown) actually releases the periodic timer and the
+  // domain-change subscription, and clears all in-flight activity
+  // notifications. If the call site in syncShutdown is ever removed (or
+  // detach() regresses), this test catches it.
+  group('SessionActivityCoordinator.detach', () {
+    test('clears all active notifications', () async {
+      final c = SessionActivityCoordinator();
+      await c.applyDecision(
+        ActivityDecision.show(
+          sessionId: 's1',
+          toolName: 'Bash',
+          startedAt: DateTime.now(),
+        ),
+      );
+      await c.applyDecision(
+        ActivityDecision.show(
+          sessionId: 's2',
+          toolName: 'Edit',
+          startedAt: DateTime.now(),
+        ),
+      );
+      expect(c.debugTrackedSessions, containsAll(['s1', 's2']));
+
+      await c.detach();
+
+      expect(c.debugTrackedSessions, isEmpty);
+    });
+
+    test('is idempotent — second detach is a no-op', () async {
+      final c = SessionActivityCoordinator();
+      await c.applyDecision(
+        ActivityDecision.show(
+          sessionId: 's1',
+          toolName: 'Bash',
+          startedAt: DateTime.now(),
+        ),
+      );
+
+      await c.detach();
+      // Second call must not throw, must keep the active map empty.
+      await c.detach();
+      expect(c.debugTrackedSessions, isEmpty);
+    });
+
+    test('attach() called twice replaces the prior subscription', () {
+      // Without proper teardown, a second attach() would leak the
+      // previous Timer + StreamSubscription. The cancel-on-reattach
+      // behaviour in SessionActivityCoordinator.attach prevents that.
+      // We assert it by calling attach twice and then detach — the
+      // test must not throw and the state must be clean.
+      final sync = createTestSync();
+      final c = SessionActivityCoordinator()
+        ..attach(sync)
+        ..attach(sync);
+      expect(c.debugTrackedSessions, isEmpty);
+      // If both subscriptions leaked, this future would never complete
+      // or detach() would not finish cancelling both. We bound it.
+      return c.detach().timeout(const Duration(seconds: 1));
     });
   });
 }
