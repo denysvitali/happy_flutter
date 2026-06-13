@@ -796,7 +796,6 @@ class _ToolViewState extends ConsumerState<ToolView>
           if (state == ToolState.completed && toolResult != null)
             CollapsibleOutput(
               toolId: toolId,
-              scrollable: true,
               child: ToolSectionView(
                 title: 'OUTPUT',
                 trailing: ToolViewCopyButton(text: outputCopyText),
@@ -1041,53 +1040,66 @@ class _McpTextOutputState extends State<_McpTextOutput> {
       ),
     );
 
-    Widget content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hasBoundedHeight = constraints.maxHeight.isFinite;
+        Widget content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TextButton.icon(
-              onPressed: () => setState(
-                () => _rawJsonExpanded = !_rawJsonExpanded,
-              ),
-              icon: Icon(
-                _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
-                size: AppIconSize.sm,
-              ),
-              label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: () => setState(
+                    () => _rawJsonExpanded = !_rawJsonExpanded,
+                  ),
+                  icon: Icon(
+                    _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
+                    size: AppIconSize.sm,
+                  ),
+                  label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                ToolViewCopyButton(text: widget.text),
+              ],
             ),
-            const Spacer(),
-            ToolViewCopyButton(text: widget.text),
+            if (_rawJsonExpanded) ...[
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: SmartOutputContainer(
+                  content: widget.rawResult,
+                  maxHeight: double.infinity,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
+            // Only expand when the widget has a finite max height. When placed
+            // inside an unbounded-height ancestor (e.g. a scrollable), Expanded
+            // would receive infinite remaining space and throw.
+            if (hasBoundedHeight)
+              Expanded(child: textOutput)
+            else
+              textOutput,
           ],
-        ),
-        if (_rawJsonExpanded) ...[
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: SmartOutputContainer(
-              content: widget.rawResult,
-              maxHeight: double.infinity,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-        ],
-        Expanded(child: textOutput),
-      ],
+        );
+
+        if (widget.maxHeight.isFinite) {
+          content = ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: effectiveMaxHeight),
+            child: content,
+          );
+        }
+
+        return content;
+      },
     );
-
-    if (widget.maxHeight.isFinite) {
-      content = ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: effectiveMaxHeight),
-        child: content,
-      );
-    }
-
-    return content;
   }
 }
 
