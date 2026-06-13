@@ -15,7 +15,7 @@ extension SyncSessionOperations on Sync {
     required String path,
 
     /// Explicit agent type for this session. Takes precedence over
-    /// [_settingsSnapshot.lastUsedAgent]. Should always be passed when creating
+    /// [settingsSnapshot.lastUsedAgent]. Should always be passed when creating
     /// a session so the correct agent is used, rather than relying on
     /// [lastUsedAgent] which can change between applySettings and createSession
     /// due to async settings sync reloads.
@@ -24,7 +24,7 @@ extension SyncSessionOperations on Sync {
     String? sessionId,
 
     /// Explicit profile ID for this session. Takes precedence over
-    /// [_settingsSnapshot.lastUsedProfile]. Should be passed when creating a
+    /// [settingsSnapshot.lastUsedProfile]. Should be passed when creating a
     /// session so the correct profile env vars are used, rather than relying
     /// on [lastUsedProfile] which can change over time.
     String? profileId,
@@ -107,11 +107,11 @@ extension SyncSessionOperations on Sync {
         : path;
 
     // Agent is explicitly passed as a parameter to avoid race conditions with
-    // async settings sync reloads overwriting _settingsSnapshot.lastUsedAgent.
+    // async settings sync reloads overwriting settingsSnapshot.lastUsedAgent.
     // Use explicit profileId if provided, otherwise fall back to the
     // profile last used for this agent.
     final selectedProfileId =
-        profileId ?? resolveSelectedProfileIdForAgent(_settingsSnapshot, agent);
+        profileId ?? resolveSelectedProfileIdForAgent(settingsSnapshot, agent);
     final selectedProfile = selectedProfileId != null
         ? _resolveProfile(selectedProfileId)
         : null;
@@ -136,7 +136,7 @@ extension SyncSessionOperations on Sync {
         : null;
     final permMode =
         spawnProfileResolution.profile?.defaultPermissionMode ??
-        _settingsSnapshot.lastUsedPermissionMode;
+        settingsSnapshot.lastUsedPermissionMode;
     final envVars = _spawnEnvironmentVariables(profileEnvVars);
     if (message != null && message.isNotEmpty) {
       envVars['HAPPY_INITIAL_PROMPT'] = message;
@@ -797,7 +797,7 @@ PY
 
   /// Resolve a profile by ID: custom profiles first, then built-in.
   AIBackendProfile? _resolveProfile(String id) {
-    for (final p in _settingsSnapshot.profiles) {
+    for (final p in settingsSnapshot.profiles) {
       if (p.id == id) return p;
     }
     return getBuiltInProfile(id);

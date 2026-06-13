@@ -708,17 +708,12 @@ extension SyncMessagingRpc on Sync {
 
   /// Apply settings delta
   Future<void> applySettings(Map<String, dynamic> delta) async {
-    _settingsSnapshot = Settings.fromJson({
-      ..._settingsSnapshot.toJson(),
-      ...delta,
-    });
-    pendingSettings = {...pendingSettings, ...delta};
-    settingsSync.invalidate();
+    await settingsManager?.applySettings(delta);
   }
 
   /// Refresh purchases data
   Future<void> refreshPurchases() async {
-    purchasesSync.invalidate();
+    await settingsManager?.refreshPurchases();
   }
 
   /// Evict stale messagesSync entries that haven't been used recently.
@@ -745,7 +740,7 @@ extension SyncMessagingRpc on Sync {
 
   /// Refresh profile data
   Future<void> refreshProfile() async {
-    await profileSync.invalidateAndAwait();
+    await settingsManager?.refreshProfile();
   }
 
   /// Get authentication credentials

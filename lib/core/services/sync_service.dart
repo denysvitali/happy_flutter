@@ -5,17 +5,13 @@ import 'dart:isolate';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../api/api_client.dart';
-import '../api/push_api.dart';
 import '../api/sessions_api.dart';
 import '../api/socket_io_client.dart';
 import '../encryption/aes_gcm.dart';
-import '../encryption/artifact_encryption.dart';
 import '../encryption/base64.dart';
 import '../encryption/crypto_secret_box.dart';
 import '../encryption/encryption_cache.dart';
@@ -35,6 +31,7 @@ import '../models/session.dart';
 import '../models/settings.dart';
 import '../rpc/rpc_types.dart';
 import '../sync/artifact_manager.dart';
+import '../sync/settings_manager.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
 import '../services/mmkv_storage.dart';
@@ -202,6 +199,7 @@ what you have, you must use the options mode.
   // Core dependencies
   late Encryption encryption;
   ArtifactManager? artifactManager;
+  SettingsManager? settingsManager;
   bool _encryptionInitialized = false;
   late String serverID;
   late String anonID;
@@ -328,11 +326,8 @@ what you have, you must use the options mode.
   bool isInitialized = false;
   bool _isReady = false;
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
-  String? _registeredPushToken;
-  String? _nativeUpdateUrl;
 
   // Pending settings
-  Map<String, dynamic> pendingSettings = {};
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   final Map<String, Map<String, String?>> _sessionContentSignatures = {};
   Map<String, List<Map<String, dynamic>>>? _sessionMessagesCache;
@@ -353,20 +348,11 @@ what you have, you must use the options mode.
   /// comparison would otherwise miss.
   final Map<String, int> _sessionMessagesRevision = {};
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
-  Settings _settingsSnapshot = Settings();
-  int _settingsVersion = 0;
-  Purchases _purchases = Purchases.defaults;
   Map<String, Session> _sessions = <String, Session>{};
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
 
-  /// Wall-clock timestamp of the last successful `/v1/version` poll.
-  /// Used to skip redundant native-update checks on cold start /
-  /// resume / reconnect — the upstream URL changes at most once a
-  /// day, but the deferred-sync fan-out fires this on every
-  /// invalidation cycle.
-  int? _lastNativeUpdateFetchedAt;
   static const _nativeUpdateFreshnessMs = 6 * 60 * 60 * 1000;
 
   /// Timestamp of the last reconnect session enumeration.  Used to debounce
@@ -383,12 +369,9 @@ what you have, you must use the options mode.
   int? _lastResumeAtMs;
   int? _lastSuspendedAtMs;
 
-  /// Timestamp of the last successful settings POST.  Used to suppress
-  /// the socket echo that follows immediately after a local write —
-  /// without this, every local settings change triggers a redundant
-  /// server round-trip (the echo fires settingsSync.invalidate() which
-  /// does a GET, doubling the HTTP load for every profile/model switch).
-  int? _lastSettingsPostAtMs;
+  /// Timestamp of the last successful settings POST.  Delegated to
+  /// [SettingsManager].
+  int? get lastSettingsPostAtMs => settingsManager?.lastSettingsPostAtMs;
 
   /// Snapshot of _sessionLastSeq for the visible session captured at the
   /// moment of socket reconnection.  Used by fetchMessages to start the
@@ -433,7 +416,6 @@ what you have, you must use the options mode.
   final Map<String, Machine> _machines = <String, Machine>{};
   // Timers that drop presence back to 'offline' if no activity arrives.
   final Map<String, Timer> _presenceTimers = {};
-  Profile? _profile;
   final Map<String, GitStatus> _sessionGitStatus = <String, GitStatus>{};
 
   // Change notification streams
@@ -603,17 +585,19 @@ what you have, you must use the options mode.
   List<DecryptedArtifact> get artifacts =>
       List.unmodifiable(artifactManager?.artifacts ?? []);
 
-  // Backward-compatible aliases for part files still migrating to the manager.
-  List<DecryptedArtifact> get _artifacts => artifactManager?.artifacts ?? [];
-  Map<String, Uint8List> get _artifactDataKeys =>
-      artifactManager?.dataKeys ?? {};
-
   /// Get usage data for a session (contextSize, inputTokens, outputTokens).
   Map<String, Map<String, dynamic>> get sessionUsage =>
       Map.unmodifiable(_sessionUsage);
-  Settings get settingsSnapshot => _settingsSnapshot;
-  int get settingsVersion => _settingsVersion;
-  Purchases get purchases => _purchases;
+  // Test-only fallback for settings snapshot. Allows tests that set
+  // [testSettingsSnapshot] before [settingsManager] is instantiated to
+  // still read the snapshot through the public getter.
+  Settings? _testSettingsSnapshot;
+
+  /// Current settings snapshot.
+  Settings get settingsSnapshot =>
+      settingsManager?.settingsSnapshot ?? _testSettingsSnapshot ?? Settings();
+  int get settingsVersion => settingsManager?.settingsVersion ?? 0;
+  Purchases get purchases => settingsManager?.purchases ?? Purchases.defaults;
   Map<String, Session> get sessions => Map.unmodifiable(_sessions);
 
   /// Per-session message seq cursors. Exposed for debug UI.
@@ -767,12 +751,12 @@ what you have, you must use the options mode.
   }
 
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
-  Profile? get profile => _profile;
+  Profile? get profile => settingsManager?.profile;
   bool get isReady => _isReady;
   bool get isEncryptionInitialized => _encryptionInitialized;
   ConnectionStatus get connectionStatus => _connectionStatus;
-  String? get nativeUpdateUrl => _nativeUpdateUrl;
-  bool get hasNativeUpdate => _nativeUpdateUrl != null;
+  String? get nativeUpdateUrl => settingsManager?.nativeUpdateUrl;
+  bool get hasNativeUpdate => settingsManager?.nativeUpdateUrl != null;
   Map<String, GitStatus> get sessionGitStatus =>
       Map.unmodifiable(_sessionGitStatus);
   Map<String, List<Map<String, dynamic>>> get sessionMessages {

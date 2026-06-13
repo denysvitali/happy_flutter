@@ -3,38 +3,46 @@ import 'package:riverpod/riverpod.dart';
 import '../models/profile.dart';
 import '../models/purchases.dart';
 import '../models/settings.dart';
-import '../services/sync_service.dart';
+import '../services/sync_service.dart' show sync;
+import '../sync/settings_manager.dart';
 
 /// Repository layer for settings, profile, purchases, push token, and
-/// native update state. Wraps the corresponding Sync methods while
-/// [SettingsManager] extraction is in progress.
+/// native update state. Wraps [SettingsManager] and provides the public
+/// surface used by notifiers and screens.
 class SettingsRepository {
-  const SettingsRepository();
+  const SettingsRepository(this._manager);
 
-  Settings get settingsSnapshot => sync.settingsSnapshot;
-  int get settingsVersion => sync.settingsVersion;
-  Profile? get profile => sync.profile;
-  Purchases get purchases => sync.purchases;
-  String? get nativeUpdateUrl => sync.nativeUpdateUrl;
-  bool get hasNativeUpdate => sync.hasNativeUpdate;
+  final SettingsManager _manager;
 
-  Future<void> syncSettings() => sync.syncSettings();
+  Settings get settingsSnapshot => _manager.settingsSnapshot;
+  int get settingsVersion => _manager.settingsVersion;
+  Profile? get profile => _manager.profile;
+  Purchases get purchases => _manager.purchases;
+  String? get nativeUpdateUrl => _manager.nativeUpdateUrl;
+  bool get hasNativeUpdate => _manager.nativeUpdateUrl != null;
+
+  Future<void> syncSettings() => _manager.syncSettings();
 
   Future<void> applySettings(Map<String, dynamic> delta) =>
-      sync.applySettings(delta);
+      _manager.applySettings(delta);
 
-  Future<void> fetchProfile() => sync.fetchProfile();
+  Future<void> fetchProfile() => _manager.fetchProfile();
 
-  Future<void> refreshProfile() => sync.refreshProfile();
+  Future<void> refreshProfile() => _manager.refreshProfile();
 
-  Future<void> refreshPurchases() => sync.refreshPurchases();
+  Future<void> refreshPurchases() => _manager.refreshPurchases();
 
-  Future<void> syncPushToken() => sync.syncPushToken();
+  Future<void> syncPushToken() => _manager.syncPushToken();
 
-  Future<void> fetchNativeUpdate() => sync.fetchNativeUpdate();
+  Future<void> fetchNativeUpdate() => _manager.fetchNativeUpdate();
 }
+
+/// Provider for the settings manager managed by the sync singleton.
+final settingsManagerProvider = Provider<SettingsManager>(
+  (ref) => sync.settingsManager!,
+);
 
 /// Provider for the settings repository.
 final settingsRepositoryProvider = Provider<SettingsRepository>(
-  (ref) => const SettingsRepository(),
+  (ref) => SettingsRepository(ref.read(settingsManagerProvider)),
 );

@@ -10,7 +10,6 @@ import '../encryption/artifact_encryption.dart';
 import '../encryption/base64.dart';
 import '../encryption/encryption_manager.dart';
 import '../models/artifact.dart';
-import '../rpc/rpc_types.dart';
 import '../services/logger_service.dart' show logger;
 import '../utils/invalidate_sync.dart';
 import '../utils/sync_domain.dart';

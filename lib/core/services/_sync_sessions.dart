@@ -56,9 +56,9 @@ extension SyncSessions on Sync {
     // data during replication lag, causing "profile no longer exists"
     // fallout that triggers another POST (null), creating a feedback
     // loop.
-    if (_lastSettingsPostAtMs != null) {
+    if (lastSettingsPostAtMs != null) {
       final msSincePost =
-          DateTime.now().millisecondsSinceEpoch - _lastSettingsPostAtMs!;
+          DateTime.now().millisecondsSinceEpoch - lastSettingsPostAtMs!;
       if (msSincePost < Sync._settingsEchoFilterWindowMs) {
         logger.debug(
           '[Sync] suppressing account-update echo '

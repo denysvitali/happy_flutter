@@ -29,6 +29,15 @@ extension SyncSocket on Sync {
       artifactsSyncGetter: () => artifactsSync,
       onDataChanged: _notifyDataChanged,
     );
+    settingsManager = SettingsManager(
+      encryption: encryption,
+      nativeUpdateFreshnessMs: Sync._nativeUpdateFreshnessMs,
+      isTransientConnectionError: Sync._isTransientConnectionError,
+      settingsSyncGetter: () => settingsSync,
+      profileSyncGetter: () => profileSync,
+      purchasesSyncGetter: () => purchasesSync,
+      onDataChanged: _notifyDataChanged,
+    );
     await _init();
 
     // Await initial syncs in parallel — these are independent HTTP
@@ -63,6 +72,15 @@ extension SyncSocket on Sync {
       artifactsSyncGetter: () => artifactsSync,
       onDataChanged: _notifyDataChanged,
     );
+    settingsManager = SettingsManager(
+      encryption: encryption,
+      nativeUpdateFreshnessMs: Sync._nativeUpdateFreshnessMs,
+      isTransientConnectionError: Sync._isTransientConnectionError,
+      settingsSyncGetter: () => settingsSync,
+      profileSyncGetter: () => profileSync,
+      purchasesSyncGetter: () => purchasesSync,
+      onDataChanged: _notifyDataChanged,
+    );
     await _init();
     // isInitialized is set early inside _init() after cache restore.
   }
@@ -90,7 +108,7 @@ extension SyncSocket on Sync {
     // (which calls loadFromSync → reads _settingsSnapshot) and
     // _initializeTheme() (which loads from MMKV).  If checkAuth wins,
     // the Riverpod state briefly reverts to Settings() defaults.
-    _settingsSnapshot = restoredSettings;
+    settingsManager?.settingsSnapshot = restoredSettings;
 
     // Warm cached messages only for the most recent sessions.  Restoring all
     // 200 cached sessions does synchronous MMKV reads/jsonDecode work on the

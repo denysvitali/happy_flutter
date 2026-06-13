@@ -791,14 +791,7 @@ extension SyncLifecycle on Sync {
     _lastEphemeralAt.clear();
     _pendingNewSessionIds.clear();
     _sessionUsage.clear();
-    _profile = null;
-    _settingsSnapshot = Settings();
-    _settingsVersion = 0;
-    _purchases = Purchases.defaults;
-    pendingSettings.clear();
-    _lastSettingsPostAtMs = null;
-    _registeredPushToken = null;
-    _nativeUpdateUrl = null;
+    settingsManager?.clear();
     _isReady = false;
     _sessionListRefreshInFlight = null;
     _connectionStatus = ConnectionStatus.disconnected;

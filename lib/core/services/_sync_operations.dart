@@ -1,286 +1,29 @@
 part of 'sync_service.dart';
 
 extension SyncOperations on Sync {
+  /// Forward settings sync to [SettingsManager].
   Future<void> syncSettings() async {
-    logger.info('Syncing settings...');
-
-    try {
-      final apiClient = ApiClient();
-
-      // Apply pending settings
-      var postedSuccessfully = false;
-      if (pendingSettings.isNotEmpty) {
-        // Compute the merged JSON once and reuse it for both the
-        // encrypted wire payload and the local `Settings` materialization.
-        // Previously we called `_settingsSnapshot.toJson()` to build the
-        // merge, then `Settings.fromJson` → `mergedSettings.toJson()` for
-        // the wire payload — three serializations to express one logical
-        // patch (perf #11).
-        final mergedJson = <String, dynamic>{
-          ..._settingsSnapshot.toJson(),
-          ...pendingSettings,
-        };
-        final mergedSettings = Settings.fromJson(mergedJson);
-        final encryptedPending = await encryption.encryptRaw(mergedJson);
-
-        final updateResponse = await apiClient.post(
-          '/v1/account/settings',
-          data: {
-            'settings': encryptedPending,
-            'expectedVersion': _settingsVersion,
-          },
-        );
-
-        final updateData = WireParsers.asMap(updateResponse.data);
-        final updateSuccess = updateData?['success'] == true;
-        if (apiClient.isSuccess(updateResponse) && updateSuccess) {
-          _settingsSnapshot = mergedSettings;
-          pendingSettings.clear();
-          // Extract the incremented version from the POST response
-          // so the next optimistic write uses the correct base.
-          final newVersion = _asInt(updateData?['settingsVersion']);
-          if (newVersion != null) {
-            _settingsVersion = newVersion;
-          }
-          postedSuccessfully = true;
-          _lastSettingsPostAtMs = DateTime.now().millisecondsSinceEpoch;
-          _notifyDataChanged({SyncDomain.settings});
-          unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
-        } else if (updateData?['error'] == 'version-mismatch') {
-          final currentSettingsEncrypted =
-              updateData?['currentSettings'] as String?;
-          final currentVersion = _asInt(updateData?['currentVersion']) ?? 0;
-          final serverSettingsMap = currentSettingsEncrypted != null
-              ? WireParsers.asMap(
-                  await encryption.decryptRaw(currentSettingsEncrypted),
-                )
-              : null;
-          final serverSettings = serverSettingsMap != null
-              ? Settings.fromJsonWithFallback(
-                  serverSettingsMap,
-                  _settingsSnapshot,
-                )
-              : _settingsSnapshot;
-          // Single serialization for the merge (perf #11).
-          _settingsSnapshot = Settings.fromJson(<String, dynamic>{
-            ...serverSettings.toJson(),
-            ...pendingSettings,
-          });
-          _settingsVersion = currentVersion;
-          _notifyDataChanged({SyncDomain.settings});
-        }
-      }
-
-      // Fetch latest settings — skip after a successful POST to avoid
-      // overwriting with stale server data that hasn't committed the
-      // POST yet.  The next periodic sync or socket push will reconcile.
-      if (!postedSuccessfully) {
-        final response = await apiClient.get('/v1/account/settings');
-
-        if (apiClient.isSuccess(response)) {
-          final data = WireParsers.asMap(response.data);
-          final encryptedSettings = data?['settings'] as String?;
-
-          if (encryptedSettings != null) {
-            final decrypted = WireParsers.asMap(
-              await encryption.decryptRaw(encryptedSettings),
-            );
-            if (decrypted != null) {
-              _settingsSnapshot = Settings.fromJsonWithFallback(
-                decrypted,
-                _settingsSnapshot,
-              );
-              _settingsVersion =
-                  _asInt(data?['settingsVersion']) ?? _settingsVersion;
-              _notifyDataChanged({SyncDomain.settings});
-              // Persist to MMKV so the next cold start has fresh data.
-              unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
-            }
-          } else {
-            _settingsVersion =
-                _asInt(data?['settingsVersion']) ?? _settingsVersion;
-            logger.warning(
-              'Settings response did not include settings payload; '
-              'preserving existing settings snapshot',
-            );
-          }
-        } else {
-          logger.warning('Failed to fetch settings: ${response.statusCode}');
-        }
-      }
-    } on DioException {
-      rethrow;
-    } catch (error, stack) {
-      logger.error('Error syncing settings', error, stack);
-    }
+    await settingsManager?.syncSettings();
   }
 
-  /// Sync purchases — piggybacks on [profileSync] since [fetchProfile]
-  /// already extracts purchases from the same endpoint.  Avoids a
-  /// duplicate HTTP request to `/v1/account/profile`.
+  /// Forward purchases sync to [SettingsManager].
   Future<void> syncPurchases() async {
-    await profileSync.awaitQueue();
+    await settingsManager?.syncPurchases();
   }
 
-  /// Fetch profile from server. Also extracts and stores purchases data
-  /// from the same response to avoid a second identical HTTP call from
-  /// [syncPurchases].
+  /// Forward profile fetch to [SettingsManager].
   Future<void> fetchProfile() async {
-    logger.info('Fetching profile...');
-
-    try {
-      final apiClient = ApiClient();
-
-      final response = await apiClient.get('/v1/account/profile');
-
-      if (apiClient.isSuccess(response)) {
-        final data = response.data;
-        if (data is Map<String, dynamic>) {
-          _profile = Profile.fromJson(data);
-          _purchases = Purchases.parse(data['purchases']);
-        } else {
-          logger.warning(
-            'Failed to fetch profile: invalid response type '
-            '${data.runtimeType}',
-          );
-        }
-      } else {
-        logger.warning('Failed to fetch profile: ${response.statusCode}');
-      }
-    } on DioException {
-      rethrow;
-    } catch (error, stack) {
-      logger.error('Error fetching profile', error, stack);
-    }
+    await settingsManager?.fetchProfile();
   }
 
-  /// Fetch native app update status.
-  ///
-  /// The deferred-sync fan-out fires this on every invalidation cycle
-  /// (cold start, resume, reconnect) but the upstream `/v1/version`
-  /// response only changes when a new build is published — at most
-  /// daily. We rate-limit to one call per
-  /// [_nativeUpdateFreshnessMs] window to avoid the per-launch HTTP
-  /// + downstream connection-pool contention that GlitchTip flagged
-  /// (avg 787ms / p95 1599ms across 944 events). A successful fetch
-  /// stamps the timestamp; failures don't, so an offline cold start
-  /// still retries on the next resume.
+  /// Forward native update fetch to [SettingsManager].
   Future<void> fetchNativeUpdate() async {
-    if (kIsWeb) {
-      _nativeUpdateUrl = null;
-      return;
-    }
-
-    final platform = switch (defaultTargetPlatform) {
-      TargetPlatform.android => 'android',
-      TargetPlatform.iOS => 'ios',
-      _ => null,
-    };
-    if (platform == null) {
-      _nativeUpdateUrl = null;
-      return;
-    }
-
-    final lastFetched = _lastNativeUpdateFetchedAt;
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (lastFetched != null &&
-        nowMs - lastFetched < Sync._nativeUpdateFreshnessMs) {
-      // Cache fresh — short-circuit so the InvalidateSync transaction
-      // resolves in microseconds instead of waiting on the HTTP queue.
-      logger.debug(
-        'Skipping native update fetch '
-        '(${(nowMs - lastFetched) ~/ 1000}s since last)',
-      );
-      return;
-    }
-
-    logger.info('Fetching native update...');
-
-    try {
-      final apiClient = ApiClient();
-      final response = await apiClient.post(
-        '/v1/version',
-        data: <String, dynamic>{
-          'platform': platform,
-          'version': const String.fromEnvironment(
-            'FLUTTER_BUILD_NAME',
-            defaultValue: '1.0.0',
-          ),
-          'app_id': const String.fromEnvironment(
-            'FLUTTER_APPLICATION_ID',
-            defaultValue: 'happy.flutter',
-          ),
-        },
-      );
-      if (!apiClient.isSuccess(response)) {
-        _nativeUpdateUrl = null;
-        return;
-      }
-
-      final data = WireParsers.asMap(response.data);
-      final updateUrl =
-          data?['updateUrl'] as String? ?? data?['update_url'] as String?;
-      _nativeUpdateUrl = updateUrl != null && updateUrl.isNotEmpty
-          ? updateUrl
-          : null;
-      _lastNativeUpdateFetchedAt = nowMs;
-    } catch (error, stack) {
-      if (Sync._isTransientConnectionError(error)) {
-        logger.info('Native update fetch aborted (transient): $error');
-      } else {
-        logger.error('Failed to fetch native update', error, stack);
-      }
-      _nativeUpdateUrl = null;
-    }
+    await settingsManager?.fetchNativeUpdate();
   }
 
-  /// Register or refresh device push token
+  /// Forward push-token sync to [SettingsManager].
   Future<void> syncPushToken() async {
-    logger.info('Syncing push token...');
-    if (kIsWeb) {
-      return;
-    }
-
-    try {
-      if (Firebase.apps.isEmpty) {
-        logger.info('Skipping push token sync: Firebase is not initialized');
-        return;
-      }
-
-      final messaging = FirebaseMessaging.instance;
-      var notificationSettings = await messaging.getNotificationSettings();
-      if (notificationSettings.authorizationStatus ==
-          AuthorizationStatus.notDetermined) {
-        notificationSettings = await messaging.requestPermission();
-      }
-      if (notificationSettings.authorizationStatus ==
-              AuthorizationStatus.denied ||
-          notificationSettings.authorizationStatus ==
-              AuthorizationStatus.notDetermined) {
-        return;
-      }
-
-      // Skip the expensive getToken() call if we've already registered a
-      // token on this device — the token only changes on app reinstall or
-      // FCM invalidation, both of which survive a warm restart.
-      if (_registeredPushToken != null) {
-        return;
-      }
-
-      final token = await messaging.getToken();
-      if (token == null || token.isEmpty) {
-        return;
-      }
-
-      if (_registeredPushToken == token) {
-        return;
-      }
-
-      await PushApi().registerToken(token);
-      _registeredPushToken = token;
-    } catch (error, stack) {
-      logger.error('Failed to sync push token', error, stack);
-    }
+    await settingsManager?.syncPushToken();
   }
 
   /// Refresh machines from server

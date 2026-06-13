@@ -4,7 +4,6 @@ import '../models/profile.dart';
 import '../repositories/settings_repository.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart' show SyncDomain, sync;
-import '_shared.dart';
 
 class ProfileNotifier extends Notifier<Profile?> {
   int _lastDataChangeCounter = -1;

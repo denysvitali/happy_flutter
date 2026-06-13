@@ -8,9 +8,8 @@ import '../models/settings.dart';
 import '../models/settings_update.dart';
 import '../repositories/settings_repository.dart';
 import '../services/logger_service.dart' show logger;
-import '../services/storage_service.dart';
 import '../services/sync_service.dart';
-import '_shared.dart';
+import '../services/storage_service.dart';
 
 class SettingsNotifier extends Notifier<Settings> {
   final _storage = SettingsStorage();
@@ -156,7 +155,7 @@ class SettingsNotifier extends Notifier<Settings> {
     }
     state = updated;
     if (sync.isInitialized) {
-      await sync.applySettings(values);
+      await _repository.applySettings(values);
     }
   }
 
