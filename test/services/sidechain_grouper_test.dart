@@ -1433,4 +1433,79 @@ void main() {
       }
     });
   });
+
+  group('malformed Task ids', () {
+    test('Task with null id is not indexed and does not crash', () {
+      final messages = <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': null,
+          'kind': 'tool-call',
+          'name': 'Task',
+          'uuid': 'task-uuid',
+        },
+        <String, dynamic>{
+          'id': 'root-1',
+          'kind': 'sidechain-root',
+          'uuid': 'root-uuid',
+          'parentUuid': 'task-uuid',
+          'isSidechain': true,
+        },
+      ];
+
+      expect(() => grouper.groupMessages(messages), returnsNormally);
+      final result = grouper.groupMessages(messages);
+      // Root cannot attach because the Task has no usable id, so it
+      // remains an orphan in the flat list.
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isTrue);
+      expect(
+        result.messages.any((m) => m['id'] == 'root-1'),
+        isTrue,
+        reason: 'orphan root must remain in the flat list',
+      );
+    });
+
+    test('nested Task with null id does not crash regroupNestedTasks', () {
+      final children = <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': null,
+          'kind': 'tool-call',
+          'name': 'Task',
+          'uuid': 'inner-uuid',
+        },
+        _sidechainChild(
+          id: 'child-1',
+          uuid: 'child-uuid',
+          parentUuid: 'inner-uuid',
+        ),
+      ];
+
+      expect(() => grouper.regroupNestedTasks(children), returnsNormally);
+      // Child stays in the flat list because the target Task has no id.
+      expect(children, hasLength(2));
+    });
+
+    test('Agent with missing id is not indexed and does not crash', () {
+      final messages = <Map<String, dynamic>>[
+        <String, dynamic>{
+          // No 'id' key.
+          'kind': 'tool-call',
+          'name': 'Agent',
+          'uuid': 'agent-uuid',
+        },
+        <String, dynamic>{
+          'id': 'child-1',
+          'kind': 'sidechain-root',
+          'uuid': 'child-uuid',
+          'parentUuid': 'agent-uuid',
+          'isSidechain': true,
+        },
+      ];
+
+      expect(() => grouper.groupMessages(messages), returnsNormally);
+      final result = grouper.groupMessages(messages);
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isTrue);
+    });
+  });
 }

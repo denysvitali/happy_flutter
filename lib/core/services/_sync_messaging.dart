@@ -863,10 +863,15 @@ extension SyncMessaging on Sync {
       // should update in-memory/cache state without forcing expensive
       // main-isolate regroup + rebuild work across the app.
       if (isVisibleAtCompletion) {
+        // First open of a visible session must always notify, even when the
+        // page is empty, so the chat screen can clear its loading spinner.
+        // Without this, an empty/new session leaves the user stuck on the
+        // shimmer until the 15s safety timer fires.
         final needsVisibleRefresh =
             didMutateMessages ||
             didMutateAuxState ||
-            _sessionsNeedingVisibleRegroup.contains(sessionId);
+            _sessionsNeedingVisibleRegroup.contains(sessionId) ||
+            isFirstLoad;
         if (needsVisibleRefresh) {
           final needsGrouping =
               shouldRegroupWhenVisible ||

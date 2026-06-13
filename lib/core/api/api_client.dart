@@ -397,7 +397,7 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
-    await _ensureAdapterForRequest();
+    final dio = await _ensureAdapterForRequest();
     // Generate deduplication key
     final key = _generateRequestKey('GET', path, queryParameters);
 
@@ -406,7 +406,7 @@ class ApiClient {
     if (activeRequest != null) return activeRequest;
 
     // Start the request and store it
-    final requestFuture = _dio!.get(
+    final requestFuture = dio.get(
       path,
       queryParameters: queryParameters,
       options: options,
@@ -424,7 +424,7 @@ class ApiClient {
 
   /// POST request
   Future<Response> post(String path, {dynamic data, Options? options}) async {
-    await _ensureAdapterForRequest();
+    final dio = await _ensureAdapterForRequest();
     // Generate deduplication key (includes data hash for mutations)
     final key = _generateRequestKey('POST', path, null, data);
 
@@ -433,7 +433,7 @@ class ApiClient {
     if (activeRequest != null) return activeRequest;
 
     // Start the request and store it
-    final requestFuture = _dio!.post(path, data: data, options: options);
+    final requestFuture = dio.post(path, data: data, options: options);
     _activeRequests[key] = requestFuture;
 
     try {
@@ -448,7 +448,7 @@ class ApiClient {
 
   /// PUT request
   Future<Response> put(String path, {dynamic data, Options? options}) async {
-    await _ensureAdapterForRequest();
+    final dio = await _ensureAdapterForRequest();
     // Generate deduplication key (includes data hash for mutations)
     final key = _generateRequestKey('PUT', path, null, data);
 
@@ -457,7 +457,7 @@ class ApiClient {
     if (activeRequest != null) return activeRequest;
 
     // Start the request and store it
-    final requestFuture = _dio!.put(path, data: data, options: options);
+    final requestFuture = dio.put(path, data: data, options: options);
     _activeRequests[key] = requestFuture;
 
     try {
@@ -472,7 +472,7 @@ class ApiClient {
 
   /// DELETE request
   Future<Response> delete(String path, {Options? options}) async {
-    await _ensureAdapterForRequest();
+    final dio = await _ensureAdapterForRequest();
     // Generate deduplication key for DELETE
     final key = _generateRequestKey('DELETE', path);
 
@@ -481,7 +481,7 @@ class ApiClient {
     if (activeRequest != null) return activeRequest;
 
     // Start the request and store it
-    final requestFuture = _dio!.delete(path, options: options);
+    final requestFuture = dio.delete(path, options: options);
     _activeRequests[key] = requestFuture;
 
     try {
@@ -501,13 +501,13 @@ class ApiClient {
     ProgressCallback? onSendProgress,
     CancelToken? cancelToken,
   }) async {
-    await _ensureAdapterForRequest();
+    final dio = await _ensureAdapterForRequest();
 
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(filePath),
     });
 
-    return _dio!.post(
+    return dio.post(
       path,
       data: formData,
       onSendProgress: onSendProgress,
@@ -522,9 +522,9 @@ class ApiClient {
     ProgressCallback? onReceiveProgress,
     CancelToken? cancelToken,
   }) async {
-    await _ensureAdapterForRequest();
+    final dio = await _ensureAdapterForRequest();
 
-    return _dio!.download(
+    return dio.download(
       urlPath,
       savePath,
       onReceiveProgress: onReceiveProgress,
@@ -571,9 +571,21 @@ class ApiClient {
   /// wired.  Request methods should call this instead of (or in
   /// addition to) [_ensureInitialized] so the underlying Dio
   /// always uses the Cronet / cupertino_http adapter.
-  Future<void> _ensureAdapterForRequest() async {
+  ///
+  /// Returns the [Dio] instance that was validated at call time so
+  /// callers can issue the request against a stable reference.  This
+  /// avoids a race where [_dio] is nulled (e.g. by [dispose] or
+  /// [refreshServerUrl]) between the adapter check and the actual
+  /// request, which previously produced a "Null check operator used
+  /// on a null value" TypeError from `_dio!.get()` etc.
+  Future<Dio> _ensureAdapterForRequest() async {
     _ensureInitialized();
     await _ensureNativeAdapter();
+    final dio = _dio;
+    if (dio == null) {
+      throw StateError('ApiClient not initialized. Call initialize() first.');
+    }
+    return dio;
   }
 
   /// Generate a unique key for request deduplication

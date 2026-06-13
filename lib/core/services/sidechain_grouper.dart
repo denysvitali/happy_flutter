@@ -125,7 +125,8 @@ class SidechainGrouper {
             (m['name'] == 'Task' || m['name'] == 'Agent');
         var nextAncestorId = ancestorTaskId;
         if (isTask) {
-          final taskId = m['id'] as String;
+          final taskId = m['id'] as String?;
+          if (taskId == null || taskId.isEmpty) continue;
           taskIdToTask[taskId] = m;
           nextAncestorId = taskId;
           uuidToTaskId[taskId] = taskId;
@@ -653,7 +654,8 @@ class SidechainGrouper {
         if (parentUuid != null &&
             uuidToGroupedTask.containsKey(parentUuid)) {
           final task = uuidToGroupedTask[parentUuid]!;
-          final taskId = task['id'] as String;
+          final taskId = task['id'] as String?;
+          if (taskId == null || taskId.isEmpty) continue;
           // Refuse to attach a message to itself.  A Task whose
           // parentUuid resolves to its own id/uuid/toolUseId would
           // otherwise end up in its own children array, creating a
