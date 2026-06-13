@@ -108,8 +108,21 @@ class SyncProgressBar extends ConsumerWidget {
                     if (status.showProgressLine)
                       SizedBox(
                         height: 2,
+                        // Always render a determinate value. A null value puts
+                        // LinearProgressIndicator into its indeterminate
+                        // animation path, whose _controller getter force-
+                        // unwraps an ancestor lookup
+                        // (findAncestorWidgetOfExactType<Theme>()!). While the
+                        // surrounding AnimatedSwitcher/AnimatedSize transition
+                        // is in flight (e.g. entering a freshly created
+                        // session's ChatScreen) the indicator can tick after
+                        // its element is deactivated, so that ancestor is null
+                        // and the build crashes with "Null check operator used
+                        // on a null value" (Flutter 3.44 progress_indicator
+                        // regression). A determinate value skips the animated
+                        // path entirely.
                         child: LinearProgressIndicator(
-                          value: status.progressValue,
+                          value: status.progressValue ?? 0,
                           backgroundColor: Colors.transparent,
                           color: status.foregroundColor(cs),
                           minHeight: 2,
