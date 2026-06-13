@@ -51,12 +51,36 @@ extension SyncMessagingRpc on Sync {
         'params': encrypted,
       }, timeout: timeout);
     } catch (error, stack) {
-      logger.warning(
+      // Keep the full-fidelity line locally (info-level so it does NOT
+      // forward to Sentry — the interpolated elapsedMs defeats grouping
+      // and a wedged daemon mints a fresh issue per retry). The Sentry
+      // side is a separate, stable-message capture throttled per
+      // machine+method so the retry storm collapses to one issue.
+      logger.info(
         '[machineRPC] FAILED method=$method machine=$machineId '
         'elapsedMs=${stopwatch.elapsedMilliseconds}: $error',
-        error,
-        stack,
       );
+      if (_shouldCaptureMachineRpcWarn('$machineId:$method:failed')) {
+        unawaited(
+          Sentry.captureMessage(
+            '[machineRPC] FAILED method=$method',
+            level: SentryLevel.warning,
+            withScope: (scope) {
+              // Stable fingerprint so every FAILED ping (any machine,
+              // any elapsedMs) collapses into a single Sentry issue
+              // instead of one issue per call.
+              scope.fingerprint = ['machineRPC', 'failed', method];
+              scope.setTag('machineRPC_machine', machineId);
+              scope.setContexts('machineRPC', {
+                'machineId': machineId,
+                'method': method,
+                'elapsedMs': stopwatch.elapsedMilliseconds,
+                'error': error.toString(),
+              });
+            },
+          ),
+        );
+      }
       rethrow;
     }
 
@@ -68,11 +92,15 @@ extension SyncMessagingRpc on Sync {
       final decrypted = await machineEncryption.decryptRaw(encryptedResult);
       final elapsedMs = stopwatch.elapsedMilliseconds;
       if (elapsedMs >= 2000) {
-        // Pre-flight pings over 2s usually mean a wedged daemon or
-        // a saturated socket — surface as a warning so daemons and
-        // operators see the cluster health drift, not just the slow
-        // path. Stays well under the 8 s createSession budget.
-        logger.warning(
+        // Pre-flight pings over 2s usually mean a wedged daemon or a
+        // saturated socket. Keep the full line locally at info-level
+        // (does not forward to Sentry — interpolated elapsedMs defeats
+        // grouping and a wedged daemon would mint a fresh issue per
+        // retry). A breadcrumb preserves the per-call timing context.
+        // The Sentry capture is a separate, stable-message event
+        // throttled per machine+method so the storm collapses to one
+        // issue. Stays well under the 8 s createSession budget.
+        logger.info(
           '[machineRPC] SLOW method=$method machine=$machineId '
           'elapsedMs=$elapsedMs preSendMs=$rpcElapsedBeforeSend',
         );
@@ -91,6 +119,26 @@ extension SyncMessagingRpc on Sync {
             ),
           ),
         );
+        if (_shouldCaptureMachineRpcWarn('$machineId:$method:slow')) {
+          unawaited(
+            Sentry.captureMessage(
+              '[machineRPC] SLOW method=$method',
+              level: SentryLevel.warning,
+              withScope: (scope) {
+                // Stable fingerprint so every SLOW ping collapses into
+                // one Sentry issue instead of one per elapsedMs value.
+                scope.fingerprint = ['machineRPC', 'slow', method];
+                scope.setTag('machineRPC_machine', machineId);
+                scope.setContexts('machineRPC', {
+                  'machineId': machineId,
+                  'method': method,
+                  'elapsedMs': elapsedMs,
+                  'preSendMs': rpcElapsedBeforeSend,
+                });
+              },
+            ),
+          );
+        }
       }
       if (decrypted == null) {
         logger.error('machineRPC $method: decryption returned null');

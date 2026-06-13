@@ -286,6 +286,14 @@ what you have, you must use the options mode.
   /// session.
   final Map<String, int> _lastNoEmbedEventCursorSeq = {};
 
+  /// Epoch-ms of the last machineRPC SLOW/FAILED Sentry capture, keyed by
+  /// `<machineId>:<method>:<kind>`. A single wedged daemon previously
+  /// minted a fresh Sentry issue on every retry (elapsedMs interpolated
+  /// into the message defeated grouping). This throttles captures to at
+  /// most one per key per [_machineRpcWarnCooldownMs]; the local
+  /// logger.warning still fires every time so the signal is not lost.
+  final Map<String, int> _lastMachineRpcWarnMs = {};
+
   /// Sessions that have an explicit reason to probe the messages API even when
   /// the local cursor appears caught up to session.lastSeq.
   ///
@@ -1106,6 +1114,22 @@ what you have, you must use the options mode.
   /// Extra cooldown for visible no-embed probes when the cursor has not
   /// advanced since the previous probe.
   static const int _noEmbedProbeCooldownMs = 2000;
+
+  /// Cooldown between machineRPC SLOW/FAILED Sentry captures for the same
+  /// `<machineId>:<method>:<kind>`. 5 minutes collapses a wedged daemon's
+  /// retry storm into at most one capture per window per machine.
+  static const int _machineRpcWarnCooldownMs = 5 * 60 * 1000;
+
+  /// Whether a machineRPC SLOW/FAILED Sentry capture is allowed for this
+  /// key right now, recording the timestamp when it is. Local warning
+  /// logs are unaffected — only the Sentry side is throttled.
+  bool _shouldCaptureMachineRpcWarn(String key) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final lastMs = _lastMachineRpcWarnMs[key] ?? 0;
+    if (nowMs - lastMs < _machineRpcWarnCooldownMs) return false;
+    _lastMachineRpcWarnMs[key] = nowMs;
+    return true;
+  }
 
   static const Duration _machinesRefreshDebounce = Duration(milliseconds: 250);
 

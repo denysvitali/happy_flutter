@@ -742,6 +742,7 @@ extension SyncLifecycle on Sync {
     _recentInlineMessageKeyOrder.clear();
     _pendingInlineMessageKeys.clear();
     _lastNoEmbedEventMs.clear();
+    _lastMachineRpcWarnMs.clear();
     _sessionsWithPendingSocketMessages.clear();
     _notifiedPermissionIds.clear();
 
