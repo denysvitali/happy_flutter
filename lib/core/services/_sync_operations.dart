@@ -26,6 +26,15 @@ extension SyncOperations on Sync {
     await settingsManager?.syncPushToken();
   }
 
+  /// Forward settings apply to [SettingsManager].
+  Future<void> applySettings(Map<String, dynamic> delta) async {
+    await settingsManager?.applySettings(delta);
+  }
+
+  /// Expose pending settings from [SettingsManager].
+  Map<String, dynamic> get pendingSettings =>
+      settingsManager?.pendingSettings ?? const {};
+
   /// Refresh machines from server
   Future<void> refreshMachines() async {
     // Route through machinesSync so concurrent calls are coalesced rather

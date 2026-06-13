@@ -3,6 +3,9 @@
 devenv.local.nix
 devenv.local.yaml
 
+# Test coverage reports
+coverage/
+
 # direnv
 .direnv
 
