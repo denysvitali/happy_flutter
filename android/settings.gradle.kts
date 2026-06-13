@@ -1,3 +1,46 @@
+import org.gradle.api.Action
+import org.gradle.api.Project
+
+// AGP 9 removes the org.jetbrains.kotlin.android plugin in favor of built-in
+// Kotlin support, but many published Flutter plugins still apply it and use the
+// kotlinOptions DSL. Patch them in the pub cache before Gradle evaluates them.
+// This replaces the CI-level sed patching and works for local builds too.
+fun patchPluginBuildForAgp9(buildFile: java.io.File) {
+    if (!buildFile.exists()) return
+    var text = buildFile.readText()
+    val original = text
+
+    // Disable the obsolete kotlin-android plugin (Groovy apply or Kotlin plugins block).
+    text = text.replace(
+        Regex("""apply plugin:\s*['"]kotlin-android['"]"""),
+        "// Patched for AGP 9: apply plugin: \"kotlin-android\""
+    )
+    text = text.replace(
+        Regex("""id\(['"]kotlin-android['"]\)"""),
+        "// Patched for AGP 9: id(\"kotlin-android\")"
+    )
+
+    // Bump compileSdkVersion / compileSdk below 36 up to 36.
+    text = text.replace(
+        Regex("""compileSdkVersion\s+3[0-5]([^0-9]|$)"""),
+        "compileSdkVersion 36$1"
+    )
+    text = text.replace(
+        Regex("""compileSdk\s*=\s*3[0-5]([^0-9]|$)"""),
+        "compileSdk = 36$1"
+    )
+
+    // Remove kotlinOptions blocks; AGP 9's built-in Kotlin support ignores them.
+    text = text.replace(
+        Regex("""\n\s+kotlinOptions\s*\{[\s\S]*?\}\s*\n"""),
+        "\n    // Patched for AGP 9: kotlinOptions removed\n"
+    )
+
+    if (text != original) {
+        buildFile.writeText(text)
+    }
+}
+
 pluginManagement {
     val flutterSdkPath =
         run {
@@ -55,8 +98,23 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://storage.googleapis.com/download.flutter.io")
+        }
     }
 }
+
+// audio_session 0.2.3 (transitive via just_audio) still applies the obsolete
+// kotlin-android plugin and pins compileSdk 35, which AGP 9 rejects. Patch it
+// in-place before evaluation until a compatible version is published.
+gradle.beforeProject(Action<Project> {
+    // Only patch Flutter plugin build.gradle(.kts) files in the pub cache.
+    if (buildFile.path.contains("hosted/pub.dev/") &&
+        (buildFile.name == "build.gradle" || buildFile.name == "build.gradle.kts")
+    ) {
+        patchPluginBuildForAgp9(buildFile)
+    }
+})
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
