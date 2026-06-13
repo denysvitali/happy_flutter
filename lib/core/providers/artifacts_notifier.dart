@@ -1,8 +1,9 @@
 import 'package:riverpod/riverpod.dart';
 
 import '../models/artifact.dart';
+import '../repositories/artifacts_repository.dart';
 import '../services/logger_service.dart' show logger;
-import '../services/sync_service.dart';
+import '../services/sync_service.dart' show SyncDomain, sync;
 import '_shared.dart';
 
 class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
@@ -10,6 +11,8 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
 
   @override
   Map<String, DecryptedArtifact> build() => {};
+
+  ArtifactsRepository get _repository => ref.read(artifactsRepositoryProvider);
 
   void addArtifact(DecryptedArtifact artifact) {
     // Short-circuit when the slot already holds an identical reference —
@@ -19,7 +22,7 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
       ..[artifact.id] = artifact;
   }
 
-  void updateArtifact(
+  void updateArtifactInState(
     String id,
     DecryptedArtifact Function(DecryptedArtifact) update,
   ) {
@@ -43,7 +46,7 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
     final counter = sync.domainChangeCounter(SyncDomain.artifacts);
     if (counter == _lastDataChangeCounter) return;
     _lastDataChangeCounter = counter;
-    final next = sync.artifacts;
+    final next = _repository.artifacts;
     if (next.length == state.length &&
         next.every((a) => state.containsKey(a.id) && state[a.id] == a)) {
       return;
@@ -51,11 +54,15 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
     state = {for (final a in next) a.id: a};
   }
 
-  Future<void> refreshFromSync() => refreshSyncDomain(
-        invalidate: () => sync.artifactsSync,
-        name: 'artifacts',
-        reload: loadFromSync,
-      );
+  Future<void> refreshFromSync() async {
+    if (!sync.isInitialized) return;
+    try {
+      await _repository.fetchArtifactsList();
+    } catch (e, stack) {
+      logger.warning('Failed to refresh artifacts', e, stack);
+    }
+    loadFromSync();
+  }
 
   void clear() {
     state = {};
@@ -68,7 +75,7 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
     final snapshot = state;
     state = Map<String, DecryptedArtifact>.from(state)..remove(id);
     try {
-      await sync.deleteArtifact(id);
+      await _repository.deleteArtifact(id);
       return true;
     } catch (e, stack) {
       state = snapshot;
@@ -87,7 +94,7 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
       throw StateError('Sync is not initialized');
     }
     try {
-      return await sync.createArtifact(title, body);
+      return await _repository.createArtifact(title, body);
     } catch (e, stack) {
       logger.warning(
         'ArtifactsNotifier.createArtifact($title) failed',
@@ -108,7 +115,7 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
       throw StateError('Sync is not initialized');
     }
     try {
-      await sync.updateArtifact(id, title, body);
+      await _repository.updateArtifact(id, title: title, body: body);
     } catch (e, stack) {
       logger.warning(
         'ArtifactsNotifier.saveArtifact($id) failed',

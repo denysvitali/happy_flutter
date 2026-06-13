@@ -232,7 +232,7 @@ void main() {
         _makeArtifact(id: 'upd', title: 'Original', body: 'Old body'),
       );
 
-      notifier.updateArtifact(
+      notifier.updateArtifactInState(
         'upd',
         (a) => a.copyWith(title: 'Modified', body: 'New body'),
       );

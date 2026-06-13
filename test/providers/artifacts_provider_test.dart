@@ -120,7 +120,7 @@ void main() {
 
       notifier.addArtifact(artifact);
 
-      notifier.updateArtifact('artifact-1', (existing) {
+      notifier.updateArtifactInState('artifact-1', (existing) {
         return existing.copyWith(
           title: 'Updated Title',
           headerVersion: 2,
@@ -282,7 +282,7 @@ void main() {
       ));
 
       // Should not throw and should not modify state.
-      notifier.updateArtifact('non-existent', (a) => a.copyWith(title: 'X'));
+      notifier.updateArtifactInState('non-existent', (a) => a.copyWith(title: 'X'));
 
       final artifacts = container.read(artifactsNotifierProvider);
       expect(artifacts, hasLength(1));
@@ -457,7 +457,7 @@ void main() {
         sessions: ['s1'],
       ));
 
-      notifier.updateArtifact('upd-1', (a) => a.copyWith(title: 'Changed'));
+      notifier.updateArtifactInState('upd-1', (a) => a.copyWith(title: 'Changed'));
 
       final artifact = container.read(artifactsNotifierProvider)['upd-1'];
       expect(artifact?.title, 'Changed');
