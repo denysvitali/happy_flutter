@@ -19,11 +19,13 @@ class TodoViewItem {
     required this.status,
     this.priority,
     this.id,
+    this.description,
   });
   final String content;
   final String status;
   final String? priority;
   final String? id;
+  final String? description;
 
   bool get isCompleted => status == 'completed';
   bool get isInProgress => status == 'in_progress';
@@ -83,7 +85,8 @@ class _TodoViewState extends ConsumerState<TodoView> {
     if (!changed) {
       for (var i = 0; i < next.length; i++) {
         if (_todos[i].status != next[i].status ||
-            _todos[i].content != next[i].content) {
+            _todos[i].content != next[i].content ||
+            _todos[i].description != next[i].description) {
           changed = true;
           break;
         }
@@ -123,6 +126,7 @@ class _TodoViewState extends ConsumerState<TodoView> {
           status: TodoState.fromString(it.status),
           priority: it.priority ?? 'medium',
           order: i,
+          description: it.description,
           createdAt: now,
           updatedAt: now,
           sessionId: widget.sessionId,
@@ -153,6 +157,7 @@ class _TodoViewState extends ConsumerState<TodoView> {
                 status: t['status'] as String? ?? 'pending',
                 priority: t['priority'] as String?,
                 id: t['id'] as String?,
+                description: t['description'] as String?,
               ),
             )
             .toList();
@@ -191,6 +196,7 @@ class _TodoViewState extends ConsumerState<TodoView> {
             status: status,
             priority: t['priority'] as String?,
             id: t['id'] as String?,
+            description: t['description'] as String?,
           );
         })
         .whereType<TodoViewItem>()

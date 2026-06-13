@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/components/task_detail_dialog.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -10,6 +13,9 @@ import '../../../core/theme/app_tokens.dart';
 /// Swiping left-to-right fires [HapticFeedback.lightImpact], calls
 /// [onToggleComplete], then spring-backs (returns false from
 /// [confirmDismiss] so the row stays in the list).
+///
+/// Tapping the row opens a detail dialog with the full title, status,
+/// and description.
 class ZenTodoItem extends StatelessWidget {
   const ZenTodoItem({
     required this.item,
@@ -30,12 +36,22 @@ class ZenTodoItem extends StatelessWidget {
       direction: DismissDirection.startToEnd,
       // Return false so the row spring-backs and stays in the list.
       confirmDismiss: (_) async {
-        HapticFeedback.lightImpact();
+        // Fire-and-forget haptic; swallow platform errors in tests.
+        unawaited(HapticFeedback.lightImpact().catchError((_) {}));
         onToggleComplete();
         return false;
       },
       background: _SwipeBackground(isCompleted: isCompleted),
-      child: _TodoRow(item: item, isCompleted: isCompleted, theme: theme),
+      child: _TodoRow(
+        item: item,
+        isCompleted: isCompleted,
+        theme: theme,
+        onTap: () {
+          unawaited(
+            showTaskDetailDialog(context: context, item: item),
+          );
+        },
+      ),
     );
   }
 }
@@ -94,11 +110,13 @@ class _TodoRow extends StatelessWidget {
     required this.item,
     required this.isCompleted,
     required this.theme,
+    required this.onTap,
   });
 
   final TodoItem item;
   final bool isCompleted;
   final ThemeData theme;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -108,48 +126,70 @@ class _TodoRow extends StatelessWidget {
         ? theme.colorScheme.onSurfaceVariant
         : theme.colorScheme.onSurface;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.xs,
-        horizontal: AppSpacing.lg,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: statusIcon,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  item.content,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: textColor,
-                    decoration: isCompleted
-                        ? TextDecoration.lineThrough
-                        : null,
-                    decorationColor: textColor,
-                    height: AppLineHeight.normal,
-                  ),
-                ),
-                if (item.priority != null &&
-                    item.priority!.isNotEmpty &&
-                    item.priority != 'low')
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xxs),
-                    child: _PriorityChip(priority: item.priority!),
-                  ),
-              ],
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.xs,
+          horizontal: AppSpacing.lg,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: statusIcon,
             ),
-          ),
-        ],
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.content,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: textColor,
+                      decoration: isCompleted
+                          ? TextDecoration.lineThrough
+                          : null,
+                      decorationColor: textColor,
+                      height: AppLineHeight.normal,
+                    ),
+                  ),
+                  if (item.description case final description?
+                      when description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                      child: Text(
+                        _abbreviated(description),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.8),
+                          height: AppLineHeight.normal,
+                        ),
+                      ),
+                    ),
+                  if (item.priority.isNotEmpty && item.priority != 'low')
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                      child: _PriorityChip(priority: item.priority),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  String _abbreviated(String description) {
+    const maxChars = 80;
+    if (description.length <= maxChars) return description;
+    return '${description.substring(0, maxChars).trimRight()}…';
   }
 
   Color _statusColor(ThemeData theme) {
@@ -191,7 +231,7 @@ class _PriorityChip extends StatelessWidget {
         vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: AppOpacity.subtle),
+        color: color.withValues(alpha: AppMotion.hoverOpacity),
         borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Text(

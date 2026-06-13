@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/components/task_detail_dialog.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -274,7 +275,9 @@ class _TaskList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (active.isNotEmpty) ...[
-              ...active.map((i) => _Row(item: i, onTap: () => onToggle(i.id))),
+              ...active.map(
+                (i) => _Row(item: i, onToggle: () => onToggle(i.id)),
+              ),
             ],
             if (done.isNotEmpty) ...[
               Padding(
@@ -291,7 +294,7 @@ class _TaskList extends StatelessWidget {
                   ),
                 ),
               ),
-              ...done.map((i) => _Row(item: i, onTap: () => onToggle(i.id))),
+              ...done.map((i) => _Row(item: i, onToggle: () => onToggle(i.id))),
             ],
           ],
         ),
@@ -301,10 +304,10 @@ class _TaskList extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.item, required this.onTap});
+  const _Row({required this.item, required this.onToggle});
 
   final TodoItem item;
-  final VoidCallback onTap;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +353,7 @@ class _Row extends StatelessWidget {
     final decoration = isCompleted ? TextDecoration.lineThrough : null;
 
     return InkWell(
-      onTap: onTap,
+      onTap: () => showTaskDetailDialog(context: context, item: item),
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.xs),
@@ -372,19 +375,83 @@ class _Row extends StatelessWidget {
             statusIcon,
             const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(
-                item.content,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: textColor,
-                  decoration: decoration,
-                  decorationColor: textColor,
-                  height: AppLineHeight.normal,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.content,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: textColor,
+                      decoration: decoration,
+                      decorationColor: textColor,
+                      height: AppLineHeight.normal,
+                    ),
+                  ),
+                  if (item.description case final description?
+                      when description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xxxs),
+                      child: Text(
+                        _abbreviated(description),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.75),
+                          height: AppLineHeight.normal,
+                          fontSize: AppFontSize.xs,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
             _StatusPill(label: statusLabel, color: statusColor),
+            const SizedBox(width: AppSpacing.xs),
+            _ToggleButton(isCompleted: isCompleted, onTap: onToggle),
           ],
+        ),
+      ),
+    );
+  }
+
+  String _abbreviated(String description) {
+    const maxChars = 60;
+    if (description.length <= maxChars) return description;
+    return '${description.substring(0, maxChars).trimRight()}…';
+  }
+}
+
+/// Tappable checkbox that toggles task completion without opening detail.
+class _ToggleButton extends StatelessWidget {
+  const _ToggleButton({required this.isCompleted, required this.onTap});
+
+  final bool isCompleted;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = isCompleted
+        ? AppColors.success
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          child: Icon(
+            isCompleted
+                ? Icons.check_box_rounded
+                : Icons.check_box_outline_blank_rounded,
+            size: 20,
+            color: color,
+          ),
         ),
       ),
     );

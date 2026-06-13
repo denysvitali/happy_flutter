@@ -64,6 +64,7 @@ class TodoItem {
     required this.order,
     required this.createdAt,
     required this.updatedAt,
+    this.description,
     this.parentId,
     this.dependencies = const [],
     this.dueAt,
@@ -78,6 +79,7 @@ class TodoItem {
       status: TodoState.fromString(json['status'] as String),
       priority: json['priority'] as String,
       order: json['order'] as int,
+      description: json['description'] as String?,
       parentId: json['parentId'] as String?,
       dependencies:
           (json['dependencies'] as List<dynamic>?)
@@ -97,6 +99,7 @@ class TodoItem {
   final TodoState status;
   final String priority; // 'low', 'medium', 'high', 'critical'
   final int order;
+  final String? description;
   final String? parentId;
   final List<String> dependencies;
   final int? dueAt;
@@ -112,6 +115,7 @@ class TodoItem {
       'status': status.value,
       'priority': priority,
       'order': order,
+      'description': description,
       'parentId': parentId,
       'dependencies': dependencies,
       'dueAt': dueAt,
@@ -128,6 +132,8 @@ class TodoItem {
     TodoState? status,
     String? priority,
     int? order,
+    String? description,
+    bool clearDescription = false,
     String? parentId,
     bool clearParentId = false,
     List<String>? dependencies,
@@ -143,6 +149,9 @@ class TodoItem {
       status: status ?? this.status,
       priority: priority ?? this.priority,
       order: order ?? this.order,
+      description: clearDescription
+          ? null
+          : (description ?? this.description),
       parentId: clearParentId ? null : (parentId ?? this.parentId),
       dependencies: dependencies != null
           ? List<String>.from(dependencies)

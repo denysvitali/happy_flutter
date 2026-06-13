@@ -39,7 +39,12 @@ void main() {
       );
     }
 
-    TodoItem item(String id, TodoState status, {String? content}) {
+    TodoItem item(
+      String id,
+      TodoState status, {
+      String? content,
+      String? description,
+    }) {
       final now = DateTime.now().millisecondsSinceEpoch;
       return TodoItem(
         id: id,
@@ -47,6 +52,7 @@ void main() {
         status: status,
         priority: 'medium',
         order: 0,
+        description: description,
         createdAt: now,
         updatedAt: now,
       );
@@ -166,28 +172,92 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('0/1 done'), findsOneWidget);
 
-      // Expand and tap the row.
+      // Expand and tap the checkbox (not the row, which opens detail).
       await tester.tap(find.textContaining('done'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Toggle me'));
+      await tester.tap(find.byIcon(Icons.check_box_outline_blank_rounded));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('1/1 done'), findsOneWidget);
     });
 
-    testWidgets('banner hides once the session is cleared', (tester) async {
+    testWidgets('tapping a row opens the detail dialog', (tester) async {
       final notifier = container.read(todoStateNotifierProvider.notifier);
-      notifier.setItemsForSession('s1', [item('a', TodoState.pending)]);
+      notifier.setItemsForSession('s1', [
+        item(
+          'a',
+          TodoState.pending,
+          content: 'Plan migration',
+          description: 'Decide how to split the sync singleton.',
+        ),
+      ]);
 
       await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('done'), findsOneWidget);
 
-      // Session ends — provider removes the bucket.
-      notifier.clearSession('s1');
+      await tester.tap(find.textContaining('done'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('done'), findsNothing);
+      await tester.tap(find.text('Plan migration'));
+      await tester.pumpAndSettle();
+
+      // Dialog shows the full description and a close action.
+      expect(
+        find.text('Decide how to split the sync singleton.'),
+        findsWidgets,
+      );
+      expect(find.text('Close'), findsOneWidget);
+    });
+
+    testWidgets('abbreviated description is shown in the row', (tester) async {
+      final notifier = container.read(todoStateNotifierProvider.notifier);
+      notifier.setItemsForSession('s1', [
+        item(
+          'a',
+          TodoState.pending,
+          content: 'Short',
+          description: 'A'.padLeft(90, 'A'),
+        ),
+      ]);
+
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.textContaining('done'));
+      await tester.pumpAndSettle();
+
+      // The full 90-char string should not be rendered verbatim.
+      expect(find.text('A'.padLeft(90, 'A')), findsNothing);
+      // But the truncated form ending with an ellipsis should be present.
+      expect(find.textContaining('A'.padLeft(60, 'A')), findsOneWidget);
+    });
+
+    testWidgets('toggle button flips completion without opening dialog', (
+      tester,
+    ) async {
+      final notifier = container.read(todoStateNotifierProvider.notifier);
+      notifier.setItemsForSession('s1', [
+        item(
+          'a',
+          TodoState.pending,
+          content: 'Toggle me',
+          description: 'Detail text.',
+        ),
+      ]);
+
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.textContaining('done'));
+      await tester.pumpAndSettle();
+
+      // Tap the checkbox (outline blank) instead of the row text.
+      await tester.tap(find.byIcon(Icons.check_box_outline_blank_rounded));
+      await tester.pumpAndSettle();
+
+      // Completion count updated; dialog did not open.
+      expect(find.textContaining('1/1 done'), findsOneWidget);
+      expect(find.text('Close'), findsNothing);
     });
   });
 }
