@@ -236,8 +236,11 @@ extension SyncData on Sync {
               _asSessionInt(session['updatedAt']) ?? existing?.updatedAt ?? 0;
           final active =
               _asSessionBool(session['active']) ?? existing?.active ?? false;
+          final now = DateTime.now().millisecondsSinceEpoch;
           final activeAt =
-              _asSessionInt(session['activeAt']) ?? existing?.activeAt ?? 0;
+              _clampTimestampToNow(_asSessionInt(session['activeAt']), now) ??
+              existing?.activeAt ??
+              0;
           final metadataVersion =
               _asSessionInt(session['metadataVersion']) ?? 0;
           final agentStateVersion =
@@ -566,15 +569,18 @@ extension SyncData on Sync {
       final session = Session(
         id: sessionId,
         seq: _asSessionInt(raw['seq']) ?? existing?.seq ?? 0,
-        createdAt:
-            _asSessionInt(raw['createdAt']) ?? existing?.createdAt ?? 0,
-        updatedAt:
-            _asSessionInt(raw['updatedAt']) ?? existing?.updatedAt ?? 0,
+        createdAt: _asSessionInt(raw['createdAt']) ?? existing?.createdAt ?? 0,
+        updatedAt: _asSessionInt(raw['updatedAt']) ?? existing?.updatedAt ?? 0,
         active: _asSessionBool(raw['active']) ?? existing?.active ?? false,
         archived:
             _asSessionBool(raw['archived']) ?? existing?.archived ?? false,
         activeAt:
-            _asSessionInt(raw['activeAt']) ?? existing?.activeAt ?? 0,
+            _clampTimestampToNow(
+              _asSessionInt(raw['activeAt']),
+              DateTime.now().millisecondsSinceEpoch,
+            ) ??
+            existing?.activeAt ??
+            0,
         metadata: parsedMetadata,
         metadataVersion: metadataVersion,
         agentState: parsedAgentState,
@@ -694,10 +700,7 @@ extension SyncData on Sync {
         }
         return MapEntry(
           sessionId,
-          _DecryptedSessionContent(
-            metadata: metadata,
-            agentState: agentState,
-          ),
+          _DecryptedSessionContent(metadata: metadata, agentState: agentState),
         );
       }());
     }

@@ -303,6 +303,11 @@ int? _asSessionInt(dynamic value) {
   return WireParsers.parseInt(value);
 }
 
+int? _clampTimestampToNow(int? value, int nowMs) {
+  if (value == null) return null;
+  return value > nowMs ? nowMs : value;
+}
+
 bool? _asSessionBool(dynamic value) {
   return WireParsers.parseBool(value);
 }

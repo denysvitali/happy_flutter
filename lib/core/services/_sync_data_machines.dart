@@ -175,7 +175,9 @@ extension SyncDataMachines on Sync {
       // use the current time so the client-side 120 s window stays
       // fresh.
       final now = DateTime.now().millisecondsSinceEpoch;
-      final activeAt = eventActiveAt ?? ((active ?? false) ? now : null);
+      final activeAt =
+          _clampTimestampToNow(eventActiveAt, now) ??
+          ((active ?? false) ? now : null);
       // ageMs = now - activeAt tells us whether the server's activeAt
       // is fresh (a few hundred ms old) or stale (caches 30 s+ old
       // snapshot from a cold daemon). Synthesised activeAt is
@@ -374,7 +376,10 @@ extension SyncDataMachines on Sync {
           // When active is true but activeAt is older than 60 s, treat
           // it as now.
           final isActive = machine['active'] as bool? ?? false;
-          final serverActiveAt = _asSessionInt(machine['activeAt']);
+          final serverActiveAt = _clampTimestampToNow(
+            _asSessionInt(machine['activeAt']),
+            now,
+          );
           int activeAt;
           if (isActive) {
             final fallback = serverActiveAt ?? now;

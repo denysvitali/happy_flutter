@@ -85,11 +85,13 @@ extension SyncSessions on Sync {
     final machine = _machines[machineId];
     if (machine != null) {
       final active = data['active'] as bool?;
-      final activeAt = data['activeAt'] is int
+      final eventActiveAt = data['activeAt'] is int
           ? data['activeAt'] as int
           : data['activeAt'] is double
           ? (data['activeAt'] as double).toInt()
           : null;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final activeAt = _clampTimestampToNow(eventActiveAt, now);
       final updatedAt = data['updatedAt'] is int
           ? data['updatedAt'] as int
           : data['updatedAt'] is double
@@ -106,7 +108,6 @@ extension SyncSessions on Sync {
         // server's cached activeAt is the bottleneck for
         // "machine stays offline" reports. null activeAt is
         // reported as age=null.
-        final now = DateTime.now().millisecondsSinceEpoch;
         final ageMs = (activeAt != null) ? now - activeAt : null;
         final ageLabel = ageMs == null
             ? 'null'
@@ -174,5 +175,4 @@ extension SyncSessions on Sync {
       artifactsSync.invalidate();
     });
   }
-
 }

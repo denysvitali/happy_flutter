@@ -1520,6 +1520,44 @@ void main() {
       expect(envVars['ANTHROPIC_AUTH_TOKEN'], isNotNull);
     });
 
+    test(
+      'untracked running session with stale/default profile metadata '
+      'does not respawn unless a non-default profile is explicitly passed',
+      () async {
+      const sessionId = 'unknown-spawn-no-explicit-default';
+      var spawnCalled = false;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'deepseek',
+      );
+      sync.testSessionSpawnedProfile.remove(sessionId);
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          spawnCalled = true;
+        }
+        return <String, dynamic>{'type': 'success', 'sessionId': sessionId};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      try {
+        await sync.sendMessage(sessionId, 'hello', profileId: 'default');
+      } catch (_) {
+        // REST POST not mocked.
+      }
+
+      expect(
+        spawnCalled,
+        isFalse,
+        reason:
+            'Passing explicit default should be treated as no-op for '
+            'untracked sessions.',
+      );
+    });
+
     test('sendMessage with profileId=null does NOT kill session when '
         'the daemon was already spawned with no profile', () async {
       const sessionId = 'no-change-default-to-default';

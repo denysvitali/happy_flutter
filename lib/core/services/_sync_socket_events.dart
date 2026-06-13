@@ -609,11 +609,13 @@ extension SyncSocketEvents on Sync {
     if (session != null) {
       final presence = data['presence'] as String?;
       final active = data['active'] as bool?;
-      final activeAt = data['activeAt'] is int
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final eventActiveAt = data['activeAt'] is int
           ? data['activeAt'] as int
           : data['activeAt'] is double
           ? (data['activeAt'] as double).toInt()
           : null;
+      final activeAt = _clampTimestampToNow(eventActiveAt, now);
       final thinking = data['thinking'] as bool?;
       final thinkingAt = data['thinkingAt'] is int
           ? data['thinkingAt'] as int

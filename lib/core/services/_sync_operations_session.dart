@@ -1109,11 +1109,16 @@ PY
     final spawnedProfileId = _sessionSpawnedProfile[sessionId];
     final mmkvUnknownForFreshSpawn =
         recentlySpawned && profileId == null && mmkvProfileId == null;
+    // For sessions not tracked by this app run, only treat an explicit
+    // (non-default) profile argument as a real change. Falling back to MMKV on
+    // unknown sessions can be stale and would otherwise cause unnecessary kill +
+    // respawn cycles.
+    final explicitProfileChange = profileId != null && profileId != 'default';
     final profileChanged = spawnedProfileKnown
         ? (mmkvUnknownForFreshSpawn
               ? false
               : spawnedProfileId != effectiveProfileIdForChange)
-        : effectiveProfileIdForChange != null;
+        : explicitProfileChange;
 
     final spawnedModel = _sessionSpawnedModel[sessionId];
     final modelChanged =
