@@ -379,6 +379,7 @@ extension SyncMessaging on Sync {
 
       var page = 0;
       var didMutateMessages = false;
+      var didMutateAuxState = false;
       var shouldRegroupWhenVisible = false;
       var notifiedVisibleData = false;
       fetchSpan
@@ -714,7 +715,14 @@ extension SyncMessaging on Sync {
 
         // ── Apply tool results + usage ──
         if (processed.toolResults.isNotEmpty) {
-          _applyToolResults(sessionId, processed.toolResults);
+          final matchedToolResults = _applyToolResults(
+            sessionId,
+            processed.toolResults,
+          );
+          if (matchedToolResults.isNotEmpty) {
+            didMutateMessages = true;
+            didMutateAuxState = true;
+          }
         }
         // Apply any pending tool results that arrived before these
         // messages. Only drain matched results so cross-path ordering
@@ -723,6 +731,8 @@ extension SyncMessaging on Sync {
         if (pending != null && pending.isNotEmpty) {
           final matched = _applyToolResults(sessionId, pending);
           if (matched.isNotEmpty) {
+            didMutateMessages = true;
+            didMutateAuxState = true;
             pending.removeWhere((r) => matched.contains(r['toolUseId']));
             if (pending.isEmpty) {
               _pendingToolResults.remove(sessionId);
@@ -741,7 +751,10 @@ extension SyncMessaging on Sync {
         }
 
         // ── Apply permission requests (per-page, cheap) ──
-        _applyPermissionRequests(sessionId);
+        if (_applyPermissionRequests(sessionId)) {
+          didMutateMessages = true;
+          didMutateAuxState = true;
+        }
         mergeSpan.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
         await mergeSpan.finish();
         pageSpan.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
@@ -841,23 +854,44 @@ extension SyncMessaging on Sync {
       // should update in-memory/cache state without forcing expensive
       // main-isolate regroup + rebuild work across the app.
       if (isVisibleAtCompletion) {
+        final needsVisibleRefresh =
+            didMutateMessages ||
+            didMutateAuxState ||
+            _sessionsNeedingVisibleRegroup.contains(sessionId);
+        if (needsVisibleRefresh) {
+          final needsGrouping =
+              shouldRegroupWhenVisible ||
+              _sessionsNeedingVisibleRegroup.contains(sessionId);
+          if (needsGrouping) {
+            // Pass changedIds so the grouper can short-circuit when none of
+            // the upserted rows are sidechain-relevant (fast path). When
+            // they are, the per-page incremental pass already did most of
+            // the work; this final call covers cross-page parent/child
+            // pairs (e.g. parent on page 1, child on page 3).
+            _groupSidechainMessages(
+              sessionId,
+              changedIds: upsertedIdsThisCycle.isEmpty
+                  ? null
+                  : upsertedIdsThisCycle,
+            );
+          }
+          _sessionsNeedingVisibleRegroup.remove(sessionId);
+          _notifySessionMessagesChanged(sessionId);
+          _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        }
         final finalizeSpan = fetchSpan.startChild(
           'sync.fetchMessages.finalize',
           description: 'Finalize visible fetch state',
         );
-        // Pass changedIds so the grouper can short-circuit when none of
-        // the upserted rows are sidechain-relevant (fast path). When
-        // they are, the per-page incremental pass already did most of
-        // the work; this final call covers cross-page parent/child
-        // pairs (e.g. parent on page 1, child on page 3).
-        _groupSidechainMessages(
-          sessionId,
-          changedIds: upsertedIdsThisCycle.isEmpty
-              ? null
-              : upsertedIdsThisCycle,
-        );
-        _notifySessionMessagesChanged(sessionId);
-        _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        // Preserve previous behavior for metrics without introducing
+        // additional UI noise when no state changed.
+        if (needsVisibleRefresh) {
+          finalizeSpan
+              .setData('refreshReason', 'visibleDataChanged');
+          if (didMutateMessages) {
+            finalizeSpan.setData('mutated', true);
+          }
+        }
         await finalizeSpan.finish();
 
         // Cross-device backfill: when a session is opened for the
