@@ -10,6 +10,7 @@ class ToolSectionView extends StatelessWidget {
     this.fullWidth = false,
     this.children = const [],
     this.child,
+    this.trailing,
   });
   /// Optional title for the section.
   final String? title;
@@ -23,6 +24,9 @@ class ToolSectionView extends StatelessWidget {
   /// Optional single child (alternative to children).
   final Widget? child;
 
+  /// Optional trailing widget shown at the right of the title row.
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
     final effectiveChildren = child != null ? [child!] : children;
@@ -32,7 +36,11 @@ class ToolSectionView extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (title != null)
-          _SectionHeader(title: title!, fullWidth: fullWidth),
+          _SectionHeader(
+            title: title!,
+            fullWidth: fullWidth,
+            trailing: trailing,
+          ),
         if (fullWidth)
           ...effectiveChildren
         else
@@ -48,15 +56,42 @@ class ToolSectionView extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
 
-  const _SectionHeader({required this.title, required this.fullWidth});
+  const _SectionHeader({
+    required this.title,
+    required this.fullWidth,
+    this.trailing,
+  });
   final String title;
   final bool fullWidth;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final labelColor =
         theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
+
+    Widget titleWidget = Text(
+      title.toUpperCase(),
+      style: theme.textTheme.labelSmall?.copyWith(
+        color: labelColor,
+        fontSize: 9,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0.8,
+        fontFamily: 'monospace',
+        fontFamilyFallback: const ['Courier New', 'Courier'],
+      ),
+    );
+
+    if (trailing != null) {
+      titleWidget = Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(child: titleWidget),
+          trailing!,
+        ],
+      );
+    }
 
     return Padding(
       padding: EdgeInsets.only(
@@ -67,17 +102,7 @@ class _SectionHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: labelColor,
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.8,
-              fontFamily: 'monospace',
-              fontFamilyFallback: const ['Courier New', 'Courier'],
-            ),
-          ),
+          titleWidget,
           const SizedBox(height: AppSpacing.xs),
           Container(
             height: 1,

@@ -336,7 +336,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     unawaited(sessionActivityCoordinator.setVisibleSession(null));
     // Tell sync the chat is no longer visible so it can tear down the
     // per-session message-sync timer and stop background fetches.
-    unawaited(sync.onSessionInvisible());
+    unawaited(sync.onSessionInvisible(widget.sessionId));
     super.dispose();
   }
 

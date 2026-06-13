@@ -956,13 +956,17 @@ extension SyncMessagingRpc on Sync {
   /// Called when the user leaves a chat screen entirely (not just switches
   /// to another chat).  Clears the visible-session pointer and tears down
   /// the message-sync timer so background sessions stop fetching.
-  Future<void> onSessionInvisible() async {
-    final previousVisibleSessionId = _visibleSessionId;
-    _visibleSessionId = null;
-    if (previousVisibleSessionId != null) {
-      messagesSync[previousVisibleSessionId]?.dispose();
-      messagesSync.remove(previousVisibleSessionId);
+  Future<void> onSessionInvisible(String sessionId) async {
+    // Only clear _visibleSessionId if it still points to the session
+    // being left. When switching chats, the new screen's onSessionVisible
+    // may have already run before the old screen's dispose reaches here
+    // (Flutter calls initState before dispose), so _visibleSessionId
+    // may already be the new session.
+    if (_visibleSessionId == sessionId) {
+      _visibleSessionId = null;
     }
+    messagesSync[sessionId]?.dispose();
+    messagesSync.remove(sessionId);
   }
 
   void _requestTailRefresh(String sessionId) {

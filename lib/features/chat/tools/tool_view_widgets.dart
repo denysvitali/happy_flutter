@@ -268,11 +268,21 @@ class PulsingProgressIndicator extends StatelessWidget {
 /// When collapsed the content is clipped at [_kCollapsedHeight]
 /// logical pixels. Tapping the toggle reveals or hides the full
 /// output with an animated transition.
+///
+/// When [scrollable] is true the child is expected to contain its own
+/// scrolling (e.g. [ToolOutputScrollFrame]). In that mode the widget
+/// never expands to the child's intrinsic height; instead it provides
+/// bounded heights and lets the child scroll internally.
 class CollapsibleOutput extends StatefulWidget {
+  /// Default maximum height when expanded in scrollable mode.
+  static const double defaultExpandedMaxHeight = 600;
+
   const CollapsibleOutput({
     required this.toolId,
     required this.child,
     super.key,
+    this.scrollable = false,
+    this.expandedMaxHeight = defaultExpandedMaxHeight,
   });
 
   /// Unique identifier used to track expansion state.
@@ -280,6 +290,16 @@ class CollapsibleOutput extends StatefulWidget {
 
   /// The output content widget to wrap.
   final Widget child;
+
+  /// Whether [child] contains its own scrollable viewport.
+  ///
+  /// When true the widget provides bounded heights
+  /// ([_kCollapsedHeight] and [expandedMaxHeight]) instead of
+  /// expanding to the child's full intrinsic height.
+  final bool scrollable;
+
+  /// Maximum height when expanded and [scrollable] is true.
+  final double expandedMaxHeight;
 
   @override
   State<CollapsibleOutput> createState() => _CollapsibleOutputState();
@@ -345,6 +365,10 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
   bool get _needsCollapsing =>
       _contentHeight != null && _contentHeight! > _kCollapsedHeight;
 
+  double get _expandedHeight => widget.scrollable
+      ? widget.expandedMaxHeight
+      : _contentHeight!;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -355,6 +379,8 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
       return KeyedSubtree(key: _contentKey, child: widget.child);
     }
 
+    final targetHeight = _expanded ? _expandedHeight : _kCollapsedHeight;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -362,19 +388,23 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
         AnimatedContainer(
           duration: AppDuration.normal,
           curve: AppCurve.standard,
-          height: _expanded ? _contentHeight! : _kCollapsedHeight,
+          height: targetHeight,
           clipBehavior: Clip.hardEdge,
           decoration: const BoxDecoration(),
-          // OverflowBox lets the child render at its natural unbounded
-          // height anchored at top-left. Without this, the height
-          // constraint propagates into the inner RenderFlex, emitting an
-          // overflow assertion (failing tests in strict mode) even though
-          // the visible output is clipped correctly.
-          child: OverflowBox(
-            maxHeight: double.infinity,
-            alignment: Alignment.topLeft,
-            child: widget.child,
-          ),
+          // For non-scrollable children, OverflowBox lets the child render
+          // at its natural unbounded height anchored at top-left. Without
+          // this, the height constraint propagates into the inner
+          // RenderFlex, emitting an overflow assertion (failing tests in
+          // strict mode) even though the visible output is clipped
+          // correctly. Scrollable children handle their own overflow, so
+          // we give them the bounded height directly.
+          child: widget.scrollable
+              ? widget.child
+              : OverflowBox(
+                  maxHeight: double.infinity,
+                  alignment: Alignment.topLeft,
+                  child: widget.child,
+                ),
         ),
         GestureDetector(
           onTap: () => setState(() => _expanded = !_expanded),

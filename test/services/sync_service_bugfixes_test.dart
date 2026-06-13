@@ -574,6 +574,63 @@ void main() {
         reason: '_sessionsNeedingTailRefresh should be cleared on suspend',
       );
     });
+
+    test(
+      'onSessionInvisible does not clobber a newer onSessionVisible '
+      '(chat switch race)',
+      () async {
+        // THE RACE CONDITION BEING TESTED:
+        //
+        // When switching from chat A to chat B, Flutter calls new B's
+        // initState BEFORE old A's dispose. Both call unawaited() on
+        // onSessionVisible(B) and onSessionInvisible(A) respectively.
+        // The microtasks run in FIFO order: onSessionVisible(B) sets
+        // _visibleSessionId = B, then onSessionInvisible(A) must NOT
+        // set _visibleSessionId = null because the user is now viewing B.
+        final sessionA = 'session-a';
+        final sessionB = 'session-b';
+
+        // Start with A visible
+        await sync.onSessionVisible(sessionA);
+        expect(sync.testGetVisibleSessionId(), equals(sessionA));
+
+        // Simulate the switch: new B's onSessionVisible runs first
+        await sync.onSessionVisible(sessionB);
+        expect(sync.testGetVisibleSessionId(), equals(sessionB));
+
+        // Then old A's onSessionInvisible runs (late, after dispose)
+        await sync.onSessionInvisible(sessionA);
+
+        // B must STAY visible — the late dispose must not wipe it
+        expect(
+          sync.testGetVisibleSessionId(),
+          equals(sessionB),
+          reason:
+              'onSessionInvisible(sessionA) must not clobber a newer '
+              'onSessionVisible(sessionB) (chat switch race)',
+        );
+      },
+    );
+
+    test(
+      'onSessionInvisible clears _visibleSessionId when it still matches '
+      'the session being left',
+      () async {
+        final sessionId = 'session-a';
+        await sync.onSessionVisible(sessionId);
+        expect(sync.testGetVisibleSessionId(), equals(sessionId));
+
+        await sync.onSessionInvisible(sessionId);
+
+        expect(
+          sync.testGetVisibleSessionId(),
+          isNull,
+          reason:
+              'onSessionInvisible(sessionId) must clear _visibleSessionId '
+              'when it still matches the session being left',
+        );
+      },
+    );
   });
 
   group('Sync resume race condition fix', () {

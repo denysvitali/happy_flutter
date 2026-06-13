@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/sync_service.dart';
@@ -778,6 +780,7 @@ class _ToolViewState extends ConsumerState<ToolView>
         widget.tool['toolUseId'] as String? ??
         widget.tool['id'] as String? ??
         toolName;
+    final outputCopyText = mcpTextResult ?? _copyableTextFor(toolResult);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
       child: Column(
@@ -787,16 +790,26 @@ class _ToolViewState extends ConsumerState<ToolView>
           if (toolInput != null)
             ToolSectionView(
               title: 'INPUT',
+              trailing: ToolViewCopyButton(text: _copyableTextFor(toolInput)),
               child: SmartOutputContainer(content: toolInput),
             ),
           if (state == ToolState.completed && toolResult != null)
             CollapsibleOutput(
               toolId: toolId,
+              scrollable: true,
               child: ToolSectionView(
                 title: 'OUTPUT',
+                trailing: ToolViewCopyButton(text: outputCopyText),
                 child: mcpTextResult != null
-                    ? _McpTextOutput(text: mcpTextResult, rawResult: toolResult)
-                    : SmartOutputContainer(content: toolResult),
+                    ? _McpTextOutput(
+                        text: mcpTextResult,
+                        rawResult: toolResult,
+                        maxHeight: double.infinity,
+                      )
+                    : SmartOutputContainer(
+                        content: toolResult,
+                        maxHeight: double.infinity,
+                      ),
               ),
             ),
           if (state == ToolState.error &&
@@ -958,13 +971,38 @@ class _ToolViewState extends ConsumerState<ToolView>
     if (texts.isEmpty) return null;
     return texts.join('\n');
   }
+
+  /// Returns a plain-text representation of [value] suitable for copying.
+  static String _copyableTextFor(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value;
+    if (value is Map || value is List) {
+      try {
+        return prettyJson(value);
+      } catch (_) {
+        return value.toString();
+      }
+    }
+    return value.toString();
+  }
 }
 
 class _McpTextOutput extends StatefulWidget {
-  const _McpTextOutput({required this.text, required this.rawResult});
+  const _McpTextOutput({
+    required this.text,
+    required this.rawResult,
+    this.maxHeight = 300,
+  });
 
   final String text;
   final dynamic rawResult;
+
+  /// Maximum height of the output pane.
+  ///
+  /// Pass [double.infinity] to fill an external bounded parent such as
+  /// [CollapsibleOutput]. A finite fallback of 300 is used when this is
+  /// not bounded by a parent.
+  final double maxHeight;
 
   @override
   State<_McpTextOutput> createState() => _McpTextOutputState();
@@ -976,51 +1014,80 @@ class _McpTextOutputState extends State<_McpTextOutput> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
+    final effectiveMaxHeight = widget.maxHeight.isFinite
+        ? widget.maxHeight
+        : 300.0;
+
+    final textOutput = Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+        border: Border.all(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+        ),
+      ),
+      child: ToolOutputScrollFrame(
+        child: SelectableText(
+          widget.text,
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontFamilyFallback: const ['Courier New', 'Courier'],
+            fontSize: AppFontSize.sm,
+            color: theme.colorScheme.onSurface,
+            height: AppLineHeight.relaxed,
+          ),
+        ),
+      ),
+    );
+
+    Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        TextButton.icon(
-          onPressed: () => setState(() => _rawJsonExpanded = !_rawJsonExpanded),
-          icon: Icon(
-            _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
-            size: AppIconSize.sm,
-          ),
-          label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
-          style: TextButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          ),
-        ),
-        if (_rawJsonExpanded) ...[
-          SmartOutputContainer(content: widget.rawResult),
-          const SizedBox(height: AppSpacing.xs),
-        ],
-        Container(
-          constraints: const BoxConstraints(maxHeight: 300),
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(AppRadius.sm - 2),
-            border: Border.all(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-            ),
-          ),
-          child: ToolOutputScrollFrame(
-            child: SelectableText(
-              widget.text,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontFamilyFallback: const ['Courier New', 'Courier'],
-                fontSize: AppFontSize.sm,
-                color: theme.colorScheme.onSurface,
-                height: AppLineHeight.relaxed,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            TextButton.icon(
+              onPressed: () => setState(
+                () => _rawJsonExpanded = !_rawJsonExpanded,
+              ),
+              icon: Icon(
+                _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
+                size: AppIconSize.sm,
+              ),
+              label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
               ),
             ),
-          ),
+            const Spacer(),
+            ToolViewCopyButton(text: widget.text),
+          ],
         ),
+        if (_rawJsonExpanded) ...[
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: SmartOutputContainer(
+              content: widget.rawResult,
+              maxHeight: double.infinity,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+        ],
+        Expanded(child: textOutput),
       ],
     );
+
+    if (widget.maxHeight.isFinite) {
+      content = ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: effectiveMaxHeight),
+        child: content,
+      );
+    }
+
+    return content;
   }
 }
 

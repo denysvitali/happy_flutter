@@ -75,10 +75,24 @@ TextStyle _mono(BuildContext context) {
 /// plain monospace text when the content is not valid JSON.
 ///
 /// [content] may be a [String] (JSON or plain text), a [Map], or a [List].
+///
+/// [maxHeight] caps the viewport height. Pass `double.infinity` to let the
+/// container fill an external bounded height (e.g. inside [CollapsibleOutput]).
 class SmartOutputContainer extends StatefulWidget {
-  const SmartOutputContainer({required this.content, super.key});
+  const SmartOutputContainer({
+    required this.content,
+    super.key,
+    this.maxHeight = 300,
+  });
 
   final dynamic content;
+
+  /// Maximum height of the scrollable viewport.
+  ///
+  /// When placed inside a height-bounded parent (such as
+  /// [CollapsibleOutput]), set this to [double.infinity] so the scroll
+  /// view fills the parent's constraint rather than being capped at 300.
+  final double maxHeight;
 
   @override
   State<SmartOutputContainer> createState() => _SmartOutputContainerState();
@@ -92,32 +106,34 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
     final theme = Theme.of(context);
     final (isJson, jsonValue, plainText) = _parsed;
 
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 300),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadius.sm - 2),
-        border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+          border: Border.all(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+          ),
         ),
-      ),
-      child: ToolOutputScrollFrame(
-        child: isJson
-            ? JsonTreeViewer(value: jsonValue)
-            : SelectableText(
-                plainText ??
-                    (widget.content is String
-                        ? widget.content as String
-                        : widget.content.toString()),
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontFamilyFallback: const ['Courier New', 'Courier'],
-                  fontSize: AppFontSize.sm,
-                  color: theme.colorScheme.onSurface,
-                  height: AppLineHeight.relaxed,
+        child: ToolOutputScrollFrame(
+          child: isJson
+              ? JsonTreeViewer(value: jsonValue)
+              : SelectableText(
+                  plainText ??
+                      (widget.content is String
+                          ? widget.content as String
+                          : widget.content.toString()),
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontFamilyFallback: const ['Courier New', 'Courier'],
+                    fontSize: AppFontSize.sm,
+                    color: theme.colorScheme.onSurface,
+                    height: AppLineHeight.relaxed,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }

@@ -283,8 +283,10 @@ extension SyncMessaging on Sync {
               // Clear the flag so onSessionVisible doesn't retry grouping
               // for these stuck orphans during the suppression window.
               _sessionsNeedingVisibleRegroup.remove(sessionId);
-              _notifySessionMessagesChangedUiOnly(sessionId);
-              _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+              logger.debug(
+                '[fetchMessages] $sessionId: orphan regroup suppressed '
+                '(until=${DateTime.fromMillisecondsSinceEpoch(suppressedUntil)})',
+              );
               return;
             }
           }
@@ -305,8 +307,10 @@ extension SyncMessaging on Sync {
           _notifySessionMessagesChanged(sessionId);
           _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
         } else {
-          _notifySessionMessagesChangedUiOnly(sessionId);
-          _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+          logger.debug(
+            '[fetchMessages] $sessionId: caught-up skip '
+            'without regrouping or deltas',
+          );
         }
         return;
       }
