@@ -283,6 +283,7 @@ extension SyncSocketEvents on Sync {
     // upsert/apply. Fallback paths release the pending key so socket
     // re-delivery can retry instead of being suppressed forever.
     final embeddedMessage = WireParsers.asMap(data['message']);
+    String? inlineDedupKey;
     if (embeddedMessage != null) {
       final msgId = embeddedMessage['id'] as String?;
       final msgSeq = embeddedMessage['seq'];
@@ -290,9 +291,9 @@ extension SyncSocketEvents on Sync {
       // produce a malformed key ("sessionId:null:null") that would
       // cause unrelated messages to collide and be silently dropped.
       if (msgId != null && msgSeq != null) {
-        final dedupKey = '$sessionId:$msgId:$msgSeq';
-        if (!_recentInlineMessageKeys.contains(dedupKey) &&
-            !_pendingInlineMessageKeys.add(dedupKey)) {
+        inlineDedupKey = '$sessionId:$msgId:$msgSeq';
+        if (!_recentInlineMessageKeys.contains(inlineDedupKey) &&
+            !_pendingInlineMessageKeys.add(inlineDedupKey)) {
           return; // already seen (committed or currently processing)
         }
       }
@@ -307,10 +308,19 @@ extension SyncSocketEvents on Sync {
         // orphaned outside their parent Task.
         _inlineProcessor.enqueue(
           sessionId,
-          () => _processInlineMessage(
-            sessionId,
-            embeddedMessage,
-            notifySessionsDomain: false,
+          () => ingestFromSocket(
+            MessageIngressEvent(
+              source: MessagePipelineSource.socket,
+              sessionId: sessionId,
+              rawPayload: embeddedMessage,
+              traceId: _newTraceIdForSocketMessage(sessionId, embeddedMessage),
+              metadata: <String, dynamic>{
+                'mode': 'embedded',
+                'dedupKey': inlineDedupKey,
+              },
+              isVisibleSession: true,
+              notifySessionsDomain: false,
+            ),
           ),
         );
       } else {
@@ -378,10 +388,19 @@ extension SyncSocketEvents on Sync {
       if (embeddedMessage != null) {
         _inlineProcessor.enqueue(
           sessionId,
-          () => _processInlineMessage(
-            sessionId,
-            embeddedMessage,
-            notifySessionsDomain: true,
+          () => ingestFromSocket(
+            MessageIngressEvent(
+              source: MessagePipelineSource.socket,
+              sessionId: sessionId,
+              rawPayload: embeddedMessage,
+              traceId: _newTraceIdForSocketMessage(sessionId, embeddedMessage),
+              metadata: <String, dynamic>{
+                'mode': 'embedded',
+                'dedupKey': inlineDedupKey,
+              },
+              isVisibleSession: false,
+              notifySessionsDomain: true,
+            ),
           ),
         );
       } else {
@@ -434,152 +453,14 @@ extension SyncSocketEvents on Sync {
     }
   }
 
-  /// Decrypt and upsert a single message received inline from the socket
-  /// event, bypassing the HTTP fetch round-trip.
-  ///
-  /// Falls back to [InvalidateSync.invalidate] on failure or when the
-  /// message produces no displayable content.
-  Future<void> _processInlineMessage(
+  String _newTraceIdForSocketMessage(
     String sessionId,
-    Map<String, dynamic> wireMessage, {
-    required bool notifySessionsDomain,
-  }) async {
-    final msgId = wireMessage['id'] as String?;
-    final msgSeq = wireMessage['seq'];
-    // Null-safe dedup key — only meaningful when both fields are
-    // present (see guard in _handleNewMessage).
-    final dedupKey = (msgId != null && msgSeq != null)
-        ? '$sessionId:$msgId:$msgSeq'
-        : null;
-
-    final sessionEncryption = encryption.getSessionEncryption(sessionId);
-    if (sessionEncryption == null) {
-      if (dedupKey != null) {
-        _pendingInlineMessageKeys.remove(dedupKey);
-      }
-      messagesSync[sessionId]?.invalidate();
-      _notifySessionMessagesChanged(sessionId);
-      return;
-    }
-
-    try {
-      final processed = await sessionEncryption.decryptAndProcessMessages([
-        wireMessage,
-      ], sessionId);
-
-      if (processed.messages.isEmpty && processed.toolResults.isEmpty) {
-        // Nothing displayable from inline processing.  Do NOT advance
-        // the seq cursor here — doing so causes the fallback HTTP fetch
-        // (below) to be skipped by fetchMessages' "already caught up"
-        // guard, permanently losing the message.  Keeping the cursor
-        // unchanged lets the fetch retrieve the message from the server.
-        _logDroppedReasons('[inline] dropped', processed.droppedReasons);
-        if (dedupKey != null) {
-          _pendingInlineMessageKeys.remove(dedupKey);
-        }
-        messagesSync[sessionId]?.invalidate();
-        _notifySessionMessagesChanged(sessionId);
-        return;
-      }
-
-      try {
-        if (processed.messages.isNotEmpty) {
-          _upsertSessionMessages(sessionId, processed.messages);
-        }
-        if (processed.toolResults.isNotEmpty) {
-          _applyToolResults(sessionId, processed.toolResults);
-        }
-        // Apply any pending tool results that arrived before these
-        // messages. This handles the case where a tool-call-result arrives
-        // via socket before the tool-call message itself. Only drain
-        // matched results so cross-path ordering can't lose results.
-        final pending = _pendingToolResults[sessionId];
-        if (pending != null && pending.isNotEmpty) {
-          final matched = _applyToolResults(sessionId, pending);
-          if (matched.isNotEmpty) {
-            pending.removeWhere((r) => matched.contains(r['toolUseId']));
-            if (pending.isEmpty) {
-              _pendingToolResults.remove(sessionId);
-            }
-          }
-        }
-        for (final u in processed.usageUpdates) {
-          final usageMap = WireParsers.asMap(u['usage']);
-          if (usageMap != null) {
-            _updateSessionUsage(
-              u['sessionId'] as String,
-              usageMap,
-              u['timestamp'] as int,
-            );
-          }
-        }
-        _applyPermissionRequests(sessionId);
-
-        // Run the sidechain grouper when the incoming messages contain
-        // sidechain content.  We intentionally omit changedIds here to
-        // force the full 4-pass grouper instead of the fast-path.  The
-        // fast-path only checks whether the *changed* messages are
-        // sidechain-relevant, which misses orphaned children from
-        // previous batches whose parent chain wasn't established yet.
-        // During active agent streaming, messages arrive every ~50ms and
-        // the deferred regroup timer (300ms) keeps getting cancelled, so
-        // orphans accumulate and never get grouped — this is the root
-        // cause of agent conversation screens showing incomplete children
-        // (only 1-2 tool calls, no thinking or text blocks).
-        //
-        // The full grouper is O(4n) where n <= 3000 (the message cap),
-        // which completes in ~1-2ms — negligible for inline processing.
-        final hasSidechain = processed.messages.any(
-          (m) => m['isSidechain'] == true || m['kind'] == 'sidechain-root',
-        );
-        if (hasSidechain) {
-          _groupSidechainMessages(sessionId);
-        }
-      } catch (error, stack) {
-        logger.warning(
-          'Inline message upsert/grouping failed for session $sessionId '
-          '— HTTP fetch will retry',
-          error,
-          stack,
-        );
-      }
-
-      // Advance the seq cursor so future incremental fetches don't
-      // re-download this message.
-      _advanceSeqCursor(sessionId, processed.maxSeq);
-
-      // Commit the dedup key: remove from _pendingInlineMessageKeys and
-      // add to _recentInlineMessageKeys with FIFO eviction.
-      if (dedupKey != null) {
-        _pendingInlineMessageKeys.remove(dedupKey);
-        _recentInlineMessageKeys.add(dedupKey);
-        _recentInlineMessageKeyOrder.addLast(dedupKey);
-        while (_recentInlineMessageKeyOrder.length >
-            Sync._maxRecentInlineKeys) {
-          _recentInlineMessageKeys.remove(
-            _recentInlineMessageKeyOrder.removeFirst(),
-          );
-        }
-      }
-
-      _notifySessionMessagesChanged(sessionId);
-      _notifyDataChanged(
-        notifySessionsDomain
-            ? const {SyncDomain.messages, SyncDomain.sessions}
-            : const {SyncDomain.messages},
-      );
-    } catch (error, stack) {
-      logger.warning(
-        'Inline message processing failed — HTTP fetch will retry',
-        error,
-        stack,
-      );
-      if (dedupKey != null) {
-        _pendingInlineMessageKeys.remove(dedupKey);
-      }
-      messagesSync[sessionId]?.invalidate();
-      _notifySessionMessagesChanged(sessionId);
-    }
+    Map<String, dynamic> message,
+  ) {
+    final msgId = message['id'] ?? 'no-id';
+    final msgSeq = message['seq'];
+    final segment = msgSeq == null ? 'no-seq' : 'seq$msgSeq';
+    return '${sessionId}_socket_$segment_$msgId';
   }
 
   /// Handle new session update

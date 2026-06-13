@@ -599,9 +599,18 @@ extension SyncMessaging on Sync {
           description: 'Decrypt and process page',
         );
         final decryptStart = Stopwatch()..start();
-        final processed = await sessionEncryption.decryptAndProcessMessages(
-          newMessages,
-          sessionId,
+        final processed = await ingestFromHttp(
+          FetchResponseBatch(
+            sessionId: sessionId,
+            rawMessages: newMessages,
+            traceId: 'fetch-$sessionId-${DateTime.now().millisecondsSinceEpoch}',
+            isVisibleSession: isStillVisible,
+            page: page,
+            afterSeq: afterSeq,
+            notifyVisibleOnly: false,
+          ),
+          applyMutations: false,
+          emitSessionNotification: false,
         );
         final decryptMs = decryptStart.elapsedMilliseconds;
         totalDecryptMs += decryptMs;
@@ -1239,9 +1248,16 @@ extension SyncMessaging on Sync {
       );
 
       final decryptStart = Stopwatch()..start();
-      final processed = await sessionEncryption.decryptAndProcessMessages(
-        messages,
-        sessionId,
+      final processed = await ingestFromHttp(
+        FetchResponseBatch(
+          sessionId: sessionId,
+          rawMessages: messages,
+          traceId: 'fetch-older-$sessionId-${DateTime.now().millisecondsSinceEpoch}',
+          isVisibleSession: true,
+          notifyVisibleOnly: false,
+        ),
+        applyMutations: false,
+        emitSessionNotification: false,
       );
       transaction
         ..setData('decryptMs', decryptStart.elapsedMilliseconds)
