@@ -764,6 +764,7 @@ extension SyncMessaging on Sync {
             processed.usageUpdates.isEmpty;
         final seqJumpIsUnsupported =
             jumpedWithoutUi &&
+            processed.droppedReasons.isNotEmpty &&
             !_areAllKnownSkipDrops(processed.droppedReasons);
         if (seqJumpIsUnsupported) {
           final fromSeq = afterSeq + 1;
