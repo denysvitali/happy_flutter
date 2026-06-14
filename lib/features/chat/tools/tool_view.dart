@@ -796,6 +796,7 @@ class _ToolViewState extends ConsumerState<ToolView>
           if (state == ToolState.completed && toolResult != null)
             CollapsibleOutput(
               toolId: toolId,
+              scrollable: true,
               child: ToolSectionView(
                 title: 'OUTPUT',
                 trailing: ToolViewCopyButton(text: outputCopyText),

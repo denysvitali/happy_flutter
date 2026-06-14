@@ -391,15 +391,20 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
           height: targetHeight,
           clipBehavior: Clip.hardEdge,
           decoration: const BoxDecoration(),
-          // For non-scrollable children, OverflowBox lets the child render
-          // at its natural unbounded height anchored at top-left. Without
-          // this, the height constraint propagates into the inner
-          // RenderFlex, emitting an overflow assertion (failing tests in
-          // strict mode) even though the visible output is clipped
-          // correctly. Scrollable children handle their own overflow, so
-          // we give them the bounded height directly.
+          // Scrollable children get the bounded viewport directly so their
+          // inner SingleChildScrollView can actually scroll. We further wrap
+          // them in a SingleChildScrollView here so any non-scrollable
+          // descendants (e.g. the title Column inside a ToolSectionView) can
+          // also overflow gracefully instead of asserting on a hard clip.
+          //
+          // Non-scrollable children render at their natural unbounded height
+          // (via OverflowBox) and are clipped by the AnimatedContainer; that
+          // path is unchanged.
           child: widget.scrollable
-              ? widget.child
+              ? SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: widget.child,
+                )
               : OverflowBox(
                   maxHeight: double.infinity,
                   alignment: Alignment.topLeft,
