@@ -549,14 +549,47 @@ class MachineManager {
         );
         _onDataChanged({SyncDomain.machines});
       } else {
-        logger.warning('Failed to fetch machines: ${response.statusCode}');
+        final statusCode = response.statusCode;
+        logger.warning('Failed to fetch machines: $statusCode');
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'fetchMachines: non-success response',
+              category: 'sync.machines',
+              level: SentryLevel.warning,
+              data: {
+                'statusCode': statusCode,
+                'cachedMachines': _machines.length,
+              },
+            ),
+          ),
+        );
+        throw StateError('fetchMachines failed: statusCode=$statusCode');
       }
     } catch (error, stack) {
       if (_isTransientConnectionError(error)) {
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'fetchMachines: transient fetch failure',
+              category: 'sync.machines',
+              level: SentryLevel.warning,
+              data: {
+                'cachedMachines': _machines.length,
+                'error': error.toString(),
+              },
+            ),
+          ),
+        );
         logger.warning('Error fetching machines', error, stack);
         unawaited(Sentry.captureException(error, stackTrace: stack));
+        rethrow;
       } else {
         logger.error('Error fetching machines', error, stack);
+        if (error is StateError &&
+            error.message.startsWith('fetchMachines failed:')) {
+          rethrow;
+        }
       }
     }
   }

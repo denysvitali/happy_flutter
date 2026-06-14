@@ -1097,6 +1097,36 @@ extension SyncMessaging on Sync {
         unawaited(fetchSpan.finish());
         return;
       }
+      if (_isNetworkChangedError(e)) {
+        logger.info(
+          '[fetchMessages] $sessionId network changed during fetch, '
+          'preserving cached messages and surfacing retry',
+        );
+        fetchSpan
+          ..setData('status', 'networkChanged')
+          ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+        unawaited(fetchSpan.finish());
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'fetchMessages: network changed with pending gap',
+              category: 'sync.messages',
+              level: SentryLevel.warning,
+              data: {
+                'sessionId': sessionId,
+                'cursorSeq': _sessionLastSeq[sessionId],
+                'serverLastSeq': _sessions[sessionId]?.lastSeq,
+                'cachedMessages': _sessionMessages[sessionId]?.length ?? 0,
+                'visible': sessionId == _visibleSessionId,
+                'elapsedMs': fetchStopwatch.elapsedMilliseconds,
+              },
+            ),
+          ),
+        );
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        rethrow;
+      }
       fetchSpan
         ..setData('status', 'networkError')
         ..setData('dioExceptionType', e.type.name)
@@ -1540,6 +1570,16 @@ extension SyncMessaging on Sync {
     }
     _scheduleSessionsRefresh();
     _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+  }
+
+  /// Returns true when [e] represents a network-interface change mid-request
+  /// (e.g. wifi→cellular). These are expected transient events on mobile, but
+  /// still need to propagate so an unfetched message gap is not marked done.
+  bool _isNetworkChangedError(DioException e) {
+    final message = e.message ?? '';
+    final error = e.error?.toString() ?? '';
+    return message.contains('ERR_NETWORK_CHANGED') ||
+        error.contains('ERR_NETWORK_CHANGED');
   }
 }
 

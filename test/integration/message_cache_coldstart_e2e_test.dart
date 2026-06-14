@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
@@ -119,6 +120,40 @@ void main() {
         reason: 'First-load with short history uses afterSeq=0',
       );
     });
+
+    test(
+      'network changed fetch preserves cached messages and rethrows',
+      () async {
+        const sessionId = 'sess-cache-network';
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
+        final cached = [_makePlainMessage('msg-5', seq: 5)];
+        sync.testSetSessionMessages(sessionId, cached);
+        sync.testSetSessionLastSeq(sessionId, 5);
+        sync.testVisibleSessionId = sessionId;
+        sync.testFetchMessagesOverride = (_, __, ___) async {
+          throw DioException(
+            requestOptions: RequestOptions(
+              path: '/v3/sessions/$sessionId/messages',
+            ),
+            error: 'ClientException: net::ERR_NETWORK_CHANGED',
+          );
+        };
+
+        await expectLater(
+          sync.fetchMessages(sessionId),
+          throwsA(isA<DioException>()),
+        );
+
+        expect(sync.testSessionMessages(sessionId), cached);
+        expect(
+          sync.sessionMessageCursors[sessionId],
+          5,
+          reason:
+              'A transient failed delta fetch must not advance the cursor '
+              'or mark the message gap as resolved.',
+        );
+      },
+    );
   });
 
   // -------------------------------------------------------------------------
