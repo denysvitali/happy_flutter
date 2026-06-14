@@ -8,9 +8,8 @@
 // UI already replaces with a placeholder, and recurring shape-drift
 // drops — to `logger.info`, while genuine drift (unknown dataTypes,
 // malformed envelopes) stays at `logger.warning`.  Both buckets
-// continue to land in the local devlog ring buffer; only `warning`
-// reaches Sentry (gated by `sentryCaptureWarnings`, which is `false`
-// in production).
+// continue to land in the local devlog ring buffer; `warning` also
+// reaches GlitchTip through an explicit low-cardinality Sentry capture.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';

@@ -485,7 +485,7 @@ extension SyncTestHelpers on Sync {
   ) {
     final counts = <String, int>{};
     _accumulateDroppedReasons(counts, reasons);
-    _logDroppedReasonSummary(context, counts);
+    _logDroppedReasonSummary(context, counts, captureToSentry: false);
   }
 
   /// Test helper: classify a normalized dropped-reason string as

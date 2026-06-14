@@ -10,6 +10,9 @@ void _accumulateDroppedReasons(Map<String, int> counts, List<String> reasons) {
 int _droppedReasonTotal(Map<String, int> counts) =>
     counts.values.fold(0, (sum, count) => sum + count);
 
+final Map<String, int> _lastDroppedReasonWarningMs = {};
+const int _droppedReasonWarningCooldownMs = 5 * 60 * 1000;
+
 /// Canonical dropped-reason categories that are well-understood
 /// "skip — not user-visible" outcomes:
 ///
@@ -47,7 +50,11 @@ bool _isKnownSkipDroppedReason(String normalized) {
   return false;
 }
 
-void _logDroppedReasonSummary(String context, Map<String, int> counts) {
+void _logDroppedReasonSummary(
+  String context,
+  Map<String, int> counts, {
+  bool captureToSentry = true,
+}) {
   if (counts.isEmpty) return;
 
   final knownSkipCounts = <String, int>{};
@@ -77,11 +84,50 @@ void _logDroppedReasonSummary(String context, Map<String, int> counts) {
       logger.info(line);
     } else {
       logger.warning(line);
+      if (captureToSentry) {
+        _captureDroppedReasonWarning(context, bucket, line);
+      }
     }
   }
 
   emit('info', knownSkipCounts);
   emit('warning', warningCounts);
+}
+
+void _captureDroppedReasonWarning(
+  String context,
+  Map<String, int> counts,
+  String logLine,
+) {
+  if (!sentryEnabled || counts.isEmpty) return;
+
+  final topReasons = counts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  final topReason = topReasons.first.key;
+  final throttleKey = '$context|$topReason';
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
+  final lastMs = _lastDroppedReasonWarningMs[throttleKey] ?? 0;
+  if (nowMs - lastMs < _droppedReasonWarningCooldownMs) return;
+  _lastDroppedReasonWarningMs[throttleKey] = nowMs;
+
+  unawaited(
+    Sentry.captureMessage(
+      '[message_processor] dropped unsupported message item(s)',
+      level: SentryLevel.warning,
+      withScope: (scope) {
+        scope.fingerprint = ['message-processor-dropped', topReason];
+        scope.setTag('message_drop_context', context);
+        scope.setTag('message_drop_reason', topReason);
+        scope.setContexts('message_drop', {
+          'context': context,
+          'total': _droppedReasonTotal(counts),
+          'topReason': topReason,
+          'reasons': Map<String, int>.from(counts),
+          'logLine': logLine,
+        });
+      },
+    ),
+  );
 }
 
 String _normalizeDroppedReason(String reason) {

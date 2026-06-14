@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../../sentry_config.dart';
 import '../api/api_client.dart';
 import '../api/sessions_api.dart';
 import '../api/socket_io_client.dart';
