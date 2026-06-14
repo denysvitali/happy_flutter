@@ -15,6 +15,7 @@ extension SyncMessagingRpc on Sync {
     Duration timeout = const Duration(seconds: 30),
   }) async {
     final stopwatch = Stopwatch()..start();
+    final requestId = _createMachineRpcRequestId();
     var machineEncryption = encryption.getMachineEncryption(machineId);
     if (machineEncryption == null) {
       unawaited(
@@ -22,7 +23,11 @@ extension SyncMessagingRpc on Sync {
           Breadcrumb(
             message: 'machineRPC: encryption null, awaiting machines',
             category: 'sync.machines',
-            data: {'machineId': machineId, 'method': method},
+            data: {
+              'machineId': machineId,
+              'method': method,
+              'requestId': requestId,
+            },
           ),
         ),
       );
@@ -47,15 +52,17 @@ extension SyncMessagingRpc on Sync {
       result = await socketIoClient.emitWithAck('rpc-call', {
         'method': '$machineId:$method',
         'params': encrypted,
+        'requestId': requestId,
       }, timeout: timeout);
-    } catch (error, stack) {
+    } catch (error) {
       // Keep the full-fidelity line locally (info-level so it does NOT
       // forward to Sentry — the interpolated elapsedMs defeats grouping
       // and a wedged daemon mints a fresh issue per retry). The Sentry
       // side is a separate, stable-message capture throttled per
       // machine+method so the retry storm collapses to one issue.
       logger.info(
-        '[machineRPC] FAILED method=$method machine=$machineId '
+        '[machineRPC] FAILED request=$requestId method=$method '
+        'machine=$machineId '
         'elapsedMs=${stopwatch.elapsedMilliseconds}: $error',
       );
       if (_shouldCaptureMachineRpcWarn('$machineId:$method:failed')) {
@@ -72,6 +79,7 @@ extension SyncMessagingRpc on Sync {
               scope.setContexts('machineRPC', {
                 'machineId': machineId,
                 'method': method,
+                'requestId': requestId,
                 'elapsedMs': stopwatch.elapsedMilliseconds,
                 'error': error.toString(),
               });
@@ -99,7 +107,8 @@ extension SyncMessagingRpc on Sync {
         // throttled per machine+method so the storm collapses to one
         // issue. Stays well under the 8 s createSession budget.
         logger.info(
-          '[machineRPC] SLOW method=$method machine=$machineId '
+          '[machineRPC] SLOW request=$requestId method=$method '
+          'machine=$machineId '
           'elapsedMs=$elapsedMs preSendMs=$rpcElapsedBeforeSend',
         );
         unawaited(
@@ -111,6 +120,7 @@ extension SyncMessagingRpc on Sync {
               data: {
                 'machineId': machineId,
                 'method': method,
+                'requestId': requestId,
                 'elapsedMs': elapsedMs,
                 'preSendMs': rpcElapsedBeforeSend,
               },
@@ -130,6 +140,7 @@ extension SyncMessagingRpc on Sync {
                 scope.setContexts('machineRPC', {
                   'machineId': machineId,
                   'method': method,
+                  'requestId': requestId,
                   'elapsedMs': elapsedMs,
                   'preSendMs': rpcElapsedBeforeSend,
                 });
@@ -152,6 +163,16 @@ extension SyncMessagingRpc on Sync {
     // Log the failure reason if available
     final errorMsg = result is Map ? result['error'] : result;
     throw StateError('Machine RPC $method failed: $errorMsg');
+  }
+
+  String _createMachineRpcRequestId() {
+    final random = Random.secure();
+    const alphabet = '0123456789abcdef';
+    final chars = StringBuffer('mrpc_');
+    for (var i = 0; i < 24; i++) {
+      chars.write(alphabet[random.nextInt(alphabet.length)]);
+    }
+    return chars.toString();
   }
 
   /// Test-aware wrapper for [machineRPC] used by the pre-flight
