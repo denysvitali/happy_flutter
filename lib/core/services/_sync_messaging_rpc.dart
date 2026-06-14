@@ -697,11 +697,6 @@ extension SyncMessagingRpc on Sync {
     }, AbortResponse.fromJson);
   }
 
-  /// Apply settings delta
-  Future<void> applySettings(Map<String, dynamic> delta) async {
-    await settingsManager?.applySettings(delta);
-  }
-
   /// Refresh purchases data
   Future<void> refreshPurchases() async {
     await settingsManager?.refreshPurchases();

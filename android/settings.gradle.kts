@@ -10,16 +10,6 @@ fun patchPluginBuildForAgp9(buildFile: java.io.File) {
     var text = buildFile.readText()
     val original = text
 
-    // Disable the obsolete kotlin-android plugin (Groovy apply or Kotlin plugins block).
-    text = text.replace(
-        Regex("""apply plugin:\s*['"]kotlin-android['"]"""),
-        "// Patched for AGP 9: apply plugin: \"kotlin-android\""
-    )
-    text = text.replace(
-        Regex("""id\(['"]kotlin-android['"]\)"""),
-        "// Patched for AGP 9: id(\"kotlin-android\")"
-    )
-
     // Bump compileSdkVersion / compileSdk below 36 up to 36.
     text = text.replace(
         Regex("""compileSdkVersion\s+3[0-5]([^0-9]|$)"""),
@@ -28,24 +18,6 @@ fun patchPluginBuildForAgp9(buildFile: java.io.File) {
     text = text.replace(
         Regex("""compileSdk\s*=\s*3[0-5]([^0-9]|$)"""),
         "compileSdk = 36$1"
-    )
-
-    // Remove kotlinOptions blocks; AGP 9's built-in Kotlin support ignores them.
-    text = text.replace(
-        Regex("""\n\s+kotlinOptions\s*\{[\s\S]*?\}\s*\n"""),
-        "\n    // Patched for AGP 9: kotlinOptions removed\n"
-    )
-
-    // Remove top-level kotlin { compilerOptions { ... } } blocks from Kotlin DSL
-    // plugin build files; they rely on the Kotlin Gradle Plugin extension which is
-    // gone once kotlin-android is disabled.
-    text = text.replace(
-        Regex("""\n\s+kotlin\s*\{\s*compilerOptions\s*\{\s*[\s\S]*?\}\s*\}\s*\n"""),
-        "\n    // Patched for AGP 9: kotlin compilerOptions removed\n"
-    )
-    text = text.replace(
-        Regex("""import\s+org\.jetbrains\.kotlin\.gradle\.dsl\.JvmTarget\s*\n"""),
-        ""
     )
 
     if (text != original) {
@@ -117,8 +89,9 @@ dependencyResolutionManagement {
 }
 
 // Apply the AGP 9 compatibility patch to every Flutter plugin in the pub cache
-// before Gradle evaluates it. This handles the obsolete kotlin-android plugin,
-// low compileSdk values, and the kotlinOptions DSL that AGP 9 no longer supports.
+// before Gradle evaluates it. Keep kotlin-android intact: several plugins ship
+// Kotlin-generated Pigeon APIs used by Java sources, so disabling Kotlin drops
+// required classes from the Java compile classpath.
 gradle.beforeProject(Action<Project> {
     // Only patch Flutter plugin build.gradle(.kts) files in the pub cache.
     if (buildFile.path.contains("hosted/pub.dev/") &&

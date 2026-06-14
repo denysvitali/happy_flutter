@@ -1425,16 +1425,25 @@ PY
           completer.complete(fallback);
           return fallback;
         }
-        if (isPermanent || lifecycleErrored) {
+        if (isPermanent) {
           final reason = errorMsg.isEmpty
               ? result.type ?? 'unknown restore failure'
               : errorMsg;
-          if (lifecycleErrored) {
-            throw StateError(
-              'Could not restore stopped session $sessionId: $reason',
-            );
-          }
-          throw StateError('Session not found: $sessionId — $errorMsg');
+          throw StateError('Session not found: $sessionId — $reason');
+        }
+        if (lifecycleErrored) {
+          // The session is in an errored state but the failure is not
+          // permanent (e.g. missing repo.url for kubernetes sessions).
+          // Return fallback so _completeSend can create a failed/pending
+          // optimistic message that the user can retry, instead of throwing
+          // before any message is persisted.
+          logger.info(
+            '[sendMessage] auto-restore failed for errored '
+            'session=$sessionId error=$errorMsg; '
+            'returning fallback so send can fail gracefully',
+          );
+          completer.complete(fallback);
+          return fallback;
         }
         completer.complete(fallback);
         return fallback;

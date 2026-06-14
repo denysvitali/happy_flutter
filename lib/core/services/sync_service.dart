@@ -577,6 +577,9 @@ what you have, you must use the options mode.
   // still read the snapshot through the public getter.
   Settings? _testSettingsSnapshot;
 
+  // Test-only fallback for pending settings, mirroring _testSettingsSnapshot.
+  Map<String, dynamic>? _testPendingSettings;
+
   /// Current settings snapshot.
   Settings get settingsSnapshot =>
       settingsManager?.settingsSnapshot ?? _testSettingsSnapshot ?? Settings();

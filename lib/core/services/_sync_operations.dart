@@ -28,12 +28,26 @@ extension SyncOperations on Sync {
 
   /// Forward settings apply to [SettingsManager].
   Future<void> applySettings(Map<String, dynamic> delta) async {
-    await settingsManager?.applySettings(delta);
+    if (settingsManager != null) {
+      await settingsManager!.applySettings(delta);
+      return;
+    }
+    // Backwards-compatible fallback for callers that invoke applySettings
+    // before SettingsManager is initialized (e.g. unit tests).
+    _testSettingsSnapshot = Settings.fromJson({
+      ...(_testSettingsSnapshot ?? settingsSnapshot).toJson(),
+      ...delta,
+    });
+    final pending = _testPendingSettings ??= <String, dynamic>{};
+    for (final entry in delta.entries) {
+      pending[entry.key] = entry.value;
+    }
+    settingsSync.invalidate();
   }
 
   /// Expose pending settings from [SettingsManager].
   Map<String, dynamic> get pendingSettings =>
-      settingsManager?.pendingSettings ?? const {};
+      settingsManager?.pendingSettings ?? _testPendingSettings ?? const {};
 
   /// Refresh machines from server
   Future<void> refreshMachines() async {
