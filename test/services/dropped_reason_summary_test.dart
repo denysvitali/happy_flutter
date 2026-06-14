@@ -171,5 +171,35 @@ void main() {
       );
       expect(LoggerService().getLogs(), isEmpty);
     });
+
+    test('seq jump placeholder is visible and keeps diagnostic context', () {
+      final event = SyncTestHelpers.testBuildDroppedSeqJumpEvent(
+        sessionId: 's1',
+        fromSeq: 4146,
+        toSeq: 5153,
+        rawCount: 200,
+        droppedReasons: const [
+          'seq=4146 id=a: assistant content list is empty',
+          'seq=4147 id=b: output data type not handled',
+        ],
+      );
+
+      expect(event['id'], 'unrendered-s1-4146-5153');
+      expect(event['seq'], 5153);
+      expect(event['kind'], 'agent-event');
+      expect(event['role'], 'agent');
+
+      final payload = event['event'] as Map<String, dynamic>;
+      expect(payload['type'], 'unrendered');
+      expect(payload['message'], contains('seq 4146-5153'));
+
+      final debugData = event['debugData'] as Map<String, dynamic>;
+      expect(debugData['seqCount'], 1008);
+      expect(debugData['rawCount'], 200);
+      expect(
+        debugData['droppedReasons'],
+        contains('output data type not handled'),
+      );
+    });
   });
 }

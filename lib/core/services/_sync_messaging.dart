@@ -130,6 +130,44 @@ void _captureDroppedReasonWarning(
   );
 }
 
+Map<String, dynamic> _buildDroppedSeqJumpEvent({
+  required String sessionId,
+  required int fromSeq,
+  required int toSeq,
+  required int rawCount,
+  required List<String> droppedReasons,
+}) {
+  final seqCount = toSeq >= fromSeq ? toSeq - fromSeq + 1 : rawCount;
+  final topReasons = <String>[];
+  for (final reason in droppedReasons) {
+    final normalized = _normalizeDroppedReason(reason);
+    if (!topReasons.contains(normalized)) {
+      topReasons.add(normalized);
+    }
+    if (topReasons.length >= 5) break;
+  }
+
+  return {
+    'id': 'unrendered-$sessionId-$fromSeq-$toSeq',
+    'seq': toSeq,
+    'createdAt': DateTime.now().millisecondsSinceEpoch,
+    'role': 'agent',
+    'kind': 'agent-event',
+    'event': {
+      'type': 'unrendered',
+      'message': 'Unsupported messages received (seq $fromSeq-$toSeq)',
+    },
+    'debugData': {
+      'sessionId': sessionId,
+      'fromSeq': fromSeq,
+      'toSeq': toSeq,
+      'seqCount': seqCount,
+      'rawCount': rawCount,
+      'droppedReasons': topReasons,
+    },
+  };
+}
+
 String _normalizeDroppedReason(String reason) {
   var normalized = reason
       .replaceFirst(RegExp(r'^seq=\d+ id=[^:]+:\s*'), '')
@@ -680,20 +718,46 @@ extension SyncMessaging on Sync {
           ..setData('usageUpdates', processed.usageUpdates.length)
           ..setData('maxSeq', processed.maxSeq);
         await decryptSpan.finish();
-        final userCount = processed.messages
+        var pageMessages = processed.messages;
+        final jumpedWithoutUi =
+            newMessages.isNotEmpty &&
+            processed.maxSeq > afterSeq &&
+            processed.messages.isEmpty &&
+            processed.toolResults.isEmpty &&
+            processed.usageUpdates.isEmpty;
+        if (jumpedWithoutUi) {
+          final fromSeq = afterSeq + 1;
+          pageMessages = [
+            _buildDroppedSeqJumpEvent(
+              sessionId: sessionId,
+              fromSeq: fromSeq,
+              toSeq: processed.maxSeq,
+              rawCount: newMessages.length,
+              droppedReasons: processed.droppedReasons,
+            ),
+          ];
+          _accumulateDroppedReasons(droppedReasonCounts, const [
+            'seq advanced without UI mutation',
+          ]);
+          pageSpan
+            ..setData('seqJumpWithoutUi', true)
+            ..setData('seqJumpFrom', fromSeq)
+            ..setData('seqJumpTo', processed.maxSeq);
+        }
+        final userCount = pageMessages
             .where((message) => message['role'] == MessageRole.user)
             .length;
-        final agentCount = processed.messages
+        final agentCount = pageMessages
             .where((message) => message['role'] == MessageRole.agent)
             .length;
-        final eventCount = processed.messages
+        final eventCount = pageMessages
             .where((message) => message['kind'] == 'agent-event')
             .length;
         logger.debug(
           '[fetchMessages] $sessionId page=$page '
           'fetched=${messages.length} skipped=$skippedCount '
           'decrypted=${newMessages.length} '
-          'processedMsgs=${processed.messages.length} '
+          'processedMsgs=${pageMessages.length} '
           'users=$userCount agents=$agentCount events=$eventCount '
           'toolResults=${processed.toolResults.length} '
           'usageUpdates=${processed.usageUpdates.length} '
@@ -732,17 +796,17 @@ extension SyncMessaging on Sync {
             '(existing=${_sessionMessages[sessionId]?.length ?? 0})',
           );
         }
-        final pageHasSidechain = processed.messages.any(
+        final pageHasSidechain = pageMessages.any(
           (message) =>
               message['isSidechain'] == true ||
               message['kind'] == 'sidechain-root',
         );
-        if (processed.messages.isNotEmpty) {
-          _upsertSessionMessages(sessionId, processed.messages);
+        if (pageMessages.isNotEmpty) {
+          _upsertSessionMessages(sessionId, pageMessages);
           didMutateMessages = true;
           shouldRegroupWhenVisible =
               shouldRegroupWhenVisible || pageHasSidechain;
-          for (final m in processed.messages) {
+          for (final m in pageMessages) {
             final id = m['id'];
             if (id is String) upsertedIdsThisCycle.add(id);
           }
@@ -762,7 +826,7 @@ extension SyncMessaging on Sync {
         // not pay the regroup cost).
         if (pageHasSidechain && isStillVisible) {
           final changedIds = <String>{
-            for (final m in processed.messages)
+            for (final m in pageMessages)
               if (m['id'] is String) m['id'] as String,
           };
           _groupSidechainMessages(sessionId, changedIds: changedIds);
@@ -833,7 +897,7 @@ extension SyncMessaging on Sync {
         logger.debug(
           '[fetchMessages] $sessionId page=$page '
           'decryptMs=$decryptMs '
-          'upsert=${processed.messages.isNotEmpty}',
+          'upsert=${pageMessages.isNotEmpty}',
         );
 
         // Notify the UI after each page so the chat screen can
@@ -841,7 +905,7 @@ extension SyncMessaging on Sync {
         // for all pages to complete. This is critical for sessions
         // with many messages where pagination + decryption exceeds
         // the 5s awaitQueue timeout in ChatScreen._doInitialLoad.
-        if (processed.messages.isNotEmpty && isStillVisible) {
+        if (pageMessages.isNotEmpty && isStillVisible) {
           if (!notifiedVisibleData) {
             notifiedVisibleData = true;
             _notifySessionMessagesChanged(sessionId);

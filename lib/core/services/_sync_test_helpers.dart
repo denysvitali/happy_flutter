@@ -499,4 +499,21 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   static String testNormalizeDroppedReason(String reason) =>
       _normalizeDroppedReason(reason);
+
+  /// Test helper: build the synthetic visible event used when a fetched
+  /// seq range advances without any renderable messages or auxiliary state.
+  @visibleForTesting
+  static Map<String, dynamic> testBuildDroppedSeqJumpEvent({
+    required String sessionId,
+    required int fromSeq,
+    required int toSeq,
+    required int rawCount,
+    required List<String> droppedReasons,
+  }) => _buildDroppedSeqJumpEvent(
+    sessionId: sessionId,
+    fromSeq: fromSeq,
+    toSeq: toSeq,
+    rawCount: rawCount,
+    droppedReasons: droppedReasons,
+  );
 }
