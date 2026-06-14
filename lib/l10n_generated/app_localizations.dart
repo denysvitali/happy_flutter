@@ -670,6 +670,18 @@ abstract class AppLocalizations {
   /// **'All machines appear offline'**
   String get newSessionAllMachinesOffline;
 
+  /// No description provided for @newSessionMachineUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine is unreachable. Make sure the Happy daemon is running and try again.'**
+  String get newSessionMachineUnreachable;
+
+  /// No description provided for @newSessionCouldNotStartSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not start session. Please try again.'**
+  String get newSessionCouldNotStartSession;
+
   /// No description provided for @newSessionMachineDetails.
   ///
   /// In en, this message translates to:

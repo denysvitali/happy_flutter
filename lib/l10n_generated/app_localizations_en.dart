@@ -331,6 +331,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newSessionAllMachinesOffline => 'All machines appear offline';
 
   @override
+  String get newSessionMachineUnreachable =>
+      'Machine is unreachable. Make sure the Happy daemon is running and try again.';
+
+  @override
+  String get newSessionCouldNotStartSession =>
+      'Could not start session. Please try again.';
+
+  @override
   String get newSessionMachineDetails => 'View machine details →';
 
   @override

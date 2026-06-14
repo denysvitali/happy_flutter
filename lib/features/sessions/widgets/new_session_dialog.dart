@@ -359,6 +359,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   }
 
   Future<void> _createSession(BuildContext context) async {
+    final l10n = context.l10n;
     final machineId = _selectedMachine;
     final path = _selectedPath?.trim();
     if (machineId == null || path == null || path.isEmpty) {
@@ -445,15 +446,17 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     } catch (e, st) {
       logger.warning('[NewSessionDialog] createSession failed: $e', e, st);
       if (!mounted) return;
+      final errorText = e.toString();
+      String userMessage;
+      if (errorText.contains('Machine is unreachable') ||
+          errorText.contains('Machine is offline')) {
+        userMessage = l10n.newSessionMachineUnreachable;
+      } else {
+        userMessage = l10n.newSessionCouldNotStartSession;
+      }
       setState(() {
         _isCreating = false;
-        // The raw exception text (e.g. "type 'String' is not a
-        // subtype of type '_pca<String>?' of 'result'") is fine for
-        // the logger but useless — and alarming — in the UI.  Show
-        // a friendly retryable message; the full text is still
-        // captured in the [logger.warning] above and in the Sentry
-        // captureException chain.
-        _createError = 'Could not start session. Please try again.';
+        _createError = userMessage;
       });
     }
   }
