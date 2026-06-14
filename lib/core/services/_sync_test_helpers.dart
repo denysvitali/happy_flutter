@@ -500,6 +500,13 @@ extension SyncTestHelpers on Sync {
   static String testNormalizeDroppedReason(String reason) =>
       _normalizeDroppedReason(reason);
 
+  /// Test helper: expose the predicate used by fetchMessages to decide
+  /// whether a seq jump that produced no UI is composed entirely of
+  /// expected invisible content.
+  @visibleForTesting
+  static bool testAreAllKnownSkipDrops(List<String> reasons) =>
+      _areAllKnownSkipDrops(reasons);
+
   /// Test helper: build the synthetic visible event used when a fetched
   /// seq range advances without any renderable messages or auxiliary state.
   @visibleForTesting

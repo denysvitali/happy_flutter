@@ -46,6 +46,7 @@ void _processSessionContent({
   if (eventType == 'turn-start' ||
       eventType == 'start' ||
       eventType == 'stop') {
+    droppedReasons?.add('session eventType $eventType');
     return;
   }
 
@@ -65,7 +66,10 @@ void _processSessionContent({
   }
 
   if (eventType == 'service') {
-    if (eventRole != 'agent') return;
+    if (eventRole != 'agent') {
+      droppedReasons?.add('session eventType role not agent');
+      return;
+    }
     messages.add({
       'id': envelopeId,
       'localId': localId,
@@ -123,7 +127,10 @@ void _processSessionContent({
   }
 
   if (eventType == 'tool-call-start') {
-    if (eventRole != 'agent') return;
+    if (eventRole != 'agent') {
+      droppedReasons?.add('session eventType role not agent');
+      return;
+    }
     final args = eventMap['args'] ?? eventMap['input'];
     final input = WireParsers.asMap(args) ?? <String, dynamic>{};
     final callId =

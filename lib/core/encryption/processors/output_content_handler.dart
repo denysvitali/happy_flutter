@@ -86,7 +86,10 @@ void _processOutputContent({
   // (output filter)" warnings.
   if (dataType == 'message') {
     final text = (data['message'] ?? data['text']) as String?;
-    if (text == null || text.isEmpty) return;
+    if (text == null || text.isEmpty) {
+      droppedReasons?.add('output message empty');
+      return;
+    }
     messages.add({
       'id': id,
       'localId': localId,
@@ -129,26 +132,27 @@ void _processOutputContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
+      } else if (rawAgentMsg == null ||
+          (rawAgentMsg is String && rawAgentMsg.isEmpty)) {
+        droppedReasons?.add('assistant message field missing');
+        // A null/missing message is just an empty signal and should stay
+        // silent so legitimate acks do not spam the chat.
       } else {
         droppedReasons?.add(
           'seq=$seq id=$id: assistant message field unexpected type',
         );
-        // Only surface a placeholder when the field carries unparseable
-        // *data* — a null/missing message is just an empty signal and
-        // should stay silent so legitimate acks do not spam the chat.
-        if (rawAgentMsg != null) {
-          _emitUnrenderedAgentEvent(
-            id: id,
-            suffix: 'amf',
-            seq: seq,
-            createdAt: createdAt,
-            label: 'Unsupported agent message',
-            meta: meta,
-            messages: messages,
-            parentToolUseId: parentToolUseId,
-            agentId: agentId,
-          );
-        }
+        // Surface a placeholder for genuinely unparseable types.
+        _emitUnrenderedAgentEvent(
+          id: id,
+          suffix: 'amf',
+          seq: seq,
+          createdAt: createdAt,
+          label: 'Unsupported agent message',
+          meta: meta,
+          messages: messages,
+          parentToolUseId: parentToolUseId,
+          agentId: agentId,
+        );
       }
       return;
     }
@@ -183,26 +187,26 @@ void _processOutputContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
+      } else if (agentContentList == null ||
+          (agentContentList is String && agentContentList.isEmpty)) {
+        droppedReasons?.add('assistant content missing');
+        // A null/missing content field is just an empty ack — stay silent.
       } else {
         droppedReasons?.add(
           'seq=$seq id=$id: assistant content unexpected type',
         );
-        // Same rationale as the message-field branch above: null/missing
-        // content stays silent (no information). Genuinely weird types
-        // (numbers, maps, etc.) surface the placeholder.
-        if (agentContentList != null) {
-          _emitUnrenderedAgentEvent(
-            id: id,
-            suffix: 'act',
-            seq: seq,
-            createdAt: createdAt,
-            label: 'Unsupported agent message',
-            meta: meta,
-            messages: messages,
-            parentToolUseId: parentToolUseId,
-            agentId: agentId,
-          );
-        }
+        // Genuinely weird types (numbers, maps, etc.) surface a placeholder.
+        _emitUnrenderedAgentEvent(
+          id: id,
+          suffix: 'act',
+          seq: seq,
+          createdAt: createdAt,
+          label: 'Unsupported agent message',
+          meta: meta,
+          messages: messages,
+          parentToolUseId: parentToolUseId,
+          agentId: agentId,
+        );
       }
       return;
     }
@@ -318,7 +322,8 @@ void _processOutputContent({
         }
       } else if (type == 'redacted_thinking') {
         // Anthropic's encrypted thinking blob — deliberately invisible
-        // to the user. No telemetry, no placeholder.
+        // to the user. Track as a known skip but do not render or warn.
+        droppedReasons?.add('redacted thinking');
       } else if (type != null) {
         // Omit type and index so GlitchTip groups all unrecognized
         // content blocks into a single issue instead of one per variant.

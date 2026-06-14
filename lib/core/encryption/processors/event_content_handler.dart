@@ -8,6 +8,7 @@ void _processEventContent({
   required Map<String, dynamic> outerContent,
   required Map<String, dynamic> nestedContent,
   required List<Map<String, dynamic>> messages,
+  List<String>? droppedReasons,
 }) {
   final data = nestedContent['data'];
   if (data is! Map<String, dynamic>) return;
@@ -20,6 +21,7 @@ void _processEventContent({
       dataType == 'thinking' ||
       dataType == 'usage_report' ||
       dataType == 'tool-execution-update') {
+    droppedReasons?.add('event data type $dataType');
     return;
   }
 

@@ -315,6 +315,7 @@ ProcessedMessages processDecryptedMessages({
           outerContent: content,
           nestedContent: nestedContent,
           messages: messages,
+          droppedReasons: droppedReasons,
         );
       } else if (contentType == 'codex') {
         _processCodexContent(

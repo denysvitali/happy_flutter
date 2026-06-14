@@ -44,6 +44,42 @@ void main() {
       );
       expect(
         SyncTestHelpers.testIsKnownSkipDroppedReason(
+          'assistant content missing',
+        ),
+        isTrue,
+      );
+      expect(
+        SyncTestHelpers.testIsKnownSkipDroppedReason(
+          'assistant message field missing',
+        ),
+        isTrue,
+      );
+      expect(
+        SyncTestHelpers.testIsKnownSkipDroppedReason(
+          'output message empty',
+        ),
+        isTrue,
+      );
+      expect(
+        SyncTestHelpers.testIsKnownSkipDroppedReason(
+          'redacted thinking',
+        ),
+        isTrue,
+      );
+      expect(
+        SyncTestHelpers.testIsKnownSkipDroppedReason(
+          'event data type tool-execution-update',
+        ),
+        isTrue,
+      );
+      expect(
+        SyncTestHelpers.testIsKnownSkipDroppedReason(
+          'session eventType turn-start',
+        ),
+        isTrue,
+      );
+      expect(
+        SyncTestHelpers.testIsKnownSkipDroppedReason(
           'unrecognized output content block',
         ),
         isTrue,
@@ -199,6 +235,36 @@ void main() {
       expect(
         debugData['droppedReasons'],
         contains('output data type not handled'),
+      );
+    });
+
+    test('all-known-skip drops are not treated as unsupported seq jump', () {
+      expect(
+        SyncTestHelpers.testAreAllKnownSkipDrops(const [
+          'seq=10 id=a: assistant content list is empty',
+          'seq=11 id=b: assistant content missing',
+          'event data type ready',
+        ]),
+        isTrue,
+      );
+    });
+
+    test('any drift reason means the seq jump is unsupported', () {
+      expect(
+        SyncTestHelpers.testAreAllKnownSkipDrops(const [
+          'seq=10 id=a: assistant content list is empty',
+          'seq=11 id=b: output data type not handled',
+        ]),
+        isFalse,
+      );
+    });
+
+    test('empty reason list is not assumed to be known-skip', () {
+      expect(
+        SyncTestHelpers.testAreAllKnownSkipDrops(const []),
+        isFalse,
+        reason: 'silent drops with no telemetry must still surface as '
+            'potential drift until they are classified',
       );
     });
   });

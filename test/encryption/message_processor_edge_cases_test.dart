@@ -380,20 +380,116 @@ void main() {
     });
 
     // -----------------------------------------------------------------------
-    // 8. Both empty lists → empty ProcessedMessages
+    // 9. Dropped-reason telemetry for intentionally invisible content
     // -----------------------------------------------------------------------
-    group('both lists empty', () {
-      test('returns empty ProcessedMessages with maxSeq -1', () {
+    group('silent drops produce classifiable reasons', () {
+      test('empty assistant content list records a known-skip reason', () {
         final result = processDecryptedMessages(
-          decryptedJsonList: [],
-          wireMessages: [],
+          decryptedJsonList: [
+            _agentOutputDecrypted(uuid: 'u-empty', contentList: []),
+          ],
+          wireMessages: [_wire(id: 'm-empty', seq: 1, createdAt: 1000)],
           sessionId: 's1',
         );
 
         expect(result.messages, isEmpty);
-        expect(result.toolResults, isEmpty);
-        expect(result.usageUpdates, isEmpty);
-        expect(result.maxSeq, -1);
+        expect(
+          result.droppedReasons,
+          contains('seq=1 id=m-empty: assistant content list is empty'),
+        );
+      });
+
+      test('event content control types record known-skip reasons', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'event',
+                'data': {'type': 'tool-execution-update'},
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'event',
+                'data': {'type': 'ready'},
+              },
+            },
+          ],
+          wireMessages: [
+            _wire(id: 'm1', seq: 1, createdAt: 1000),
+            _wire(id: 'm2', seq: 2, createdAt: 2000),
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+        expect(
+          result.droppedReasons,
+          contains('event data type tool-execution-update'),
+        );
+        expect(result.droppedReasons, contains('event data type ready'));
+      });
+
+      test('session control events record known-skip reasons', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'session',
+              'content': {
+                'type': 'session',
+                'data': {
+                  'type': 'session',
+                  'ev': {'type': 'turn-start'},
+                  'id': 'evt-1',
+                },
+              },
+            },
+          ],
+          wireMessages: [_wire(id: 'm1', seq: 1, createdAt: 1000)],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+        expect(
+          result.droppedReasons,
+          contains('session eventType turn-start'),
+        );
+      });
+
+      test('output message with empty text records a known-skip reason', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {'type': 'message', 'message': ''},
+              },
+            },
+          ],
+          wireMessages: [_wire(id: 'm1', seq: 1, createdAt: 1000)],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+        expect(result.droppedReasons, contains('output message empty'));
+      });
+
+      test('redacted thinking records a known-skip reason', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            _agentOutputDecrypted(uuid: 'u-redacted', contentList: [
+              {'type': 'redacted_thinking'},
+            ]),
+          ],
+          wireMessages: [_wire(id: 'm1', seq: 1, createdAt: 1000)],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, isEmpty);
+        expect(result.droppedReasons, contains('redacted thinking'));
       });
     });
   });

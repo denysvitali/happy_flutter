@@ -18,6 +18,16 @@ const int _droppedReasonWarningCooldownMs = 5 * 60 * 1000;
 ///
 /// - Empty acks (`assistant content list is empty`) — server keepalives
 ///   that carry no renderable content.
+/// - Missing/null assistant content fields — same as empty acks; the
+///   server emitted a placeholder envelope with nothing to render.
+/// - Redacted thinking blocks — intentionally invisible to the user.
+/// - Output-level `message` envelopes with empty text — no content to
+///   display.
+/// - Event content control messages (`ready`, `thinking`,
+///   `usage_report`, `tool-execution-update`) — lifecycle/state signals
+///   already surfaced by other rows.
+/// - Session-level control events (`turn-start`, `start`, `stop`) —
+///   protocol framing, not chat content.
 /// - User content sub-blocks of an unsupported type — the user already
 ///   sees an `agent-event` placeholder via `_emitUnrenderedAgentEvent`.
 /// - Unrecognized output content blocks inside an `assistant` envelope —
@@ -37,6 +47,18 @@ const int _droppedReasonWarningCooldownMs = 5 * 60 * 1000;
 /// parser drift continues to alert.
 const Set<String> _knownSkipDroppedReasons = {
   'assistant content list is empty',
+  'assistant content missing',
+  'assistant message field missing',
+  'output message empty',
+  'redacted thinking',
+  'event data type ready',
+  'event data type thinking',
+  'event data type usage_report',
+  'event data type tool-execution-update',
+  'session eventType turn-start',
+  'session eventType start',
+  'session eventType stop',
+  'session eventType role not agent',
   'unrecognized output content block',
   'pi result with no tool rows',
 };
@@ -48,6 +70,21 @@ bool _isKnownSkipDroppedReason(String normalized) {
   // prefix is stable.
   if (normalized.startsWith('user content block type=')) return true;
   return false;
+}
+
+/// Returns `true` when every normalized reason in [reasons] is a
+/// well-understood skip that produces no user-visible chat row.
+///
+/// Used by the seq-jump detector to avoid surfacing a batch of empty
+/// acks/control events as "unsupported messages".
+bool _areAllKnownSkipDrops(List<String> reasons) {
+  if (reasons.isEmpty) return false;
+  for (final reason in reasons) {
+    if (!_isKnownSkipDroppedReason(_normalizeDroppedReason(reason))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void _logDroppedReasonSummary(
@@ -725,7 +762,10 @@ extension SyncMessaging on Sync {
             processed.messages.isEmpty &&
             processed.toolResults.isEmpty &&
             processed.usageUpdates.isEmpty;
-        if (jumpedWithoutUi) {
+        final seqJumpIsUnsupported =
+            jumpedWithoutUi &&
+            !_areAllKnownSkipDrops(processed.droppedReasons);
+        if (seqJumpIsUnsupported) {
           final fromSeq = afterSeq + 1;
           pageMessages = [
             _buildDroppedSeqJumpEvent(
@@ -742,6 +782,14 @@ extension SyncMessaging on Sync {
           pageSpan
             ..setData('seqJumpWithoutUi', true)
             ..setData('seqJumpFrom', fromSeq)
+            ..setData('seqJumpTo', processed.maxSeq);
+        } else if (jumpedWithoutUi) {
+          // The whole page was empty acks / control events / other
+          // expected invisible content. Do not create an "unsupported
+          // messages" placeholder and do not warn GlitchTip.
+          pageSpan
+            ..setData('seqJumpKnownSkip', true)
+            ..setData('seqJumpFrom', afterSeq + 1)
             ..setData('seqJumpTo', processed.maxSeq);
         }
         final userCount = pageMessages

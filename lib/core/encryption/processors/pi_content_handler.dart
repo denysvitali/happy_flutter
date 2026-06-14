@@ -110,10 +110,34 @@ void _processPiContent({
         : id;
 
     final agentMsg = WireParsers.asMap(data['message']);
-    if (agentMsg == null) return;
+    if (agentMsg == null) {
+      droppedReasons?.add('assistant message field missing');
+      return;
+    }
 
     final agentContentList = agentMsg['content'];
-    if (agentContentList is! List) return;
+    if (agentContentList is! List) {
+      if (agentContentList is String && agentContentList.isNotEmpty) {
+        messages.add({
+          'id': id,
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'content': agentContentList,
+          'raw': outerContent,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': effectiveUuid,
+          'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
+        });
+      } else {
+        droppedReasons?.add('assistant content missing');
+      }
+      return;
+    }
 
     var i = 0;
     for (final c in agentContentList) {
