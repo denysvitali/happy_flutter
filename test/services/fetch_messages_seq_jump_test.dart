@@ -92,27 +92,102 @@ void main() {
         thinking: false,
         presence: 'online',
       );
-      instance.messagesSync[sessionId] = InvalidateSync(
-        () async {},
+      instance.messagesSync[sessionId] = InvalidateSync(() async {});
+    });
+
+    test('silently dropped messages do not create an unsupported-messages '
+        'placeholder', () async {
+      instance.encryption = _FakeEncryption(
+        _ConfigurableSessionEncryption(maxSeq: 10, droppedReasons: const []),
+      );
+      instance.testFetchMessagesOverride = (_, __, ___) async {
+        return <String, dynamic>{
+          'messages': <Map<String, dynamic>>[
+            {'id': 'm1', 'seq': 8},
+            {'id': 'm2', 'seq': 9},
+            {'id': 'm3', 'seq': 10},
+          ],
+          'pagination': <String, dynamic>{'hasMore': false},
+        };
+      };
+
+      await instance.fetchMessages(sessionId);
+
+      final messages = instance.testSessionMessages(sessionId) ?? [];
+      final hasPlaceholder = messages.any(
+        (m) =>
+            m['kind'] == 'agent-event' &&
+            (m['event']?['type'] as String?) == 'unrendered',
+      );
+      expect(
+        hasPlaceholder,
+        isFalse,
+        reason: 'silent drops (no drift reasons) must not alarm the user',
+      );
+    });
+
+    test('seq-jump placeholder preserves original dropped reasons, not a '
+        'generic seq-advanced label', () async {
+      instance.encryption = _FakeEncryption(
+        _ConfigurableSessionEncryption(
+          maxSeq: 10,
+          droppedReasons: const [
+            'assistant content list is empty',
+            'output data type not handled',
+          ],
+        ),
+      );
+      instance.testFetchMessagesOverride = (_, __, ___) async {
+        return <String, dynamic>{
+          'messages': <Map<String, dynamic>>[
+            {'id': 'm1', 'seq': 8},
+          ],
+          'pagination': <String, dynamic>{'hasMore': false},
+        };
+      };
+
+      await instance.fetchMessages(sessionId);
+
+      final messages = instance.testSessionMessages(sessionId) ?? [];
+      final placeholder = messages.firstWhere(
+        (m) =>
+            m['kind'] == 'agent-event' &&
+            (m['event']?['type'] as String?) == 'unrendered',
+        orElse: () => const <String, dynamic>{},
+      );
+      final reasons =
+          (placeholder['debugData']?['droppedReasons'] as List<dynamic>?)
+              ?.cast<String>();
+      expect(
+        reasons,
+        isNotNull,
+        reason: 'placeholder must carry debug reasons',
+      );
+      expect(
+        reasons,
+        contains('output data type not handled'),
+        reason: 'unknown drift reason must be preserved for diagnosis',
+      );
+      expect(
+        reasons,
+        isNot(contains('seq advanced without UI mutation')),
+        reason: 'generic seq-advanced label must not replace real reasons',
       );
     });
 
     test(
-      'silently dropped messages do not create an unsupported-messages '
-      'placeholder',
+      'handled seq-advanced drops do not create unsupported placeholder',
       () async {
         instance.encryption = _FakeEncryption(
           _ConfigurableSessionEncryption(
             maxSeq: 10,
-            droppedReasons: const [],
+            droppedReasons: const ['seq advanced without UI mutation'],
           ),
         );
         instance.testFetchMessagesOverride = (_, __, ___) async {
           return <String, dynamic>{
             'messages': <Map<String, dynamic>>[
               {'id': 'm1', 'seq': 8},
-              {'id': 'm2', 'seq': 9},
-              {'id': 'm3', 'seq': 10},
             ],
             'pagination': <String, dynamic>{'hasMore': false},
           };
@@ -126,63 +201,7 @@ void main() {
               m['kind'] == 'agent-event' &&
               (m['event']?['type'] as String?) == 'unrendered',
         );
-        expect(
-          hasPlaceholder,
-          isFalse,
-          reason: 'silent drops (no drift reasons) must not alarm the user',
-        );
-      },
-    );
-
-    test(
-      'seq-jump placeholder preserves original dropped reasons, not a '
-      'generic seq-advanced label',
-      () async {
-        instance.encryption = _FakeEncryption(
-          _ConfigurableSessionEncryption(
-            maxSeq: 10,
-            droppedReasons: const [
-              'assistant content list is empty',
-              'output data type not handled',
-            ],
-          ),
-        );
-        instance.testFetchMessagesOverride = (_, __, ___) async {
-          return <String, dynamic>{
-            'messages': <Map<String, dynamic>>[
-              {'id': 'm1', 'seq': 8},
-            ],
-            'pagination': <String, dynamic>{'hasMore': false},
-          };
-        };
-
-        await instance.fetchMessages(sessionId);
-
-        final messages = instance.testSessionMessages(sessionId) ?? [];
-        final placeholder = messages.firstWhere(
-          (m) =>
-              m['kind'] == 'agent-event' &&
-              (m['event']?['type'] as String?) == 'unrendered',
-          orElse: () => const <String, dynamic>{},
-        );
-        final reasons = (placeholder['debugData']?['droppedReasons']
-                as List<dynamic>?)
-            ?.cast<String>();
-        expect(
-          reasons,
-          isNotNull,
-          reason: 'placeholder must carry debug reasons',
-        );
-        expect(
-          reasons,
-          contains('output data type not handled'),
-          reason: 'unknown drift reason must be preserved for diagnosis',
-        );
-        expect(
-          reasons,
-          isNot(contains('seq advanced without UI mutation')),
-          reason: 'generic seq-advanced label must not replace real reasons',
-        );
+        expect(hasPlaceholder, isFalse);
       },
     );
 

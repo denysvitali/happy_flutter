@@ -44,6 +44,9 @@ extension SyncSessionOperations on Sync {
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
     }
+    if (InvalidateSync.isBackgrounded) {
+      throw StateError('Not connected to server');
+    }
     final requestedSessionId = sessionId ?? _createClientSessionId();
     // Check socket connectivity.  When the test override is set, use it
     // directly (supports true/false).  Otherwise, wait for the socket to
@@ -61,6 +64,9 @@ extension SyncSessionOperations on Sync {
       if (!connected) {
         throw StateError('Not connected to server');
       }
+    }
+    if (InvalidateSync.isBackgrounded) {
+      throw StateError('Not connected to server');
     }
 
     // Fail fast if the machine is offline — don't wait 60 s for a timeout.
@@ -1232,9 +1238,7 @@ PY
           // skip.
           unawaited(() async {
             try {
-              await killSession(sessionId).timeout(
-                const Duration(seconds: 8),
-              );
+              await killSession(sessionId).timeout(const Duration(seconds: 8));
             } on TimeoutException catch (e, st) {
               // Timeouts are expected when the server-side Redis RPC
               // dispatcher is slow; the kill is best-effort and
@@ -1461,8 +1465,7 @@ PY
               metadata: session.metadata!.copyWith(
                 lifecycleState: 'starting',
                 lifecycleStateError: null,
-                lifecycleStateSince:
-                    DateTime.now().millisecondsSinceEpoch,
+                lifecycleStateSince: DateTime.now().millisecondsSinceEpoch,
               ),
             );
           }

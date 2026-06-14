@@ -266,6 +266,23 @@ extension SyncMessagingSend on Sync {
     var sent = false;
     var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
     try {
+      if (InvalidateSync.isBackgrounded) {
+        logger.info(
+          '[sendMessage] app backgrounded before delivery; '
+          'queueing outbox retry session=$targetSessionId localId=$localId',
+        );
+        final entry = OutboxEntry(
+          localId: localId,
+          sessionId: targetSessionId,
+          text: text,
+          encryptedContent: encryptedRawRecord,
+          rawRecord: rawRecord,
+          queuedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        await messageOutbox.add(entry);
+        await transaction.finish(status: const SpanStatus.cancelled());
+        return;
+      }
       // Wait for agent readiness. Use a longer timeout for sessions we
       // just spawned, since the agent needs time to connect Socket.IO
       // and update lifecycleState before it can receive messages.
@@ -314,6 +331,24 @@ extension SyncMessagingSend on Sync {
         'http.client',
         description: 'POST /v3/sessions/$targetSessionId/messages',
       );
+      if (InvalidateSync.isBackgrounded) {
+        logger.info(
+          '[sendMessage] app backgrounded before POST; '
+          'queueing outbox retry session=$targetSessionId localId=$localId',
+        );
+        final entry = OutboxEntry(
+          localId: localId,
+          sessionId: targetSessionId,
+          text: text,
+          encryptedContent: encryptedRawRecord,
+          rawRecord: rawRecord,
+          queuedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        await messageOutbox.add(entry);
+        unawaited(postSpan.finish(status: const SpanStatus.cancelled()));
+        await transaction.finish(status: const SpanStatus.cancelled());
+        return;
+      }
       final response = await apiClient.post(
         '/v3/sessions/$targetSessionId/messages',
         data: {
@@ -462,10 +497,7 @@ extension SyncMessagingSend on Sync {
               'status=${response.statusCode} body=${response.data}',
             );
             unawaited(
-              Sentry.captureException(
-                err,
-                stackTrace: StackTrace.current,
-              ),
+              Sentry.captureException(err, stackTrace: StackTrace.current),
             );
             throw err;
           }
@@ -839,6 +871,7 @@ extension SyncMessagingSend on Sync {
     String encryptedRawRecord,
     String localId,
   ) {
+    if (InvalidateSync.isBackgrounded) return;
     // Fire-and-forget: await the socket connection then emit.
     // Guard with catchError so the Future never produces an unhandled
     // error during test teardown or after sync shutdown.
@@ -847,6 +880,7 @@ extension SyncMessagingSend on Sync {
           .waitForConnection(timeout: const Duration(seconds: 10))
           .then((connected) {
             if (!connected || !isInitialized) return;
+            if (InvalidateSync.isBackgrounded) return;
             if (!_isSocketConnected()) return;
             logger.info(
               '[sendMessage] retrying daemon notification '

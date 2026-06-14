@@ -198,6 +198,7 @@ void main() {
       messageOutbox.testStorage = MMKVStorage.testConstructor();
       instance.testSessions.clear();
       instance.testIsInitialized = false;
+      InvalidateSync.isBackgrounded = false;
       instance.testSocketConnectedOverride = null;
       instance.testSocketSendOverride = null;
       instance.testFetchMessagesOverride = null;
@@ -277,6 +278,27 @@ void main() {
       final localMessages = instance.testSessionMessages('sess-1')!;
       final matching = localMessages.where(
         (m) => m['localId'] == 'client-local-500',
+      );
+      expect(matching, hasLength(1));
+      expect(matching.single['sendStatus'], 'pending');
+    });
+
+    test('backgrounded send queues retry without touching REST', () async {
+      InvalidateSync.isBackgrounded = true;
+
+      await instance.sendMessage(
+        'sess-1',
+        'retry after foreground',
+        clientLocalId: 'client-local-bg',
+      );
+      await instance.lastCompleteSendFuture;
+
+      expect(capturedRequestData, isNull);
+      expect(messageOutbox.contains('client-local-bg'), isTrue);
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final matching = localMessages.where(
+        (m) => m['localId'] == 'client-local-bg',
       );
       expect(matching, hasLength(1));
       expect(matching.single['sendStatus'], 'pending');

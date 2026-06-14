@@ -55,12 +55,13 @@ const Set<String> _knownSkipDroppedReasons = {
   'event data type thinking',
   'event data type usage_report',
   'event data type tool-execution-update',
-  'session eventType turn-start',
-  'session eventType start',
-  'session eventType stop',
-  'session eventType role not agent',
+  'session eventtype turn-start',
+  'session eventtype start',
+  'session eventtype stop',
+  'session eventtype role not agent',
   'unrecognized output content block',
   'pi result with no tool rows',
+  'seq advanced without ui mutation',
 };
 
 bool _isKnownSkipDroppedReason(String normalized) {
@@ -211,7 +212,7 @@ String _normalizeDroppedReason(String reason) {
       .replaceAll(RegExp(r'\bseq=\d+\b'), 'seq=?')
       .replaceAll(RegExp(r'\bid=[^:\s,]+'), 'id=?');
   normalized = normalized.replaceAll(RegExp(r'\s+'), ' ').trim();
-  return normalized.isEmpty ? 'unknown' : normalized;
+  return normalized.isEmpty ? 'unknown' : normalized.toLowerCase();
 }
 
 extension SyncMessaging on Sync {
@@ -632,7 +633,9 @@ extension SyncMessaging on Sync {
               Breadcrumb(
                 message: 'fetchMessages: HTTP error',
                 category: 'sync.messages',
-                level: statusCode == 404 ? SentryLevel.info : SentryLevel.warning,
+                level: statusCode == 404
+                    ? SentryLevel.info
+                    : SentryLevel.warning,
                 data: {
                   'sessionId': sessionId,
                   'statusCode': statusCode,
@@ -724,7 +727,8 @@ extension SyncMessaging on Sync {
           FetchResponseBatch(
             sessionId: sessionId,
             rawMessages: newMessages,
-            traceId: 'fetch-$sessionId-${DateTime.now().millisecondsSinceEpoch}',
+            traceId:
+                'fetch-$sessionId-${DateTime.now().millisecondsSinceEpoch}',
             isVisibleSession: isStillVisible,
             page: page,
             afterSeq: afterSeq,
@@ -1060,8 +1064,7 @@ extension SyncMessaging on Sync {
         // Preserve previous behavior for metrics without introducing
         // additional UI noise when no state changed.
         if (needsVisibleRefresh) {
-          finalizeSpan
-              .setData('refreshReason', 'visibleDataChanged');
+          finalizeSpan.setData('refreshReason', 'visibleDataChanged');
           if (didMutateMessages) {
             finalizeSpan.setData('mutated', true);
           }
@@ -1447,7 +1450,8 @@ extension SyncMessaging on Sync {
         FetchResponseBatch(
           sessionId: sessionId,
           rawMessages: messages,
-          traceId: 'fetch-older-$sessionId-${DateTime.now().millisecondsSinceEpoch}',
+          traceId:
+              'fetch-older-$sessionId-${DateTime.now().millisecondsSinceEpoch}',
           isVisibleSession: true,
           notifyVisibleOnly: false,
         ),

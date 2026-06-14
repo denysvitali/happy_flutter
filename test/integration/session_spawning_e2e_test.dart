@@ -52,6 +52,7 @@ void main() {
       sync.testFetchMessagesOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;
       sync.testEnsureMachineReachableOverride = null;
+      InvalidateSync.isBackgrounded = false;
     });
 
     test('successful spawn registers session in _sessionSpawnedAt', () async {
@@ -486,6 +487,26 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('createSession throws when app is backgrounded', () {
+      InvalidateSync.isBackgrounded = true;
+      var probed = false;
+      sync.testEnsureMachineReachableOverride = (_) async {
+        probed = true;
+      };
+
+      expect(
+        () => sync.createSession(agent: 'claude', machineId: 'm', path: '/p'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Not connected'),
+          ),
+        ),
+      );
+      expect(probed, isFalse);
     });
 
     test('createSession fails fast when liveness probe times out', () async {
