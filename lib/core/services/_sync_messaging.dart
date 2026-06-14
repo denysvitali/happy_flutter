@@ -777,9 +777,10 @@ extension SyncMessaging on Sync {
               droppedReasons: processed.droppedReasons,
             ),
           ];
-          _accumulateDroppedReasons(droppedReasonCounts, const [
-            'seq advanced without UI mutation',
-          ]);
+          _accumulateDroppedReasons(
+            droppedReasonCounts,
+            processed.droppedReasons,
+          );
           pageSpan
             ..setData('seqJumpWithoutUi', true)
             ..setData('seqJumpFrom', fromSeq)

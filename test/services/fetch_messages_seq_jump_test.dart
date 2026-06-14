@@ -135,6 +135,58 @@ void main() {
     );
 
     test(
+      'seq-jump placeholder preserves original dropped reasons, not a '
+      'generic seq-advanced label',
+      () async {
+        instance.encryption = _FakeEncryption(
+          _ConfigurableSessionEncryption(
+            maxSeq: 10,
+            droppedReasons: const [
+              'assistant content list is empty',
+              'output data type not handled',
+            ],
+          ),
+        );
+        instance.testFetchMessagesOverride = (_, __, ___) async {
+          return <String, dynamic>{
+            'messages': <Map<String, dynamic>>[
+              {'id': 'm1', 'seq': 8},
+            ],
+            'pagination': <String, dynamic>{'hasMore': false},
+          };
+        };
+
+        await instance.fetchMessages(sessionId);
+
+        final messages = instance.testSessionMessages(sessionId) ?? [];
+        final placeholder = messages.firstWhere(
+          (m) =>
+              m['kind'] == 'agent-event' &&
+              (m['event']?['type'] as String?) == 'unrendered',
+          orElse: () => const <String, dynamic>{},
+        );
+        final reasons = (placeholder['debugData']?['droppedReasons']
+                as List<dynamic>?)
+            ?.cast<String>();
+        expect(
+          reasons,
+          isNotNull,
+          reason: 'placeholder must carry debug reasons',
+        );
+        expect(
+          reasons,
+          contains('output data type not handled'),
+          reason: 'unknown drift reason must be preserved for diagnosis',
+        );
+        expect(
+          reasons,
+          isNot(contains('seq advanced without UI mutation')),
+          reason: 'generic seq-advanced label must not replace real reasons',
+        );
+      },
+    );
+
+    test(
       'genuine parser drift still creates an unsupported-messages placeholder',
       () async {
         instance.encryption = _FakeEncryption(
