@@ -517,6 +517,71 @@ void main() {
     });
 
     test(
+      'custom Codex profile model env overrides stale last-used model',
+      () async {
+        const sessionId = 'custom-codex-kimi-1';
+        Map<String, dynamic>? capturedParams;
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          capturedParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        };
+
+        final customProfile = AIBackendProfile(
+          id: 'kimi-codex',
+          name: 'Kimi Codex',
+          environmentVariables: [
+            EnvironmentVariable(
+              name: 'OPENAI_BASE_URL',
+              value: 'https://api.kimi.com/coding/v1',
+            ),
+            EnvironmentVariable(name: 'OPENAI_MODEL', value: 'kimi-k2.7-code'),
+            EnvironmentVariable(name: 'OPENAI_API_KEY', value: 'sk-test'),
+          ],
+          compatibility: const ProfileCompatibility(
+            claude: false,
+            codex: true,
+            gemini: false,
+            pi: false,
+          ),
+        );
+
+        await sync.applySettings({
+          'profiles': [customProfile.toJson()],
+          'lastUsedProfile': 'kimi-codex',
+          'lastUsedProfilesByAgent': {'codex': 'kimi-codex'},
+          'lastUsedModelMode': 'gpt-5.5:medium',
+        });
+
+        await sync.createSession(
+          agent: 'codex',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          profileId: 'kimi-codex',
+          modelMode: 'gpt-5.5:medium',
+        );
+
+        expect(capturedParams, isNotNull);
+        expect(
+          capturedParams!['model'],
+          'kimi-k2.7-code',
+          reason:
+              'The selected profile model must win over stale '
+              'lastUsedModelMode so the daemon does not overwrite '
+              'OPENAI_MODEL before launching Codex.',
+        );
+        final envVars =
+            capturedParams!['environmentVariables'] as Map<String, dynamic>?;
+        expect(envVars, isNotNull);
+        expect(envVars!['OPENAI_MODEL'], 'kimi-k2.7-code');
+        expect(envVars['OPENAI_BASE_URL'], 'https://api.kimi.com/coding/v1');
+      },
+    );
+
+    test(
       'custom profile with azureOpenAIConfig sends correct env vars',
       () async {
         final sessionId = 'custom-azure-1';

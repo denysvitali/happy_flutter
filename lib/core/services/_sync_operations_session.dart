@@ -928,7 +928,51 @@ PY
       );
       return (profile: profile, modelMode: 'default');
     }
+    if (agent == 'codex') {
+      final profileModelMode = _codexModelModeForProfile(profile);
+      if (profileModelMode != null && profileModelMode != modelMode) {
+        logger.info(
+          '[createSession] using Codex profile model '
+          'profile=${profile.id} modelMode=$profileModelMode '
+          'instead of $modelMode',
+        );
+        return (profile: profile, modelMode: profileModelMode);
+      }
+    }
     return (profile: profile, modelMode: modelMode);
+  }
+
+  String? _codexModelModeForProfile(AIBackendProfile profile) {
+    final defaultModelMode = _nonDefaultModelMode(profile.defaultModelMode);
+    if (defaultModelMode != null) {
+      return defaultModelMode;
+    }
+    final configModel = _nonDefaultModelMode(profile.openaiConfig?.model);
+    if (configModel != null) {
+      return configModel;
+    }
+    final envModel = _profileEnvValue(profile, 'OPENAI_MODEL');
+    if (envModel == null) {
+      return null;
+    }
+    final effort = _profileEnvValue(profile, 'CODEX_MODEL_REASONING_EFFORT');
+    return effort == null ? envModel : '$envModel:$effort';
+  }
+
+  String? _profileEnvValue(AIBackendProfile profile, String name) {
+    for (final env in profile.environmentVariables) {
+      if (env.name != name) continue;
+      return _nonDefaultModelMode(env.value);
+    }
+    return null;
+  }
+
+  String? _nonDefaultModelMode(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed == 'default') {
+      return null;
+    }
+    return trimmed;
   }
 
   String? _normalizeModelModeForAgent(String? modelMode, String? agent) {
