@@ -29,9 +29,9 @@ void main() {
       );
       expect(
         SyncTestHelpers.testNormalizeDroppedReason(
-          'user content block type=image not handled',
+          'seq=7 id=abc: session eventType turn-start',
         ),
-        'user content block type=image not handled',
+        'session eventtype turn-start',
       );
     });
 
@@ -55,15 +55,11 @@ void main() {
         isTrue,
       );
       expect(
-        SyncTestHelpers.testIsKnownSkipDroppedReason(
-          'output message empty',
-        ),
+        SyncTestHelpers.testIsKnownSkipDroppedReason('output message empty'),
         isTrue,
       );
       expect(
-        SyncTestHelpers.testIsKnownSkipDroppedReason(
-          'redacted thinking',
-        ),
+        SyncTestHelpers.testIsKnownSkipDroppedReason('redacted thinking'),
         isTrue,
       );
       expect(
@@ -74,7 +70,13 @@ void main() {
       );
       expect(
         SyncTestHelpers.testIsKnownSkipDroppedReason(
-          'session eventType turn-start',
+          'session eventtype turn-start',
+        ),
+        isTrue,
+      );
+      expect(
+        SyncTestHelpers.testIsKnownSkipDroppedReason(
+          'seq advanced without ui mutation',
         ),
         isTrue,
       );
@@ -132,14 +134,11 @@ void main() {
     });
 
     test('known-skip reasons log at info and never at warning', () {
-      SyncTestHelpers.testLogDroppedReasonSummary(
-        '[fetchMessages] s1',
-        const [
-          'seq=10 id=cA: assistant content list is empty',
-          'seq=11 id=cB: assistant content list is empty',
-          'user content block type=image not handled',
-        ],
-      );
+      SyncTestHelpers.testLogDroppedReasonSummary('[fetchMessages] s1', const [
+        'seq=10 id=cA: assistant content list is empty',
+        'seq=11 id=cB: assistant content list is empty',
+        'user content block type=image not handled',
+      ]);
 
       final infos = LoggerService().getLogsByLevel(LogLevel.info);
       final warnings = LoggerService().getLogsByLevel(LogLevel.warning);
@@ -147,16 +146,14 @@ void main() {
       expect(
         warnings,
         isEmpty,
-        reason: 'known-skip reasons must not produce a warning — they '
+        reason:
+            'known-skip reasons must not produce a warning — they '
             'create Sentry noise without indicating a real bug',
       );
       expect(infos, hasLength(1));
       expect(infos.single.message, contains('[fetchMessages] s1 dropped'));
       expect(infos.single.message, contains('3 item(s)'));
-      expect(
-        infos.single.message,
-        contains('assistant content list is empty'),
-      );
+      expect(infos.single.message, contains('assistant content list is empty'));
       expect(
         infos.single.message,
         contains('user content block type=image not handled'),
@@ -164,32 +161,23 @@ void main() {
     });
 
     test('unknown reasons still log at warning so drift surfaces', () {
-      SyncTestHelpers.testLogDroppedReasonSummary(
-        '[fetchMessages] s1',
-        const [
-          'seq=10 id=cA: output data type not handled',
-          'codex dataType=newWireFormat not handled (keys=[x, y])',
-        ],
-      );
+      SyncTestHelpers.testLogDroppedReasonSummary('[fetchMessages] s1', const [
+        'seq=10 id=cA: output data type not handled',
+        'codex dataType=newWireFormat not handled (keys=[x, y])',
+      ]);
 
       final warnings = LoggerService().getLogsByLevel(LogLevel.warning);
       expect(warnings, hasLength(1));
       expect(warnings.single.message, contains('2 item(s)'));
-      expect(
-        warnings.single.message,
-        contains('output data type not handled'),
-      );
+      expect(warnings.single.message, contains('output data type not handled'));
     });
 
     test('mixed batch splits across info and warning buckets', () {
-      SyncTestHelpers.testLogDroppedReasonSummary(
-        '[fetchMessages] s1',
-        const [
-          'seq=10 id=cA: assistant content list is empty',
-          'seq=11 id=cB: assistant content list is empty',
-          'seq=12 id=cC: output data type not handled',
-        ],
-      );
+      SyncTestHelpers.testLogDroppedReasonSummary('[fetchMessages] s1', const [
+        'seq=10 id=cA: assistant content list is empty',
+        'seq=11 id=cB: assistant content list is empty',
+        'seq=12 id=cC: output data type not handled',
+      ]);
 
       final infos = LoggerService().getLogsByLevel(LogLevel.info);
       final warnings = LoggerService().getLogsByLevel(LogLevel.warning);
@@ -263,7 +251,8 @@ void main() {
       expect(
         SyncTestHelpers.testAreAllKnownSkipDrops(const []),
         isFalse,
-        reason: 'silent drops with no telemetry must still surface as '
+        reason:
+            'silent drops with no telemetry must still surface as '
             'potential drift until they are classified',
       );
     });
