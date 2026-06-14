@@ -502,6 +502,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       environmentVariables: profile.environmentVariables
           .map((e) => EnvironmentVariable(name: e.name, value: e.value))
           .toList(),
+      defaultModelMode: profile.defaultModelMode,
       isBuiltIn: false,
       compatibility: profile.compatibility,
       createdAt: now,

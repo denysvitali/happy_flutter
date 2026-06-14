@@ -374,6 +374,9 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
       name: _nameCtrl.text.trim(),
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       environmentVariables: envVars,
+      defaultModelMode: AIBackendProfile.inferDefaultModelMode(
+        environmentVariables: envVars,
+      ),
       isBuiltIn: false,
       createdAt: now,
       updatedAt: now,

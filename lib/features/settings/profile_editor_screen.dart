@@ -262,6 +262,11 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
           ? _scriptCtrl.text.trim()
           : null,
       environmentVariables: envVars,
+      defaultModelMode:
+          AIBackendProfile.inferDefaultModelMode(
+            environmentVariables: envVars,
+          ) ??
+          existing?.defaultModelMode,
       isBuiltIn: existing?.isBuiltIn ?? false,
       compatibility: existing?.compatibility ?? const ProfileCompatibility(),
       createdAt: existing?.createdAt ?? now,

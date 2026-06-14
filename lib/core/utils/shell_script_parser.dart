@@ -127,6 +127,11 @@ AIBackendProfile buildProfileFromEnvVars(
     openaiConfig: openaiConfig,
     environmentVariables: envVars,
     startupBashScript: result.rawScript,
+    defaultModelMode: AIBackendProfile.inferDefaultModelMode(
+      anthropicConfig: anthropicConfig,
+      openaiConfig: openaiConfig,
+      environmentVariables: envVars,
+    ),
     isBuiltIn: false,
     createdAt: now,
     updatedAt: now,

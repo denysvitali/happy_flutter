@@ -148,6 +148,37 @@ void main() {
     });
   });
 
+  group('AIBackendProfile inferred default model', () {
+    test('derives Codex model from OPENAI_MODEL env var', () {
+      final profile = AIBackendProfile(
+        id: 'kimi-codex',
+        name: 'Kimi Codex',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: 'https://api.kimi.com/coding/v1',
+          ),
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'kimi-k2.7-code'),
+        ],
+      );
+
+      expect(profile.inferredDefaultModelMode, 'kimi-k2.7-code');
+    });
+
+    test('prefers explicit defaultModelMode over env var', () {
+      final profile = AIBackendProfile(
+        id: 'custom-codex',
+        name: 'Custom Codex',
+        defaultModelMode: 'explicit-model',
+        environmentVariables: [
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'env-model'),
+        ],
+      );
+
+      expect(profile.inferredDefaultModelMode, 'explicit-model');
+    });
+  });
+
   group('Pi agent profile bucketing', () {
     test('normalizeAgentKey routes pi to its own bucket', () {
       expect(normalizeAgentKey('pi'), 'pi');

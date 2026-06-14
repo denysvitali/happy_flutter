@@ -629,6 +629,50 @@ class AIBackendProfile {
 
   Map<String, dynamic> toJson() => _$AIBackendProfileToJson(this);
 
+  String? get inferredDefaultModelMode => inferDefaultModelMode(
+    defaultModelMode: defaultModelMode,
+    anthropicConfig: anthropicConfig,
+    openaiConfig: openaiConfig,
+    azureOpenAIConfig: azureOpenAIConfig,
+    environmentVariables: environmentVariables,
+  );
+
+  static String? inferDefaultModelMode({
+    String? defaultModelMode,
+    AnthropicConfig? anthropicConfig,
+    OpenAIConfig? openaiConfig,
+    AzureOpenAIConfig? azureOpenAIConfig,
+    List<EnvironmentVariable> environmentVariables = const [],
+  }) {
+    return _nonDefaultModelMode(defaultModelMode) ??
+        _nonDefaultModelMode(openaiConfig?.model) ??
+        _nonDefaultModelMode(azureOpenAIConfig?.deploymentName) ??
+        _nonDefaultModelMode(anthropicConfig?.model) ??
+        _envModelMode(environmentVariables, 'OPENAI_MODEL') ??
+        _envModelMode(environmentVariables, 'AZURE_OPENAI_DEPLOYMENT_NAME') ??
+        _envModelMode(environmentVariables, 'ANTHROPIC_MODEL') ??
+        _envModelMode(environmentVariables, 'ANTHROPIC_DEFAULT_OPUS_MODEL');
+  }
+
+  static String? _envModelMode(
+    List<EnvironmentVariable> environmentVariables,
+    String name,
+  ) {
+    for (final env in environmentVariables) {
+      if (env.name != name) continue;
+      return _nonDefaultModelMode(env.value);
+    }
+    return null;
+  }
+
+  static String? _nonDefaultModelMode(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed == 'default') {
+      return null;
+    }
+    return trimmed;
+  }
+
   /// Serialize to JSON without API keys (for secure storage)
   Map<String, dynamic> toJsonWithoutApiKeys() {
     return {
