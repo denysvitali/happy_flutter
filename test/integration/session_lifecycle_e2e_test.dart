@@ -508,7 +508,7 @@ void main() {
       },
     );
 
-    test('errored session fails send when auto-restore RPC fails', () async {
+    test('errored session keeps message when auto-restore RPC fails', () async {
       const sessionId = 'errored-restore-fail';
       sync.testSessions[sessionId] = _makeSession(
         sessionId,
@@ -525,20 +525,20 @@ void main() {
       };
       sync.testFetchSingleSessionOverride = (_) async => null;
 
-      await expectLater(
-        sync.sendMessage(sessionId, 'hello'),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('Could not restore stopped session'),
-          ),
-        ),
-      );
+      final result = await sync.sendMessage(sessionId, 'hello');
+      await sync.lastCompleteSendFuture;
+
+      expect(result, sessionId);
+      final messages = sync.testSessionMessages(sessionId);
+      expect(messages, isNotNull);
+      expect(messages, hasLength(1));
+      expect(messages!.single['localId'], isNotNull);
+      expect(messages.single['content'], 'hello');
       expect(
-        sync.testSessionMessages(sessionId),
-        isNull,
-        reason: 'failed restore must not fall back to the stopped session',
+        messages.single['sendStatus'],
+        anyOf('sending', 'pending', 'failed'),
+        reason: 'failed restore should keep a retryable optimistic message '
+            'instead of dropping the send',
       );
     });
 
