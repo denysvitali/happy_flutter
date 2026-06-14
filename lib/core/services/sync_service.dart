@@ -32,6 +32,8 @@ import '../models/session.dart';
 import '../models/settings.dart';
 import '../rpc/rpc_types.dart';
 import '../sync/artifact_manager.dart';
+import '../sync/machine_manager.dart';
+import '../sync/session_manager.dart';
 import '../sync/settings_manager.dart';
 import '../sync/sync_exceptions.dart';
 import '../sync/sync_progress.dart';
@@ -57,6 +59,8 @@ import '../utils/message_invariant_monitor.dart';
 import '../utils/parse_token.dart';
 import '../utils/path_utils.dart' show resolveAbsolutePath;
 import '../utils/sync_domain.dart';
+export '../sync/sync_exceptions.dart' show IncompatibleProviderAndModelError;
+export '../sync/sync_progress.dart' show SyncProgress;
 export '../utils/sync_domain.dart' show SyncDomain;
 import '../utils/wire_parsers.dart';
 // Canary mode — runtime invariant assertions.  No-ops when kCanary
@@ -130,8 +134,9 @@ class Sync {
   /// freshest tail load even if a slow server tries to bury us.
   static const Duration _messageFetchBudget = Duration(seconds: 15);
   static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);
-  static const Duration _sessionListMachineRefreshDelay =
-      Duration(milliseconds: 800);
+  static const Duration _sessionListMachineRefreshDelay = Duration(
+    milliseconds: 800,
+  );
 
   /// Number of recent messages to load on first open of a session.
   static const int initialLoad = kIsWeb ? 100 : 200;
@@ -177,6 +182,8 @@ what you have, you must use the options mode.
   late Encryption encryption;
   ArtifactManager? artifactManager;
   SettingsManager? settingsManager;
+  SessionManager? sessionManager;
+  MachineManager? machineManager;
   bool _encryptionInitialized = false;
   late String serverID;
   late String anonID;

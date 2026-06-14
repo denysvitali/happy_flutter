@@ -1395,24 +1395,29 @@ PY
     if (profile == null) {
       return (profile: null, modelMode: modelMode);
     }
-    if (!profile.compatibility.supportsAgent(agent ?? 'claude')) {
-      logger.warning(
+    if (!_isProfileCompatibleWithAgent(profile, agent)) {
+      logger.info(
         '[createSession] profile ${profile.id} is not compatible with '
         'agent=$agent; spawning without profile env vars',
       );
       return (profile: null, modelMode: modelMode);
     }
-    final baseUrl = _anthropicBaseUrlForProfile(profile);
-    if (agent == 'claude' &&
-        _isClaudeModelAlias(modelMode ?? '') &&
-        _isThirdPartyAnthropicBaseUrl(baseUrl)) {
-      logger.warning(
-        '[createSession] dropping incompatible Claude model override '
-        'profile=${profile.id} modelMode=$modelMode baseUrl=$baseUrl',
-      );
-      return (profile: profile, modelMode: 'default');
-    }
     return (profile: profile, modelMode: modelMode);
+  }
+
+  /// Returns true when [profile] can safely be used to spawn [agent].
+  bool _isProfileCompatibleWithAgent(AIBackendProfile profile, String? agent) {
+    final effectiveAgent = agent ?? 'claude';
+    if (!profile.compatibility.supportsAgent(effectiveAgent)) {
+      return false;
+    }
+    if (effectiveAgent == 'claude') {
+      final baseUrl = _anthropicBaseUrlForProfile(profile);
+      if (_isThirdPartyAnthropicBaseUrl(baseUrl)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   String? _normalizeModelModeForAgent(String? modelMode, String? agent) {

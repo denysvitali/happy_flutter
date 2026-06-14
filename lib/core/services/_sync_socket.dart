@@ -38,6 +38,47 @@ extension SyncSocket on Sync {
       purchasesSyncGetter: () => purchasesSync,
       onDataChanged: _notifyDataChanged,
     );
+    sessionManager = SessionManager(
+      encryption: encryption,
+      sessionsSyncGetter: () => sessionsSync,
+      onDataChanged: _notifyDataChanged,
+      onSessionMessagesChanged: _notifySessionMessagesChanged,
+      ensureSessionEncryptionInitialized: _ensureSessionEncryptionInitialized,
+      isTransientConnectionError: Sync._isTransientConnectionError,
+      applyPermissionRequests: (sessionId) async => _applyPermissionRequests(sessionId),
+      checkForNewPermissionRequests: _checkForNewPermissionRequests,
+      onFetchSessionsStarted: null,
+      onSyncProgress: _setSyncProgress,
+      scheduleSaveSessionsCache: _scheduleSaveSessionsCache,
+    );
+    sessionManager!.bindLateDependencies(
+      sessionMessages: _sessionMessages,
+      onSessionDeleted: _onSessionDeleted,
+    );
+    machineManager = MachineManager(
+      encryption: encryption,
+      settingsSnapshotGetter: () => settingsManager?.settingsSnapshot ?? Settings(),
+      machinesSyncGetter: () => machinesSync,
+      onDataChanged: _notifyDataChanged,
+      fetchSingleSession: (sessionId) async {
+        await sessionManager?.fetchSingleSession(sessionId);
+      },
+      refreshSessions: () async {
+        await sessionManager?.refreshSessions();
+      },
+      ensureMachineReachable: ensureMachineReachable,
+      isTransientRpcError: Sync._isTransientRpcError,
+      isRpcMethodNotAvailable: Sync._isRpcMethodNotAvailable,
+      isTransientConnectionError: Sync._isTransientConnectionError,
+      onSessionVisible: onSessionVisible,
+      machineRPCOverride: (machineId, method, params, {timeout}) async {
+        final override = testMachineRPCOverride;
+        if (override == null) return null;
+        return override(machineId, method, params);
+      },
+      onFetchMachinesStarted: null,
+      onSyncProgress: _setSyncProgress,
+    );
     await _init();
 
     // Await initial syncs in parallel — these are independent HTTP
@@ -80,6 +121,47 @@ extension SyncSocket on Sync {
       profileSyncGetter: () => profileSync,
       purchasesSyncGetter: () => purchasesSync,
       onDataChanged: _notifyDataChanged,
+    );
+    sessionManager = SessionManager(
+      encryption: encryption,
+      sessionsSyncGetter: () => sessionsSync,
+      onDataChanged: _notifyDataChanged,
+      onSessionMessagesChanged: _notifySessionMessagesChanged,
+      ensureSessionEncryptionInitialized: _ensureSessionEncryptionInitialized,
+      isTransientConnectionError: Sync._isTransientConnectionError,
+      applyPermissionRequests: (sessionId) async => _applyPermissionRequests(sessionId),
+      checkForNewPermissionRequests: _checkForNewPermissionRequests,
+      onFetchSessionsStarted: null,
+      onSyncProgress: _setSyncProgress,
+      scheduleSaveSessionsCache: _scheduleSaveSessionsCache,
+    );
+    sessionManager!.bindLateDependencies(
+      sessionMessages: _sessionMessages,
+      onSessionDeleted: _onSessionDeleted,
+    );
+    machineManager = MachineManager(
+      encryption: encryption,
+      settingsSnapshotGetter: () => settingsManager?.settingsSnapshot ?? Settings(),
+      machinesSyncGetter: () => machinesSync,
+      onDataChanged: _notifyDataChanged,
+      fetchSingleSession: (sessionId) async {
+        await sessionManager?.fetchSingleSession(sessionId);
+      },
+      refreshSessions: () async {
+        await sessionManager?.refreshSessions();
+      },
+      ensureMachineReachable: ensureMachineReachable,
+      isTransientRpcError: Sync._isTransientRpcError,
+      isRpcMethodNotAvailable: Sync._isRpcMethodNotAvailable,
+      isTransientConnectionError: Sync._isTransientConnectionError,
+      onSessionVisible: onSessionVisible,
+      machineRPCOverride: (machineId, method, params, {timeout}) async {
+        final override = testMachineRPCOverride;
+        if (override == null) return null;
+        return override(machineId, method, params);
+      },
+      onFetchMachinesStarted: null,
+      onSyncProgress: _setSyncProgress,
     );
     await _init();
     // isInitialized is set early inside _init() after cache restore.

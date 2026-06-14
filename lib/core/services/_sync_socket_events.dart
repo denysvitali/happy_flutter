@@ -540,6 +540,13 @@ extension SyncSocketEvents on Sync {
     );
   }
 
+  /// Callback passed to [SessionManager] to run Sync-level cleanup when a
+  /// session is deleted. Delegates to [_handleDeleteSession] without
+  /// duplicating the cleanup logic.
+  void _onSessionDeleted(String sessionId) {
+    _handleDeleteSession(<String, dynamic>{'sid': sessionId});
+  }
+
   /// Handle server-side error events.
   ///
   /// When the server emits `{code: "session-invalid", sid: "..."}` it
