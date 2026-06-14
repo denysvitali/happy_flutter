@@ -1,5 +1,12 @@
 part of 'sync_service.dart';
 
+/// Thrown when the server itself reports that an RPC handler is not
+/// registered on any replica. This must not be confused with a daemon-level
+/// application error (e.g. "Method not found"), which proves liveness.
+class _ServerRPCNoHandlerError extends StateError {
+  _ServerRPCNoHandlerError(super.message);
+}
+
 extension SyncMessagingRpc on Sync {
   Future<dynamic> machineRPC(
     String machineId,
@@ -162,8 +169,9 @@ extension SyncMessagingRpc on Sync {
     Duration timeout = const Duration(seconds: 30),
   }) async {
     final override = testEnsureMachineReachableMachineRPCOverride;
+    Object? raw;
     if (override != null) {
-      final raw = await override(machineId, method, params);
+      raw = await override(machineId, method, params);
       if (raw == null) {
         throw StateError(
           'Machine RPC $method returned null — '
@@ -178,6 +186,10 @@ extension SyncMessagingRpc on Sync {
       }
       final error = raw['error'];
       if (error != null) {
+        if (raw['ok'] == false &&
+            error.toString().contains('not registered on any reachable server replica')) {
+          throw _ServerRPCNoHandlerError('Machine is unreachable');
+        }
         throw StateError('Machine RPC $method failed: $error');
       }
       if (raw['ok'] == true) {
@@ -185,7 +197,24 @@ extension SyncMessagingRpc on Sync {
       }
       throw StateError('Machine RPC $method failed: $raw');
     }
-    return machineRPC(machineId, method, params, timeout: timeout);
+
+    try {
+      raw = await machineRPC(machineId, method, params, timeout: timeout);
+    } on StateError catch (e) {
+      // If the server returned an explicit "not registered" error, the
+      // machine/socket is gone on all replicas. Promote it to a server-level
+      // failure so ensureMachineReachable does not treat it as daemon liveness.
+      if (e.message.contains('not registered on any reachable server replica')) {
+        throw _ServerRPCNoHandlerError('Machine is unreachable');
+      }
+      rethrow;
+    }
+
+    if (raw is Map<String, dynamic> && raw['ok'] == false) {
+      final error = raw['error']?.toString() ?? 'unknown server error';
+      throw _ServerRPCNoHandlerError('Machine is unreachable: $error');
+    }
+    return raw;
   }
 
   /// Cheap pre-flight liveness probe before long-running spawn RPCs.
@@ -247,6 +276,11 @@ extension SyncMessagingRpc on Sync {
         // is still warming up the RPC handler; a second attempt
         // a few hundred ms later usually succeeds.
         await Future<void>.delayed(const Duration(milliseconds: 300));
+      } on _ServerRPCNoHandlerError {
+        // The server explicitly reported that no replica has a handler for
+        // this machine. Propagate as an unreachable machine instead of
+        // treating it as daemon liveness.
+        rethrow;
       } on StateError {
         // The daemon replied with an application-level error (older
         // daemons have no `ping` handler and answer `Method not found`).

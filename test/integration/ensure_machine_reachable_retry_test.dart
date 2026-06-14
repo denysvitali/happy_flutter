@@ -124,6 +124,34 @@ void main() {
     );
 
     test(
+      'throws Machine is unreachable when server reports no handler on any replica',
+      () async {
+        sync.testEnsureMachineReachableMachineRPCOverride = (
+          machineId,
+          method,
+          params,
+        ) async {
+          return <String, dynamic>{
+            'ok': false,
+            'error':
+                'RPC handler for "machine-1:ping" is not registered on any reachable server replica',
+          };
+        };
+
+        await expectLater(
+          () => sync.ensureMachineReachable('machine-1'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Machine is unreachable'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'returns on first successful ping without retrying',
       () async {
         var pingAttempts = 0;
