@@ -347,6 +347,31 @@ class MachineManager {
     await _machinesSync.invalidateAndAwait();
   }
 
+  /// Replace the entire machine catalog.
+  ///
+  /// Used by Sync during lifecycle reset; prefer [updateMachine] for
+  /// incremental changes.
+  void setMachines(Map<String, Machine> machines) {
+    _machines
+      ..clear()
+      ..addAll(machines);
+  }
+
+  /// Update or insert a single machine.
+  void updateMachine(String machineId, Machine machine) {
+    _machines[machineId] = machine;
+  }
+
+  /// Remove a machine by ID.
+  void removeMachine(String machineId) {
+    _machines.remove(machineId);
+  }
+
+  /// Clear all machines.
+  void clearMachines() {
+    _machines.clear();
+  }
+
   // ── fetchMachines ───────────────────────────────────────────────────────
 
   /// Fetch machines from server, decrypt keys and metadata.
@@ -1574,4 +1599,3 @@ PY
     );
   }
 }
-
