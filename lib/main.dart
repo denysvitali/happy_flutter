@@ -58,6 +58,16 @@ Uint8List _derToPem(Uint8List der) {
   return Uint8List.fromList(buf.toString().codeUnits);
 }
 
+Future<void> _loadAndroidUserCertificates() async {
+  if (kIsWeb || !isAndroid) return;
+
+  final certs = await FlutterUserCertificatesAndroid().getUserCertificates();
+  for (final derBytes in (certs ?? {}).values) {
+    final pem = _derToPem(derBytes);
+    SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
+  }
+}
+
 Future<void> main() async {
   // Bootstrap the Flutter binding first so everything else can proceed
   // in parallel — Sentry, storage, network, deep link, and Firebase.
@@ -205,9 +215,26 @@ Future<void> _deferredInit() async {
   // 100–500ms+. None are needed to render the first frame.
   final futures = <Future<void>>[];
 
-  // OpenTelemetry — gRPC tracer init. Off the critical path; the
-  // GoRouter observer list tolerates a null routeObserver until init
-  // completes (see app_router.dart `?OpenTelemetryService().routeObserver`).
+  final userCertificatesFuture = () async {
+    final certsSpan = transaction.startChild(
+      'app.deferredInit.userCerts',
+      description: 'Load Android user certificates',
+    );
+    try {
+      await _loadAndroidUserCertificates();
+    } catch (e) {
+      logger.warning('Failed to load Android user certificates: $e');
+      certsSpan
+        ..status = const SpanStatus.internalError()
+        ..setData('error', e.toString());
+    } finally {
+      await certsSpan.finish();
+    }
+  }();
+  OpenTelemetryService().setTrustedCertificatesFuture(userCertificatesFuture);
+
+  // OpenTelemetry — OTLP/HTTP tracer init. Off the critical path; the
+  // route observer is installed immediately and no-ops until init completes.
   futures.add(() async {
     final otelSpan = transaction.startChild(
       'app.deferredInit.opentelemetry',
@@ -243,39 +270,6 @@ Future<void> _deferredInit() async {
       await networkSpan.finish();
     }
   }());
-
-  // Android user certificates — JNI calls + ASN.1 parsing.  Fire
-  // and forget so deferred init can finish even before the cert
-  // load completes.  The trust store is only consulted when an
-  // HTTPS call is made, and the first such call in the current
-  // code path happens after auth check, which itself runs from a
-  // microtask scheduled by `_HappyAppState.initState`.  If a user
-  // has zero user-installed certs, the platform call still
-  // completes quickly.  If they have many, the slow path is no
-  // longer on the deferred-init critical path.
-  if (!kIsWeb && isAndroid) {
-    unawaited(() async {
-      final certsSpan = transaction.startChild(
-        'app.deferredInit.userCerts',
-        description: 'Load Android user certificates',
-      );
-      try {
-        final certs = await FlutterUserCertificatesAndroid()
-            .getUserCertificates();
-        for (final derBytes in (certs ?? {}).values) {
-          final pem = _derToPem(derBytes);
-          SecurityContext.defaultContext.setTrustedCertificatesBytes(pem);
-        }
-      } catch (e) {
-        logger.warning('Failed to load Android user certificates: $e');
-        certsSpan
-          ..status = const SpanStatus.internalError()
-          ..setData('error', e.toString());
-      } finally {
-        await certsSpan.finish();
-      }
-    }());
-  }
 
   // Firebase push notifications — not needed for first screen.
   // Use unawaited() so this never blocks _deferredInit from completing.

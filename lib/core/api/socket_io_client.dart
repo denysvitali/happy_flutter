@@ -5,6 +5,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 
 import '../services/logger_service.dart' show LogLevel, logger;
+import '../services/opentelemetry_service.dart';
 import '../services/performance_context_service.dart';
 import '../services/power_diagnostics_service.dart';
 
@@ -253,6 +254,22 @@ class SocketIoClient {
               PerformanceContextService().currentRoute ?? 'unknown',
             );
       await transaction.finish();
+      OpenTelemetryService()
+          .startTrace(
+            _hasConnectedOnce ? 'websocket.reconnect' : 'websocket.connect',
+            attributes: {
+              'websocket.recovered': _socket?.recovered ?? false,
+              'websocket.connect_duration_ms':
+                  _elapsedSince(_lastConnectStartedAtMs) ?? 0,
+              if (_lastConnectStartedAtMs != null &&
+                  _lastDisconnectAtMs != null)
+                'websocket.disconnect_gap_ms':
+                    _lastConnectStartedAtMs! - _lastDisconnectAtMs!,
+              'current_route':
+                  PerformanceContextService().currentRoute ?? 'unknown',
+            },
+          )
+          ?.end();
 
       // Always notify reconnection handlers when this is not the first
       // connection — even when Socket.IO reports successful state recovery
@@ -286,6 +303,15 @@ class SocketIoClient {
             PerformanceContextService().currentRoute ?? 'unknown',
           );
       await transaction.finish();
+      OpenTelemetryService()
+          .startTrace(
+            'websocket.disconnect',
+            attributes: {
+              'current_route':
+                  PerformanceContextService().currentRoute ?? 'unknown',
+            },
+          )
+          ?.end();
     });
 
     _socket!.onConnectError((error) async {

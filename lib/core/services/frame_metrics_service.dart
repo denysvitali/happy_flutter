@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'logger_service.dart';
+import 'opentelemetry_service.dart';
 import 'performance_context_service.dart';
 
 /// Reports janky Flutter frames to Sentry/GlitchTip as performance
@@ -40,10 +41,7 @@ class FrameMetricsService {
 
     // Periodically flush accumulated jank stats as a single Sentry
     // transaction instead of one per frame.
-    _flushTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _flush(),
-    );
+    _flushTimer = Timer.periodic(const Duration(seconds: 30), (_) => _flush());
 
     if (kDebugMode) {
       logger.debug('[FrameMetrics] Attached');
@@ -70,25 +68,33 @@ class FrameMetricsService {
     final snapshot = List<int>.from(_recentJank);
     _recentJank.clear();
 
-    final avgMs =
-        snapshot.reduce((a, b) => a + b) / snapshot.length;
-    final maxMs =
-        snapshot.reduce((a, b) => a > b ? a : b);
+    final avgMs = snapshot.reduce((a, b) => a + b) / snapshot.length;
+    final maxMs = snapshot.reduce((a, b) => a > b ? a : b);
 
-    final transaction = Sentry.startTransaction(
-      'ui.jank',
-      'ui.frame',
-      bindToScope: false,
-    )
-      ..setData('count', snapshot.length)
-      ..setData('avgMs', avgMs.round())
-      ..setData('maxMs', maxMs)
-      ..setData(
-        'currentRoute',
-        PerformanceContextService().currentRoute ?? 'unknown',
-      );
+    final transaction =
+        Sentry.startTransaction('ui.jank', 'ui.frame', bindToScope: false)
+          ..setData('count', snapshot.length)
+          ..setData('avgMs', avgMs.round())
+          ..setData('maxMs', maxMs)
+          ..setData(
+            'currentRoute',
+            PerformanceContextService().currentRoute ?? 'unknown',
+          );
 
     unawaited(transaction.finish());
+
+    OpenTelemetryService()
+        .startTrace(
+          'ui.jank',
+          attributes: {
+            'frame.count': snapshot.length,
+            'frame.avg_ms': avgMs.round(),
+            'frame.max_ms': maxMs,
+            'current_route':
+                PerformanceContextService().currentRoute ?? 'unknown',
+          },
+        )
+        ?.end();
   }
 
   /// Detach and clean up. Call on app dispose.

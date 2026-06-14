@@ -156,6 +156,10 @@ extension _ChatScreenActions on _ChatScreenState {
       'ui.load',
       bindToScope: true,
     )..setData('sessionId', sessionId);
+    final otelTrace = OpenTelemetryService().startTrace(
+      'chat.screen.load',
+      attributes: {'session.id': sessionId},
+    );
 
     // Safety timer: if loading is still in progress after 15s,
     // force-clear the spinner and report to Sentry.
@@ -189,6 +193,9 @@ extension _ChatScreenActions on _ChatScreenState {
       // Finish the transaction as failed
       transaction.setData('timeout', true);
       unawaited(transaction.finish());
+      otelTrace
+        ?..setAttribute('timeout', true)
+        ..end(ok: false);
       setState(() {
         _isLoadingMessages = false;
         _initialLoadComplete = true;
@@ -202,6 +209,13 @@ extension _ChatScreenActions on _ChatScreenState {
         description: 'Check cached messages',
       );
       unawaited((cacheSpan..setData('cachedCount', _messages.length)).finish());
+      OpenTelemetryService()
+          .startChildSpan(
+            'chat.cache.check',
+            parent: otelTrace,
+            attributes: {'message.cached_count': _messages.length},
+          )
+          ?.end();
 
       unawaited(
         Sentry.addBreadcrumb(
@@ -222,11 +236,17 @@ extension _ChatScreenActions on _ChatScreenState {
         'chat.sync.visible',
         description: 'Mark session as visible',
       );
+      final otelVisibleSpan = OpenTelemetryService().startChildSpan(
+        'chat.sync.visible',
+        parent: otelTrace,
+        attributes: {'session.id': sessionId},
+      );
       unawaited(sync.onSessionVisible(sessionId));
       // Suppress the live "session activity" notification while the
       // user is looking at the session in-app.
       unawaited(sessionActivityCoordinator.setVisibleSession(sessionId));
       unawaited(visibleSpan.finish());
+      otelVisibleSpan?.end();
 
       // Show cached messages immediately instead of
       // waiting for the debounced stream notification
@@ -237,6 +257,10 @@ extension _ChatScreenActions on _ChatScreenState {
         'chat.sync.refresh',
         description: 'Refresh from sync singleton',
       );
+      final otelRefreshSpan = OpenTelemetryService().startChildSpan(
+        'chat.sync.refresh',
+        parent: otelTrace,
+      );
       // If we have cached messages, clear the loading spinner
       // immediately so users see content instead of waiting up
       // to 5s for the sync queue to drain (warm start fix).
@@ -244,6 +268,9 @@ extension _ChatScreenActions on _ChatScreenState {
           _messages.isNotEmpty || sync.messagesForSession(sessionId).isNotEmpty;
       _refreshFromSync(markLoaded: hasCached);
       unawaited(refreshSpan.finish());
+      otelRefreshSpan
+        ?..setAttribute('has_cached_messages', hasCached)
+        ..end();
 
       // Span for the message sync queue. When the cache is hot we
       // fire-and-forget so the transaction reflects what the user
@@ -256,9 +283,15 @@ extension _ChatScreenActions on _ChatScreenState {
         'chat.sync.await',
         description: 'Await message sync queue',
       )..setData('hasCached', hasCached);
+      final otelAwaitSpan = OpenTelemetryService().startChildSpan(
+        'chat.sync.await',
+        parent: otelTrace,
+        attributes: {'has_cached_messages': hasCached},
+      );
       final queueFuture = sync.messagesSync[sessionId]?.awaitQueue();
       if (hasCached) {
         awaitSpan.setData('mode', 'background');
+        otelAwaitSpan?.setAttribute('mode', 'background');
         if (queueFuture != null) {
           unawaited(
             queueFuture
@@ -273,25 +306,36 @@ extension _ChatScreenActions on _ChatScreenState {
                     e,
                     st,
                   );
+                  otelAwaitSpan?.recordError(e, st);
                   return;
                 })
-                .whenComplete(awaitSpan.finish),
+                .whenComplete(() {
+                  unawaited(awaitSpan.finish());
+                  otelAwaitSpan?.end();
+                }),
           );
         } else {
           unawaited(awaitSpan.finish());
+          otelAwaitSpan?.end();
         }
       } else {
         awaitSpan.setData('mode', 'blocking');
+        otelAwaitSpan?.setAttribute('mode', 'blocking');
         try {
           await queueFuture?.timeout(const Duration(seconds: 5));
           awaitSpan.setData('timedOut', false);
+          otelAwaitSpan?.setAttribute('timed_out', false);
         } catch (e) {
           success = false;
           awaitSpan
             ..setData('timedOut', true)
             ..setData('error', e.toString());
+          otelAwaitSpan
+            ?..setAttribute('timed_out', true)
+            ..recordError(e);
         }
         unawaited(awaitSpan.finish());
+        otelAwaitSpan?.end(ok: success);
       }
     } catch (error, stack) {
       success = false;
@@ -302,6 +346,7 @@ extension _ChatScreenActions on _ChatScreenState {
         stack,
       );
       transaction.setData('error', error.toString());
+      otelTrace?.recordError(error, stack);
       unawaited(
         Sentry.captureException(
           error,
@@ -319,6 +364,7 @@ extension _ChatScreenActions on _ChatScreenState {
 
     if (!mounted) {
       await transaction.finish();
+      otelTrace?.end(ok: success);
       return;
     }
 
@@ -347,6 +393,11 @@ extension _ChatScreenActions on _ChatScreenState {
     transaction
       ..setData('finalMessageCount', _messages.length)
       ..setData('elapsedMs', stopwatch.elapsedMilliseconds);
+    otelTrace
+      ?..setAttribute('success', success)
+      ..setAttribute('message.final_count', _messages.length)
+      ..setAttribute('chat.load_elapsed_ms', stopwatch.elapsedMilliseconds)
+      ..end(ok: success);
     await transaction.finish();
   }
 

@@ -189,7 +189,7 @@ GoRouter createRouter() {
     observers: [
       SentryNavigatorObserver(),
       PerformanceRouteObserver(),
-      ?OpenTelemetryService().routeObserver,
+      OpenTelemetryService().routeObserver,
     ],
     routes: [
       GoRoute(

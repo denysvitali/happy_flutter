@@ -3,6 +3,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
+import 'opentelemetry_service.dart';
 
 /// Local-first message cache service.
 ///
@@ -138,6 +139,16 @@ class MessageCacheService {
           },
         ),
       );
+      OpenTelemetryService()
+          .startTrace(
+            'cache.messages.read',
+            attributes: {
+              'session.id': sessionId,
+              'message.count': messages.length,
+              'cache.elapsed_ms': elapsedMs,
+            },
+          )
+          ?.end();
     }
     return messages;
   }
@@ -229,6 +240,18 @@ class MessageCacheService {
             },
           ),
         );
+        OpenTelemetryService()
+            .startTrace(
+              'cache.messages.write',
+              attributes: {
+                'session.id': sessionId,
+                'message.saved_count': toSave.length,
+                'message.original_count': messages.length,
+                'cache.truncated': messages.length > _maxCachedMessages,
+                'cache.elapsed_ms': elapsedMs,
+              },
+            )
+            ?.end();
       }
     } catch (e) {
       final elapsedMs = stopwatch.elapsedMilliseconds;
@@ -245,6 +268,12 @@ class MessageCacheService {
           },
         ),
       );
+      final span = OpenTelemetryService().startTrace(
+        'cache.messages.write',
+        attributes: {'session.id': sessionId, 'cache.elapsed_ms': elapsedMs},
+      );
+      span?.recordError(e);
+      span?.end(ok: false);
     }
   }
 

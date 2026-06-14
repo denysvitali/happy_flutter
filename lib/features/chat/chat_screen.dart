@@ -17,6 +17,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show LogLevel, logger;
 import '../../core/services/message_cache_service.dart';
+import '../../core/services/opentelemetry_service.dart';
 import '../../core/services/session_activity_coordinator.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';

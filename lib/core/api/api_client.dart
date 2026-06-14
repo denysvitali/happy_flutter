@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
+    show SpanKind;
 import 'package:sentry_dio/sentry_dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../sentry_config.dart';
 import '../services/http_request_logger.dart';
 import '../services/logger_service.dart' show logger;
+import '../services/opentelemetry_service.dart';
 import '../services/power_diagnostics_service.dart';
 import '../services/server_config.dart';
 import 'http_cache.dart';
@@ -54,7 +57,7 @@ class ApiClient {
   /// never created and we save the init cost entirely.
   Future<void> initialize({required String serverUrl}) async {
     _cachedServerUrl = serverUrl;
-    _configureDio(serverUrl);
+    await _configureDio(serverUrl);
   }
 
   /// Wire the native HTTP adapter into the underlying [Dio]
@@ -123,10 +126,10 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           // Check cache for GET requests
-          if (options.method == 'GET' &&
-              options.extra['bypassCache'] != true) {
+          if (options.method == 'GET' && options.extra['bypassCache'] != true) {
             final cachedResponse = _httpCache.get(options);
             if (cachedResponse != null) {
+              cachedResponse.requestOptions.extra['fromCache'] = true;
               return handler.resolve(cachedResponse);
             }
           }
@@ -222,6 +225,36 @@ class ApiClient {
       _dio!.addSentry();
     }
 
+    _dio!.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          options.extra['_otelStart'] = DateTime.now().millisecondsSinceEpoch;
+          options.extra['_otelSpan'] = OpenTelemetryService().startTrace(
+            'http.client',
+            kind: SpanKind.client,
+            attributes: _otelHttpAttributes(options),
+          );
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          _finishOtelHttpSpan(
+            response.requestOptions,
+            statusCode: response.statusCode,
+          );
+          return handler.next(response);
+        },
+        onError: (error, handler) {
+          _finishOtelHttpSpan(
+            error.requestOptions,
+            statusCode: error.response?.statusCode,
+            error: error,
+            stackTrace: error.stackTrace,
+          );
+          return handler.next(error);
+        },
+      ),
+    );
+
     // HTTP request tracker — records all requests to httpRequestLogger.
     _dio!.interceptors.add(
       InterceptorsWrapper(
@@ -249,6 +282,82 @@ class ApiClient {
         },
       ),
     );
+  }
+
+  static Map<String, Object?> _otelHttpAttributes(RequestOptions options) {
+    final uri = options.uri;
+    return {
+      'http.request.method': options.method,
+      'url.scheme': uri.scheme,
+      'server.address': uri.host,
+      'url.path': normalizePathForTracing(options.path),
+      'http.route': normalizePathForTracing(options.path),
+      'http.cache_hit': options.extra['fromCache'] == true,
+      if (options.extra['_retryCount'] is int)
+        'http.retry_count': options.extra['_retryCount'] as int,
+    };
+  }
+
+  static void _finishOtelHttpSpan(
+    RequestOptions options, {
+    required int? statusCode,
+    DioException? error,
+    StackTrace? stackTrace,
+  }) {
+    final span = options.extra['_otelSpan'] as OTelSpan?;
+    if (span == null) return;
+
+    final startMs = options.extra['_otelStart'] as int?;
+    if (startMs != null) {
+      span.setAttribute(
+        'http.duration_ms',
+        DateTime.now().millisecondsSinceEpoch - startMs,
+      );
+    }
+    span
+      ..setAttribute('http.response.status_code', statusCode)
+      ..setAttribute('http.cache_hit', options.extra['fromCache'] == true);
+    if (options.extra['_retryCount'] is int) {
+      span.setAttribute(
+        'http.retry_count',
+        options.extra['_retryCount'] as int,
+      );
+    }
+    if (error != null) {
+      span
+        ..setAttribute('error.type', error.type.name)
+        ..recordError(error, stackTrace);
+    }
+    span.end(ok: error == null && (statusCode == null || statusCode < 500));
+  }
+
+  @visibleForTesting
+  static String normalizePathForTracing(String path) {
+    final parsed = Uri.tryParse(path);
+    final parsedPath = parsed?.path;
+    final rawPath = parsedPath?.isNotEmpty ?? false ? parsedPath! : path;
+    if (rawPath.isEmpty) return '/';
+
+    final segments = rawPath
+        .split('/')
+        .where((segment) => segment.isNotEmpty)
+        .map(_normalizePathSegment)
+        .toList();
+    return '/${segments.join('/')}';
+  }
+
+  static String _normalizePathSegment(String segment) {
+    if (RegExp(r'^\d+$').hasMatch(segment)) return ':id';
+    if (RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+      r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(segment)) {
+      return ':id';
+    }
+    if (segment.length >= 24 && RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(segment)) {
+      return ':id';
+    }
+    return segment;
   }
 
   static int _estimateRequestBytes(dynamic data) {

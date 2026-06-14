@@ -45,32 +45,26 @@ void main() {
     test('dispose clears resources', () async {
       apiClient.dispose();
       // After dispose, _ensureInitialized should throw
-      expect(
-        () => apiClient.get('/test'),
+      expect(() => apiClient.get('/test'), throwsA(isA<StateError>()));
+    });
+
+    test('request pre-flight terminates and does not self-recurse '
+        '(regression: _ensureAdapterForRequest infinite recursion froze '
+        'startup at "Checking sign-in status" → ANR)', () async {
+      // The per-request adapter hook must call the init guard, not
+      // itself.  A recursive _ensureAdapterForRequest() re-enters its
+      // own body before the first await and stack-overflows (or, once
+      // an await is reached, pegs the event loop forever) — on device
+      // this starves checkAuth()'s microtask so the UI never paints
+      // past the auth splash.  After dispose the guard throws a
+      // StateError synchronously, before any adapter/network work;
+      // with the recursion it instead overflows the stack or hangs.
+      apiClient.dispose();
+      await expectLater(
+        apiClient.get('/test').timeout(const Duration(seconds: 5)),
         throwsA(isA<StateError>()),
       );
     });
-
-    test(
-      'request pre-flight terminates and does not self-recurse '
-      '(regression: _ensureAdapterForRequest infinite recursion froze '
-      'startup at "Checking sign-in status" → ANR)',
-      () async {
-        // The per-request adapter hook must call the init guard, not
-        // itself.  A recursive _ensureAdapterForRequest() re-enters its
-        // own body before the first await and stack-overflows (or, once
-        // an await is reached, pegs the event loop forever) — on device
-        // this starves checkAuth()'s microtask so the UI never paints
-        // past the auth splash.  After dispose the guard throws a
-        // StateError synchronously, before any adapter/network work;
-        // with the recursion it instead overflows the stack or hangs.
-        apiClient.dispose();
-        await expectLater(
-          apiClient.get('/test').timeout(const Duration(seconds: 5)),
-          throwsA(isA<StateError>()),
-        );
-      },
-    );
 
     test('updateToken updates auth header', () async {
       apiClient.updateToken('test-token');
@@ -154,6 +148,29 @@ void main() {
         requestOptions: RequestOptions(path: '/test'),
       );
       expect(apiClient.isSuccess(response), false);
+    });
+  });
+
+  group('ApiClient OpenTelemetry attributes', () {
+    test('normalizes dynamic path segments and removes query strings', () {
+      final normalized = ApiClient.normalizePathForTracing(
+        '/v1/sessions/0190b7aa-1f3b-7a51-9920-bcbd4d9582bb/'
+        'messages/123?token=secret&message=hello',
+      );
+
+      expect(normalized, '/v1/sessions/:id/messages/:id');
+      expect(normalized, isNot(contains('secret')));
+      expect(normalized, isNot(contains('hello')));
+      expect(normalized, isNot(contains('?')));
+    });
+
+    test('normalizes long opaque IDs without exposing tokens', () {
+      final normalized = ApiClient.normalizePathForTracing(
+        '/v1/files/sk_test_abcdefghijklmnopqrstuvwxyz/download',
+      );
+
+      expect(normalized, '/v1/files/:id/download');
+      expect(normalized, isNot(contains('abcdefghijklmnopqrstuvwxyz')));
     });
   });
 }
