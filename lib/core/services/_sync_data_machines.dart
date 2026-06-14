@@ -461,7 +461,9 @@ extension SyncDataMachines on Sync {
           ),
         );
         logger.warning('Error fetching machines', error, stack);
-        unawaited(Sentry.captureException(error, stackTrace: stack));
+        // Transient network errors are environmental, not app bugs.
+        // LoggerService already forwards the warning to Sentry; do not
+        // capture them as exceptions.
         rethrow;
       } else {
         logger.error('Error fetching machines', error, stack);
