@@ -289,17 +289,20 @@ extension _ChatScreenActions on _ChatScreenState {
         attributes: {'has_cached_messages': hasCached},
       );
       final queueFuture = sync.messagesSync[sessionId]?.awaitQueue();
+      const backgroundTimeout = Duration(seconds: 30);
       if (hasCached) {
         awaitSpan.setData('mode', 'background');
         otelAwaitSpan?.setAttribute('mode', 'background');
         if (queueFuture != null) {
           unawaited(
             queueFuture
-                .timeout(const Duration(seconds: 5))
+                .timeout(backgroundTimeout)
                 .catchError((Object e, StackTrace st) {
                   // Real refresh fail — surface as a breadcrumb but
                   // don't fail the transaction; the user already sees
-                  // cached data.
+                  // cached data. Use a long timeout for background
+                  // catch-up so large message gaps (cursor << serverSeq)
+                  // don't falsely trip this path.
                   logger.warning(
                     '[ChatScreen] background messagesSync awaitQueue failed '
                     'session=$sessionId',
