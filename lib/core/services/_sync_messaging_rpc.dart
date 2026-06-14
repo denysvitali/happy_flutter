@@ -1,14 +1,5 @@
 part of 'sync_service.dart';
 
-class IncompatibleProviderAndModelError implements Exception {
-  const IncompatibleProviderAndModelError(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
 extension SyncMessagingRpc on Sync {
   Future<dynamic> machineRPC(
     String machineId,

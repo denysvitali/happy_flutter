@@ -14,6 +14,7 @@ import '../services/logger_service.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/sync_domain.dart';
 import '../utils/wire_parsers.dart';
+import 'sync_progress.dart';
 
 /// Manages session state and session-related operations extracted from
 /// the Sync god object as part of Phase 4b refactoring.
@@ -860,29 +861,3 @@ class _DecryptedSessionContent {
   final Map<String, dynamic>? agentState;
 }
 
-/// Human-readable sync progress for status UI.
-class SyncProgress {
-  const SyncProgress({required this.label, this.completed, this.total});
-
-  final String label;
-  final int? completed;
-  final int? total;
-
-  double? get fraction {
-    final totalValue = total;
-    final completedValue = completed;
-    if (totalValue == null || totalValue <= 0 || completedValue == null) {
-      return null;
-    }
-    return (completedValue / totalValue).clamp(0.0, 1.0);
-  }
-
-  String get displayText {
-    final totalValue = total;
-    final completedValue = completed;
-    if (totalValue == null || completedValue == null || totalValue <= 0) {
-      return label;
-    }
-    return '$label $completedValue/$totalValue';
-  }
-}

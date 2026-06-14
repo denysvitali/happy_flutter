@@ -32,6 +32,8 @@ import '../models/settings.dart';
 import '../rpc/rpc_types.dart';
 import '../sync/artifact_manager.dart';
 import '../sync/settings_manager.dart';
+import '../sync/sync_exceptions.dart';
+import '../sync/sync_progress.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
 import '../services/mmkv_storage.dart';
@@ -88,32 +90,6 @@ part '_sync_socket_events.dart';
 part 'message_pipeline/message_models.dart';
 part 'message_pipeline/message_ingestion_orchestrator.dart';
 part '_sync_test_helpers.dart';
-
-class SyncProgress {
-  const SyncProgress({required this.label, this.completed, this.total});
-
-  final String label;
-  final int? completed;
-  final int? total;
-
-  double? get fraction {
-    final totalValue = total;
-    final completedValue = completed;
-    if (totalValue == null || totalValue <= 0 || completedValue == null) {
-      return null;
-    }
-    return (completedValue / totalValue).clamp(0.0, 1.0);
-  }
-
-  String get displayText {
-    final totalValue = total;
-    final completedValue = completed;
-    if (totalValue == null || completedValue == null || totalValue <= 0) {
-      return label;
-    }
-    return '$label $completedValue/$totalValue';
-  }
-}
 
 // Global singleton instance
 class Sync {
