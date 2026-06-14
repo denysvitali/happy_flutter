@@ -1,7 +1,9 @@
-import 'dart:async';
-
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart'
+    show TraceFlags;
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
+    show BatchSpanProcessor, ConsoleExporter, OTel;
 import 'package:happy_flutter/core/api/api_client.dart';
 
 void main() {
@@ -76,8 +78,9 @@ void main() {
     });
 
     test('clearToken removes auth header', () async {
-      apiClient.updateToken('test-token');
-      apiClient.clearToken();
+      apiClient
+        ..updateToken('test-token')
+        ..clearToken();
       expect(apiClient.testDio, isNotNull);
       expect(
         apiClient.testDio!.options.headers.containsKey('Authorization'),
@@ -148,6 +151,73 @@ void main() {
         requestOptions: RequestOptions(path: '/test'),
       );
       expect(apiClient.isSuccess(response), false);
+    });
+  });
+
+  group('ApiClient OpenTelemetry trace context propagation', () {
+    setUp(() async {
+      await OTel.reset();
+      await OTel.initialize(
+        endpoint: 'http://localhost:4318',
+        serviceName: 'api-client-test',
+        serviceVersion: '1.0.0',
+        detectPlatformResources: false,
+        enableMetrics: false,
+        enableLogs: false,
+        spanProcessor: BatchSpanProcessor(ConsoleExporter()),
+      );
+    });
+
+    tearDown(() async {
+      await OTel.reset();
+    });
+
+    test('injects W3C traceparent header from span context', () {
+      final traceId = OTel.traceIdFrom(
+        '8d08af79194aef4486a84ec5010d5d8e',
+      );
+      final spanId = OTel.spanIdFrom('1234567890abcdef');
+      final spanContext = OTel.spanContext(
+        traceId: traceId,
+        spanId: spanId,
+        traceFlags: TraceFlags.sampled,
+      );
+      final options = RequestOptions(path: '/v1/test');
+      options.headers['X-Custom'] = 'keep';
+
+      ApiClient.injectTraceContext(spanContext, options);
+
+      expect(
+        options.headers['traceparent'],
+        '00-8d08af79194aef4486a84ec5010d5d8e-1234567890abcdef-01',
+      );
+      expect(options.headers['X-Custom'], 'keep');
+    });
+
+    test('injects traceparent with unsampled trace flags', () {
+      final spanContext = OTel.spanContext(
+        traceId: OTel.traceIdFrom(
+          '8d08af79194aef4486a84ec5010d5d8e',
+        ),
+        spanId: OTel.spanIdFrom('1234567890abcdef'),
+        traceFlags: TraceFlags.none,
+      );
+      final options = RequestOptions(path: '/v1/test');
+
+      ApiClient.injectTraceContext(spanContext, options);
+
+      expect(
+        options.headers['traceparent'],
+        '00-8d08af79194aef4486a84ec5010d5d8e-1234567890abcdef-00',
+      );
+    });
+
+    test('does not inject traceparent for invalid span context', () {
+      final options = RequestOptions(path: '/v1/test');
+
+      ApiClient.injectTraceContext(OTel.spanContextInvalid(), options);
+
+      expect(options.headers.containsKey('traceparent'), isFalse);
     });
   });
 

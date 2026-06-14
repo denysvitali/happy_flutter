@@ -1,9 +1,13 @@
 import 'dart:async';
 
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
+    show W3CTraceContextPropagator;
+import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart'
+    show TextMapSetter;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
-    show SpanKind;
+    show OTel, SpanContext, SpanKind;
 import 'package:sentry_dio/sentry_dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -234,6 +238,10 @@ class ApiClient {
             kind: SpanKind.client,
             attributes: _otelHttpAttributes(options),
           );
+          final span = options.extra['_otelSpan'] as OTelSpan?;
+          if (span != null) {
+            injectTraceContext(span.spanContext, options);
+          }
           return handler.next(options);
         },
         onResponse: (response, handler) {
@@ -329,6 +337,25 @@ class ApiClient {
         ..recordError(error, stackTrace);
     }
     span.end(ok: error == null && (statusCode == null || statusCode < 500));
+  }
+
+  /// Injects the W3C trace context from [spanContext] into [options.headers].
+  ///
+  /// This makes the backend continue the same trace, so server-side spans
+  /// show up as children of the mobile HTTP client span in Jaeger.
+  @visibleForTesting
+  static void injectTraceContext(
+    SpanContext spanContext,
+    RequestOptions options,
+  ) {
+    final context = OTel.context(spanContext: spanContext);
+    final carrier = <String, String>{};
+    W3CTraceContextPropagator().inject(
+      context,
+      carrier,
+      _MapHeaderSetter(carrier),
+    );
+    options.headers.addAll(carrier);
   }
 
   @visibleForTesting
@@ -731,5 +758,18 @@ class ApiClient {
     _httpCache.clear();
     _dio?.close(force: true);
     _dio = null;
+  }
+}
+
+/// [TextMapSetter] that writes W3C propagation headers into a
+/// [Map<String, String>] carrier.
+class _MapHeaderSetter implements TextMapSetter<String> {
+  const _MapHeaderSetter(this._carrier);
+
+  final Map<String, String> _carrier;
+
+  @override
+  void set(String key, String value) {
+    _carrier[key] = value;
   }
 }

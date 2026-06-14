@@ -172,6 +172,8 @@ class OTelSpan {
 
   final Span _span;
 
+  SpanContext get spanContext => _span.spanContext;
+
   void setAttribute(String key, Object? value) {
     if (value == null || _span.isEnded) return;
     if (value is String) {
