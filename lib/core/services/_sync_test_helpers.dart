@@ -269,6 +269,11 @@ extension SyncTestHelpers on Sync {
     _sessionLastSeq[sessionId] = seq;
   }
 
+  /// Returns the in-memory seq cursor for a session, or 0 if none exists.
+  @visibleForTesting
+  int testGetSessionLastSeq(String sessionId) =>
+      _sessionLastSeq[sessionId] ?? 0;
+
   /// Test helper: directly set _sessionsWithPendingSocketMessages.
   @visibleForTesting
   void testSetPendingSocketMessages(Set<String> sessionIds) {

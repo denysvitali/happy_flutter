@@ -320,13 +320,12 @@ extension SyncMessagePipeline on Sync {
           );
         }
       } else {
+        // No visible state changed (empty acks, meta messages, control
+        // events). Still advance the cursor so gap detection stays correct,
+        // but skip the UI notification to avoid rebuild churn during
+        // high-frequency streaming.
         _releaseInlineDedupKey(sessionId, dedupKey);
-        if (emitSessionNotification) {
-          _notifySessionMessagesChanged(sessionId);
-          if (notifySessionsDomain) {
-            _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
-          }
-        }
+        _advanceSeqCursor(sessionId, processed.maxSeq);
       }
 
       _logPipelineStage(
