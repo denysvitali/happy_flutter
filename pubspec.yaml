@@ -95,15 +95,74 @@ dependencies:
 dependency_overrides:
   # Keep this explicit until the Flutter toolchain's transitive constraints
   # consistently pick an Android implementation with SharedPreferencesPlugin.
-  shared_preferences_android: 2.4.23
+  shared_preferences_android: 2.4.26
   mmkv_platform_interface: 2.4.0
   flutter_secure_storage_linux: 3.0.1
   # flutterrific_opentelemetry 0.4.0 caps go_router at ^14.8.1, but the
   # route observer API used here is compatible with the app's current v17.
-  go_router: 17.2.3
+  go_router: 17.3.0
   # flutterrific_opentelemetry 0.4.0 has not adopted the beta API yet.
   dartastic_opentelemetry: 1.0.2-alpha
   dartastic_opentelemetry_api: 1.0.0-alpha
+
+  # Force-upgrade overrides (2026-06-15) — unblock transitive
+  # constraints flagged by `pub upgrade`. These bypass upstream caps
+  # so the resolver picks the latest compatible release. Safe to drop
+  # as upstream packages (sentry_flutter, build_runner, etc.) widen
+  # their own constraints.
+  #
+  # NOTE: record 7.x needs Dart ^3.12.0 / Flutter >=3.44.0 — nixpkgs
+  # tops out at 3.41, so the `^6.2.1` direct-dep constraint below
+  # already pins us to 6.x. The 1.x record_* family is held the same
+  # way; do not add overrides here.
+  #
+  # NOTE: analyzer 13.x requires `meta ^1.18.3`, but the Flutter SDK's
+  # `flutter_test` pins `meta` to 1.17.0 — an SDK-level pin we cannot
+  # override from the project. analyzer stays at 10.2.0 until nixpkgs
+  # ships Flutter 3.44+. _fe_analyzer_shared is coupled to analyzer.
+  cli_util: 0.5.1
+  code_assets: 1.2.1
+  # cupertino_http 3.x ships a native-assets build hook (hook/build.dart) that
+  # unconditionally compiles Objective-C with -fobjc-arc, so `flutter build
+  # linux` tries to build this Apple-only package and fails ("-fobjc-arc is not
+  # supported on platforms using the legacy runtime"). 2.4.0 uses the classic
+  # darwin/ plugin mechanism, which Flutter only builds on Apple platforms.
+  # Pulled in transitively by native_dio_adapter; hold at 2.4.0 until upstream
+  # gates the hook on target OS.
+  cupertino_http: 2.4.0
+  dbus: 0.7.14
+  flutter_secure_storage_darwin: 0.4.0
+  hooks: 2.0.2
+  idb_shim: 2.9.4
+  image: 4.9.1
+  injector: 4.0.0
+  matcher: 0.12.20
+  native_toolchain_c: 0.19.1
+  objective_c: 9.4.1
+  package_config: 3.0.0
+  sembast: 3.8.9
+  sqflite: 2.4.3
+  sqflite_android: 2.4.3
+  sqflite_common: 2.5.11
+  sqflite_darwin: 2.4.3
+  sqflite_platform_interface: 2.4.1
+  synchronized: 3.4.1
+  test: 1.31.1
+  test_api: 0.7.12
+  test_core: 0.6.18
+  url_launcher_android: 6.3.32
+  vector_math: 2.4.0
+  xml: 7.0.1
+
+  # sentry_flutter ^9.14.0 hard-pins jni 0.14.2 — it imports the
+  # JObjectNullableType constructor that was removed in jni 1.0.0.
+  # cronet_http 1.8.0 and path_provider_android 2.3.1 both require
+  # jni ^1.0.0, so the upstream cronet_http / path_provider_android
+  # upgrades are blocked until sentry_flutter widens. The pins below
+  # make the cap explicit and resistant to accidental future bumps.
+  cronet_http: 1.6.0
+  jni: 0.14.2
+  path_provider_android: 2.2.23
 
 dev_dependencies:
   flutter_test:
