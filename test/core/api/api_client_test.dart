@@ -243,4 +243,54 @@ void main() {
       expect(normalized, isNot(contains('abcdefghijklmnopqrstuvwxyz')));
     });
   });
+
+  group('ApiClient cache instrumentation', () {
+    late ApiClient apiClient;
+    var hitCount = 0;
+
+    setUp(() async {
+      hitCount = 0;
+      apiClient = ApiClient();
+      await apiClient.initialize(serverUrl: 'https://test.example.com');
+      apiClient.debugSeedCache(
+        Response<dynamic>(
+          data: const {'cached': true},
+          statusCode: 200,
+          requestOptions: RequestOptions(
+            path: '/cached',
+            method: 'GET',
+            baseUrl: 'https://test.example.com',
+          ),
+        ),
+      );
+      apiClient.testDio!.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            hitCount++;
+            handler.resolve(
+              Response<dynamic>(
+                data: {'hitCount': hitCount},
+                statusCode: 200,
+                requestOptions: options,
+              ),
+            );
+          },
+        ),
+      );
+    });
+
+    tearDown(() {
+      apiClient.dispose();
+    });
+
+    test('cache hits still carry current request instrumentation', () async {
+      final response = await apiClient.get('/cached');
+
+      expect(response.data, const {'cached': true});
+      expect(response.requestOptions.extra['fromCache'], true);
+      expect(response.requestOptions.extra['_trackId'], isA<int>());
+      expect(response.requestOptions.extra['_trackStart'], isA<int>());
+      expect(hitCount, 0);
+    });
+  });
 }

@@ -706,6 +706,11 @@ class ApiClient {
     return _httpCache.getStats();
   }
 
+  @visibleForTesting
+  void debugSeedCache(Response<dynamic> response) {
+    _httpCache.put(response.requestOptions, response);
+  }
+
   void _ensureInitialized() {
     if (_dio == null) {
       throw StateError('ApiClient not initialized. Call initialize() first.');
