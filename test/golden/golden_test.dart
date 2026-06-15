@@ -508,6 +508,8 @@ void main() {
           theme: _testLightTheme(),
           darkTheme: _testDarkTheme(),
           themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           debugShowCheckedModeBanner: false,
           home: Scaffold(
             body: Padding(
@@ -599,7 +601,11 @@ void main() {
     });
 
     testWidgets('read file - light', (tester) async {
-      tester.view.physicalSize = const Size(390 * 2, 500 * 2);
+      // Taller than the other tool-view goldens: the expanded Read view
+      // now renders the file content in a bounded 400dp scrollable pane
+      // (see read_view.dart `_kContentMaxHeight`) plus header chrome,
+      // so the captured viewport needs to fit the whole expanded card.
+      tester.view.physicalSize = const Size(390 * 2, 900 * 2);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.reset);
 

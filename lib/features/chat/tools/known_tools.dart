@@ -287,7 +287,7 @@ class KnownTools {
     'Read': ToolDefinition(
       icon: readIcon,
       title: 'Read File',
-      minimal: true,
+      minimal: false,
       extractSubtitle: (tool, metadata) {
         final filePath = tool['input']?['file_path'] as String?;
         if (filePath != null) {
@@ -500,7 +500,7 @@ class KnownTools {
     'read': ToolDefinition(
       icon: readIcon,
       title: 'Read File',
-      minimal: true,
+      minimal: false,
       extractSubtitle: (tool, metadata) {
         // Gemini format uses locations array
         final locations = tool['input']?['locations'] as List?;

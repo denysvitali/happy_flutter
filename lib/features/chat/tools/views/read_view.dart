@@ -119,9 +119,6 @@ class _ReadViewContent extends StatefulWidget {
 }
 
 class _ReadViewContentState extends State<_ReadViewContent> {
-  static const int _defaultMaxLines = 20;
-  bool _expanded = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -161,7 +158,7 @@ class _ReadViewContentState extends State<_ReadViewContent> {
               totalLines: widget.totalLines,
             ),
           ),
-        // Content section label + preview
+        // Content section label + scrollable content block
         if (content != null && content.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           SectionLabel(label: context.l10n.toolSectionContent),
@@ -169,9 +166,6 @@ class _ReadViewContentState extends State<_ReadViewContent> {
           _ContentBlock(
             content: content,
             offset: widget.offset,
-            expanded: _expanded,
-            maxLines: _defaultMaxLines,
-            onToggleExpand: () => setState(() => _expanded = !_expanded),
             extension: widget.extension,
           ),
         ],
@@ -378,16 +372,10 @@ class _ContentBlock extends StatelessWidget {
   const _ContentBlock({
     required this.content,
     required this.offset,
-    required this.expanded,
-    required this.maxLines,
-    required this.onToggleExpand,
     required this.extension,
   });
   final String content;
   final int? offset;
-  final bool expanded;
-  final int maxLines;
-  final VoidCallback onToggleExpand;
   final String extension;
 
   @override
@@ -395,11 +383,6 @@ class _ContentBlock extends StatelessWidget {
     final c = ToolViewColors.of(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final lines = content.split('\n');
-    final totalLines = lines.length;
-    final needsTruncation = totalLines > maxLines;
-    final visibleLines = expanded || !needsTruncation
-        ? lines
-        : lines.take(maxLines).toList();
     final startLine = (offset ?? 0) + 1;
 
     return Container(
@@ -408,46 +391,58 @@ class _ContentBlock extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: c.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Content with line numbers
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.smd),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Line numbers column
-                _LineNumbers(count: visibleLines.length, startLine: startLine),
-                const SizedBox(width: AppSpacing.md),
-                // Content column with syntax highlighting
-                Expanded(
-                  child: SyntaxHighlighter(
-                    code: visibleLines.join('\n'),
-                    language: extension.isNotEmpty
-                        ? extension.replaceFirst('.', '')
-                        : null,
-                    isDarkMode: isDarkMode,
-                    fontSize: AppFontSize.sm,
-                    lineHeight: AppLineHeight.relaxed * AppFontSize.sm,
+      // Bounded scrollable viewport. Long files render in a fixed-height
+      // pane (instead of growing the chat row), and the user can drag/scroll
+      // within the pane to reach lines past the viewport.
+      //
+      // Vertical scroll only. We deliberately do not wrap in a horizontal
+      // scroll view: the line-numbers + code layout uses `Expanded` to
+      // share the row width, and a horizontal SingleChildScrollView would
+      // hand the inner Row unbounded width and trip RenderFlex. Long lines
+      // wrap to the available width instead of forcing sideways scrolling.
+      //
+      // `SizedBox(height:)` (not `ConstrainedBox(maxHeight:)`) is required
+      // so the viewport reports a bounded intrinsic height up the tree.
+      // A SCV's intrinsic size equals its child's intrinsic size — so a
+      // ConstrainedBox that only sets maxHeight would still let the parent
+      // Column grow to the child's natural height, blowing past the bound.
+      child: SizedBox(
+        height: _kContentMaxHeight,
+        child: Scrollbar(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.smd),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Line numbers column
+                  _LineNumbers(count: lines.length, startLine: startLine),
+                  const SizedBox(width: AppSpacing.md),
+                  // Content column with syntax highlighting
+                  Expanded(
+                    child: SyntaxHighlighter(
+                      code: content,
+                      language: extension.isNotEmpty
+                          ? extension.replaceFirst('.', '')
+                          : null,
+                      isDarkMode: isDarkMode,
+                      fontSize: AppFontSize.sm,
+                      lineHeight: AppLineHeight.relaxed * AppFontSize.sm,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          // Show more / less button
-          if (needsTruncation)
-            ToolViewShowMoreButton(
-              expanded: expanded,
-              hiddenCount: totalLines - maxLines,
-              onToggle: onToggleExpand,
-            ),
-        ],
+        ),
       ),
     );
   }
 }
+
+/// Maximum height of the inline Read content pane. Bounds the chat row
+/// for large files — the user scrolls within the pane to see the rest.
+const double _kContentMaxHeight = 400;
 
 class _LineNumbers extends StatelessWidget {
   const _LineNumbers({required this.count, required this.startLine});
@@ -475,4 +470,3 @@ class _LineNumbers extends StatelessWidget {
     );
   }
 }
-

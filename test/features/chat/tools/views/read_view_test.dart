@@ -185,23 +185,67 @@ void main() {
       expect(find.byIcon(Icons.copy), findsOneWidget);
     });
 
-    testWidgets('shows "Show more" for long content', (tester) async {
+    testWidgets('renders long content in a bounded, scrollable viewport',
+        (tester) async {
+      // 200 lines × ~20dp each = ~4000dp of content. The pane must clip
+      // it into a fixed-height viewport and offer a draggable
+      // SingleChildScrollView so the user can reach the rest, instead of
+      // growing the chat row unbounded or hiding the tail behind a toggle.
       final longContent =
-          List.generate(30, (i) => 'line $i').join('\n');
+          List.generate(200, (i) => 'line ${i.toString().padLeft(3, '0')}')
+              .join('\n');
+      // Height covers header chrome (file pill + header + meta) plus the
+      // 400dp content viewport with breathing room.
+      const boundedHeight = 600.0;
+
       await tester.pumpWidget(
-        _wrap(
-          ReadView(
-            tool: {
-              'input': {'file_path': '/long.txt'},
-              'state': 'completed',
-              'result': longContent,
-            },
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            // Bounded parent so the read pane itself is height-constrained
+            // — mirrors how a real chat list (the outer ListView) provides
+            // a finite height for each tool card.
+            body: SizedBox(
+              height: boundedHeight,
+              child: ReadView(
+                tool: {
+                  'input': {'file_path': '/long.txt'},
+                  'state': 'completed',
+                  'result': longContent,
+                },
+              ),
+            ),
           ),
         ),
       );
 
       await tester.pumpAndSettle();
-      expect(find.textContaining('more line'), findsOneWidget);
+
+      // The inner pane is a SingleChildScrollView (vertical, bounded
+      // by maxHeight 400). The outer ChatScreen ListView owns the
+      // primary vertical controller; this inner one is non-primary and
+      // can be dragged to reveal lines past the viewport.
+      final scrollViews = find.byType(SingleChildScrollView);
+      expect(scrollViews, findsWidgets);
+
+      // The line numbers live in a single SelectableText (one span per
+      // line, joined with \n) — so the tail and head share a widget.
+      // The first line number ("1") and the last ("200") both render in
+      // the tree even though only the top slice is on-screen.
+      final lineNumberText = tester.widgetList<SelectableText>(
+        find.byType(SelectableText),
+      );
+      final allLineNumberText = lineNumberText
+          .map((w) => w.data ?? '')
+          .join('|');
+      expect(allLineNumberText, contains('1\n'));
+      expect(allLineNumberText, contains('\n200'));
+
+      // The viewport has a Scrollbar attached so the user sees scroll
+      // position feedback (Flutter renders the bar when the inner
+      // Scrollable is overflowing).
+      expect(find.byType(Scrollbar), findsWidgets);
     });
 
     testWidgets('defaults to "Unknown" when no file path',

@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Never create documentation files** (*.md, README updates) unless explicitly requested
 - **Treat chat send reliability as a P0 surface** — preserve one canonical `localId` across optimistic UI, REST send, retry, socket forwarding, and merge
 - **When touching core messaging code, add or update contract tests first** — repeated identical sends, optimistic replacement, retry identity, and out-of-order delivery are mandatory coverage
+- **This app wraps Claude Code** — happy_flutter is a Flutter mobile client for Claude Code sessions. When the user references "Read", "Write", "Bash", "tool output", "ReadFile", agent tool names, or anything that sounds like the Claude Code agent or CLI itself, they mean the **happy_flutter app's rendering / interaction with that tool**, not the Claude Code harness. Debug Flutter widgets, screens, models, providers, and Sync code — never reach for Claude Code internals.
 
 ## Production Issues / GlitchTip
 
