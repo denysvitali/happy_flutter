@@ -101,7 +101,12 @@ const _kStaggerSlideOffset = 6.0;
 
 class _ToolViewState extends ConsumerState<ToolView>
     with TickerProviderStateMixin {
-  bool _expanded = true;
+  // Default to collapsed. Tools that need to be visible while running (e.g.
+  // Bash with streaming output) explicitly expand in [didUpdateWidget];
+  // task-family tools (TaskCreate/Update/List/Get, TodoWrite) never auto-expand.
+  // One-tap preview is a header summary — full body and raw JSON are reached
+  // via long-press → [MessageDetailScreen].
+  bool _expanded = false;
   bool _showCheckFlash = false;
   bool _collapsing = false;
   ToolState? _prevState;
@@ -202,7 +207,11 @@ class _ToolViewState extends ConsumerState<ToolView>
       _scheduleAutoCollapse();
     } else if (newState == ToolState.running) {
       _collapseTimer?.cancel();
-      if (!_expanded) _setExpanded(true);
+      // Task-family tools never auto-expand: their body is a short summary
+      // (subject/activeForm/status) and forcing it open just to flash it
+      // closed is noise. The header subtitle carries the same info, and
+      // the full task body is reachable via long-press → details.
+      if (!_expanded && !_isTaskTool) _setExpanded(true);
       _pulseController.repeat(reverse: true);
     }
 
@@ -752,6 +761,10 @@ class _ToolViewState extends ConsumerState<ToolView>
     final toolCallDebug = ref.watch(
       settingsNotifierProvider.select((s) => s.toolCallDebugEnabled),
     );
+    // In debug mode we want the raw INPUT/OUTPUT fallback to surface, so we
+    // bypass the per-tool specific view. In normal mode we keep the specific
+    // view (or the MCP text-only path, or nothing) — JSON is reachable via
+    // long-press → [MessageDetailScreen], not inline.
     final specificView = toolCallDebug
         ? null
         : _getToolViewComponent(toolName);
@@ -775,51 +788,66 @@ class _ToolViewState extends ConsumerState<ToolView>
       );
     }
 
-    // Default fallback content
-    final toolId =
-        widget.tool['toolUseId'] as String? ??
-        widget.tool['id'] as String? ??
-        toolName;
-    final outputCopyText = mcpTextResult ?? _copyableTextFor(toolResult);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (toolInput != null)
-            ToolSectionView(
-              title: 'INPUT',
-              trailing: ToolViewCopyButton(text: _copyableTextFor(toolInput)),
-              child: SmartOutputContainer(content: toolInput),
-            ),
-          if (state == ToolState.completed && toolResult != null)
-            CollapsibleOutput(
-              toolId: toolId,
-              scrollable: true,
-              child: ToolSectionView(
-                title: 'OUTPUT',
-                trailing: ToolViewCopyButton(text: outputCopyText),
-                child: mcpTextResult != null
-                    ? _McpTextOutput(
-                        text: mcpTextResult,
-                        rawResult: toolResult,
-                        maxHeight: double.infinity,
-                      )
-                    : SmartOutputContainer(
-                        content: toolResult,
-                        maxHeight: double.infinity,
-                      ),
+    // MCP tools with a text content block: show the text only. No "Show JSON"
+    // toggle inline — the raw JSON is one long-press away.
+    if (mcpTextResult != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
+        child: _McpTextOutput(
+          text: mcpTextResult,
+          rawResult: toolResult,
+          maxHeight: double.infinity,
+        ),
+      );
+    }
+
+    // Debug mode: full INPUT/OUTPUT JSON fallback for any tool (including
+    // unknown ones) so devs can inspect wire payloads inline.
+    if (toolCallDebug) {
+      final toolId =
+          widget.tool['toolUseId'] as String? ??
+          widget.tool['id'] as String? ??
+          toolName;
+      final outputCopyText = _copyableTextFor(toolResult);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (toolInput != null)
+              ToolSectionView(
+                title: 'INPUT',
+                trailing:
+                    ToolViewCopyButton(text: _copyableTextFor(toolInput)),
+                child: SmartOutputContainer(content: toolInput),
               ),
-            ),
-          if (state == ToolState.error &&
-              toolResult != null &&
-              isPermissionNotDeniedOrCanceled(permission) &&
-              !(errorResult?.isToolUseError ?? false))
-            ToolError(message: toolResult.toString()),
-        ],
-      ),
-    );
+            if (state == ToolState.completed && toolResult != null)
+              CollapsibleOutput(
+                toolId: toolId,
+                scrollable: true,
+                child: ToolSectionView(
+                  title: 'OUTPUT',
+                  trailing: ToolViewCopyButton(text: outputCopyText),
+                  child: SmartOutputContainer(
+                    content: toolResult,
+                    maxHeight: double.infinity,
+                  ),
+                ),
+              ),
+            if (state == ToolState.error &&
+                toolResult != null &&
+                isPermissionNotDeniedOrCanceled(permission) &&
+                !(errorResult?.isToolUseError ?? false))
+              ToolError(message: toolResult.toString()),
+          ],
+        ),
+      );
+    }
+
+    // Non-debug, no specific view, no MCP text: nothing to show inline.
+    // The user can long-press to open the full details.
+    return const _OpenDetailsHint();
   }
 
   // Static set of known tool names — used to skip the per-call map allocation
@@ -1009,8 +1037,6 @@ class _McpTextOutput extends StatefulWidget {
 }
 
 class _McpTextOutputState extends State<_McpTextOutput> {
-  bool _rawJsonExpanded = false;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1048,39 +1074,10 @@ class _McpTextOutputState extends State<_McpTextOutput> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                TextButton.icon(
-                  onPressed: () => setState(
-                    () => _rawJsonExpanded = !_rawJsonExpanded,
-                  ),
-                  icon: Icon(
-                    _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
-                    size: AppIconSize.sm,
-                  ),
-                  label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                ToolViewCopyButton(text: widget.text),
-              ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: ToolViewCopyButton(text: widget.text),
             ),
-            if (_rawJsonExpanded) ...[
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SmartOutputContainer(
-                  content: widget.rawResult,
-                  maxHeight: double.infinity,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-            ],
             // Only expand when the widget has a finite max height. When placed
             // inside an unbounded-height ancestor (e.g. a scrollable), Expanded
             // would receive infinite remaining space and throw.
@@ -1184,6 +1181,31 @@ class _StaggerFadeContent extends StatelessWidget {
         child: Opacity(
           opacity: opacity.value,
           child: innerChild,
+        ),
+      ),
+    );
+  }
+}
+
+/// Inline hint shown when a tool has no specific body and JSON is hidden
+/// (non-debug mode). Tells the user how to reach the full input/output
+/// without burying them in JSON inline.
+class _OpenDetailsHint extends StatelessWidget {
+  const _OpenDetailsHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm + 2,
+        vertical: AppSpacing.xs,
+      ),
+      child: Text(
+        'Long-press to view input & output',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontStyle: FontStyle.italic,
         ),
       ),
     );

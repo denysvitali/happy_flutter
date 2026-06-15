@@ -1,13 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+
+class _DebugSettingsNotifier extends SettingsNotifier {
+  @override
+  Settings build() => Settings().copyWith(toolCallDebugEnabled: true);
+}
 
 Widget _wrap(Widget child) {
   // The expanded ToolView with both INPUT and OUTPUT sections is taller than
   // the default 800x600 test viewport, so wrap the body in a scroll view to
   // avoid RenderFlex overflow assertions in tests.
   return ProviderScope(
+    overrides: [
+      // web_search has no specific view; it falls through to the debug-only
+      // INPUT/OUTPUT JSON renderer. Enable debug mode so the test exercises
+      // that path.
+      settingsNotifierProvider.overrideWith(_DebugSettingsNotifier.new),
+    ],
     child: MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: child)),
     ),

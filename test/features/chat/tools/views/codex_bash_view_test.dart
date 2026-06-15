@@ -64,14 +64,10 @@ void main() {
       expect(find.text('stdout'), findsOneWidget);
       expect(find.textContaining('All tests passed!'), findsOneWidget);
       expect(find.text('exit 0'), findsOneWidget);
-      expect(find.text('Show JSON'), findsOneWidget);
-      expect(find.textContaining('"exitCode"'), findsNothing);
-
-      await tester.tap(find.text('Show JSON'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Hide JSON'), findsOneWidget);
-      expect(_richTextContent(tester), contains('"exitCode"'));
+      // Raw JSON toggle removed; only the text sections are rendered.
+      expect(find.text('Show JSON'), findsNothing);
+      expect(find.text('Hide JSON'), findsNothing);
+      expect(_richTextContent(tester), isNot(contains('"exitCode"')));
     });
 
     testWidgets('renders ANSI escape sequences as styled text', (tester) async {

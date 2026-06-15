@@ -303,14 +303,12 @@ void main() {
       expect(find.text('/repo'), findsOneWidget);
       expect(find.textContaining('go1.23.12'), findsWidgets);
       expect(find.text('exit 0'), findsOneWidget);
-      expect(find.text('Show JSON'), findsOneWidget);
-      expect(find.textContaining('"exitCode"'), findsNothing);
-
-      await tester.tap(find.text('Show JSON'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Hide JSON'), findsOneWidget);
-      expect(_richTextContent(tester), contains('"exitCode"'));
+      // Raw JSON is no longer reachable inline; the bash view shows text
+      // sections only. Full payload is one long-press away in
+      // MessageDetailScreen.
+      expect(find.text('Show JSON'), findsNothing);
+      expect(find.text('Hide JSON'), findsNothing);
+      expect(_richTextContent(tester), isNot(contains('"exitCode"')));
     });
 
     testWidgets('ToolView activates renderer by function tool name', (
@@ -336,8 +334,8 @@ void main() {
 
       expect(find.text('printf ok'), findsWidgets);
       expect(find.text('stdout'), findsOneWidget);
-      expect(find.text('Show JSON'), findsOneWidget);
-      expect(find.textContaining('"exitCode"'), findsNothing);
+      // Raw JSON toggle removed; only the text sections are rendered.
+      expect(find.text('Show JSON'), findsNothing);
     });
 
     testWidgets('renders ANSI escape sequences as styled text', (tester) async {

@@ -216,16 +216,12 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('Happy Flutter CI/CD'), findsOneWidget);
-      expect(find.text('Show JSON'), findsOneWidget);
+      // Raw JSON toggle removed; only the text content is rendered inline.
+      // Full payload lives in MessageDetailScreen via long-press.
+      expect(find.text('Show JSON'), findsNothing);
+      expect(find.text('Hide JSON'), findsNothing);
       expect(find.textContaining('"structured_content"'), findsNothing);
-
-      final showJsonButton = find.widgetWithText(TextButton, 'Show JSON');
-      await tester.ensureVisible(showJsonButton);
-      await tester.tap(showJsonButton);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Hide JSON'), findsOneWidget);
-      expect(_richTextContent(tester), contains('"structured_content"'));
+      expect(_richTextContent(tester), isNot(contains('"structured_content"')));
     });
 
     testWidgets('codex Yes emits codex-approve action', (tester) async {

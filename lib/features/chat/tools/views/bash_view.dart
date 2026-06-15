@@ -6,7 +6,6 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
-import '../json_viewer.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 import '_section_label.dart';
@@ -236,7 +235,6 @@ class _CommandViewState extends State<CommandView> {
 
   bool _stdoutExpanded = false;
   bool _stderrExpanded = false;
-  bool _rawJsonExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -281,23 +279,11 @@ class _CommandViewState extends State<CommandView> {
                 setState(() => _stderrExpanded = !_stderrExpanded),
           ),
         if (widget.exitCode != null) ExitCodeBadge(exitCode: widget.exitCode!),
-        if (widget.rawResult != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          TextButton.icon(
-            onPressed: () =>
-                setState(() => _rawJsonExpanded = !_rawJsonExpanded),
-            icon: Icon(
-              _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
-              size: AppIconSize.sm,
-            ),
-            label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-            ),
-          ),
-          if (_rawJsonExpanded) SmartOutputContainer(content: widget.rawResult),
-        ],
+        // Raw JSON output is reachable via long-press → details; no inline
+        // toggle here. The `rawResult` field is preserved for callers that
+        // pass it through (e.g. message_detail_screen pulls it from the
+        // tool data directly), but the inline UI only renders the text
+        // sections above.
         if (widget.stdout == null &&
             widget.stderr == null &&
             widget.error == null &&

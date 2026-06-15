@@ -8,7 +8,6 @@ import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
-import '../json_viewer.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
@@ -345,7 +344,6 @@ class _CodexCommandView extends StatefulWidget {
 
 class _CodexCommandViewState extends State<_CodexCommandView> {
   static const int _maxLines = 20;
-  bool _rawJsonExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -376,23 +374,8 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
             maxLines: _maxLines,
           ),
         if (widget.exitCode != null) ExitCodeBadge(exitCode: widget.exitCode!),
-        if (widget.rawResult != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          TextButton.icon(
-            onPressed: () =>
-                setState(() => _rawJsonExpanded = !_rawJsonExpanded),
-            icon: Icon(
-              _rawJsonExpanded ? Icons.expand_less : Icons.data_object,
-              size: AppIconSize.sm,
-            ),
-            label: Text(_rawJsonExpanded ? 'Hide JSON' : 'Show JSON'),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-            ),
-          ),
-          if (_rawJsonExpanded) SmartOutputContainer(content: widget.rawResult),
-        ],
+        // Raw JSON output is reachable via long-press → details; no inline
+        // toggle here.
       ],
     );
   }
