@@ -71,6 +71,9 @@ import '../widgets/auth_gate.dart';
 Page<void> _fadePage(Widget child, GoRouterState state) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
+    name: _routeName(state),
+    arguments: state.extra,
+    restorationId: state.pageKey.value,
     child: child,
     transitionsBuilder: (context, animation, _, child) {
       final eased = CurvedAnimation(parent: animation, curve: AppCurve.enter);
@@ -91,6 +94,9 @@ Page<void> _fadePage(Widget child, GoRouterState state) {
 Page<void> _slideUpPage(Widget child, GoRouterState state) {
   return CustomTransitionPage<void>(
     key: state.pageKey,
+    name: _routeName(state),
+    arguments: state.extra,
+    restorationId: state.pageKey.value,
     child: child,
     transitionsBuilder: (context, animation, _, child) {
       final tween = Tween(
@@ -110,13 +116,29 @@ Page<void> _slideUpPage(Widget child, GoRouterState state) {
 /// Slide-in transition for detail/push screens with swipe-back
 /// gesture support via [_SwipeBackPage].
 Page<void> _slidePage(Widget child, GoRouterState state) {
-  return _SwipeBackPage(key: state.pageKey, child: child);
+  return _SwipeBackPage(
+    key: state.pageKey,
+    name: _routeName(state),
+    arguments: state.extra,
+    restorationId: state.pageKey.value,
+    child: child,
+  );
+}
+
+String _routeName(GoRouterState state) {
+  return state.name ?? state.fullPath ?? state.matchedLocation;
 }
 
 /// A [Page] that slides in from the right and supports iOS-style
 /// swipe-back gesture on all platforms.
 class _SwipeBackPage extends Page<void> {
-  const _SwipeBackPage({required this.child, super.key});
+  const _SwipeBackPage({
+    required this.child,
+    super.key,
+    super.name,
+    super.arguments,
+    super.restorationId,
+  });
 
   final Widget child;
 
@@ -635,10 +657,7 @@ GoRouter createRouter() {
         path: '/friends',
         name: 'friends',
         pageBuilder: (context, state) {
-          return _slidePage(
-            const AuthGate(child: FriendsScreen()),
-            state,
-          );
+          return _slidePage(const AuthGate(child: FriendsScreen()), state);
         },
       ),
       GoRoute(

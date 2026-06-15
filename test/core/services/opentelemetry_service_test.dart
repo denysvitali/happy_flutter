@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/opentelemetry_service.dart';
+import 'package:happy_flutter/core/services/performance_context_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,25 @@ void main() {
       );
 
       expect(() => observer.didPush(route, null), returnsNormally);
+    });
+
+    test('performance route observer updates current route on pop', () {
+      final service = PerformanceContextService()..resetForTesting();
+      final observer = PerformanceRouteObserver();
+      final settingsRoute = MaterialPageRoute<void>(
+        settings: const RouteSettings(name: 'settings'),
+        builder: (_) => const SizedBox.shrink(),
+      );
+      final chatRoute = MaterialPageRoute<void>(
+        settings: const RouteSettings(name: 'chat'),
+        builder: (_) => const SizedBox.shrink(),
+      );
+
+      observer.didPush(settingsRoute, null);
+      observer.didPush(chatRoute, settingsRoute);
+      observer.didPop(chatRoute, settingsRoute);
+
+      expect(service.currentRoute, 'settings');
     });
   });
 }

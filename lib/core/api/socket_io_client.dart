@@ -91,6 +91,10 @@ class SocketIoClient {
   int _connectionGeneration = 0;
   int? _lastConnectStartedAtMs;
   int? _lastDisconnectAtMs;
+  Stopwatch? _connectStopwatch;
+  int? _connectSpanGeneration;
+  ISentrySpan? _connectTransaction;
+  OTelSpan? _connectOtelSpan;
 
   // Listeners notified when Socket.IO exhausts all reconnection attempts.
   final _reconnectFailedListeners = <void Function()>[];
@@ -142,14 +146,11 @@ class SocketIoClient {
   // sio.OptionBuilder in connect().
   static const int _reconnectDelayInitialMs = 2000;
   static const int _reconnectDelayMaxMs = 10000;
-  static const int _reconnectBackoffFactor = 2;
 
   /// Compute the backoff delay (ms) for the given attempt index (0-based).
   static int _backoffDelayMs(int attempt) {
-    final ms =
-        (_reconnectDelayInitialMs *
-                _pow2(attempt).clamp(1, 1 << 20))
-            .clamp(0, _reconnectDelayMaxMs);
+    final ms = (_reconnectDelayInitialMs * _pow2(attempt).clamp(1, 1 << 20))
+        .clamp(0, _reconnectDelayMaxMs);
     return ms;
   }
 
@@ -188,8 +189,10 @@ class SocketIoClient {
     _authToken = token;
     _clientType = clientType;
     _lastConnectStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+    _connectStopwatch = Stopwatch()..start();
     final generation = ++_connectionGeneration;
     _updateStatus(ConnectionStatus.connecting);
+    _startConnectionSpans(generation);
 
     _socket = sio.io(
       serverUrl,
@@ -231,45 +234,7 @@ class SocketIoClient {
       _resetErrorThrottle();
       _updateStatus(ConnectionStatus.connected);
 
-      // Track connection as a transaction for performance monitoring
-      final transaction =
-          Sentry.startTransaction(
-              _hasConnectedOnce ? 'websocket.reconnect' : 'websocket.connect',
-              'connection',
-              bindToScope: false,
-            )
-            ..setData('recovered', _socket?.recovered ?? false)
-            ..setData(
-              'connectDurationMs',
-              _elapsedSince(_lastConnectStartedAtMs),
-            )
-            ..setData(
-              'disconnectGapMs',
-              _lastConnectStartedAtMs != null && _lastDisconnectAtMs != null
-                  ? _lastConnectStartedAtMs! - _lastDisconnectAtMs!
-                  : null,
-            )
-            ..setData(
-              'currentRoute',
-              PerformanceContextService().currentRoute ?? 'unknown',
-            );
-      await transaction.finish();
-      OpenTelemetryService()
-          .startTrace(
-            _hasConnectedOnce ? 'websocket.reconnect' : 'websocket.connect',
-            attributes: {
-              'websocket.recovered': _socket?.recovered ?? false,
-              'websocket.connect_duration_ms':
-                  _elapsedSince(_lastConnectStartedAtMs) ?? 0,
-              if (_lastConnectStartedAtMs != null &&
-                  _lastDisconnectAtMs != null)
-                'websocket.disconnect_gap_ms':
-                    _lastConnectStartedAtMs! - _lastDisconnectAtMs!,
-              'current_route':
-                  PerformanceContextService().currentRoute ?? 'unknown',
-            },
-          )
-          ?.end();
+      _finishConnectionSpans(generation);
 
       // Always notify reconnection handlers when this is not the first
       // connection — even when Socket.IO reports successful state recovery
@@ -320,6 +285,13 @@ class SocketIoClient {
 
       final errorStr = error.toString();
       final isTransient = _isTransientSocketError(errorStr);
+      _finishConnectionSpans(
+        generation,
+        ok: false,
+        status: const SpanStatus.internalError(),
+        error: error,
+        stackTrace: StackTrace.current,
+      );
 
       // Check transient BEFORE throttle so transient errors are logged at
       // info level and do NOT consume throttle budget — this prevents a
@@ -370,6 +342,13 @@ class SocketIoClient {
 
       final errorStr = error.toString();
       final isTransient = _isTransientSocketError(errorStr);
+      _finishConnectionSpans(
+        generation,
+        ok: false,
+        status: const SpanStatus.internalError(),
+        error: error,
+        stackTrace: StackTrace.current,
+      );
 
       // Check transient BEFORE throttle so transient errors are logged at
       // info level and do NOT consume throttle budget — this prevents a
@@ -438,8 +417,9 @@ class SocketIoClient {
     // to 0-based for our backoff formula.
     _socket!.onReconnectAttempt((attempt) {
       if (!_isCurrentGeneration(generation)) return;
-      final attemptIndex =
-          attempt is int ? attempt : int.tryParse('$attempt') ?? 1;
+      final attemptIndex = attempt is int
+          ? attempt
+          : int.tryParse('$attempt') ?? 1;
       // Compute delay before the NEXT attempt (index = current attempt).
       final nextDelayMs = _backoffDelayMs(attemptIndex);
       final nextDelaySecs = (nextDelayMs / 1000).ceil();
@@ -502,6 +482,11 @@ class SocketIoClient {
   /// preserve the history so the next foreground connect still runs
   /// reconnection recovery.
   void disconnect({bool preserveConnectionHistory = false}) {
+    _finishConnectionSpans(
+      _connectionGeneration,
+      ok: false,
+      status: const SpanStatus.cancelled(),
+    );
     _connectionGeneration++;
     _socket?.disconnect();
     _socket?.dispose();
@@ -680,6 +665,88 @@ class SocketIoClient {
     for (final listener in _reconnectedListeners) {
       listener();
     }
+  }
+
+  void _startConnectionSpans(int generation) {
+    final name = _hasConnectedOnce
+        ? 'websocket.reconnect'
+        : 'websocket.connect';
+    final attributes = _connectionAttributes();
+    _connectSpanGeneration = generation;
+    _connectTransaction = Sentry.startTransaction(
+      name,
+      'connection',
+      bindToScope: false,
+    );
+    for (final entry in attributes.entries) {
+      _connectTransaction?.setData(entry.key, entry.value);
+    }
+    _connectOtelSpan = OpenTelemetryService().startTrace(
+      name,
+      attributes: _otelConnectionAttributes(attributes),
+    );
+  }
+
+  void _finishConnectionSpans(
+    int generation, {
+    bool ok = true,
+    SpanStatus? status,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    if (_connectSpanGeneration != generation) return;
+
+    final elapsedMs =
+        _connectStopwatch?.elapsedMilliseconds ??
+        _elapsedSince(_lastConnectStartedAtMs);
+    final attributes = _connectionAttributes(
+      recovered: _socket?.recovered ?? false,
+      connectDurationMs: elapsedMs,
+    );
+    final transaction = _connectTransaction;
+    final otelSpan = _connectOtelSpan;
+    _connectTransaction = null;
+    _connectOtelSpan = null;
+    _connectSpanGeneration = null;
+    _connectStopwatch = null;
+
+    for (final entry in attributes.entries) {
+      transaction?.setData(entry.key, entry.value);
+    }
+    for (final entry in _otelConnectionAttributes(attributes).entries) {
+      otelSpan?.setAttribute(entry.key, entry.value);
+    }
+    if (error != null) {
+      otelSpan?.recordError(error, stackTrace);
+    }
+    unawaited(transaction?.finish(status: status));
+    otelSpan?.end(ok: ok);
+  }
+
+  Map<String, Object?> _connectionAttributes({
+    bool recovered = false,
+    int? connectDurationMs,
+  }) {
+    return {
+      'recovered': recovered,
+      'connectDurationMs': connectDurationMs,
+      'disconnectGapMs':
+          _lastConnectStartedAtMs != null && _lastDisconnectAtMs != null
+          ? _lastConnectStartedAtMs! - _lastDisconnectAtMs!
+          : null,
+      'currentRoute': PerformanceContextService().currentRoute ?? 'unknown',
+    };
+  }
+
+  static Map<String, Object?> _otelConnectionAttributes(
+    Map<String, Object?> attributes,
+  ) {
+    return {
+      'websocket.recovered': attributes['recovered'],
+      'websocket.connect_duration_ms': attributes['connectDurationMs'],
+      'websocket.disconnect_gap_ms': attributes['disconnectGapMs'],
+      'current_route': attributes['currentRoute'],
+    };
   }
 
   @visibleForTesting

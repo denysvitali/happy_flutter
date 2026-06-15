@@ -198,10 +198,10 @@ class MessageCacheService {
     final stopwatch = Stopwatch()..start();
     final toSave = _trimToCacheWindow(messages);
 
-    // Skip write when the tail hash is unchanged — avoids repeated
+    // Skip write when the cache-window hash is unchanged — avoids repeated
     // MMKV serialization of the same message list (e.g. 1200-message
     // saves taking ~131ms each).
-    final hash = _computeTailHash(toSave);
+    final hash = _computeCacheWindowHash(toSave);
     final prevHash = _lastSavedHash[sessionId];
     if (prevHash == hash && prevHash != null) {
       logger.debug(
@@ -291,7 +291,7 @@ class MessageCacheService {
   }) {
     try {
       _storage.saveSessionMessages(sessionId, messages);
-      _lastSavedHash[sessionId] = _computeTailHash(messages);
+      _lastSavedHash[sessionId] = _computeCacheWindowHash(messages);
       logger.debug(
         '[MessageCache] Trimmed legacy cache for session $sessionId '
         'from $originalCount to ${messages.length} messages',
@@ -312,7 +312,7 @@ class MessageCacheService {
   ) {
     try {
       _storage.saveSessionMessages(sessionId, cleaned);
-      _lastSavedHash[sessionId] = _computeTailHash(cleaned);
+      _lastSavedHash[sessionId] = _computeCacheWindowHash(cleaned);
       logger.debug(
         '[MessageCache] Scrubbed stale orphan synthetics for session '
         '$sessionId (now ${cleaned.length} messages)',
@@ -324,14 +324,11 @@ class MessageCacheService {
     }
   }
 
-  /// Compute a lightweight hash of the last few messages to detect
-  /// content changes without hashing the entire list.
-  static int _computeTailHash(List<Map<String, dynamic>> messages) {
+  /// Compute a lightweight hash of the persisted cache window.
+  static int _computeCacheWindowHash(List<Map<String, dynamic>> messages) {
     if (messages.isEmpty) return 0;
     var hash = messages.length;
-    const tailSize = 5;
-    final start = messages.length < tailSize ? 0 : messages.length - tailSize;
-    for (var i = start; i < messages.length; i++) {
+    for (var i = 0; i < messages.length; i++) {
       final m = messages[i];
       final id = m['id'];
       final seq = m['seq'];

@@ -16,15 +16,27 @@ class PerformanceContextService {
   String? get currentRoute => _currentRoute;
 
   void setCurrentRoute(String? routeName) {
-    if (routeName == null || routeName.isEmpty) return;
-    _currentRoute = routeName;
+    _currentRoute = _normalizeRouteName(routeName);
+  }
+
+  @visibleForTesting
+  void resetForTesting() {
+    _currentRoute = null;
+  }
+
+  static String? _normalizeRouteName(String? routeName) {
+    if (routeName == null || routeName.isEmpty) return null;
+    return routeName;
   }
 }
 
 class PerformanceRouteObserver extends NavigatorObserver {
   void _update(Route<dynamic>? route) {
-    final name = route?.settings.name;
-    PerformanceContextService().setCurrentRoute(name);
+    PerformanceContextService().setCurrentRoute(_routeName(route));
+  }
+
+  String? _routeName(Route<dynamic>? route) {
+    return PerformanceContextService._normalizeRouteName(route?.settings.name);
   }
 
   @override
@@ -40,10 +52,7 @@ class PerformanceRouteObserver extends NavigatorObserver {
   }
 
   @override
-  void didReplace({
-    Route<dynamic>? newRoute,
-    Route<dynamic>? oldRoute,
-  }) {
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     _update(newRoute);
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
   }

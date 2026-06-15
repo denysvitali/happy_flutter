@@ -257,137 +257,162 @@ void main() {
       });
     });
 
-    test(
-      'resume swallows sessionsSync timeout without throwing and '
-      'continues processing once the underlying sync finally settles',
-      () {
-        fakeAsync((async) {
-          // Block sessionsSync long enough to trigger the 6-second
-          // resume timeout, then release it so the in-flight call
-          // can finish "in the background" — exactly the scenario
-          // GlitchTip HAPPY_FLUTTER-3CD captured.
-          final sessionsBlocker = Completer<void>();
-          var sessionsFetches = 0;
-          var messageFetches = 0;
-          final unexpectedErrors = <Object>[];
+    test('resume swallows sessionsSync timeout without throwing and '
+        'continues processing once the underlying sync finally settles', () {
+      fakeAsync((async) {
+        // Block sessionsSync long enough to trigger the 6-second
+        // resume timeout, then release it so the in-flight call
+        // can finish "in the background" — exactly the scenario
+        // GlitchTip HAPPY_FLUTTER-3CD captured.
+        final sessionsBlocker = Completer<void>();
+        var sessionsFetches = 0;
+        var messageFetches = 0;
+        final unexpectedErrors = <Object>[];
 
-          // Capture any zone-escaped error (including TimeoutException
-          // re-throws) — if our fix regresses and the timeout escapes
-          // the catchError, it would surface here.
-          runZonedGuarded(
-            () {
-              instance.testIsInitialized = true;
-              instance.testResetLastResumeAtMs();
-              instance.testLastInvalidateAllSyncsAtMs = null;
-              instance.testSetPendingSocketMessages({'slow-session'});
-              instance.sessionsSync = InvalidateSync(() async {
-                sessionsFetches++;
-                await sessionsBlocker.future;
-              });
-              instance.messagesSync['slow-session'] = InvalidateSync(
-                () async {
-                  messageFetches++;
-                },
-              );
+        // Capture any zone-escaped error (including TimeoutException
+        // re-throws) — if our fix regresses and the timeout escapes
+        // the catchError, it would surface here.
+        runZonedGuarded(() {
+          instance.testIsInitialized = true;
+          instance.testResetLastResumeAtMs();
+          instance.testLastInvalidateAllSyncsAtMs = null;
+          instance.testSetPendingSocketMessages({'slow-session'});
+          instance.sessionsSync = InvalidateSync(() async {
+            sessionsFetches++;
+            await sessionsBlocker.future;
+          });
+          instance.messagesSync['slow-session'] = InvalidateSync(() async {
+            messageFetches++;
+          });
 
-              instance.resume();
-            },
-            (e, _) => unexpectedErrors.add(e),
-          );
+          instance.resume();
+        }, (e, _) => unexpectedErrors.add(e));
 
-          // Let the deferred resume invalidation kick off.
-          async.elapse(const Duration(milliseconds: 500));
-          async.flushMicrotasks();
+        // Let the deferred resume invalidation kick off.
+        async.elapse(const Duration(milliseconds: 500));
+        async.flushMicrotasks();
 
-          expect(
-            sessionsFetches,
-            equals(1),
-            reason: 'resume must still invoke sessionsSync',
-          );
-          expect(
-            instance.testResumeConversationProgress,
-            equals((0, 1)),
-            reason: 'progress should show pending while sessionsSync stalls',
-          );
+        expect(
+          sessionsFetches,
+          equals(1),
+          reason: 'resume must still invoke sessionsSync',
+        );
+        expect(
+          instance.testResumeConversationProgress,
+          equals((0, 1)),
+          reason: 'progress should show pending while sessionsSync stalls',
+        );
 
-          // The 6s bounded wait elapses while the sessionsSync future is
-          // still pending — this is the exact "TimeoutException after
-          // 0:00:06.000000" path from the production crash.
-          async.elapse(const Duration(seconds: 7));
-          async.flushMicrotasks();
+        // The 6s bounded wait elapses while the sessionsSync future is
+        // still pending — this is the exact "TimeoutException after
+        // 0:00:06.000000" path from the production crash.
+        async.elapse(const Duration(seconds: 7));
+        async.flushMicrotasks();
 
-          expect(
-            unexpectedErrors,
-            isEmpty,
-            reason:
-                'TimeoutException from the bounded sessions wait must be '
-                'swallowed — never bubble up as an uncaught error',
-          );
-          expect(
-            instance.testResumeConversationProgress,
-            equals((0, 0)),
-            reason:
-                'progress should be force-advanced to clear even though '
-                'the sessions await timed out',
-          );
+        expect(
+          unexpectedErrors,
+          isEmpty,
+          reason:
+              'TimeoutException from the bounded sessions wait must be '
+              'swallowed — never bubble up as an uncaught error',
+        );
+        expect(
+          instance.testResumeConversationProgress,
+          equals((0, 0)),
+          reason:
+              'progress should be force-advanced to clear even though '
+              'the sessions await timed out',
+        );
 
-          // Now the underlying sessionsSync work actually finishes in
-          // the background. This must not throw and the messagesSync
-          // for the pending session must NOT fire — the .then() chain
-          // was already cleared by the timeout path.
-          sessionsBlocker.complete();
-          async.elapse(const Duration(seconds: 1));
-          async.flushMicrotasks();
+        // Now the underlying sessionsSync work actually finishes in
+        // the background. This must not throw and the messagesSync
+        // for the pending session must NOT fire — the .then() chain
+        // was already cleared by the timeout path.
+        sessionsBlocker.complete();
+        async.elapse(const Duration(seconds: 1));
+        async.flushMicrotasks();
 
-          expect(unexpectedErrors, isEmpty);
-          expect(
-            messageFetches,
-            equals(0),
-            reason:
-                'late completion of the timed-out awaitQueue() must not '
-                're-fire the deferred messagesSync.invalidate() chain',
-          );
+        expect(unexpectedErrors, isEmpty);
+        expect(
+          messageFetches,
+          equals(0),
+          reason:
+              'late completion of the timed-out awaitQueue() must not '
+              're-fire the deferred messagesSync.invalidate() chain',
+        );
+      });
+    });
+
+    test('resume reuses an already pending sessions sync', () {
+      fakeAsync((async) {
+        final sessionsBlocker = Completer<void>();
+        var sessionsFetches = 0;
+        var messageFetches = 0;
+        instance.testIsInitialized = true;
+        instance.testResetLastResumeAtMs();
+        instance.testSetVisibleSessionId('visible-session');
+        instance.sessionsSync = InvalidateSync(() async {
+          sessionsFetches++;
+          await sessionsBlocker.future;
         });
-      },
-    );
+        instance.messagesSync['visible-session'] = InvalidateSync(() async {
+          messageFetches++;
+        });
 
-    test(
-      'resume conversation progress safety timeout does NOT capture to '
-      'Sentry — it is informational',
-      () {
-        fakeAsync((async) {
-          // The safety timer fires when an upstream invalidation
-          // silently fails to advance progress. Production telemetry
-          // showed this as a noisy "Sync resume conversation progress
-          // timeout (completed 0 of N)" Sentry warning even though the
-          // app was working fine. The fix demotes it to a local log;
-          // this test guards that contract by exercising the path and
-          // asserting nothing throws or escapes.
-          final escaped = <Object>[];
-          runZonedGuarded(
-            () {
-              instance.testStartResumeConversationProgress(1);
-              expect(
-                instance.testResumeConversationProgressSafetyTimerActive,
-                isTrue,
-              );
+        instance.sessionsSync.invalidate();
+        async.flushMicrotasks();
+        expect(sessionsFetches, 1);
 
-              // Let the 30s safety timer fire without any advance().
-              async.elapse(const Duration(seconds: 31));
-              async.flushMicrotasks();
-            },
-            (e, _) => escaped.add(e),
-          );
+        instance.resume();
+        async.elapse(const Duration(milliseconds: 500));
+        async.flushMicrotasks();
+        expect(
+          sessionsFetches,
+          1,
+          reason:
+              'deferred resume should await the socket/global sessions fetch '
+              'instead of marking it dirty for a second run',
+        );
 
-          expect(escaped, isEmpty);
-          expect(instance.testResumeConversationProgress, equals((0, 0)));
-          expect(instance.testSyncProgress, isNull);
+        sessionsBlocker.complete();
+        async.flushMicrotasks();
+
+        expect(sessionsFetches, 1);
+        expect(messageFetches, 1);
+      });
+    });
+
+    test('resume conversation progress safety timeout does NOT capture to '
+        'Sentry — it is informational', () {
+      fakeAsync((async) {
+        // The safety timer fires when an upstream invalidation
+        // silently fails to advance progress. Production telemetry
+        // showed this as a noisy "Sync resume conversation progress
+        // timeout (completed 0 of N)" Sentry warning even though the
+        // app was working fine. The fix demotes it to a local log;
+        // this test guards that contract by exercising the path and
+        // asserting nothing throws or escapes.
+        final escaped = <Object>[];
+        runZonedGuarded(() {
+          instance.testStartResumeConversationProgress(1);
           expect(
             instance.testResumeConversationProgressSafetyTimerActive,
-            isFalse,
+            isTrue,
           );
-        });
-      },
-    );
+
+          // Let the 30s safety timer fire without any advance().
+          async.elapse(const Duration(seconds: 31));
+          async.flushMicrotasks();
+        }, (e, _) => escaped.add(e));
+
+        expect(escaped, isEmpty);
+        expect(instance.testResumeConversationProgress, equals((0, 0)));
+        expect(instance.testSyncProgress, isNull);
+        expect(
+          instance.testResumeConversationProgressSafetyTimerActive,
+          isFalse,
+        );
+      });
+    });
   });
 }

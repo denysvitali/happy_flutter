@@ -40,8 +40,9 @@ class _InMemoryMMKVStorage extends MMKVStorage {
     List<Map<String, dynamic>> messages,
   ) {
     writeCount++;
-    _sessions[sessionId] =
-        [for (final m in messages) Map<String, dynamic>.from(m)];
+    _sessions[sessionId] = [
+      for (final m in messages) Map<String, dynamic>.from(m),
+    ];
     // Web returns bool, native returns void.  Returning bool is a
     // valid override against both because void is a permissible
     // return for bool-returning methods (return value discarded).
@@ -58,15 +59,17 @@ class _InMemoryMMKVStorage extends MMKVStorage {
 
   /// Direct test-only inspection: what is actually persisted for a
   /// session, without going through MessageCacheService.
-  List<Map<String, dynamic>> rawStored(String sessionId) =>
-      [for (final m in _sessions[sessionId] ?? const <Map<String, dynamic>>[])
-        Map<String, dynamic>.from(m)];
+  List<Map<String, dynamic>> rawStored(String sessionId) => [
+    for (final m in _sessions[sessionId] ?? const <Map<String, dynamic>>[])
+      Map<String, dynamic>.from(m),
+  ];
 
   /// Direct test-only seed: simulates legacy MMKV state without
   /// touching MessageCacheService.
   void rawSeed(String sessionId, List<Map<String, dynamic>> messages) {
-    _sessions[sessionId] =
-        [for (final m in messages) Map<String, dynamic>.from(m)];
+    _sessions[sessionId] = [
+      for (final m in messages) Map<String, dynamic>.from(m),
+    ];
   }
 }
 
@@ -128,6 +131,30 @@ void main() {
       expect(messages.single['id'], 'message-1');
       expect(storage.readCount, 1);
     });
+
+    test('saveMessages rewrites when older cached content changes', () {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      final messages = List.generate(
+        10,
+        (i) => <String, dynamic>{
+          'id': 'msg-$i',
+          'seq': i,
+          'content': 'content-$i',
+        },
+      );
+
+      MessageCacheService().saveMessages('session-1', messages);
+      final changed = [
+        for (final message in messages) Map<String, dynamic>.from(message),
+      ];
+      changed[1]['content'] = 'edited content';
+      MessageCacheService().saveMessages('session-1', changed);
+
+      expect(storage.writeCount, 2);
+      expect(storage.rawStored('session-1')[1]['content'], 'edited content');
+    });
   });
 
   group('MessageCacheService.stripOrphanSynthetics', () {
@@ -176,46 +203,40 @@ void main() {
       ]);
       expect(stripped[1]['isSidechain'], isTrue);
       expect(stripped[2]['isSidechain'], isTrue);
-      expect(
-        stripped.where((m) => m['_orphanRecovery'] == true),
-        isEmpty,
-      );
+      expect(stripped.where((m) => m['_orphanRecovery'] == true), isEmpty);
     });
 
-    test(
-      're-flags children whose isSidechain was missing or false',
-      () {
-        final input = <Map<String, dynamic>>[
-          _orphanRecoveryTask(
-            id: 'synthetic',
-            children: [
-              <String, dynamic>{
-                'id': 'c-missing',
-                'uuid': 'u1',
-                'parentUuid': 'X',
-                'seq': 2,
-                // intentionally no isSidechain
-              },
-              <String, dynamic>{
-                'id': 'c-false',
-                'isSidechain': false,
-                'uuid': 'u2',
-                'parentUuid': 'u1',
-                'seq': 3,
-              },
-            ],
-          ),
-        ];
+    test('re-flags children whose isSidechain was missing or false', () {
+      final input = <Map<String, dynamic>>[
+        _orphanRecoveryTask(
+          id: 'synthetic',
+          children: [
+            <String, dynamic>{
+              'id': 'c-missing',
+              'uuid': 'u1',
+              'parentUuid': 'X',
+              'seq': 2,
+              // intentionally no isSidechain
+            },
+            <String, dynamic>{
+              'id': 'c-false',
+              'isSidechain': false,
+              'uuid': 'u2',
+              'parentUuid': 'u1',
+              'seq': 3,
+            },
+          ],
+        ),
+      ];
 
-        final stripped = MessageCacheService.stripOrphanSynthetics(input);
+      final stripped = MessageCacheService.stripOrphanSynthetics(input);
 
-        expect(stripped, hasLength(2));
-        expect(stripped[0]['id'], 'c-missing');
-        expect(stripped[0]['isSidechain'], isTrue);
-        expect(stripped[1]['id'], 'c-false');
-        expect(stripped[1]['isSidechain'], isTrue);
-      },
-    );
+      expect(stripped, hasLength(2));
+      expect(stripped[0]['id'], 'c-missing');
+      expect(stripped[0]['isSidechain'], isTrue);
+      expect(stripped[1]['id'], 'c-false');
+      expect(stripped[1]['isSidechain'], isTrue);
+    });
 
     test('returns the same list when no synthetics are present', () {
       final input = <Map<String, dynamic>>[
@@ -261,53 +282,43 @@ void main() {
       MessageCacheService().debugResetStorage();
     });
 
-    test(
-      'returns synthetic-free output when MMKV had a persisted synthetic '
-      'Task with children',
-      () {
-        storage.rawSeed('session-1', [
-          <String, dynamic>{
-            'id': 'real-1',
-            'kind': 'text',
-            'role': 'user',
-            'seq': 1,
-          },
-          _orphanRecoveryTask(
-            id: 'synthetic-1',
-            children: [
-              <String, dynamic>{
-                'id': 'c1',
-                'isSidechain': true,
-                'uuid': 'u1',
-                'parentUuid': 'X',
-                'seq': 2,
-              },
-              <String, dynamic>{
-                'id': 'c2',
-                'uuid': 'u2',
-                'parentUuid': 'u1',
-                'seq': 3,
-              },
-            ],
-          ),
-        ]);
+    test('returns synthetic-free output when MMKV had a persisted synthetic '
+        'Task with children', () {
+      storage.rawSeed('session-1', [
+        <String, dynamic>{
+          'id': 'real-1',
+          'kind': 'text',
+          'role': 'user',
+          'seq': 1,
+        },
+        _orphanRecoveryTask(
+          id: 'synthetic-1',
+          children: [
+            <String, dynamic>{
+              'id': 'c1',
+              'isSidechain': true,
+              'uuid': 'u1',
+              'parentUuid': 'X',
+              'seq': 2,
+            },
+            <String, dynamic>{
+              'id': 'c2',
+              'uuid': 'u2',
+              'parentUuid': 'u1',
+              'seq': 3,
+            },
+          ],
+        ),
+      ]);
 
-        final messages = MessageCacheService().getMessages('session-1');
+      final messages = MessageCacheService().getMessages('session-1');
 
-        expect(messages.map((m) => m['id']).toList(), [
-          'real-1',
-          'c1',
-          'c2',
-        ]);
-        expect(
-          messages.where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
-        // Both children are re-emitted as top-level isSidechain entries.
-        expect(messages[1]['isSidechain'], isTrue);
-        expect(messages[2]['isSidechain'], isTrue);
-      },
-    );
+      expect(messages.map((m) => m['id']).toList(), ['real-1', 'c1', 'c2']);
+      expect(messages.where((m) => m['_orphanRecovery'] == true), isEmpty);
+      // Both children are re-emitted as top-level isSidechain entries.
+      expect(messages[1]['isSidechain'], isTrue);
+      expect(messages[2]['isSidechain'], isTrue);
+    });
 
     test(
       'rewrites the cleaned cache back to MMKV so the next read is free',
@@ -338,10 +349,7 @@ void main() {
         // Inspect MMKV directly: the persisted form must be clean.
         final stored = storage.rawStored('session-2');
         expect(stored.map((m) => m['id']).toList(), ['real', 'child']);
-        expect(
-          stored.where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
+        expect(stored.where((m) => m['_orphanRecovery'] == true), isEmpty);
         expect(stored.last['isSidechain'], isTrue);
       },
     );
@@ -363,33 +371,30 @@ void main() {
       );
     });
 
-    test(
-      'leaves cache untouched when only a partial scrub would be needed '
-      '(synthetic without children list still gets cleaned + persisted)',
-      () {
-        storage.rawSeed('session-4', [
-          <String, dynamic>{
-            'id': 'real',
-            'kind': 'text',
-            'role': 'user',
-            'seq': 1,
-          },
-          <String, dynamic>{
-            'id': 'synthetic',
-            'kind': 'task',
-            '_orphanRecovery': true,
-            'seq': 2,
-          },
-        ]);
+    test('leaves cache untouched when only a partial scrub would be needed '
+        '(synthetic without children list still gets cleaned + persisted)', () {
+      storage.rawSeed('session-4', [
+        <String, dynamic>{
+          'id': 'real',
+          'kind': 'text',
+          'role': 'user',
+          'seq': 1,
+        },
+        <String, dynamic>{
+          'id': 'synthetic',
+          'kind': 'task',
+          '_orphanRecovery': true,
+          'seq': 2,
+        },
+      ]);
 
-        final messages = MessageCacheService().getMessages('session-4');
-        expect(messages.map((m) => m['id']).toList(), ['real']);
+      final messages = MessageCacheService().getMessages('session-4');
+      expect(messages.map((m) => m['id']).toList(), ['real']);
 
-        final stored = storage.rawStored('session-4');
-        expect(stored.map((m) => m['id']).toList(), ['real']);
-        expect(stored.any((m) => m['_orphanRecovery'] == true), isFalse);
-      },
-    );
+      final stored = storage.rawStored('session-4');
+      expect(stored.map((m) => m['id']).toList(), ['real']);
+      expect(stored.any((m) => m['_orphanRecovery'] == true), isFalse);
+    });
   });
 
   group('MessageCacheService.stripOrphanSynthetics', () {
@@ -438,46 +443,40 @@ void main() {
       ]);
       expect(stripped[1]['isSidechain'], isTrue);
       expect(stripped[2]['isSidechain'], isTrue);
-      expect(
-        stripped.where((m) => m['_orphanRecovery'] == true),
-        isEmpty,
-      );
+      expect(stripped.where((m) => m['_orphanRecovery'] == true), isEmpty);
     });
 
-    test(
-      're-flags children whose isSidechain was missing or false',
-      () {
-        final input = <Map<String, dynamic>>[
-          _orphanRecoveryTask(
-            id: 'synthetic',
-            children: [
-              <String, dynamic>{
-                'id': 'c-missing',
-                'uuid': 'u1',
-                'parentUuid': 'X',
-                'seq': 2,
-                // intentionally no isSidechain
-              },
-              <String, dynamic>{
-                'id': 'c-false',
-                'isSidechain': false,
-                'uuid': 'u2',
-                'parentUuid': 'u1',
-                'seq': 3,
-              },
-            ],
-          ),
-        ];
+    test('re-flags children whose isSidechain was missing or false', () {
+      final input = <Map<String, dynamic>>[
+        _orphanRecoveryTask(
+          id: 'synthetic',
+          children: [
+            <String, dynamic>{
+              'id': 'c-missing',
+              'uuid': 'u1',
+              'parentUuid': 'X',
+              'seq': 2,
+              // intentionally no isSidechain
+            },
+            <String, dynamic>{
+              'id': 'c-false',
+              'isSidechain': false,
+              'uuid': 'u2',
+              'parentUuid': 'u1',
+              'seq': 3,
+            },
+          ],
+        ),
+      ];
 
-        final stripped = MessageCacheService.stripOrphanSynthetics(input);
+      final stripped = MessageCacheService.stripOrphanSynthetics(input);
 
-        expect(stripped, hasLength(2));
-        expect(stripped[0]['id'], 'c-missing');
-        expect(stripped[0]['isSidechain'], isTrue);
-        expect(stripped[1]['id'], 'c-false');
-        expect(stripped[1]['isSidechain'], isTrue);
-      },
-    );
+      expect(stripped, hasLength(2));
+      expect(stripped[0]['id'], 'c-missing');
+      expect(stripped[0]['isSidechain'], isTrue);
+      expect(stripped[1]['id'], 'c-false');
+      expect(stripped[1]['isSidechain'], isTrue);
+    });
 
     test('returns the same list when no synthetics are present', () {
       final input = <Map<String, dynamic>>[
@@ -523,53 +522,43 @@ void main() {
       MessageCacheService().debugResetStorage();
     });
 
-    test(
-      'returns synthetic-free output when MMKV had a persisted synthetic '
-      'Task with children',
-      () {
-        storage.rawSeed('session-1', [
-          <String, dynamic>{
-            'id': 'real-1',
-            'kind': 'text',
-            'role': 'user',
-            'seq': 1,
-          },
-          _orphanRecoveryTask(
-            id: 'synthetic-1',
-            children: [
-              <String, dynamic>{
-                'id': 'c1',
-                'isSidechain': true,
-                'uuid': 'u1',
-                'parentUuid': 'X',
-                'seq': 2,
-              },
-              <String, dynamic>{
-                'id': 'c2',
-                'uuid': 'u2',
-                'parentUuid': 'u1',
-                'seq': 3,
-              },
-            ],
-          ),
-        ]);
+    test('returns synthetic-free output when MMKV had a persisted synthetic '
+        'Task with children', () {
+      storage.rawSeed('session-1', [
+        <String, dynamic>{
+          'id': 'real-1',
+          'kind': 'text',
+          'role': 'user',
+          'seq': 1,
+        },
+        _orphanRecoveryTask(
+          id: 'synthetic-1',
+          children: [
+            <String, dynamic>{
+              'id': 'c1',
+              'isSidechain': true,
+              'uuid': 'u1',
+              'parentUuid': 'X',
+              'seq': 2,
+            },
+            <String, dynamic>{
+              'id': 'c2',
+              'uuid': 'u2',
+              'parentUuid': 'u1',
+              'seq': 3,
+            },
+          ],
+        ),
+      ]);
 
-        final messages = MessageCacheService().getMessages('session-1');
+      final messages = MessageCacheService().getMessages('session-1');
 
-        expect(messages.map((m) => m['id']).toList(), [
-          'real-1',
-          'c1',
-          'c2',
-        ]);
-        expect(
-          messages.where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
-        // Both children are re-emitted as top-level isSidechain entries.
-        expect(messages[1]['isSidechain'], isTrue);
-        expect(messages[2]['isSidechain'], isTrue);
-      },
-    );
+      expect(messages.map((m) => m['id']).toList(), ['real-1', 'c1', 'c2']);
+      expect(messages.where((m) => m['_orphanRecovery'] == true), isEmpty);
+      // Both children are re-emitted as top-level isSidechain entries.
+      expect(messages[1]['isSidechain'], isTrue);
+      expect(messages[2]['isSidechain'], isTrue);
+    });
 
     test(
       'rewrites the cleaned cache back to MMKV so the next read is free',
@@ -600,10 +589,7 @@ void main() {
         // Inspect MMKV directly: the persisted form must be clean.
         final stored = storage.rawStored('session-2');
         expect(stored.map((m) => m['id']).toList(), ['real', 'child']);
-        expect(
-          stored.where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
+        expect(stored.where((m) => m['_orphanRecovery'] == true), isEmpty);
         expect(stored.last['isSidechain'], isTrue);
       },
     );
@@ -625,32 +611,29 @@ void main() {
       );
     });
 
-    test(
-      'leaves cache untouched when only a partial scrub would be needed '
-      '(synthetic without children list still gets cleaned + persisted)',
-      () {
-        storage.rawSeed('session-4', [
-          <String, dynamic>{
-            'id': 'real',
-            'kind': 'text',
-            'role': 'user',
-            'seq': 1,
-          },
-          <String, dynamic>{
-            'id': 'synthetic',
-            'kind': 'task',
-            '_orphanRecovery': true,
-            'seq': 2,
-          },
-        ]);
+    test('leaves cache untouched when only a partial scrub would be needed '
+        '(synthetic without children list still gets cleaned + persisted)', () {
+      storage.rawSeed('session-4', [
+        <String, dynamic>{
+          'id': 'real',
+          'kind': 'text',
+          'role': 'user',
+          'seq': 1,
+        },
+        <String, dynamic>{
+          'id': 'synthetic',
+          'kind': 'task',
+          '_orphanRecovery': true,
+          'seq': 2,
+        },
+      ]);
 
-        final messages = MessageCacheService().getMessages('session-4');
-        expect(messages.map((m) => m['id']).toList(), ['real']);
+      final messages = MessageCacheService().getMessages('session-4');
+      expect(messages.map((m) => m['id']).toList(), ['real']);
 
-        final stored = storage.rawStored('session-4');
-        expect(stored.map((m) => m['id']).toList(), ['real']);
-        expect(stored.any((m) => m['_orphanRecovery'] == true), isFalse);
-      },
-    );
+      final stored = storage.rawStored('session-4');
+      expect(stored.map((m) => m['id']).toList(), ['real']);
+      expect(stored.any((m) => m['_orphanRecovery'] == true), isFalse);
+    });
   });
 }

@@ -242,8 +242,6 @@ extension SyncLifecycle on Sync {
         final shouldRunGlobalInvalidation = suspendDuration > 5 * 1000;
         final socketNeedsHttpFallback =
             socketIoClient.connectionStatus != ConnectionStatus.connected;
-        final shouldRefreshSessions =
-            shouldRunGlobalInvalidation || socketNeedsHttpFallback;
         unawaited(
           Sentry.addBreadcrumb(
             Breadcrumb(
@@ -358,7 +356,9 @@ extension SyncLifecycle on Sync {
           // isn't consumed by an earlier chained fetch (e.g. the
           // socket reconnect handler's callback which shares the
           // same sessionsSync queue).
-          sessionsSync.invalidate();
+          if (!sessionsSync.isPending) {
+            sessionsSync.invalidate();
+          }
           unawaited(
             sessionsSync
                 .awaitQueue()
