@@ -150,8 +150,9 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           options.extra['_otelStart'] = DateTime.now().millisecondsSinceEpoch;
+          options.extra['_otelReqBytes'] = _estimateRequestBytes(options.data);
           options.extra['_otelSpan'] = OpenTelemetryService().startTrace(
-            'http.client',
+            _otelHttpSpanName(options),
             kind: SpanKind.client,
             attributes: _otelHttpAttributes(options),
           );
@@ -165,6 +166,7 @@ class ApiClient {
           _finishOtelHttpSpan(
             response.requestOptions,
             statusCode: response.statusCode,
+            responseBytes: _estimateResponseBytes(response),
           );
           return handler.next(response);
         },
@@ -172,6 +174,9 @@ class ApiClient {
           _finishOtelHttpSpan(
             error.requestOptions,
             statusCode: error.response?.statusCode,
+            responseBytes: error.response == null
+                ? null
+                : _estimateResponseBytes(error.response!),
             error: error,
             stackTrace: error.stackTrace,
           );
@@ -305,21 +310,28 @@ class ApiClient {
 
   static Map<String, Object?> _otelHttpAttributes(RequestOptions options) {
     final uri = options.uri;
+    final route = normalizePathForTracing(options.path);
     return {
       'http.request.method': options.method,
       'url.scheme': uri.scheme,
       'server.address': uri.host,
-      'url.path': normalizePathForTracing(options.path),
-      'http.route': normalizePathForTracing(options.path),
+      'http.route': route,
+      'http.request.body.size':
+          options.extra['_otelReqBytes'] ?? _estimateRequestBytes(options.data),
       'http.cache_hit': options.extra['fromCache'] == true,
       if (options.extra['_retryCount'] is int)
         'http.retry_count': options.extra['_retryCount'] as int,
     };
   }
 
+  static String _otelHttpSpanName(RequestOptions options) {
+    return '${options.method} ${normalizePathForTracing(options.path)}';
+  }
+
   static void _finishOtelHttpSpan(
     RequestOptions options, {
     required int? statusCode,
+    required int? responseBytes,
     DioException? error,
     StackTrace? stackTrace,
   }) {
@@ -335,6 +347,7 @@ class ApiClient {
     }
     span
       ..setAttribute('http.response.status_code', statusCode)
+      ..setAttribute('http.response.body.size', responseBytes)
       ..setAttribute('http.cache_hit', options.extra['fromCache'] == true);
     if (options.extra['_retryCount'] is int) {
       span.setAttribute(
@@ -382,6 +395,18 @@ class ApiClient {
         .map(_normalizePathSegment)
         .toList();
     return '/${segments.join('/')}';
+  }
+
+  @visibleForTesting
+  static Map<String, Object?> debugBuildOtelHttpAttributes(
+    RequestOptions options,
+  ) {
+    return _otelHttpAttributes(options);
+  }
+
+  @visibleForTesting
+  static String debugBuildOtelHttpSpanName(RequestOptions options) {
+    return _otelHttpSpanName(options);
   }
 
   static String _normalizePathSegment(String segment) {

@@ -356,7 +356,8 @@ extension SyncLifecycle on Sync {
           // isn't consumed by an earlier chained fetch (e.g. the
           // socket reconnect handler's callback which shares the
           // same sessionsSync queue).
-          if (!sessionsSync.isPending) {
+          if (!sessionsSync.isPending &&
+              !_resumeSessionsSyncSatisfiedByRecentRecovery()) {
             sessionsSync.invalidate();
           }
           unawaited(
@@ -813,5 +814,18 @@ extension SyncLifecycle on Sync {
     _encryptionInitialized = false;
     // Dispose the outbox so retry timers don't fire after logout.
     messageOutbox.dispose();
+  }
+
+  bool _resumeSessionsSyncSatisfiedByRecentRecovery() {
+    if (_forceFullFetchNext) return false;
+    final lastGlobalInvalidationMs = _lastInvalidateAllSyncsAtMs;
+    if (lastGlobalInvalidationMs == null) return false;
+    final lastSessionsRunEndMs = sessionsSync.lastRunEndMs;
+    if (lastSessionsRunEndMs == null) return false;
+    if (lastSessionsRunEndMs < lastGlobalInvalidationMs) return false;
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    return nowMs - lastSessionsRunEndMs <
+        Sync._sessionsSyncMinInterval.inMilliseconds;
   }
 }

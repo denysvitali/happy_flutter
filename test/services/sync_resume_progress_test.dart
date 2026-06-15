@@ -382,6 +382,48 @@ void main() {
       });
     });
 
+    test('resume reuses a just-completed recovery sessions sync', () {
+      fakeAsync((async) {
+        var sessionsFetches = 0;
+        var messageFetches = 0;
+        instance.testIsInitialized = true;
+        instance.testResetLastResumeAtMs();
+        instance.testLastInvalidateAllSyncsAtMs =
+            DateTime.now().millisecondsSinceEpoch;
+        instance.testSetVisibleSessionId('visible-session');
+        instance.sessionsSync = InvalidateSync(() async {
+          sessionsFetches++;
+        }, minInterval: const Duration(seconds: 2));
+        instance.messagesSync['visible-session'] = InvalidateSync(() async {
+          messageFetches++;
+        });
+
+        instance.sessionsSync.invalidate();
+        async.flushMicrotasks();
+        expect(sessionsFetches, 1);
+        expect(instance.sessionsSync.lastRunEndMs, isNotNull);
+
+        instance.resume();
+        async.elapse(const Duration(milliseconds: 500));
+        async.flushMicrotasks();
+
+        expect(
+          sessionsFetches,
+          1,
+          reason:
+              'deferred resume should not queue another sessions fetch when '
+              'a recovery/global sessions refresh just completed',
+        );
+        expect(
+          messageFetches,
+          1,
+          reason:
+              'visible session messages still refresh after the recent '
+              'sessions sync settles',
+        );
+      });
+    });
+
     test('resume conversation progress safety timeout does NOT capture to '
         'Sentry — it is informational', () {
       fakeAsync((async) {

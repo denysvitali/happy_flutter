@@ -7,6 +7,7 @@ import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
 
 import '../utils/package_info_cache.dart';
 import 'logger_service.dart';
+import 'performance_context_service.dart';
 
 class OpenTelemetryService {
   factory OpenTelemetryService() => _instance;
@@ -134,8 +135,11 @@ class OpenTelemetryService {
     try {
       final span = OTel.tracer().startSpan(
         name,
+        context: Context.root,
         kind: kind,
-        attributes: OTel.attributesFromMap(_safeAttributes(attributes)),
+        attributes: OTel.attributesFromMap(
+          _safeAttributes(_withRouteContext(attributes)),
+        ),
       );
       return OTelSpan._(span);
     } catch (e, stack) {
@@ -154,9 +158,12 @@ class OpenTelemetryService {
     try {
       final span = OTel.tracer().startSpan(
         name,
+        context: Context.root,
         parentSpan: parent?._span,
         kind: kind,
-        attributes: OTel.attributesFromMap(_safeAttributes(attributes)),
+        attributes: OTel.attributesFromMap(
+          _safeAttributes(_withRouteContext(attributes)),
+        ),
       );
       return OTelSpan._(span);
     } catch (e, stack) {
@@ -179,9 +186,19 @@ class OpenTelemetryService {
         'navigation.action': action,
         'route.name': routeName,
         'route.previous': ?previousRouteName,
+        'current_route': routeName ?? previousRouteName,
       },
     );
     span?.end();
+  }
+
+  static Map<String, Object?> _withRouteContext(
+    Map<String, Object?> attributes,
+  ) {
+    if (attributes.containsKey('current_route')) return attributes;
+    final currentRoute = PerformanceContextService().currentRoute;
+    if (currentRoute == null || currentRoute.isEmpty) return attributes;
+    return {...attributes, 'current_route': currentRoute};
   }
 
   static String? _safeRouteName(Route<dynamic>? route) {

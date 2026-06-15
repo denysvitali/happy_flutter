@@ -173,9 +173,7 @@ void main() {
     });
 
     test('injects W3C traceparent header from span context', () {
-      final traceId = OTel.traceIdFrom(
-        '8d08af79194aef4486a84ec5010d5d8e',
-      );
+      final traceId = OTel.traceIdFrom('8d08af79194aef4486a84ec5010d5d8e');
       final spanId = OTel.spanIdFrom('1234567890abcdef');
       final spanContext = OTel.spanContext(
         traceId: traceId,
@@ -196,9 +194,7 @@ void main() {
 
     test('injects traceparent with unsampled trace flags', () {
       final spanContext = OTel.spanContext(
-        traceId: OTel.traceIdFrom(
-          '8d08af79194aef4486a84ec5010d5d8e',
-        ),
+        traceId: OTel.traceIdFrom('8d08af79194aef4486a84ec5010d5d8e'),
         spanId: OTel.spanIdFrom('1234567890abcdef'),
         traceFlags: TraceFlags.none,
       );
@@ -241,6 +237,42 @@ void main() {
 
       expect(normalized, '/v1/files/:id/download');
       expect(normalized, isNot(contains('abcdefghijklmnopqrstuvwxyz')));
+    });
+
+    test('uses normalized route in span name without raw IDs', () {
+      final options = RequestOptions(
+        path: '/v3/sessions/cf6949f3e2e86b18f1b12f0fc/messages',
+        method: 'GET',
+      );
+
+      final spanName = ApiClient.debugBuildOtelHttpSpanName(options);
+
+      expect(spanName, 'GET /v3/sessions/:id/messages');
+      expect(spanName, isNot(contains('cf6949f3e2e86b18f1b12f0fc')));
+    });
+
+    test('exports http.route but not sanitized url.path', () {
+      final options = RequestOptions(
+        baseUrl: 'https://test.example.com',
+        path:
+            '/v3/sessions/cf6949f3e2e86b18f1b12f0fc/messages'
+            '?token=secret',
+        method: 'POST',
+        data: 'hello',
+      );
+
+      final attributes = ApiClient.debugBuildOtelHttpAttributes(options);
+
+      expect(attributes['http.route'], '/v3/sessions/:id/messages');
+      expect(attributes['http.request.method'], 'POST');
+      expect(attributes['server.address'], 'test.example.com');
+      expect(attributes['http.request.body.size'], 5);
+      expect(attributes.containsKey('url.path'), isFalse);
+      expect(attributes.values.join(' '), isNot(contains('secret')));
+      expect(
+        attributes.values.join(' '),
+        isNot(contains('cf6949f3e2e86b18f1b12f0fc')),
+      );
     });
   });
 
