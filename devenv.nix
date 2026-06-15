@@ -4,7 +4,7 @@ let
   # The CI workflow ostensibly pins Flutter 3.38.7 via subosito/flutter-action,
   # but channel:stable wins and subosito actually downloads the current stable
   # (3.44.0 at the time of writing). The project's pubspec depends on
-  # sodium_libs 4.0.0, which requires Dart ^3.11.0 and Flutter >3.41.0 — so
+  # sodium 4.0.2+1, which requires Dart ^3.11.0 and Flutter >3.41.0 — so
   # the de-facto requirement is Flutter 3.41+. v3_41 (3.41.9, Dart 3.11.5)
   # is the closest available in nixpkgs.
   #
