@@ -151,11 +151,28 @@ class ApiClient {
         onRequest: (options, handler) {
           options.extra['_otelStart'] = DateTime.now().millisecondsSinceEpoch;
           options.extra['_otelReqBytes'] = _estimateRequestBytes(options.data);
-          options.extra['_otelSpan'] = OpenTelemetryService().startTrace(
-            _otelHttpSpanName(options),
-            kind: SpanKind.client,
-            attributes: _otelHttpAttributes(options),
-          );
+          // Parent the HTTP span under the active OTel span when one is
+          // set on this isolate (e.g. chat.send_message wrapping the
+          // outbound POST). This makes the request span a child of the
+          // logical operation that triggered it, so the server-side
+          // happy.daemon.spawn_session span (which extracts traceparent
+          // from these headers) becomes a grandchild of chat.send_message
+          // in the same trace.
+          final activeSpan = OpenTelemetryService().currentSpan;
+          if (activeSpan != null) {
+            options.extra['_otelSpan'] = OpenTelemetryService().startChildSpan(
+              _otelHttpSpanName(options),
+              parent: activeSpan,
+              kind: SpanKind.client,
+              attributes: _otelHttpAttributes(options),
+            );
+          } else {
+            options.extra['_otelSpan'] = OpenTelemetryService().startTrace(
+              _otelHttpSpanName(options),
+              kind: SpanKind.client,
+              attributes: _otelHttpAttributes(options),
+            );
+          }
           final span = options.extra['_otelSpan'] as OTelSpan?;
           if (span != null) {
             injectTraceContext(span.spanContext, options);

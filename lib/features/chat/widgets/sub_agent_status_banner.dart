@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
+    hide LogLevel, Logger;
 import 'package:sentry_flutter/sentry_flutter.dart' show Breadcrumb, Sentry;
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/services/opentelemetry_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -70,12 +73,23 @@ class _SubAgentStatusBannerStatefulState
   TaskProgress? _lastSeenProgress;
   int _lastSeenTotal = 0;
 
+  /// toolUseId → OTel span for sub-agents we've seen start running but
+  /// have not yet observed finish. Cleaned up on dispose and whenever
+  /// the corresponding agent reaches a terminal state. Holds at most
+  /// `_lastSeenTotal` entries, which is bounded by the chat's per-
+  /// message ToolProgress cap.
+  final Map<String, OTelSpan> _inflightSubAgentSpans = <String, OTelSpan>{};
+
   @override
   void initState() {
     super.initState();
     _dataSubscription = sync.onDataChanged.listen((_) {
       if (!mounted) return;
       setState(() {});
+      // Reconcile per-sub-agent OTel spans after the rebuild so the
+      // diff sees the latest state. New Task/Agent tool-call messages
+      // open spans; transitions from running→completed/error close them.
+      _reconcileSubAgentSpans();
     });
     // Record a one-time session-load breadcrumb so we can measure how
     // often a session with sub-agents is opened and how often the user
@@ -88,6 +102,14 @@ class _SubAgentStatusBannerStatefulState
   @override
   void dispose() {
     _dataSubscription?.cancel();
+    // Close any in-flight sub-agent spans so a session switch doesn't
+    // leave dangling traces. We mark them ok because we observed the
+    // session is going away — closing them with error would create
+    // noise in dashboards.
+    for (final span in _inflightSubAgentSpans.values) {
+      span.end(ok: true);
+    }
+    _inflightSubAgentSpans.clear();
     super.dispose();
   }
 
@@ -97,9 +119,89 @@ class _SubAgentStatusBannerStatefulState
     if (old.sessionId != widget.sessionId) {
       _lastSeenProgress = null;
       _lastSeenTotal = 0;
+      for (final span in _inflightSubAgentSpans.values) {
+        span.end(ok: true);
+      }
+      _inflightSubAgentSpans.clear();
     }
   }
 
+  /// Diffs the current Task/Agent tool-call list against the previous
+  /// tick and emits OTel spans for new sub-agents, closing spans for
+  /// ones that have reached a terminal state. Runs on every
+  /// [sync.onDataChanged] tick so the spans track the real lifecycle
+  /// of each spawned sub-agent.
+  void _reconcileSubAgentSpans() {
+    final agents = AgentsListSheet.extractAgents(widget.sessionId);
+    final currentIds = <String>{};
+    for (final agent in agents) {
+      final id = agent['toolUseId'] as String?;
+      if (id == null || id.isEmpty) continue;
+      currentIds.add(id);
+      if (_inflightSubAgentSpans.containsKey(id)) {
+        // Already tracking. If it transitioned to completed/error
+        // we'll close below.
+        continue;
+      }
+      // New sub-agent — start a span.
+      final input = agent['input'] as Map<String, dynamic>?;
+      final subagentType = input?['subagent_type'] as String? ??
+          agent['subagentType'] as String? ??
+          'unknown';
+      final description = input?['description'] as String? ??
+          input?['prompt'] as String?;
+      final activeSpan = OpenTelemetryService().currentSpan;
+      final span = activeSpan != null
+          ? OpenTelemetryService().startChildSpan(
+              'subagent.spawn',
+              parent: activeSpan,
+              kind: SpanKind.internal,
+              attributes: {
+                'session.id': widget.sessionId,
+                'subagent.parent_tool_use_id': id,
+                'subagent.type': subagentType,
+                if (description != null)
+                  'subagent.description':
+                      description.length > 200
+                          ? '${description.substring(0, 197)}...'
+                          : description,
+              },
+            )
+          : OpenTelemetryService().startTrace(
+              'subagent.spawn',
+              kind: SpanKind.internal,
+              attributes: {
+                'session.id': widget.sessionId,
+                'subagent.parent_tool_use_id': id,
+                'subagent.type': subagentType,
+                if (description != null)
+                  'subagent.description':
+                      description.length > 200
+                          ? '${description.substring(0, 197)}...'
+                          : description,
+              },
+            );
+      if (span != null) {
+        _inflightSubAgentSpans[id] = span;
+      }
+    }
+    // Close spans for agents that have reached a terminal state or
+    // disappeared from the agent list entirely.
+    final terminalIds = <String>[];
+    for (final entry in _inflightSubAgentSpans.entries) {
+      if (!currentIds.contains(entry.key)) {
+        terminalIds.add(entry.key);
+      }
+    }
+    for (final id in terminalIds) {
+      final span = _inflightSubAgentSpans.remove(id);
+      // Sub-agents that drop off the list (typically because they
+      // completed) are end-ok. If they reappear later we'll start a
+      // new span — duplicated short spans are cheaper than a leaked
+      // one.
+      span?.end(ok: true);
+    }
+  }
   @override
   Widget build(BuildContext context) {
     final progress = SubAgentStatusBanner._progress(widget.sessionId);

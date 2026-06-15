@@ -6,6 +6,8 @@ import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
+    hide LogLevel, Logger;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../sentry_config.dart';
@@ -41,6 +43,7 @@ import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
 import '../services/mmkv_storage.dart';
 import '../services/network_monitor_service.dart';
+import '../services/opentelemetry_service.dart';
 import '../services/performance_context_service.dart';
 import '../services/power_diagnostics_service.dart';
 import '../services/server_config.dart';
@@ -924,6 +927,35 @@ what you have, you must use the options mode.
 
   /// Stream that emits when session/machine/general data changes.
   Stream<void> get onDataChanged => _dataChangeController.stream;
+
+  /// Emits a `sync.on_data_changed` OTel span that wraps the firehose
+  /// tick. Use this from the call sites that mutate sync state
+  /// instead of `_dataChangeController.add(null)` directly so the
+  /// span timing matches the actual broadcast.
+  void _emitDataChangeSpan() {
+    final active = OpenTelemetryService().currentSpan;
+    final span = active != null
+        ? OpenTelemetryService().startChildSpan(
+            'sync.on_data_changed',
+            parent: active,
+            kind: SpanKind.internal,
+            attributes: {
+              'data_change_counter': _dataChangeCounter,
+            },
+          )
+        : OpenTelemetryService().startTrace(
+            'sync.on_data_changed',
+            kind: SpanKind.internal,
+            attributes: {
+              'data_change_counter': _dataChangeCounter,
+            },
+          );
+    // Spans are short — the data tick itself is synchronous and
+    // the span is consumed by listeners. End immediately; downstream
+    // spans (e.g. subagent.spawn from the banner's reconciler) will
+    // be parented to whatever active span is set *next*.
+    span?.end(ok: true);
+  }
 
   /// Stream that emits the specific domain that changed.
   Stream<SyncDomain> get onDomainChanged => _domainChangeController.stream;

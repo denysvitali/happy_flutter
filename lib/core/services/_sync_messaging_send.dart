@@ -183,6 +183,28 @@ extension SyncMessagingSend on Sync {
           ..setData('permissionMode', wirePermissionMode)
           ..setData('model', model ?? 'default');
 
+    // OTel sibling of the Sentry transaction above. The OTel span is
+    // also pushed onto the active-span stack so the outbound HTTP POST
+    // (and any other spans started from this point onward) become
+    // children of chat.send_message, giving a single trace that joins
+    // mobile send → server spawn → sub-agent fan-out.
+    final otelService = OpenTelemetryService();
+    final sendSpan = otelService.startTrace(
+      'chat.send_message',
+      kind: SpanKind.internal,
+      attributes: {
+        'session.id': targetSessionId,
+        'message.local_id': localId,
+        'message.text_length': text.length,
+        'message.permission_mode': wirePermissionMode,
+        'message.model': model ?? 'default',
+        'message.sent_from': sentFrom,
+      },
+    );
+    if (sendSpan != null) {
+      otelService.pushCurrentSpan(sendSpan);
+    }
+
     // Ensure catch-up polling is active for this session. Without this,
     // if sendMessage() is called before onSessionVisible() (e.g. from the
     // sessions list before the chat screen initialises), _startPostSendCatchUp
@@ -245,6 +267,7 @@ extension SyncMessagingSend on Sync {
       rawRecord: rawRecord,
       encryptedRawRecord: encryptedRawRecord,
       transaction: sendTransaction,
+      otelSpan: sendSpan,
     );
     lastCompleteSendFuture = completeSendFuture;
     unawaited(completeSendFuture);
@@ -261,6 +284,7 @@ extension SyncMessagingSend on Sync {
     required Map<String, dynamic> rawRecord,
     required String encryptedRawRecord,
     required ISentrySpan transaction,
+    required OTelSpan? otelSpan,
   }) async {
     final apiClient = ApiClient();
     var sent = false;
@@ -518,6 +542,7 @@ extension SyncMessagingSend on Sync {
         throw StateError('Failed to send message: ${response.statusCode}');
       }
       await transaction.finish(status: const SpanStatus.ok());
+      otelSpan?.end(ok: true);
     } catch (e, stack) {
       final permanent = !sent && _isPermanentSendFailure(e);
       // A permanently-unrestorable session is an expected user-facing
@@ -532,6 +557,8 @@ extension SyncMessagingSend on Sync {
       }
       transaction.setData('error', e.toString());
       await transaction.finish(status: const SpanStatus.internalError());
+      otelSpan?.recordError(e, stack);
+      otelSpan?.end(ok: false);
       if (permanent) {
         _updateMessageSendStatus(targetSessionId, localId, 'failed');
         _notifySessionMessagesChanged(targetSessionId);
@@ -548,6 +575,12 @@ extension SyncMessagingSend on Sync {
         unawaited(messageOutbox.add(entry));
         // The outbox onStatusChanged callback sets 'pending' status.
       }
+    }
+    // Pop the active OTel span we pushed in sendMessage so the next
+    // sync tick (e.g. socket events, post-send catch-up) starts a fresh
+    // trace rather than nesting under chat.send_message forever.
+    if (otelSpan != null) {
+      OpenTelemetryService().popCurrentSpan();
     }
     // Notify so the UI picks up status changes (sent/failed/pending).
     if (!_sessionMessageChangeController.isClosed) {

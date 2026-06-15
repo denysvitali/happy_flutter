@@ -201,6 +201,14 @@ class AgentsListSheet extends StatelessWidget {
     return agents;
   }
 
+  /// Public alias for [_extractAgents]. The SubAgentStatusBanner uses
+  /// this to diff the current Task/Agent list across sync ticks so it
+  /// can open per-sub-agent OTel spans on spawn and close them on
+  /// terminal state. Public because both classes live in the same
+  /// package and the original underscore was a v1 oversight.
+  static List<Map<String, dynamic>> extractAgents(String sessionId) =>
+      _extractAgents(sessionId);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

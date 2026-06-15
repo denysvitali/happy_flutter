@@ -427,6 +427,7 @@ extension SyncSocket on Sync {
     // start a cooldown window.
     if (_dataChangeDebounceTimer == null ||
         !_dataChangeDebounceTimer!.isActive) {
+      _emitDataChangeSpan();
       if (!_dataChangeController.isClosed) {
         _dataChangeController.add(null);
       }

@@ -149,6 +149,41 @@ extension SyncSocketEvents on Sync {
       return;
     }
 
+    // Wrap each socket event in an OTel span. Parent under the
+    // currently-active span (typically chat.send_message) so the
+    // downstream sync.on_data_changed and subagent.spawn spans chain
+    // naturally in the trace. The type field is the strongest filter
+    // for new-message storms; we record it as an attribute rather than
+    // branching so the span exists for every event.
+    final updateType = payload['type'] as String? ?? 'unknown';
+    final activeSpan = OpenTelemetryService().currentSpan;
+    final socketSpan = activeSpan != null
+        ? OpenTelemetryService().startChildSpan(
+            'socket.event',
+            parent: activeSpan,
+            kind: SpanKind.consumer,
+            attributes: {
+              'event.type': updateType,
+              if (payload['sid'] is String) 'session.id': payload['sid'] as String,
+              if (payload['id'] is String) 'entity.id': payload['id'] as String,
+            },
+          )
+        : OpenTelemetryService().startTrace(
+            'socket.event',
+            kind: SpanKind.consumer,
+            attributes: {
+              'event.type': updateType,
+              if (payload['sid'] is String) 'session.id': payload['sid'] as String,
+              if (payload['id'] is String) 'entity.id': payload['id'] as String,
+            },
+          );
+    // Make the socket span the active span so downstream spans
+    // (sync.on_data_changed, subagent.spawn, ingestFromSocket's
+    // internal spans) chain as descendants. Pop in `finally`.
+    if (socketSpan != null) {
+      OpenTelemetryService().pushCurrentSpan(socketSpan);
+    }
+
     ApiUpdate? update;
     try {
       update = ApiUpdate.fromJson(payload);
@@ -209,6 +244,12 @@ extension SyncSocketEvents on Sync {
       }
     } catch (error, stack) {
       logger.error('Failed to handle update', error, stack);
+      socketSpan?.recordError(error, stack);
+    } finally {
+      if (socketSpan != null) {
+        OpenTelemetryService().popCurrentSpan();
+      }
+      socketSpan?.end(ok: true);
     }
   }
 
