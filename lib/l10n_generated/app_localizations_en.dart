@@ -3969,6 +3969,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentsListEmpty => 'No agents running';
 
   @override
+  String subAgentBannerRunning(int running, int total) {
+    return '$running of $total sub-agents running';
+  }
+
+  @override
+  String subAgentBannerComplete(int total) {
+    return '$total sub-agents finished';
+  }
+
+  @override
+  String subAgentBannerError(int error, int total) {
+    return '$error of $total sub-agents failed';
+  }
+
+  @override
+  String get subAgentBannerTapToOpen => 'Tap to view';
+
+  @override
+  String get subAgentBannerIcon => 'Sub-agents';
+
+  @override
   String get fileViewerNoContent => 'No content available';
 
   @override

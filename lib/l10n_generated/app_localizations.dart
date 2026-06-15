@@ -7441,6 +7441,36 @@ abstract class AppLocalizations {
   /// **'No agents running'**
   String get agentsListEmpty;
 
+  /// No description provided for @subAgentBannerRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'{running} of {total} sub-agents running'**
+  String subAgentBannerRunning(int running, int total);
+
+  /// No description provided for @subAgentBannerComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'{total} sub-agents finished'**
+  String subAgentBannerComplete(int total);
+
+  /// No description provided for @subAgentBannerError.
+  ///
+  /// In en, this message translates to:
+  /// **'{error} of {total} sub-agents failed'**
+  String subAgentBannerError(int error, int total);
+
+  /// No description provided for @subAgentBannerTapToOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to view'**
+  String get subAgentBannerTapToOpen;
+
+  /// No description provided for @subAgentBannerIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub-agents'**
+  String get subAgentBannerIcon;
+
   /// No description provided for @fileViewerNoContent.
   ///
   /// In en, this message translates to:

@@ -46,6 +46,7 @@ import 'widgets/permission_mode_selector.dart';
 import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
 import 'widgets/session_tasks_banner.dart';
+import 'widgets/sub_agent_status_banner.dart';
 import 'widgets/thinking_pill.dart';
 import 'widgets/tts_playback_bar.dart';
 
@@ -1307,6 +1308,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final sessionUiEntry = ref.watch(sessionUiEntryProvider(widget.sessionId));
     return Column(
       children: [
+        // Sticky sub-agent status banner. Re-renders on every
+        // sync.onDataChanged tick via its own StatefulWidget so the
+        // running/total counts stay current without invalidating the
+        // chat list. Hides itself when no sub-agents are present.
+        SubAgentStatusBanner(sessionId: widget.sessionId),
         Expanded(
           child: ValueListenableBuilder<int>(
             valueListenable: _messagePaneRevision,

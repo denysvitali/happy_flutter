@@ -1498,6 +1498,28 @@
   "agentFallbackTask": "Task",
   "agentsListTitle": "Agents",
   "agentsListEmpty": "No agents running",
+  "subAgentBannerRunning": "{running} of {total} sub-agents running",
+  "@subAgentBannerRunning": {
+    "placeholders": {
+      "running": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "subAgentBannerComplete": "{total} sub-agents finished",
+  "@subAgentBannerComplete": {
+    "placeholders": {
+      "total": {"type": "int"}
+    }
+  },
+  "subAgentBannerError": "{error} of {total} sub-agents failed",
+  "@subAgentBannerError": {
+    "placeholders": {
+      "error": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "subAgentBannerTapToOpen": "Tap to view",
+  "subAgentBannerIcon": "Sub-agents",
   "fileViewerNoContent": "No content available",
   "artifactsJustNow": "Just now",
   "artifactsYesterday": "Yesterday",
