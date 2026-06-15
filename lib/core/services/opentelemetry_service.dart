@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
@@ -24,7 +25,9 @@ class OpenTelemetryService {
   final NavigatorObserver _routeObserver;
 
   bool _initialized = false;
+  Future<void>? _initializeFuture;
   Future<void>? _trustedCertsFuture;
+  _HappyOtelLifecycleObserver? _lifecycleObserver;
 
   bool get isInitialized => _initialized;
 
@@ -54,6 +57,16 @@ class OpenTelemetryService {
 
   Future<void> initialize() async {
     if (_initialized) return;
+    final existing = _initializeFuture;
+    if (existing != null) return existing;
+
+    final future = _initialize();
+    _initializeFuture = future;
+    return future;
+  }
+
+  Future<void> _initialize() async {
+    if (_initialized) return;
 
     try {
       await _trustedCertsFuture;
@@ -73,11 +86,43 @@ class OpenTelemetryService {
         enableLogs: logsEnabled,
         enableAutoLogEvents: autoLogEventsEnabled,
       );
+      _replacePackageLifecycleObserver();
       _initialized = true;
       logger.info('[OpenTelemetry] initialized endpoint=$endpoint');
     } catch (e, stack) {
       logger.warning('[OpenTelemetry] initialization failed: $e', e, stack);
+    } finally {
+      _initializeFuture = null;
     }
+  }
+
+  Future<void> waitUntilReady({
+    Duration timeout = const Duration(milliseconds: 750),
+  }) async {
+    if (_initialized) return;
+    final future = _initializeFuture;
+    if (future == null) return;
+    try {
+      await future.timeout(timeout);
+    } on Object {
+      // Tracing should never block auth or sync startup. initialize() logs
+      // failures, and timeouts simply mean the request proceeds untraced.
+    }
+  }
+
+  void _replacePackageLifecycleObserver() {
+    try {
+      WidgetsBinding.instance.removeObserver(FlutterOTel.lifecycleObserver);
+      FlutterOTel.lifecycleObserver.dispose();
+    } catch (e, stack) {
+      logger.debug(
+        '[OpenTelemetry] failed to remove package lifecycle observer',
+        e,
+        stack,
+      );
+    }
+    _lifecycleObserver ??= _HappyOtelLifecycleObserver();
+    WidgetsBinding.instance.addObserver(_lifecycleObserver!);
   }
 
   OTelSpan? startTrace(
@@ -242,5 +287,50 @@ class _HappyOtelRouteObserver extends NavigatorObserver {
       previousRoute: previousRoute,
     );
     super.didRemove(route, previousRoute);
+  }
+}
+
+class _HappyOtelLifecycleObserver with WidgetsBindingObserver {
+  _HappyOtelLifecycleObserver() {
+    _recordLifecycleChange(null);
+  }
+
+  Uint8List? _currentLifecycleId;
+  AppLifecycleStates? _currentLifecycleState;
+  DateTime? _currentLifecycleStartTime;
+
+  void _recordLifecycleChange(AppLifecycleState? state) {
+    final startTime = DateTime.now();
+    final newStateId = OTel.spanId().bytes;
+    final previousState = _currentLifecycleState;
+    final previousStartTime = _currentLifecycleStartTime;
+    final duration = previousState != null && previousStartTime != null
+        ? startTime.difference(previousStartTime)
+        : null;
+    final newState = state == null
+        ? AppLifecycleStates.active
+        : AppLifecycleStates.appLifecycleStateFor(state.name);
+
+    FlutterOTel.tracer
+        .startAppLifecycleSpan(
+          newState: newState,
+          startTime: startTime,
+          newStateId: newStateId,
+          previousState: previousState,
+          previousStateId: _currentLifecycleId,
+          previousStateDuration: duration,
+        )
+        .end();
+
+    FlutterOTel.forceFlush();
+    FlutterOTel.currentAppLifecycleId = newStateId;
+    _currentLifecycleId = newStateId;
+    _currentLifecycleState = newState;
+    _currentLifecycleStartTime = startTime;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _recordLifecycleChange(state);
   }
 }

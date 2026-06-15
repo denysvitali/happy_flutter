@@ -1,9 +1,17 @@
-import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart'
+    show compute, kIsWeb, visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
 import 'opentelemetry_service.dart';
+
+String _encodeMessageCacheJson(List<Map<String, dynamic>> messages) {
+  return jsonEncode(messages);
+}
 
 /// Local-first message cache service.
 ///
@@ -60,6 +68,7 @@ class MessageCacheService {
   /// Per-session content hash of the last persisted tail. Used to skip
   /// redundant MMKV writes when the message list hasn't changed.
   final Map<String, int> _lastSavedHash = {};
+  final Map<String, int> _asyncSaveGeneration = {};
 
   /// Get cached messages for a session synchronously.
   ///
@@ -195,6 +204,21 @@ class MessageCacheService {
   /// On web, the LRU session list is updated and any sessions beyond
   /// [_maxWebSessions] are evicted to prevent QuotaExceededError.
   void saveMessages(String sessionId, List<Map<String, dynamic>> messages) {
+    _saveMessages(sessionId, messages, asyncWrite: false);
+  }
+
+  Future<void> saveMessagesAsync(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    return _saveMessages(sessionId, messages, asyncWrite: true);
+  }
+
+  Future<void> _saveMessages(
+    String sessionId,
+    List<Map<String, dynamic>> messages, {
+    required bool asyncWrite,
+  }) async {
     final stopwatch = Stopwatch()..start();
     final toSave = _trimToCacheWindow(messages);
 
@@ -218,7 +242,15 @@ class MessageCacheService {
     }
 
     try {
-      _storage.saveSessionMessages(sessionId, toSave);
+      if (asyncWrite) {
+        final generation = (_asyncSaveGeneration[sessionId] ?? 0) + 1;
+        _asyncSaveGeneration[sessionId] = generation;
+        final encoded = await compute(_encodeMessageCacheJson, toSave);
+        if (_asyncSaveGeneration[sessionId] != generation) return;
+        _storage.saveSessionMessagesEncoded(sessionId, encoded);
+      } else {
+        _storage.saveSessionMessages(sessionId, toSave);
+      }
       _lastSavedHash[sessionId] = hash;
       final elapsedMs = stopwatch.elapsedMilliseconds;
       if (elapsedMs >= _slowCacheWriteMs) {
@@ -226,18 +258,20 @@ class MessageCacheService {
           '[MessageCache] Slow save for session $sessionId: '
           '${toSave.length}/${messages.length} messages in ${elapsedMs}ms',
         );
-        Sentry.addBreadcrumb(
-          Breadcrumb(
-            message: 'MessageCache: slow save',
-            category: 'cache.messages',
-            level: SentryLevel.info,
-            data: {
-              'sessionId': sessionId,
-              'savedCount': toSave.length,
-              'originalCount': messages.length,
-              'truncated': messages.length > _maxCachedMessages,
-              'elapsedMs': elapsedMs,
-            },
+        unawaited(
+          Sentry.addBreadcrumb(
+            Breadcrumb(
+              message: 'MessageCache: slow save',
+              category: 'cache.messages',
+              level: SentryLevel.info,
+              data: {
+                'sessionId': sessionId,
+                'savedCount': toSave.length,
+                'originalCount': messages.length,
+                'truncated': messages.length > _maxCachedMessages,
+                'elapsedMs': elapsedMs,
+              },
+            ),
           ),
         );
         OpenTelemetryService()
@@ -256,16 +290,18 @@ class MessageCacheService {
     } catch (e) {
       final elapsedMs = stopwatch.elapsedMilliseconds;
       logger.warning('[MessageCache] Failed to save cache for $sessionId: $e');
-      Sentry.addBreadcrumb(
-        Breadcrumb(
-          message: 'MessageCache: save failed',
-          category: 'cache.messages',
-          level: SentryLevel.warning,
-          data: {
-            'sessionId': sessionId,
-            'error': e.toString(),
-            'elapsedMs': elapsedMs,
-          },
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'MessageCache: save failed',
+            category: 'cache.messages',
+            level: SentryLevel.warning,
+            data: {
+              'sessionId': sessionId,
+              'error': e.toString(),
+              'elapsedMs': elapsedMs,
+            },
+          ),
         ),
       );
       final span = OpenTelemetryService().startTrace(

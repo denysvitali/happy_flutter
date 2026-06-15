@@ -10,6 +10,8 @@
 // See: lib/core/services/_sync_socket.dart `_notifyDataChanged`,
 //      `_flushDataChanged`.
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/message_cache_service.dart';
@@ -34,6 +36,13 @@ class _CountingMMKVStorage extends MMKVStorage {
       for (final m in messages) Map<String, dynamic>.from(m),
     ];
     return true;
+  }
+
+  @override
+  bool saveSessionMessagesEncoded(String sessionId, String encodedMessages) {
+    final decoded = (jsonDecode(encodedMessages) as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    return saveSessionMessages(sessionId, decoded);
   }
 
   @override

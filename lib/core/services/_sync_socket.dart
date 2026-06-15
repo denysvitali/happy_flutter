@@ -588,9 +588,11 @@ extension SyncSocket on Sync {
           // (_restoreAllCachedMessages) so children are correctly
           // re-parented.  Previously we stripped isSidechain messages
           // here, which permanently lost them on cold-start.
-          MessageCacheService().saveMessages(
-            sessionId,
-            MessageCacheService.stripOrphanSynthetics(msgs),
+          unawaited(
+            MessageCacheService().saveMessagesAsync(
+              sessionId,
+              MessageCacheService.stripOrphanSynthetics(msgs),
+            ),
           );
         }
       },

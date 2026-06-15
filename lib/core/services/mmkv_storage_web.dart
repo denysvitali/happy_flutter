@@ -635,13 +635,16 @@ class MMKVStorage {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
+    return saveSessionMessagesEncoded(sessionId, jsonEncode(messages));
+  }
+
+  bool saveSessionMessagesEncoded(String sessionId, String encodedMessages) {
     final key = 'session-messages-$sessionId';
-    final encoded = jsonEncode(messages);
     // Always update in-memory cache so reads are consistent.
-    _cache[key] = encoded;
+    _cache[key] = encodedMessages;
     _sessionMessageCacheKeys.add(key);
     // Fire-and-forget persist; errors are logged inside _doPersist.
-    _doPersist(key, encoded);
+    _doPersist(key, encodedMessages);
     return true;
   }
 

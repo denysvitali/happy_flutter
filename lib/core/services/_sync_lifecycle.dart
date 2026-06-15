@@ -268,7 +268,7 @@ extension SyncLifecycle on Sync {
         // activity. The visible session and any sessions with pending
         // socket messages are refreshed separately below.
         if (shouldRunGlobalInvalidation) {
-          _invalidateAllSyncs();
+          _invalidateAllSyncs(phase: Sync._criticalSyncPhase);
         } else if (socketNeedsHttpFallback) {
           logger.info(
             '[Sync] resume: socket not connected yet '
@@ -432,15 +432,29 @@ extension SyncLifecycle on Sync {
                   // "Fetching conversations" bar never hangs at
                   // "0 of N complete".
                   _advanceResumeConversationProgress(sessionsToRefresh.length);
+                  if (shouldRunGlobalInvalidation) {
+                    _schedulePostResumeNonCriticalSyncs();
+                  }
                 }),
           );
         } else if (socketNeedsHttpFallback && !shouldRunGlobalInvalidation) {
-          // _invalidateAllSyncs() above already invalidated sessionsSync;
-          // re-invalidating here would start a second fetch cycle.
+          // Short resumes skip the broad invalidation above; use a sessions
+          // HTTP fallback only when the socket has not reconnected yet.
           sessionsSync.invalidate();
+        } else if (shouldRunGlobalInvalidation) {
+          unawaited(
+            sessionsSync.awaitQueue().whenComplete(
+              _schedulePostResumeNonCriticalSyncs,
+            ),
+          );
         }
       },
     );
+  }
+
+  void _schedulePostResumeNonCriticalSyncs() {
+    _invalidateAllSyncs(force: true, phase: Sync._deferredSyncPhase);
+    _invalidateAllSyncs(force: true, phase: Sync._backgroundSyncPhase);
   }
 
   void _startResumeConversationProgress(int total) {

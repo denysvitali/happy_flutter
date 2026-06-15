@@ -120,8 +120,9 @@ Future<void> _runApp() async {
     unawaited(deepLinkSpan.finish());
   });
   unawaited(sodiumSingleton); // FFI load overlaps with storage/network
+  unawaited(OpenTelemetryService().initialize());
 
-  // Defer Android user certificates, Firebase, OpenTelemetry,
+  // Defer Android user certificates, Firebase,
   // and NetworkMonitorService past first frame — none of them are
   // needed to render the first frame, and each adds ~50–400ms to the
   // critical path on cold start.
@@ -210,9 +211,9 @@ Future<void> _deferredInit() async {
     'app.load.deferred',
     bindToScope: false,
   );
-  // Run Android certs, Firebase, OpenTelemetry, and NetworkMonitor
-  // init in parallel — they are all independent and each can take
-  // 100–500ms+. None are needed to render the first frame.
+  // Run Android certs, Firebase, and NetworkMonitor init in parallel —
+  // they are all independent and each can take 100–500ms+. None are
+  // needed to render the first frame.
   final futures = <Future<void>>[];
 
   final userCertificatesFuture = () async {
@@ -233,8 +234,8 @@ Future<void> _deferredInit() async {
   }();
   OpenTelemetryService().setTrustedCertificatesFuture(userCertificatesFuture);
 
-  // OpenTelemetry — OTLP/HTTP tracer init. Off the critical path; the
-  // route observer is installed immediately and no-ops until init completes.
+  // OpenTelemetry — OTLP/HTTP tracer init starts before first frame so
+  // auth and initial sync requests can join the same mobile/server trace.
   futures.add(() async {
     final otelSpan = transaction.startChild(
       'app.deferredInit.opentelemetry',

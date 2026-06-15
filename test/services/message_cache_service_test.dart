@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/message_cache_service.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
@@ -47,6 +49,13 @@ class _InMemoryMMKVStorage extends MMKVStorage {
     // valid override against both because void is a permissible
     // return for bool-returning methods (return value discarded).
     return true;
+  }
+
+  @override
+  bool saveSessionMessagesEncoded(String sessionId, String encodedMessages) {
+    final decoded = (jsonDecode(encodedMessages) as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    return saveSessionMessages(sessionId, decoded);
   }
 
   @override

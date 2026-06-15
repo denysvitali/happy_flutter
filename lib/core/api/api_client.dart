@@ -125,89 +125,6 @@ class ApiClient {
       ),
     );
 
-    // Add cache interceptor
-    _dio!.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          // Check cache for GET requests
-          if (options.method == 'GET' && options.extra['bypassCache'] != true) {
-            final cachedResponse = _httpCache.get(options);
-            if (cachedResponse != null) {
-              cachedResponse.requestOptions.extra['fromCache'] = true;
-              return handler.resolve(cachedResponse);
-            }
-          }
-          return handler.next(options);
-        },
-        onResponse: (response, handler) {
-          // Cache successful GET responses
-          if (response.requestOptions.extra['bypassCache'] != true) {
-            _httpCache.put(response.requestOptions, response);
-          }
-
-          if (response.statusCode == 401) {
-            logger.warning(
-              'Received 401 - Unauthorized: '
-              '${response.realUri}',
-            );
-          }
-          if (response.statusCode == 403) {
-            logger.info(
-              'Received 403 - Forbidden: '
-              '${response.realUri}',
-            );
-          }
-          return handler.next(response);
-        },
-        onError: (DioException error, handler) {
-          // Invalidate cache on POST/PUT/DELETE errors
-          if (error.requestOptions.method == 'POST' ||
-              error.requestOptions.method == 'PUT' ||
-              error.requestOptions.method == 'DELETE') {
-            _httpCache.invalidate(error.requestOptions.path);
-          }
-
-          // Build error message with fallback to error.error for
-          // better debugging
-          final errorMessage =
-              error.message ?? error.error?.toString() ?? 'no message';
-          // Downgrade transient connection errors (e.g. Cronet
-          // aborting connections when the app is backgrounded)
-          // to info so they don't create Sentry noise.
-          if (isTransientConnectionError(error) ||
-              error.response?.statusCode == 404) {
-            logger.info(
-              'Dio ${error.response?.statusCode == 404 ? '404' : 'transient'} '
-              'error: $errorMessage\n'
-              '  Request: ${error.requestOptions.method} '
-              '${error.requestOptions.uri}',
-            );
-          } else {
-            logger.warning(
-              'Dio error: ${error.type} - $errorMessage\n'
-              '  Request: ${error.requestOptions.method} '
-              '${error.requestOptions.uri}',
-              error,
-              error.stackTrace,
-            );
-          }
-          if (error.response?.statusCode == 401) {
-            logger.warning(
-              '401 Unauthorized response: '
-              '${error.response?.data}',
-            );
-          }
-          if (error.response?.statusCode == 403) {
-            logger.warning(
-              '403 Forbidden response: '
-              '${error.response?.data}',
-            );
-          }
-          return handler.next(error);
-        },
-      ),
-    );
-
     _dio!.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -286,6 +203,100 @@ class ApiClient {
             error.response?.statusCode,
             null,
           );
+          return handler.next(error);
+        },
+      ),
+    );
+
+    // Cache last so cache hits still pass through auth, tracing, and
+    // request-tracker interceptors before the response is resolved.
+    _dio!.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          if (options.method == 'GET' && options.extra['bypassCache'] != true) {
+            final cachedResponse = _httpCache.get(options);
+            if (cachedResponse != null) {
+              options.extra['fromCache'] = true;
+              return handler.resolve(
+                Response<dynamic>(
+                  data: cachedResponse.data,
+                  requestOptions: options,
+                  statusCode: cachedResponse.statusCode,
+                  statusMessage: cachedResponse.statusMessage,
+                  isRedirect: cachedResponse.isRedirect,
+                  redirects: cachedResponse.redirects,
+                  extra: cachedResponse.extra,
+                  headers: cachedResponse.headers,
+                ),
+              );
+            }
+          }
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          if (response.requestOptions.extra['bypassCache'] != true &&
+              response.requestOptions.extra['fromCache'] != true) {
+            _httpCache.put(response.requestOptions, response);
+          }
+
+          if (response.statusCode == 401) {
+            logger.warning(
+              'Received 401 - Unauthorized: '
+              '${response.realUri}',
+            );
+          }
+          if (response.statusCode == 403) {
+            logger.info(
+              'Received 403 - Forbidden: '
+              '${response.realUri}',
+            );
+          }
+          return handler.next(response);
+        },
+        onError: (DioException error, handler) {
+          // Invalidate cache on POST/PUT/DELETE errors
+          if (error.requestOptions.method == 'POST' ||
+              error.requestOptions.method == 'PUT' ||
+              error.requestOptions.method == 'DELETE') {
+            _httpCache.invalidate(error.requestOptions.path);
+          }
+
+          // Build error message with fallback to error.error for
+          // better debugging
+          final errorMessage =
+              error.message ?? error.error?.toString() ?? 'no message';
+          // Downgrade transient connection errors (e.g. Cronet
+          // aborting connections when the app is backgrounded)
+          // to info so they don't create Sentry noise.
+          if (isTransientConnectionError(error) ||
+              error.response?.statusCode == 404) {
+            logger.info(
+              'Dio ${error.response?.statusCode == 404 ? '404' : 'transient'} '
+              'error: $errorMessage\n'
+              '  Request: ${error.requestOptions.method} '
+              '${error.requestOptions.uri}',
+            );
+          } else {
+            logger.warning(
+              'Dio error: ${error.type} - $errorMessage\n'
+              '  Request: ${error.requestOptions.method} '
+              '${error.requestOptions.uri}',
+              error,
+              error.stackTrace,
+            );
+          }
+          if (error.response?.statusCode == 401) {
+            logger.warning(
+              '401 Unauthorized response: '
+              '${error.response?.data}',
+            );
+          }
+          if (error.response?.statusCode == 403) {
+            logger.warning(
+              '403 Forbidden response: '
+              '${error.response?.data}',
+            );
+          }
           return handler.next(error);
         },
       ),

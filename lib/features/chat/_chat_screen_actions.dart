@@ -149,6 +149,7 @@ extension _ChatScreenActions on _ChatScreenState {
     _didStartInitialLoad = true;
     final sessionId = widget.sessionId;
     final stopwatch = Stopwatch()..start();
+    final initialMessageCount = _messages.length;
     var success = true;
 
     final transaction = Sentry.startTransaction(
@@ -208,12 +209,14 @@ extension _ChatScreenActions on _ChatScreenState {
         'chat.cache.check',
         description: 'Check cached messages',
       );
-      unawaited((cacheSpan..setData('cachedCount', _messages.length)).finish());
+      unawaited(
+        (cacheSpan..setData('cachedCount', initialMessageCount)).finish(),
+      );
       OpenTelemetryService()
           .startChildSpan(
             'chat.cache.check',
             parent: otelTrace,
-            attributes: {'message.cached_count': _messages.length},
+            attributes: {'message.cached_count': initialMessageCount},
           )
           ?.end();
 
@@ -264,12 +267,18 @@ extension _ChatScreenActions on _ChatScreenState {
       // If we have cached messages, clear the loading spinner
       // immediately so users see content instead of waiting up
       // to 5s for the sync queue to drain (warm start fix).
-      final hasCached =
-          _messages.isNotEmpty || sync.messagesForSession(sessionId).isNotEmpty;
+      final syncCachedCount = sync.messagesForSession(sessionId).length;
+      final hasCached = _messages.isNotEmpty || syncCachedCount > 0;
       _refreshFromSync(markLoaded: hasCached);
+      final firstPaintCount = _messages.length;
+      refreshSpan
+        ..setData('syncCachedCount', syncCachedCount)
+        ..setData('firstPaintCount', firstPaintCount);
       unawaited(refreshSpan.finish());
       otelRefreshSpan
         ?..setAttribute('has_cached_messages', hasCached)
+        ..setAttribute('message.sync_cached_count', syncCachedCount)
+        ..setAttribute('message.first_paint_count', firstPaintCount)
         ..end();
 
       // Span for the message sync queue. When the cache is hot we
@@ -313,6 +322,13 @@ extension _ChatScreenActions on _ChatScreenState {
                   return;
                 })
                 .whenComplete(() {
+                  final postRefreshCount =
+                      sync.messagesForSession(sessionId).length;
+                  awaitSpan.setData('postRefreshCount', postRefreshCount);
+                  otelAwaitSpan?.setAttribute(
+                    'message.post_refresh_count',
+                    postRefreshCount,
+                  );
                   unawaited(awaitSpan.finish());
                   otelAwaitSpan?.end();
                 }),
@@ -394,10 +410,12 @@ extension _ChatScreenActions on _ChatScreenState {
 
     // Finish the transaction
     transaction
+      ..setData('initialMessageCount', initialMessageCount)
       ..setData('finalMessageCount', _messages.length)
       ..setData('elapsedMs', stopwatch.elapsedMilliseconds);
     otelTrace
       ?..setAttribute('success', success)
+      ..setAttribute('message.initial_count', initialMessageCount)
       ..setAttribute('message.final_count', _messages.length)
       ..setAttribute('chat.load_elapsed_ms', stopwatch.elapsedMilliseconds)
       ..end(ok: success);

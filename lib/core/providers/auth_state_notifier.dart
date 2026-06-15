@@ -10,6 +10,7 @@ import '../providers/profile_notifier.dart';
 import '../services/app_lifecycle_service.dart';
 import '../services/auth_service.dart';
 import '../services/logger_service.dart' show logger;
+import '../services/opentelemetry_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 import '../services/token_refresh_manager.dart';
@@ -70,6 +71,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
         ApiClient().updateToken(credentials.token);
         // Keep the WebSocket token in sync with the HTTP token.
         socket_io.socketIoClient.updateToken(credentials.token);
+        await OpenTelemetryService().waitUntilReady();
         await syncRestore(credentials);
 
         // Kick off the list-heavy invalidations in the background so

@@ -679,10 +679,11 @@ class MMKVStorage {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
-    _mmkv?.encodeString(
-      'session-messages-$sessionId',
-      jsonEncode(messages),
-    );
+    saveSessionMessagesEncoded(sessionId, jsonEncode(messages));
+  }
+
+  void saveSessionMessagesEncoded(String sessionId, String encodedMessages) {
+    _mmkv?.encodeString('session-messages-$sessionId', encodedMessages);
   }
 
   void clearSessionMessages(String sessionId) {
