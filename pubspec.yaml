@@ -95,7 +95,8 @@ dependencies:
 dependency_overrides:
   # Keep this explicit until the Flutter toolchain's transitive constraints
   # consistently pick an Android implementation with SharedPreferencesPlugin.
-  shared_preferences_android: 2.4.26
+  # 2.4.26 requires Dart 3.12 (Flutter 3.44); hold at 2.4.23 for Dart 3.11.
+  shared_preferences_android: 2.4.23
   mmkv_platform_interface: 2.4.0
   flutter_secure_storage_linux: 3.0.1
   # flutterrific_opentelemetry 0.4.0 caps go_router at ^14.8.1, but the
@@ -133,24 +134,24 @@ dependency_overrides:
   dbus: 0.7.14
   flutter_secure_storage_darwin: 0.4.0
   hooks: 2.0.2
-  idb_shim: 2.9.4
   image: 4.9.1
   injector: 4.0.0
   matcher: 0.12.20
   native_toolchain_c: 0.19.1
   objective_c: 9.4.1
   package_config: 3.0.0
-  sembast: 3.8.9
-  sqflite: 2.4.3
-  sqflite_android: 2.4.3
-  sqflite_common: 2.5.11
-  sqflite_darwin: 2.4.3
-  sqflite_platform_interface: 2.4.1
-  synchronized: 3.4.1
+  # NOTE: do NOT force-bump any package whose latest release declares Dart
+  # language version 3.12. nixpkgs tops out at Flutter 3.41 (Dart 3.11), and
+  # dependency_overrides bypass pub's SDK check — so such a force-pin resolves
+  # cleanly but then fails at compile time ("language version 3.12 ... too
+  # high"). Leaving these unpinned lets pub pick the newest Dart-3.11-compatible
+  # release. Removed for this reason (re-add only after nixpkgs ships 3.44+):
+  #   idb_shim (2.9.4), sembast (3.8.9), synchronized (3.4.1),
+  #   url_launcher_android (6.3.32), and the sqflite cluster (sqflite 2.4.3 /
+  #   sqflite_common 2.5.11 — transitive via flutter_cache_manager).
   test: 1.31.1
   test_api: 0.7.12
   test_core: 0.6.18
-  url_launcher_android: 6.3.32
   vector_math: 2.4.0
   xml: 7.0.1
 
