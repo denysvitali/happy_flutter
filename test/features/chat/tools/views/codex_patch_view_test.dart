@@ -82,6 +82,73 @@ void main() {
       expect(_findRichTextContaining("-const name = 'old';"), findsOneWidget);
       expect(_findRichTextContaining("+const name = 'new';"), findsOneWidget);
     });
+
+    testWidgets('renders structured Map changes without raw JSON', (
+      tester,
+    ) async {
+      // Codex sometimes returns changes as a structured Map (not the
+      // '*** Begin Patch' text). The view should still render the diff
+      // text from the structured fields, never raw JSON.
+      await tester.pumpWidget(
+        _wrap(
+          CodexPatchView(
+            tool: {
+              'input': {
+                'changes': {
+                  'lib/structured.dart': {
+                    'add': {
+                      'content': 'const answer = 42;\n',
+                    },
+                  },
+                },
+              },
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(_findRichTextContaining('structured.dart'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 file changed'), findsOneWidget);
+      expect(_findRichTextContaining('const answer = 42;'), findsOneWidget);
+      // No raw JSON braces/brackets should leak into the rendered output.
+      expect(find.textContaining('{'), findsNothing);
+      expect(find.textContaining('['), findsNothing);
+    });
+
+    testWidgets('recovers diff text from nested Map envelope', (tester) async {
+      // Provider sometimes wraps the diff inside a nested Map (e.g. under
+      // a 'diff' or 'patch' key whose value is itself a Map with the real
+      // text). The view should still surface the diff text, not a JSON dump.
+      await tester.pumpWidget(
+        _wrap(
+          CodexPatchView(
+            tool: {
+              'input': {
+                'changes': {
+                  'lib/nested.dart': {
+                    'modify': {
+                      'diff': {
+                        'patch': '@@\n-foo();\n+bar();\n',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(_findRichTextContaining('nested.dart'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 file changed'), findsOneWidget);
+      expect(_findRichTextContaining('-foo();'), findsOneWidget);
+      expect(_findRichTextContaining('+bar();'), findsOneWidget);
+      expect(find.textContaining('{'), findsNothing);
+    });
   });
 
   group('ToolView apply_patch', () {

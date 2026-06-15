@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
@@ -495,7 +494,7 @@ class _FileChangeDetail extends StatelessWidget {
 
   String? _stringifyContent(dynamic value) {
     if (value == null) return null;
-    if (value is String) return value;
+    if (value is String) return value.isEmpty ? null : value;
     if (value is List) {
       final buffer = StringBuffer();
       for (final entry in value) {
@@ -504,12 +503,57 @@ class _FileChangeDetail extends StatelessWidget {
         if (buffer.isNotEmpty) buffer.write('\n');
         buffer.write(line);
       }
-      return buffer.toString();
+      return buffer.isEmpty ? null : buffer.toString();
     }
     if (value is Map) {
-      return const JsonEncoder.withIndent('  ').convert(value);
+      // Structured change envelopes from providers (Codex, Gemini) sometimes
+      // nest the actual diff text inside an extra Map. Walk the structure
+      // and prefer a string leaf that looks like a diff/patch.
+      final stringLeaf = _firstStringLeaf(value);
+      if (stringLeaf != null) return stringLeaf;
+      return null;
     }
     return value.toString();
+  }
+
+  /// Returns the first string leaf in [value] that looks like patch content,
+  /// or the first string leaf of any kind, or null. Used to avoid rendering
+  /// raw JSON for nested structured change envelopes.
+  String? _firstStringLeaf(dynamic value) {
+    if (value is String) return value.isEmpty ? null : value;
+    if (value is List) {
+      for (final item in value) {
+        final leaf = _firstStringLeaf(item);
+        if (leaf != null) return leaf;
+      }
+      return null;
+    }
+    if (value is Map) {
+      const diffKeys = [
+        'patch',
+        'diff',
+        'unified_diff',
+        'content',
+        'text',
+        'after',
+        'new',
+        'before',
+        'old',
+        'original',
+        'body',
+        'input',
+      ];
+      for (final key in diffKeys) {
+        if (!value.containsKey(key)) continue;
+        final leaf = _firstStringLeaf(value[key]);
+        if (leaf != null) return leaf;
+      }
+      for (final entry in value.values) {
+        final leaf = _firstStringLeaf(entry);
+        if (leaf != null) return leaf;
+      }
+    }
+    return null;
   }
 
   String? _firstString(Map<String, dynamic> data, List<String> keys) {
