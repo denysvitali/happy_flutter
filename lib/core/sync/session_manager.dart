@@ -36,7 +36,7 @@ class SessionManager {
     required Future<bool> Function(String sessionId) applyPermissionRequests,
     required void Function(Iterable<Session>) checkForNewPermissionRequests,
     void Function()? onFetchSessionsStarted,
-    void Function(SyncProgress)? onSyncProgress,
+    void Function(SyncProgress?)? onSyncProgress,
     void Function()? scheduleSaveSessionsCache,
   })  : _encryption = encryption,
         _sessionsSyncGetter = sessionsSyncGetter,
@@ -61,7 +61,7 @@ class SessionManager {
   final bool Function(Object) _isTransientConnectionError;
   final Future<bool> Function(String sessionId) _applyPermissionRequests;
   final void Function(Iterable<Session>) _checkForNewPermissionRequests;
-  final void Function(SyncProgress)? _onSyncProgress;
+  final void Function(SyncProgress?)? _onSyncProgress;
   final void Function()? _scheduleSaveSessionsCache;
 
   // ── State ────────────────────────────────────────────────────────────
@@ -254,6 +254,7 @@ class SessionManager {
     final forceFullFetch = _forceFullFetchNext;
     if (forceFullFetch) _forceFullFetchNext = false;
     final changedSince = forceFullFetch ? null : _lastSessionsFetchedAt;
+    var showedConversationProgress = false;
 
     try {
       final apiClient = ApiClient();
@@ -268,6 +269,7 @@ class SessionManager {
         );
       }
       if (allSessions.isNotEmpty) {
+        showedConversationProgress = true;
         _onSyncProgress?.call(
           SyncProgress(
             label: 'Fetching conversations',
@@ -608,6 +610,10 @@ class SessionManager {
       } else {
         logger.error('Error fetching sessions', error, stack);
       }
+    } finally {
+      if (showedConversationProgress) {
+        _onSyncProgress?.call(null);
+      }
     }
   }
 
@@ -860,4 +866,3 @@ class _DecryptedSessionContent {
   final Map<String, dynamic>? metadata;
   final Map<String, dynamic>? agentState;
 }
-

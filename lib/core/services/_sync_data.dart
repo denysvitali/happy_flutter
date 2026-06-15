@@ -28,6 +28,7 @@ extension SyncData on Sync {
     final forceFullFetch = _forceFullFetchNext;
     if (forceFullFetch) _forceFullFetchNext = false;
     final changedSince = forceFullFetch ? null : _lastSessionsFetchedAt;
+    var showedConversationProgress = false;
 
     try {
       final apiClient = ApiClient();
@@ -42,6 +43,7 @@ extension SyncData on Sync {
         );
       }
       if (allSessions.isNotEmpty) {
+        showedConversationProgress = true;
         _setSyncProgress(
           SyncProgress(
             label: 'Fetching conversations',
@@ -472,6 +474,10 @@ extension SyncData on Sync {
         logger.warning('Error fetching sessions', error, stack);
       } else {
         logger.error('Error fetching sessions', error, stack);
+      }
+    } finally {
+      if (showedConversationProgress) {
+        _setSyncProgress(null);
       }
     }
   }

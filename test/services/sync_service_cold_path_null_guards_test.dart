@@ -136,6 +136,14 @@ void main() {
         // session row) should be silently dropped, not crash.
         expect(instance.sessions['real-session'], isNotNull);
         expect(instance.sessions.containsKey('ghost-session'), isFalse);
+        expect(
+          instance.testSyncProgress,
+          isNull,
+          reason:
+              'fetchSessions owns the conversation progress label and must '
+              'clear it when the fetch completes, even if other sync work is '
+              'still active',
+        );
       },
     );
 
