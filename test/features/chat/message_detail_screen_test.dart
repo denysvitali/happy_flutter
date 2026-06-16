@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/message_detail_screen.dart';
+import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
 
 Widget _wrap(Widget child) {
   return ProviderScope(
@@ -24,6 +25,34 @@ String _renderedText(WidgetTester tester) {
       .map((widget) => widget.data ?? widget.textSpan?.toPlainText() ?? '')
       .join('\n');
   return '$richText\n$selectableText';
+}
+
+String _longOutput() =>
+    List<int>.generate(300, (i) => i).map((i) => 'output line $i').join('\n');
+
+ScrollableState _verticalScrollableIn(WidgetTester tester, Finder finder) {
+  final states = tester
+      .stateList<ScrollableState>(
+        find.descendant(of: finder, matching: find.byType(Scrollable)),
+      )
+      .where(
+        (state) =>
+            state.position.axis == Axis.vertical &&
+            state.position.maxScrollExtent > 0,
+      )
+      .toList(growable: false);
+  expect(states, isNotEmpty);
+  return states.first;
+}
+
+Future<void> _dragUpInside(WidgetTester tester, Finder finder) async {
+  final gesture = await tester.startGesture(tester.getCenter(finder));
+  for (var i = 0; i < 10; i++) {
+    await gesture.moveBy(const Offset(0, -24));
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  await gesture.up();
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -139,6 +168,90 @@ void main() {
       expect(renderedText, contains('INFO'));
       expect(renderedText, contains('FATA'));
       expect(renderedText, isNot(contains('\x1B[')));
+    });
+
+    testWidgets('output panel scrolls inside tool details', (tester) async {
+      final output = _longOutput();
+
+      await tester.pumpWidget(
+        _wrap(
+          MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'functions.exec_command',
+              'state': 'completed',
+              'input': <String, dynamic>{'cmd': 'long-output'},
+              'result': <String, dynamic>{
+                'exitCode': 0,
+                'output': output,
+                'status': 'completed',
+                'stdout': output,
+              },
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final outputFrame = find.byType(ToolOutputScrollFrame).last;
+      final pane = _verticalScrollableIn(tester, outputFrame);
+      final before = pane.position.pixels;
+
+      await _dragUpInside(tester, outputFrame);
+
+      expect(pane.position.pixels, greaterThan(before));
+    });
+
+    testWidgets('output panel scrolls inside child tool detail sheet', (
+      tester,
+    ) async {
+      final output = _longOutput();
+
+      await tester.pumpWidget(
+        _wrap(
+          MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'Task',
+              'state': 'completed',
+              'input': <String, dynamic>{'description': 'inspect output'},
+              'messages': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'kind': 'tool-call',
+                  'name': 'functions.exec_command',
+                  'state': 'completed',
+                  'input': <String, dynamic>{'cmd': 'long-output'},
+                  'result': <String, dynamic>{
+                    'exitCode': 0,
+                    'output': output,
+                    'status': 'completed',
+                    'stdout': output,
+                  },
+                },
+              ],
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Terminal'));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(ListView).last, const Offset(0, -260));
+      await tester.pumpAndSettle();
+
+      final outputFrame = find.byType(ToolOutputScrollFrame).last;
+      final pane = _verticalScrollableIn(tester, outputFrame);
+      final before = pane.position.pixels;
+
+      await _dragUpInside(tester, outputFrame);
+
+      expect(pane.position.pixels, greaterThan(before));
     });
   });
 }

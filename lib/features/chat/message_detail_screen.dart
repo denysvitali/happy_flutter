@@ -802,6 +802,7 @@ class _JsonTreeBlock extends StatelessWidget {
       ),
       child: ToolOutputScrollFrame(
         maxHeight: 320,
+        assistTouchDrag: true,
         child: Theme(
           // Force dark brightness so JsonTreeViewer always uses the dark
           // palette inside the always-dark code container.
@@ -844,6 +845,7 @@ class _CodeBlock extends StatelessWidget {
       ),
       child: ToolOutputScrollFrame(
         maxHeight: 320,
+        assistTouchDrag: true,
         child: SelectableText.rich(
           TextSpan(children: spans),
           style: defaultStyle,

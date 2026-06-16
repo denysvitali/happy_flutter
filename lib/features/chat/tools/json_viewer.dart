@@ -223,10 +223,23 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
 /// from the surrounding scrollable and make both scrollbars target the right
 /// viewport.
 class ToolOutputScrollFrame extends StatefulWidget {
-  const ToolOutputScrollFrame({required this.child, super.key, this.maxHeight});
+  const ToolOutputScrollFrame({
+    required this.child,
+    super.key,
+    this.maxHeight,
+    this.assistTouchDrag = false,
+  });
 
   final Widget child;
   final double? maxHeight;
+
+  /// Drives the vertical controller directly from touch movement.
+  ///
+  /// Detail-sheet tool output is nested inside other vertical scrollables.
+  /// On some platforms the ancestor can win the gesture arena, leaving this
+  /// pane rubber-banding at the top. This opt-in path keeps the bounded output
+  /// pane reachable without changing every inline tool renderer.
+  final bool assistTouchDrag;
 
   @override
   State<ToolOutputScrollFrame> createState() => _ToolOutputScrollFrameState();
@@ -258,6 +271,7 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
           notification.metrics.axis == Axis.vertical,
       child: SingleChildScrollView(
         controller: _verticalController,
+        physics: const ClampingScrollPhysics(),
         primary: false,
         child: Scrollbar(
           controller: _horizontalController,
@@ -265,6 +279,7 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
               notification.metrics.axis == Axis.horizontal,
           child: SingleChildScrollView(
             controller: _horizontalController,
+            physics: const ClampingScrollPhysics(),
             primary: false,
             scrollDirection: Axis.horizontal,
             child: widget.child,
@@ -280,7 +295,37 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
       );
     }
 
+    if (widget.assistTouchDrag) {
+      content = Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerMove: _handlePointerMove,
+        child: content,
+      );
+    }
+
     return content;
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (!_verticalController.hasClients) return;
+
+    final dy = event.delta.dy;
+    if (dy == 0 || dy.abs() < event.delta.dx.abs()) return;
+
+    final before = _verticalController.position.pixels;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_verticalController.hasClients) return;
+
+      final position = _verticalController.position;
+      if ((position.pixels - before).abs() > 0.5) return;
+
+      final target = (position.pixels - dy).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      if (target == position.pixels) return;
+      position.jumpTo(target);
+    });
   }
 }
 
