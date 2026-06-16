@@ -3,6 +3,7 @@ import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../../syntax_highlighter.dart';
+import '../json_viewer.dart';
 import '../tool_section_view.dart';
 import '../tool_view_colors.dart';
 
@@ -69,16 +70,18 @@ class CodexPatchView extends StatelessWidget {
     final c = ToolViewColors.of(context);
     final rawInput = tool['input'];
     final input = WireParsers.asMap(rawInput) ?? {};
-    final changes = WireParsers.asMap(input['changes']);
+    final changes = input['changes'];
     final patch = _extractPatchText(rawInput);
     final autoApproved = input['auto_approved'] as bool?;
 
-    if ((changes == null || changes.isEmpty) && patch == null) {
+    final parsedChanges = _parseChanges(changes);
+
+    if (parsedChanges.isEmpty && patch == null) {
       return const SizedBox.shrink();
     }
 
-    final parsedChanges = changes != null && changes.isNotEmpty
-        ? _parseChanges(changes)
+    final fileChanges = parsedChanges.isNotEmpty
+        ? parsedChanges
         : _parsePatch(patch!);
 
     return ToolSectionView(
@@ -93,39 +96,158 @@ class CodexPatchView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _PatchHeaderBar(
-              fileCount: parsedChanges.length,
+              fileCount: fileChanges.length,
               autoApproved: autoApproved,
             ),
-            _PatchFileList(changes: parsedChanges),
+            _PatchFileList(changes: fileChanges),
           ],
         ),
       ),
     );
   }
 
-  List<FileChange> _parseChanges(Map<String, dynamic> changes) {
+  List<FileChange> _parseChanges(dynamic changes) {
+    final list = WireParsers.asList(changes);
+    if (list != null) return _parseChangeList(list);
+
+    final map = WireParsers.asMap(changes);
+    if (map == null || map.isEmpty) return const [];
+
     final result = <FileChange>[];
-    for (final entry in changes.entries) {
+    if (_pathFromChangeData(map) != null) {
+      final change = _fileChangeFromData(map);
+      if (change != null) result.add(change);
+      return result;
+    }
+
+    for (final entry in map.entries) {
       final path = entry.key;
       final data = WireParsers.asMap(entry.value) ?? {};
-      final kind = data['kind'] as String?;
-      final normalizedKind = switch (kind) {
-        'create' || 'add' => 'add',
-        'update' || 'modify' => 'modify',
-        'delete' || 'remove' => 'delete',
-        _ => null,
-      };
+      final normalizedKind = _normalizedKind(data);
+      final changeData = _normalizedChangeData(data, normalizedKind);
       result.add(
         FileChange(
           path: path,
-          hasAdd: data['add'] != null || normalizedKind == 'add',
-          hasModify: data['modify'] != null || normalizedKind == 'modify',
-          hasDelete: data['delete'] != null || normalizedKind == 'delete',
-          changeData: data,
+          hasAdd: changeData['add'] != null,
+          hasModify: changeData['modify'] != null,
+          hasDelete: changeData['delete'] != null,
+          changeData: changeData,
         ),
       );
     }
     return result;
+  }
+
+  List<FileChange> _parseChangeList(List<dynamic> changes) {
+    final result = <FileChange>[];
+    for (final item in changes) {
+      final data = WireParsers.asMap(item);
+      if (data == null) continue;
+      final change = _fileChangeFromData(data);
+      if (change != null) result.add(change);
+    }
+    return result;
+  }
+
+  FileChange? _fileChangeFromData(Map<String, dynamic> data) {
+    final path = _pathFromChangeData(data);
+    if (path == null || path.isEmpty) return null;
+
+    final normalizedKind = _normalizedKind(data);
+    final changeData = _normalizedChangeData(data, normalizedKind);
+    return FileChange(
+      path: path,
+      hasAdd: changeData['add'] != null,
+      hasModify: changeData['modify'] != null,
+      hasDelete: changeData['delete'] != null,
+      changeData: changeData,
+    );
+  }
+
+  String? _pathFromChangeData(Map<String, dynamic> data) {
+    for (final key in const [
+      'path',
+      'file',
+      'filePath',
+      'file_path',
+      'filename',
+      'name',
+    ]) {
+      final value = data[key];
+      if (value is String && value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  String? _normalizedKind(Map<String, dynamic> data) {
+    final rawKind =
+        data['kind'] ??
+        data['operation'] ??
+        data['op'] ??
+        data['action'] ??
+        data['type'];
+    final kind = rawKind is String ? rawKind.toLowerCase() : null;
+    return switch (kind) {
+      'create' || 'created' || 'add' || 'added' => 'add',
+      'update' ||
+      'updated' ||
+      'modify' ||
+      'modified' ||
+      'edit' ||
+      'edited' => 'modify',
+      'delete' || 'deleted' || 'remove' || 'removed' => 'delete',
+      _ => null,
+    };
+  }
+
+  Map<String, dynamic> _normalizedChangeData(
+    Map<String, dynamic> data,
+    String? normalizedKind,
+  ) {
+    final changeData = <String, dynamic>{};
+    for (final op in const ['add', 'modify', 'delete']) {
+      final opValue = data[op];
+      if (opValue == null) continue;
+      final opMap = WireParsers.asMap(opValue);
+      changeData[op] = opMap ?? {'content': opValue.toString()};
+    }
+
+    if (changeData.isNotEmpty) return changeData;
+
+    final kind = normalizedKind ?? _inferKindFromFields(data);
+    if (kind == null) return data;
+
+    final details = <String, dynamic>{...data}
+      ..remove('path')
+      ..remove('file')
+      ..remove('filePath')
+      ..remove('file_path')
+      ..remove('filename')
+      ..remove('name')
+      ..remove('kind')
+      ..remove('operation')
+      ..remove('op')
+      ..remove('action')
+      ..remove('type');
+    return {kind: details};
+  }
+
+  String? _inferKindFromFields(Map<String, dynamic> data) {
+    if (data.containsKey('before') ||
+        data.containsKey('old') ||
+        data.containsKey('original') ||
+        data.containsKey('diff') ||
+        data.containsKey('patch') ||
+        data.containsKey('unified_diff')) {
+      return 'modify';
+    }
+    if (data.containsKey('after') ||
+        data.containsKey('new') ||
+        data.containsKey('content') ||
+        data.containsKey('text')) {
+      return 'add';
+    }
+    return null;
   }
 
   String? _extractPatchText(dynamic input) {
@@ -758,29 +880,14 @@ class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
   static const int _collapsedLines = 18;
   static const double _fontSize = AppFontSize.xs;
   static const double _lineHeight = 1.5;
+  static const double _expandedMaxHeight = 420;
   bool _expanded = false;
   late int _lineCount;
-
-  // Explicit, non-primary controllers keep this code pane independent of the
-  // ambient PrimaryScrollController (shared by the chat list). Without them the
-  // inner vertical SingleChildScrollView could attach to the wrong viewport,
-  // so a vertical drag bounced back instead of scrolling the pane.
-  late final ScrollController _hController;
-  late final ScrollController _vController;
 
   @override
   void initState() {
     super.initState();
     _lineCount = '\n'.allMatches(widget.content).length + 1;
-    _hController = ScrollController();
-    _vController = ScrollController();
-  }
-
-  @override
-  void dispose() {
-    _hController.dispose();
-    _vController.dispose();
-    super.dispose();
   }
 
   @override
@@ -808,40 +915,13 @@ class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
       lineHeight: _fontSize * _lineHeight,
     );
 
-    Widget body;
-    if (showExpanded) {
-      body = SingleChildScrollView(
-        controller: _hController,
-        primary: false,
-        scrollDirection: Axis.horizontal,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: codeText,
-        ),
-      );
-    } else {
-      body = SingleChildScrollView(
-        controller: _hController,
-        primary: false,
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          height: _maxHeight,
-          child: Scrollbar(
-            controller: _vController,
-            child: SingleChildScrollView(
-              controller: _vController,
-              primary: false,
-              physics: const ClampingScrollPhysics(),
-              scrollDirection: Axis.vertical,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                child: codeText,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    final body = ToolOutputScrollFrame(
+      maxHeight: showExpanded ? _expandedMaxHeight : _maxHeight,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: codeText,
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

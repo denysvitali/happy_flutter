@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
+import 'package:happy_flutter/features/chat/tools/tool_error.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+import 'package:happy_flutter/features/chat/tools/views/codex_patch_view.dart';
 
 /// Scroll-behaviour regression coverage for tool-output panes inside the chat.
 ///
@@ -16,14 +18,21 @@ String _long(String prefix) =>
     List<int>.generate(300, (i) => i).map((i) => '$prefix $i').join('\n');
 
 ScrollableState _scrollablePane(WidgetTester tester) {
-  final states =
-      tester.stateList<ScrollableState>(find.byType(Scrollable)).toList();
+  final states = tester
+      .stateList<ScrollableState>(find.byType(Scrollable))
+      .toList();
   return states.firstWhere(
     (s) =>
         s.position.axis == Axis.vertical &&
         s.position.maxScrollExtent > 0 &&
         s.position.viewportDimension < 450,
     orElse: () => states.first,
+  );
+}
+
+Finder _richTextContaining(String text) {
+  return find.byWidgetPredicate(
+    (w) => w is RichText && w.text.toPlainText().contains(text),
   );
 }
 
@@ -76,7 +85,9 @@ void main() {
     await tester.tapAt(top + const Offset(60, 20));
     await tester.pumpAndSettle();
 
-    final sized = find.byWidgetPredicate((w) => w is SizedBox && w.height == 400);
+    final sized = find.byWidgetPredicate(
+      (w) => w is SizedBox && w.height == 400,
+    );
     final pane = _scrollablePane(tester);
     final before = pane.position.pixels;
     await _stepDrag(tester, tester.getCenter(sized.first));
@@ -104,7 +115,110 @@ void main() {
 
     final pane = _scrollablePane(tester);
     final before = pane.position.pixels;
-    await _stepDrag(tester, tester.getCenter(find.byType(ToolOutputScrollFrame).first));
+    await _stepDrag(
+      tester,
+      tester.getCenter(find.byType(ToolOutputScrollFrame).first),
+    );
+    expect(pane.position.pixels, greaterThan(before));
+  });
+
+  testWidgets('unbounded generic output still creates an inner scroll pane', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SmartOutputContainer(
+              content: _long('unbounded'),
+              maxHeight: double.infinity,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final pane = _scrollablePane(tester);
+    final before = pane.position.pixels;
+    await _stepDrag(
+      tester,
+      tester.getCenter(find.byType(ToolOutputScrollFrame).first),
+    );
+    expect(pane.position.pixels, greaterThan(before));
+  });
+
+  testWidgets('failed tool error output scrolls inside a chat list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            reverse: true,
+            children: [
+              ToolError(message: _long('error')),
+              for (var i = 0; i < 20; i++)
+                SizedBox(height: 120, child: Text('filler $i')),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final pane = _scrollablePane(tester);
+    final before = pane.position.pixels;
+    await _stepDrag(
+      tester,
+      tester.getCenter(find.byType(ToolOutputScrollFrame).first),
+    );
+    expect(pane.position.pixels, greaterThan(before));
+  });
+
+  testWidgets('expanded apply patch detail remains vertically scrollable', (
+    tester,
+  ) async {
+    final patchLines = List<String>.generate(
+      80,
+      (i) => '-old line $i\n+new line $i',
+    ).join('\n');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: CodexPatchView(
+              tool: {
+                'input': {
+                  'patch':
+                      '''
+*** Begin Patch
+*** Update File: lib/long_file.dart
+@@
+$patchLines
+*** End Patch
+''',
+                },
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(_richTextContaining('long_file.dart'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Show all'));
+    await tester.pumpAndSettle();
+
+    final pane = _scrollablePane(tester);
+    final before = pane.position.pixels;
+    await _stepDrag(
+      tester,
+      tester.getCenter(find.byType(ToolOutputScrollFrame).last),
+    );
     expect(pane.position.pixels, greaterThan(before));
   });
 }

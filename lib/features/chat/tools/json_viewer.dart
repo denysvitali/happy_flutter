@@ -106,35 +106,44 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
     final theme = Theme.of(context);
     final (isJson, jsonValue, plainText) = _parsed;
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: widget.maxHeight),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(AppRadius.sm - 2),
-          border: Border.all(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final effectiveMaxHeight = widget.maxHeight.isFinite
+            ? widget.maxHeight
+            : (constraints.maxHeight.isFinite ? constraints.maxHeight : 300.0);
+
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: effectiveMaxHeight),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
+            ),
+            child: ToolOutputScrollFrame(
+              maxHeight: effectiveMaxHeight,
+              child: isJson
+                  ? JsonTreeViewer(value: jsonValue)
+                  : SelectableText(
+                      plainText ??
+                          (widget.content is String
+                              ? widget.content as String
+                              : widget.content.toString()),
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontFamilyFallback: const ['Courier New', 'Courier'],
+                        fontSize: AppFontSize.sm,
+                        color: theme.colorScheme.onSurface,
+                        height: AppLineHeight.relaxed,
+                      ),
+                    ),
+            ),
           ),
-        ),
-        child: ToolOutputScrollFrame(
-          child: isJson
-              ? JsonTreeViewer(value: jsonValue)
-              : SelectableText(
-                  plainText ??
-                      (widget.content is String
-                          ? widget.content as String
-                          : widget.content.toString()),
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontFamilyFallback: const ['Courier New', 'Courier'],
-                    fontSize: AppFontSize.sm,
-                    color: theme.colorScheme.onSurface,
-                    height: AppLineHeight.relaxed,
-                  ),
-                ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -214,11 +223,7 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
 /// from the surrounding scrollable and make both scrollbars target the right
 /// viewport.
 class ToolOutputScrollFrame extends StatefulWidget {
-  const ToolOutputScrollFrame({
-    required this.child,
-    super.key,
-    this.maxHeight,
-  });
+  const ToolOutputScrollFrame({required this.child, super.key, this.maxHeight});
 
   final Widget child;
   final double? maxHeight;

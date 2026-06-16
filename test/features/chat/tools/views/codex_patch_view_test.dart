@@ -96,9 +96,7 @@ void main() {
               'input': {
                 'changes': {
                   'lib/structured.dart': {
-                    'add': {
-                      'content': 'const answer = 42;\n',
-                    },
+                    'add': {'content': 'const answer = 42;\n'},
                   },
                 },
               },
@@ -129,9 +127,7 @@ void main() {
                 'changes': {
                   'lib/nested.dart': {
                     'modify': {
-                      'diff': {
-                        'patch': '@@\n-foo();\n+bar();\n',
-                      },
+                      'diff': {'patch': '@@\n-foo();\n+bar();\n'},
                     },
                   },
                 },
@@ -148,6 +144,63 @@ void main() {
       expect(_findRichTextContaining('-foo();'), findsOneWidget);
       expect(_findRichTextContaining('+bar();'), findsOneWidget);
       expect(find.textContaining('{'), findsNothing);
+    });
+
+    testWidgets('renders kind-based structured changes', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          CodexPatchView(
+            tool: {
+              'input': {
+                'changes': {
+                  'lib/kind.dart': {
+                    'kind': 'update',
+                    'diff': '@@\n-const value = 1;\n+const value = 2;\n',
+                  },
+                },
+              },
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(_findRichTextContaining('kind.dart'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 file changed'), findsOneWidget);
+      expect(_findRichTextContaining('-const value = 1;'), findsOneWidget);
+      expect(_findRichTextContaining('+const value = 2;'), findsOneWidget);
+    });
+
+    testWidgets('renders list-shaped structured changes', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          CodexPatchView(
+            tool: {
+              'input': {
+                'changes': [
+                  {
+                    'path': 'lib/list.dart',
+                    'operation': 'modify',
+                    'patch':
+                        '@@\n-final enabled = false;\n+final enabled = true;\n',
+                  },
+                ],
+              },
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(_findRichTextContaining('list.dart'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 file changed'), findsOneWidget);
+      expect(
+        _findRichTextContaining('-final enabled = false;'),
+        findsOneWidget,
+      );
+      expect(_findRichTextContaining('+final enabled = true;'), findsOneWidget);
     });
   });
 
