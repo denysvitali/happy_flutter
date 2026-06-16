@@ -257,9 +257,23 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
         final minWidth = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : 0.0;
-        final child = ConstrainedBox(
-          constraints: BoxConstraints(minWidth: minWidth),
-          child: widget.child,
+        // Force clamping physics on the content's descendants. Tool output is
+        // rendered with [SelectableText], whose internal [EditableText] always
+        // wraps its content in a [Scrollable]. Under the app-wide
+        // [AppScrollBehavior] (BouncingScrollPhysics + AlwaysScrollable) that
+        // phantom scrollable accepts vertical drags even though its content
+        // fits (maxScrollExtent == 0) — it wins the gesture arena as the
+        // innermost vertical scrollable, overscrolls, then springs straight
+        // back to the top, so the real pane below never scrolls. Clamping
+        // physics refuses the drag when content fits, letting the gesture fall
+        // through to this frame's own scroll views (which set their own
+        // explicit ClampingScrollPhysics and are outside this override).
+        final child = ScrollConfiguration(
+          behavior: const _NeutralizeInnerScrollBehavior(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: minWidth),
+            child: widget.child,
+          ),
         );
 
         Widget viewport = Scrollbar(
@@ -297,6 +311,22 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
       },
     );
   }
+}
+
+/// Forces clamping physics on descendant scrollables inside a
+/// [ToolOutputScrollFrame].
+///
+/// Neutralizes the phantom [Scrollable] that [SelectableText]'s internal
+/// [EditableText] installs. Under the app-wide [AppScrollBehavior]
+/// (BouncingScrollPhysics + AlwaysScrollable) that phantom steals vertical
+/// drags and bounces back to the top because its content always fits. Clamping
+/// physics refuses the drag when content fits so the real output pane scrolls.
+class _NeutralizeInnerScrollBehavior extends MaterialScrollBehavior {
+  const _NeutralizeInnerScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const ClampingScrollPhysics();
 }
 
 /// Renders a pre-parsed JSON value as a collapsible tree with syntax

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_scroll_behavior.dart';
 import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
 import 'package:happy_flutter/features/chat/tools/tool_error.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
@@ -121,6 +122,42 @@ void main() {
     );
     expect(pane.position.pixels, greaterThan(before));
   });
+
+  testWidgets(
+    'generic output pane scrolls under app-wide bouncing scroll behavior',
+    (tester) async {
+      // Reproduces the production bounce-back: AppScrollBehavior forces
+      // BouncingScrollPhysics + AlwaysScrollable on every descendant, so
+      // SelectableText's internal (max=0) EditableText scrollable accepts the
+      // drag, wins the arena as the innermost vertical scrollable, overscrolls,
+      // and springs back to the top — the real pane never scrolls. Without the
+      // clamping override on the content, this test fails (pane stays at 0).
+      await tester.pumpWidget(
+        MaterialApp(
+          scrollBehavior: const AppScrollBehavior(),
+          home: Scaffold(
+            body: ListView(
+              reverse: true,
+              children: [
+                SmartOutputContainer(content: _long('out'), maxHeight: 300),
+                for (var i = 0; i < 20; i++)
+                  SizedBox(height: 120, child: Text('filler $i')),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final pane = _scrollablePane(tester);
+      final before = pane.position.pixels;
+      await _stepDrag(
+        tester,
+        tester.getCenter(find.byType(ToolOutputScrollFrame).first),
+      );
+      expect(pane.position.pixels, greaterThan(before));
+    },
+  );
 
   testWidgets('unbounded generic output still creates an inner scroll pane', (
     tester,
