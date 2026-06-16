@@ -176,10 +176,10 @@ class _ProviderUsageDestinations extends StatelessWidget {
       title: l10n.providersUsageSectionTitle,
       children: [
         SettingsNavRow(
-          icon: Icons.analytics,
-          title: l10n.providersClaudeUsageTitle,
-          subtitle: l10n.settingsUsageSubtitle,
-          onTap: () => context.pushNamed('usage'),
+          icon: Icons.speed,
+          title: l10n.claudeCodeLimits,
+          subtitle: l10n.claudeCodeLimitsSubtitle,
+          onTap: () => context.pushNamed('claude-limits'),
         ),
         SettingsNavRow(
           icon: Icons.code,

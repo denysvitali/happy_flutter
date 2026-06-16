@@ -135,8 +135,8 @@ extension _SettingsScreenSearch on _SettingsScreenState {
         terms: [
           l10n.settingsFeatures,
           l10n.settingsProfiles,
-          l10n.claudeCodeLimits,
-          'limits',
+          l10n.settingsUsage,
+          'usage',
         ],
       ),
       _searchSection(

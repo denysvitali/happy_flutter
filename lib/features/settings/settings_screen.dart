@@ -314,10 +314,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           onTap: () => context.pushNamed('profiles'),
         ),
         SettingsNavRow(
-          icon: Icons.speed,
-          title: l10n.claudeCodeLimits,
-          subtitle: l10n.claudeCodeLimitsSubtitle,
-          onTap: () => context.pushNamed('claude-limits'),
+          icon: Icons.analytics,
+          title: l10n.settingsUsage,
+          subtitle: l10n.settingsUsageSubtitle,
+          onTap: () => context.pushNamed('usage'),
         ),
         SettingsNavRow(
           icon: Icons.science,
