@@ -37,7 +37,7 @@ extension SyncSessionOperations on Sync {
 
     /// Explicit model mode for this session. When not 'default', passed to
     /// the daemon via --model so it writes the model into session metadata.
-    /// Used to detect model changes and kill+respawn the session automatically.
+    /// Used to detect model changes and respawn the session automatically.
     String? modelMode,
   }) async {
     final createStopwatch = Stopwatch()..start();
@@ -1211,85 +1211,19 @@ PY
             '[sendMessage] ${profileChanged ? "profile" : "model"} changed '
             'for session=$sessionId '
             '$spawnedChange; '
-            'killing session for respawn',
+            'respawning session',
           );
           _profileModelKillInFlight.add(sessionId);
-          // Clear spawned data BEFORE killSession so that if kill fails,
-          // looksReady becomes false on the next sendMessage call and
-          // auto-restore picks up the new profile/model instead of re-using
-          // the old one.
+          // Clear spawned data before the respawn so auto-restore picks up the
+          // new profile/model instead of re-using the old one. Do not call the
+          // session-level killSession RPC here: that marks the stop deliberate
+          // and can strand the message if the kill races the new send. The
+          // machine spawn RPC owns replacement and kills the old process before
+          // starting the new one.
           _sessionSpawnedAt.remove(sessionId);
           _sessionSpawnedProfile.remove(sessionId);
           _sessionSpawnedModel.remove(sessionId);
           _sessionSpawnedAgent.remove(sessionId);
-          // Fire-and-forget: the kill is best-effort (spawned data is already
-          // cleared, so auto-restore handles offline outcomes). Awaiting
-          // blocked the user's send for ~10s when the server-side Redis RPC
-          // dispatcher timed out waiting for a replica.
-          //
-          // 3s was too aggressive (HAPPY_FLUTTER-3EO/3EM/3ER — the kill
-          // ACK can legitimately take 3-6s when the dispatcher forwards
-          // to a busy replica, and a false timeout stranded sessions in
-          // `lifecycleState=exited` so the next send's auto-restore was
-          // refused with "session is in terminal state"). 8s sits well
-          // under the 60s createSession budget but absorbs dispatcher
-          // variance. On timeout we still clear the in-flight flag so
-          // the user can retry without a phantom "already in flight"
-          // skip.
-          unawaited(() async {
-            try {
-              await killSession(sessionId).timeout(const Duration(seconds: 8));
-            } on TimeoutException catch (e, st) {
-              // Timeouts are expected when the server-side Redis RPC
-              // dispatcher is slow; the kill is best-effort and
-              // auto-restore handles the offline outcome. Log at info so
-              // operators can still see the distribution without inflating
-              // the warning count (HAPPY_FLUTTER-3F5/3F4).
-              logger.info(
-                '[sendMessage] killSession timed out during profile/model '
-                'switch for session=$sessionId: $e',
-                e,
-                st,
-              );
-              unawaited(
-                Sentry.addBreadcrumb(
-                  Breadcrumb(
-                    message:
-                        'sendMessage: killSession timed out during '
-                        'profile/model switch',
-                    category: 'sync.messaging',
-                    level: SentryLevel.info,
-                    data: {'sessionId': sessionId},
-                  ),
-                ),
-              );
-            } catch (e, st) {
-              logger.warning(
-                '[sendMessage] killSession failed during profile/model '
-                'switch for session=$sessionId: $e',
-                e,
-                st,
-              );
-              unawaited(
-                Sentry.addBreadcrumb(
-                  Breadcrumb(
-                    message:
-                        'sendMessage: killSession failed during '
-                        'profile/model switch',
-                    category: 'sync.messaging',
-                    level: SentryLevel.warning,
-                    data: {'sessionId': sessionId},
-                  ),
-                ),
-              );
-            } finally {
-              // Clear the in-flight flag whether the kill succeeded or
-              // timed out.  The flag exists to dedupe concurrent kills
-              // for the same session; once the await is done, a future
-              // send can issue a new kill if it needs to.
-              _profileModelKillInFlight.remove(sessionId);
-            }
-          }());
         }
       }
     } else if (looksReady || recentlySpawned) {

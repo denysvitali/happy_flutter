@@ -1420,6 +1420,7 @@ void main() {
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
       sync.testMachineRPCOverride = null;
+      sync.testSessionRPCOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;
       sync.testFetchMessagesOverride = null;
       sync.testFetchSingleSessionOverride = null;
@@ -1468,7 +1469,7 @@ void main() {
       sync.testSetSessionSpawnedProfile(sessionId, spawnedProfileId);
     }
 
-    test('switching from custom profile to Default kills and respawns '
+    test('switching from custom profile to Default respawns '
         'with empty env vars', () async {
       const sessionId = 'switch-to-default';
       Map<String, dynamic>? capturedSpawnParams;
@@ -1504,9 +1505,8 @@ void main() {
       try {
         await sync.sendMessage(sessionId, 'hello');
       } catch (_) {
-        // sendMessage may throw after the kill+respawn (REST POST not
-        // mocked); the kill+respawn happens before that and is what we
-        // are asserting here.
+        // sendMessage may throw after the respawn (REST POST not mocked);
+        // the respawn happens before that and is what we are asserting here.
       }
 
       expect(
@@ -1514,7 +1514,7 @@ void main() {
         isNotNull,
         reason:
             'Switching to Default on a running session must trigger '
-            'a kill+respawn — sendMessage(profileId: null) should not '
+            'a respawn — sendMessage(profileId: null) should not '
             'silently keep the old profile alive.',
       );
       final envVars =
@@ -1531,8 +1531,71 @@ void main() {
       }
     });
 
+    test(
+      'profile switch respawns through machine RPC without killSession',
+      () async {
+        const sessionId = 'profile-switch-no-session-kill';
+        var killCalled = false;
+        Map<String, dynamic>? capturedSpawnParams;
+
+        primeOnlineSession(
+          sessionId: sessionId,
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          spawnedProfileId: null,
+        );
+
+        final deepseek = getBuiltInProfile('deepseek')!;
+        sync.testGetSpawnEnvVarsOverride = (_) async => (
+          envVars: {
+            for (final v in deepseek.environmentVariables) v.name: v.value,
+          },
+          profile: deepseek,
+        );
+
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          if (method == 'killSession') {
+            killCalled = true;
+          }
+          return <String, dynamic>{'success': true};
+        };
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          if (method == 'spawn-happy-session') {
+            capturedSpawnParams = params;
+            return <String, dynamic>{
+              'type': 'success',
+              'sessionId': sessionId,
+              'dataEncryptionKey': null,
+            };
+          }
+          return <String, dynamic>{'type': 'success'};
+        };
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        try {
+          await sync.sendMessage(sessionId, 'hello', profileId: 'deepseek');
+        } catch (_) {
+          // REST POST is not mocked in this profile-switch contract.
+        }
+
+        expect(
+          killCalled,
+          isFalse,
+          reason:
+              'Profile/model switches must not call session killSession; '
+              'that marks the stop deliberate and can strand the message.',
+        );
+        expect(
+          capturedSpawnParams,
+          isNotNull,
+          reason:
+              'The machine respawn RPC still has to replace the running process.',
+        );
+      },
+    );
+
     test('selecting a profile on a running session with unknown spawn state '
-        'kills and respawns with profile env vars', () async {
+        'respawns with profile env vars', () async {
       const sessionId = 'unknown-spawn-select-profile';
       Map<String, dynamic>? capturedSpawnParams;
 
@@ -1589,39 +1652,40 @@ void main() {
       'untracked running session with stale/default profile metadata '
       'does not respawn unless a non-default profile is explicitly passed',
       () async {
-      const sessionId = 'unknown-spawn-no-explicit-default';
-      var spawnCalled = false;
+        const sessionId = 'unknown-spawn-no-explicit-default';
+        var spawnCalled = false;
 
-      primeOnlineSession(
-        sessionId: sessionId,
-        machineId: 'machine-1',
-        path: '/home/user/project',
-        spawnedProfileId: 'deepseek',
-      );
-      sync.testSessionSpawnedProfile.remove(sessionId);
+        primeOnlineSession(
+          sessionId: sessionId,
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          spawnedProfileId: 'deepseek',
+        );
+        sync.testSessionSpawnedProfile.remove(sessionId);
 
-      sync.testMachineRPCOverride = (machineId, method, params) async {
-        if (method == 'spawn-happy-session') {
-          spawnCalled = true;
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          if (method == 'spawn-happy-session') {
+            spawnCalled = true;
+          }
+          return <String, dynamic>{'type': 'success', 'sessionId': sessionId};
+        };
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        try {
+          await sync.sendMessage(sessionId, 'hello', profileId: 'default');
+        } catch (_) {
+          // REST POST not mocked.
         }
-        return <String, dynamic>{'type': 'success', 'sessionId': sessionId};
-      };
-      sync.testFetchSingleSessionOverride = (_) async => null;
 
-      try {
-        await sync.sendMessage(sessionId, 'hello', profileId: 'default');
-      } catch (_) {
-        // REST POST not mocked.
-      }
-
-      expect(
-        spawnCalled,
-        isFalse,
-        reason:
-            'Passing explicit default should be treated as no-op for '
-            'untracked sessions.',
-      );
-    });
+        expect(
+          spawnCalled,
+          isFalse,
+          reason:
+              'Passing explicit default should be treated as no-op for '
+              'untracked sessions.',
+        );
+      },
+    );
 
     test('sendMessage with profileId=null does NOT kill session when '
         'the daemon was already spawned with no profile', () async {

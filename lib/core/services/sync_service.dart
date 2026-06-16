@@ -501,10 +501,10 @@ what you have, you must use the options mode.
   // skip auto-restore while the daemon's lifecycle update propagates (< 5 s).
   final Map<String, int> _sessionSpawnedAt = {};
   // sessionId → profileId used when spawning. Lets _resolveSendTargetSession
-  // detect profile changes and kill+respawn the session automatically.
+  // detect profile changes and respawn the session automatically.
   final Map<String, String?> _sessionSpawnedProfile = {};
   // sessionId → modelMode used when spawning. Lets _resolveSendTargetSession
-  // detect model changes and kill+respawn the session automatically.
+  // detect model changes and respawn the session automatically.
   final Map<String, String?> _sessionSpawnedModel = {};
   // sessionId → agent used when spawning. Used as fallback when
   // session.metadata?.flavor is null (e.g., metadata decryption failed)
@@ -640,6 +640,16 @@ what you have, you must use the options mode.
     Map<String, dynamic> params,
   )?
   testMachineRPCOverride;
+
+  /// Override [sessionRPC] for tests that need to observe or stub
+  /// session-scoped agent RPC calls such as abort/kill.
+  @visibleForTesting
+  Future<dynamic> Function(
+    String sessionId,
+    String method,
+    Map<String, dynamic> params,
+  )?
+  testSessionRPCOverride;
 
   /// Override [SyncMessagingRpc.ensureMachineReachable] for testing the
   /// pre-flight liveness probe without a real socket connection.

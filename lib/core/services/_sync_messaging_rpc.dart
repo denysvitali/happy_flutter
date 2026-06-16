@@ -317,6 +317,11 @@ extension SyncMessagingRpc on Sync {
     String method,
     Map<String, dynamic> params,
   ) async {
+    final override = testSessionRPCOverride;
+    if (override != null) {
+      return override(sessionId, method, params);
+    }
+
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
       unawaited(
