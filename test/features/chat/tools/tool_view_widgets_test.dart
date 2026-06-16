@@ -121,5 +121,73 @@ void main() {
         expect(find.text('content line 49'), findsOneWidget);
       },
     );
+
+    // Regression test for the "scroll bounces back to top" bug. Tool output
+    // panes nest a stateful scrollable whose offset lives in its State. When
+    // streaming output crosses the 200px collapse threshold, CollapsibleOutput
+    // flips between its bare and collapsible layouts. The child must be
+    // *reparented* (its State preserved) rather than torn down and remounted —
+    // otherwise the inner ScrollController is recreated at offset 0 and the
+    // user's scroll position snaps back. We prove this by counting initState
+    // calls on a stateful child across the flip: it must stay 1.
+    testWidgets('child State survives the collapse-threshold flip', (
+      tester,
+    ) async {
+      _ProbeState.initCount = 0;
+
+      Widget build(double height) => MaterialApp(
+        home: Scaffold(
+          body: CollapsibleOutput(
+            toolId: 'tool-1',
+            child: _Probe(height: height),
+          ),
+        ),
+      );
+
+      // Start short: under 200px so CollapsibleOutput renders the bare child.
+      await tester.pumpWidget(build(120));
+      await tester.pump();
+      expect(_ProbeState.initCount, 1);
+      expect(find.text('Show more'), findsNothing);
+
+      // Grow tall: crosses the threshold, flipping to the collapsible layout.
+      await tester.pumpWidget(build(600));
+      await tester.pump();
+      await tester.pump();
+
+      // The flip must reparent the child, not remount it.
+      expect(
+        _ProbeState.initCount,
+        1,
+        reason: 'CollapsibleOutput must preserve child State across the '
+            'collapse-threshold flip so inner scroll offset is not reset',
+      );
+      expect(find.text('Show more'), findsOneWidget);
+    });
   });
+}
+
+/// A stateful probe that counts how many times its State is initialised.
+/// Used to detect whether an ancestor rebuild remounts (initState fires again)
+/// or merely reparents (initState stays put) the subtree.
+class _Probe extends StatefulWidget {
+  const _Probe({required this.height});
+  final double height;
+
+  @override
+  State<_Probe> createState() => _ProbeState();
+}
+
+class _ProbeState extends State<_Probe> {
+  static int initCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    initCount++;
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      SizedBox(height: widget.height, child: const Text('probe'));
 }

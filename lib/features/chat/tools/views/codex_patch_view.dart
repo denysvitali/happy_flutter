@@ -761,10 +761,26 @@ class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
   bool _expanded = false;
   late int _lineCount;
 
+  // Explicit, non-primary controllers keep this code pane independent of the
+  // ambient PrimaryScrollController (shared by the chat list). Without them the
+  // inner vertical SingleChildScrollView could attach to the wrong viewport,
+  // so a vertical drag bounced back instead of scrolling the pane.
+  late final ScrollController _hController;
+  late final ScrollController _vController;
+
   @override
   void initState() {
     super.initState();
     _lineCount = '\n'.allMatches(widget.content).length + 1;
+    _hController = ScrollController();
+    _vController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _hController.dispose();
+    _vController.dispose();
+    super.dispose();
   }
 
   @override
@@ -795,6 +811,8 @@ class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
     Widget body;
     if (showExpanded) {
       body = SingleChildScrollView(
+        controller: _hController,
+        primary: false,
         scrollDirection: Axis.horizontal,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.sm),
@@ -803,14 +821,22 @@ class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
       );
     } else {
       body = SingleChildScrollView(
+        controller: _hController,
+        primary: false,
         scrollDirection: Axis.horizontal,
         child: SizedBox(
           height: _maxHeight,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              child: codeText,
+          child: Scrollbar(
+            controller: _vController,
+            child: SingleChildScrollView(
+              controller: _vController,
+              primary: false,
+              physics: const ClampingScrollPhysics(),
+              scrollDirection: Axis.vertical,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: codeText,
+              ),
             ),
           ),
         ),

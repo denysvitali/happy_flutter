@@ -74,6 +74,12 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   late String _displayCode;
   late bool _isTruncated;
 
+  // Explicit, non-primary controllers so the code pane scrolls independently
+  // of the ambient PrimaryScrollController (shared by the chat list). Without
+  // them a vertical drag on the code block bounced back instead of scrolling.
+  late final ScrollController _vController;
+  late final ScrollController _hController;
+
   /// Estimated line height in logical pixels (font size * line height ratio).
   double get _lineHeight => widget.fontSize * 1.5;
 
@@ -83,7 +89,16 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   @override
   void initState() {
     super.initState();
+    _vController = ScrollController();
+    _hController = ScrollController();
     _updateDisplayCode();
+  }
+
+  @override
+  void dispose() {
+    _vController.dispose();
+    _hController.dispose();
+    super.dispose();
   }
 
   @override
@@ -166,12 +181,17 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   /// Builds the horizontally (and optionally vertically) scrollable code area.
   Widget _buildScrollableCode(bool isDark) {
     final verticalScroll = SingleChildScrollView(
+      controller: _vController,
+      primary: false,
+      physics: const ClampingScrollPhysics(),
       scrollDirection: Axis.vertical,
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
       child: _buildCodeRow(isDark),
     );
 
     return SingleChildScrollView(
+      controller: _hController,
+      primary: false,
       scrollDirection: Axis.horizontal,
       child: verticalScroll,
     );

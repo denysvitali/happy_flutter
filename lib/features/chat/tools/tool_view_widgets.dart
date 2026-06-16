@@ -373,10 +373,21 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // The content is always wrapped in a KeyedSubtree carrying [_contentKey].
+    // This is a [GlobalKey], so whichever branch we render below, Flutter
+    // *reparents* the same element (and its State) instead of tearing it down
+    // and rebuilding. That is essential: tool output panes nest a stateful
+    // [ToolOutputScrollFrame] whose ScrollControllers live in its State. If the
+    // subtree were remounted — e.g. when streaming output crosses the collapse
+    // threshold and we flip between the bare and collapsible layouts — those
+    // controllers would be recreated at offset 0, snapping the user's scroll
+    // position back to the top. Keeping one stable element preserves it.
+    final keyedChild = KeyedSubtree(key: _contentKey, child: widget.child);
+
     // If the content fits within the threshold, render it
     // directly without any collapse mechanism.
     if (!_needsCollapsing) {
-      return KeyedSubtree(key: _contentKey, child: widget.child);
+      return keyedChild;
     }
 
     final targetHeight = _expanded ? _expandedHeight : _kCollapsedHeight;
@@ -396,19 +407,22 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
           // them in a SingleChildScrollView here so any non-scrollable
           // descendants (e.g. the title Column inside a ToolSectionView) can
           // also overflow gracefully instead of asserting on a hard clip.
+          // `primary: false` keeps this wrapper off the ambient
+          // PrimaryScrollController so it never contends with the chat list.
           //
           // Non-scrollable children render at their natural unbounded height
           // (via OverflowBox) and are clipped by the AnimatedContainer; that
           // path is unchanged.
           child: widget.scrollable
               ? SingleChildScrollView(
+                  primary: false,
                   physics: const ClampingScrollPhysics(),
-                  child: widget.child,
+                  child: keyedChild,
                 )
               : OverflowBox(
                   maxHeight: double.infinity,
                   alignment: Alignment.topLeft,
-                  child: widget.child,
+                  child: keyedChild,
                 ),
         ),
         GestureDetector(

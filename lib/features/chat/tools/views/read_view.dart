@@ -368,7 +368,7 @@ class _MetaChip extends StatelessWidget {
   }
 }
 
-class _ContentBlock extends StatelessWidget {
+class _ContentBlock extends StatefulWidget {
   const _ContentBlock({
     required this.content,
     required this.offset,
@@ -379,11 +379,34 @@ class _ContentBlock extends StatelessWidget {
   final String extension;
 
   @override
+  State<_ContentBlock> createState() => _ContentBlockState();
+}
+
+class _ContentBlockState extends State<_ContentBlock> {
+  // Explicit, non-primary controller — same pattern as ToolOutputScrollFrame.
+  // Keeps this inline pane independent of the ambient PrimaryScrollController
+  // (which the chat list shares), so dragging here scrolls the pane instead of
+  // bouncing back, and the offset survives streaming rebuilds.
+  late final ScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = ToolViewColors.of(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final lines = content.split('\n');
-    final startLine = (offset ?? 0) + 1;
+    final lines = widget.content.split('\n');
+    final startLine = (widget.offset ?? 0) + 1;
 
     return Container(
       decoration: BoxDecoration(
@@ -409,7 +432,11 @@ class _ContentBlock extends StatelessWidget {
       child: SizedBox(
         height: _kContentMaxHeight,
         child: Scrollbar(
+          controller: _controller,
           child: SingleChildScrollView(
+            controller: _controller,
+            primary: false,
+            physics: const ClampingScrollPhysics(),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.smd),
               child: Row(
@@ -421,9 +448,9 @@ class _ContentBlock extends StatelessWidget {
                   // Content column with syntax highlighting
                   Expanded(
                     child: SyntaxHighlighter(
-                      code: content,
-                      language: extension.isNotEmpty
-                          ? extension.replaceFirst('.', '')
+                      code: widget.content,
+                      language: widget.extension.isNotEmpty
+                          ? widget.extension.replaceFirst('.', '')
                           : null,
                       isDarkMode: isDarkMode,
                       fontSize: AppFontSize.sm,
