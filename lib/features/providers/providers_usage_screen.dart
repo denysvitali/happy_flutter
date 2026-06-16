@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/provider_usage.dart';
 import '../../core/providers/app_providers.dart';
@@ -21,8 +23,7 @@ class ProvidersUsageScreen extends ConsumerStatefulWidget {
       _ProvidersUsageScreenState();
 }
 
-class _ProvidersUsageScreenState
-    extends ConsumerState<ProvidersUsageScreen> {
+class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
   @override
   void initState() {
     super.initState();
@@ -53,9 +54,7 @@ class _ProvidersUsageScreenState
 
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.providersAddAccountFailed),
-        ),
+        SnackBar(content: Text(context.l10n.providersAddAccountFailed)),
       );
     }
   }
@@ -69,9 +68,7 @@ class _ProvidersUsageScreenState
 
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.providersRemoveAccountFailed),
-        ),
+        SnackBar(content: Text(context.l10n.providersRemoveAccountFailed)),
       );
     }
   }
@@ -96,52 +93,101 @@ class _ProvidersUsageScreenState
         onRefresh: () async {
           await ref.read(providerUsageNotifierProvider.notifier).refreshUsage();
         },
-        child: _buildBody(context, summary),
+        child: _ProvidersUsageBody(
+          summary: summary,
+          onAddProvider: _showAddProviderDialog,
+          onRemoveAccount: _removeAccount,
+        ),
       ),
     );
   }
+}
 
-  Widget _buildBody(BuildContext context, ProviderUsageSummary summary) {
+class _ProvidersUsageBody extends StatelessWidget {
+  const _ProvidersUsageBody({
+    required this.summary,
+    required this.onAddProvider,
+    required this.onRemoveAccount,
+  });
+
+  final ProviderUsageSummary summary;
+  final VoidCallback onAddProvider;
+  final ValueChanged<String> onRemoveAccount;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = context.l10n;
 
     if (summary.usages.isEmpty) {
       return LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
+          padding: AppScreenPadding.standard,
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: AppEmptyState(
-              icon: Icons.cloud_outlined,
-              title: l10n.providersEmptyTitle,
-              subtitle: l10n.providersEmptySubtitle,
-              action: ElevatedButton.icon(
-                onPressed: _showAddProviderDialog,
-                icon: const Icon(Icons.add),
-                label: Text(l10n.providersAddAccount),
-              ),
+            child: Column(
+              children: [
+                const _ProviderUsageDestinations(),
+                const SizedBox(height: AppSpacing.lg),
+                AppEmptyState(
+                  icon: Icons.cloud_outlined,
+                  title: l10n.providersEmptyTitle,
+                  subtitle: l10n.providersEmptySubtitle,
+                  action: ElevatedButton.icon(
+                    onPressed: onAddProvider,
+                    icon: const Icon(Icons.add),
+                    label: Text(l10n.providersAddAccount),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       );
     }
 
-    return ListView.builder(
+    return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: AppScreenPadding.standard,
-      itemCount: summary.usages.length + 1,
-      itemBuilder: (context, index) {
-        if (index == summary.usages.length) {
-          return SizedBox(height: AppSpacing.xxxl);
-        }
-        final usage = summary.usages[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-          child: ProviderUsageCard(
-            usage: usage,
-            onRemove: () => _removeAccount(usage.accountId),
+      children: [
+        const _ProviderUsageDestinations(),
+        const SizedBox(height: AppSpacing.lg),
+        for (final usage in summary.usages)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: ProviderUsageCard(
+              usage: usage,
+              onRemove: () => onRemoveAccount(usage.accountId),
+            ),
           ),
-        );
-      },
+        const SizedBox(height: AppSpacing.xxxl),
+      ],
+    );
+  }
+}
+
+class _ProviderUsageDestinations extends StatelessWidget {
+  const _ProviderUsageDestinations();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return SettingsSection(
+      title: l10n.providersUsageSectionTitle,
+      children: [
+        SettingsNavRow(
+          icon: Icons.analytics,
+          title: l10n.providersClaudeUsageTitle,
+          subtitle: l10n.settingsUsageSubtitle,
+          onTap: () => context.pushNamed('usage'),
+        ),
+        SettingsNavRow(
+          icon: Icons.code,
+          title: l10n.codexUsageTitle,
+          subtitle: l10n.codexUsageSubtitle,
+          onTap: () => context.pushNamed('codex-usage'),
+        ),
+      ],
     );
   }
 }

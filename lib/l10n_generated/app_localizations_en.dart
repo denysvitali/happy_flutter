@@ -4739,6 +4739,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersTitle => 'Providers';
 
   @override
+  String get providersUsageSectionTitle => 'Usage';
+
+  @override
+  String get providersClaudeUsageTitle => 'Claude Usage';
+
+  @override
   String get providersAddAccount => 'Add account';
 
   @override

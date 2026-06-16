@@ -8653,6 +8653,18 @@ abstract class AppLocalizations {
   /// **'Providers'**
   String get providersTitle;
 
+  /// No description provided for @providersUsageSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get providersUsageSectionTitle;
+
+  /// No description provided for @providersClaudeUsageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Usage'**
+  String get providersClaudeUsageTitle;
+
   /// No description provided for @providersAddAccount.
   ///
   /// In en, this message translates to:

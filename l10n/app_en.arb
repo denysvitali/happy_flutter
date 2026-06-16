@@ -1887,6 +1887,8 @@
   "friendsSearchHint": "Search by username or email",
   "tabsProviders": "Providers",
   "providersTitle": "Providers",
+  "providersUsageSectionTitle": "Usage",
+  "providersClaudeUsageTitle": "Claude Usage",
   "providersAddAccount": "Add account",
   "providersAddAccountFailed": "Failed to save account",
   "providersRemoveAccount": "Remove account",
