@@ -8683,6 +8683,18 @@ abstract class AppLocalizations {
   /// **'Failed to remove account'**
   String get providersRemoveAccountFailed;
 
+  /// No description provided for @providersLongPressToRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press to remove'**
+  String get providersLongPressToRemove;
+
+  /// No description provided for @providersDeleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove {name}?'**
+  String providersDeleteConfirmMessage(String name);
+
   /// No description provided for @providersEmptyTitle.
   ///
   /// In en, this message translates to:

@@ -4754,6 +4754,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersRemoveAccountFailed => 'Failed to remove account';
 
   @override
+  String get providersLongPressToRemove => 'Long-press to remove';
+
+  @override
+  String providersDeleteConfirmMessage(String name) {
+    return 'Are you sure you want to remove $name?';
+  }
+
+  @override
   String get providersEmptyTitle => 'No provider accounts';
 
   @override

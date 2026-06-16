@@ -25,65 +25,68 @@ class ProviderUsageCard extends StatelessWidget {
 
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: AppScreenPadding.listItem,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onLongPress: onRemove,
+        child: Tooltip(
+          message: l10n.providersLongPressToRemove,
+          waitDuration: const Duration(milliseconds: 400),
+          child: Padding(
+            padding: AppScreenPadding.listItem,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ProviderIcon(type: usage.type),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        usage.accountName ?? _defaultAccountName(usage.type),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                Row(
+                  children: [
+                    _ProviderIcon(type: usage.type),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            usage.accountName ?? _defaultAccountName(usage.type),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            _providerDisplayName(usage.type),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        _providerDisplayName(usage.type),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+                if (usage.error != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _ErrorBanner(error: usage.error!),
+                ] else if (usage.windows.isEmpty) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    l10n.providersNoUsageData,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: l10n.providersRemoveAccount,
-                  onPressed: onRemove,
-                ),
+                ] else ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  for (final window in usage.windows) ...[
+                    _UsageWindowRow(window: window),
+                    if (window != usage.windows.last)
+                      const SizedBox(height: AppSpacing.md),
+                  ],
+                ],
+                if (usage.extra.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  _ExtraInfo(extra: usage.extra),
+                ],
               ],
             ),
-            if (usage.error != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              _ErrorBanner(error: usage.error!),
-            ] else if (usage.windows.isEmpty) ...[
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                l10n.providersNoUsageData,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: AppSpacing.lg),
-              for (final window in usage.windows) ...[
-                _UsageWindowRow(window: window),
-                if (window != usage.windows.last)
-                  const SizedBox(height: AppSpacing.md),
-              ],
-            ],
-            if (usage.extra.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.lg),
-              _ExtraInfo(extra: usage.extra),
-            ],
-          ],
+          ),
         ),
       ),
     );

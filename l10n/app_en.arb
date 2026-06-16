@@ -1892,6 +1892,15 @@
   "providersAddAccountFailed": "Failed to save account",
   "providersRemoveAccount": "Remove account",
   "providersRemoveAccountFailed": "Failed to remove account",
+  "providersLongPressToRemove": "Long-press to remove",
+  "providersDeleteConfirmMessage": "Are you sure you want to remove {name}?",
+  "@providersDeleteConfirmMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "providersEmptyTitle": "No provider accounts",
   "providersEmptySubtitle": "Add your Kimi or MiniMax account to track usage.",
   "providersNoUsageData": "No usage data available",

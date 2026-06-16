@@ -59,10 +59,38 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
     }
   }
 
-  Future<void> _removeAccount(String accountId) async {
+  Future<void> _removeAccount(ProviderUsage usage) async {
+    final l10n = context.l10n;
+    final name = usage.accountName ?? usage.type.name;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.commonDeleteConfirmTitle),
+        content: Text(l10n.providersDeleteConfirmMessage(name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              foregroundColor:
+                  Theme.of(dialogContext).colorScheme.onErrorContainer,
+              backgroundColor:
+                  Theme.of(dialogContext).colorScheme.errorContainer,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.commonDelete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     final success = await ref
         .read(providerUsageNotifierProvider.notifier)
-        .removeAccount(accountId);
+        .removeAccount(usage.accountId);
 
     if (!mounted) return;
 
@@ -112,7 +140,7 @@ class _ProvidersUsageBody extends StatelessWidget {
 
   final ProviderUsageSummary summary;
   final VoidCallback onAddProvider;
-  final ValueChanged<String> onRemoveAccount;
+  final ValueChanged<ProviderUsage> onRemoveAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +185,7 @@ class _ProvidersUsageBody extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             child: ProviderUsageCard(
               usage: usage,
-              onRemove: () => onRemoveAccount(usage.accountId),
+              onRemove: () => onRemoveAccount(usage),
             ),
           ),
         const SizedBox(height: AppSpacing.xxxl),
