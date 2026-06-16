@@ -1,0 +1,110 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+
+/// Scroll-behaviour regression coverage for tool-output panes inside the chat.
+///
+/// These assert the inner bounded panes actually scroll on a touch drag while
+/// embedded in a scrollable reverse ListView (the chat). They also document a
+/// known liability: text rendered via [SelectableText] installs its own
+/// (max=0) vertical viewport that overlaps the pane — kept here so a future
+/// change that lets that phantom viewport steal the drag is caught.
+String _long(String prefix) =>
+    List<int>.generate(300, (i) => i).map((i) => '$prefix $i').join('\n');
+
+ScrollableState _scrollablePane(WidgetTester tester) {
+  final states =
+      tester.stateList<ScrollableState>(find.byType(Scrollable)).toList();
+  return states.firstWhere(
+    (s) =>
+        s.position.axis == Axis.vertical &&
+        s.position.maxScrollExtent > 0 &&
+        s.position.viewportDimension < 450,
+    orElse: () => states.first,
+  );
+}
+
+Future<void> _stepDrag(WidgetTester tester, Offset origin) async {
+  final g = await tester.startGesture(origin);
+  for (var i = 0; i < 10; i++) {
+    await g.moveBy(const Offset(0, -20));
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  await g.up();
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('Read content pane scrolls inside a scrollable chat list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: ListView(
+              reverse: true,
+              children: [
+                ToolView(
+                  tool: {
+                    'name': 'Read',
+                    'state': 'completed',
+                    'input': {'file_path': '/test.dart'},
+                    'result': _long('line'),
+                  },
+                  sessionId: 's1',
+                ),
+                for (var i = 0; i < 20; i++)
+                  SizedBox(height: 120, child: Text('filler $i')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Expand the (collapsed) completed tool.
+    final top = tester.getTopLeft(find.byType(ToolView));
+    await tester.tapAt(top + const Offset(60, 20));
+    await tester.pumpAndSettle();
+
+    final sized = find.byWidgetPredicate((w) => w is SizedBox && w.height == 400);
+    final pane = _scrollablePane(tester);
+    final before = pane.position.pixels;
+    await _stepDrag(tester, tester.getCenter(sized.first));
+    expect(pane.position.pixels, greaterThan(before));
+  });
+
+  testWidgets('generic output pane scrolls inside a scrollable chat list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            reverse: true,
+            children: [
+              SmartOutputContainer(content: _long('out'), maxHeight: 300),
+              for (var i = 0; i < 20; i++)
+                SizedBox(height: 120, child: Text('filler $i')),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final pane = _scrollablePane(tester);
+    final before = pane.position.pixels;
+    await _stepDrag(tester, tester.getCenter(find.byType(ToolOutputScrollFrame).first));
+    expect(pane.position.pixels, greaterThan(before));
+  });
+}
