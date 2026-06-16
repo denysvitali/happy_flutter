@@ -223,23 +223,10 @@ class _SmartOutputContainerState extends State<SmartOutputContainer> {
 /// from the surrounding scrollable and make both scrollbars target the right
 /// viewport.
 class ToolOutputScrollFrame extends StatefulWidget {
-  const ToolOutputScrollFrame({
-    required this.child,
-    super.key,
-    this.maxHeight,
-    this.assistTouchDrag = false,
-  });
+  const ToolOutputScrollFrame({required this.child, super.key, this.maxHeight});
 
   final Widget child;
   final double? maxHeight;
-
-  /// Drives the vertical controller directly from touch movement.
-  ///
-  /// Detail-sheet tool output is nested inside other vertical scrollables.
-  /// On some platforms the ancestor can win the gesture arena, leaving this
-  /// pane rubber-banding at the top. This opt-in path keeps the bounded output
-  /// pane reachable without changing every inline tool renderer.
-  final bool assistTouchDrag;
 
   @override
   State<ToolOutputScrollFrame> createState() => _ToolOutputScrollFrameState();
@@ -265,15 +252,17 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
 
   @override
   Widget build(BuildContext context) {
-    Widget content = Scrollbar(
-      controller: _verticalController,
-      notificationPredicate: (notification) =>
-          notification.metrics.axis == Axis.vertical,
-      child: SingleChildScrollView(
-        controller: _verticalController,
-        physics: const ClampingScrollPhysics(),
-        primary: false,
-        child: Scrollbar(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 0.0;
+        final child = ConstrainedBox(
+          constraints: BoxConstraints(minWidth: minWidth),
+          child: widget.child,
+        );
+
+        Widget viewport = Scrollbar(
           controller: _horizontalController,
           notificationPredicate: (notification) =>
               notification.metrics.axis == Axis.horizontal,
@@ -282,50 +271,31 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
             physics: const ClampingScrollPhysics(),
             primary: false,
             scrollDirection: Axis.horizontal,
-            child: widget.child,
+            child: Scrollbar(
+              controller: _verticalController,
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.vertical,
+              child: SingleChildScrollView(
+                controller: _verticalController,
+                physics: const ClampingScrollPhysics(),
+                primary: false,
+                scrollDirection: Axis.vertical,
+                child: child,
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+
+        if (widget.maxHeight != null) {
+          viewport = ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: widget.maxHeight!),
+            child: viewport,
+          );
+        }
+
+        return viewport;
+      },
     );
-
-    if (widget.maxHeight != null) {
-      content = ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: widget.maxHeight!),
-        child: content,
-      );
-    }
-
-    if (widget.assistTouchDrag) {
-      content = Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerMove: _handlePointerMove,
-        child: content,
-      );
-    }
-
-    return content;
-  }
-
-  void _handlePointerMove(PointerMoveEvent event) {
-    if (!_verticalController.hasClients) return;
-
-    final dy = event.delta.dy;
-    if (dy == 0 || dy.abs() < event.delta.dx.abs()) return;
-
-    final before = _verticalController.position.pixels;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_verticalController.hasClients) return;
-
-      final position = _verticalController.position;
-      if ((position.pixels - before).abs() > 0.5) return;
-
-      final target = (position.pixels - dy).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-      if (target == position.pixels) return;
-      position.jumpTo(target);
-    });
   }
 }
 
