@@ -245,11 +245,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     final tool = widget.tool;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      TaskToolView.pushToolToGlobalState(
-        context,
-        tool,
-        widget.sessionId,
-      );
+      TaskToolView.pushToolToGlobalState(context, tool, widget.sessionId);
     });
   }
 
@@ -593,10 +589,12 @@ class _ToolViewState extends ConsumerState<ToolView>
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            // Task/Agent tools navigate directly on tap — the full
+            // Task/Agent/Workflow tools navigate directly on tap — the full
             // conversation is the primary action. Toggle is available
             // via long-press.
-            if ((toolName == 'Task' || toolName == 'Agent') &&
+            if ((toolName == 'Task' ||
+                    toolName == 'Agent' ||
+                    toolName == 'Workflow') &&
                 widget.onPress != null) {
               widget.onPress!.call();
             } else if (hasContent) {
@@ -765,9 +763,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     // bypass the per-tool specific view. In normal mode we keep the specific
     // view (or the MCP text-only path, or nothing) — JSON is reachable via
     // long-press → [MessageDetailScreen], not inline.
-    final specificView = toolCallDebug
-        ? null
-        : _getToolViewComponent(toolName);
+    final specificView = toolCallDebug ? null : _getToolViewComponent(toolName);
 
     if (specificView != null) {
       return Padding(
@@ -818,8 +814,7 @@ class _ToolViewState extends ConsumerState<ToolView>
             if (toolInput != null)
               ToolSectionView(
                 title: 'INPUT',
-                trailing:
-                    ToolViewCopyButton(text: _copyableTextFor(toolInput)),
+                trailing: ToolViewCopyButton(text: _copyableTextFor(toolInput)),
                 child: SmartOutputContainer(content: toolInput),
               ),
             if (state == ToolState.completed && toolResult != null)
@@ -933,18 +928,19 @@ class _ToolViewState extends ConsumerState<ToolView>
         metadata: m,
         onNavigate: () => widget.onPress?.call(),
       ),
+      'Workflow': (t, m, s) => TaskView(
+        tool: t,
+        metadata: m,
+        onNavigate: () => widget.onPress?.call(),
+      ),
       'TaskCreate': (t, m, s) =>
           TaskToolView(tool: t, metadata: m, sessionId: s),
       'TaskUpdate': (t, m, s) =>
           TaskToolView(tool: t, metadata: m, sessionId: s),
-      'TaskList': (t, m, s) =>
-          TaskToolView(tool: t, metadata: m, sessionId: s),
-      'TaskGet': (t, m, s) =>
-          TaskToolView(tool: t, metadata: m, sessionId: s),
-      'TodoWrite': (t, m, s) =>
-          TodoView(tool: t, metadata: m, sessionId: s),
-      'todo_list': (t, m, s) =>
-          TodoView(tool: t, metadata: m, sessionId: s),
+      'TaskList': (t, m, s) => TaskToolView(tool: t, metadata: m, sessionId: s),
+      'TaskGet': (t, m, s) => TaskToolView(tool: t, metadata: m, sessionId: s),
+      'TodoWrite': (t, m, s) => TodoView(tool: t, metadata: m, sessionId: s),
+      'todo_list': (t, m, s) => TodoView(tool: t, metadata: m, sessionId: s),
       'WebFetch': (t, m, s) => WebFetchView(tool: t, metadata: m),
       'ExitPlanMode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
       'exit_plan_mode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
@@ -1081,10 +1077,7 @@ class _McpTextOutputState extends State<_McpTextOutput> {
             // Only expand when the widget has a finite max height. When placed
             // inside an unbounded-height ancestor (e.g. a scrollable), Expanded
             // would receive infinite remaining space and throw.
-            if (hasBoundedHeight)
-              Expanded(child: textOutput)
-            else
-              textOutput,
+            if (hasBoundedHeight) Expanded(child: textOutput) else textOutput,
           ],
         );
 
@@ -1131,9 +1124,9 @@ class _StaggerFadeContent extends StatelessWidget {
       if (inner is Column) {
         final column = inner;
         // Filter to concrete widgets (if-guards produce null slots).
-        final visibleChildren = column.children
-            .whereType<Widget>()
-            .toList(growable: false);
+        final visibleChildren = column.children.whereType<Widget>().toList(
+          growable: false,
+        );
         final count = visibleChildren.length;
         if (count > 0) {
           return Padding(
@@ -1158,8 +1151,7 @@ class _StaggerFadeContent extends StatelessWidget {
   Widget _staggeredChild(Widget child, int index, int total) {
     // Each child starts fading after a small staggered delay, then fades out
     // over [_kStaggerFadeWindow] of the total duration.
-    final staggerStep =
-        total > 1 ? (1.0 - _kStaggerFadeWindow) / total : 0.0;
+    final staggerStep = total > 1 ? (1.0 - _kStaggerFadeWindow) / total : 0.0;
     final start = index * staggerStep;
     final end = (start + _kStaggerFadeWindow).clamp(0.0, 1.0);
 
@@ -1178,10 +1170,7 @@ class _StaggerFadeContent extends StatelessWidget {
       child: child,
       builder: (context, innerChild) => Transform.translate(
         offset: Offset(0, slideY.value),
-        child: Opacity(
-          opacity: opacity.value,
-          child: innerChild,
-        ),
+        child: Opacity(opacity: opacity.value, child: innerChild),
       ),
     );
   }

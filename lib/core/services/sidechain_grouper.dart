@@ -11,6 +11,12 @@ bool isVisibleSidechainOrphan(Map<String, dynamic> m) {
   return m['kind'] != 'sidechain-link';
 }
 
+bool _isAgentContainerTool(Map<String, dynamic> m) {
+  final name = m['name'];
+  return m['kind'] == 'tool-call' &&
+      (name == 'Task' || name == 'Agent' || name == 'Workflow');
+}
+
 /// Sidechain message grouping logic.
 ///
 /// Groups sidechain messages (Task/Agent tool-call children) into
@@ -41,8 +47,7 @@ class SidechainGrouper {
   /// indicates whether orphaned sidechain messages remain in the
   /// list after grouping — the caller should schedule a deferred
   /// re-group sweep.
-  ({List<Map<String, dynamic>> messages, bool hasOrphans})?
-      groupMessages(
+  ({List<Map<String, dynamic>> messages, bool hasOrphans})? groupMessages(
     List<Map<String, dynamic>> messages, {
     Set<String>? changedIds,
   }) {
@@ -61,7 +66,7 @@ class SidechainGrouper {
         if (msg['isSidechain'] == true ||
             kind == 'sidechain-root' ||
             (kind == 'tool-call' &&
-                (name == 'Task' || name == 'Agent'))) {
+                (name == 'Task' || name == 'Agent' || name == 'Workflow'))) {
           hasSidechainRelevant = true;
           break;
         }
@@ -71,9 +76,7 @@ class SidechainGrouper {
         // sidechain-relevant, but there may still be orphans
         // in the list from previous sidechain batches.
         final hasOrphans = messages.any(isVisibleSidechainOrphan);
-        return hasOrphans
-            ? (messages: messages, hasOrphans: true)
-            : null;
+        return hasOrphans ? (messages: messages, hasOrphans: true) : null;
       }
     }
 
@@ -121,8 +124,7 @@ class SidechainGrouper {
       for (final m in msgs) {
         if (m is! Map<String, dynamic>) continue;
         if (!visitedWalk.add(m)) continue;
-        final isTask = m['kind'] == 'tool-call' &&
-            (m['name'] == 'Task' || m['name'] == 'Agent');
+        final isTask = _isAgentContainerTool(m);
         var nextAncestorId = ancestorTaskId;
         if (isTask) {
           final taskId = m['id'] as String?;
@@ -141,8 +143,7 @@ class SidechainGrouper {
             uuidToTaskId[toolUseId] = taskId;
             uuidToSidechainId[toolUseId] = taskId;
           }
-          final rootUuids =
-              m['_sidechainRootUuids'] as List<dynamic>?;
+          final rootUuids = m['_sidechainRootUuids'] as List<dynamic>?;
           if (rootUuids != null) {
             for (final ru in rootUuids) {
               if (ru is String && ru.isNotEmpty) {
@@ -170,17 +171,11 @@ class SidechainGrouper {
           }
           final toolUseId = m['toolUseId'] as String?;
           if (toolUseId != null && toolUseId.isNotEmpty) {
-            uuidToSidechainId.putIfAbsent(
-              toolUseId,
-              () => ancestorTaskId,
-            );
+            uuidToSidechainId.putIfAbsent(toolUseId, () => ancestorTaskId);
           }
           final parentUuid = m['parentUuid'] as String?;
           if (parentUuid != null && parentUuid.isNotEmpty) {
-            uuidToSidechainId.putIfAbsent(
-              parentUuid,
-              () => ancestorTaskId,
-            );
+            uuidToSidechainId.putIfAbsent(parentUuid, () => ancestorTaskId);
           }
         }
         final children = m['children'] as List<dynamic>?;
@@ -201,9 +196,7 @@ class SidechainGrouper {
       // otherwise they remain invisible: the chat hides isSidechain
       // entries and the AgentsListSheet only enumerates Tasks.
       final hasOrphans = messages.any(isVisibleSidechainOrphan);
-      return hasOrphans
-          ? (messages: messages, hasOrphans: true)
-          : null;
+      return hasOrphans ? (messages: messages, hasOrphans: true) : null;
     }
 
     // Pass 1.5: Index every sidechain message in the flat list
@@ -221,8 +214,7 @@ class SidechainGrouper {
     // instead of being grouped under one Task.
     final sidechainByUuid = <String, Map<String, dynamic>>{};
     for (final msg in messages) {
-      if (msg['isSidechain'] == true ||
-          msg['kind'] == 'sidechain-root') {
+      if (msg['isSidechain'] == true || msg['kind'] == 'sidechain-root') {
         final uuid = msg['uuid'] as String?;
         if (uuid != null && uuid.isNotEmpty) {
           sidechainByUuid[uuid] = msg;
@@ -290,8 +282,7 @@ class SidechainGrouper {
     // child messages in a single iteration.  Operates on the
     // flat top-level list only — sidechain messages for
     // nested Tasks still arrive here before being grouped.
-    final sidechainChildren =
-        <String, List<Map<String, dynamic>>>{};
+    final sidechainChildren = <String, List<Map<String, dynamic>>>{};
     final sidechainMsgIds = <String>{};
 
     for (final msg in messages) {
@@ -312,8 +303,8 @@ class SidechainGrouper {
             uuidToTaskId.containsKey(parentToolUseId)) {
           sidechainId = uuidToTaskId[parentToolUseId];
         }
-        sidechainId ??= (parentUuid != null &&
-                uuidToTaskId.containsKey(parentUuid))
+        sidechainId ??=
+            (parentUuid != null && uuidToTaskId.containsKey(parentUuid))
             ? uuidToTaskId[parentUuid]
             : (prompt != null ? promptToTaskId[prompt] : null);
         sidechainId ??= walkChainToTaskId(parentUuid);
@@ -335,8 +326,7 @@ class SidechainGrouper {
             final task = taskIdToTask[sidechainId];
             if (task != null) {
               final roots =
-                  (task['_sidechainRootUuids'] as List<dynamic>?) ??
-                      <String>[];
+                  (task['_sidechainRootUuids'] as List<dynamic>?) ?? <String>[];
               if (!roots.contains(uuid)) {
                 task['_sidechainRootUuids'] = [...roots, uuid];
               }
@@ -428,9 +418,7 @@ class SidechainGrouper {
             uuidToSidechainId[toolUseId] = sidechainId;
           }
           if (!isChainLink) {
-            sidechainChildren
-                .putIfAbsent(sidechainId, () => [])
-                .add(msg);
+            sidechainChildren.putIfAbsent(sidechainId, () => []).add(msg);
           }
           sidechainMsgIds.add(msg['id'] as String);
         }
@@ -439,9 +427,7 @@ class SidechainGrouper {
 
     if (sidechainMsgIds.isEmpty) {
       final hasOrphans = messages.any(isVisibleSidechainOrphan);
-      return hasOrphans
-          ? (messages: messages, hasOrphans: true)
-          : null;
+      return hasOrphans ? (messages: messages, hasOrphans: true) : null;
     }
 
     // Pass 3: Attach sidechain children directly to their
@@ -490,9 +476,7 @@ class SidechainGrouper {
     for (final task in taskIdToTask.values) {
       final children = task['children'] as List<dynamic>?;
       if (children != null && children.isNotEmpty) {
-        regroupNestedTasks(
-          children.whereType<Map<String, dynamic>>().toList(),
-        );
+        regroupNestedTasks(children.whereType<Map<String, dynamic>>().toList());
       }
     }
 
@@ -534,9 +518,7 @@ class SidechainGrouper {
     final promptToTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
       if (!visited.add(child)) continue;
-      if (child['kind'] == 'tool-call' &&
-          (child['name'] == 'Task' ||
-              child['name'] == 'Agent')) {
+      if (_isAgentContainerTool(child)) {
         final taskId = child['id'] as String?;
         if (taskId != null && taskId.isNotEmpty) {
           uuidToTask[taskId] = child;
@@ -564,8 +546,7 @@ class SidechainGrouper {
     final uuidToGroupedTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
       if (child['kind'] == 'tool-call' &&
-          (child['name'] == 'Task' ||
-              child['name'] == 'Agent')) {
+          (child['name'] == 'Task' || child['name'] == 'Agent')) {
         final id = child['id'] as String?;
         if (id != null && id.isNotEmpty) {
           uuidToGroupedTask[id] = child;
@@ -578,8 +559,7 @@ class SidechainGrouper {
         if (toolUseId != null && toolUseId.isNotEmpty) {
           uuidToGroupedTask[toolUseId] = child;
         }
-        final rootUuids =
-            child['_sidechainRootUuids'] as List<dynamic>?;
+        final rootUuids = child['_sidechainRootUuids'] as List<dynamic>?;
         if (rootUuids != null) {
           for (final ru in rootUuids) {
             if (ru is String && ru.isNotEmpty) {
@@ -587,8 +567,7 @@ class SidechainGrouper {
             }
           }
         }
-        final existingChildren =
-            child['children'] as List<dynamic>?;
+        final existingChildren = child['children'] as List<dynamic>?;
         if (existingChildren != null) {
           for (final ec in existingChildren) {
             if (ec is Map<String, dynamic>) {
@@ -604,10 +583,8 @@ class SidechainGrouper {
               if (ecToolUseId != null && ecToolUseId.isNotEmpty) {
                 uuidToGroupedTask[ecToolUseId] = child;
               }
-              final ecParentUuid =
-                  ec['parentUuid'] as String?;
-              if (ecParentUuid != null &&
-                  ecParentUuid.isNotEmpty) {
+              final ecParentUuid = ec['parentUuid'] as String?;
+              if (ecParentUuid != null && ecParentUuid.isNotEmpty) {
                 uuidToGroupedTask[ecParentUuid] = child;
               }
             }
@@ -625,15 +602,13 @@ class SidechainGrouper {
         final prompt = child['prompt'] as String?;
         final uuid = child['uuid'] as String?;
         final parentUuid = child['parentUuid'] as String?;
-        final task = (parentUuid != null &&
-                uuidToTask.containsKey(parentUuid))
+        final task = (parentUuid != null && uuidToTask.containsKey(parentUuid))
             ? uuidToTask[parentUuid]
             : (prompt != null ? promptToTask[prompt] : null);
         if (task != null && uuid != null) {
           uuidToGroupedTask[uuid] = task;
-          final roots = (task['_sidechainRootUuids']
-                  as List<dynamic>?) ??
-              <String>[];
+          final roots =
+              (task['_sidechainRootUuids'] as List<dynamic>?) ?? <String>[];
           if (!roots.contains(uuid)) {
             task['_sidechainRootUuids'] = [...roots, uuid];
           }
@@ -643,16 +618,14 @@ class SidechainGrouper {
     }
 
     // Group sidechain children under their inner Tasks.
-    final taskChildren =
-        <String, List<Map<String, dynamic>>>{};
+    final taskChildren = <String, List<Map<String, dynamic>>>{};
     for (var i = 0; i < children.length; i++) {
       if (toRemove.contains(i)) continue;
       final child = children[i];
       if (child['isSidechain'] == true) {
         final parentUuid = child['parentUuid'] as String?;
         final uuid = child['uuid'] as String?;
-        if (parentUuid != null &&
-            uuidToGroupedTask.containsKey(parentUuid)) {
+        if (parentUuid != null && uuidToGroupedTask.containsKey(parentUuid)) {
           final task = uuidToGroupedTask[parentUuid]!;
           final taskId = task['id'] as String?;
           if (taskId == null || taskId.isEmpty) continue;
@@ -663,9 +636,7 @@ class SidechainGrouper {
           if (identical(child, task)) continue;
           final childId = child['id'] as String?;
           if (childId != null && childId == taskId) continue;
-          taskChildren
-              .putIfAbsent(taskId, () => [])
-              .add(child);
+          taskChildren.putIfAbsent(taskId, () => []).add(child);
           final id = child['id'] as String?;
           if (id != null && id.isNotEmpty) {
             uuidToGroupedTask[id] = task;
@@ -686,8 +657,7 @@ class SidechainGrouper {
     for (final entry in taskChildren.entries) {
       for (final child in children) {
         if (child['id'] == entry.key) {
-          final existing =
-              child['children'] as List<dynamic>?;
+          final existing = child['children'] as List<dynamic>?;
           if (existing != null && existing.isNotEmpty) {
             final existingIds = <String>{};
             for (final c in existing) {
@@ -698,8 +668,7 @@ class SidechainGrouper {
             }
             for (final newChild in entry.value) {
               final newId = newChild['id'] as String?;
-              if (newId == null ||
-                  !existingIds.contains(newId)) {
+              if (newId == null || !existingIds.contains(newId)) {
                 existing.add(newChild);
               }
             }
@@ -710,11 +679,7 @@ class SidechainGrouper {
             );
           } else {
             child['children'] = entry.value;
-            regroupNestedTasks(
-              entry.value,
-              visited: visited,
-              depth: depth + 1,
-            );
+            regroupNestedTasks(entry.value, visited: visited, depth: depth + 1);
           }
           break;
         }
@@ -722,8 +687,7 @@ class SidechainGrouper {
     }
 
     // Remove regrouped messages (reverse order).
-    final indices = toRemove.toList()
-      ..sort((a, b) => b.compareTo(a));
+    final indices = toRemove.toList()..sort((a, b) => b.compareTo(a));
     for (final i in indices) {
       children.removeAt(i);
     }

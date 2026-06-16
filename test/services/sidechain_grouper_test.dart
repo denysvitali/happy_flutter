@@ -17,53 +17,47 @@ void main() {
     String? prompt,
     List<Map<String, dynamic>>? children,
     List<String>? sidechainRootUuids,
-  }) =>
-      <String, dynamic>{
-        'id': id,
-        'kind': 'tool-call',
-        'name': 'Task',
-        if (uuid != null) 'uuid': uuid,
-        if (toolUseId != null) 'toolUseId': toolUseId,
-        if (prompt != null)
-          'input': <String, dynamic>{'prompt': prompt},
-        if (children != null) 'children': children,
-        if (sidechainRootUuids != null)
-          '_sidechainRootUuids': sidechainRootUuids,
-      };
+  }) => <String, dynamic>{
+    'id': id,
+    'kind': 'tool-call',
+    'name': 'Task',
+    if (uuid != null) 'uuid': uuid,
+    if (toolUseId != null) 'toolUseId': toolUseId,
+    if (prompt != null) 'input': <String, dynamic>{'prompt': prompt},
+    if (children != null) 'children': children,
+    if (sidechainRootUuids != null) '_sidechainRootUuids': sidechainRootUuids,
+  };
 
   Map<String, dynamic> _sidechainRoot({
     required String id,
     String? uuid,
     String? parentUuid,
     String? prompt,
-  }) =>
-      <String, dynamic>{
-        'id': id,
-        'kind': 'sidechain-root',
-        if (uuid != null) 'uuid': uuid,
-        if (parentUuid != null) 'parentUuid': parentUuid,
-        if (prompt != null) 'prompt': prompt,
-      };
+  }) => <String, dynamic>{
+    'id': id,
+    'kind': 'sidechain-root',
+    if (uuid != null) 'uuid': uuid,
+    if (parentUuid != null) 'parentUuid': parentUuid,
+    if (prompt != null) 'prompt': prompt,
+  };
 
   Map<String, dynamic> _sidechainChild({
     required String id,
     String? uuid,
     String? parentUuid,
-  }) =>
-      <String, dynamic>{
-        'id': id,
-        'isSidechain': true,
-        if (uuid != null) 'uuid': uuid,
-        if (parentUuid != null) 'parentUuid': parentUuid,
-      };
+  }) => <String, dynamic>{
+    'id': id,
+    'isSidechain': true,
+    if (uuid != null) 'uuid': uuid,
+    if (parentUuid != null) 'parentUuid': parentUuid,
+  };
 
-  Map<String, dynamic> _textMsg({required String id}) =>
-      <String, dynamic>{
-        'id': id,
-        'kind': 'text',
-        'role': 'assistant',
-        'content': 'hello',
-      };
+  Map<String, dynamic> _textMsg({required String id}) => <String, dynamic>{
+    'id': id,
+    'kind': 'text',
+    'role': 'assistant',
+    'content': 'hello',
+  };
 
   // ── Tests ──────────────────────────────────────────────
 
@@ -111,8 +105,8 @@ void main() {
       expect(result, isNotNull);
       expect(result!.messages, hasLength(2)); // task + text
       expect(result.messages[0]['id'], 'task-1');
-      final children = result.messages[0]['children']
-          as List<Map<String, dynamic>>;
+      final children =
+          result.messages[0]['children'] as List<Map<String, dynamic>>;
       expect(children, hasLength(1));
       expect(children[0]['id'], 'child-1');
       expect(result.messages[1]['id'], 'm1');
@@ -120,48 +114,30 @@ void main() {
 
     test('groups sidechain-root via prompt matching', () {
       final messages = [
-        _taskMsg(
-          id: 'task-1',
-          uuid: 'task-uuid',
-          prompt: 'find bugs',
-        ),
-        _sidechainRoot(
-          id: 'root-1',
-          uuid: 'root-uuid',
-          prompt: 'find bugs',
-        ),
-        _sidechainChild(
-          id: 'child-1',
-          parentUuid: 'root-uuid',
-        ),
+        _taskMsg(id: 'task-1', uuid: 'task-uuid', prompt: 'find bugs'),
+        _sidechainRoot(id: 'root-1', uuid: 'root-uuid', prompt: 'find bugs'),
+        _sidechainChild(id: 'child-1', parentUuid: 'root-uuid'),
       ];
 
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
       expect(result!.messages, hasLength(1));
-      final children = result.messages[0]['children']
-          as List<Map<String, dynamic>>;
+      final children =
+          result.messages[0]['children'] as List<Map<String, dynamic>>;
       expect(children, hasLength(1));
       expect(children[0]['id'], 'child-1');
     });
 
     test('matches via toolUseId', () {
       final messages = [
-        _taskMsg(
-          id: 'task-1',
-          uuid: 'task-uuid',
-          toolUseId: 'tool-use-123',
-        ),
+        _taskMsg(id: 'task-1', uuid: 'task-uuid', toolUseId: 'tool-use-123'),
         _sidechainRoot(
           id: 'root-1',
           uuid: 'root-uuid',
           parentUuid: 'tool-use-123',
         ),
-        _sidechainChild(
-          id: 'child-1',
-          parentUuid: 'root-uuid',
-        ),
+        _sidechainChild(id: 'child-1', parentUuid: 'root-uuid'),
       ];
 
       final result = grouper.groupMessages(messages);
@@ -169,9 +145,7 @@ void main() {
       expect(result, isNotNull);
       expect(result!.messages, hasLength(1));
       expect(
-        (result.messages[0]['children']
-                as List<Map<String, dynamic>>)
-            .length,
+        (result.messages[0]['children'] as List<Map<String, dynamic>>).length,
         1,
       );
     });
@@ -182,10 +156,7 @@ void main() {
       const secondEventUuid = 'a7427d7e-819a-44ae-995a-58a508191bc8';
       const callId = 'call_function_ja15yjondy30_1';
       final messages = [
-        _taskMsg(
-          id: taskId,
-          uuid: 'task-uuid',
-        ),
+        _taskMsg(id: taskId, uuid: 'task-uuid'),
         {
           ..._sidechainChild(
             id: 'agent-event-1',
@@ -218,12 +189,12 @@ void main() {
       expect(result, isNotNull);
       expect(result!.hasOrphans, isFalse);
       expect(result.messages, hasLength(1));
-      final children =
-          result.messages.first['children'] as List<dynamic>;
-      expect(
-        children.map((c) => (c as Map<String, dynamic>)['id']),
-        ['agent-event-1', 'tool-call-1', 'agent-event-2'],
-      );
+      final children = result.messages.first['children'] as List<dynamic>;
+      expect(children.map((c) => (c as Map<String, dynamic>)['id']), [
+        'agent-event-1',
+        'tool-call-1',
+        'agent-event-2',
+      ]);
     });
 
     test('chains children via uuid propagation', () {
@@ -239,28 +210,18 @@ void main() {
           uuid: 'c1-uuid',
           parentUuid: 'root-uuid',
         ),
-        _sidechainChild(
-          id: 'child-2',
-          uuid: 'c2-uuid',
-          parentUuid: 'c1-uuid',
-        ),
-        _sidechainChild(
-          id: 'child-3',
-          parentUuid: 'c2-uuid',
-        ),
+        _sidechainChild(id: 'child-2', uuid: 'c2-uuid', parentUuid: 'c1-uuid'),
+        _sidechainChild(id: 'child-3', parentUuid: 'c2-uuid'),
       ];
 
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
       expect(result!.messages, hasLength(1));
-      final children = result.messages[0]['children']
-          as List<Map<String, dynamic>>;
+      final children =
+          result.messages[0]['children'] as List<Map<String, dynamic>>;
       expect(children, hasLength(3));
-      expect(
-        children.map((c) => c['id']),
-        ['child-1', 'child-2', 'child-3'],
-      );
+      expect(children.map((c) => c['id']), ['child-1', 'child-2', 'child-3']);
     });
 
     test('resolves out-of-order chain via transitive '
@@ -281,16 +242,8 @@ void main() {
       // sidechainByUuid to find the indexed Task.
       final messages = [
         _taskMsg(id: 'task-1', uuid: 'task-uuid'),
-        _sidechainChild(
-          id: 'child-3',
-          uuid: 'c3-uuid',
-          parentUuid: 'c2-uuid',
-        ),
-        _sidechainChild(
-          id: 'child-2',
-          uuid: 'c2-uuid',
-          parentUuid: 'c1-uuid',
-        ),
+        _sidechainChild(id: 'child-3', uuid: 'c3-uuid', parentUuid: 'c2-uuid'),
+        _sidechainChild(id: 'child-2', uuid: 'c2-uuid', parentUuid: 'c1-uuid'),
         _sidechainChild(
           id: 'child-1',
           uuid: 'c1-uuid',
@@ -306,12 +259,16 @@ void main() {
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
-      expect(result!.hasOrphans, isFalse,
-          reason: 'every chain link must transitively '
-              'resolve to the indexed Task');
+      expect(
+        result!.hasOrphans,
+        isFalse,
+        reason:
+            'every chain link must transitively '
+            'resolve to the indexed Task',
+      );
       expect(result.messages, hasLength(1));
-      final children = result.messages[0]['children']
-          as List<Map<String, dynamic>>;
+      final children =
+          result.messages[0]['children'] as List<Map<String, dynamic>>;
       final ids = children.map((c) => c['id']).toSet();
       expect(ids, {'child-1', 'child-2', 'child-3'});
     });
@@ -328,11 +285,9 @@ void main() {
       final chain = <Map<String, dynamic>>[];
       for (var i = 0; i < chainLength; i++) {
         final parent = i == 0 ? 'root-uuid' : 'c${i - 1}-uuid';
-        chain.add(_sidechainChild(
-          id: 'child-$i',
-          uuid: 'c$i-uuid',
-          parentUuid: parent,
-        ));
+        chain.add(
+          _sidechainChild(id: 'child-$i', uuid: 'c$i-uuid', parentUuid: parent),
+        );
       }
       // Reverse half the chain to break iteration order.
       final shuffled = [
@@ -352,12 +307,16 @@ void main() {
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
-      expect(result!.hasOrphans, isFalse,
-          reason: 'long out-of-order chain must fully '
-              'resolve to the single indexed Task');
+      expect(
+        result!.hasOrphans,
+        isFalse,
+        reason:
+            'long out-of-order chain must fully '
+            'resolve to the single indexed Task',
+      );
       expect(result.messages, hasLength(1));
-      final children = result.messages[0]['children']
-          as List<Map<String, dynamic>>;
+      final children =
+          result.messages[0]['children'] as List<Map<String, dynamic>>;
       expect(children, hasLength(chainLength));
     });
 
@@ -417,14 +376,18 @@ void main() {
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
-      expect(result!.hasOrphans, isFalse,
-          reason: 'JSONL-uuid and toolUseId chains must both '
-              'resolve to the inner Task');
+      expect(
+        result!.hasOrphans,
+        isFalse,
+        reason:
+            'JSONL-uuid and toolUseId chains must both '
+            'resolve to the inner Task',
+      );
       // Outer Task remains at top level.
       expect(result.messages, hasLength(1));
       final outer = result.messages[0];
-      final outerChildren =
-          (outer['children'] as List).cast<Map<String, dynamic>>();
+      final outerChildren = (outer['children'] as List)
+          .cast<Map<String, dynamic>>();
       // Inner Task got moved into outer Task's children list.
       final innerTask = outerChildren.firstWhere(
         (c) => c['id'] == 'inner-task',
@@ -432,15 +395,17 @@ void main() {
       final innerChildren = (innerTask['children'] as List)
           .cast<Map<String, dynamic>>();
       final innerChildIds = innerChildren.map((c) => c['id']).toSet();
-      expect(innerChildIds, containsAll([
-        'inner-root',
-        'inner-child-via-jsonl',
-        'inner-grandchild',
-      ]));
+      expect(
+        innerChildIds,
+        containsAll([
+          'inner-root',
+          'inner-child-via-jsonl',
+          'inner-grandchild',
+        ]),
+      );
     });
 
-    test('persists _sidechainRootUuids on Task for recovery',
-        () {
+    test('persists _sidechainRootUuids on Task for recovery', () {
       final messages = [
         _taskMsg(id: 'task-1', uuid: 'task-uuid'),
         _sidechainRoot(
@@ -448,22 +413,18 @@ void main() {
           uuid: 'root-uuid',
           parentUuid: 'task-uuid',
         ),
-        _sidechainChild(
-          id: 'child-1',
-          parentUuid: 'root-uuid',
-        ),
+        _sidechainChild(id: 'child-1', parentUuid: 'root-uuid'),
       ];
 
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
-      final rootUuids = result!.messages[0]
-          ['_sidechainRootUuids'] as List<dynamic>;
+      final rootUuids =
+          result!.messages[0]['_sidechainRootUuids'] as List<dynamic>;
       expect(rootUuids, contains('root-uuid'));
     });
 
-    test('recovers chain from persisted _sidechainRootUuids',
-        () {
+    test('recovers chain from persisted _sidechainRootUuids', () {
       // Simulate: sidechain-root was removed in a previous
       // grouping run, but a new child arrives. The Task has
       // _sidechainRootUuids persisted from the first run.
@@ -473,24 +434,20 @@ void main() {
           uuid: 'task-uuid',
           sidechainRootUuids: ['root-uuid'],
         ),
-        _sidechainChild(
-          id: 'new-child',
-          parentUuid: 'root-uuid',
-        ),
+        _sidechainChild(id: 'new-child', parentUuid: 'root-uuid'),
       ];
 
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
       expect(result!.messages, hasLength(1));
-      final children = result.messages[0]['children']
-          as List<Map<String, dynamic>>;
+      final children =
+          result.messages[0]['children'] as List<Map<String, dynamic>>;
       expect(children, hasLength(1));
       expect(children[0]['id'], 'new-child');
     });
 
-    test('does not duplicate existing children on re-group',
-        () {
+    test('does not duplicate existing children on re-group', () {
       final existingChild = _sidechainChild(
         id: 'child-1',
         uuid: 'c1-uuid',
@@ -514,14 +471,12 @@ void main() {
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
-      final children = result!.messages[0]['children']
-          as List<dynamic>;
+      final children = result!.messages[0]['children'] as List<dynamic>;
       // Should still be 1, not 2
       expect(children, hasLength(1));
     });
 
-    test('reports hasOrphans for unmatched sidechain messages',
-        () {
+    test('reports hasOrphans for unmatched sidechain messages', () {
       // Sidechain child with parentUuid that doesn't match
       // any Task — stays as orphan in the list.  The grouper
       // reports hasOrphans=true so the caller can schedule a
@@ -567,9 +522,13 @@ void main() {
 
       final result = grouper.groupMessages(messages);
 
-      expect(result, isNotNull,
-          reason: 'must not short-circuit when orphans are '
-              'present even if no Tasks are indexed');
+      expect(
+        result,
+        isNotNull,
+        reason:
+            'must not short-circuit when orphans are '
+            'present even if no Tasks are indexed',
+      );
       expect(result!.hasOrphans, isTrue);
       expect(identical(result.messages, messages), isTrue);
     });
@@ -622,18 +581,16 @@ void main() {
 
       // The inner Task now has TWO children (ic1 + ic2),
       // attached directly to the nested Task map.
-      final outerChildren =
-          result.messages[0]['children'] as List<dynamic>;
+      final outerChildren = result.messages[0]['children'] as List<dynamic>;
       expect(outerChildren, hasLength(1));
-      final nested =
-          outerChildren[0] as Map<String, dynamic>;
+      final nested = outerChildren[0] as Map<String, dynamic>;
       expect(nested['id'], 'task-inner');
       final nestedChildren = nested['children'] as List<dynamic>;
       expect(nestedChildren, hasLength(2));
-      expect(
-        nestedChildren.map((c) => (c as Map)['id']),
-        ['inner-child-1', 'inner-child-2'],
-      );
+      expect(nestedChildren.map((c) => (c as Map)['id']), [
+        'inner-child-1',
+        'inner-child-2',
+      ]);
     });
 
     test('routes new children to the inner Task when a '
@@ -641,16 +598,9 @@ void main() {
       // Regression: a sidechain message with parentUuid
       // pointing straight at a nested Task's uuid must land
       // inside that nested Task, not on the outer Task.
-      final innerTask = _taskMsg(
-        id: 'task-inner',
-        uuid: 'inner-uuid',
-      );
+      final innerTask = _taskMsg(id: 'task-inner', uuid: 'inner-uuid');
       final messages = [
-        _taskMsg(
-          id: 'task-outer',
-          uuid: 'outer-uuid',
-          children: [innerTask],
-        ),
+        _taskMsg(id: 'task-outer', uuid: 'outer-uuid', children: [innerTask]),
         _sidechainChild(
           id: 'new-inner-child',
           uuid: 'nic-uuid',
@@ -662,33 +612,24 @@ void main() {
 
       expect(result, isNotNull);
       expect(result!.messages, hasLength(1));
-      final outerChildren =
-          result.messages[0]['children'] as List<dynamic>;
+      final outerChildren = result.messages[0]['children'] as List<dynamic>;
       // Inner Task still the only outer child.
       expect(outerChildren, hasLength(1));
-      final nested =
-          outerChildren[0] as Map<String, dynamic>;
+      final nested = outerChildren[0] as Map<String, dynamic>;
       final nestedChildren = nested['children'] as List<dynamic>;
       expect(nestedChildren, hasLength(1));
-      expect(
-        (nestedChildren[0] as Map)['id'],
-        'new-inner-child',
-      );
+      expect((nestedChildren[0] as Map)['id'], 'new-inner-child');
     });
   });
 
   group('fast-path', () {
-    test('skips grouping when changedIds are non-sidechain',
-        () {
+    test('skips grouping when changedIds are non-sidechain', () {
       final messages = [
         _taskMsg(id: 'task-1', uuid: 'task-uuid'),
         _textMsg(id: 'text-1'),
       ];
 
-      final result = grouper.groupMessages(
-        messages,
-        changedIds: {'text-1'},
-      );
+      final result = grouper.groupMessages(messages, changedIds: {'text-1'});
 
       // No sidechain work needed, no orphans → null
       expect(result, isNull);
@@ -706,10 +647,7 @@ void main() {
         },
       ];
 
-      final result = grouper.groupMessages(
-        messages,
-        changedIds: {'text-1'},
-      );
+      final result = grouper.groupMessages(messages, changedIds: {'text-1'});
 
       // Fast path returns early with hasOrphans = true
       expect(result, isNotNull);
@@ -727,16 +665,10 @@ void main() {
           uuid: 'root-uuid',
           parentUuid: 'task-uuid',
         ),
-        _sidechainChild(
-          id: 'child-1',
-          parentUuid: 'root-uuid',
-        ),
+        _sidechainChild(id: 'child-1', parentUuid: 'root-uuid'),
       ];
 
-      final result = grouper.groupMessages(
-        messages,
-        changedIds: {'child-1'},
-      );
+      final result = grouper.groupMessages(messages, changedIds: {'child-1'});
 
       expect(result, isNotNull);
       expect(result!.messages, hasLength(1));
@@ -753,10 +685,7 @@ void main() {
         ),
       ];
 
-      final result = grouper.groupMessages(
-        messages,
-        changedIds: {'root-1'},
-      );
+      final result = grouper.groupMessages(messages, changedIds: {'root-1'});
 
       expect(result, isNotNull);
       expect(result!.messages, hasLength(1));
@@ -773,18 +702,14 @@ void main() {
         ),
       ];
 
-      final result = grouper.groupMessages(
-        messages,
-        changedIds: {'task-1'},
-      );
+      final result = grouper.groupMessages(messages, changedIds: {'task-1'});
 
       expect(result, isNotNull);
     });
   });
 
   group('regroupNestedTasks', () {
-    test('groups inner sidechain children under nested Task',
-        () {
+    test('groups inner sidechain children under nested Task', () {
       // Outer Task already has children containing an inner
       // Task + sidechain messages that should be grouped
       // under the inner Task.
@@ -795,10 +720,7 @@ void main() {
           uuid: 'inner-root-uuid',
           parentUuid: 'inner-uuid',
         ),
-        _sidechainChild(
-          id: 'inner-child',
-          parentUuid: 'inner-root-uuid',
-        ),
+        _sidechainChild(id: 'inner-child', parentUuid: 'inner-root-uuid'),
       ];
 
       grouper.regroupNestedTasks(children);
@@ -849,8 +771,7 @@ void main() {
       grouper.regroupNestedTasks(children);
 
       expect(children, hasLength(1));
-      final innerChildren =
-          children[0]['children'] as List<dynamic>;
+      final innerChildren = children[0]['children'] as List<dynamic>;
       expect(innerChildren, hasLength(1));
     });
   });
@@ -864,17 +785,14 @@ void main() {
           uuid: 'nr1',
           parentUuid: 'nested-uuid-1',
         ),
-        _sidechainChild(
-          id: 'nested-child-1',
-          parentUuid: 'nr1',
-        ),
+        _sidechainChild(id: 'nested-child-1', parentUuid: 'nr1'),
       ];
 
       grouper.regroupNestedTasks(children);
 
       expect(children, hasLength(1));
-      final nestedChildren = children[0]['children']
-          as List<Map<String, dynamic>>;
+      final nestedChildren =
+          children[0]['children'] as List<Map<String, dynamic>>;
       expect(nestedChildren, hasLength(1));
       expect(nestedChildren[0]['id'], 'nested-child-1');
     });
@@ -902,33 +820,17 @@ void main() {
           uuid: 'root-a-uuid',
           parentUuid: 'tool-use-a',
         ),
-        _sidechainChild(
-          id: 'child-a1',
-          uuid: 'ca1',
-          parentUuid: 'root-a-uuid',
-        ),
-        _sidechainChild(
-          id: 'child-a2',
-          uuid: 'ca2',
-          parentUuid: 'ca1',
-        ),
+        _sidechainChild(id: 'child-a1', uuid: 'ca1', parentUuid: 'root-a-uuid'),
+        _sidechainChild(id: 'child-a2', uuid: 'ca2', parentUuid: 'ca1'),
         // Sidechain roots + children for Task B
         _sidechainRoot(
           id: 'root-b',
           uuid: 'root-b-uuid',
           parentUuid: 'tool-use-b',
         ),
-        _sidechainChild(
-          id: 'child-b1',
-          uuid: 'cb1',
-          parentUuid: 'root-b-uuid',
-        ),
+        _sidechainChild(id: 'child-b1', uuid: 'cb1', parentUuid: 'root-b-uuid'),
         // Direct sidechain children (no root) for Task A
-        _sidechainChild(
-          id: 'child-a3',
-          uuid: 'ca3',
-          parentUuid: 'tool-use-a',
-        ),
+        _sidechainChild(id: 'child-a3', uuid: 'ca3', parentUuid: 'tool-use-a'),
       ];
 
       final result = grouper.groupMessages(messages);
@@ -938,12 +840,8 @@ void main() {
       expect(result!.messages, hasLength(4));
 
       // Find each Task by id
-      final taskA = result.messages.firstWhere(
-        (m) => m['id'] == 'task-a',
-      );
-      final taskB = result.messages.firstWhere(
-        (m) => m['id'] == 'task-b',
-      );
+      final taskA = result.messages.firstWhere((m) => m['id'] == 'task-a');
+      final taskB = result.messages.firstWhere((m) => m['id'] == 'task-b');
 
       // Task A should have child-a1, child-a2, child-a3
       final childrenA = taskA['children'] as List<dynamic>;
@@ -967,27 +865,11 @@ void main() {
     // attached to their own Task.
     test('attaches children to two Tasks in same msg', () {
       final messages = [
-        _taskMsg(
-          id: 'task-a',
-          uuid: 'a-uuid',
-          toolUseId: 'a-tool',
-        ),
-        _taskMsg(
-          id: 'task-b',
-          uuid: 'b-uuid',
-          toolUseId: 'b-tool',
-        ),
-        _sidechainRoot(
-          id: 'root-a',
-          uuid: 'ra',
-          parentUuid: 'a-tool',
-        ),
+        _taskMsg(id: 'task-a', uuid: 'a-uuid', toolUseId: 'a-tool'),
+        _taskMsg(id: 'task-b', uuid: 'b-uuid', toolUseId: 'b-tool'),
+        _sidechainRoot(id: 'root-a', uuid: 'ra', parentUuid: 'a-tool'),
         _sidechainChild(id: 'child-a', parentUuid: 'ra'),
-        _sidechainRoot(
-          id: 'root-b',
-          uuid: 'rb',
-          parentUuid: 'b-tool',
-        ),
+        _sidechainRoot(id: 'root-b', uuid: 'rb', parentUuid: 'b-tool'),
         _sidechainChild(id: 'child-b', parentUuid: 'rb'),
       ];
 
@@ -995,12 +877,8 @@ void main() {
       expect(result, isNotNull);
       expect(result!.messages, hasLength(2));
 
-      final taskA = result.messages.firstWhere(
-        (m) => m['id'] == 'task-a',
-      );
-      final taskB = result.messages.firstWhere(
-        (m) => m['id'] == 'task-b',
-      );
+      final taskA = result.messages.firstWhere((m) => m['id'] == 'task-a');
+      final taskB = result.messages.firstWhere((m) => m['id'] == 'task-b');
 
       final aChildren = taskA['children'] as List<dynamic>;
       final bChildren = taskB['children'] as List<dynamic>;
@@ -1020,8 +898,7 @@ void main() {
   // `msg`.  These tests lock down both the creation guard and the
   // defence-in-depth visited-set recursion limit.
   group('cycle prevention', () {
-    test(
-        'Task whose parentUuid matches its own uuid is not '
+    test('Task whose parentUuid matches its own uuid is not '
         'attached to itself', () {
       final task = <String, dynamic>{
         'id': 'task-1',
@@ -1036,8 +913,7 @@ void main() {
       // Either no grouping (null) or a result where the task has
       // no children (and is not its own child).
       if (result != null) {
-        final children =
-            task['children'] as List<dynamic>?;
+        final children = task['children'] as List<dynamic>?;
         if (children != null) {
           expect(
             children.any((c) => identical(c, task)),
@@ -1048,8 +924,7 @@ void main() {
       }
     });
 
-    test(
-        'Task whose parentUuid matches its own id is not '
+    test('Task whose parentUuid matches its own id is not '
         'attached to itself', () {
       const taskId = 'task-1';
       final task = <String, dynamic>{
@@ -1064,16 +939,12 @@ void main() {
       if (result != null) {
         final children = task['children'] as List<dynamic>?;
         if (children != null) {
-          expect(
-            children.any((c) => identical(c, task)),
-            isFalse,
-          );
+          expect(children.any((c) => identical(c, task)), isFalse);
         }
       }
     });
 
-    test(
-        'pre-existing cyclic children graph does not blow the '
+    test('pre-existing cyclic children graph does not blow the '
         'stack (walkAndIndex guard)', () {
       // Simulate a cycle that might have leaked in from a prior
       // bug or corrupted payload: task.children contains task.
@@ -1091,8 +962,7 @@ void main() {
       expect(() => grouper.groupMessages([task]), returnsNormally);
     });
 
-    test(
-        'pre-existing cyclic children graph does not blow the '
+    test('pre-existing cyclic children graph does not blow the '
         'stack (regroupNestedTasks guard)', () {
       final task = <String, dynamic>{
         'id': 'task-1',
@@ -1103,14 +973,10 @@ void main() {
       final cyclicChildren = <Map<String, dynamic>>[task];
       task['children'] = cyclicChildren;
 
-      expect(
-        () => grouper.regroupNestedTasks(cyclicChildren),
-        returnsNormally,
-      );
+      expect(() => grouper.regroupNestedTasks(cyclicChildren), returnsNormally);
     });
 
-    test(
-        'two-node cycle (A↔B via children) does not blow the '
+    test('two-node cycle (A↔B via children) does not blow the '
         'stack', () {
       final taskA = <String, dynamic>{
         'id': 'task-a',
@@ -1127,10 +993,7 @@ void main() {
       taskA['children'] = <Map<String, dynamic>>[taskB];
       taskB['children'] = <Map<String, dynamic>>[taskA];
 
-      expect(
-        () => grouper.groupMessages([taskA, taskB]),
-        returnsNormally,
-      );
+      expect(() => grouper.groupMessages([taskA, taskB]), returnsNormally);
     });
 
     test('sidechain-link bridges parentUuid chain through '
@@ -1187,25 +1050,19 @@ void main() {
 
       expect(result, isNotNull);
       expect(
-        result!.hasOrphans, isFalse,
+        result!.hasOrphans,
+        isFalse,
         reason: 'every sidechain message must resolve to the Task',
       );
       expect(result.messages, hasLength(1));
       final task = result.messages.first;
       expect(task['id'], 'task-1');
-      final children =
-          (task['children'] as List).cast<Map<String, dynamic>>();
+      final children = (task['children'] as List).cast<Map<String, dynamic>>();
       // The bridge entries must NOT appear as visible children;
       // only the real assistant sidechain messages should.
-      expect(
-        children.map((c) => c['id']).toList(),
-        ['a2', 'a3', 'a4'],
-      );
+      expect(children.map((c) => c['id']).toList(), ['a2', 'a3', 'a4']);
       // Defensive: no sidechain-link kind anywhere in the output.
-      expect(
-        children.any((c) => c['kind'] == 'sidechain-link'),
-        isFalse,
-      );
+      expect(children.any((c) => c['kind'] == 'sidechain-link'), isFalse);
     });
 
     test('resolves Claude sidechain via parentToolUseId even when '
@@ -1240,31 +1097,22 @@ void main() {
         agentTask,
         // No sidechain-root, no chain continuity — only the
         // authoritative parent_tool_use_id.
-        _claudeChild(
-          id: 'a2',
-          uuid: 'A2',
-          parentUuid: 'broken-link-1',
-        ),
-        _claudeChild(
-          id: 'a3',
-          uuid: 'A3',
-          parentUuid: 'broken-link-2',
-        ),
+        _claudeChild(id: 'a2', uuid: 'A2', parentUuid: 'broken-link-1'),
+        _claudeChild(id: 'a3', uuid: 'A3', parentUuid: 'broken-link-2'),
       ];
 
       final result = grouper.groupMessages(messages);
 
       expect(result, isNotNull);
-      expect(result!.hasOrphans, isFalse,
-          reason: 'parent_tool_use_id must resolve every child');
-      expect(result.messages, hasLength(1));
-      final children =
-          (result.messages.first['children'] as List)
-              .cast<Map<String, dynamic>>();
       expect(
-        children.map((c) => c['id']).toList(),
-        ['a2', 'a3'],
+        result!.hasOrphans,
+        isFalse,
+        reason: 'parent_tool_use_id must resolve every child',
       );
+      expect(result.messages, hasLength(1));
+      final children = (result.messages.first['children'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(children.map((c) => c['id']).toList(), ['a2', 'a3']);
     });
 
     test('async background Agent: full task_started + sidechain '
@@ -1331,14 +1179,19 @@ void main() {
       ]);
 
       expect(result, isNotNull);
-      expect(result!.hasOrphans, isFalse,
-          reason: 'async Agent run must resolve via parent_tool_use_id');
-      expect(result.messages, hasLength(1),
-          reason: 'only the Agent tool-call remains at top level');
+      expect(
+        result!.hasOrphans,
+        isFalse,
+        reason: 'async Agent run must resolve via parent_tool_use_id',
+      );
+      expect(
+        result.messages,
+        hasLength(1),
+        reason: 'only the Agent tool-call remains at top level',
+      );
       final task = result.messages.first;
       expect(task['name'], 'Agent');
-      final children =
-          (task['children'] as List).cast<Map<String, dynamic>>();
+      final children = (task['children'] as List).cast<Map<String, dynamic>>();
       expect(
         children.map((c) => c['id']).toList(),
         ['msg_seq39_te', 'msg_seq42', 'msg_seq45'],
@@ -1347,10 +1200,60 @@ void main() {
       // No "Subagent output (recovered)" synthetic was produced —
       // grouping does not create those tiles itself, but assert
       // there is no extra Task message in the result.
-      expect(
-        result.messages.where((m) => m['kind'] == 'tool-call').length,
-        1,
-      );
+      expect(result.messages.where((m) => m['kind'] == 'tool-call').length, 1);
+    });
+
+    test('workflow sidechain run resolves via parent_tool_use_id', () {
+      final toolUseId = 'toolu_workflow_01';
+      final workflowTask = <String, dynamic>{
+        'id': 'msg_seq114_u0',
+        'kind': 'tool-call',
+        'name': 'Workflow',
+        'uuid': 'JSONL-seq114',
+        'toolUseId': toolUseId,
+        'input': <String, dynamic>{'name': 'diagnose-scroll-bounce'},
+      };
+      final taskStartedEvent = <String, dynamic>{
+        'id': 'msg_seq115_te',
+        'kind': 'agent-event',
+        'isSidechain': true,
+        'uuid': 'JSONL-seq115',
+        'parentUuid': toolUseId,
+        'parentToolUseId': toolUseId,
+        'agentId': 'wf-agent-1',
+        'taskType': 'local_workflow',
+        'event': <String, dynamic>{
+          'type': 'message',
+          'message': 'Diagnose scroll bounce',
+        },
+      };
+      final sidechainAssistant = <String, dynamic>{
+        'id': 'msg_seq116',
+        'kind': 'text',
+        'isSidechain': true,
+        'uuid': 'JSONL-seq116',
+        'parentUuid': 'broken-after-tool-result',
+        'parentToolUseId': toolUseId,
+        'agentId': 'wf-agent-1',
+        'content': 'Reading tool output widgets.',
+      };
+
+      final result = grouper.groupMessages(<Map<String, dynamic>>[
+        workflowTask,
+        taskStartedEvent,
+        sidechainAssistant,
+      ]);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isFalse);
+      expect(result.messages, hasLength(1));
+      final task = result.messages.first;
+      expect(task['name'], 'Workflow');
+      final children = (task['children'] as List).cast<Map<String, dynamic>>();
+      expect(children.map((c) => c['id']).toList(), [
+        'msg_seq115_te',
+        'msg_seq116',
+      ]);
     });
 
     test('agentId fallback attaches legacy children missing '
@@ -1395,9 +1298,8 @@ void main() {
 
       expect(result, isNotNull);
       expect(result!.hasOrphans, isFalse);
-      final children =
-          (result.messages.first['children'] as List)
-              .cast<Map<String, dynamic>>();
+      final children = (result.messages.first['children'] as List)
+          .cast<Map<String, dynamic>>();
       expect(
         children.map((c) => c['id']).toSet(),
         {'child-fresh', 'child-legacy'},

@@ -32,8 +32,10 @@ void main() {
       });
       expect(r.messages, hasLength(1));
       expect(r.messages.first['kind'], 'agent-event');
-      expect(r.messages.first['event'],
-          {'type': 'message', 'message': 'Context compacted'});
+      expect(r.messages.first['event'], {
+        'type': 'message',
+        'message': 'Context compacted',
+      });
       expect(r.droppedReasons, isEmpty);
     });
 
@@ -49,33 +51,37 @@ void main() {
       expect(r.messages.first['event']['type'], 'message');
       expect(
         r.messages.first['event']['message'],
-        contains('Available sub-agents: Explore, general-purpose, Plan, '
-            'statusline-setup'),
+        contains(
+          'Available sub-agents: Explore, general-purpose, Plan, '
+          'statusline-setup',
+        ),
       );
       expect(r.droppedReasons, isEmpty);
     });
 
-    test('task_started emits event with description, preserving uuid chain',
-        () {
-      final r = _run({
-        'isMeta': true,
-        'type': 'system',
-        'subtype': 'task_started',
-        'isSidechain': true,
-        'uuid': 'task-uuid-1',
-        'parentUuid': 'tool-use-call-1',
-        'description': 'exploring repo',
-        'task_id': 'task-123',
-      });
-      expect(r.messages, hasLength(1));
-      expect(r.messages.first['kind'], 'agent-event');
-      expect(r.messages.first['event']['message'], 'exploring repo');
-      expect(r.messages.first['isSidechain'], true);
-      expect(r.messages.first['uuid'], 'task-uuid-1');
-      expect(r.messages.first['parentUuid'], 'tool-use-call-1');
-      expect(r.messages.first['taskEvent'], true);
-      expect(r.messages.first['agentId'], 'task-123');
-    });
+    test(
+      'task_started emits event with description, preserving uuid chain',
+      () {
+        final r = _run({
+          'isMeta': true,
+          'type': 'system',
+          'subtype': 'task_started',
+          'isSidechain': true,
+          'uuid': 'task-uuid-1',
+          'parentUuid': 'tool-use-call-1',
+          'description': 'exploring repo',
+          'task_id': 'task-123',
+        });
+        expect(r.messages, hasLength(1));
+        expect(r.messages.first['kind'], 'agent-event');
+        expect(r.messages.first['event']['message'], 'exploring repo');
+        expect(r.messages.first['isSidechain'], true);
+        expect(r.messages.first['uuid'], 'task-uuid-1');
+        expect(r.messages.first['parentUuid'], 'tool-use-call-1');
+        expect(r.messages.first['taskEvent'], true);
+        expect(r.messages.first['agentId'], 'task-123');
+      },
+    );
 
     test('task_notification with status=completed renders summary text', () {
       final r = _run({
@@ -94,6 +100,28 @@ void main() {
       expect(r.messages.first['agentId'], 'task-456');
     });
 
+    test('task_updated emits lifecycle event with workflow metadata', () {
+      final r = _run({
+        'isMeta': true,
+        'type': 'system',
+        'subtype': 'task_updated',
+        'status': 'running',
+        'summary': 'Inspecting scroll panes',
+        'task_id': 'wf-agent-1',
+        'task_type': 'local_workflow',
+        'workflow_name': 'diagnose-scroll-bounce',
+        'tool_use_id': 'toolu_workflow',
+      });
+      expect(r.messages, hasLength(1));
+      expect(r.messages.first['kind'], 'agent-event');
+      expect(r.messages.first['taskEvent'], true);
+      expect(r.messages.first['taskStatus'], 'running');
+      expect(r.messages.first['taskType'], 'local_workflow');
+      expect(r.messages.first['workflowName'], 'diagnose-scroll-bounce');
+      expect(r.messages.first['parentToolUseId'], 'toolu_workflow');
+      expect(r.messages.first['agentId'], 'wf-agent-1');
+    });
+
     test('api_retry shows attempt/max-retries label', () {
       final r = _run({
         'isMeta': true,
@@ -103,8 +131,10 @@ void main() {
         'max_retries': 5,
       });
       expect(r.messages, hasLength(1));
-      expect(r.messages.first['event']['message'],
-          'Retrying API request (2/5)...');
+      expect(
+        r.messages.first['event']['message'],
+        'Retrying API request (2/5)...',
+      );
     });
 
     test('tool_progress shows elapsed-time label', () {
@@ -126,8 +156,10 @@ void main() {
       });
       expect(r.messages, hasLength(1));
       expect(r.messages.first['event']['type'], 'limit-reached');
-      expect(r.messages.first['event']['message'],
-          'Rate limit reached — waiting for reset');
+      expect(
+        r.messages.first['event']['message'],
+        'Rate limit reached — waiting for reset',
+      );
     });
 
     test('unknown meta sidechain subtype still emits invisible bridge', () {

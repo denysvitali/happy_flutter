@@ -41,35 +41,26 @@ class TaskView extends StatelessWidget {
     final description = input?['description'] as String?;
     final prompt = input?['prompt'] as String?;
     final headerText = description ?? prompt ?? 'Task';
-    final subagentType =
-        input?['subagent_type'] as String?;
-    final runInBackground =
-        input?['run_in_background'] as bool? ?? false;
-    final toolState =
-        tool['state'] as String? ?? 'pending';
+    final subagentType = input?['subagent_type'] as String?;
+    final runInBackground = input?['run_in_background'] as bool? ?? false;
+    final toolState = tool['state'] as String? ?? 'pending';
     final parsedState = _parseState(toolState);
 
     final children = WireParsers.asList(tool['children']);
     final toolCalls = _extractToolCalls(children);
     final shownTools = toolCalls.length > _kMaxToolsShown
-        ? toolCalls.sublist(
-            toolCalls.length - _kMaxToolsShown,
-          )
+        ? toolCalls.sublist(toolCalls.length - _kMaxToolsShown)
         : toolCalls;
-    final remainingCount =
-        toolCalls.length - shownTools.length;
+    final remainingCount = toolCalls.length - shownTools.length;
 
     final Color borderColor;
     switch (parsedState) {
       case ToolState.running:
-        borderColor =
-            theme.colorScheme.primary.withAlpha(100);
+        borderColor = theme.colorScheme.primary.withAlpha(100);
       case ToolState.completed:
-        borderColor =
-            AppColors.success.withAlpha(100);
+        borderColor = AppColors.success.withAlpha(100);
       case ToolState.error:
-        borderColor =
-            theme.colorScheme.error.withAlpha(100);
+        borderColor = theme.colorScheme.error.withAlpha(100);
       case ToolState.pending:
         borderColor = theme.colorScheme.outlineVariant;
     }
@@ -84,12 +75,8 @@ class TaskView extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,
-          borderRadius:
-              BorderRadius.circular(AppRadius.smd),
-          border: Border.all(
-            color: borderColor,
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.smd),
+          border: Border.all(color: borderColor, width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,17 +88,13 @@ class TaskView extends StatelessWidget {
                 SizedBox(
                   width: 16,
                   height: 16,
-                  child: ToolStatusIndicator(
-                    state: parsedState,
-                    size: 16,
-                  ),
+                  child: ToolStatusIndicator(state: parsedState, size: 16),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     headerText,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface,
                       fontWeight: FontWeight.w500,
                       height: 1.4,
@@ -136,50 +119,39 @@ class TaskView extends StatelessWidget {
                 Icon(
                   Icons.chevron_right_rounded,
                   size: 18,
-                  color: theme.colorScheme.onSurfaceVariant
-                      .withValues(alpha: 0.5),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.5,
+                  ),
                 ),
               ],
             ),
             // Inline tool call list
             if (shownTools.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xsm),
-              ...shownTools.map(
-                (t) {
-                  final name =
-                      t['name'] as String? ?? '';
-                  if (name == 'Task' ||
-                      name == 'Agent') {
-                    return _InlineNestedTaskRow(
-                      key: ValueKey(
-                        t['toolUseId'] ?? t['id'],
-                      ),
-                      tool: t,
-                      metadata: metadata,
-                    );
-                  }
-                  return _InlineToolRow(
-                    key: ValueKey(
-                      t['toolUseId'] ?? t['id'],
-                    ),
+              ...shownTools.map((t) {
+                final name = t['name'] as String? ?? '';
+                if (name == 'Task' || name == 'Agent' || name == 'Workflow') {
+                  return _InlineNestedTaskRow(
+                    key: ValueKey(t['toolUseId'] ?? t['id']),
                     tool: t,
                     metadata: metadata,
                   );
-                },
-              ),
+                }
+                return _InlineToolRow(
+                  key: ValueKey(t['toolUseId'] ?? t['id']),
+                  tool: t,
+                  metadata: metadata,
+                );
+              }),
               if (remainingCount > 0)
                 Padding(
-                  padding: const EdgeInsets.only(
-                    left: 24,
-                    top: 2,
-                  ),
+                  padding: const EdgeInsets.only(left: 24, top: 2),
                   child: Text(
                     'and $remainingCount more...',
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(
-                      color: theme
-                          .colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.5),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -210,9 +182,7 @@ class TaskView extends StatelessWidget {
     );
   }
 
-  List<Map<String, dynamic>> _extractToolCalls(
-    List<dynamic>? children,
-  ) {
+  List<Map<String, dynamic>> _extractToolCalls(List<dynamic>? children) {
     if (children == null) return [];
     return children
         .whereType<Map<String, dynamic>>()
@@ -252,31 +222,22 @@ class _SubAgentBadge extends StatelessWidget {
     final icon = _iconForType(type);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer
-            .withValues(alpha: 0.6),
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 10,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
+          Icon(icon, size: 10, color: theme.colorScheme.onPrimaryContainer),
           const SizedBox(width: 3),
           Text(
             type,
             style: TextStyle(
               fontSize: AppFontSize.xxs,
               fontWeight: FontWeight.w500,
-              color:
-                  theme.colorScheme.onPrimaryContainer,
+              color: theme.colorScheme.onPrimaryContainer,
               letterSpacing: 0.2,
             ),
           ),
@@ -341,11 +302,7 @@ class _InfoBadge extends StatelessWidget {
 // ----------------------------------------------------------
 
 class _InlineToolRow extends StatelessWidget {
-  const _InlineToolRow({
-    required this.tool,
-    super.key,
-    this.metadata,
-  });
+  const _InlineToolRow({required this.tool, super.key, this.metadata});
 
   final Map<String, dynamic> tool;
   final Map<String, dynamic>? metadata;
@@ -354,8 +311,7 @@ class _InlineToolRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final toolName = tool['name'] as String? ?? '';
-    final state =
-        tool['state'] as String? ?? 'pending';
+    final state = tool['state'] as String? ?? 'pending';
     final toolState = _parseState(state);
 
     final knownTool = KnownTools.get(toolName);
@@ -384,8 +340,7 @@ class _InlineToolRow extends StatelessWidget {
             child: Text(
               title,
               style: theme.textTheme.bodySmall?.copyWith(
-                color:
-                    theme.colorScheme.onSurfaceVariant,
+                color: theme.colorScheme.onSurfaceVariant,
                 fontFamily: 'monospace',
                 fontSize: AppFontSize.xs,
               ),
@@ -396,10 +351,7 @@ class _InlineToolRow extends StatelessWidget {
           SizedBox(
             width: 12,
             height: 12,
-            child: ToolStatusIndicator(
-              state: toolState,
-              size: 12,
-            ),
+            child: ToolStatusIndicator(state: toolState, size: 12),
           ),
         ],
       ),
@@ -412,11 +364,7 @@ class _InlineToolRow extends StatelessWidget {
 // ----------------------------------------------------------
 
 class _InlineNestedTaskRow extends StatelessWidget {
-  const _InlineNestedTaskRow({
-    required this.tool,
-    super.key,
-    this.metadata,
-  });
+  const _InlineNestedTaskRow({required this.tool, super.key, this.metadata});
 
   final Map<String, dynamic> tool;
   final Map<String, dynamic>? metadata;
@@ -424,40 +372,29 @@ class _InlineNestedTaskRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final input =
-        WireParsers.asMap(tool['input']);
+    final input = WireParsers.asMap(tool['input']);
     final description =
         input?['description'] as String? ??
-            input?['prompt'] as String? ??
-            'Task';
-    final state =
-        tool['state'] as String? ?? 'pending';
+        input?['prompt'] as String? ??
+        'Task';
+    final state = tool['state'] as String? ?? 'pending';
     final toolState = _parseState(state);
-    final subagentType =
-        input?['subagent_type'] as String?;
+    final subagentType = input?['subagent_type'] as String?;
 
     final children = WireParsers.asList(tool['children']);
-    final nestedToolCalls = children
+    final nestedToolCalls =
+        children
             ?.whereType<Map<String, dynamic>>()
             .where((c) => c['kind'] == 'tool-call')
             .toList() ??
         [];
-    final shownNested =
-        nestedToolCalls.length > _kMaxToolsShown
-            ? nestedToolCalls.sublist(
-                nestedToolCalls.length -
-                    _kMaxToolsShown,
-              )
-            : nestedToolCalls;
-    final remainingCount =
-        nestedToolCalls.length - shownNested.length;
+    final shownNested = nestedToolCalls.length > _kMaxToolsShown
+        ? nestedToolCalls.sublist(nestedToolCalls.length - _kMaxToolsShown)
+        : nestedToolCalls;
+    final remainingCount = nestedToolCalls.length - shownNested.length;
 
     return Padding(
-      padding: const EdgeInsets.only(
-        left: 24,
-        top: 2,
-        bottom: 2,
-      ),
+      padding: const EdgeInsets.only(left: 24, top: 2, bottom: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -467,26 +404,20 @@ class _InlineNestedTaskRow extends StatelessWidget {
               SizedBox(
                 width: 12,
                 height: 12,
-                child: ToolStatusIndicator(
-                  state: toolState,
-                  size: 12,
-                ),
+                child: ToolStatusIndicator(state: toolState, size: 12),
               ),
               const SizedBox(width: AppSpacing.xsm),
               Icon(
                 Icons.rocket_launch,
                 size: 10,
-                color:
-                    theme.colorScheme.onSurfaceVariant,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 3),
               Expanded(
                 child: Text(
                   description,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(
-                    color: theme
-                        .colorScheme.onSurfaceVariant,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.xs,
                   ),
@@ -501,47 +432,34 @@ class _InlineNestedTaskRow extends StatelessWidget {
               SizedBox(
                 width: 12,
                 height: 12,
-                child: ToolStatusIndicator(
-                  state: toolState,
-                  size: 12,
-                ),
+                child: ToolStatusIndicator(state: toolState, size: 12),
               ),
             ],
           ),
-          ...shownNested.map(
-            (t) {
-              final name =
-                  t['name'] as String? ?? '';
-              if (name == 'Task' ||
-                  name == 'Agent') {
-                return _InlineNestedTaskRow(
-                  key: ValueKey(
-                    t['toolUseId'] ?? t['id'],
-                  ),
-                  tool: t,
-                  metadata: metadata,
-                );
-              }
-              return _InlineToolRow(
-                key: ValueKey(
-                  t['toolUseId'] ?? t['id'],
-                ),
+          ...shownNested.map((t) {
+            final name = t['name'] as String? ?? '';
+            if (name == 'Task' || name == 'Agent' || name == 'Workflow') {
+              return _InlineNestedTaskRow(
+                key: ValueKey(t['toolUseId'] ?? t['id']),
                 tool: t,
                 metadata: metadata,
               );
-            },
-          ),
+            }
+            return _InlineToolRow(
+              key: ValueKey(t['toolUseId'] ?? t['id']),
+              tool: t,
+              metadata: metadata,
+            );
+          }),
           if (remainingCount > 0)
             Padding(
-              padding:
-                  const EdgeInsets.only(left: 24),
+              padding: const EdgeInsets.only(left: 24),
               child: Text(
                 'and $remainingCount more...',
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(
-                  color: theme
-                      .colorScheme.onSurfaceVariant
-                      .withValues(alpha: 0.5),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.5,
+                  ),
                   fontStyle: FontStyle.italic,
                 ),
               ),

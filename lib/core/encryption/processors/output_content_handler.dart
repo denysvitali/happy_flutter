@@ -48,9 +48,7 @@ void _processOutputContent({
 }) {
   final data = WireParsers.asMap(nestedContent['data']);
   if (data == null) {
-    droppedReasons?.add(
-      'seq=$seq id=$id: output data is not a Map',
-    );
+    droppedReasons?.add('seq=$seq id=$id: output data is not a Map');
     _emitUnrenderedAgentEvent(
       id: id,
       suffix: 'ud',
@@ -439,9 +437,7 @@ void _processOutputContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
-      } else if (role == 'toolResult' &&
-          callId != null &&
-          callId.isNotEmpty) {
+      } else if (role == 'toolResult' && callId != null && callId.isNotEmpty) {
         handled = true;
         toolResults.add({
           'toolUseId': callId,
@@ -680,8 +676,9 @@ void _processMetaOutput({
   required List<Map<String, dynamic>> messages,
 }) {
   final meta = _sidechainMeta(data);
-  // For task_started / task_progress / task_notification the wire payload
-  // does NOT carry `parent_tool_use_id`; the spawning Agent tool_use id
+  // For task_started / task_progress / task_updated / task_notification
+  // the wire payload does NOT carry `parent_tool_use_id`; the spawning
+  // Agent/Workflow tool_use id
   // lives on `tool_use_id` and the agentId on `task_id`. The shared
   // `_extractParentToolUseId` honors that fallback so the live-ingest
   // and cold-fetch paths stamp the same key.
@@ -716,27 +713,21 @@ void _processMetaOutput({
     if (agents.isEmpty) return;
 
     const maxVisible = 6;
-    final visibleCount =
-        agents.length < maxVisible ? agents.length : maxVisible;
+    final visibleCount = agents.length < maxVisible
+        ? agents.length
+        : maxVisible;
     final visibleAgents = agents.take(visibleCount).join(', ');
     final extraCount = agents.length - visibleCount;
-    final suffix = extraCount > 0 ? ' (+${extraCount} more)' : '';
+    final suffix = extraCount > 0 ? ' (+$extraCount more)' : '';
 
-    addEvent(
-      'in',
-      'message',
-      'Available sub-agents: $visibleAgents$suffix',
-    );
+    addEvent('in', 'message', 'Available sub-agents: $visibleAgents$suffix');
   }
 
   if (dataType == 'system' && subtype == 'init') {
     final agents = WireParsers.asList(data['agents']);
     if (agents != null) {
       addSubagentsCatalog(
-        agents
-            .whereType<String>()
-            .where((agent) => agent.isNotEmpty)
-            .toList(),
+        agents.whereType<String>().where((agent) => agent.isNotEmpty).toList(),
       );
     }
     return;
@@ -745,12 +736,20 @@ void _processMetaOutput({
   if (dataType == 'system') {
     if (subtype == 'task_started' ||
         subtype == 'task_progress' ||
+        subtype == 'task_updated' ||
         subtype == 'task_notification') {
       final description = data['description'] as String?;
       final summary = data['summary'] as String?;
       final status = data['status'] as String?;
+      final taskType = data['task_type'] as String?;
+      final workflowName = data['workflow_name'] as String?;
+      final taskExtras = <String, dynamic>{
+        'taskStatus': ?status,
+        'taskType': ?taskType,
+        'workflowName': ?workflowName,
+      };
 
-      if (subtype == 'task_notification' &&
+      if ((subtype == 'task_notification' || subtype == 'task_updated') &&
           (status == 'completed' || status == 'failed')) {
         messages.add({
           'id': '${id}_tn',
@@ -760,7 +759,7 @@ void _processMetaOutput({
           'kind': 'text',
           'content': summary ?? 'Task $status',
           'taskEvent': true,
-          'taskStatus': status,
+          ...taskExtras,
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': ?meta.uuid,
           'parentUuid': ?meta.parentUuid,
@@ -771,7 +770,12 @@ void _processMetaOutput({
       }
 
       final label = description ?? summary ?? 'Task $subtype';
-      addEvent('te', 'message', label, extras: {'taskEvent': true});
+      addEvent(
+        'te',
+        'message',
+        label,
+        extras: {'taskEvent': true, ...taskExtras},
+      );
       return;
     }
 

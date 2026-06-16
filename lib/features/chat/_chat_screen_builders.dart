@@ -26,8 +26,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
 
     final allLocalVisible = _visibleCount >= totalCount;
     final entry = ref.watch(sessionUiEntryProvider(widget.sessionId));
-    final isLoadingFromServer =
-        allLocalVisible && entry.isLoadingOlderMessages;
+    final isLoadingFromServer = allLocalVisible && entry.isLoadingOlderMessages;
     final hasServerMore = allLocalVisible && entry.hasOlderMessages;
 
     final showHeader =
@@ -272,7 +271,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // MessageWidget to see a changed prop on each new message arrival.
     final toolName = isToolCall ? message['name'] as String? : null;
     final needsMessages =
-        isToolCall && (toolName == 'Task' || toolName == 'Agent');
+        isToolCall &&
+        (toolName == 'Task' || toolName == 'Agent' || toolName == 'Workflow');
     // Show streaming cursor on the last agent text message while thinking.
     final isNewest = reversedIndex == items.length - 1;
     final isStreaming =
@@ -321,7 +321,9 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // with their inline children, never be collapsed into
     // the hidden-tool-summary.
     final toolName = message['name'] as String?;
-    if (toolName == 'Task' || toolName == 'Agent') return false;
+    if (toolName == 'Task' || toolName == 'Agent' || toolName == 'Workflow') {
+      return false;
+    }
 
     final state = message['state'] as String?;
     if (state == 'pending' || state == 'running' || state == 'error') {

@@ -28,14 +28,108 @@ class TaskProgress {
   bool get isComplete => total > 0 && running == 0;
 }
 
+String? _taskEventDescription(Map<String, dynamic> msg) {
+  final event = WireParsers.asMap(msg['event']);
+  final eventMessage = event?['message'] as String?;
+  if (eventMessage != null && eventMessage.isNotEmpty) {
+    return eventMessage;
+  }
+  final content = msg['content'] as String?;
+  if (content != null && content.isNotEmpty) {
+    return content;
+  }
+  return null;
+}
+
+class _TaskEventAgent {
+  _TaskEventAgent({required this.agentId});
+
+  final String agentId;
+  String state = 'running';
+  String? description;
+  String? taskType;
+  String? parentToolUseId;
+
+  void merge(Map<String, dynamic> msg) {
+    final status = msg['taskStatus'] as String?;
+    if (status == 'completed') {
+      state = 'completed';
+    } else if (status == 'failed') {
+      state = 'error';
+    } else if (state != 'completed' && state != 'error') {
+      state = 'running';
+    }
+
+    final nextDescription = _taskEventDescription(msg);
+    if (nextDescription != null && nextDescription.isNotEmpty) {
+      description = nextDescription;
+    }
+
+    final nextTaskType = msg['taskType'] as String?;
+    if (nextTaskType != null && nextTaskType.isNotEmpty) {
+      taskType = nextTaskType;
+    }
+
+    final nextParentToolUseId = msg['parentToolUseId'] as String?;
+    if (nextParentToolUseId != null && nextParentToolUseId.isNotEmpty) {
+      parentToolUseId = nextParentToolUseId;
+    }
+  }
+
+  Map<String, dynamic> toAgentMap() => <String, dynamic>{
+    'id': 'task-event-$agentId',
+    'toolUseId': parentToolUseId ?? agentId,
+    'agentId': agentId,
+    'kind': 'tool-call',
+    'name': 'Agent',
+    'state': state,
+    '_taskEventSynthetic': true,
+    'input': <String, dynamic>{
+      'description': description ?? agentId,
+      if (taskType != null) 'subagent_type': taskType,
+      'run_in_background': true,
+    },
+  };
+}
+
 /// Bottom sheet showing all active/running Task agents in the session.
 class AgentsListSheet extends StatelessWidget {
-  const AgentsListSheet({
-    required this.sessionId,
-    super.key,
-  });
+  const AgentsListSheet({required this.sessionId, super.key});
 
   final String sessionId;
+
+  static bool _isAgentToolName(String? name) =>
+      name == 'Task' || name == 'Agent' || name == 'Workflow';
+
+  static Map<String, _TaskEventAgent> _collectTaskEventAgents(
+    List<dynamic> messages,
+  ) {
+    final taskStates = <String, _TaskEventAgent>{};
+
+    void collect(List<dynamic> msgs) {
+      for (final msg in msgs) {
+        if (msg is! Map<String, dynamic>) continue;
+        if (msg['_orphanRecovery'] == true) continue;
+
+        if (msg['taskEvent'] == true) {
+          final agentId = msg['agentId'] as String?;
+          if (agentId != null && agentId.isNotEmpty) {
+            taskStates
+                .putIfAbsent(agentId, () => _TaskEventAgent(agentId: agentId))
+                .merge(msg);
+          }
+        }
+
+        final children = msg['children'] as List<dynamic>?;
+        if (children != null && children.isNotEmpty) {
+          collect(children);
+        }
+      }
+    }
+
+    collect(messages);
+    return taskStates;
+  }
 
   /// Counts how many Task/Agent tools are currently running.
   ///
@@ -44,6 +138,9 @@ class AgentsListSheet extends StatelessWidget {
   /// nested children under a parent Task/Agent are included.
   static int countActiveAgents(String sessionId) {
     final messages = sync.sessionMessages[sessionId] ?? [];
+    final progress = computeTaskProgress(sessionId);
+    if (progress.hasTasks) return progress.running;
+
     var count = 0;
 
     void countIn(List<dynamic> msgs, {required bool isTopLevel}) {
@@ -56,7 +153,7 @@ class AgentsListSheet extends StatelessWidget {
         final kind = msg['kind'] as String?;
         if (kind == 'tool-call') {
           final name = msg['name'] as String?;
-          if (name == 'Task' || name == 'Agent') {
+          if (_isAgentToolName(name)) {
             final state = msg['state'] as String?;
             if (state == 'running') {
               count++;
@@ -84,32 +181,21 @@ class AgentsListSheet extends StatelessWidget {
     final messages = sync.sessionMessages[sessionId] ?? [];
 
     // First pass: look for Claude Code task lifecycle events.
-    // agentId (task_id) -> 'active' | 'done'
-    final taskStates = <String, String>{};
-    for (final msg in messages) {
-      if (msg['isSidechain'] == true) continue;
-      if (msg['_orphanRecovery'] == true) continue;
-      if (msg['taskEvent'] != true) continue;
-
-      final agentId = msg['agentId'] as String?;
-      if (agentId == null || agentId.isEmpty) continue;
-
-      final taskStatus = msg['taskStatus'] as String?;
-      if (taskStatus == 'completed' || taskStatus == 'failed') {
-        taskStates[agentId] = 'done';
-      } else {
-        taskStates.putIfAbsent(agentId, () => 'active');
-      }
-    }
+    // agentId (task_id) -> latest known state. These may be top-level
+    // or nested/sidechain records when spawned by Workflow/local_workflow.
+    final taskStates = _collectTaskEventAgents(messages);
 
     if (taskStates.isNotEmpty) {
       final total = taskStates.length;
-      final done = taskStates.values.where((s) => s == 'done').length;
+      final completed = taskStates.values
+          .where((s) => s.state == 'completed')
+          .length;
+      final error = taskStates.values.where((s) => s.state == 'error').length;
       return TaskProgress(
         total: total,
-        running: total - done,
-        completed: done,
-        error: 0,
+        running: total - completed - error,
+        completed: completed,
+        error: error,
       );
     }
 
@@ -128,7 +214,7 @@ class AgentsListSheet extends StatelessWidget {
         final kind = msg['kind'] as String?;
         if (kind == 'tool-call') {
           final name = msg['name'] as String?;
-          if (name == 'Task' || name == 'Agent') {
+          if (_isAgentToolName(name)) {
             total++;
             final state = msg['state'] as String?;
             switch (state) {
@@ -165,6 +251,11 @@ class AgentsListSheet extends StatelessWidget {
   /// when the sidechain grouper has already attached a child.
   static List<Map<String, dynamic>> _extractAgents(String sessionId) {
     final messages = sync.sessionMessages[sessionId] ?? [];
+    final eventAgents = _collectTaskEventAgents(messages);
+    if (eventAgents.isNotEmpty) {
+      return eventAgents.values.map((agent) => agent.toAgentMap()).toList();
+    }
+
     final seen = <String>{};
     final agents = <Map<String, dynamic>>[];
 
@@ -181,7 +272,7 @@ class AgentsListSheet extends StatelessWidget {
         final kind = msg['kind'] as String?;
         if (kind == 'tool-call') {
           final name = msg['name'] as String?;
-          if (name == 'Task' || name == 'Agent') {
+          if (_isAgentToolName(name)) {
             final id = msg['id'] as String?;
             if (id != null && seen.add(id)) {
               agents.add(msg);
@@ -230,11 +321,7 @@ class AgentsListSheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Row(
               children: [
-                Icon(
-                  Icons.rocket_launch_rounded,
-                  size: 20,
-                  color: cs.primary,
-                ),
+                Icon(Icons.rocket_launch_rounded, size: 20, color: cs.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
@@ -278,19 +365,16 @@ class AgentsListSheet extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.xs),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
                     child: LinearProgressIndicator(
                       value: progress.completionRatio,
                       minHeight: 4,
-                      backgroundColor:
-                          cs.surfaceContainerHighest,
+                      backgroundColor: cs.surfaceContainerHighest,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    '${progress.completed + progress.error} of ${progress.total} complete'
-                    '${progress.running > 0 ? ', ${progress.running} running' : ''}',
+                    _progressLabel(progress),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
                       fontSize: AppFontSize.xxs,
@@ -334,10 +418,7 @@ class AgentsListSheet extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final agent = agents[index];
                       return RepaintBoundary(
-                        child: _AgentTile(
-                          agent: agent,
-                          sessionId: sessionId,
-                        ),
+                        child: _AgentTile(agent: agent, sessionId: sessionId),
                       );
                     },
                   ),
@@ -348,11 +429,14 @@ class AgentsListSheet extends StatelessWidget {
   }
 }
 
+String _progressLabel(TaskProgress progress) {
+  final done = progress.completed + progress.error;
+  final running = progress.running > 0 ? ', ${progress.running} running' : '';
+  return '$done of ${progress.total} complete$running';
+}
+
 class _AgentTile extends StatelessWidget {
-  const _AgentTile({
-    required this.agent,
-    required this.sessionId,
-  });
+  const _AgentTile({required this.agent, required this.sessionId});
 
   final Map<String, dynamic> agent;
   final String sessionId;
@@ -377,6 +461,8 @@ class _AgentTile extends StatelessWidget {
     final children = WireParsers.asList(agent['children']);
     final childCount = children?.length ?? 0;
     final msgId = agent['id'] as String?;
+    final canOpenConversation =
+        msgId != null && agent['_taskEventSynthetic'] != true;
 
     final Color borderColor;
     switch (toolState) {
@@ -391,14 +477,12 @@ class _AgentTile extends StatelessWidget {
     }
 
     return InkWell(
-      onTap: () {
-        if (msgId == null) return;
-        Navigator.pop(context); // Close sheet
-        context.push(
-          '/chat/$sessionId/agent/$msgId',
-          extra: agent,
-        );
-      },
+      onTap: canOpenConversation
+          ? () {
+              Navigator.pop(context); // Close sheet
+              context.push('/chat/$sessionId/agent/$msgId', extra: agent);
+            }
+          : null,
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
@@ -458,11 +542,12 @@ class _AgentTile extends StatelessWidget {
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
                 child: _ChildCountBadge(count: childCount),
               ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
+            if (canOpenConversation)
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
           ],
         ),
       ),
@@ -493,11 +578,7 @@ class _AgentTypeBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 10,
-            color: cs.onPrimaryContainer,
-          ),
+          Icon(icon, size: 10, color: cs.onPrimaryContainer),
           const SizedBox(width: 3),
           Text(
             type,
@@ -530,10 +611,7 @@ class _AgentTypeBadge extends StatelessWidget {
 }
 
 class _InfoBadge extends StatelessWidget {
-  const _InfoBadge({
-    required this.icon,
-    required this.label,
-  });
+  const _InfoBadge({required this.icon, required this.label});
 
   final IconData icon;
   final String label;

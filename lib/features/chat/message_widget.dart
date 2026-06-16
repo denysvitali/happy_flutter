@@ -98,19 +98,11 @@ class _MessageWidgetState extends State<MessageWidget>
         vsync: this,
         duration: const Duration(milliseconds: 350),
       );
-      _opacity = CurvedAnimation(
-        parent: _controller!,
-        curve: Curves.easeOut,
-      );
-      _slide = Tween<Offset>(
-        begin: const Offset(0, 0.04),
-        end: Offset.zero,
-      ).animate(
-        CurvedAnimation(
-          parent: _controller!,
-          curve: Curves.elasticOut,
-        ),
-      );
+      _opacity = CurvedAnimation(parent: _controller!, curve: Curves.easeOut);
+      _slide = Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)
+          .animate(
+            CurvedAnimation(parent: _controller!, curve: Curves.elasticOut),
+          );
       _controller!.forward();
     } else {
       // Historical message — use static animations to avoid
@@ -214,7 +206,8 @@ class _MessageWidgetState extends State<MessageWidget>
                 ? () {
                     final isTask =
                         widget.messageData['name'] == 'Task' ||
-                        widget.messageData['name'] == 'Agent';
+                        widget.messageData['name'] == 'Agent' ||
+                        widget.messageData['name'] == 'Workflow';
                     final route = isTask
                         ? '/chat/${widget.sessionId}'
                               '/agent/$messageId'

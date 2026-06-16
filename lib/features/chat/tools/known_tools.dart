@@ -202,6 +202,21 @@ class KnownTools {
         return count > 0 ? '$count steps' : null;
       },
     ),
+    'Workflow': ToolDefinition(
+      icon: taskIcon,
+      title: 'Workflow',
+      isMutable: true,
+      minimal: false,
+      extractSubtitle: (tool, _) {
+        final input = WireParsers.asMap(tool['input']);
+        return input?['name'] as String? ?? input?['workflowName'] as String?;
+      },
+      extractStatus: (tool, _) {
+        final children = WireParsers.asList(tool['children']);
+        final count = children?.length ?? 0;
+        return count > 0 ? '$count steps' : null;
+      },
+    ),
     'Bash': ToolDefinition(
       icon: bashIcon,
       title: 'Terminal',
@@ -453,8 +468,7 @@ class KnownTools {
       // tools skip body instantiation entirely.
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        return input?['subject'] as String? ??
-            input?['description'] as String?;
+        return input?['subject'] as String? ?? input?['description'] as String?;
       },
     ),
     'TaskUpdate': ToolDefinition(
@@ -462,21 +476,16 @@ class KnownTools {
       title: 'Update Task',
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        return input?['activeForm'] as String? ??
-            input?['subject'] as String?;
+        return input?['activeForm'] as String? ?? input?['subject'] as String?;
       },
     ),
-    'TaskList': ToolDefinition(
-      icon: todoIcon,
-      title: 'List Tasks',
-    ),
+    'TaskList': ToolDefinition(icon: todoIcon, title: 'List Tasks'),
     'TaskGet': ToolDefinition(
       icon: todoIcon,
       title: 'Get Task',
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        final taskId = input?['taskId'] as String? ??
-            input?['id'] as String?;
+        final taskId = input?['taskId'] as String? ?? input?['id'] as String?;
         return taskId != null ? '#$taskId' : null;
       },
     ),

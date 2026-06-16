@@ -252,7 +252,8 @@ class _AgentConversationScreenState
         )?.whereType<Map<String, dynamic>>().toList() ??
         [];
 
-    final showPrompt = promptRaw != null &&
+    final showPrompt =
+        promptRaw != null &&
         promptRaw.isNotEmpty &&
         promptRaw != descriptionRaw;
 
@@ -355,7 +356,7 @@ class _AgentConversationScreenState
 
     if (kind == 'tool-call') {
       final toolName = msg['name'] as String? ?? '';
-      if (toolName == 'Task' || toolName == 'Agent') {
+      if (toolName == 'Task' || toolName == 'Agent' || toolName == 'Workflow') {
         return _buildNestedTaskRow(theme, msg);
       }
       return _buildToolRow(theme, msg);

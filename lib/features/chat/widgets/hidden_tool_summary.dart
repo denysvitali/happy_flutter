@@ -139,7 +139,10 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
     final messageId = tool['id'] as String?;
     if (sessionId == null || messageId == null) return null;
     return () {
-      final isTask = tool['name'] == 'Task' || tool['name'] == 'Agent';
+      final isTask =
+          tool['name'] == 'Task' ||
+          tool['name'] == 'Agent' ||
+          tool['name'] == 'Workflow';
       final route = isTask
           ? '/chat/$sessionId/agent/$messageId'
           : '/chat/$sessionId/message/$messageId';

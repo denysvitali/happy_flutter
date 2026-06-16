@@ -126,18 +126,27 @@ void _processAcpContent({
     return;
   }
 
-  // Task lifecycle events (task_started, task_progress, task_notification).
+  // Task lifecycle events (task_started, task_progress, task_updated,
+  // task_notification).
   // Mirrors the handling in output_content_handler.dart::_processMetaOutput.
   if (dataType == 'system') {
     final subtype = data['subtype'] as String?;
     if (subtype == 'task_started' ||
         subtype == 'task_progress' ||
+        subtype == 'task_updated' ||
         subtype == 'task_notification') {
       final description = data['description'] as String?;
       final summary = data['summary'] as String?;
       final status = data['status'] as String?;
+      final taskType = data['task_type'] as String?;
+      final workflowName = data['workflow_name'] as String?;
+      final taskExtras = <String, dynamic>{
+        'taskStatus': ?status,
+        'taskType': ?taskType,
+        'workflowName': ?workflowName,
+      };
 
-      if (subtype == 'task_notification' &&
+      if ((subtype == 'task_notification' || subtype == 'task_updated') &&
           (status == 'completed' || status == 'failed')) {
         messages.add({
           'id': '${id}_tn',
@@ -147,7 +156,7 @@ void _processAcpContent({
           'kind': 'text',
           'content': summary ?? 'Task $status',
           'taskEvent': true,
-          'taskStatus': status,
+          ...taskExtras,
           if (meta.isSidechain) 'isSidechain': true,
           'uuid': ?meta.uuid,
           'parentUuid': ?meta.parentUuid,
@@ -166,6 +175,7 @@ void _processAcpContent({
         'kind': 'agent-event',
         'event': {'type': 'message', 'message': label},
         'taskEvent': true,
+        ...taskExtras,
         if (meta.isSidechain) 'isSidechain': true,
         'uuid': ?meta.uuid,
         'parentUuid': ?meta.parentUuid,
