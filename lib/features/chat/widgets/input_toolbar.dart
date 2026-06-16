@@ -246,31 +246,29 @@ class InputToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final model = modelMode ?? ChatModelMode.defaultModel;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      clipBehavior: Clip.none,
-      child: Row(
-        children: [
-          if (onPermissionModeChanged != null) ...[
-            perm.PermissionModeSelector(
-              selectedMode: permissionMode,
-              onModeChanged: onPermissionModeChanged,
-              availableModes: perm.PermissionModeExtension.claudeGeminiModes,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-          ],
-          ModelChip(
-            model: model,
-            enabled: availableModels.length > 1,
-            onTap: onShowModelPicker,
+    // Wrap (not SingleChildScrollView) so chips never scroll horizontally —
+    // when the row is wider than the available space, chips flow to the next
+    // line instead. This keeps every chip tappable without a surprise gesture.
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (onPermissionModeChanged != null)
+          perm.PermissionModeSelector(
+            selectedMode: permissionMode,
+            onModeChanged: onPermissionModeChanged,
+            availableModes: perm.PermissionModeExtension.claudeGeminiModes,
           ),
-          const SizedBox(width: AppSpacing.xs),
-          ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
-          const SizedBox(width: AppSpacing.xs),
-          if (contextSize != null && contextSize! > 0)
-            ContextSizeIndicator(contextSize: contextSize!),
-        ],
-      ),
+        ModelChip(
+          model: model,
+          enabled: availableModels.length > 1,
+          onTap: onShowModelPicker,
+        ),
+        ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
+        if (contextSize != null && contextSize! > 0)
+          ContextSizeIndicator(contextSize: contextSize!),
+      ],
     );
   }
 }

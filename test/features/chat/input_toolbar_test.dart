@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
+import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart'
+    as perm;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -131,4 +133,46 @@ void main() {
     expect(modelSize.height, lessThanOrEqualTo(30));
     expect(profileSize.height, lessThanOrEqualTo(30));
   });
+
+  testWidgets(
+    'toolbar is not horizontally scrollable — all chips stay visible at '
+    'narrow widths',
+    (tester) async {
+      // Phone-portrait width; previously the SingleChildScrollView let the
+      // row overflow off-screen and accepted horizontal drag gestures.
+      tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        wrap(
+          SizedBox(
+            width: 390,
+            child: InputToolbar(
+              permissionMode: perm.PermissionMode.bypassPermissions,
+              onPermissionModeChanged: (_) {},
+              modelMode: ChatModelMode.sonnet,
+              availableModels: ChatModelMode.availableForFlavor('claude'),
+              onShowModelPicker: () {},
+              onShowProfilePicker: () {},
+            ),
+          ),
+        ),
+      );
+
+      // No horizontal scroll view anywhere in the toolbar.
+      expect(
+        find.descendant(
+          of: find.byType(InputToolbar),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsNothing,
+      );
+
+      // All three primary chips must be present and tappable.
+      expect(find.byType(perm.PermissionModeSelector), findsOneWidget);
+      expect(find.byType(ModelChip), findsOneWidget);
+      expect(find.byType(ProfileChip), findsOneWidget);
+    },
+  );
 }
