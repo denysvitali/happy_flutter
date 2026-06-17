@@ -109,7 +109,16 @@ class Sync {
   static final Sync _instance = Sync._();
 
   // Constants
-  static const int sessionReadyTimeoutMs = 3000;
+  /// Max wait for `waitForAgentReady` before `sendMessage` proceeds anyway.
+  ///
+  /// Lowered from 3000 ms (p90 2.6s on chat.send_message — Jaeger over 30
+  /// spans) to 750 ms: the caller already sends regardless of the wait
+  /// result, so the wait is purely user-visible latency.  When the agent
+  /// is mid-think the daemon stops emitting ephemeral keep-alives and
+  /// `_isSessionReady` falls back to the `lifecycleState == 'running'`
+  /// short-circuit; this constant only governs the worst-case stall
+  /// when neither signal is fresh.
+  static const int sessionReadyTimeoutMs = 750;
   static const int _visibleMessageFetchPageLimit = kIsWeb ? 4 : 12;
   static const int _backgroundMessageFetchPageLimit = 1;
   static const int _maxVisibleSessionMessages = kIsWeb ? 600 : 1000;

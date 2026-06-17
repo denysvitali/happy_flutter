@@ -1085,20 +1085,28 @@ extension SyncMessagingRpc on Sync {
   /// Checks both ephemeral presence and lifecycle metadata.
   /// Guards against stale lifecycleState by requiring a recent timestamp.
   bool _isSessionReady(Session s) {
-    // Cross-check presence with a recent ephemeral event — same logic
-    // as _resolveSendTargetSession to avoid trusting stale 'online'
-    // presence after a daemon restart.
+    // Prefer lifecycleState == 'running' when available: the agent sets
+    // this after connecting to Socket.IO, which confirms push delivery
+    // independent of ephemeral keep-alive traffic.  Without this, an
+    // agent that's been thinking for >90 s (and so has stopped emitting
+    // ephemeral events) would be wrongly treated as not-ready, forcing
+    // waitForAgentReady to wait the full sessionReadyTimeoutMs.
+    final lc = s.effectiveLifecycleState;
+    if (lc == 'running') {
+      final since = s.metadata?.lifecycleStateSince;
+      if (since != null &&
+          DateTime.now().millisecondsSinceEpoch - since < 120000) {
+        return true;
+      }
+    }
+    // Fallback: cross-check presence with a recent ephemeral event —
+    // same logic as _resolveSendTargetSession to avoid trusting stale
+    // 'online' presence after a daemon restart.
     final lastEphemeral = _lastEphemeralAt[s.id];
     final recentEphemeral =
         lastEphemeral != null &&
         DateTime.now().millisecondsSinceEpoch - lastEphemeral < 90000;
-    if (s.isOnline && recentEphemeral) return true;
-    final lc = s.effectiveLifecycleState;
-    if (lc != 'running') return false;
-    // Only trust "running" if the timestamp is recent (< 2 minutes).
-    final since = s.metadata?.lifecycleStateSince;
-    if (since == null) return false;
-    return DateTime.now().millisecondsSinceEpoch - since < 120000;
+    return s.isOnline && recentEphemeral;
   }
 
   /// Whether the session currently looks reachable for incoming messages.
