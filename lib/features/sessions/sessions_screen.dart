@@ -281,15 +281,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (_activeTab == AppTab.sessions) {
       return _buildSessionsAppBar(context, l10n);
     }
-    if (_activeTab == AppTab.loops) {
-      return AppBar(title: Text(l10n.allLoopsTitle));
-    }
-    if (_activeTab == AppTab.providers) {
-      return AppBar(title: Text(l10n.providersTitle));
-    }
     if (_activeTab == AppTab.settings) {
       return AppBar(title: Text(l10n.settingsTitle));
     }
+    // Loops and providers tabs render their own Scaffold+AppBar (the embedded
+    // AllLoopsScreen / ProvidersUsageScreen), so the outer Scaffold must not
+    // add one — otherwise two stacked headers appear on phone layouts.
     return null;
   }
 

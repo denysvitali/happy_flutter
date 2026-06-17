@@ -529,6 +529,82 @@ void main() {
       expect(usage.extra, isEmpty);
     });
 
+    // Mirrors the live payload returned by api.z.ai for a GLM Coding Lite plan
+    // (probed 2026-06-17). Note: TOKENS_LIMIT windows carry ONLY `percentage`
+    // — no usage/currentValue/remaining — which is the norm for token quotas,
+    // so the card shows the % bar without a used/limit count line.
+    test('parses the live production payload (percentage-only TOKENS_LIMIT)',
+        () async {
+      final api = ZaiUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'code': 200,
+            'msg': 'Operation successful',
+            'data': <String, dynamic>{
+              'limits': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'TIME_LIMIT',
+                  'unit': 5,
+                  'number': 1,
+                  'usage': 100,
+                  'currentValue': 96,
+                  'remaining': 4,
+                  'percentage': 96,
+                  'nextResetTime': 1784320251987,
+                  'usageDetails': <Map<String, dynamic>>[
+                    <String, dynamic>{'modelCode': 'search-prime', 'usage': 88},
+                    <String, dynamic>{'modelCode': 'web-reader', 'usage': 8},
+                  ],
+                },
+                <String, dynamic>{
+                  'type': 'TOKENS_LIMIT',
+                  'unit': 3,
+                  'number': 5,
+                  'percentage': 77,
+                  'nextResetTime': 1781746456175,
+                },
+                <String, dynamic>{
+                  'type': 'TOKENS_LIMIT',
+                  'unit': 6,
+                  'number': 1,
+                  'percentage': 15,
+                  'nextResetTime': 1782333051984,
+                },
+              ],
+              'level': 'lite',
+            },
+            'success': true,
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'k', accountId: 'a1');
+
+      expect(usage.windows, hasLength(3));
+
+      final searches = usage.windows[0];
+      expect(searches.label, 'Web Searches');
+      expect(searches.utilization, closeTo(96, 0.001));
+      expect(searches.used, 96);
+      expect(searches.limit, 100);
+      expect(searches.remaining, 4);
+      expect(searches.resetsAtMs, 1784320251987);
+
+      // Token windows report only a percentage — utilization is populated but
+      // there is no used/limit (card omits the count line for these).
+      final session = usage.windows[1];
+      expect(session.label, 'Session');
+      expect(session.utilization, closeTo(77, 0.001));
+      expect(session.used, isNull);
+      expect(session.limit, isNull);
+      expect(session.resetsAtMs, 1781746456175);
+
+      final weekly = usage.windows[2];
+      expect(weekly.label, 'Weekly');
+      expect(weekly.utilization, closeTo(15, 0.001));
+      expect(weekly.resetsAtMs, 1782333051984);
+    });
+
     test('derives utilization from usage/currentValue when percentage is absent',
         () async {
       final api = ZaiUsageApi(
