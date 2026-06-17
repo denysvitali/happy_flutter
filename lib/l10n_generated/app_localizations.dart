@@ -5089,6 +5089,60 @@ abstract class AppLocalizations {
   /// **'Used Credits'**
   String get claudeLimitsUsedCredits;
 
+  /// No description provided for @claudeLocalUsageSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Token Usage'**
+  String get claudeLocalUsageSection;
+
+  /// No description provided for @claudeLocalUsageTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total tokens'**
+  String get claudeLocalUsageTotal;
+
+  /// No description provided for @claudeLocalUsageNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No local usage yet'**
+  String get claudeLocalUsageNoData;
+
+  /// No description provided for @claudeLocalUsageNoDataSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a Claude Code session to see token stats'**
+  String get claudeLocalUsageNoDataSubtitle;
+
+  /// No description provided for @claudeLocalUsageLast30Days.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 30 days'**
+  String get claudeLocalUsageLast30Days;
+
+  /// No description provided for @claudeLocalUsageRequiresUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update your machine daemon to see local usage'**
+  String get claudeLocalUsageRequiresUpdate;
+
+  /// No description provided for @claudeLocalUsageRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get claudeLocalUsageRefresh;
+
+  /// No description provided for @claudeLocalUsageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load local usage'**
+  String get claudeLocalUsageFailed;
+
+  /// No description provided for @claudeLocalUsageLifetime.
+  ///
+  /// In en, this message translates to:
+  /// **'Lifetime'**
+  String get claudeLocalUsageLifetime;
+
   /// No description provided for @claudeLimitsNoMachines.
   ///
   /// In en, this message translates to:

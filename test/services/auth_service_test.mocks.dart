@@ -254,6 +254,12 @@ class MockApiClient extends _i1.Mock implements _i4.ApiClient {
           as Map<String, int>);
 
   @override
+  void debugSeedCache(_i2.Response<dynamic>? response) => super.noSuchMethod(
+    Invocation.method(#debugSeedCache, [response]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
   void dispose() => super.noSuchMethod(
     Invocation.method(#dispose, []),
     returnValueForMissingStub: null,

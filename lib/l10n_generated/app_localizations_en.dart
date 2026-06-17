@@ -2774,6 +2774,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get claudeLimitsUsedCredits => 'Used Credits';
 
   @override
+  String get claudeLocalUsageSection => 'Token Usage';
+
+  @override
+  String get claudeLocalUsageTotal => 'Total tokens';
+
+  @override
+  String get claudeLocalUsageNoData => 'No local usage yet';
+
+  @override
+  String get claudeLocalUsageNoDataSubtitle =>
+      'Start a Claude Code session to see token stats';
+
+  @override
+  String get claudeLocalUsageLast30Days => 'Last 30 days';
+
+  @override
+  String get claudeLocalUsageRequiresUpdate =>
+      'Update your machine daemon to see local usage';
+
+  @override
+  String get claudeLocalUsageRefresh => 'Refresh';
+
+  @override
+  String get claudeLocalUsageFailed => 'Could not load local usage';
+
+  @override
+  String get claudeLocalUsageLifetime => 'Lifetime';
+
+  @override
   String get claudeLimitsNoMachines => 'No machines available';
 
   @override

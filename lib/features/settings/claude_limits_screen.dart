@@ -7,6 +7,7 @@ import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/claude_local_usage.dart';
 import '../../core/models/claude_usage_limits.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
@@ -31,6 +32,13 @@ class _ClaudeLimitsScreenState
   bool _isLoading = false;
   String? _error;
 
+  // Local-usage state (scraped from ~/.claude/stats-cache.json).
+  // Loaded in parallel with the OAuth limits; failures here do NOT
+  // block the OAuth limits from rendering.
+  ClaudeLocalUsage? _localUsage;
+  bool _isLoadingLocal = false;
+  String? _localError;
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +54,7 @@ class _ClaudeLimitsScreenState
     final target = online.isNotEmpty ? online.first : null;
     if (target != null) {
       setState(() => _selectedMachineId = target.id);
-      _loadLimits(target.id);
+      _loadAll(target.id);
     }
   }
 
@@ -56,13 +64,22 @@ class _ClaudeLimitsScreenState
     return now - m.activeAt < onlineThresholdMs;
   }
 
-  Future<void> _loadLimits(String machineId) async {
+  Future<void> _loadAll(String machineId) async {
     setState(() {
       _isLoading = true;
+      _isLoadingLocal = true;
       _error = null;
+      _localError = null;
       _limits = null;
+      _localUsage = null;
     });
+    await Future.wait([
+      _loadLimits(machineId),
+      _loadLocalUsage(machineId),
+    ]);
+  }
 
+  Future<void> _loadLimits(String machineId) async {
     final response = await Sync().machineGetClaudeUsageLimits(
       machineId: machineId,
     );
@@ -92,6 +109,36 @@ class _ClaudeLimitsScreenState
     }
   }
 
+  Future<void> _loadLocalUsage(String machineId) async {
+    final response = await Sync().machineGetClaudeLocalUsage(
+      machineId: machineId,
+    );
+
+    if (!mounted) return;
+
+    if (!response.success || response.data == null) {
+      setState(() {
+        _localError = response.error ?? 'Unknown error';
+        _isLoadingLocal = false;
+      });
+      return;
+    }
+
+    try {
+      final json =
+          jsonDecode(response.data!) as Map<String, dynamic>;
+      setState(() {
+        _localUsage = ClaudeLocalUsage.fromJson(json);
+        _isLoadingLocal = false;
+      });
+    } catch (e) {
+      setState(() {
+        _localError = 'Failed to parse response: $e';
+        _isLoadingLocal = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -109,7 +156,18 @@ class _ClaudeLimitsScreenState
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.claudeLimitsTitle)),
+      appBar: AppBar(
+        title: Text(l10n.claudeLimitsTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: l10n.claudeLocalUsageRefresh,
+            onPressed: _selectedMachineId == null
+                ? null
+                : () => _loadAll(_selectedMachineId!),
+          ),
+        ],
+      ),
       body: _isLoading
           ? const AppLoadingIndicator()
           : _error != null
@@ -117,7 +175,7 @@ class _ClaudeLimitsScreenState
                   error: _error!,
                   onRetry: () {
                     if (_selectedMachineId != null) {
-                      _loadLimits(_selectedMachineId!);
+                      _loadAll(_selectedMachineId!);
                     }
                   },
                 )
@@ -126,11 +184,14 @@ class _ClaudeLimitsScreenState
                       machines: machines,
                       selectedMachineId: _selectedMachineId,
                       limits: _limits!,
+                      localUsage: _localUsage,
+                      isLoadingLocal: _isLoadingLocal,
+                      localError: _localError,
                       onMachineChanged: (id) {
                         setState(
                           () => _selectedMachineId = id,
                         );
-                        if (id != null) _loadLimits(id);
+                        if (id != null) _loadAll(id);
                       },
                     )
                   : _NoDataBody(
@@ -140,7 +201,7 @@ class _ClaudeLimitsScreenState
                         setState(
                           () => _selectedMachineId = id,
                         );
-                        if (id != null) _loadLimits(id);
+                        if (id != null) _loadAll(id);
                       },
                     ),
     );
@@ -152,12 +213,18 @@ class _LimitsBody extends StatelessWidget {
     required this.machines,
     required this.selectedMachineId,
     required this.limits,
+    required this.localUsage,
+    required this.isLoadingLocal,
+    required this.localError,
     required this.onMachineChanged,
   });
 
   final Map<String, Machine> machines;
   final String? selectedMachineId;
   final ClaudeUsageLimits limits;
+  final ClaudeLocalUsage? localUsage;
+  final bool isLoadingLocal;
+  final String? localError;
   final ValueChanged<String?> onMachineChanged;
 
   @override
@@ -208,6 +275,12 @@ class _LimitsBody extends StatelessWidget {
             ],
           ),
         ],
+        const SizedBox(height: AppSpacing.lg),
+        _LocalUsageSection(
+          usage: localUsage,
+          isLoading: isLoadingLocal,
+          error: localError,
+        ),
       ],
     );
   }
@@ -486,6 +559,296 @@ class _StatRow extends StatelessWidget {
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: cs.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Section rendering the local token usage scraped from
+/// `~/.claude/stats-cache.json` on the selected machine.
+class _LocalUsageSection extends StatelessWidget {
+  const _LocalUsageSection({
+    required this.usage,
+    required this.isLoading,
+    required this.error,
+  });
+
+  final ClaudeLocalUsage? usage;
+  final bool isLoading;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final children = <Widget>[];
+
+    if (isLoading && usage == null) {
+      children.add(
+        const Padding(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          child: AppLoadingIndicator(),
+        ),
+      );
+    } else if (usage == null) {
+      // Error / no data branch — never block the OAuth limits.
+      final isOldDaemon = error != null &&
+          error!.toLowerCase().contains('rpc method not available');
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isOldDaemon ? Icons.system_update_alt : Icons.error_outline,
+                color: isOldDaemon ? cs.primary : AppColors.warning,
+                size: 20,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  isOldDaemon
+                      ? l10n.claudeLocalUsageRequiresUpdate
+                      : (l10n.claudeLocalUsageFailed +
+                          (error != null ? ' — $error' : '')),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      final u = usage!;
+      // Total row.
+      children.add(
+        _StatRow(
+          icon: Icons.functions,
+          title: l10n.claudeLocalUsageTotal,
+          value: '${ClaudeLocalUsage.formatTokenCount(u.totalTokens)} '
+              'tokens',
+          iconColor: cs.primary,
+        ),
+      );
+      if (u.lastComputedDate != null) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+            ),
+            child: Text(
+              '${l10n.claudeLocalUsageLifetime}: '
+              '${u.lastComputedDate}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
+        );
+      }
+
+      // Per-model breakdown (sorted by tokens desc).
+      if (u.sortedTokensByModel.isEmpty) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.claudeLocalUsageNoData,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  l10n.claudeLocalUsageNoDataSubtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        for (final entry in u.sortedTokensByModel) {
+          final pct = u.totalTokens == 0
+              ? 0
+              : ((entry.value * 100) / u.totalTokens).round();
+          children.add(
+            _ModelTokenRow(
+              modelName: ClaudeLocalUsage.formatModelName(entry.key),
+              rawModelId: entry.key,
+              tokens: entry.value,
+              percentage: pct,
+            ),
+          );
+        }
+      }
+
+      // Daily breakdown (capped to 30 days, oldest first). Show the last
+      // 7 by default; full slice available by scrolling.
+      if (u.dailyModelTokens.isNotEmpty) {
+        final last7 = u.dailyModelTokens.length > 7
+            ? u.dailyModelTokens.sublist(u.dailyModelTokens.length - 7)
+            : u.dailyModelTokens;
+        children
+          ..add(const SizedBox(height: AppSpacing.md))
+          ..add(
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.xs,
+              ),
+              child: Text(
+                l10n.claudeLocalUsageLast30Days,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
+        );
+        for (final day in last7) {
+          final dayTotal = day.tokensByModel.values.fold<int>(
+            0,
+            (a, b) => a + b,
+          );
+          // Top model for the day.
+          var topModel = '';
+          var topTokens = 0;
+          day.tokensByModel.forEach((model, tokens) {
+            if (tokens > topTokens) {
+              topModel = model;
+              topTokens = tokens;
+            }
+          });
+          children.add(
+            _DailyTokenRow(
+              date: day.date,
+              totalTokens: dayTotal,
+              topModelName: topModel.isEmpty
+                  ? null
+                  : ClaudeLocalUsage.formatModelName(topModel),
+            ),
+          );
+        }
+      }
+    }
+
+    return SettingsSection(
+      title: l10n.claudeLocalUsageSection,
+      children: children,
+    );
+  }
+}
+
+class _ModelTokenRow extends StatelessWidget {
+  const _ModelTokenRow({
+    required this.modelName,
+    required this.rawModelId,
+    required this.tokens,
+    required this.percentage,
+  });
+
+  final String modelName;
+  final String rawModelId;
+  final int tokens;
+  final int percentage;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  modelName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  rawModelId,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${ClaudeLocalUsage.formatTokenCount(tokens)} ($percentage%)',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailyTokenRow extends StatelessWidget {
+  const _DailyTokenRow({
+    required this.date,
+    required this.totalTokens,
+    required this.topModelName,
+  });
+
+  final String date;
+  final int totalTokens;
+  final String? topModelName;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              date,
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          if (topModelName != null) ...[
+            Text(
+              topModelName!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          Text(
+            ClaudeLocalUsage.formatTokenCount(totalTokens),
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
