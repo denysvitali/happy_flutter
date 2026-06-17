@@ -8776,7 +8776,7 @@ abstract class AppLocalizations {
   /// No description provided for @providersEmptySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Add your Kimi or MiniMax account to track usage.'**
+  /// **'Add your Kimi, MiniMax, or Z.AI account to track usage.'**
   String get providersEmptySubtitle;
 
   /// No description provided for @providersNoUsageData.
@@ -8844,6 +8844,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paste your MiniMax API key'**
   String get providersMiniMaxApiKeyHint;
+
+  /// No description provided for @providersZaiApiKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get providersZaiApiKeyLabel;
+
+  /// No description provided for @providersZaiApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your Z.AI console API key'**
+  String get providersZaiApiKeyHint;
+
+  /// No description provided for @providersZaiBaseUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get providersZaiBaseUrlLabel;
+
+  /// No description provided for @providersZaiBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://api.z.ai'**
+  String get providersZaiBaseUrlHint;
 
   /// No description provided for @providersNotImplemented.
   ///

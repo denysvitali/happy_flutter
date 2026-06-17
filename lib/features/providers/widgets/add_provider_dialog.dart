@@ -38,11 +38,16 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
   // MiniMax
   final _miniMaxApiKeyController = TextEditingController();
 
+  // Z.AI
+  final _zaiKeyController = TextEditingController();
+  final _zaiBaseUrlController = TextEditingController(text: zaiDefaultBaseUrl);
+
   @override
   void initState() {
     super.initState();
     _kimiKeyController.addListener(_onFieldChanged);
     _miniMaxApiKeyController.addListener(_onFieldChanged);
+    _zaiKeyController.addListener(_onFieldChanged);
   }
 
   void _onFieldChanged() => setState(() {});
@@ -51,10 +56,13 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
   void dispose() {
     _kimiKeyController.removeListener(_onFieldChanged);
     _miniMaxApiKeyController.removeListener(_onFieldChanged);
+    _zaiKeyController.removeListener(_onFieldChanged);
     _nameController.dispose();
     _kimiKeyController.dispose();
     _kimiBaseUrlController.dispose();
     _miniMaxApiKeyController.dispose();
+    _zaiKeyController.dispose();
+    _zaiBaseUrlController.dispose();
     super.dispose();
   }
 
@@ -70,6 +78,14 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
       ),
       ProviderUsageType.minimax => ProviderCredentials.miniMax(
         MiniMaxCredentials(apiKey: _miniMaxApiKeyController.text.trim()),
+      ),
+      ProviderUsageType.zai => ProviderCredentials.zai(
+        ZaiCredentials(
+          apiKey: _zaiKeyController.text.trim(),
+          baseUrl: _zaiBaseUrlController.text.trim().isEmpty
+              ? zaiDefaultBaseUrl
+              : _zaiBaseUrlController.text.trim(),
+        ),
       ),
       ProviderUsageType.claudeCode => ProviderCredentials.kimi(
         // Not implemented yet; guard with empty key.
@@ -93,6 +109,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
       ProviderUsageType.kimi => _kimiKeyController.text.trim().isNotEmpty,
       ProviderUsageType.minimax =>
         _miniMaxApiKeyController.text.trim().isNotEmpty,
+      ProviderUsageType.zai => _zaiKeyController.text.trim().isNotEmpty,
       ProviderUsageType.claudeCode || ProviderUsageType.codex => false,
     };
   }
@@ -184,6 +201,26 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
           obscureText: true,
         ),
       ],
+      ProviderUsageType.zai => [
+        TextField(
+          controller: _zaiKeyController,
+          decoration: InputDecoration(
+            labelText: l10n.providersZaiApiKeyLabel,
+            hintText: l10n.providersZaiApiKeyHint,
+          ),
+          obscureText: true,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        TextField(
+          controller: _zaiBaseUrlController,
+          decoration: InputDecoration(
+            labelText: l10n.providersZaiBaseUrlLabel,
+            hintText: l10n.providersZaiBaseUrlHint,
+          ),
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+        ),
+      ],
       ProviderUsageType.claudeCode ||
       ProviderUsageType.codex => [Text(l10n.providersNotImplemented)],
     };
@@ -193,6 +230,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     return switch (type) {
       ProviderUsageType.kimi => 'Kimi',
       ProviderUsageType.minimax => 'MiniMax',
+      ProviderUsageType.zai => 'Z.AI',
       ProviderUsageType.claudeCode => 'Claude Code',
       ProviderUsageType.codex => 'Codex',
     };

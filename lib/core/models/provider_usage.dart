@@ -11,7 +11,7 @@ part 'provider_usage.freezed.dart';
 part 'provider_usage.g.dart';
 
 /// Identifier for a supported third-party usage provider.
-enum ProviderUsageType { kimi, minimax, claudeCode, codex }
+enum ProviderUsageType { kimi, minimax, zai, claudeCode, codex }
 
 /// Default base URL for the Kimi Coding Plan usage API.
 ///
@@ -19,6 +19,15 @@ enum ProviderUsageType { kimi, minimax, claudeCode, codex }
 /// `www.kimi.com` web app). Power users running a custom gateway can override
 /// it per account.
 const String kimiDefaultBaseUrl = 'https://api.kimi.com/coding/v1';
+
+/// Default base URL for the Z.AI (Zhipu GLM) Coding Plan usage API.
+///
+/// The usage/quota endpoints live on the same host as the coding-plan gateway
+/// and are NOT part of Z.AI's public API reference — they mirror the internal
+/// subscription-management UI also used by community tools (openusage,
+/// zai-usage-tracker). A Bearer API key from the Z.AI console authenticates.
+/// Power users running a custom gateway can override it per account.
+const String zaiDefaultBaseUrl = 'https://api.z.ai';
 
 /// Credentials required to authenticate with Kimi.
 ///
@@ -54,6 +63,23 @@ abstract class MiniMaxCredentials with _$MiniMaxCredentials {
       _$MiniMaxCredentialsFromJson(json);
 }
 
+/// Credentials required to authenticate with Z.AI (Zhipu GLM).
+///
+/// Z.AI uses a Bearer API key (created in the Z.AI console) against the
+/// internal usage/quota endpoints. [baseUrl] defaults to [zaiDefaultBaseUrl]
+/// and only needs overriding for custom gateways.
+@freezed
+abstract class ZaiCredentials with _$ZaiCredentials {
+  const factory ZaiCredentials({
+    required String apiKey,
+    @Default(zaiDefaultBaseUrl) String baseUrl,
+    String? accountName,
+  }) = _ZaiCredentials;
+
+  factory ZaiCredentials.fromJson(Map<String, dynamic> json) =>
+      _$ZaiCredentialsFromJson(json);
+}
+
 /// Union of credentials for a configured provider account.
 @freezed
 abstract class ProviderCredentials with _$ProviderCredentials {
@@ -62,6 +88,9 @@ abstract class ProviderCredentials with _$ProviderCredentials {
 
   const factory ProviderCredentials.miniMax(MiniMaxCredentials credentials) =
       _ProviderCredentialsMiniMax;
+
+  const factory ProviderCredentials.zai(ZaiCredentials credentials) =
+      _ProviderCredentialsZai;
 
   factory ProviderCredentials.fromJson(Map<String, dynamic> json) =>
       _$ProviderCredentialsFromJson(json);

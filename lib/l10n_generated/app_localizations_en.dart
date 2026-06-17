@@ -4820,7 +4820,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get providersEmptySubtitle =>
-      'Add your Kimi or MiniMax account to track usage.';
+      'Add your Kimi, MiniMax, or Z.AI account to track usage.';
 
   @override
   String get providersNoUsageData => 'No usage data available';
@@ -4854,6 +4854,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get providersMiniMaxApiKeyHint => 'Paste your MiniMax API key';
+
+  @override
+  String get providersZaiApiKeyLabel => 'API key';
+
+  @override
+  String get providersZaiApiKeyHint => 'Paste your Z.AI console API key';
+
+  @override
+  String get providersZaiBaseUrlLabel => 'Base URL';
+
+  @override
+  String get providersZaiBaseUrlHint => 'https://api.z.ai';
 
   @override
   String get providersNotImplemented => 'This provider is not yet supported.';

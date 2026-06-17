@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/provider_usage_api.dart';
+import 'package:happy_flutter/core/models/provider_usage.dart';
 
 /// Minimal [HttpClientAdapter] that returns canned responses keyed off the
 /// request, exercising the real Dio JSON pipeline without any network.
@@ -415,6 +416,262 @@ void main() {
       expect(usage.windows.single.remaining, 250);
       expect(usage.windows.single.utilization, closeTo(75, 0.001));
       expect(usage.windows.single.resetsAtMs, isNotNull);
+    });
+  });
+
+  group('ZaiUsageApi', () {
+    test('GETs the monitor quota endpoint with a Bearer + UA', () async {
+      RequestOptions? seen;
+      final api = ZaiUsageApi(
+        dio: _dioWith((o) {
+          seen = o;
+          return _json(<String, dynamic>{
+            'data': <String, dynamic>{
+              'limits': <Map<String, dynamic>>[],
+            },
+          }, 200);
+        }),
+      );
+
+      await api.getUsage(apiKey: 'test-key', accountId: 'a1');
+
+      expect(seen!.method, 'GET');
+      expect(
+        seen!.uri.toString(),
+        'https://api.z.ai/api/monitor/usage/quota/limit',
+      );
+      expect(seen!.headers['Authorization'], 'Bearer test-key');
+      expect(seen!.headers['User-Agent'], isNotNull);
+    });
+
+    // Mirrors the live payload documented by community tools (openusage,
+    // zai-usage-tracker) — the endpoint is not in Z.AI's public API reference.
+    test('parses TOKENS_LIMIT (session + weekly) and TIME_LIMIT windows',
+        () async {
+      final api = ZaiUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'code': 200,
+            'success': true,
+            'data': <String, dynamic>{
+              'limits': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'TOKENS_LIMIT',
+                  'unit': 3,
+                  'number': 5,
+                  'usage': 800000000,
+                  'currentValue': 127694464,
+                  'remaining': 672305536,
+                  'percentage': 15,
+                  'nextResetTime': 1770648402389,
+                },
+                <String, dynamic>{
+                  'type': 'TOKENS_LIMIT',
+                  'unit': 6,
+                  'number': 7,
+                  'usage': 2000000000,
+                  'currentValue': 500000000,
+                  'remaining': 1500000000,
+                  'percentage': 25,
+                  'nextResetTime': 1770648402389,
+                },
+                <String, dynamic>{
+                  'type': 'TIME_LIMIT',
+                  'unit': 5,
+                  'number': 1,
+                  'usage': 4000,
+                  'currentValue': 1828,
+                  'remaining': 2172,
+                  'percentage': 45,
+                  'usageDetails': <Map<String, dynamic>>[
+                    <String, dynamic>{
+                      'modelCode': 'search-prime',
+                      'usage': 1433,
+                    },
+                  ],
+                },
+              ],
+            },
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'k', accountId: 'a1');
+
+      expect(usage.windows, hasLength(3));
+      expect(usage.type, ProviderUsageType.zai);
+
+      final session = usage.windows[0];
+      expect(session.label, 'Session');
+      expect(session.utilization, closeTo(15, 0.001));
+      expect(session.used, 127694464);
+      expect(session.limit, 800000000);
+      expect(session.remaining, 672305536);
+      expect(session.resetsAtMs, 1770648402389);
+
+      final weekly = usage.windows[1];
+      expect(weekly.label, 'Weekly');
+      expect(weekly.utilization, closeTo(25, 0.001));
+
+      // TIME_LIMIT carries no nextResetTime — parser derives next 1st-of-month.
+      final searches = usage.windows[2];
+      expect(searches.label, 'Web Searches');
+      expect(searches.utilization, closeTo(45, 0.001));
+      expect(searches.used, 1828);
+      expect(searches.limit, 4000);
+      expect(searches.remaining, 2172);
+      expect(
+        searches.resetsAtMs,
+        greaterThan(DateTime.now().millisecondsSinceEpoch),
+      );
+
+      // Production default: no debug payload leaks into `extra`.
+      expect(usage.extra, isEmpty);
+    });
+
+    test('derives utilization from usage/currentValue when percentage is absent',
+        () async {
+      final api = ZaiUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'data': <String, dynamic>{
+              'limits': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'TOKENS_LIMIT',
+                  'unit': 3,
+                  'number': 5,
+                  'usage': 1000,
+                  'currentValue': 250,
+                  'remaining': 750,
+                },
+              ],
+            },
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'k', accountId: 'a1');
+
+      expect(usage.windows.single.label, 'Session');
+      expect(usage.windows.single.utilization, closeTo(25, 0.001));
+      expect(usage.windows.single.used, 250);
+      expect(usage.windows.single.limit, 1000);
+      expect(usage.windows.single.remaining, 750);
+    });
+
+    test('skips limits that carry no usable signal', () async {
+      final api = ZaiUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'data': <String, dynamic>{
+              'limits': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'TOKENS_LIMIT',
+                  'unit': 3,
+                  'number': 5,
+                },
+              ],
+            },
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'k', accountId: 'a1');
+
+      expect(usage.windows, isEmpty);
+    });
+
+    test('returns no windows when the data envelope is missing', () async {
+      final api = ZaiUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'code': 200,
+            'success': true,
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'k', accountId: 'a1');
+
+      expect(usage.windows, isEmpty);
+    });
+
+    test('attaches raw payload only when includeDebugPayload is true',
+        () async {
+      final api = ZaiUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'data': <String, dynamic>{
+              'limits': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'TOKENS_LIMIT',
+                  'unit': 3,
+                  'number': 5,
+                  'percentage': 15,
+                },
+              ],
+            },
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(
+        apiKey: 'test-key',
+        accountId: 'a1',
+        includeDebugPayload: true,
+      );
+
+      expect(usage.extra['endpoint'], '/api/monitor/usage/quota/limit');
+      expect(usage.extra['status'], 200);
+      expect(usage.extra['window_count'], 1);
+      expect(usage.extra['raw_payload'], isA<String>());
+      expect(usage.extra['raw_payload_compact'], contains('TOKENS_LIMIT'));
+    });
+
+    test('honours a custom base URL', () async {
+      RequestOptions? seen;
+      final api = ZaiUsageApi(
+        dio: _dioWith((o) {
+          seen = o;
+          return _json(<String, dynamic>{
+            'data': <String, dynamic>{
+              'limits': <Map<String, dynamic>>[],
+            },
+          }, 200);
+        }),
+      );
+
+      await api.getUsage(
+        apiKey: 'k',
+        accountId: 'a1',
+        baseUrl: 'https://gw.example.com/',
+      );
+
+      expect(
+        seen!.uri.toString(),
+        'https://gw.example.com/api/monitor/usage/quota/limit',
+      );
+    });
+
+    test('surfaces the server error body on 401', () async {
+      final api = ZaiUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{'msg': 'invalid api key'}, 401),
+        ),
+      );
+
+      await expectLater(
+        api.getUsage(apiKey: 'bad', accountId: 'a1'),
+        throwsA(
+          isA<ProviderUsageApiException>()
+              .having((e) => e.statusCode, 'statusCode', 401)
+              .having(
+                (e) => e.message,
+                'message',
+                allOf(contains('401'), contains('invalid api key')),
+              ),
+        ),
+      );
     });
   });
 }

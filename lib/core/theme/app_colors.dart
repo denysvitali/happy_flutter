@@ -37,6 +37,10 @@ abstract final class AppColors {
   /// Used in iOS-style settings screens and interactive components.
   static const Color iosBlue = Color(0xFF007AFF);
 
+  /// Z.AI brand indigo – Z.AI (Zhipu GLM) provider accent.
+  /// Matches [colorForProfile]'s `'zai'` case so the brand color has one home.
+  static const Color zai = Color(0xFF6366F1);
+
   // ─── Semantic Neutral & Text Colors (Light Mode) ──────────────────────
 
   /// Shimmer base – light background for skeleton loaders.
@@ -125,7 +129,7 @@ Color colorForProfile(String id) {
     case 'deepseek':
       return const Color(0xFF4A6CF7);
     case 'zai':
-      return const Color(0xFF6366F1);
+      return AppColors.zai;
     case 'minimax':
       return const Color(0xFFFF6B35);
     case 'xiaomi-mimo':

@@ -1928,7 +1928,7 @@
     }
   },
   "providersEmptyTitle": "No provider accounts",
-  "providersEmptySubtitle": "Add your Kimi or MiniMax account to track usage.",
+  "providersEmptySubtitle": "Add your Kimi, MiniMax, or Z.AI account to track usage.",
   "providersNoUsageData": "No usage data available",
   "providersSubscription": "Subscription",
   "providersTypeLabel": "Provider",
@@ -1940,6 +1940,10 @@
   "providersKimiBaseUrlHint": "https://api.kimi.com/coding/v1",
   "providersMiniMaxApiKeyLabel": "API key",
   "providersMiniMaxApiKeyHint": "Paste your MiniMax API key",
+  "providersZaiApiKeyLabel": "API key",
+  "providersZaiApiKeyHint": "Paste your Z.AI console API key",
+  "providersZaiBaseUrlLabel": "Base URL",
+  "providersZaiBaseUrlHint": "https://api.z.ai",
   "providersNotImplemented": "This provider is not yet supported.",
   "providersResetsIn": "Resets in {time}",
   "@providersResetsIn": {

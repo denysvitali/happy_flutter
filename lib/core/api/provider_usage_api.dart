@@ -552,6 +552,253 @@ class MiniMaxUsageApi {
   }
 }
 
+/// Z.AI (Zhipu GLM) usage API client.
+///
+/// Talks to Z.AI's internal usage/quota endpoint
+/// (`{baseUrl}/api/monitor/usage/quota/limit`, default host [zaiDefaultBaseUrl])
+/// using a Bearer API key from the Z.AI console. These endpoints are NOT part
+/// of Z.AI's public API reference — they mirror the subscription-management UI
+/// and are the same ones community tools (openusage, zai-usage-tracker) call.
+///
+/// Returns one [ProviderUsageWindow] per reported limit:
+///   • `TOKENS_LIMIT` — rolling token quota. `unit:3`/`number:5` is the 5-hour
+///     session window; `unit:6`/`number:7` is the 7-day weekly window.
+///   • `TIME_LIMIT` — web-search/reader call quota, resets monthly.
+class ZaiUsageApi {
+  ZaiUsageApi({Dio? dio}) : _dio = dio ?? _createDio();
+
+  final Dio _dio;
+
+  static const String _usagePath = '/api/monitor/usage/quota/limit';
+
+  /// Fetches usage for the account identified by [apiKey].
+  ///
+  /// When [includeDebugPayload] is true (developer / debug mode), the raw
+  /// response body is surfaced via [ProviderUsage.extra] under
+  /// `'raw_payload'` / `'raw_payload_compact'` so the in-app debug viewer can
+  /// inspect it without re-issuing a request.
+  Future<ProviderUsage> getUsage({
+    required String apiKey,
+    required String accountId,
+    String? accountName,
+    String baseUrl = zaiDefaultBaseUrl,
+    bool includeDebugPayload = false,
+  }) async {
+    final fetch = await _fetchUsageRaw(apiKey, baseUrl);
+
+    if (fetch.statusCode != 200) {
+      _throwHttpError('Z.AI', 'usage', fetch.response);
+    }
+
+    final windows = _parseWindows(fetch.body);
+    final extra = includeDebugPayload
+        ? _buildExtra(fetch, windows)
+        : const <String, dynamic>{};
+
+    if (includeDebugPayload) {
+      logger.debug(
+        'Z.AI monitor/usage/quota/limit HTTP ${fetch.statusCode} '
+        'windows=${windows.length} '
+        'payload=${fetch.compactBody}',
+      );
+    }
+
+    return ProviderUsage(
+      accountId: accountId,
+      type: ProviderUsageType.zai,
+      accountName: accountName,
+      windows: windows,
+      extra: extra,
+    );
+  }
+
+  Options _authOptions(String apiKey) => Options(
+    headers: <String, dynamic>{
+      'Authorization': 'Bearer $apiKey',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': _userAgent,
+    },
+  );
+
+  /// Performs the GET and captures both the raw Dio response and the decoded
+  /// JSON body, so the parser and the debug surface can share the work.
+  Future<_ZaiFetch> _fetchUsageRaw(String apiKey, String baseUrl) async {
+    final root = _normalizeRoot(baseUrl);
+    final response = await _dio.get<dynamic>(
+      '$root$_usagePath',
+      options: _authOptions(apiKey),
+    );
+
+    final raw = response.data;
+    final pretty = _safeStringify(raw);
+    final compact = _compactStringify(raw);
+
+    Map<String, dynamic> body;
+    try {
+      body = _asMap(raw, 'Z.AI');
+    } catch (_) {
+      body = const <String, dynamic>{};
+    }
+
+    return _ZaiFetch(
+      response: response,
+      statusCode: response.statusCode ?? 0,
+      body: body,
+      prettyBody: pretty,
+      compactBody: compact,
+    );
+  }
+
+  /// Builds the debug `extra` map carried on [ProviderUsage] — only populated
+  /// when a 2xx response arrived so we never leak credential error bodies.
+  Map<String, dynamic> _buildExtra(
+    _ZaiFetch fetch,
+    List<ProviderUsageWindow> windows,
+  ) {
+    if (fetch.statusCode != 200) return const <String, dynamic>{};
+    final root = _normalizeRoot(zaiDefaultBaseUrl);
+    return <String, dynamic>{
+      'endpoint': _usagePath,
+      'status': fetch.statusCode,
+      'request_url': '$root$_usagePath',
+      'window_count': windows.length,
+      'raw_payload': fetch.prettyBody,
+      'raw_payload_compact': fetch.compactBody,
+    };
+  }
+
+  /// Parses Z.AI's `{ code, data: { limits: [...] }, success }` envelope.
+  List<ProviderUsageWindow> _parseWindows(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) return const <ProviderUsageWindow>[];
+    final limits = data['limits'];
+    if (limits is! List) return const <ProviderUsageWindow>[];
+
+    final windows = <ProviderUsageWindow>[];
+    for (final raw in limits) {
+      if (raw is! Map<String, dynamic>) continue;
+      final window = _limitToWindow(raw);
+      if (window != null) windows.add(window);
+    }
+    return windows;
+  }
+
+  /// Converts one `limits[]` entry into a [ProviderUsageWindow]. Returns null
+  /// when the entry carries neither a `percentage` nor enough raw counts to be
+  /// meaningful, so we never render a misleading 0% bar.
+  ProviderUsageWindow? _limitToWindow(Map<String, dynamic> limit) {
+    final type = limit['type']?.toString();
+    final percentage = _parseDouble(limit['percentage']);
+    final total = _parseDouble(limit['usage']);
+    final used = _parseDouble(limit['currentValue']);
+    final remaining = _parseDouble(limit['remaining']);
+
+    double utilization;
+    if (percentage != null) {
+      utilization = percentage.clamp(0.0, 100.0);
+    } else if (total != null && total > 0 && used != null) {
+      utilization = (used / total) * 100;
+    } else {
+      return null;
+    }
+
+    // TOKENS_LIMIT carries nextResetTime; TIME_LIMIT (monthly) does not, so we
+    // derive its reset as the next 1st-of-month 00:00 UTC.
+    final resetsAtMs = _parseEpochMs(limit['nextResetTime']) ??
+        (type == 'TIME_LIMIT' ? _nextMonthlyResetMs() : null);
+
+    return ProviderUsageWindow(
+      label: _labelFor(type, limit['unit']),
+      utilization: utilization,
+      resetsAtMs: resetsAtMs,
+      limit: total,
+      used: used,
+      remaining: remaining,
+    );
+  }
+
+  /// Human label for a limit, derived from the documented Z.AI window codes:
+  ///   • `TOKENS_LIMIT` with `unit:3` → 5-hour session window
+  ///   • `TOKENS_LIMIT` with `unit:6` → 7-day weekly window
+  ///   • `TIME_LIMIT` → web-search/reader quota (monthly)
+  String _labelFor(String? type, dynamic unit) {
+    if (type == 'TIME_LIMIT') return 'Web Searches';
+    final unitCode = _parseInt(unit);
+    if (unitCode == 3) return 'Session';
+    if (unitCode == 6) return 'Weekly';
+    // Unknown window — fall back to an honest generic label so the
+    // utilization number is still legible if Z.AI adds a new window type.
+    return 'Tokens';
+  }
+
+  /// Next 1st-of-month 00:00 UTC — the documented reset for the monthly
+  /// web-search quota, which carries no `nextResetTime` in the payload.
+  static int? _nextMonthlyResetMs() {
+    try {
+      final now = DateTime.now().toUtc();
+      return DateTime.utc(now.year, now.month + 1, 1).millisecondsSinceEpoch;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _normalizeRoot(String baseUrl) {
+    final trimmed = baseUrl.trim();
+    final base = trimmed.isEmpty ? zaiDefaultBaseUrl : trimmed;
+    return base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value) ?? double.tryParse(value)?.toInt();
+    }
+    return null;
+  }
+
+  static int? _parseEpochMs(dynamic value) {
+    if (value == null) return null;
+    if (value is num) {
+      return value > 1e12 ? value.toInt() : value.toInt() * 1000;
+    }
+    if (value is String) {
+      final parsed = num.tryParse(value);
+      if (parsed != null) {
+        return parsed > 1e12 ? parsed.toInt() : parsed.toInt() * 1000;
+      }
+    }
+    return null;
+  }
+}
+
+/// Encapsulates one Z.AI HTTP exchange so the parser and the debug surface
+/// can share the same body without re-decoding.
+class _ZaiFetch {
+  const _ZaiFetch({
+    required this.response,
+    required this.statusCode,
+    required this.body,
+    required this.prettyBody,
+    required this.compactBody,
+  });
+
+  final Response<dynamic> response;
+  final int statusCode;
+  final Map<String, dynamic> body;
+  final String prettyBody;
+  final String compactBody;
+}
+
 /// Encapsulates one MiniMax HTTP exchange so the parser and the debug surface
 /// can share the same body without re-decoding.
 class _MiniMaxFetch {

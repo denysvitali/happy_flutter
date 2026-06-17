@@ -552,6 +552,275 @@ as String?,
 
 }
 
+
+/// @nodoc
+mixin _$ZaiCredentials {
+
+ String get apiKey; String get baseUrl; String? get accountName;
+/// Create a copy of ZaiCredentials
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ZaiCredentialsCopyWith<ZaiCredentials> get copyWith => _$ZaiCredentialsCopyWithImpl<ZaiCredentials>(this as ZaiCredentials, _$identity);
+
+  /// Serializes this ZaiCredentials to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ZaiCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.accountName, accountName) || other.accountName == accountName));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,apiKey,baseUrl,accountName);
+
+@override
+String toString() {
+  return 'ZaiCredentials(apiKey: $apiKey, baseUrl: $baseUrl, accountName: $accountName)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ZaiCredentialsCopyWith<$Res>  {
+  factory $ZaiCredentialsCopyWith(ZaiCredentials value, $Res Function(ZaiCredentials) _then) = _$ZaiCredentialsCopyWithImpl;
+@useResult
+$Res call({
+ String apiKey, String baseUrl, String? accountName
+});
+
+
+
+
+}
+/// @nodoc
+class _$ZaiCredentialsCopyWithImpl<$Res>
+    implements $ZaiCredentialsCopyWith<$Res> {
+  _$ZaiCredentialsCopyWithImpl(this._self, this._then);
+
+  final ZaiCredentials _self;
+  final $Res Function(ZaiCredentials) _then;
+
+/// Create a copy of ZaiCredentials
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? apiKey = null,Object? baseUrl = null,Object? accountName = freezed,}) {
+  return _then(_self.copyWith(
+apiKey: null == apiKey ? _self.apiKey : apiKey // ignore: cast_nullable_to_non_nullable
+as String,baseUrl: null == baseUrl ? _self.baseUrl : baseUrl // ignore: cast_nullable_to_non_nullable
+as String,accountName: freezed == accountName ? _self.accountName : accountName // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [ZaiCredentials].
+extension ZaiCredentialsPatterns on ZaiCredentials {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ZaiCredentials value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _ZaiCredentials() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ZaiCredentials value)  $default,){
+final _that = this;
+switch (_that) {
+case _ZaiCredentials():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ZaiCredentials value)?  $default,){
+final _that = this;
+switch (_that) {
+case _ZaiCredentials() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apiKey,  String baseUrl,  String? accountName)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _ZaiCredentials() when $default != null:
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apiKey,  String baseUrl,  String? accountName)  $default,) {final _that = this;
+switch (_that) {
+case _ZaiCredentials():
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apiKey,  String baseUrl,  String? accountName)?  $default,) {final _that = this;
+switch (_that) {
+case _ZaiCredentials() when $default != null:
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _ZaiCredentials implements ZaiCredentials {
+  const _ZaiCredentials({required this.apiKey, this.baseUrl = zaiDefaultBaseUrl, this.accountName});
+  factory _ZaiCredentials.fromJson(Map<String, dynamic> json) => _$ZaiCredentialsFromJson(json);
+
+@override final  String apiKey;
+@override@JsonKey() final  String baseUrl;
+@override final  String? accountName;
+
+/// Create a copy of ZaiCredentials
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ZaiCredentialsCopyWith<_ZaiCredentials> get copyWith => __$ZaiCredentialsCopyWithImpl<_ZaiCredentials>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ZaiCredentialsToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ZaiCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.accountName, accountName) || other.accountName == accountName));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,apiKey,baseUrl,accountName);
+
+@override
+String toString() {
+  return 'ZaiCredentials(apiKey: $apiKey, baseUrl: $baseUrl, accountName: $accountName)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ZaiCredentialsCopyWith<$Res> implements $ZaiCredentialsCopyWith<$Res> {
+  factory _$ZaiCredentialsCopyWith(_ZaiCredentials value, $Res Function(_ZaiCredentials) _then) = __$ZaiCredentialsCopyWithImpl;
+@override @useResult
+$Res call({
+ String apiKey, String baseUrl, String? accountName
+});
+
+
+
+
+}
+/// @nodoc
+class __$ZaiCredentialsCopyWithImpl<$Res>
+    implements _$ZaiCredentialsCopyWith<$Res> {
+  __$ZaiCredentialsCopyWithImpl(this._self, this._then);
+
+  final _ZaiCredentials _self;
+  final $Res Function(_ZaiCredentials) _then;
+
+/// Create a copy of ZaiCredentials
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? apiKey = null,Object? baseUrl = null,Object? accountName = freezed,}) {
+  return _then(_ZaiCredentials(
+apiKey: null == apiKey ? _self.apiKey : apiKey // ignore: cast_nullable_to_non_nullable
+as String,baseUrl: null == baseUrl ? _self.baseUrl : baseUrl // ignore: cast_nullable_to_non_nullable
+as String,accountName: freezed == accountName ? _self.accountName : accountName // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
 ProviderCredentials _$ProviderCredentialsFromJson(
   Map<String, dynamic> json
 ) {
@@ -562,6 +831,10 @@ ProviderCredentials _$ProviderCredentialsFromJson(
           );
                 case 'miniMax':
           return _ProviderCredentialsMiniMax.fromJson(
+            json
+          );
+                case 'zai':
+          return _ProviderCredentialsZai.fromJson(
             json
           );
         
@@ -622,12 +895,13 @@ extension ProviderCredentialsPatterns on ProviderCredentials {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _ProviderCredentialsKimi value)?  kimi,TResult Function( _ProviderCredentialsMiniMax value)?  miniMax,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _ProviderCredentialsKimi value)?  kimi,TResult Function( _ProviderCredentialsMiniMax value)?  miniMax,TResult Function( _ProviderCredentialsZai value)?  zai,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi() when kimi != null:
 return kimi(_that);case _ProviderCredentialsMiniMax() when miniMax != null:
-return miniMax(_that);case _:
+return miniMax(_that);case _ProviderCredentialsZai() when zai != null:
+return zai(_that);case _:
   return orElse();
 
 }
@@ -645,12 +919,13 @@ return miniMax(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _ProviderCredentialsKimi value)  kimi,required TResult Function( _ProviderCredentialsMiniMax value)  miniMax,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _ProviderCredentialsKimi value)  kimi,required TResult Function( _ProviderCredentialsMiniMax value)  miniMax,required TResult Function( _ProviderCredentialsZai value)  zai,}){
 final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi():
 return kimi(_that);case _ProviderCredentialsMiniMax():
-return miniMax(_that);case _:
+return miniMax(_that);case _ProviderCredentialsZai():
+return zai(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -667,12 +942,13 @@ return miniMax(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _ProviderCredentialsKimi value)?  kimi,TResult? Function( _ProviderCredentialsMiniMax value)?  miniMax,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _ProviderCredentialsKimi value)?  kimi,TResult? Function( _ProviderCredentialsMiniMax value)?  miniMax,TResult? Function( _ProviderCredentialsZai value)?  zai,}){
 final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi() when kimi != null:
 return kimi(_that);case _ProviderCredentialsMiniMax() when miniMax != null:
-return miniMax(_that);case _:
+return miniMax(_that);case _ProviderCredentialsZai() when zai != null:
+return zai(_that);case _:
   return null;
 
 }
@@ -689,11 +965,12 @@ return miniMax(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( KimiCredentials credentials)?  kimi,TResult Function( MiniMaxCredentials credentials)?  miniMax,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( KimiCredentials credentials)?  kimi,TResult Function( MiniMaxCredentials credentials)?  miniMax,TResult Function( ZaiCredentials credentials)?  zai,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi() when kimi != null:
 return kimi(_that.credentials);case _ProviderCredentialsMiniMax() when miniMax != null:
-return miniMax(_that.credentials);case _:
+return miniMax(_that.credentials);case _ProviderCredentialsZai() when zai != null:
+return zai(_that.credentials);case _:
   return orElse();
 
 }
@@ -711,11 +988,12 @@ return miniMax(_that.credentials);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( KimiCredentials credentials)  kimi,required TResult Function( MiniMaxCredentials credentials)  miniMax,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( KimiCredentials credentials)  kimi,required TResult Function( MiniMaxCredentials credentials)  miniMax,required TResult Function( ZaiCredentials credentials)  zai,}) {final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi():
 return kimi(_that.credentials);case _ProviderCredentialsMiniMax():
-return miniMax(_that.credentials);case _:
+return miniMax(_that.credentials);case _ProviderCredentialsZai():
+return zai(_that.credentials);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -732,11 +1010,12 @@ return miniMax(_that.credentials);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( KimiCredentials credentials)?  kimi,TResult? Function( MiniMaxCredentials credentials)?  miniMax,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( KimiCredentials credentials)?  kimi,TResult? Function( MiniMaxCredentials credentials)?  miniMax,TResult? Function( ZaiCredentials credentials)?  zai,}) {final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi() when kimi != null:
 return kimi(_that.credentials);case _ProviderCredentialsMiniMax() when miniMax != null:
-return miniMax(_that.credentials);case _:
+return miniMax(_that.credentials);case _ProviderCredentialsZai() when zai != null:
+return zai(_that.credentials);case _:
   return null;
 
 }
@@ -903,6 +1182,88 @@ as MiniMaxCredentials,
 $MiniMaxCredentialsCopyWith<$Res> get credentials {
   
   return $MiniMaxCredentialsCopyWith<$Res>(_self.credentials, (value) {
+    return _then(_self.copyWith(credentials: value));
+  });
+}
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _ProviderCredentialsZai implements ProviderCredentials {
+  const _ProviderCredentialsZai(this.credentials, {final  String? $type}): $type = $type ?? 'zai';
+  factory _ProviderCredentialsZai.fromJson(Map<String, dynamic> json) => _$ProviderCredentialsZaiFromJson(json);
+
+@override final  ZaiCredentials credentials;
+
+@JsonKey(name: 'runtimeType')
+final String $type;
+
+
+/// Create a copy of ProviderCredentials
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ProviderCredentialsZaiCopyWith<_ProviderCredentialsZai> get copyWith => __$ProviderCredentialsZaiCopyWithImpl<_ProviderCredentialsZai>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ProviderCredentialsZaiToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProviderCredentialsZai&&(identical(other.credentials, credentials) || other.credentials == credentials));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,credentials);
+
+@override
+String toString() {
+  return 'ProviderCredentials.zai(credentials: $credentials)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ProviderCredentialsZaiCopyWith<$Res> implements $ProviderCredentialsCopyWith<$Res> {
+  factory _$ProviderCredentialsZaiCopyWith(_ProviderCredentialsZai value, $Res Function(_ProviderCredentialsZai) _then) = __$ProviderCredentialsZaiCopyWithImpl;
+@useResult
+$Res call({
+ ZaiCredentials credentials
+});
+
+
+$ZaiCredentialsCopyWith<$Res> get credentials;
+
+}
+/// @nodoc
+class __$ProviderCredentialsZaiCopyWithImpl<$Res>
+    implements _$ProviderCredentialsZaiCopyWith<$Res> {
+  __$ProviderCredentialsZaiCopyWithImpl(this._self, this._then);
+
+  final _ProviderCredentialsZai _self;
+  final $Res Function(_ProviderCredentialsZai) _then;
+
+/// Create a copy of ProviderCredentials
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? credentials = null,}) {
+  return _then(_ProviderCredentialsZai(
+null == credentials ? _self.credentials : credentials // ignore: cast_nullable_to_non_nullable
+as ZaiCredentials,
+  ));
+}
+
+/// Create a copy of ProviderCredentials
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$ZaiCredentialsCopyWith<$Res> get credentials {
+  
+  return $ZaiCredentialsCopyWith<$Res>(_self.credentials, (value) {
     return _then(_self.copyWith(credentials: value));
   });
 }

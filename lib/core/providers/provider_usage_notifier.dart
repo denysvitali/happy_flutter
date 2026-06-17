@@ -18,12 +18,14 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   late final ProviderUsageStorage _storage;
   late final KimiUsageApi _kimiApi;
   late final MiniMaxUsageApi _miniMaxApi;
+  late final ZaiUsageApi _zaiApi;
 
   @override
   ProviderUsageSummary build() {
     _storage = ProviderUsageStorage();
     _kimiApi = KimiUsageApi();
     _miniMaxApi = MiniMaxUsageApi();
+    _zaiApi = ZaiUsageApi();
     return const ProviderUsageSummary();
   }
 
@@ -89,6 +91,13 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
         ),
         miniMax: (c) => _miniMaxApi.getUsage(
           apiKey: c.apiKey.isNotEmpty ? c.apiKey : c.cookie,
+          accountId: account.id,
+          accountName: account.name,
+          includeDebugPayload: includeDebug,
+        ),
+        zai: (c) => _zaiApi.getUsage(
+          apiKey: c.apiKey,
+          baseUrl: c.baseUrl,
           accountId: account.id,
           accountName: account.name,
           includeDebugPayload: includeDebug,
@@ -160,6 +169,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     return switch (type) {
       ProviderUsageType.kimi => 'Kimi',
       ProviderUsageType.minimax => 'MiniMax',
+      ProviderUsageType.zai => 'Z.AI',
       ProviderUsageType.claudeCode => 'Claude Code',
       ProviderUsageType.codex => 'Codex',
     };

@@ -36,6 +36,20 @@ Map<String, dynamic> _$MiniMaxCredentialsToJson(_MiniMaxCredentials instance) =>
       'accountName': instance.accountName,
     };
 
+_ZaiCredentials _$ZaiCredentialsFromJson(Map<String, dynamic> json) =>
+    _ZaiCredentials(
+      apiKey: json['apiKey'] as String,
+      baseUrl: json['baseUrl'] as String? ?? zaiDefaultBaseUrl,
+      accountName: json['accountName'] as String?,
+    );
+
+Map<String, dynamic> _$ZaiCredentialsToJson(_ZaiCredentials instance) =>
+    <String, dynamic>{
+      'apiKey': instance.apiKey,
+      'baseUrl': instance.baseUrl,
+      'accountName': instance.accountName,
+    };
+
 _ProviderCredentialsKimi _$ProviderCredentialsKimiFromJson(
   Map<String, dynamic> json,
 ) => _ProviderCredentialsKimi(
@@ -64,6 +78,20 @@ Map<String, dynamic> _$ProviderCredentialsMiniMaxToJson(
   'runtimeType': instance.$type,
 };
 
+_ProviderCredentialsZai _$ProviderCredentialsZaiFromJson(
+  Map<String, dynamic> json,
+) => _ProviderCredentialsZai(
+  ZaiCredentials.fromJson(json['credentials'] as Map<String, dynamic>),
+  $type: json['runtimeType'] as String?,
+);
+
+Map<String, dynamic> _$ProviderCredentialsZaiToJson(
+  _ProviderCredentialsZai instance,
+) => <String, dynamic>{
+  'credentials': instance.credentials.toJson(),
+  'runtimeType': instance.$type,
+};
+
 _ProviderAccount _$ProviderAccountFromJson(Map<String, dynamic> json) =>
     _ProviderAccount(
       id: json['id'] as String,
@@ -85,6 +113,7 @@ Map<String, dynamic> _$ProviderAccountToJson(_ProviderAccount instance) =>
 const _$ProviderUsageTypeEnumMap = {
   ProviderUsageType.kimi: 'kimi',
   ProviderUsageType.minimax: 'minimax',
+  ProviderUsageType.zai: 'zai',
   ProviderUsageType.claudeCode: 'claudeCode',
   ProviderUsageType.codex: 'codex',
 };
