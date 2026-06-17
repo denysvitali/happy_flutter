@@ -272,15 +272,21 @@ class MiniMaxUsageApi {
 
   /// Fetches usage for the account identified by [apiKey].
   ///
-  /// The raw response body is also surfaced via [ProviderUsage.extra] under the
-  /// key `'raw_payload'` (and as `'raw_payload_compact'` JSON string) so the
-  /// in-app debug view can inspect it without re-issuing a request. The raw
-  /// body is also emitted at `LogLevel.debug` so it shows up in DevLogsScreen
-  /// when developer mode is enabled.
+  /// When [includeDebugPayload] is true (developer / debug mode), the raw
+  /// response body is surfaced via [ProviderUsage.extra] under
+  /// `'raw_payload'` / `'raw_payload_compact'` so the in-app debug viewer can
+  /// inspect it without re-issuing a request. The raw body is also emitted at
+  /// `LogLevel.debug` so it shows up in DevLogsScreen when developer mode is
+  /// enabled.
+  ///
+  /// In production (default) [includeDebugPayload] is false, the parsed
+  /// windows are returned without any debug metadata, and `logger.debug` is
+  /// gated out by the logger's own min-level filter.
   Future<ProviderUsage> getUsage({
     required String apiKey,
     required String accountId,
     String? accountName,
+    bool includeDebugPayload = false,
   }) async {
     final fetch = await _fetchUsageRaw(apiKey);
 
@@ -290,16 +296,20 @@ class MiniMaxUsageApi {
 
     final usageResponse = fetch.body;
     final windows = _parseWindows(usageResponse);
-    final extra = _buildExtra(fetch, windows);
+    final extra = includeDebugPayload
+        ? _buildExtra(fetch, windows)
+        : const <String, dynamic>{};
 
-    // Debug breadcrumb: raw status + compact body. Compact form (no
-    // whitespace) keeps a single log line readable; full pretty JSON is
-    // available in the in-app debug viewer.
-    logger.debug(
-      'MiniMax token_plan/remains HTTP ${fetch.statusCode} '
-      'windows=${windows.length} '
-      'payload=${fetch.compactBody}',
-    );
+    if (includeDebugPayload) {
+      // Debug breadcrumb: raw status + compact body. Compact form (no
+      // whitespace) keeps a single log line readable; full pretty JSON is
+      // available in the in-app debug viewer.
+      logger.debug(
+        'MiniMax token_plan/remains HTTP ${fetch.statusCode} '
+        'windows=${windows.length} '
+        'payload=${fetch.compactBody}',
+      );
+    }
 
     return ProviderUsage(
       accountId: accountId,

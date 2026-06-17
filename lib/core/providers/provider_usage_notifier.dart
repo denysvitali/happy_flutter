@@ -7,6 +7,7 @@ import '../api/provider_usage_api.dart';
 import '../models/provider_usage.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/provider_usage_storage.dart';
+import 'settings_notifier.dart' show settingsNotifierProvider;
 
 /// Riverpod notifier for third-party LLM provider usage.
 ///
@@ -69,6 +70,12 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   }
 
   Future<ProviderUsage> _fetchAccountUsage(ProviderAccount account) async {
+    // Only attach the raw MiniMax payload when the user has opted into
+    // developer mode — otherwise `extra` stays empty so production users never
+    // see the debug section in the card.
+    final includeDebug = ref.read(
+      settingsNotifierProvider.select((s) => s.developerModeEnabled),
+    );
     try {
       // Await inside the try so async failures (e.g. a 401
       // ProviderUsageApiException) are caught here instead of escaping as an
@@ -84,6 +91,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
           apiKey: c.apiKey.isNotEmpty ? c.apiKey : c.cookie,
           accountId: account.id,
           accountName: account.name,
+          includeDebugPayload: includeDebug,
         ),
       );
     } catch (e, stack) {

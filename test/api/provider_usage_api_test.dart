@@ -253,10 +253,35 @@ void main() {
       expect(weekly.utilization, closeTo(50, 0.001));
       expect(weekly.resetsAtMs, 1896057600000);
 
-      // Debug payload surfaces for the in-app viewer.
+      // Default behaviour (production): no debug payload leaks into `extra`.
+      expect(usage.extra, isEmpty);
+    });
+
+    test('attaches raw payload only when includeDebugPayload is true',
+        () async {
+      final api = MiniMaxUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'model_remains': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'model_name': 'MiniMax-Text',
+                'current_interval_remaining_percent': 25,
+                'end_time': 1893456000000,
+              },
+            ],
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(
+        apiKey: 'test-key',
+        accountId: 'a1',
+        includeDebugPayload: true,
+      );
+
       expect(usage.extra['endpoint'], '/v1/token_plan/remains');
       expect(usage.extra['status'], 200);
-      expect(usage.extra['window_count'], 2);
+      expect(usage.extra['window_count'], 1);
       expect(usage.extra['raw_payload'], isA<String>());
       expect(usage.extra['raw_payload_compact'], contains('MiniMax-Text'));
     });
@@ -362,7 +387,11 @@ void main() {
       );
 
       await expectLater(
-        api.getUsage(apiKey: 'bad', accountId: 'a1'),
+        api.getUsage(
+          apiKey: 'bad',
+          accountId: 'a1',
+          includeDebugPayload: true,
+        ),
         throwsA(isA<ProviderUsageApiException>()),
       );
     });
