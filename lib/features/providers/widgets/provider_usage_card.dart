@@ -42,76 +42,71 @@ class ProviderUsageCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Tooltip(
-          message: l10n.providersLongPressToRemove,
-          waitDuration: const Duration(milliseconds: 400),
-          child: Padding(
-            padding: AppScreenPadding.listItem,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _ProviderIcon(type: usage.type),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            usage.accountName ??
-                                _defaultAccountName(usage.type),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+        child: Padding(
+          padding: AppScreenPadding.listItem,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _ProviderIcon(type: usage.type),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          usage.accountName ?? _defaultAccountName(usage.type),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
-                          Text(
-                            _providerDisplayName(usage.type),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                        ),
+                        Text(
+                          _providerDisplayName(usage.type),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
                           ),
-                        ],
-                      ),
-                    ),
-                    if (isSelectionMode) ...[
-                      const SizedBox(width: AppSpacing.md),
-                      Icon(
-                        isSelected
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        color: isSelected
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ],
-                ),
-                if (usage.error != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _ErrorBanner(error: usage.error!),
-                ] else if (usage.windows.isEmpty) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    l10n.providersNoUsageData,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                        ),
+                      ],
                     ),
                   ),
-                ] else ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  for (final window in usage.windows) ...[
-                    _UsageWindowRow(window: window),
-                    if (window != usage.windows.last)
-                      const SizedBox(height: AppSpacing.md),
+                  if (isSelectionMode) ...[
+                    const SizedBox(width: AppSpacing.md),
+                    Icon(
+                      isSelected
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
                   ],
                 ],
-                if (usage.extra.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  _ExtraInfo(extra: usage.extra),
+              ),
+              if (usage.error != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                _ErrorBanner(error: usage.error!),
+              ] else if (usage.windows.isEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  l10n.providersNoUsageData,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: AppSpacing.lg),
+                for (final window in usage.windows) ...[
+                  _UsageWindowRow(window: window),
+                  if (window != usage.windows.last)
+                    const SizedBox(height: AppSpacing.md),
                 ],
               ],
-            ),
+              if (usage.extra.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _ExtraInfo(extra: usage.extra),
+              ],
+            ],
           ),
         ),
       ),
