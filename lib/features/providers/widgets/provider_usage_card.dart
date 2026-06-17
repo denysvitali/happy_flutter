@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/provider_usage.dart';
+import '../../../core/providers/settings_notifier.dart' show settingsNotifierProvider;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/utils.dart' show formatDuration;
+import 'provider_payload_debug_sheet.dart';
 
 /// Card displaying usage for a single provider account.
-class ProviderUsageCard extends StatelessWidget {
+class ProviderUsageCard extends ConsumerWidget {
   const ProviderUsageCard({
     required this.usage,
     required this.isSelectionMode,
@@ -24,10 +27,13 @@ class ProviderUsageCard extends StatelessWidget {
   final VoidCallback onLongPress;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final devMode = ref.watch(
+      settingsNotifierProvider.select((s) => s.developerModeEnabled),
+    );
 
     return Card(
       margin: EdgeInsets.zero,
@@ -79,6 +85,14 @@ class ProviderUsageCard extends StatelessWidget {
                       color: isSelected
                           ? colorScheme.primary
                           : colorScheme.onSurfaceVariant,
+                    ),
+                  ] else if (devMode) ...[
+                    const SizedBox(width: AppSpacing.md),
+                    IconButton(
+                      tooltip: 'View raw response',
+                      icon: const Icon(Icons.bug_report_outlined),
+                      onPressed: () =>
+                          ProviderPayloadDebugSheet.show(context, usage),
                     ),
                   ],
                 ],

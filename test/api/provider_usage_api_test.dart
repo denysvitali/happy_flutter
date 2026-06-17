@@ -221,9 +221,12 @@ void main() {
             'model_remains': <Map<String, dynamic>>[
               <String, dynamic>{
                 'model_name': 'MiniMax-Text',
+                'current_interval_remaining_percent': 25,
                 'current_interval_total_count': 100,
-                'current_interval_usage_count': 25,
+                'current_interval_usage_count': 75,
                 'end_time': 1893456000000,
+                'current_weekly_remaining_percent': 50,
+                'weekly_end_time': 1896057600000,
               },
             ],
           }, 200);
@@ -236,13 +239,132 @@ void main() {
       expect(seen!.uri.path, '/v1/token_plan/remains');
       expect(seen!.headers['Authorization'], 'Bearer test-key');
 
-      expect(usage.windows.single.label, 'MiniMax-Text');
-      // current_interval_usage_count is the remaining quota for this endpoint:
-      // used = 100 - 25 = 75.
-      expect(usage.windows.single.used, 75);
-      expect(usage.windows.single.remaining, 25);
-      expect(usage.windows.single.utilization, closeTo(75, 0.001));
-      expect(usage.extra, isEmpty);
+      // The canonical signal is `*_remaining_percent` — we should not derive
+      // utilization from `usage_count` (which is the count USED in this
+      // endpoint, not remaining). 25% remaining → 75% used.
+      expect(usage.windows, hasLength(2));
+      final interval = usage.windows[0];
+      expect(interval.label, 'MiniMax-Text');
+      expect(interval.utilization, closeTo(75, 0.001));
+      expect(interval.resetsAtMs, 1893456000000);
+
+      final weekly = usage.windows[1];
+      expect(weekly.label, 'MiniMax-Text Weekly');
+      expect(weekly.utilization, closeTo(50, 0.001));
+      expect(weekly.resetsAtMs, 1896057600000);
+
+      // Debug payload surfaces for the in-app viewer.
+      expect(usage.extra['endpoint'], '/v1/token_plan/remains');
+      expect(usage.extra['status'], 200);
+      expect(usage.extra['window_count'], 2);
+      expect(usage.extra['raw_payload'], isA<String>());
+      expect(usage.extra['raw_payload_compact'], contains('MiniMax-Text'));
+    });
+
+    test('handles the production shape (current_interval_remaining_percent)',
+        () async {
+      // Mirrors the live payload probed on 2026-06-17 — confirms the parser
+      // doesn't trust the misleading `*_total_count` / `*_usage_count`
+      // integers (both 0 here) when the percent signal is present.
+      final api = MiniMaxUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'model_remains': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'start_time': 1781672400000,
+                'end_time': 1781690400000,
+                'remains_time': 5554012,
+                'current_interval_total_count': 0,
+                'current_interval_usage_count': 0,
+                'model_name': 'general',
+                'current_weekly_total_count': 0,
+                'current_weekly_usage_count': 0,
+                'current_interval_remaining_percent': 79,
+                'current_weekly_remaining_percent': 82,
+              },
+              <Map<String, dynamic>>{
+                <String, dynamic>{
+                  'start_time': 1781654400000,
+                  'end_time': 1781740800000,
+                  'current_interval_total_count': 3,
+                  'current_interval_usage_count': 0,
+                  'model_name': 'video',
+                  'current_interval_remaining_percent': 100,
+                  'current_weekly_remaining_percent': 100,
+                },
+              }.first,
+            ],
+            'base_resp': <String, dynamic>{
+              'status_code': 0,
+              'status_msg': 'success',
+            },
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'k', accountId: 'a1');
+
+      // general: 21% used (interval), 18% used (weekly)
+      // video: 0% used (interval), 0% used (weekly)
+      final generalInterval = usage.windows.firstWhere(
+        (w) => w.label == 'general',
+      );
+      expect(generalInterval.utilization, closeTo(21, 0.001));
+      expect(generalInterval.resetsAtMs, 1781690400000);
+
+      final generalWeekly = usage.windows.firstWhere(
+        (w) => w.label == 'general Weekly',
+      );
+      expect(generalWeekly.utilization, closeTo(18, 0.001));
+
+      final videoInterval = usage.windows.firstWhere(
+        (w) => w.label == 'video',
+      );
+      expect(videoInterval.utilization, 0);
+    });
+
+    test('falls back to total/used when percent is missing', () async {
+      final api = MiniMaxUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'model_remains': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'model_name': 'no-percent',
+                'current_interval_total_count': 200,
+                'current_interval_usage_count': 50,
+                'end_time': 1893456000000,
+              },
+            ],
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'k', accountId: 'a1');
+
+      expect(usage.windows.single.label, 'no-percent');
+      // 50 / 200 = 25% used.
+      expect(usage.windows.single.used, 50);
+      expect(usage.windows.single.limit, 200);
+      expect(usage.windows.single.remaining, 150);
+      expect(usage.windows.single.utilization, closeTo(25, 0.001));
+    });
+
+    test('omits debug payload on non-200 responses', () async {
+      final api = MiniMaxUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'base_resp': <String, dynamic>{
+              'status_code': 1001,
+              'status_msg': 'invalid token',
+            },
+          }, 401),
+        ),
+      );
+
+      await expectLater(
+        api.getUsage(apiKey: 'bad', accountId: 'a1'),
+        throwsA(isA<ProviderUsageApiException>()),
+      );
     });
 
     test('parses top-level token plan quota', () async {

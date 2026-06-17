@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../models/provider_usage.dart';
+import '../services/logger_service.dart' show logger;
 import 'base_api_exception.dart';
 
 /// Base exception for provider usage API errors.
@@ -270,18 +271,42 @@ class MiniMaxUsageApi {
   static const String _usageEndpoint = '/v1/token_plan/remains';
 
   /// Fetches usage for the account identified by [apiKey].
+  ///
+  /// The raw response body is also surfaced via [ProviderUsage.extra] under the
+  /// key `'raw_payload'` (and as `'raw_payload_compact'` JSON string) so the
+  /// in-app debug view can inspect it without re-issuing a request. The raw
+  /// body is also emitted at `LogLevel.debug` so it shows up in DevLogsScreen
+  /// when developer mode is enabled.
   Future<ProviderUsage> getUsage({
     required String apiKey,
     required String accountId,
     String? accountName,
   }) async {
-    final usageResponse = await _fetchUsage(apiKey);
+    final fetch = await _fetchUsageRaw(apiKey);
+
+    if (fetch.statusCode != 200) {
+      _throwHttpError('MiniMax', 'usage', fetch.response);
+    }
+
+    final usageResponse = fetch.body;
+    final windows = _parseWindows(usageResponse);
+    final extra = _buildExtra(fetch, windows);
+
+    // Debug breadcrumb: raw status + compact body. Compact form (no
+    // whitespace) keeps a single log line readable; full pretty JSON is
+    // available in the in-app debug viewer.
+    logger.debug(
+      'MiniMax token_plan/remains HTTP ${fetch.statusCode} '
+      'windows=${windows.length} '
+      'payload=${fetch.compactBody}',
+    );
 
     return ProviderUsage(
       accountId: accountId,
       type: ProviderUsageType.minimax,
       accountName: accountName,
-      windows: _parseWindows(usageResponse),
+      windows: windows,
+      extra: extra,
     );
   }
 
@@ -294,17 +319,50 @@ class MiniMaxUsageApi {
     },
   );
 
-  Future<Map<String, dynamic>> _fetchUsage(String apiKey) async {
+  /// Performs the GET and captures both the raw Dio response and the decoded
+  /// JSON body, so the parser and the debug surface can share the work.
+  Future<_MiniMaxFetch> _fetchUsageRaw(String apiKey) async {
     final response = await _dio.get<dynamic>(
       _usageEndpoint,
       options: _authOptions(apiKey),
     );
 
-    if (response.statusCode != 200) {
-      _throwHttpError('MiniMax', 'usage', response);
+    final raw = response.data;
+    final pretty = _safeStringify(raw);
+    final compact = _compactStringify(raw);
+
+    Map<String, dynamic> body;
+    try {
+      body = _asMap(raw, 'MiniMax');
+    } catch (_) {
+      body = const <String, dynamic>{};
     }
 
-    return _asMap(response.data, 'MiniMax');
+    return _MiniMaxFetch(
+      response: response,
+      statusCode: response.statusCode ?? 0,
+      body: body,
+      prettyBody: pretty,
+      compactBody: compact,
+    );
+  }
+
+  /// Builds the debug `extra` map carried on [ProviderUsage] — only populated
+  /// when a 2xx response arrived so we never leak credential error bodies.
+  Map<String, dynamic> _buildExtra(
+    _MiniMaxFetch fetch,
+    List<ProviderUsageWindow> windows,
+  ) {
+    if (fetch.statusCode != 200) return const <String, dynamic>{};
+
+    return <String, dynamic>{
+      'endpoint': _usageEndpoint,
+      'status': fetch.statusCode,
+      'request_url': 'https://www.minimax.io$_usageEndpoint',
+      'window_count': windows.length,
+      'raw_payload': fetch.prettyBody,
+      'raw_payload_compact': fetch.compactBody,
+    };
   }
 
   List<ProviderUsageWindow> _parseWindows(Map<String, dynamic> response) {
@@ -320,32 +378,30 @@ class MiniMaxUsageApi {
 
     final packageRemain = response['package_remain'];
     if (packageRemain is Map<String, dynamic>) {
-      final window = _windowFromTotals(
+      final window = _windowFromTotalsMap(
         label: 'Token Plan',
-        total: _parseDouble(packageRemain['total_count']),
-        remaining: _parseDouble(
-          packageRemain['remain_count'] ?? packageRemain['remaining_count'],
-        ),
+        data: packageRemain,
         resetsAtMs: _parseResetMs(packageRemain),
       );
       if (window != null) return <ProviderUsageWindow>[window];
     }
 
-    final window = _windowFromTotals(
+    final window = _windowFromTotalsMap(
       label: 'Token Plan',
-      total: _parseDouble(
-        response['total_count'] ?? response['current_interval_total_count'],
-      ),
-      remaining: _parseDouble(
-        response['remain_count'] ??
-            response['remaining_count'] ??
-            response['current_interval_usage_count'],
-      ),
+      data: response,
       resetsAtMs: _parseResetMs(response),
     );
     return window == null ? const <ProviderUsageWindow>[] : [window];
   }
 
+  /// Parses one entry of `model_remains[]` into zero, one, or two
+  /// [ProviderUsageWindow]s (interval + weekly).
+  ///
+  /// The canonical signal is `current_interval_remaining_percent` /
+  /// `current_weekly_remaining_percent` (percent REMAINING, 0–100); the
+  /// `*_total_count` / `*_usage_count` fields are auxiliary and frequently
+  /// report 0 even when the percent signal is meaningful, so we only use them
+  /// as a numeric fallback when the percent is missing.
   Iterable<ProviderUsageWindow?> _parseModelRemain(
     Map<String, dynamic> item,
   ) sync* {
@@ -354,48 +410,98 @@ class MiniMaxUsageApi {
         ? 'MiniMax'
         : modelName;
 
-    yield _windowFromTotals(
+    final interval = _windowFromPercent(
       label: label,
+      remainingPercent: _parseDouble(
+        item['current_interval_remaining_percent'],
+      ),
       total: _parseDouble(item['current_interval_total_count']),
-      remaining: _parseDouble(
-        item['current_interval_remaining_count'] ??
-            item['current_interval_usage_count'],
-      ),
-      resetsAtMs: _parseResetMs(item),
+      used: _parseDouble(item['current_interval_usage_count']),
+      resetsAtMs: _parseEpochMs(item['end_time']),
     );
+    if (interval != null) yield interval;
 
-    final weekly = _windowFromTotals(
+    final weekly = _windowFromPercent(
       label: '$label Weekly',
-      total: _parseDouble(item['current_weekly_total_count']),
-      remaining: _parseDouble(
-        item['current_weekly_remaining_count'] ??
-            item['current_weekly_usage_count'],
+      remainingPercent: _parseDouble(
+        item['current_weekly_remaining_percent'],
       ),
-      resetsAtMs: _parseResetMs(item),
+      total: _parseDouble(item['current_weekly_total_count']),
+      used: _parseDouble(item['current_weekly_usage_count']),
+      resetsAtMs: _parseEpochMs(item['weekly_end_time']),
     );
     if (weekly != null) yield weekly;
   }
 
-  ProviderUsageWindow? _windowFromTotals({
+  /// Builds a window preferring the percent-remaining signal. Falls back to
+  /// deriving utilization from `total`/`used` (or `total`/`limit`) when the
+  /// percent is unavailable so the card still renders something useful.
+  ProviderUsageWindow? _windowFromTotalsMap({
     required String label,
-    required double? total,
-    required double? remaining,
+    required Map<String, dynamic> data,
     required int? resetsAtMs,
   }) {
-    if (total == null || remaining == null) return null;
+    return _windowFromPercent(
+      label: label,
+      remainingPercent: _parseDouble(
+        data['remaining_percent'] ?? data['current_interval_remaining_percent'],
+      ),
+      total: _parseDouble(data['total_count']),
+      used: _parseDouble(data['usage_count'] ?? data['used_count']),
+      remaining: _parseDouble(
+        data['remain_count'] ?? data['remaining_count'],
+      ),
+      resetsAtMs: resetsAtMs,
+    );
+  }
 
-    final limit = total < 0 ? 0.0 : total;
-    final safeRemaining = remaining.clamp(0, limit).toDouble();
-    final used = (limit - safeRemaining).clamp(0, limit).toDouble();
-    final utilization = limit > 0 ? (used / limit) * 100 : 0.0;
+  ProviderUsageWindow? _windowFromPercent({
+    required String label,
+    required double? remainingPercent,
+    required double? total,
+    required double? used,
+    double? remaining,
+    required int? resetsAtMs,
+  }) {
+    double utilization;
+    double? remainingNum = remaining;
+    double? limitNum;
+    double? usedNum;
+
+    if (remainingPercent != null) {
+      final safe = remainingPercent.clamp(0.0, 100.0);
+      utilization = (100.0 - safe).clamp(0.0, 100.0);
+      if (total != null && total > 0) {
+        limitNum = total;
+        usedNum = (total * (utilization / 100)).clamp(0.0, total);
+        remainingNum ??= (limitNum - usedNum).clamp(0.0, limitNum);
+      }
+    } else if (total != null && total > 0 && used != null) {
+      limitNum = total;
+      usedNum = used < 0 ? 0 : used;
+      remainingNum ??= (total - usedNum).clamp(0.0, total);
+      utilization = (usedNum / total) * 100;
+    } else if (total != null && total > 0 && remainingNum != null) {
+      limitNum = total;
+      final safeRemaining = remainingNum.clamp(0.0, total);
+      usedNum = (total - safeRemaining).clamp(0.0, total);
+      remainingNum = safeRemaining;
+      utilization = (usedNum / total) * 100;
+    } else if (total != null && total > 0) {
+      limitNum = total;
+      remainingNum = total;
+      utilization = 0.0;
+    } else {
+      return null;
+    }
 
     return ProviderUsageWindow(
       label: label,
-      utilization: utilization.clamp(0, 100),
+      utilization: utilization,
       resetsAtMs: resetsAtMs,
-      limit: limit,
-      used: used,
-      remaining: safeRemaining,
+      limit: limitNum,
+      used: usedNum,
+      remaining: remainingNum,
     );
   }
 
@@ -406,24 +512,71 @@ class MiniMaxUsageApi {
     return null;
   }
 
-  static int? _parseResetMs(Map<String, dynamic> data) {
-    for (final key in const ['end_time', 'reset_at', 'resetAt']) {
-      final value = data[key];
-      if (value is num) {
-        return value > 1e12 ? value.toInt() : value.toInt() * 1000;
-      }
-      if (value is String) {
-        final parsedNum = num.tryParse(value);
-        if (parsedNum != null) {
-          return parsedNum > 1e12
-              ? parsedNum.toInt()
-              : parsedNum.toInt() * 1000;
-        }
-        final parsedDate = DateTime.tryParse(value);
-        if (parsedDate != null) return parsedDate.millisecondsSinceEpoch;
+  /// Reads a `*_end_time` / `reset_at` value as epoch ms. Token-plan payloads
+  /// always use epoch ms (large integers), so we don't accept ISO strings here
+  /// — those belong in the generic reset parser below.
+  static int? _parseEpochMs(dynamic value) {
+    if (value is num) {
+      return value > 1e12 ? value.toInt() : value.toInt() * 1000;
+    }
+    if (value is String) {
+      final parsed = num.tryParse(value);
+      if (parsed != null) {
+        return parsed > 1e12 ? parsed.toInt() : parsed.toInt() * 1000;
       }
     }
     return null;
+  }
+
+  static int? _parseResetMs(Map<String, dynamic> data) {
+    for (final key in const ['end_time', 'reset_at', 'resetAt']) {
+      final parsed = _parseEpochMs(data[key]);
+      if (parsed != null) return parsed;
+      final value = data[key];
+      if (value is String) {
+        final dt = DateTime.tryParse(value);
+        if (dt != null) return dt.millisecondsSinceEpoch;
+      }
+    }
+    return null;
+  }
+}
+
+/// Encapsulates one MiniMax HTTP exchange so the parser and the debug surface
+/// can share the same body without re-decoding.
+class _MiniMaxFetch {
+  const _MiniMaxFetch({
+    required this.response,
+    required this.statusCode,
+    required this.body,
+    required this.prettyBody,
+    required this.compactBody,
+  });
+
+  final Response<dynamic> response;
+  final int statusCode;
+  final Map<String, dynamic> body;
+  final String prettyBody;
+  final String compactBody;
+}
+
+/// Pretty-prints a JSON-compatible value, falling back to `toString()` when
+/// the value can't be safely serialized (e.g. circular structures, raw bytes).
+String _safeStringify(dynamic value) {
+  try {
+    const encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(value);
+  } catch (_) {
+    return value?.toString() ?? 'null';
+  }
+}
+
+/// Compact (single-line) JSON encoding for log breadcrumbs.
+String _compactStringify(dynamic value) {
+  try {
+    return jsonEncode(value);
+  } catch (_) {
+    return value?.toString() ?? 'null';
   }
 }
 
