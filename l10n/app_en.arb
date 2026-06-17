@@ -1947,5 +1947,154 @@
         "type": "String"
       }
     }
-  }
+  },
+  "loopsTitle": "Loops",
+  "loopsEmptyTitle": "No loops scheduled",
+  "loopsEmptyDescription": "Type /loop in chat to schedule a recurring prompt.",
+  "loopsCreateTitle": "New loop",
+  "loopsIntervalLabel": "Cron expression",
+  "loopsIntervalHint": "e.g. */5 * * * * — every 5 minutes",
+  "loopsPromptLabel": "Prompt",
+  "loopsPromptHint": "What should Claude do each time?",
+  "loopsRecurringLabel": "Recurring",
+  "loopsCancelButton": "Cancel",
+  "loopsScheduleButton": "Schedule",
+  "loopsPauseButton": "Pause",
+  "loopsResumeButton": "Resume",
+  "loopsDeleteButton": "Delete",
+  "loopsDeleteConfirmTitle": "Delete loop",
+  "loopsDeleteConfirmMessage": "Delete loop {id}? This cannot be undone.",
+  "@loopsDeleteConfirmMessage": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "loopsFireCount": "Fired {count} times",
+  "@loopsFireCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsLastFired": "Last fired {time}",
+  "@loopsLastFired": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "loopsNeverFired": "Never fired",
+  "loopsJustNow": "just now",
+  "loopsSecondsAgo": "{n} seconds ago",
+  "@loopsSecondsAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsMinutesAgo": "{n} minutes ago",
+  "@loopsMinutesAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsHoursAgo": "{n} hours ago",
+  "@loopsHoursAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsDaysAgo": "{n} days ago",
+  "@loopsDaysAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsExpired": "Expired",
+  "loopsExpiresInHours": "Expires in {hours} hours",
+  "@loopsExpiresInHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsExpiresInDays": "Expires in {days} days",
+  "@loopsExpiresInDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsStatusActive": "Active",
+  "loopsStatusPaused": "Paused",
+  "loopsStatusExpired": "Expired",
+  "loopsScheduleEveryMinutes": "Every {n} minutes",
+  "@loopsScheduleEveryMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "loopsScheduleEveryHours": "Every {n} hours",
+  "@loopsScheduleEveryHours": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "loopsScheduleDaily9am": "Daily at 9:00 AM",
+  "loopsAddLoop": "Add loop",
+  "loopsCount": "{count, plural, =0{No loops} =1{1 loop} other{{count} loops}}",
+  "@loopsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsBadgeCount": "{count, plural, =1{1 loop} other{{count} loops}}",
+  "@loopsBadgeCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loopsLoadFailed": "Couldn't load loops",
+  "loopsScheduleFailed": "Failed to schedule loop",
+  "loopsLoopScheduled": "Loop {id} scheduled",
+  "@loopsLoopScheduled": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "loopsLoopCancelled": "Loop {id} cancelled",
+  "@loopsLoopCancelled": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "loopsLoopCancelFailed": "Failed to cancel loop",
+  "loopsValidationRequiredInterval": "Cron expression is required",
+  "loopsValidationRequiredPrompt": "Prompt is required",
+  "loopsValidationInvalidCron": "Cron expression is invalid (expected 5 fields)"
 }

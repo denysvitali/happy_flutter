@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
@@ -669,6 +670,146 @@ void main() {
         }
       },
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Group 7: loops events
+  // ---------------------------------------------------------------------------
+
+  group('loops events', () {
+    late Sync sync;
+    late _FakeEncryption encryption;
+
+    setUp(() {
+      sync = Sync();
+      encryption = _FakeEncryption();
+      _clearSyncState(sync);
+      _stubAllSyncs(sync);
+      sync.testSocketConnectedOverride = true;
+      sync.testSocketSendOverride = (_, __) {};
+      sync.encryption = encryption;
+      sync.testIsInitialized = true;
+      sync.testClearAllLoops();
+    });
+
+    tearDown(() {
+      sync.testSocketConnectedOverride = null;
+      sync.testSocketSendOverride = null;
+      sync.testVisibleSessionId = null;
+      sync.testClearAllLoops();
+    });
+
+    test('loops-updated replaces the session list', () async {
+      const sessionId = 'sess-loops-1';
+      sync.testLoopsBySession[sessionId] = const <Loop>[];
+
+      await sync.handleUpdate(<String, dynamic>{
+        't': 'loops-updated',
+        'sid': sessionId,
+        'loops': [
+          <String, dynamic>{
+            'id': 'aaaa1111',
+            'sessionId': sessionId,
+            'expression': '*/5 * * * *',
+            'prompt': 'check',
+            'recurring': true,
+            'createdAt': 1700000000000,
+            'expiresAt': 1700604800000,
+            'fireCount': 0,
+            'paused': false,
+          },
+        ],
+      });
+
+      final loops = sync.loopsForSession(sessionId);
+      expect(loops, hasLength(1));
+      expect(loops.single.id, 'aaaa1111');
+    });
+
+    test('loop-fired bumps lastFiredAt + fireCount', () async {
+      const sessionId = 'sess-loops-2';
+      sync.testLoopsBySession[sessionId] = [
+        Loop(
+          id: 'bbbb2222',
+          sessionId: sessionId,
+          expression: '*/5 * * * *',
+          prompt: 'check',
+          recurring: true,
+          createdAt: 1700000000000,
+          expiresAt: 1700604800000,
+          fireCount: 1,
+        ),
+      ];
+
+      await sync.handleUpdate(<String, dynamic>{
+        't': 'loop-fired',
+        'sid': sessionId,
+        'loopId': 'bbbb2222',
+        'firedAt': 1700000060000,
+        'fireCount': 2,
+      });
+
+      final updated = sync.loopsForSession(sessionId).single;
+      expect(updated.lastFiredAt, 1700000060000);
+      expect(updated.fireCount, 2);
+    });
+
+    test('loop-expired removes the loop from the session list', () async {
+      const sessionId = 'sess-loops-3';
+      sync.testLoopsBySession[sessionId] = [
+        Loop(
+          id: 'cccc3333',
+          sessionId: sessionId,
+          expression: '*/5 * * * *',
+          prompt: 'a',
+          recurring: true,
+          createdAt: 1,
+          expiresAt: 2,
+        ),
+        Loop(
+          id: 'dddd4444',
+          sessionId: sessionId,
+          expression: '0 9 * * *',
+          prompt: 'b',
+          recurring: false,
+          createdAt: 1,
+          expiresAt: 2,
+        ),
+      ];
+
+      await sync.handleUpdate(<String, dynamic>{
+        't': 'loop-expired',
+        'sid': sessionId,
+        'loopId': 'dddd4444',
+      });
+
+      final remaining = sync.loopsForSession(sessionId);
+      expect(remaining, hasLength(1));
+      expect(remaining.single.id, 'cccc3333');
+    });
+
+    test('delete-session clears loops for the deleted session', () async {
+      const sessionId = 'sess-loops-del';
+      sync.testLoopsBySession[sessionId] = [
+        Loop(
+          id: 'eeee5555',
+          sessionId: sessionId,
+          expression: '*/5 * * * *',
+          prompt: 'a',
+          recurring: true,
+          createdAt: 1,
+          expiresAt: 2,
+        ),
+      ];
+      sync.testSessions[sessionId] = _makeSession(sessionId);
+
+      await sync.handleUpdate(<String, dynamic>{
+        't': 'delete-session',
+        'sid': sessionId,
+      });
+
+      expect(sync.loopsForSession(sessionId), isEmpty);
+    });
   });
 }
 

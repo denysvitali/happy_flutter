@@ -241,6 +241,15 @@ extension SyncSocketEvents on Sync {
         case 'delete-artifact':
           _handleDeleteArtifact(update.data);
           break;
+        case 'loops-updated':
+          _handleLoopsUpdated(update.data);
+          break;
+        case 'loop-fired':
+          _handleLoopFired(update.data);
+          break;
+        case 'loop-expired':
+          _handleLoopExpired(update.data);
+          break;
       }
     } catch (error, stack) {
       logger.error('Failed to handle update', error, stack);
@@ -544,6 +553,9 @@ extension SyncSocketEvents on Sync {
       _sessionSpawnedAgent.remove(sessionId);
       _autoRestoreInFlight.remove(sessionId);
       _pendingToolResults.remove(sessionId);
+      // Clear any cached loops for the deleted session so we don't
+      // resurrect them on next hydration.
+      clearLoopsForSession(sessionId);
       // Clean up per-session collections that were missed
       _lastNoEmbedEventMs.remove(sessionId);
       _sidechainRegroupTimers.remove(sessionId)?.cancel();
@@ -734,5 +746,66 @@ extension SyncSocketEvents on Sync {
         });
       }
     }
+  }
+
+  /// Apply a `loops-updated` socket event.
+  ///
+  /// Payload shape (per `docs/LOOPS.md`):
+  /// `{t: 'loops-updated', sid: string, loops: Loop[]}`. The list is the
+  /// authoritative replacement — we drop whatever we had locally and persist.
+  void _handleLoopsUpdated(Map<String, dynamic> data) {
+    final sid = data['sid'] as String?;
+    final loops = data['loops'] as List<dynamic>?;
+    if (sid == null) {
+      logger.warning('[Sync] loops-updated missing sid — skipping');
+      return;
+    }
+    if (loops == null) {
+      logger.warning('[Sync] loops-updated missing loops — skipping');
+      return;
+    }
+    _applyLoopsUpdate(sid, loops);
+    _notifyDataChanged({SyncDomain.loops});
+  }
+
+  /// Apply a `loop-fired` telemetry event.
+  ///
+  /// Payload: `{t: 'loop-fired', sid, loopId, firedAt, fireCount}`. The
+  /// user-visible turn arrives separately via `new-message`; this just
+  /// updates the in-memory loop so the Loops screen can show the most
+  /// recent fire time.
+  void _handleLoopFired(Map<String, dynamic> data) {
+    final sid = data['sid'] as String?;
+    final loopId = data['loopId'] as String?;
+    if (sid == null || loopId == null) {
+      logger.warning('[Sync] loop-fired missing sid/loopId — skipping');
+      return;
+    }
+    final firedAt = data['firedAt'];
+    final fireCount = data['fireCount'];
+    if (firedAt is! num) {
+      logger.warning('[Sync] loop-fired missing firedAt — skipping');
+      return;
+    }
+    _applyLoopFired(
+      sid,
+      loopId,
+      firedAt.toInt(),
+      fireCount is num ? fireCount.toInt() : 0,
+    );
+    _notifyDataChanged({SyncDomain.loops});
+  }
+
+  /// Apply a `loop-expired` event (one-shot self-delete or 7-day recurring
+  /// expiry). Removes the loop from the local mirror.
+  void _handleLoopExpired(Map<String, dynamic> data) {
+    final sid = data['sid'] as String?;
+    final loopId = data['loopId'] as String?;
+    if (sid == null || loopId == null) {
+      logger.warning('[Sync] loop-expired missing sid/loopId — skipping');
+      return;
+    }
+    _applyLoopExpired(sid, loopId);
+    _notifyDataChanged({SyncDomain.loops});
   }
 }

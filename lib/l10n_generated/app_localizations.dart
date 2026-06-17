@@ -8850,6 +8850,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resets in {time}'**
   String providersResetsIn(String time);
+
+  /// No description provided for @loopsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Loops'**
+  String get loopsTitle;
+
+  /// No description provided for @loopsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No loops scheduled'**
+  String get loopsEmptyTitle;
+
+  /// No description provided for @loopsEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Type /loop in chat to schedule a recurring prompt.'**
+  String get loopsEmptyDescription;
+
+  /// No description provided for @loopsCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New loop'**
+  String get loopsCreateTitle;
+
+  /// No description provided for @loopsIntervalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cron expression'**
+  String get loopsIntervalLabel;
+
+  /// No description provided for @loopsIntervalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. */5 * * * * — every 5 minutes'**
+  String get loopsIntervalHint;
+
+  /// No description provided for @loopsPromptLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt'**
+  String get loopsPromptLabel;
+
+  /// No description provided for @loopsPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'What should Claude do each time?'**
+  String get loopsPromptHint;
+
+  /// No description provided for @loopsRecurringLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring'**
+  String get loopsRecurringLabel;
+
+  /// No description provided for @loopsCancelButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get loopsCancelButton;
+
+  /// No description provided for @loopsScheduleButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get loopsScheduleButton;
+
+  /// No description provided for @loopsPauseButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get loopsPauseButton;
+
+  /// No description provided for @loopsResumeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get loopsResumeButton;
+
+  /// No description provided for @loopsDeleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get loopsDeleteButton;
+
+  /// No description provided for @loopsDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete loop'**
+  String get loopsDeleteConfirmTitle;
+
+  /// No description provided for @loopsDeleteConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete loop {id}? This cannot be undone.'**
+  String loopsDeleteConfirmMessage(String id);
+
+  /// No description provided for @loopsFireCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Fired {count} times'**
+  String loopsFireCount(int count);
+
+  /// No description provided for @loopsLastFired.
+  ///
+  /// In en, this message translates to:
+  /// **'Last fired {time}'**
+  String loopsLastFired(String time);
+
+  /// No description provided for @loopsNeverFired.
+  ///
+  /// In en, this message translates to:
+  /// **'Never fired'**
+  String get loopsNeverFired;
+
+  /// No description provided for @loopsJustNow.
+  ///
+  /// In en, this message translates to:
+  /// **'just now'**
+  String get loopsJustNow;
+
+  /// No description provided for @loopsSecondsAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} seconds ago'**
+  String loopsSecondsAgo(int n);
+
+  /// No description provided for @loopsMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} minutes ago'**
+  String loopsMinutesAgo(int n);
+
+  /// No description provided for @loopsHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} hours ago'**
+  String loopsHoursAgo(int n);
+
+  /// No description provided for @loopsDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} days ago'**
+  String loopsDaysAgo(int n);
+
+  /// No description provided for @loopsExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get loopsExpired;
+
+  /// No description provided for @loopsExpiresInHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {hours} hours'**
+  String loopsExpiresInHours(int hours);
+
+  /// No description provided for @loopsExpiresInDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires in {days} days'**
+  String loopsExpiresInDays(int days);
+
+  /// No description provided for @loopsStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get loopsStatusActive;
+
+  /// No description provided for @loopsStatusPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get loopsStatusPaused;
+
+  /// No description provided for @loopsStatusExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get loopsStatusExpired;
+
+  /// No description provided for @loopsScheduleEveryMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {n} minutes'**
+  String loopsScheduleEveryMinutes(String n);
+
+  /// No description provided for @loopsScheduleEveryHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {n} hours'**
+  String loopsScheduleEveryHours(String n);
+
+  /// No description provided for @loopsScheduleDaily9am.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily at 9:00 AM'**
+  String get loopsScheduleDaily9am;
+
+  /// No description provided for @loopsAddLoop.
+  ///
+  /// In en, this message translates to:
+  /// **'Add loop'**
+  String get loopsAddLoop;
+
+  /// No description provided for @loopsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No loops} =1{1 loop} other{{count} loops}}'**
+  String loopsCount(int count);
+
+  /// No description provided for @loopsBadgeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 loop} other{{count} loops}}'**
+  String loopsBadgeCount(int count);
+
+  /// No description provided for @loopsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load loops'**
+  String get loopsLoadFailed;
+
+  /// No description provided for @loopsScheduleFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to schedule loop'**
+  String get loopsScheduleFailed;
+
+  /// No description provided for @loopsLoopScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Loop {id} scheduled'**
+  String loopsLoopScheduled(String id);
+
+  /// No description provided for @loopsLoopCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Loop {id} cancelled'**
+  String loopsLoopCancelled(String id);
+
+  /// No description provided for @loopsLoopCancelFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to cancel loop'**
+  String get loopsLoopCancelFailed;
+
+  /// No description provided for @loopsValidationRequiredInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Cron expression is required'**
+  String get loopsValidationRequiredInterval;
+
+  /// No description provided for @loopsValidationRequiredPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt is required'**
+  String get loopsValidationRequiredPrompt;
+
+  /// No description provided for @loopsValidationInvalidCron.
+  ///
+  /// In en, this message translates to:
+  /// **'Cron expression is invalid (expected 5 fields)'**
+  String get loopsValidationInvalidCron;
 }
 
 class _AppLocalizationsDelegate

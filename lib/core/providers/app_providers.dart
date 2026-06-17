@@ -6,6 +6,7 @@ export 'current_session_notifier.dart';
 export 'derived_view_providers.dart';
 export 'encryption_notifier.dart';
 export 'friends_notifier.dart';
+export 'loops_notifier.dart';
 export 'machines_notifier.dart';
 export 'network_notifier.dart';
 export 'offline_dictation_notifier.dart';

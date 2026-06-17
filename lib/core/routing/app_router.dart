@@ -19,6 +19,7 @@ import '../../features/chat/session_recent_screen.dart';
 import '../../features/dev/dev_logs_screen.dart';
 import '../../features/inbox/friend_search_screen.dart';
 import '../../features/inbox/friends_screen.dart';
+import '../../features/loops/loops_screen.dart';
 import '../../features/dev/encryption_debug_screen.dart';
 import '../../features/dev/network_inspector_screen.dart';
 import '../../features/dev/notification_test_screen.dart';
@@ -433,6 +434,18 @@ GoRouter createRouter() {
           if (id == null) return _missingPathParameterPage(state, 'sessionId');
           return _slidePage(
             AuthGate(child: SessionInfoScreen(sessionId: id)),
+            state,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/chat/:sessionId/loops',
+        name: 'chat-loops',
+        pageBuilder: (context, state) {
+          final id = _pathParameter(state, 'sessionId');
+          if (id == null) return _missingPathParameterPage(state, 'sessionId');
+          return _slidePage(
+            AuthGate(child: LoopsScreen(sessionId: id)),
             state,
           );
         },

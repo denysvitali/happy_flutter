@@ -1,0 +1,169 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/loop.dart';
+import 'package:happy_flutter/core/providers/loops_notifier.dart';
+import 'package:happy_flutter/features/loops/loop_count_badge.dart';
+
+class _StubLoopsNotifier extends LoopsNotifier {
+  _StubLoopsNotifier(this._initial);
+  final Map<String, List<Loop>> _initial;
+  @override
+  Map<String, List<Loop>> build() => _initial;
+  @override
+  void loadFromSync() {}
+  @override
+  Future<void> refreshFromSync() async {}
+  @override
+  Future<Loop> createLoop({
+    required String sessionId,
+    required String expression,
+    required String prompt,
+    required bool recurring,
+  }) async =>
+      throw UnimplementedError();
+  @override
+  Future<void> deleteLoop({
+    required String sessionId,
+    required String loopId,
+  }) async {}
+  @override
+  Future<void> pauseLoop({
+    required String sessionId,
+    required String loopId,
+    required bool paused,
+  }) async {}
+}
+
+Widget _wrap({required Widget child, required Map<String, List<Loop>> loops}) {
+  final router = GoRouter(
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => Scaffold(body: child),
+      ),
+      GoRoute(
+        path: '/chat/:sessionId/loops',
+        name: 'chat-loops',
+        builder: (context, state) => const Scaffold(
+          body: Center(child: Text('Loops screen')),
+        ),
+      ),
+    ],
+  );
+  return ProviderScope(
+    overrides: [
+      loopsNotifierProvider.overrideWith(() => _StubLoopsNotifier(loops)),
+    ],
+    child: MaterialApp.router(
+      routerConfig: router,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+    ),
+  );
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('LoopCountBadge', () {
+    testWidgets('hides itself when count is 0', (tester) async {
+      await tester.pumpWidget(
+        _wrap(child: const LoopCountBadge(sessionId: 's1'), loops: {}),
+      );
+      expect(find.byType(LoopCountBadge), findsOneWidget);
+      expect(find.byType(InkWell), findsNothing);
+      expect(find.text('1 loop'), findsNothing);
+    });
+
+    testWidgets('shows "1 loop" when one loop is present', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const LoopCountBadge(sessionId: 's1'),
+          loops: {
+            's1': [
+              Loop(
+                id: 'aabbccdd',
+                sessionId: 's1',
+                expression: '*/5 * * * *',
+                prompt: 'p',
+                recurring: true,
+                createdAt: 1,
+                expiresAt: 2,
+              ),
+            ],
+          },
+        ),
+      );
+      expect(find.text('1 loop'), findsOneWidget);
+      expect(find.byIcon(Icons.schedule), findsOneWidget);
+    });
+
+    testWidgets('shows "{count} loops" when multiple are present',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const LoopCountBadge(sessionId: 's1'),
+          loops: {
+            's1': [
+              Loop(
+                id: 'aaaa0001',
+                sessionId: 's1',
+                expression: '*/5 * * * *',
+                prompt: 'a',
+                recurring: true,
+                createdAt: 1,
+                expiresAt: 2,
+              ),
+              Loop(
+                id: 'bbbb0002',
+                sessionId: 's1',
+                expression: '0 9 * * *',
+                prompt: 'b',
+                recurring: true,
+                createdAt: 1,
+                expiresAt: 2,
+              ),
+              Loop(
+                id: 'cccc0003',
+                sessionId: 's1',
+                expression: '*/30 * * * *',
+                prompt: 'c',
+                recurring: true,
+                createdAt: 1,
+                expiresAt: 2,
+              ),
+            ],
+          },
+        ),
+      );
+      expect(find.text('3 loops'), findsOneWidget);
+    });
+
+    testWidgets('tap navigates to /chat/:sessionId/loops', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const LoopCountBadge(sessionId: 's1'),
+          loops: {
+            's1': [
+              Loop(
+                id: 'aaaa0001',
+                sessionId: 's1',
+                expression: '*/5 * * * *',
+                prompt: 'a',
+                recurring: true,
+                createdAt: 1,
+                expiresAt: 2,
+              ),
+            ],
+          },
+        ),
+      );
+      await tester.tap(find.byType(InkWell));
+      await tester.pumpAndSettle();
+      expect(find.text('Loops screen'), findsOneWidget);
+    });
+  });
+}

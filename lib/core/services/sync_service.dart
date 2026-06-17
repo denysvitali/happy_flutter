@@ -26,6 +26,7 @@ import '../models/artifact.dart';
 import '../models/auth.dart';
 import '../models/built_in_profiles.dart';
 import '../models/codex_usage_summary.dart';
+import '../models/loop.dart';
 import '../models/machine.dart';
 import '../models/message.dart';
 import '../models/profile.dart';
@@ -39,6 +40,7 @@ import '../sync/session_manager.dart';
 import '../sync/settings_manager.dart';
 import '../sync/sync_exceptions.dart';
 import '../sync/sync_progress.dart';
+import '../services/loop_storage.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
 import '../services/mmkv_storage.dart';
@@ -95,6 +97,7 @@ part '_sync_operations_session.dart';
 part '_sync_sessions.dart';
 part '_sync_socket.dart';
 part '_sync_socket_events.dart';
+part '_sync_loops.dart';
 part 'message_pipeline/message_models.dart';
 part 'message_pipeline/message_ingestion_orchestrator.dart';
 part '_sync_test_helpers.dart';
@@ -710,6 +713,20 @@ what you have, you must use the options mode.
   /// Mutable ephemeral timestamps map.
   @visibleForTesting
   Map<String, int> get testLastEphemeralAt => _lastEphemeralAt;
+
+  /// Mutable loops-by-session map — use in tests that need to seed loop state.
+  @visibleForTesting
+  Map<String, List<Loop>> get testLoopsBySession => _loopsBySession;
+
+  /// In-memory mirror of `Map<sessionId, List<Loop>>`. Populated by socket
+  /// events; persisted to MMKV via [LoopStorage].
+  final Map<String, List<Loop>> _loopsBySession = <String, List<Loop>>{};
+
+  /// Broadcast stream that fires when the loops for a session change.
+  /// Subscribers receive the sessionId so they can refresh only the
+  /// affected view.
+  final StreamController<String> _loopsChangeController =
+      StreamController<String>.broadcast();
 
   /// Convenience setter for spawn timestamp.
   @visibleForTesting

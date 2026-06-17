@@ -56,4 +56,9 @@ const List<SlashCommand> slashCommands = [
     description: 'Generate docs',
     icon: Icons.description_outlined,
   ),
+  SlashCommand(
+    command: 'loop',
+    description: 'Schedule a recurring prompt (e.g. /loop 5m check the deploy)',
+    icon: Icons.repeat,
+  ),
 ];

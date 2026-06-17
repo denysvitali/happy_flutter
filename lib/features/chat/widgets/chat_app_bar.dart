@@ -6,6 +6,7 @@ import '../../../core/models/session.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
+import '../../loops/loop_count_badge.dart';
 import '../../sessions/session_avatar.dart';
 import 'agents_list_sheet.dart';
 import 'session_header_chip.dart';
@@ -62,6 +63,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: _VitalsStrip(vitals: machineVitals!),
             ),
       actions: [
+        // Loop count badge — appears only when the session has loops.
+        LoopCountBadge(sessionId: sessionId),
         // Agents list button with progress
         _AgentsListButton(
           progress: AgentsListSheet.computeTaskProgress(sessionId),

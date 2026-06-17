@@ -4859,4 +4859,181 @@ class AppLocalizationsEn extends AppLocalizations {
   String providersResetsIn(String time) {
     return 'Resets in $time';
   }
+
+  @override
+  String get loopsTitle => 'Loops';
+
+  @override
+  String get loopsEmptyTitle => 'No loops scheduled';
+
+  @override
+  String get loopsEmptyDescription =>
+      'Type /loop in chat to schedule a recurring prompt.';
+
+  @override
+  String get loopsCreateTitle => 'New loop';
+
+  @override
+  String get loopsIntervalLabel => 'Cron expression';
+
+  @override
+  String get loopsIntervalHint => 'e.g. */5 * * * * — every 5 minutes';
+
+  @override
+  String get loopsPromptLabel => 'Prompt';
+
+  @override
+  String get loopsPromptHint => 'What should Claude do each time?';
+
+  @override
+  String get loopsRecurringLabel => 'Recurring';
+
+  @override
+  String get loopsCancelButton => 'Cancel';
+
+  @override
+  String get loopsScheduleButton => 'Schedule';
+
+  @override
+  String get loopsPauseButton => 'Pause';
+
+  @override
+  String get loopsResumeButton => 'Resume';
+
+  @override
+  String get loopsDeleteButton => 'Delete';
+
+  @override
+  String get loopsDeleteConfirmTitle => 'Delete loop';
+
+  @override
+  String loopsDeleteConfirmMessage(String id) {
+    return 'Delete loop $id? This cannot be undone.';
+  }
+
+  @override
+  String loopsFireCount(int count) {
+    return 'Fired $count times';
+  }
+
+  @override
+  String loopsLastFired(String time) {
+    return 'Last fired $time';
+  }
+
+  @override
+  String get loopsNeverFired => 'Never fired';
+
+  @override
+  String get loopsJustNow => 'just now';
+
+  @override
+  String loopsSecondsAgo(int n) {
+    return '$n seconds ago';
+  }
+
+  @override
+  String loopsMinutesAgo(int n) {
+    return '$n minutes ago';
+  }
+
+  @override
+  String loopsHoursAgo(int n) {
+    return '$n hours ago';
+  }
+
+  @override
+  String loopsDaysAgo(int n) {
+    return '$n days ago';
+  }
+
+  @override
+  String get loopsExpired => 'Expired';
+
+  @override
+  String loopsExpiresInHours(int hours) {
+    return 'Expires in $hours hours';
+  }
+
+  @override
+  String loopsExpiresInDays(int days) {
+    return 'Expires in $days days';
+  }
+
+  @override
+  String get loopsStatusActive => 'Active';
+
+  @override
+  String get loopsStatusPaused => 'Paused';
+
+  @override
+  String get loopsStatusExpired => 'Expired';
+
+  @override
+  String loopsScheduleEveryMinutes(String n) {
+    return 'Every $n minutes';
+  }
+
+  @override
+  String loopsScheduleEveryHours(String n) {
+    return 'Every $n hours';
+  }
+
+  @override
+  String get loopsScheduleDaily9am => 'Daily at 9:00 AM';
+
+  @override
+  String get loopsAddLoop => 'Add loop';
+
+  @override
+  String loopsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count loops',
+      one: '1 loop',
+      zero: 'No loops',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String loopsBadgeCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count loops',
+      one: '1 loop',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get loopsLoadFailed => 'Couldn\'t load loops';
+
+  @override
+  String get loopsScheduleFailed => 'Failed to schedule loop';
+
+  @override
+  String loopsLoopScheduled(String id) {
+    return 'Loop $id scheduled';
+  }
+
+  @override
+  String loopsLoopCancelled(String id) {
+    return 'Loop $id cancelled';
+  }
+
+  @override
+  String get loopsLoopCancelFailed => 'Failed to cancel loop';
+
+  @override
+  String get loopsValidationRequiredInterval => 'Cron expression is required';
+
+  @override
+  String get loopsValidationRequiredPrompt => 'Prompt is required';
+
+  @override
+  String get loopsValidationInvalidCron =>
+      'Cron expression is invalid (expected 5 fields)';
 }

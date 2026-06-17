@@ -19,6 +19,13 @@ extension SyncTestHelpers on Sync {
   void testNotifyDataChanged() => _notifyDataChanged();
 
   @visibleForTesting
+  void testEmitLoopsChanged(String sessionId) {
+    if (!_loopsChangeController.isClosed) {
+      _loopsChangeController.add(sessionId);
+    }
+  }
+
+  @visibleForTesting
   List<String> testSortedSessionIdsForCacheWarmup() {
     final entries = _sessions.entries.toList()
       ..sort((a, b) => b.value.updatedAt.compareTo(a.value.updatedAt));

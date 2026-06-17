@@ -733,6 +733,11 @@ extension _ChatScreenActions on _ChatScreenState {
       return;
     }
 
+    if (text.toLowerCase().startsWith('/loop ')) {
+      _handleLoopCommand(text);
+      return;
+    }
+
     _autoScrollNotifier.value = true;
 
     // ── Optimistic UI: Show message immediately ──
@@ -914,5 +919,154 @@ extension _ChatScreenActions on _ChatScreenState {
 
     context.goNamed('chat', pathParameters: {'sessionId': sentSessionId});
     return true;
+  }
+
+  // ─── /loop slash-command interception ─────────────────────────────────
+
+  /// Handle `/loop ...` text typed in the chat input.
+  ///
+  /// Three cases:
+  ///   * `/loop list` → open the Loops screen for this session.
+  ///   * `/loop cancel <id>` → RPC delete the loop, snackbar result.
+  ///   * `/loop <interval> <prompt>` → open [CreateLoopSheet] pre-filled,
+  ///     then RPC create. Falls through to Claude as a regular message
+  ///     when the text doesn't match a known shape.
+  Future<void> _handleLoopCommand(String text) async {
+    final l10n = context.l10n;
+    final sessionId = widget.sessionId;
+    final lower = text.trim().toLowerCase();
+    final body = lower.substring('/loop '.length).trim();
+
+    // `/loop list` → open the loops screen.
+    if (body == 'list') {
+      unawaited(DraftStorage().removeDraft(sessionId));
+      _controller.clear();
+      context.pushNamed(
+        'chat-loops',
+        pathParameters: {'sessionId': sessionId},
+      );
+      return;
+    }
+
+    // `/loop cancel <id>` → delete the loop.
+    final cancelId = LoopCommandParser.parseCancelCommand(text);
+    if (cancelId != null) {
+      unawaited(DraftStorage().removeDraft(sessionId));
+      _controller.clear();
+      try {
+        await ref.read(loopsNotifierProvider.notifier).deleteLoop(
+              sessionId: sessionId,
+              loopId: cancelId,
+            );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.loopsLoopCancelled(cancelId))),
+          );
+        }
+      } on StateError catch (e) {
+        logger.warning('[ChatScreen] /loop cancel failed: $e', e);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${l10n.loopsLoopCancelFailed}: $e')),
+          );
+        }
+      }
+      return;
+    }
+
+    // `/loop <interval> <prompt>` → open the create sheet.
+    final request = LoopCommandParser.parse(text);
+    if (request == null) {
+      // Not a recognized loop shape — pass through to Claude unchanged.
+      await _sendRawLoopText(text);
+      return;
+    }
+
+    unawaited(DraftStorage().removeDraft(sessionId));
+    _controller.clear();
+    if (!mounted) return;
+    final created = await showModalBottomSheet<Loop>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => CreateLoopSheet(
+        sessionId: sessionId,
+        initialExpression: request.expression,
+        initialPrompt: request.prompt,
+        initialRecurring: request.recurring,
+      ),
+    );
+    if (created != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.loopsLoopScheduled(created.id))),
+      );
+    }
+  }
+
+  /// Send [text] to the chat as a regular user message.
+  ///
+  /// Mirrors the optimistic-UI path used by the standard `_sendMessage`
+  /// flow, but without the `/loop` interception so this branch truly
+  /// passes through to Claude unchanged.
+  Future<void> _sendRawLoopText(String text) async {
+    final localId = ref
+        .read(chatActionNotifierProvider.notifier)
+        .createLocalMessageId();
+    unawaited(TtsService().stop());
+    _autoScrollNotifier.value = true;
+    final optimisticMessage = <String, dynamic>{
+      'id': localId,
+      'localId': localId,
+      'role': 'user',
+      'content': text,
+      'text': text,
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+      'seq': -1,
+      'sendStatus': 'sending',
+    };
+    setState(() {
+      _messages = [..._messages, optimisticMessage];
+      _isSending = true;
+      _controller.clear();
+      _visibleCount = (_visibleCount + 1).clamp(0, _messages.length);
+      _invalidateNeighborCache();
+    });
+    _scrollToBottom();
+    unawaited(DraftStorage().removeDraft(widget.sessionId));
+    try {
+      final sentSessionId = await ref
+          .read(chatActionNotifierProvider.notifier)
+          .sendMessage(
+            widget.sessionId,
+            text,
+            clientLocalId: localId,
+            displayText: text,
+            permissionMode: _permissionMode.toModeString(),
+            modelMode: _effectiveModelModeString ?? _modelMode.modeString,
+            profileId: _selectedProfile?.id,
+          );
+      if (_followRedirectedSession(sentSessionId)) {
+        return;
+      }
+      _refreshFromSync();
+    } catch (e, st) {
+      logger.warning('[ChatScreen] _sendRawLoopText failed: $e', e, st);
+      if (mounted) {
+        setState(() {
+          _messages = _messages
+              .map(
+                (m) => m['localId'] == localId
+                    ? {...m, 'sendStatus': 'failed'}
+                    : m,
+              )
+              .toList();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
+        );
+      }
+    } finally {
+      if (mounted && _isSending) setState(() => _isSending = false);
+    }
   }
 }
