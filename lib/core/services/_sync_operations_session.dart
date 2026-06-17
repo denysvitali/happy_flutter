@@ -513,6 +513,51 @@ extension SyncSessionOperations on Sync {
     );
   }
 
+  /// Fetch aggregated local Claude Code token usage (lifetime + per-day
+  /// per-model) scraped from `~/.claude/stats-cache.json` on the machine.
+  /// Distinct from [machineGetClaudeUsageLimits] which is the OAuth
+  /// rate-limit response (5-hour/7-day windows as percentages).
+  Future<ClaudeLocalUsageResponse> machineGetClaudeLocalUsage({
+    required String machineId,
+  }) async {
+    try {
+      return await _typedMachineRPC(
+        machineId,
+        'get-claude-local-usage',
+        <String, dynamic>{},
+        ClaudeLocalUsageResponse.fromJson,
+        timeout: const Duration(seconds: 15),
+      );
+    } catch (error, stackTrace) {
+      if (error is StateError && error.message.contains('not connected')) {
+        logger.info('machineGetClaudeLocalUsage: machine offline');
+        return const ClaudeLocalUsageResponse(
+          success: false,
+          error: 'machine offline',
+        );
+      } else if (Sync._isRpcMethodNotAvailable(error)) {
+        logger.info(
+          'machineGetClaudeLocalUsage: RPC method not available '
+          '(daemon too old)',
+        );
+        return const ClaudeLocalUsageResponse(
+          success: false,
+          error: 'RPC method not available',
+        );
+      } else if (Sync._isTransientRpcError(error)) {
+        logger.info(
+          'machineGetClaudeLocalUsage: transient RPC failure — $error',
+        );
+      } else {
+        logger.error('machineGetClaudeLocalUsage error', error, stackTrace);
+      }
+    }
+    return const ClaudeLocalUsageResponse(
+      success: false,
+      error: 'RPC call failed',
+    );
+  }
+
   /// Fetch the Codex model catalog from the machine's installed Codex CLI.
   Future<CodexModelsResponse> machineGetCodexModels({
     required String machineId,

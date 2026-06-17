@@ -314,3 +314,28 @@ class ClaudeUsageLimitsResponse {
   final String? data;
   final String? error;
 }
+
+// ---------------------------------------------------------------------------
+// getClaudeLocalUsage
+// ---------------------------------------------------------------------------
+
+class ClaudeLocalUsageResponse {
+  const ClaudeLocalUsageResponse({
+    required this.success,
+    this.data,
+    this.error,
+  });
+
+  factory ClaudeLocalUsageResponse.fromJson(Map<String, dynamic> json) =>
+      ClaudeLocalUsageResponse(
+        success: json['success'] as bool? ?? false,
+        data: json['data'] as String?,
+        error: json['error'] as String?,
+      );
+  final bool success;
+
+  /// JSON-encoded ClaudeLocalUsage payload scraped from
+  /// `~/.claude/stats-cache.json` by the daemon.
+  final String? data;
+  final String? error;
+}
