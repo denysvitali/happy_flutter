@@ -116,10 +116,6 @@ class ProviderUsageCard extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.md),
                 ],
               ],
-              if (usage.extra.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.lg),
-                _ExtraInfo(extra: usage.extra),
-              ],
             ],
           ),
         ),
@@ -292,59 +288,6 @@ class _ErrorBanner extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ExtraInfo extends StatelessWidget {
-  const _ExtraInfo({required this.extra});
-
-  final Map<String, dynamic> extra;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: AppScreenPadding.compact,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            context.l10n.providersSubscription,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xsm),
-          _formatExtra(extra, theme, colorScheme),
-        ],
-      ),
-    );
-  }
-
-  Widget _formatExtra(
-    Map<String, dynamic> data,
-    ThemeData theme,
-    ColorScheme colorScheme,
-  ) {
-    final entries = data.entries.toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: entries.map((entry) {
-        return Text(
-          '${entry.key}: ${entry.value}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        );
-      }).toList(),
     );
   }
 }
