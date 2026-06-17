@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../models/provider_usage.dart';
-import '../services/logger_service.dart' show logger;
 import 'base_api_exception.dart';
 
 /// Base exception for provider usage API errors.
@@ -88,12 +87,12 @@ class KimiUsageApi {
   }
 
   Options _authOptions(String apiKey) => Options(
-        headers: <String, dynamic>{
-          'Authorization': 'Bearer $apiKey',
-          'Accept': 'application/json',
-          'User-Agent': _userAgent,
-        },
-      );
+    headers: <String, dynamic>{
+      'Authorization': 'Bearer $apiKey',
+      'Accept': 'application/json',
+      'User-Agent': _userAgent,
+    },
+  );
 
   /// Parses the two payload shapes used by the Kimi coding-plan API:
   ///   A) `{ "data": [ { "model_name": "all"|<model>, ... } ] }`
@@ -191,8 +190,9 @@ class KimiUsageApi {
       if (value != null && value.toString().isNotEmpty) return value.toString();
     }
 
-    final duration =
-        _parseInt(window['duration'] ?? item['duration'] ?? detail['duration']);
+    final duration = _parseInt(
+      window['duration'] ?? item['duration'] ?? detail['duration'],
+    );
     final timeUnit =
         (window['timeUnit'] ?? item['timeUnit'] ?? detail['timeUnit'] ?? '')
             .toString()
@@ -260,66 +260,44 @@ class KimiUsageApi {
 
 /// MiniMax usage API client.
 ///
-/// Wraps the MiniMax open-platform endpoints used by
-/// https://github.com/denysvitali/llm-usage.
+/// Wraps the MiniMax Token Plan remains endpoint.
 class MiniMaxUsageApi {
   MiniMaxUsageApi({Dio? dio})
-      : _dio = dio ?? _createDio('https://platform.minimax.io');
+    : _dio = dio ?? _createDio('https://www.minimax.io');
 
   final Dio _dio;
 
-  static const String _usageEndpoint =
-      '/v1/api/openplatform/coding_plan/remains';
-  static const String _subscriptionEndpoint =
-      '/v1/api/openplatform/charge/combo/cycle_audio_resource_package';
+  static const String _usageEndpoint = '/v1/token_plan/remains';
 
-  /// Fetches usage for the account identified by [cookie] and [groupId].
+  /// Fetches usage for the account identified by [apiKey].
   Future<ProviderUsage> getUsage({
-    required String cookie,
-    required String groupId,
+    required String apiKey,
     required String accountId,
     String? accountName,
   }) async {
-    final usageResponse = await _fetchUsage(cookie, groupId);
-    final windows = _parseWindows(usageResponse);
-
-    Map<String, dynamic>? subscriptionExtra;
-    try {
-      final subscription = await _fetchSubscription(cookie, groupId);
-      subscriptionExtra = <String, dynamic>{
-        'status': (subscription['base_resp']
-                as Map<String, dynamic>?)?['status_msg']
-            as String?,
-      };
-    } catch (e, stack) {
-      logger.warning('MiniMax subscription fetch failed', e, stack);
-    }
+    final usageResponse = await _fetchUsage(apiKey);
 
     return ProviderUsage(
       accountId: accountId,
       type: ProviderUsageType.minimax,
       accountName: accountName,
-      windows: windows,
-      extra: subscriptionExtra ?? const <String, dynamic>{},
+      windows: _parseWindows(usageResponse),
     );
   }
 
-  Options _authOptions(String cookie) => Options(
-        headers: <String, dynamic>{
-          'Cookie': cookie,
-          'Accept': 'application/json',
-          'User-Agent': _userAgent,
-        },
-      );
+  Options _authOptions(String apiKey) => Options(
+    headers: <String, dynamic>{
+      'Authorization': 'Bearer $apiKey',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': _userAgent,
+    },
+  );
 
-  Future<Map<String, dynamic>> _fetchUsage(
-    String cookie,
-    String groupId,
-  ) async {
+  Future<Map<String, dynamic>> _fetchUsage(String apiKey) async {
     final response = await _dio.get<dynamic>(
       _usageEndpoint,
-      queryParameters: <String, dynamic>{'GroupId': groupId},
-      options: _authOptions(cookie),
+      options: _authOptions(apiKey),
     );
 
     if (response.statusCode != 200) {
@@ -329,58 +307,123 @@ class MiniMaxUsageApi {
     return _asMap(response.data, 'MiniMax');
   }
 
-  Future<Map<String, dynamic>> _fetchSubscription(
-    String cookie,
-    String groupId,
-  ) async {
-    final response = await _dio.get<dynamic>(
-      _subscriptionEndpoint,
-      queryParameters: <String, dynamic>{
-        'GroupId': groupId,
-        'biz_line': '2',
-        'cycle_type': '3',
-        'resource_package_type': '7',
-      },
-      options: _authOptions(cookie),
-    );
-
-    if (response.statusCode != 200) {
-      _throwHttpError('MiniMax', 'subscription', response);
-    }
-
-    return _asMap(response.data, 'MiniMax');
-  }
-
   List<ProviderUsageWindow> _parseWindows(Map<String, dynamic> response) {
     final modelRemains = response['model_remains'];
-    if (modelRemains is! List<dynamic>) return const <ProviderUsageWindow>[];
+    if (modelRemains is List<dynamic>) {
+      final windows = modelRemains
+          .whereType<Map<String, dynamic>>()
+          .expand(_parseModelRemain)
+          .whereType<ProviderUsageWindow>()
+          .toList();
+      if (windows.isNotEmpty) return windows;
+    }
 
-    return modelRemains
-        .whereType<Map<String, dynamic>>()
-        .map(_parseModelRemain)
-        .whereType<ProviderUsageWindow>()
-        .toList();
+    final packageRemain = response['package_remain'];
+    if (packageRemain is Map<String, dynamic>) {
+      final window = _windowFromTotals(
+        label: 'Token Plan',
+        total: _parseDouble(packageRemain['total_count']),
+        remaining: _parseDouble(
+          packageRemain['remain_count'] ?? packageRemain['remaining_count'],
+        ),
+        resetsAtMs: _parseResetMs(packageRemain),
+      );
+      if (window != null) return <ProviderUsageWindow>[window];
+    }
+
+    final window = _windowFromTotals(
+      label: 'Token Plan',
+      total: _parseDouble(
+        response['total_count'] ?? response['current_interval_total_count'],
+      ),
+      remaining: _parseDouble(
+        response['remain_count'] ??
+            response['remaining_count'] ??
+            response['current_interval_usage_count'],
+      ),
+      resetsAtMs: _parseResetMs(response),
+    );
+    return window == null ? const <ProviderUsageWindow>[] : [window];
   }
 
-  ProviderUsageWindow? _parseModelRemain(Map<String, dynamic> item) {
-    final total = (item['current_interval_total_count'] as num?)?.toDouble();
-    final used = (item['current_interval_usage_count'] as num?)?.toDouble();
-    final remains = (item['remains_time'] as num?)?.toDouble();
-    final endTime = (item['end_time'] as num?)?.toInt();
-    final modelName = item['model_name'] as String? ?? 'MiniMax';
+  Iterable<ProviderUsageWindow?> _parseModelRemain(
+    Map<String, dynamic> item,
+  ) sync* {
+    final modelName = item['model_name']?.toString();
+    final label = modelName == null || modelName.isEmpty
+        ? 'MiniMax'
+        : modelName;
 
-    if (total == null || used == null) return null;
+    yield _windowFromTotals(
+      label: label,
+      total: _parseDouble(item['current_interval_total_count']),
+      remaining: _parseDouble(
+        item['current_interval_remaining_count'] ??
+            item['current_interval_usage_count'],
+      ),
+      resetsAtMs: _parseResetMs(item),
+    );
 
-    final utilization = total > 0 ? ((total - used) / total) * 100 : 0.0;
+    final weekly = _windowFromTotals(
+      label: '$label Weekly',
+      total: _parseDouble(item['current_weekly_total_count']),
+      remaining: _parseDouble(
+        item['current_weekly_remaining_count'] ??
+            item['current_weekly_usage_count'],
+      ),
+      resetsAtMs: _parseResetMs(item),
+    );
+    if (weekly != null) yield weekly;
+  }
+
+  ProviderUsageWindow? _windowFromTotals({
+    required String label,
+    required double? total,
+    required double? remaining,
+    required int? resetsAtMs,
+  }) {
+    if (total == null || remaining == null) return null;
+
+    final limit = total < 0 ? 0.0 : total;
+    final safeRemaining = remaining.clamp(0, limit).toDouble();
+    final used = (limit - safeRemaining).clamp(0, limit).toDouble();
+    final utilization = limit > 0 ? (used / limit) * 100 : 0.0;
 
     return ProviderUsageWindow(
-      label: modelName,
+      label: label,
       utilization: utilization.clamp(0, 100),
-      resetsAtMs: endTime,
-      limit: total,
+      resetsAtMs: resetsAtMs,
+      limit: limit,
       used: used,
-      remaining: remains,
+      remaining: safeRemaining,
     );
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  static int? _parseResetMs(Map<String, dynamic> data) {
+    for (final key in const ['end_time', 'reset_at', 'resetAt']) {
+      final value = data[key];
+      if (value is num) {
+        return value > 1e12 ? value.toInt() : value.toInt() * 1000;
+      }
+      if (value is String) {
+        final parsedNum = num.tryParse(value);
+        if (parsedNum != null) {
+          return parsedNum > 1e12
+              ? parsedNum.toInt()
+              : parsedNum.toInt() * 1000;
+        }
+        final parsedDate = DateTime.tryParse(value);
+        if (parsedDate != null) return parsedDate.millisecondsSinceEpoch;
+      }
+    }
+    return null;
   }
 }
 

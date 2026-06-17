@@ -284,7 +284,7 @@ as String?,
 /// @nodoc
 mixin _$MiniMaxCredentials {
 
- String get cookie; String get groupId; String? get accountName;
+ String get apiKey; String get cookie; String get groupId; String? get accountName;
 /// Create a copy of MiniMaxCredentials
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -297,16 +297,16 @@ $MiniMaxCredentialsCopyWith<MiniMaxCredentials> get copyWith => _$MiniMaxCredent
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MiniMaxCredentials&&(identical(other.cookie, cookie) || other.cookie == cookie)&&(identical(other.groupId, groupId) || other.groupId == groupId)&&(identical(other.accountName, accountName) || other.accountName == accountName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MiniMaxCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.cookie, cookie) || other.cookie == cookie)&&(identical(other.groupId, groupId) || other.groupId == groupId)&&(identical(other.accountName, accountName) || other.accountName == accountName));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,cookie,groupId,accountName);
+int get hashCode => Object.hash(runtimeType,apiKey,cookie,groupId,accountName);
 
 @override
 String toString() {
-  return 'MiniMaxCredentials(cookie: $cookie, groupId: $groupId, accountName: $accountName)';
+  return 'MiniMaxCredentials(apiKey: $apiKey, cookie: $cookie, groupId: $groupId, accountName: $accountName)';
 }
 
 
@@ -317,7 +317,7 @@ abstract mixin class $MiniMaxCredentialsCopyWith<$Res>  {
   factory $MiniMaxCredentialsCopyWith(MiniMaxCredentials value, $Res Function(MiniMaxCredentials) _then) = _$MiniMaxCredentialsCopyWithImpl;
 @useResult
 $Res call({
- String cookie, String groupId, String? accountName
+ String apiKey, String cookie, String groupId, String? accountName
 });
 
 
@@ -334,9 +334,10 @@ class _$MiniMaxCredentialsCopyWithImpl<$Res>
 
 /// Create a copy of MiniMaxCredentials
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? cookie = null,Object? groupId = null,Object? accountName = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? apiKey = null,Object? cookie = null,Object? groupId = null,Object? accountName = freezed,}) {
   return _then(_self.copyWith(
-cookie: null == cookie ? _self.cookie : cookie // ignore: cast_nullable_to_non_nullable
+apiKey: null == apiKey ? _self.apiKey : apiKey // ignore: cast_nullable_to_non_nullable
+as String,cookie: null == cookie ? _self.cookie : cookie // ignore: cast_nullable_to_non_nullable
 as String,groupId: null == groupId ? _self.groupId : groupId // ignore: cast_nullable_to_non_nullable
 as String,accountName: freezed == accountName ? _self.accountName : accountName // ignore: cast_nullable_to_non_nullable
 as String?,
@@ -424,10 +425,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String cookie,  String groupId,  String? accountName)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apiKey,  String cookie,  String groupId,  String? accountName)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MiniMaxCredentials() when $default != null:
-return $default(_that.cookie,_that.groupId,_that.accountName);case _:
+return $default(_that.apiKey,_that.cookie,_that.groupId,_that.accountName);case _:
   return orElse();
 
 }
@@ -445,10 +446,10 @@ return $default(_that.cookie,_that.groupId,_that.accountName);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String cookie,  String groupId,  String? accountName)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apiKey,  String cookie,  String groupId,  String? accountName)  $default,) {final _that = this;
 switch (_that) {
 case _MiniMaxCredentials():
-return $default(_that.cookie,_that.groupId,_that.accountName);case _:
+return $default(_that.apiKey,_that.cookie,_that.groupId,_that.accountName);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -465,10 +466,10 @@ return $default(_that.cookie,_that.groupId,_that.accountName);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String cookie,  String groupId,  String? accountName)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apiKey,  String cookie,  String groupId,  String? accountName)?  $default,) {final _that = this;
 switch (_that) {
 case _MiniMaxCredentials() when $default != null:
-return $default(_that.cookie,_that.groupId,_that.accountName);case _:
+return $default(_that.apiKey,_that.cookie,_that.groupId,_that.accountName);case _:
   return null;
 
 }
@@ -480,11 +481,12 @@ return $default(_that.cookie,_that.groupId,_that.accountName);case _:
 @JsonSerializable()
 
 class _MiniMaxCredentials implements MiniMaxCredentials {
-  const _MiniMaxCredentials({required this.cookie, required this.groupId, this.accountName});
+  const _MiniMaxCredentials({this.apiKey = '', this.cookie = '', this.groupId = '', this.accountName});
   factory _MiniMaxCredentials.fromJson(Map<String, dynamic> json) => _$MiniMaxCredentialsFromJson(json);
 
-@override final  String cookie;
-@override final  String groupId;
+@override@JsonKey() final  String apiKey;
+@override@JsonKey() final  String cookie;
+@override@JsonKey() final  String groupId;
 @override final  String? accountName;
 
 /// Create a copy of MiniMaxCredentials
@@ -500,16 +502,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MiniMaxCredentials&&(identical(other.cookie, cookie) || other.cookie == cookie)&&(identical(other.groupId, groupId) || other.groupId == groupId)&&(identical(other.accountName, accountName) || other.accountName == accountName));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MiniMaxCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.cookie, cookie) || other.cookie == cookie)&&(identical(other.groupId, groupId) || other.groupId == groupId)&&(identical(other.accountName, accountName) || other.accountName == accountName));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,cookie,groupId,accountName);
+int get hashCode => Object.hash(runtimeType,apiKey,cookie,groupId,accountName);
 
 @override
 String toString() {
-  return 'MiniMaxCredentials(cookie: $cookie, groupId: $groupId, accountName: $accountName)';
+  return 'MiniMaxCredentials(apiKey: $apiKey, cookie: $cookie, groupId: $groupId, accountName: $accountName)';
 }
 
 
@@ -520,7 +522,7 @@ abstract mixin class _$MiniMaxCredentialsCopyWith<$Res> implements $MiniMaxCrede
   factory _$MiniMaxCredentialsCopyWith(_MiniMaxCredentials value, $Res Function(_MiniMaxCredentials) _then) = __$MiniMaxCredentialsCopyWithImpl;
 @override @useResult
 $Res call({
- String cookie, String groupId, String? accountName
+ String apiKey, String cookie, String groupId, String? accountName
 });
 
 
@@ -537,9 +539,10 @@ class __$MiniMaxCredentialsCopyWithImpl<$Res>
 
 /// Create a copy of MiniMaxCredentials
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? cookie = null,Object? groupId = null,Object? accountName = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? apiKey = null,Object? cookie = null,Object? groupId = null,Object? accountName = freezed,}) {
   return _then(_MiniMaxCredentials(
-cookie: null == cookie ? _self.cookie : cookie // ignore: cast_nullable_to_non_nullable
+apiKey: null == apiKey ? _self.apiKey : apiKey // ignore: cast_nullable_to_non_nullable
+as String,cookie: null == cookie ? _self.cookie : cookie // ignore: cast_nullable_to_non_nullable
 as String,groupId: null == groupId ? _self.groupId : groupId // ignore: cast_nullable_to_non_nullable
 as String,accountName: freezed == accountName ? _self.accountName : accountName // ignore: cast_nullable_to_non_nullable
 as String?,

@@ -31,19 +31,18 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
 
   // Kimi
   final _kimiKeyController = TextEditingController();
-  final _kimiBaseUrlController =
-      TextEditingController(text: kimiDefaultBaseUrl);
+  final _kimiBaseUrlController = TextEditingController(
+    text: kimiDefaultBaseUrl,
+  );
 
   // MiniMax
-  final _miniMaxCookieController = TextEditingController();
-  final _miniMaxGroupIdController = TextEditingController();
+  final _miniMaxApiKeyController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _kimiKeyController.addListener(_onFieldChanged);
-    _miniMaxCookieController.addListener(_onFieldChanged);
-    _miniMaxGroupIdController.addListener(_onFieldChanged);
+    _miniMaxApiKeyController.addListener(_onFieldChanged);
   }
 
   void _onFieldChanged() => setState(() {});
@@ -51,39 +50,34 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
   @override
   void dispose() {
     _kimiKeyController.removeListener(_onFieldChanged);
-    _miniMaxCookieController.removeListener(_onFieldChanged);
-    _miniMaxGroupIdController.removeListener(_onFieldChanged);
+    _miniMaxApiKeyController.removeListener(_onFieldChanged);
     _nameController.dispose();
     _kimiKeyController.dispose();
     _kimiBaseUrlController.dispose();
-    _miniMaxCookieController.dispose();
-    _miniMaxGroupIdController.dispose();
+    _miniMaxApiKeyController.dispose();
     super.dispose();
   }
 
   void _submit() {
     final credentials = switch (_selectedType) {
       ProviderUsageType.kimi => ProviderCredentials.kimi(
-          KimiCredentials(
-            apiKey: _kimiKeyController.text.trim(),
-            baseUrl: _kimiBaseUrlController.text.trim().isEmpty
-                ? kimiDefaultBaseUrl
-                : _kimiBaseUrlController.text.trim(),
-          ),
+        KimiCredentials(
+          apiKey: _kimiKeyController.text.trim(),
+          baseUrl: _kimiBaseUrlController.text.trim().isEmpty
+              ? kimiDefaultBaseUrl
+              : _kimiBaseUrlController.text.trim(),
         ),
+      ),
       ProviderUsageType.minimax => ProviderCredentials.miniMax(
-          MiniMaxCredentials(
-            cookie: _miniMaxCookieController.text.trim(),
-            groupId: _miniMaxGroupIdController.text.trim(),
-          ),
-        ),
+        MiniMaxCredentials(apiKey: _miniMaxApiKeyController.text.trim()),
+      ),
       ProviderUsageType.claudeCode => ProviderCredentials.kimi(
-          // Not implemented yet; guard with empty key.
-          const KimiCredentials(apiKey: ''),
-        ),
+        // Not implemented yet; guard with empty key.
+        const KimiCredentials(apiKey: ''),
+      ),
       ProviderUsageType.codex => ProviderCredentials.kimi(
-          const KimiCredentials(apiKey: ''),
-        ),
+        const KimiCredentials(apiKey: ''),
+      ),
     };
 
     final input = ProviderAccountInput(
@@ -98,8 +92,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     return switch (_selectedType) {
       ProviderUsageType.kimi => _kimiKeyController.text.trim().isNotEmpty,
       ProviderUsageType.minimax =>
-          _miniMaxCookieController.text.trim().isNotEmpty &&
-              _miniMaxGroupIdController.text.trim().isNotEmpty,
+        _miniMaxApiKeyController.text.trim().isNotEmpty,
       ProviderUsageType.claudeCode || ProviderUsageType.codex => false,
     };
   }
@@ -117,9 +110,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
           children: [
             DropdownButtonFormField<ProviderUsageType>(
               value: _selectedType,
-              decoration: InputDecoration(
-                labelText: l10n.providersTypeLabel,
-              ),
+              decoration: InputDecoration(labelText: l10n.providersTypeLabel),
               items: ProviderUsageType.values
                   .map(
                     (type) => DropdownMenuItem(
@@ -164,46 +155,37 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     final l10n = context.l10n;
     return switch (_selectedType) {
       ProviderUsageType.kimi => [
-          TextField(
-            controller: _kimiKeyController,
-            decoration: InputDecoration(
-              labelText: l10n.providersKimiApiKeyLabel,
-              hintText: l10n.providersKimiApiKeyHint,
-            ),
-            obscureText: true,
+        TextField(
+          controller: _kimiKeyController,
+          decoration: InputDecoration(
+            labelText: l10n.providersKimiApiKeyLabel,
+            hintText: l10n.providersKimiApiKeyHint,
           ),
-          const SizedBox(height: AppSpacing.lg),
-          TextField(
-            controller: _kimiBaseUrlController,
-            decoration: InputDecoration(
-              labelText: l10n.providersKimiBaseUrlLabel,
-              hintText: l10n.providersKimiBaseUrlHint,
-            ),
-            keyboardType: TextInputType.url,
-            autocorrect: false,
+          obscureText: true,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        TextField(
+          controller: _kimiBaseUrlController,
+          decoration: InputDecoration(
+            labelText: l10n.providersKimiBaseUrlLabel,
+            hintText: l10n.providersKimiBaseUrlHint,
           ),
-        ],
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+        ),
+      ],
       ProviderUsageType.minimax => [
-          TextField(
-            controller: _miniMaxCookieController,
-            decoration: InputDecoration(
-              labelText: l10n.providersMiniMaxCookieLabel,
-              hintText: l10n.providersMiniMaxCookieHint,
-            ),
-            obscureText: true,
+        TextField(
+          controller: _miniMaxApiKeyController,
+          decoration: InputDecoration(
+            labelText: l10n.providersMiniMaxApiKeyLabel,
+            hintText: l10n.providersMiniMaxApiKeyHint,
           ),
-          const SizedBox(height: AppSpacing.lg),
-          TextField(
-            controller: _miniMaxGroupIdController,
-            decoration: InputDecoration(
-              labelText: l10n.providersMiniMaxGroupIdLabel,
-              hintText: l10n.providersMiniMaxGroupIdHint,
-            ),
-          ),
-        ],
-      ProviderUsageType.claudeCode || ProviderUsageType.codex => [
-          Text(l10n.providersNotImplemented),
-        ],
+          obscureText: true,
+        ),
+      ],
+      ProviderUsageType.claudeCode ||
+      ProviderUsageType.codex => [Text(l10n.providersNotImplemented)],
     };
   }
 

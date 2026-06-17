@@ -20,24 +20,20 @@ class _FakeAdapter implements HttpClientAdapter {
     RequestOptions options,
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
-  ) async =>
-      handler(options);
+  ) async => handler(options);
 }
 
 ResponseBody _json(Object body, int status) => ResponseBody.fromString(
-      body is String ? body : jsonEncode(body),
-      status,
-      headers: <String, List<String>>{
-        Headers.contentTypeHeader: <String>['application/json'],
-      },
-    );
+  body is String ? body : jsonEncode(body),
+  status,
+  headers: <String, List<String>>{
+    Headers.contentTypeHeader: <String>['application/json'],
+  },
+);
 
 Dio _dioWith(ResponseBody Function(RequestOptions options) handler) {
   final dio = Dio(
-    BaseOptions(
-      validateStatus: (_) => true,
-      responseType: ResponseType.json,
-    ),
+    BaseOptions(validateStatus: (_) => true, responseType: ResponseType.json),
   )..httpClientAdapter = _FakeAdapter(handler);
   return dio;
 }
@@ -216,38 +212,58 @@ void main() {
   });
 
   group('MiniMaxUsageApi', () {
-    test('parses model_remains as remaining percentage', () async {
+    test('GETs token plan remains with a Bearer API key', () async {
+      RequestOptions? seen;
       final api = MiniMaxUsageApi(
         dio: _dioWith((o) {
-          if (o.uri.path.contains('coding_plan/remains')) {
-            return _json(<String, dynamic>{
-              'model_remains': <Map<String, dynamic>>[
-                <String, dynamic>{
-                  'model_name': 'MiniMax-Text',
-                  'current_interval_total_count': 100,
-                  'current_interval_usage_count': 25,
-                  'remains_time': 75,
-                  'end_time': 1893456000000,
-                },
-              ],
-            }, 200);
-          }
+          seen = o;
           return _json(<String, dynamic>{
-            'base_resp': <String, dynamic>{'status_msg': 'success'},
+            'model_remains': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'model_name': 'MiniMax-Text',
+                'current_interval_total_count': 100,
+                'current_interval_usage_count': 25,
+                'end_time': 1893456000000,
+              },
+            ],
           }, 200);
         }),
       );
 
-      final usage = await api.getUsage(
-        cookie: 'c',
-        groupId: 'g',
-        accountId: 'a1',
-      );
+      final usage = await api.getUsage(apiKey: 'test-key', accountId: 'a1');
+
+      expect(seen!.method, 'GET');
+      expect(seen!.uri.path, '/v1/token_plan/remains');
+      expect(seen!.headers['Authorization'], 'Bearer test-key');
 
       expect(usage.windows.single.label, 'MiniMax-Text');
-      // Remaining percentage: (100 - 25) / 100 * 100 = 75.
+      // current_interval_usage_count is the remaining quota for this endpoint:
+      // used = 100 - 25 = 75.
+      expect(usage.windows.single.used, 75);
+      expect(usage.windows.single.remaining, 25);
       expect(usage.windows.single.utilization, closeTo(75, 0.001));
-      expect(usage.extra['status'], 'success');
+      expect(usage.extra, isEmpty);
+    });
+
+    test('parses top-level token plan quota', () async {
+      final api = MiniMaxUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'total_count': '1000',
+            'remain_count': '250',
+            'reset_at': '2099-01-01T00:00:00Z',
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'test-key', accountId: 'a1');
+
+      expect(usage.windows.single.label, 'Token Plan');
+      expect(usage.windows.single.limit, 1000);
+      expect(usage.windows.single.used, 750);
+      expect(usage.windows.single.remaining, 250);
+      expect(usage.windows.single.utilization, closeTo(75, 0.001));
+      expect(usage.windows.single.resetsAtMs, isNotNull);
     });
   });
 }

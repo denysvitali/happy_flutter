@@ -4783,11 +4783,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersRemoveAccountFailed => 'Failed to remove account';
 
   @override
-  String get providersLongPressToRemove => 'Long-press to remove';
+  String get providersLongPressToRemove => 'Long-press to select';
+
+  @override
+  String providersSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count selected',
+      one: '1 selected',
+    );
+    return '$_temp0';
+  }
 
   @override
   String providersDeleteConfirmMessage(String name) {
     return 'Are you sure you want to remove $name?';
+  }
+
+  @override
+  String providersDeleteSelectedConfirmMessage(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Are you sure you want to remove $count accounts?',
+      one: 'Are you sure you want to remove 1 account?',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -4825,16 +4847,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersKimiBaseUrlHint => 'https://api.kimi.com/coding/v1';
 
   @override
-  String get providersMiniMaxCookieLabel => 'Cookie';
+  String get providersMiniMaxApiKeyLabel => 'API key';
 
   @override
-  String get providersMiniMaxCookieHint => 'Paste your MiniMax cookie';
-
-  @override
-  String get providersMiniMaxGroupIdLabel => 'Group ID';
-
-  @override
-  String get providersMiniMaxGroupIdHint => 'Paste your MiniMax Group ID';
+  String get providersMiniMaxApiKeyHint => 'Paste your MiniMax API key';
 
   @override
   String get providersNotImplemented => 'This provider is not yet supported.';

@@ -81,8 +81,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
           accountName: account.name,
         ),
         miniMax: (c) => _miniMaxApi.getUsage(
-          cookie: c.cookie,
-          groupId: c.groupId,
+          apiKey: c.apiKey.isNotEmpty ? c.apiKey : c.cookie,
           accountId: account.id,
           accountName: account.name,
         ),
@@ -113,7 +112,9 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     final account = ProviderAccount(
       id: id,
       type: type,
-      name: name?.trim().isNotEmpty == true ? name!.trim() : _defaultName(type),
+      name: (name?.trim().isNotEmpty ?? false)
+          ? name!.trim()
+          : _defaultName(type),
       credentials: credentials,
     );
 
@@ -125,8 +126,11 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     // never escapes as an unhandled async error.
     unawaited(
       refreshUsage().catchError(
-        (Object e, StackTrace stack) =>
-            logger.warning('Background provider usage refresh failed', e, stack),
+        (Object e, StackTrace stack) => logger.warning(
+          'Background provider usage refresh failed',
+          e,
+          stack,
+        ),
       ),
     );
     return true;
@@ -157,5 +161,5 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
 /// Provider for third-party LLM provider usage state.
 final providerUsageNotifierProvider =
     NotifierProvider<ProviderUsageNotifier, ProviderUsageSummary>(
-  ProviderUsageNotifier.new,
-);
+      ProviderUsageNotifier.new,
+    );

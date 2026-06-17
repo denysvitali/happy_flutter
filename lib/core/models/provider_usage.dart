@@ -11,12 +11,7 @@ part 'provider_usage.freezed.dart';
 part 'provider_usage.g.dart';
 
 /// Identifier for a supported third-party usage provider.
-enum ProviderUsageType {
-  kimi,
-  minimax,
-  claudeCode,
-  codex,
-}
+enum ProviderUsageType { kimi, minimax, claudeCode, codex }
 
 /// Default base URL for the Kimi Coding Plan usage API.
 ///
@@ -44,13 +39,14 @@ abstract class KimiCredentials with _$KimiCredentials {
 
 /// Credentials required to authenticate with MiniMax.
 ///
-/// MiniMax uses cookie-based authentication plus a Group ID that identifies
-/// the billing entity.
+/// MiniMax uses a Bearer API key against the Token Plan remains endpoint.
+/// [cookie] and [groupId] remain only so older saved accounts can still decode.
 @freezed
 abstract class MiniMaxCredentials with _$MiniMaxCredentials {
   const factory MiniMaxCredentials({
-    required String cookie,
-    required String groupId,
+    @Default('') String apiKey,
+    @Default('') String cookie,
+    @Default('') String groupId,
     String? accountName,
   }) = _MiniMaxCredentials;
 

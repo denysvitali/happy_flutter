@@ -10,12 +10,18 @@ import '../../../core/utils/utils.dart' show formatDuration;
 class ProviderUsageCard extends StatelessWidget {
   const ProviderUsageCard({
     required this.usage,
-    required this.onRemove,
+    required this.isSelectionMode,
+    required this.isSelected,
+    required this.onTap,
+    required this.onLongPress,
     super.key,
   });
 
   final ProviderUsage usage;
-  final VoidCallback onRemove;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -26,8 +32,16 @@ class ProviderUsageCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(
+          color: isSelected ? colorScheme.primary : Colors.transparent,
+          width: isSelected ? 2 : 0,
+        ),
+      ),
       child: InkWell(
-        onLongPress: onRemove,
+        onTap: onTap,
+        onLongPress: onLongPress,
         child: Tooltip(
           message: l10n.providersLongPressToRemove,
           waitDuration: const Duration(milliseconds: 400),
@@ -45,7 +59,8 @@ class ProviderUsageCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            usage.accountName ?? _defaultAccountName(usage.type),
+                            usage.accountName ??
+                                _defaultAccountName(usage.type),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -59,6 +74,17 @@ class ProviderUsageCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (isSelectionMode) ...[
+                      const SizedBox(width: AppSpacing.md),
+                      Icon(
+                        isSelected
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ],
                   ],
                 ),
                 if (usage.error != null) ...[
@@ -159,10 +185,7 @@ class _UsageWindowRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Text(
-                window.label,
-                style: theme.textTheme.bodyMedium,
-              ),
+              child: Text(window.label, style: theme.textTheme.bodyMedium),
             ),
             Text(
               '${window.utilization.toStringAsFixed(1)}%',
@@ -208,8 +231,9 @@ class _UsageWindowRow extends StatelessWidget {
   /// Localized "Resets in …" label, or null when there is no future reset.
   String? _resetLabel(BuildContext context, int? resetsAtMs) {
     if (resetsAtMs == null) return null;
-    final remaining = DateTime.fromMillisecondsSinceEpoch(resetsAtMs)
-        .difference(DateTime.now());
+    final remaining = DateTime.fromMillisecondsSinceEpoch(
+      resetsAtMs,
+    ).difference(DateTime.now());
     if (remaining.inSeconds <= 0) return null;
     return context.l10n.providersResetsIn(formatDuration(remaining));
   }
@@ -243,14 +267,18 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: colorScheme.error, size: AppSpacing.lg),
+          Icon(
+            Icons.error_outline,
+            color: colorScheme.error,
+            size: AppSpacing.lg,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               error,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onErrorContainer,
-                  ),
+                color: colorScheme.onErrorContainer,
+              ),
             ),
           ),
         ],

@@ -22,13 +22,15 @@ Map<String, dynamic> _$KimiCredentialsToJson(_KimiCredentials instance) =>
 
 _MiniMaxCredentials _$MiniMaxCredentialsFromJson(Map<String, dynamic> json) =>
     _MiniMaxCredentials(
-      cookie: json['cookie'] as String,
-      groupId: json['groupId'] as String,
+      apiKey: json['apiKey'] as String? ?? '',
+      cookie: json['cookie'] as String? ?? '',
+      groupId: json['groupId'] as String? ?? '',
       accountName: json['accountName'] as String?,
     );
 
 Map<String, dynamic> _$MiniMaxCredentialsToJson(_MiniMaxCredentials instance) =>
     <String, dynamic>{
+      'apiKey': instance.apiKey,
       'cookie': instance.cookie,
       'groupId': instance.groupId,
       'accountName': instance.accountName,

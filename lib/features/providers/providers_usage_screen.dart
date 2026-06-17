@@ -24,6 +24,8 @@ class ProvidersUsageScreen extends ConsumerStatefulWidget {
 }
 
 class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
+  final Set<String> _selectedAccountIds = <String>{};
+
   @override
   void initState() {
     super.initState();
@@ -59,14 +61,37 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
     }
   }
 
-  Future<void> _removeAccount(ProviderUsage usage) async {
+  void _toggleSelection(String accountId) {
+    setState(() {
+      if (!_selectedAccountIds.add(accountId)) {
+        _selectedAccountIds.remove(accountId);
+      }
+    });
+  }
+
+  void _selectAccount(String accountId) {
+    setState(() => _selectedAccountIds.add(accountId));
+  }
+
+  void _clearSelection() {
+    setState(_selectedAccountIds.clear);
+  }
+
+  Future<void> _removeSelectedAccounts(List<ProviderUsage> usages) async {
     final l10n = context.l10n;
-    final name = usage.accountName ?? usage.type.name;
+    if (usages.isEmpty) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.commonDeleteConfirmTitle),
-        content: Text(l10n.providersDeleteConfirmMessage(name)),
+        content: Text(
+          usages.length == 1
+              ? l10n.providersDeleteConfirmMessage(
+                  usages.single.accountName ?? usages.single.type.name,
+                )
+              : l10n.providersDeleteSelectedConfirmMessage(usages.length),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -74,10 +99,12 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
           ),
           FilledButton.tonal(
             style: FilledButton.styleFrom(
-              foregroundColor:
-                  Theme.of(dialogContext).colorScheme.onErrorContainer,
-              backgroundColor:
-                  Theme.of(dialogContext).colorScheme.errorContainer,
+              foregroundColor: Theme.of(
+                dialogContext,
+              ).colorScheme.onErrorContainer,
+              backgroundColor: Theme.of(
+                dialogContext,
+              ).colorScheme.errorContainer,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(l10n.commonDelete),
@@ -88,13 +115,18 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
 
     if (confirmed != true || !mounted) return;
 
-    final success = await ref
-        .read(providerUsageNotifierProvider.notifier)
-        .removeAccount(usage.accountId);
+    var success = true;
+    final notifier = ref.read(providerUsageNotifierProvider.notifier);
+    for (final usage in usages) {
+      final removed = await notifier.removeAccount(usage.accountId);
+      success = success && removed;
+    }
 
     if (!mounted) return;
 
-    if (!success) {
+    if (success) {
+      _clearSelection();
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.providersRemoveAccountFailed)),
       );
@@ -105,16 +137,38 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final summary = ref.watch(providerUsageNotifierProvider);
+    final visibleSelectedUsages = summary.usages
+        .where((usage) => _selectedAccountIds.contains(usage.accountId))
+        .toList();
+    final isSelectionMode = visibleSelectedUsages.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.providersTitle),
+        leading: isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: l10n.commonCancel,
+                onPressed: _clearSelection,
+              )
+            : null,
+        title: Text(
+          isSelectionMode
+              ? l10n.providersSelectedCount(visibleSelectedUsages.length)
+              : l10n.providersTitle,
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: l10n.providersAddAccount,
-            onPressed: _showAddProviderDialog,
-          ),
+          if (isSelectionMode)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: l10n.commonDelete,
+              onPressed: () => _removeSelectedAccounts(visibleSelectedUsages),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: l10n.providersAddAccount,
+              onPressed: _showAddProviderDialog,
+            ),
         ],
       ),
       body: RefreshIndicator(
@@ -124,7 +178,9 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
         child: _ProvidersUsageBody(
           summary: summary,
           onAddProvider: _showAddProviderDialog,
-          onRemoveAccount: _removeAccount,
+          selectedAccountIds: _selectedAccountIds,
+          onSelectAccount: _selectAccount,
+          onToggleSelection: _toggleSelection,
         ),
       ),
     );
@@ -135,12 +191,16 @@ class _ProvidersUsageBody extends StatelessWidget {
   const _ProvidersUsageBody({
     required this.summary,
     required this.onAddProvider,
-    required this.onRemoveAccount,
+    required this.selectedAccountIds,
+    required this.onSelectAccount,
+    required this.onToggleSelection,
   });
 
   final ProviderUsageSummary summary;
   final VoidCallback onAddProvider;
-  final ValueChanged<ProviderUsage> onRemoveAccount;
+  final Set<String> selectedAccountIds;
+  final ValueChanged<String> onSelectAccount;
+  final ValueChanged<String> onToggleSelection;
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +245,14 @@ class _ProvidersUsageBody extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.lg),
             child: ProviderUsageCard(
               usage: usage,
-              onRemove: () => onRemoveAccount(usage),
+              isSelectionMode: selectedAccountIds.isNotEmpty,
+              isSelected: selectedAccountIds.contains(usage.accountId),
+              onTap: () {
+                if (selectedAccountIds.isNotEmpty) {
+                  onToggleSelection(usage.accountId);
+                }
+              },
+              onLongPress: () => onSelectAccount(usage.accountId),
             ),
           ),
         const SizedBox(height: AppSpacing.xxxl),

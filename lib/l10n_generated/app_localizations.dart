@@ -8740,14 +8740,26 @@ abstract class AppLocalizations {
   /// No description provided for @providersLongPressToRemove.
   ///
   /// In en, this message translates to:
-  /// **'Long-press to remove'**
+  /// **'Long-press to select'**
   String get providersLongPressToRemove;
+
+  /// No description provided for @providersSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 selected} other {{count} selected}}'**
+  String providersSelectedCount(int count);
 
   /// No description provided for @providersDeleteConfirmMessage.
   ///
   /// In en, this message translates to:
   /// **'Are you sure you want to remove {name}?'**
   String providersDeleteConfirmMessage(String name);
+
+  /// No description provided for @providersDeleteSelectedConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {Are you sure you want to remove 1 account?} other {Are you sure you want to remove {count} accounts?}}'**
+  String providersDeleteSelectedConfirmMessage(int count);
 
   /// No description provided for @providersEmptyTitle.
   ///
@@ -8815,29 +8827,17 @@ abstract class AppLocalizations {
   /// **'https://api.kimi.com/coding/v1'**
   String get providersKimiBaseUrlHint;
 
-  /// No description provided for @providersMiniMaxCookieLabel.
+  /// No description provided for @providersMiniMaxApiKeyLabel.
   ///
   /// In en, this message translates to:
-  /// **'Cookie'**
-  String get providersMiniMaxCookieLabel;
+  /// **'API key'**
+  String get providersMiniMaxApiKeyLabel;
 
-  /// No description provided for @providersMiniMaxCookieHint.
+  /// No description provided for @providersMiniMaxApiKeyHint.
   ///
   /// In en, this message translates to:
-  /// **'Paste your MiniMax cookie'**
-  String get providersMiniMaxCookieHint;
-
-  /// No description provided for @providersMiniMaxGroupIdLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Group ID'**
-  String get providersMiniMaxGroupIdLabel;
-
-  /// No description provided for @providersMiniMaxGroupIdHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Paste your MiniMax Group ID'**
-  String get providersMiniMaxGroupIdHint;
+  /// **'Paste your MiniMax API key'**
+  String get providersMiniMaxApiKeyHint;
 
   /// No description provided for @providersNotImplemented.
   ///
