@@ -242,7 +242,7 @@ class _ProvidersUsageBody extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         for (final usage in summary.usages)
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: ProviderUsageCard(
               usage: usage,
               isSelectionMode: selectedAccountIds.isNotEmpty,

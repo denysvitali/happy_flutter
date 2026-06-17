@@ -49,7 +49,10 @@ class ProviderUsageCard extends ConsumerWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: AppScreenPadding.listItem,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -66,18 +69,22 @@ class ProviderUsageCard extends ConsumerWidget {
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           _providerDisplayName(usage.type),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
                   if (isSelectionMode) ...[
-                    const SizedBox(width: AppSpacing.md),
+                    const SizedBox(width: AppSpacing.sm),
                     Icon(
                       isSelected
                           ? Icons.check_circle
@@ -87,9 +94,10 @@ class ProviderUsageCard extends ConsumerWidget {
                           : colorScheme.onSurfaceVariant,
                     ),
                   ] else if (devMode) ...[
-                    const SizedBox(width: AppSpacing.md),
+                    const SizedBox(width: AppSpacing.xs),
                     IconButton(
                       tooltip: 'View raw response',
+                      visualDensity: VisualDensity.compact,
                       icon: const Icon(Icons.bug_report_outlined),
                       onPressed: () =>
                           ProviderPayloadDebugSheet.show(context, usage),
@@ -98,22 +106,22 @@ class ProviderUsageCard extends ConsumerWidget {
                 ],
               ),
               if (usage.error != null) ...[
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
                 _ErrorBanner(error: usage.error!),
               ] else if (usage.windows.isEmpty) ...[
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   l10n.providersNoUsageData,
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ] else ...[
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.sm),
                 for (final window in usage.windows) ...[
                   _UsageWindowRow(window: window),
                   if (window != usage.windows.last)
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.sm),
                 ],
               ],
             ],
@@ -160,6 +168,7 @@ class _ProviderIcon extends StatelessWidget {
     };
 
     return CircleAvatar(
+      radius: AppSpacing.lg,
       backgroundColor: color.withValues(alpha: AppOpacity.faint),
       child: Icon(
         switch (type) {
@@ -170,7 +179,7 @@ class _ProviderIcon extends StatelessWidget {
           ProviderUsageType.codex => Icons.code,
         },
         color: color,
-        size: AppSpacing.xl,
+        size: AppSpacing.lg,
       ),
     );
   }
@@ -187,6 +196,10 @@ class _UsageWindowRow extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final barColor = _utilizationColor(window.utilization);
 
+    final reset = _resetLabel(context, window.resetsAtMs);
+    final hasUsedLimit = window.limit != null && window.used != null;
+    final hasMeta = hasUsedLimit || reset != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -194,43 +207,56 @@ class _UsageWindowRow extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Text(window.label, style: theme.textTheme.bodyMedium),
+              child: Text(
+                window.label,
+                style: theme.textTheme.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             Text(
               '${window.utilization.toStringAsFixed(1)}%',
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: barColor,
               ),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xsm),
+        const SizedBox(height: AppSpacing.xs),
         ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: LinearProgressIndicator(
             value: window.utilization / 100,
             backgroundColor: colorScheme.surfaceContainerHighest,
             valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            minHeight: AppSpacing.smd,
+            minHeight: AppSpacing.xsm,
           ),
         ),
-        if (window.limit != null && window.used != null) ...[
-          const SizedBox(height: AppSpacing.xsm),
-          Text(
-            '${_formatNumber(window.used!)} / ${_formatNumber(window.limit!)}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-        if (_resetLabel(context, window.resetsAtMs) case final reset?) ...[
-          const SizedBox(height: AppSpacing.xsm),
-          Text(
-            reset,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+        if (hasMeta) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (hasUsedLimit)
+                Text(
+                  '${_formatNumber(window.used!)} / ${_formatNumber(window.limit!)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+              if (reset != null)
+                Text(
+                  reset,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+            ],
           ),
         ],
       ],
