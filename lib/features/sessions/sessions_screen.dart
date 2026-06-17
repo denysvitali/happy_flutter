@@ -18,6 +18,7 @@ import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../../core/components/tablet/resizable_pane_divider.dart';
 import '../chat/chat_screen.dart';
+import '../loops/all_loops_screen.dart';
 import '../providers/providers_usage_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/connection_status_badge.dart';
@@ -124,6 +125,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     return switch (tab) {
       'settings' => AppTab.settings,
       'providers' => AppTab.providers,
+      'loops' => AppTab.loops,
       'sessions' => AppTab.sessions,
       _ => AppTab.sessions,
     };
@@ -132,6 +134,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   String _tabToString(AppTab tab) {
     return switch (tab) {
       AppTab.sessions => 'sessions',
+      AppTab.loops => 'loops',
       AppTab.providers => 'providers',
       AppTab.settings => 'settings',
     };
@@ -176,6 +179,18 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final isTablet = screenWidth >= AppBreakpoint.tablet;
     final isSessionsTabOnTablet = isTablet && _activeTab == AppTab.sessions;
     final isTabletDetail = isSessionsTabOnTablet && _selectedSessionId != null;
+
+    // Active-loop count surfaced as a tab badge. Paused or expired loops
+    // do NOT count — only loops that are still scheduled to fire. The
+    // watch is scoped to the count shape so unrelated loop mutations
+    // (e.g. prompt text) don't rebuild the tab bar.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final totalActiveLoops = ref
+        .watch(loopsNotifierProvider)
+        .values
+        .expand((l) => l)
+        .where((l) => !l.isExpired(nowMs: nowMs))
+        .length;
     // On tablet's sessions tab, the master pane owns the sessions AppBar
     // (search/+/selection/folder modes only affect the list) and the detail
     // pane is `ChatScreen`, which has its own AppBar. The outer Scaffold
@@ -251,6 +266,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             : TabBar(
                 activeTab: _activeTab,
                 onTabPress: _setActiveTab,
+                badgeCounts: <AppTab, int>{
+                  AppTab.loops: totalActiveLoops,
+                },
               ),
       ),
     );
@@ -262,6 +280,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   ) {
     if (_activeTab == AppTab.sessions) {
       return _buildSessionsAppBar(context, l10n);
+    }
+    if (_activeTab == AppTab.loops) {
+      return AppBar(title: Text(l10n.allLoopsTitle));
     }
     if (_activeTab == AppTab.providers) {
       return AppBar(title: Text(l10n.providersTitle));
@@ -599,6 +620,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               onClearSearch: _clearSearch,
               scrollController: _scrollController,
             ),
+            _buildLoopsTab(),
             _buildProvidersTab(),
             _buildSettingsTab(),
           ],
@@ -618,6 +640,13 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   Widget _buildSettingsTab() {
     if (_builtTabs.contains(AppTab.settings)) {
       return const SettingsScreen(embedded: true);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildLoopsTab() {
+    if (_builtTabs.contains(AppTab.loops)) {
+      return const AllLoopsScreen();
     }
     return const SizedBox.shrink();
   }

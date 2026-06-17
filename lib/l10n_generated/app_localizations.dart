@@ -310,6 +310,12 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get tabsSettings;
 
+  /// No description provided for @tabsLoops.
+  ///
+  /// In en, this message translates to:
+  /// **'Loops'**
+  String get tabsLoops;
+
   /// Connection status
   ///
   /// In en, this message translates to:
@@ -8868,6 +8874,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Type /loop in chat to schedule a recurring prompt.'**
   String get loopsEmptyDescription;
+
+  /// No description provided for @allLoopsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'All loops'**
+  String get allLoopsTitle;
+
+  /// No description provided for @allLoopsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No active loops} =1{1 active loop} other{{count} active loops}}'**
+  String allLoopsCount(int count);
+
+  /// No description provided for @allLoopsAcrossSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'across {count, plural, =1{1 session} other{{count} sessions}}'**
+  String allLoopsAcrossSessions(int count);
+
+  /// No description provided for @allLoopsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No loops scheduled'**
+  String get allLoopsEmptyTitle;
+
+  /// No description provided for @allLoopsEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Type /loop in any session to schedule a recurring prompt.'**
+  String get allLoopsEmptyDescription;
+
+  /// No description provided for @allLoopsViewPerSession.
+  ///
+  /// In en, this message translates to:
+  /// **'View per session'**
+  String get allLoopsViewPerSession;
 
   /// No description provided for @loopsCreateTitle.
   ///

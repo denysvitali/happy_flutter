@@ -41,6 +41,7 @@
   },
   "tabsSessions": "Terminals",
   "tabsSettings": "Settings",
+  "tabsLoops": "Loops",
   "statusConnected": "Connected",
   "statusConnecting": "Connecting",
   "statusDisconnected": "Disconnected",
@@ -1951,6 +1952,26 @@
   "loopsTitle": "Loops",
   "loopsEmptyTitle": "No loops scheduled",
   "loopsEmptyDescription": "Type /loop in chat to schedule a recurring prompt.",
+  "allLoopsTitle": "All loops",
+  "allLoopsCount": "{count, plural, =0{No active loops} =1{1 active loop} other{{count} active loops}}",
+  "@allLoopsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allLoopsAcrossSessions": "across {count, plural, =1{1 session} other{{count} sessions}}",
+  "@allLoopsAcrossSessions": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allLoopsEmptyTitle": "No loops scheduled",
+  "allLoopsEmptyDescription": "Type /loop in any session to schedule a recurring prompt.",
+  "allLoopsViewPerSession": "View per session",
   "loopsCreateTitle": "New loop",
   "loopsIntervalLabel": "Cron expression",
   "loopsIntervalHint": "e.g. */5 * * * * — every 5 minutes",

@@ -11,6 +11,7 @@ import '../../theme/app_tokens.dart';
 /// Tab type for the app
 enum AppTab {
   sessions,
+  loops,
   providers,
   settings,
 }
@@ -91,12 +92,20 @@ class _TabItem extends StatelessWidget {
     required this.isActive,
     required this.label,
     required this.onTap,
+    this.badgeCount = 0,
+    this.showBadge = false,
   });
 
   final AppTabInfo tab;
   final bool isActive;
   final String label;
   final VoidCallback onTap;
+  final int badgeCount;
+
+  /// Whether to paint the badge for this tab. Centralized so only
+  /// specific tab keys (currently [AppTab.loops]) can display a badge,
+  /// even when [badgeCounts] contains entries for other tabs.
+  final bool showBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -125,10 +134,11 @@ class _TabItem extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    isActive ? tab.activeIcon : tab.icon,
-                    size: AppSpacing.xxxl - AppSpacing.lg,
+                  _TabIconWithBadge(
+                    icon: isActive ? tab.activeIcon : tab.icon,
                     color: itemColor,
+                    badgeCount: badgeCount,
+                    showBadge: showBadge,
                   ),
                   const SizedBox(height: AppSpacing.xsm),
                   Text(
@@ -150,6 +160,95 @@ class _TabItem extends StatelessWidget {
   }
 }
 
+/// Icon with an optional small numeric badge painted at the top-right.
+///
+/// Hides the badge when [badgeCount] is `0` or when [showBadge] is
+/// `false`. Caps the displayed text at `9+` for counts above `9`.
+/// Uses [AppColors.error] as the background to match the existing
+/// destructive-status convention.
+class _TabIconWithBadge extends StatelessWidget {
+  const _TabIconWithBadge({
+    required this.icon,
+    required this.color,
+    required this.badgeCount,
+    required this.showBadge,
+  });
+
+  final IconData icon;
+  final Color color;
+  final int badgeCount;
+  final bool showBadge;
+
+  String get _badgeLabel => badgeCount > 9 ? '9+' : '$badgeCount';
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = showBadge && badgeCount > 0;
+    return SizedBox(
+      width: AppSpacing.xxxl + AppSpacing.xs,
+      height: AppSpacing.xxxl + AppSpacing.xs,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Icon(
+              icon,
+              size: AppSpacing.xxxl - AppSpacing.lg,
+              color: color,
+            ),
+          ),
+          if (visible)
+            Positioned(
+              right: -AppSpacing.xxs,
+              top: -AppSpacing.xxs,
+              child: _TabBadge(label: _badgeLabel),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small pill-shaped badge — fixed 16 dp tall, ~16-22 dp wide depending on
+/// label length. White text on [AppColors.error].
+class _TabBadge extends StatelessWidget {
+  const _TabBadge({required this.label});
+
+  final String label;
+
+  static const double _size = 16;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isWide = label.length > 1;
+    final double width = isWide ? 22 : _size;
+    return Container(
+      width: width,
+      height: _size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.error,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(
+          color: theme.colorScheme.surface,
+          width: 1.5,
+        ),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: Colors.white,
+          fontSize: AppFontSize.xxs,
+          height: 1.0,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 // ─── _kAppTabs ───────────────────────────────────────────────────────────────
 
 /// Canonical tab definition list shared by [TabBar] and [CompactTabBar].
@@ -159,6 +258,12 @@ const _kAppTabs = <AppTabInfo>[
     icon: Icons.chat_bubble_outline,
     activeIcon: Icons.chat_bubble,
     label: 'Sessions',
+  ),
+  AppTabInfo(
+    key: AppTab.loops,
+    icon: Icons.repeat_outlined,
+    activeIcon: Icons.repeat,
+    label: 'Loops',
   ),
   AppTabInfo(
     key: AppTab.providers,
@@ -186,6 +291,7 @@ class TabBar extends StatefulWidget {
     this.selectedItemColor,
     this.unselectedItemColor,
     this.indicatorColor,
+    this.badgeCounts = const <AppTab, int>{},
     super.key,
   });
 
@@ -196,6 +302,10 @@ class TabBar extends StatefulWidget {
   final Color? selectedItemColor;
   final Color? unselectedItemColor;
   final Color? indicatorColor;
+
+  /// Optional per-tab numeric badge counts (e.g. active loop count).
+  /// Entries with `0` or missing are treated as no badge.
+  final Map<AppTab, int> badgeCounts;
 
   /// Default height matches iOS tab bar standards.
   static const double defaultHeight = AppTouchTarget.comfortable + 12;
@@ -211,6 +321,7 @@ class _TabBarState extends State<TabBar> {
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.sessions => l10n.sessionHistoryTitle,
+      AppTab.loops => l10n.tabsLoops,
       AppTab.providers => l10n.tabsProviders,
       AppTab.settings => l10n.tabsSettings,
     };
@@ -265,6 +376,8 @@ class _TabBarState extends State<TabBar> {
                     isActive: isActive,
                     label: _labelForTab(tab.key, l10n),
                     onTap: () => widget.onTabPress(tab.key),
+                    badgeCount: widget.badgeCounts[tab.key] ?? 0,
+                    showBadge: tab.key == AppTab.loops,
                   );
                 }).toList(),
               ),
@@ -289,6 +402,7 @@ class CompactTabBar extends StatelessWidget {
     this.iconSize = 24,
     this.selectedColor,
     this.unselectedColor,
+    this.badgeCounts = const <AppTab, int>{},
     super.key,
   });
 
@@ -298,13 +412,20 @@ class CompactTabBar extends StatelessWidget {
   final Color? selectedColor;
   final Color? unselectedColor;
 
+  /// Optional per-tab numeric badge counts. Entries with `0` or missing
+  /// render no badge.
+  final Map<AppTab, int> badgeCounts;
+
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.sessions => l10n.sessionHistoryTitle,
+      AppTab.loops => l10n.tabsLoops,
       AppTab.providers => l10n.tabsProviders,
       AppTab.settings => l10n.tabsSettings,
     };
   }
+
+  String _badgeLabel(int count) => count > 9 ? '9+' : '$count';
 
   @override
   Widget build(BuildContext context) {
@@ -318,18 +439,58 @@ class CompactTabBar extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: _kAppTabs.map((tab) {
         final isActive = activeTab == tab.key;
+        final count = badgeCounts[tab.key] ?? 0;
+        final showBadge = tab.key == AppTab.loops && count > 0;
         return SizedBox(
           width: AppTouchTarget.min,
           height: AppTouchTarget.min,
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            icon: Icon(
-              isActive ? tab.activeIcon : tab.icon,
-              size: iconSize,
-              color: isActive ? active : inactive,
-            ),
-            onPressed: () => onTabPress(tab.key),
-            tooltip: _labelForTab(tab.key, l10n),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                icon: Icon(
+                  isActive ? tab.activeIcon : tab.icon,
+                  size: iconSize,
+                  color: isActive ? active : inactive,
+                ),
+                onPressed: () => onTabPress(tab.key),
+                tooltip: _labelForTab(tab.key, l10n),
+              ),
+              if (showBadge)
+                Positioned(
+                  right: AppSpacing.xxs,
+                  top: AppSpacing.xxs,
+                  child: Container(
+                    constraints: BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxs,
+                    ),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius:
+                          BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(
+                        color: colorScheme.surface,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Text(
+                      _badgeLabel(count),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: AppFontSize.xxs,
+                        height: 1.0,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       }).toList(),

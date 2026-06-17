@@ -57,6 +57,12 @@ class _AppSidebarState extends State<AppSidebar> {
       label: 'Sessions',
     ),
     AppTabInfo(
+      key: AppTab.loops,
+      icon: Icons.repeat_outlined,
+      activeIcon: Icons.repeat,
+      label: 'Loops',
+    ),
+    AppTabInfo(
       key: AppTab.providers,
       icon: Icons.cloud_outlined,
       activeIcon: Icons.cloud,
@@ -73,6 +79,7 @@ class _AppSidebarState extends State<AppSidebar> {
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.sessions => l10n.sessionHistoryTitle,
+      AppTab.loops => l10n.tabsLoops,
       AppTab.providers => l10n.tabsProviders,
       AppTab.settings => l10n.tabsSettings,
     };

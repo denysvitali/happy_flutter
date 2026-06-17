@@ -118,6 +118,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabsSettings => 'Settings';
 
   @override
+  String get tabsLoops => 'Loops';
+
+  @override
   String statusConnected(String time) {
     return 'Connected';
   }
@@ -4869,6 +4872,42 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get loopsEmptyDescription =>
       'Type /loop in chat to schedule a recurring prompt.';
+
+  @override
+  String get allLoopsTitle => 'All loops';
+
+  @override
+  String allLoopsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count active loops',
+      one: '1 active loop',
+      zero: 'No active loops',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String allLoopsAcrossSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions',
+      one: '1 session',
+    );
+    return 'across $_temp0';
+  }
+
+  @override
+  String get allLoopsEmptyTitle => 'No loops scheduled';
+
+  @override
+  String get allLoopsEmptyDescription =>
+      'Type /loop in any session to schedule a recurring prompt.';
+
+  @override
+  String get allLoopsViewPerSession => 'View per session';
 
   @override
   String get loopsCreateTitle => 'New loop';
