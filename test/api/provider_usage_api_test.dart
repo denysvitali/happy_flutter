@@ -749,5 +749,35 @@ void main() {
         ),
       );
     });
+
+    // Guards the secure-storage round-trip: addAccount persists a
+    // ProviderAccount as JSON, and loadAccounts reads it back. A new union
+    // variant that fails to round-trip would silently drop the saved account.
+    test('ProviderCredentials.zai round-trips through JSON storage', () {
+      final account = ProviderAccount(
+        id: 'z1',
+        name: 'My Z.AI',
+        type: ProviderUsageType.zai,
+        credentials: ProviderCredentials.zai(
+          ZaiCredentials(apiKey: 'sk.test', baseUrl: zaiDefaultBaseUrl),
+        ),
+      );
+
+      final decoded = ProviderAccount.fromJson(
+        Map<String, dynamic>.from(account.toJson()),
+      );
+
+      expect(decoded.id, 'z1');
+      expect(decoded.type, ProviderUsageType.zai);
+
+      late ZaiCredentials zai;
+      decoded.credentials.when(
+        kimi: (_) => fail('expected zai, decoded as kimi'),
+        miniMax: (_) => fail('expected zai, decoded as miniMax'),
+        zai: (c) => zai = c,
+      );
+      expect(zai.apiKey, 'sk.test');
+      expect(zai.baseUrl, zaiDefaultBaseUrl);
+    });
   });
 }
