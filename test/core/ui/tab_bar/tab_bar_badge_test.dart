@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/ui/tab_bar/tab_bar.dart';
 
 /// Test wrapper that mounts a [TabBar] in a MaterialApp with l10n so the
@@ -9,10 +10,16 @@ Widget _wrap({
   required AppTab activeTab,
   Map<AppTab, int> badgeCounts = const <AppTab, int>{},
   void Function(AppTab)? onTabPress,
+  Brightness brightness = Brightness.light,
 }) {
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xFF6750A4),
+    brightness: brightness,
+  );
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
+    theme: ThemeData(colorScheme: colorScheme, useMaterial3: true),
     home: Scaffold(
       body: TabBar(
         activeTab: activeTab,
@@ -131,6 +138,48 @@ void main() {
       expect(labels, contains('Loops'));
       expect(labels, contains('Providers'));
       expect(labels, contains('Settings'));
+    });
+  });
+
+  group('TabBar badge styling', () {
+    testWidgets(
+      'badge foreground reads colorScheme.onError (not Colors.white)',
+      (tester) async {
+        // The previous implementation hardcoded `Colors.white` for badge
+        // text, which was wrong if the error color ever becomes light.
+        // Now it follows colorScheme.onError, so a regression to white
+        // would surface as the two colors differing.
+        await tester.pumpWidget(_wrap(
+          activeTab: AppTab.sessions,
+          badgeCounts: const <AppTab, int>{AppTab.loops: 3},
+          brightness: Brightness.dark,
+        ));
+        final BuildContext ctx = tester.element(find.text('3'));
+        final onError = Theme.of(ctx).colorScheme.onError;
+        // Sanity: the dark theme's onError is not Colors.white.
+        expect(onError, isNot(equals(Colors.white)));
+
+        final textWidget = tester.widget<Text>(find.text('3'));
+        expect(textWidget.style?.color, equals(onError));
+        // Sanity: background is still the brand error color.
+        final container = tester
+            .widgetList<Container>(find.byType(Container))
+            .firstWhere((c) {
+          final d = c.decoration;
+          return d is BoxDecoration && d.color == AppColors.error;
+        });
+        expect(container.decoration, isA<BoxDecoration>());
+      },
+    );
+
+    testWidgets('badge builds under a light theme without throwing',
+        (tester) async {
+      await tester.pumpWidget(_wrap(
+        activeTab: AppTab.sessions,
+        badgeCounts: const <AppTab, int>{AppTab.loops: 1},
+        brightness: Brightness.light,
+      ));
+      expect(find.text('1'), findsOneWidget);
     });
   });
 }

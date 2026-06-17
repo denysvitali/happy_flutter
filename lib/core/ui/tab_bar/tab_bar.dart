@@ -210,7 +210,7 @@ class _TabIconWithBadge extends StatelessWidget {
 }
 
 /// Small pill-shaped badge — fixed 16 dp tall, ~16-22 dp wide depending on
-/// label length. White text on [AppColors.error].
+/// label length. [colorScheme.onError] text on [AppColors.error].
 class _TabBadge extends StatelessWidget {
   const _TabBadge({required this.label});
 
@@ -232,14 +232,14 @@ class _TabBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(
           color: theme.colorScheme.surface,
-          width: 1.5,
+          width: AppBorder.thin + 0.5,
         ),
       ),
       child: Text(
         label,
         textAlign: TextAlign.center,
         style: theme.textTheme.labelSmall?.copyWith(
-          color: Colors.white,
+          color: theme.colorScheme.onError,
           fontSize: AppFontSize.xxs,
           height: 1.0,
           fontWeight: FontWeight.w700,
@@ -476,13 +476,13 @@ class CompactTabBar extends StatelessWidget {
                           BorderRadius.circular(AppRadius.pill),
                       border: Border.all(
                         color: colorScheme.surface,
-                        width: 1.5,
+                        width: AppBorder.thin + 0.5,
                       ),
                     ),
                     child: Text(
                       _badgeLabel(count),
                       style: TextStyle(
-                        color: Colors.white,
+                        color: colorScheme.onError,
                         fontSize: AppFontSize.xxs,
                         height: 1.0,
                         fontWeight: FontWeight.w700,
@@ -559,11 +559,14 @@ class SegmentTabBar extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
-                    boxShadow: const [
+                    boxShadow: [
                       BoxShadow(
-                        color: Color(0x1A000000),
+                        // Theme-aware scrim (was hardcoded black at 10% alpha
+                        // which produced invisible-on-dark shadows).
+                        color: colorScheme.shadow
+                            .withValues(alpha: AppOpacity.soft),
                         blurRadius: AppSpacing.xs + AppSpacing.xs,
-                        offset: Offset(0, 1),
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
