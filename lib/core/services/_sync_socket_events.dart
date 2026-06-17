@@ -1,5 +1,24 @@
 part of 'sync_service.dart';
 
+/// Extract the update type from a socket payload, matching the fallback
+/// order in `ApiUpdate.fromJson` (`lib/core/models/api_update.dart`):
+///   1. `payload['body']['t']`  (wrapped server format)
+///   2. `payload['t']`         (flat Socket.IO event data)
+///   3. `payload['type']`      (legacy / unknown)
+///   4. `'unknown'`            (final fallback)
+String? _extractUpdateType(Map<String, dynamic> payload) {
+  final body = payload['body'];
+  if (body is Map) {
+    final t = body['t'];
+    if (t is String && t.isNotEmpty) return t;
+  }
+  final topT = payload['t'];
+  if (topT is String && topT.isNotEmpty) return topT;
+  final legacyType = payload['type'];
+  if (legacyType is String && legacyType.isNotEmpty) return legacyType;
+  return 'unknown';
+}
+
 extension SyncSocketEvents on Sync {
   /// Subscribe to socket updates
   void subscribeToUpdates() {
@@ -155,7 +174,12 @@ extension SyncSocketEvents on Sync {
     // naturally in the trace. The type field is the strongest filter
     // for new-message storms; we record it as an attribute rather than
     // branching so the span exists for every event.
-    final updateType = payload['type'] as String? ?? 'unknown';
+    // Compute the real update type using the same fallback order as
+    // ApiUpdate.fromJson (body.t -> payload.t -> payload.type -> 'unknown').
+    // Previously this read payload['type'] directly, which the server never
+    // sends on the update channel — every span was tagged event.type=unknown
+    // and Jaeger queries for new-message storms couldn't filter on it.
+    final updateType = _extractUpdateType(payload);
     final activeSpan = OpenTelemetryService().currentSpan;
     final socketSpan = activeSpan != null
         ? OpenTelemetryService().startChildSpan(
