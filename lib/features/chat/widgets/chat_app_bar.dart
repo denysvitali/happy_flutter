@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/components/app_status_dot.dart';
@@ -9,6 +10,7 @@ import '../../../core/utils/session_utils.dart';
 import '../../loops/loop_count_badge.dart';
 import '../../sessions/session_avatar.dart';
 import 'agents_list_sheet.dart';
+import 'model_mode.dart';
 import 'session_header_chip.dart';
 
 /// App bar for the chat screen showing session title,
@@ -663,4 +665,222 @@ String formatLastSeenLabel(BuildContext context, int activeAt) {
     return l10n.chatLastSeenHours(diff.inHours);
   }
   return l10n.chatLastSeenDays(diff.inDays);
+}
+
+/// Inputs the [ChatAppBar] needs from the chat screen's reactive
+/// state to render the status chips. The chat screen watches each
+/// of these and passes the latest values in.
+///
+/// Splitting the input as a typed record (vs. a long parameter
+/// list) keeps the call site readable and makes the contract
+/// explicit — adding a new chip only touches this record, not the
+/// helper signature.
+class ChatStatusChipsInputs {
+  const ChatStatusChipsInputs({
+    required this.session,
+    required this.isReady,
+    required this.hasRequests,
+    required this.sendIssue,
+    required this.latestUserMessage,
+    required this.lastVisibleNonSidechainCreatedAt,
+    required this.debugMaxSeq,
+    required this.modelMode,
+  });
+
+  final Session session;
+  final bool isReady;
+  final bool hasRequests;
+
+  /// A pre-resolved lifecycle-error issue, or `null` if the session
+  /// has no lifecycle error. The chat screen builds the issue from
+  /// session metadata before calling the helper.
+  final SendIssue? sendIssue;
+
+  /// The most recent user message map (or `null` if no messages
+  /// sent). The helper reads `sendStatus` from this map.
+  final Map<String, dynamic>? latestUserMessage;
+
+  /// Timestamp (ms since epoch) of the last visible (non-sidechain)
+  /// message. Used to detect when the agent is in a "working on
+  /// sub-tasks" state.
+  final int lastVisibleNonSidechainCreatedAt;
+
+  /// Debug-only seq watermark. -1 hides the chip.
+  final int debugMaxSeq;
+
+  /// Current model selection. `ChatModelMode.defaultModel` hides
+  /// the chip.
+  final ChatModelMode modelMode;
+}
+
+/// Lightweight view of a session lifecycle error that the chat
+/// screen can hand to the chip builder. The chat screen's own
+/// `_SessionSendIssue` is library-private; the chip builder only
+/// needs the two facts it renders.
+class SendIssue {
+  const SendIssue({required this.title, required this.blocksSend});
+  final String title;
+  final bool blocksSend;
+}
+
+/// Builds the list of [ChatAppBarStatusChip]s shown in the app bar.
+///
+/// Pure function: takes the chat screen's reactive state as
+/// [inputs] and returns the chip list. No `ref.watch`, no
+/// `Theme.of(context)` — callers pass in `colorScheme` and
+/// `BuildContext` for l10n. The chat screen stays in control of
+/// rebuild scope.
+List<ChatAppBarStatusChip> buildChatStatusChips({
+  required BuildContext context,
+  required ColorScheme colorScheme,
+  required ChatStatusChipsInputs inputs,
+}) {
+  final session = inputs.session;
+  final chips = <ChatAppBarStatusChip>[];
+  final hasRequests = inputs.hasRequests;
+  final sendIssue = inputs.sendIssue;
+  final lifecycleState = session.effectiveLifecycleState;
+  final lifecycleSince = session.metadata?.lifecycleStateSince;
+  final lifecycleIsRecent = lifecycleSince != null &&
+      DateTime.now().millisecondsSinceEpoch - lifecycleSince < 120000;
+  final isConnecting = !inputs.isReady &&
+      lifecycleIsRecent &&
+      (lifecycleState == 'starting' || lifecycleState == 'running');
+
+  if (sendIssue != null) {
+    chips.add(
+      ChatAppBarStatusChip(
+        text: sendIssue.blocksSend ? 'Agent failed' : 'Will restart',
+        color: sendIssue.blocksSend ? AppColors.error : AppColors.warning,
+        icon: sendIssue.blocksSend
+            ? Icons.error_outline_rounded
+            : Icons.restart_alt_rounded,
+      ),
+    );
+  } else if (inputs.isReady) {
+    chips.add(
+      const ChatAppBarStatusChip(
+        text: 'Online',
+        color: AppColors.success,
+        showDot: true,
+        pulse: true,
+      ),
+    );
+  } else if (isConnecting) {
+    chips.add(
+      ChatAppBarStatusChip(
+        text: 'Connecting',
+        color: colorScheme.primary,
+        icon: Icons.sync_rounded,
+      ),
+    );
+  } else {
+    chips
+      ..add(
+        ChatAppBarStatusChip(
+          text: 'Offline',
+          color: colorScheme.outline,
+          icon: Icons.cloud_off_rounded,
+        ),
+      )
+      ..add(
+        ChatAppBarStatusChip(
+          text: formatLastSeenLabel(context, session.activeAt),
+          color: colorScheme.onSurfaceVariant,
+          icon: Icons.schedule_rounded,
+        ),
+      );
+  }
+
+  if (hasRequests) {
+    chips.add(
+      const ChatAppBarStatusChip(
+        text: 'Approval needed',
+        color: AppColors.warning,
+        icon: Icons.shield_outlined,
+      ),
+    );
+  } else if (session.thinking) {
+    // When the agent has been "thinking" for a while with no new
+    // visible (non-sidechain) message, surface that the work is
+    // likely happening inside sub-tasks. Without this signal the
+    // chat looks paused — see the long-running session diagnosis
+    // on c8400ba… where 2000+ server messages produced almost no
+    // visible bubbles.
+    const subTaskSwitchMs = 30000;
+    final lastVisibleCreatedAt = inputs.lastVisibleNonSidechainCreatedAt;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final stale = lastVisibleCreatedAt > 0 &&
+        nowMs - lastVisibleCreatedAt > subTaskSwitchMs;
+    chips.add(
+      ChatAppBarStatusChip(
+        text: stale ? 'Working on sub-tasks' : 'Thinking',
+        color: colorScheme.primary,
+        showDot: !stale,
+        icon: Icons.account_tree_outlined,
+      ),
+    );
+  }
+
+  // Debug-only seq watermark — proves the session is alive when
+  // the visible chat looks idle. Highest seq we have decrypted
+  // (incl. sidechain). The user requested this after observing
+  // seq=2000+ with few visible messages.
+  if (kDebugMode) {
+    final maxSeq = inputs.debugMaxSeq;
+    if (maxSeq >= 0) {
+      chips.add(
+        ChatAppBarStatusChip(
+          text: 'seq=$maxSeq',
+          color: colorScheme.outline,
+          icon: Icons.bug_report_outlined,
+        ),
+      );
+    }
+  }
+
+  final sendStatus = inputs.latestUserMessage?['sendStatus'] as String?;
+  if (sendStatus != null) {
+    switch (sendStatus) {
+      case 'sending':
+        chips.add(
+          ChatAppBarStatusChip(
+            text: 'Sending',
+            color: colorScheme.onSurfaceVariant,
+            icon: Icons.arrow_upward_rounded,
+          ),
+        );
+        break;
+      case 'pending':
+        chips.add(
+          const ChatAppBarStatusChip(
+            text: 'Retry queued',
+            color: AppColors.warning,
+            icon: Icons.schedule_rounded,
+          ),
+        );
+        break;
+      case 'failed':
+        chips.add(
+          const ChatAppBarStatusChip(
+            text: 'Not delivered',
+            color: AppColors.error,
+            icon: Icons.error_outline_rounded,
+          ),
+        );
+        break;
+    }
+  }
+
+  if (inputs.modelMode != ChatModelMode.defaultModel) {
+    chips.add(
+      ChatAppBarStatusChip(
+        text: inputs.modelMode.label,
+        color: colorScheme.onSurfaceVariant,
+        icon: Icons.tune_rounded,
+      ),
+    );
+  }
+
+  return chips;
 }

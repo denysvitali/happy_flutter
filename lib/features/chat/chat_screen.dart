@@ -829,10 +829,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return 'Chat';
   }
 
-  String _formatLastSeenLabel(BuildContext context, int activeAt) {
-    return formatLastSeenLabel(context, activeAt);
-  }
-
   _SessionSendIssue? get _sessionSendIssue {
     final session = _session;
     if (session == null || !session.hasLifecycleError) return null;
@@ -941,159 +937,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final session = _session;
     if (session == null) return const [];
 
-    final chips = <ChatAppBarStatusChip>[];
     final colorScheme = Theme.of(context).colorScheme;
-    final hasRequests = session.agentState?.requests?.isNotEmpty ?? false;
     final sessionUiEntry = ref.watch(sessionUiEntryProvider(session.id));
-    final isReady = sessionUiEntry.isSessionReadyForMessages;
-    final lifecycleState = session.effectiveLifecycleState;
-    final lifecycleSince = session.metadata?.lifecycleStateSince;
-    final lifecycleIsRecent =
-        lifecycleSince != null &&
-        DateTime.now().millisecondsSinceEpoch - lifecycleSince < 120000;
-    final isConnecting =
-        !isReady &&
-        lifecycleIsRecent &&
-        (lifecycleState == 'starting' || lifecycleState == 'running');
     final sendIssue = _sessionSendIssue;
 
-    if (sendIssue != null) {
-      chips.add(
-        ChatAppBarStatusChip(
-          text: sendIssue.blocksSend ? 'Agent failed' : 'Will restart',
-          color: sendIssue.blocksSend ? AppColors.error : AppColors.warning,
-          icon: sendIssue.blocksSend
-              ? Icons.error_outline_rounded
-              : Icons.restart_alt_rounded,
-        ),
-      );
-    } else if (isReady) {
-      chips.add(
-        const ChatAppBarStatusChip(
-          text: 'Online',
-          color: AppColors.success,
-          showDot: true,
-          pulse: true,
-        ),
-      );
-    } else if (isConnecting) {
-      chips.add(
-        ChatAppBarStatusChip(
-          text: 'Connecting',
-          color: colorScheme.primary,
-          icon: Icons.sync_rounded,
-        ),
-      );
-    } else {
-      chips
-        ..add(
-          ChatAppBarStatusChip(
-            text: 'Offline',
-            color: colorScheme.outline,
-            icon: Icons.cloud_off_rounded,
-          ),
-        )
-        ..add(
-          ChatAppBarStatusChip(
-            text: _formatLastSeenLabel(context, session.activeAt),
-            color: colorScheme.onSurfaceVariant,
-            icon: Icons.schedule_rounded,
-          ),
-        );
-    }
-
-    if (hasRequests) {
-      chips.add(
-        const ChatAppBarStatusChip(
-          text: 'Approval needed',
-          color: AppColors.warning,
-          icon: Icons.shield_outlined,
-        ),
-      );
-    } else if (session.thinking) {
-      // When the agent has been "thinking" for a while with no new visible
-      // (non-sidechain) message, surface that the work is likely happening
-      // inside sub-tasks. Without this signal the chat looks paused — see
-      // the long-running session diagnosis on c8400ba… where 2000+ server
-      // messages produced almost no visible bubbles.
-      const subTaskSwitchMs = 30000;
-      final lastVisibleCreatedAt = _lastVisibleNonSidechainCreatedAt;
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final stale =
-          lastVisibleCreatedAt > 0 &&
-          nowMs - lastVisibleCreatedAt > subTaskSwitchMs;
-      chips.add(
-        ChatAppBarStatusChip(
-          text: stale ? 'Working on sub-tasks' : 'Thinking',
-          color: colorScheme.primary,
-          showDot: !stale,
-          icon: Icons.account_tree_outlined,
-        ),
-      );
-    }
-
-    // Debug-only seq watermark — proves the session is alive when the
-    // visible chat looks idle. Highest seq we have decrypted (incl.
-    // sidechain). The user requested this after observing seq=2000+ with
-    // few visible messages.
-    if (kDebugMode) {
-      final maxSeq = _debugMaxSeq;
-      if (maxSeq >= 0) {
-        chips.add(
-          ChatAppBarStatusChip(
-            text: 'seq=$maxSeq',
-            color: colorScheme.outline,
-            icon: Icons.bug_report_outlined,
-          ),
-        );
-      }
-    }
-
-    final latestUserMessage = _latestUserStatusMessage;
-    final sendStatus = latestUserMessage?['sendStatus'] as String?;
-    if (sendStatus != null) {
-      switch (sendStatus) {
-        case 'sending':
-          chips.add(
-            ChatAppBarStatusChip(
-              text: 'Sending',
-              color: colorScheme.onSurfaceVariant,
-              icon: Icons.arrow_upward_rounded,
-            ),
-          );
-          break;
-        case 'pending':
-          chips.add(
-            const ChatAppBarStatusChip(
-              text: 'Retry queued',
-              color: AppColors.warning,
-              icon: Icons.schedule_rounded,
-            ),
-          );
-          break;
-        case 'failed':
-          chips.add(
-            const ChatAppBarStatusChip(
-              text: 'Not delivered',
-              color: AppColors.error,
-              icon: Icons.error_outline_rounded,
-            ),
-          );
-          break;
-      }
-    }
-
-    if (_modelMode != ChatModelMode.defaultModel) {
-      chips.add(
-        ChatAppBarStatusChip(
-          text: _modelMode.label,
-          color: colorScheme.onSurfaceVariant,
-          icon: Icons.tune_rounded,
-        ),
-      );
-    }
-
-    return chips;
+    return buildChatStatusChips(
+      context: context,
+      colorScheme: colorScheme,
+      inputs: ChatStatusChipsInputs(
+        session: session,
+        isReady: sessionUiEntry.isSessionReadyForMessages,
+        hasRequests: session.agentState?.requests?.isNotEmpty ?? false,
+        sendIssue: sendIssue == null
+            ? null
+            : SendIssue(
+                title: sendIssue.snackBarText,
+                blocksSend: sendIssue.blocksSend,
+              ),
+        latestUserMessage: _latestUserStatusMessage,
+        lastVisibleNonSidechainCreatedAt: _lastVisibleNonSidechainCreatedAt,
+        debugMaxSeq: _debugMaxSeq,
+        modelMode: _modelMode,
+      ),
+    );
   }
 
   /// Whether the chat screen itself is wide enough to host its own
