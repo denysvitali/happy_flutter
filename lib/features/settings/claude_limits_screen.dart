@@ -14,6 +14,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'widgets/token_usage_chart.dart';
 
 /// Screen showing Claude Code rate limits fetched from a connected
 /// machine's local Claude credentials.
@@ -657,6 +658,13 @@ class _LocalUsageSection extends StatelessWidget {
         );
       }
 
+      // Quick metrics row.
+      children.addAll([
+        const SizedBox(height: AppSpacing.md),
+        TokenUsageMetrics(usage: u),
+        const SizedBox(height: AppSpacing.md),
+      ]);
+
       // Per-model breakdown (sorted by tokens desc).
       if (u.sortedTokensByModel.isEmpty) {
         children.add(
@@ -696,12 +704,8 @@ class _LocalUsageSection extends StatelessWidget {
         }
       }
 
-      // Daily breakdown (capped to 30 days, oldest first). Show the last
-      // 7 by default; full slice available by scrolling.
+      // Trend chart + daily breakdown.
       if (u.dailyModelTokens.isNotEmpty) {
-        final last7 = u.dailyModelTokens.length > 7
-            ? u.dailyModelTokens.sublist(u.dailyModelTokens.length - 7)
-            : u.dailyModelTokens;
         children
           ..add(const SizedBox(height: AppSpacing.md))
           ..add(
@@ -712,12 +716,28 @@ class _LocalUsageSection extends StatelessWidget {
               ),
               child: Text(
                 l10n.claudeLocalUsageLast30Days,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: cs.onSurfaceVariant,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ),
-          ),
-        );
+          )
+          ..add(
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              child: TokenUsageChart(
+                dailyModelTokens: u.dailyModelTokens,
+                maxDays: 30,
+              ),
+            ),
+          );
+
+        final last7 = u.dailyModelTokens.length > 7
+            ? u.dailyModelTokens.sublist(u.dailyModelTokens.length - 7)
+            : u.dailyModelTokens;
         for (final day in last7) {
           final dayTotal = day.tokensByModel.values.fold<int>(
             0,

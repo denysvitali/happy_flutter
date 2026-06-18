@@ -2783,6 +2783,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get claudeLocalUsageTotal => 'Total tokens';
 
   @override
+  String get claudeLocalUsageMessages => 'Messages';
+
+  @override
+  String get claudeLocalUsageSessions => 'Sessions';
+
+  @override
+  String get claudeLocalUsageToolCalls => 'Tool calls';
+
+  @override
   String get claudeLocalUsageNoData => 'No local usage yet';
 
   @override

@@ -5107,6 +5107,24 @@ abstract class AppLocalizations {
   /// **'Total tokens'**
   String get claudeLocalUsageTotal;
 
+  /// No description provided for @claudeLocalUsageMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get claudeLocalUsageMessages;
+
+  /// No description provided for @claudeLocalUsageSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get claudeLocalUsageSessions;
+
+  /// No description provided for @claudeLocalUsageToolCalls.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calls'**
+  String get claudeLocalUsageToolCalls;
+
   /// No description provided for @claudeLocalUsageNoData.
   ///
   /// In en, this message translates to:
