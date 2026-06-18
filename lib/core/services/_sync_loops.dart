@@ -236,6 +236,13 @@ extension SyncLoops on Sync {
   /// skipped. Used by `LoopsNotifier.refreshFromSync()`.
   Future<void> refreshAllLoops() async {
     if (!isInitialized) return;
+    if (!_isSocketConnected()) {
+      // No point waiting 10 s per session for emitWithAck to time out; the
+      // cached/MMKV state is the best we can show while disconnected, and
+      // `loops-updated` events will refresh us after reconnect.
+      logger.debug('[loops] refreshAllLoops skipped — socket not connected');
+      return;
+    }
     final sessionIds = _sessions.keys.toList(growable: false);
     for (final sessionId in sessionIds) {
       try {
@@ -253,6 +260,14 @@ extension SyncLoops on Sync {
           e,
         );
       } catch (e, st) {
+        if (Sync._isTransientConnectionError(e)) {
+          // Socket dropped mid-iteration (or was already down). Stop the
+          // loop so we don't emit a warning for every remaining session.
+          logger.debug(
+            '[loops] listLoops($sessionId) skipped — transient: $e',
+          );
+          continue;
+        }
         logger.warning(
           '[loops] listLoops($sessionId) failed: $e',
           e,

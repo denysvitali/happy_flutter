@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:happy_flutter/core/api/socket_io_client.dart';
 import 'package:happy_flutter/core/models/loop.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/loops_notifier.dart';
 import 'package:happy_flutter/core/services/loop_storage.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
@@ -29,6 +31,21 @@ Loop _sample({String id = 'id1234ab', String sessionId = 's1'}) {
     recurring: true,
     createdAt: 1700000000000,
     expiresAt: 1700604800000,
+  );
+}
+
+Session _session({required String id}) {
+  return Session(
+    id: id,
+    seq: 1,
+    createdAt: 0,
+    updatedAt: 0,
+    active: true,
+    activeAt: 0,
+    metadataVersion: 0,
+    agentStateVersion: 0,
+    thinking: false,
+    presence: 'offline',
   );
 }
 
@@ -173,6 +190,8 @@ void main() {
 
     test('refreshFromSync handles sync.listLoops failures gracefully',
         () async {
+      sync.testSessions['fail-session'] = _session(id: 'fail-session');
+      sync.testSocketConnectedOverride = true;
       sync.testSessionRPCOverride = (sid, method, params) async {
         throw StateError('boom');
       };
@@ -183,6 +202,40 @@ void main() {
       await notifier.refreshFromSync();
       expect(container.read(loopsNotifierProvider), isEmpty);
     });
+
+    test('refreshFromSync skips RPC when socket is disconnected', () async {
+      sync.testSessions['offline-session'] = _session(id: 'offline-session');
+      sync.testSocketConnectedOverride = false;
+      var rpcCalled = false;
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        rpcCalled = true;
+        throw StateError('should not be called');
+      };
+
+      container = ProviderContainer();
+      final notifier = container.read(loopsNotifierProvider.notifier);
+      // Should complete immediately and not invoke RPC while disconnected.
+      await notifier.refreshFromSync();
+      expect(rpcCalled, isFalse);
+      expect(container.read(loopsNotifierProvider), isEmpty);
+    });
+
+    test(
+      'refreshFromSync treats SocketNotConnectedException as transient',
+      () async {
+        sync.testSessions['flaky-session'] = _session(id: 'flaky-session');
+        sync.testSocketConnectedOverride = true;
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          throw const SocketNotConnectedException('rpc-call');
+        };
+
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        // Should not throw or surface the transient socket error.
+        await notifier.refreshFromSync();
+        expect(container.read(loopsNotifierProvider), isEmpty);
+      },
+    );
   });
 
   // Skip integration with SyncDomain counter — keep the unused import
