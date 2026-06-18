@@ -92,6 +92,11 @@ class WireParsers {
     // task_started / task_progress / task_notification carry the spawning
     // Agent tool_use id as `tool_use_id` (no parent_* form exists there).
     'tool_use_id',
+    // Newer Workflow / local_bash children encode the parent tool_use
+    // block uuid as `parentUuid` on the sidechain event envelope. Treated
+    // as a fallback after the explicit *_tool_use_id fields so the
+    // existing priority is preserved.
+    'parentUuid',
   ];
 
   static const _agentIdKeys = ['agentId', 'agent_id', 'task_id'];

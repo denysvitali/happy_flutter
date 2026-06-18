@@ -1334,6 +1334,70 @@ void main() {
         expect(result.hasOrphans, isFalse);
       }
     });
+
+    test('Workflow child with parentUuid-only linking (no '
+        'explicit parentToolUseId) groups under the parent', () {
+      // Newer Workflow / local_bash children encode the parent
+      // tool_use block uuid as `parentUuid` on the sidechain event
+      // envelope, with no explicit `parent_tool_use_id` /
+      // `parentToolUseId` field. The grouper must walk the
+      // parentUuid chain through _extractParentToolUseId's new
+      // 'parentUuid' fallback so the child attaches to its parent
+      // Workflow tool_use.
+      final toolUseId = 'toolu_workflow_parentUuid_01';
+      final workflowTask = <String, dynamic>{
+        'id': 'msg_seq220_u0',
+        'kind': 'tool-call',
+        'name': 'Workflow',
+        'uuid': 'JSONL-seq220',
+        'toolUseId': toolUseId,
+        'input': <String, dynamic>{'name': 'parentUuid-only linking'},
+      };
+      // child-1: only parentUuid is set; no parentToolUseId.
+      // _extractParentToolUseId must pick up 'parentUuid' and
+      // surface it as parentToolUseId='toolu_workflow_parentUuid_01'.
+      final child1 = <String, dynamic>{
+        'id': 'msg_seq221',
+        'kind': 'text',
+        'isSidechain': true,
+        'uuid': 'JSONL-seq221',
+        'parentUuid': toolUseId,
+      };
+      // child-2: parentUuid points at child-1's uuid; the chain
+      // must walk transitively through the already-grouped
+      // sidechain message back to the Workflow.
+      final child2 = <String, dynamic>{
+        'id': 'msg_seq222',
+        'kind': 'text',
+        'isSidechain': true,
+        'uuid': 'JSONL-seq222',
+        'parentUuid': 'JSONL-seq221',
+      };
+
+      final result = grouper.groupMessages(<Map<String, dynamic>>[
+        workflowTask,
+        child1,
+        child2,
+      ]);
+
+      expect(result, isNotNull);
+      expect(
+        result!.hasOrphans,
+        isFalse,
+        reason:
+            'parentUuid-only children must attach to the Workflow '
+            'tool_use via the WireParsers.parentUuid fallback',
+      );
+      expect(result.messages, hasLength(1));
+      final task = result.messages.first;
+      expect(task['name'], 'Workflow');
+      final children = (task['children'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(children.map((c) => c['id']).toList(), [
+        'msg_seq221',
+        'msg_seq222',
+      ]);
+    });
   });
 
   group('malformed Task ids', () {

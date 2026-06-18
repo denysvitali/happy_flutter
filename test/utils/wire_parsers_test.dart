@@ -266,6 +266,7 @@ void main() {
         'parentToolUseId',
         'parent_toolUseId',
         'tool_use_id',
+        'parentUuid',
       ]) {
         expect(
           WireParsers.sidechainParentToolUseId({key: 'tu_1'}),
