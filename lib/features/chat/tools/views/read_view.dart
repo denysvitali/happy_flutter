@@ -403,8 +403,16 @@ class _ContentBlockState extends State<_ContentBlock> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final lines = widget.content.split('\n');
-    final startLine = (widget.offset ?? 0) + 1;
+    // Claude Code's Read tool wraps its result in `cat -n` output: each
+    // line is prefixed with a right-aligned line number + tab (e.g.
+    // `     1\tvoid main() {`). The view already renders its own
+    // line-number column, so without stripping the prefixes we'd render
+    // line numbers twice. `_parseReadContent` also drops the single
+    // trailing `\n` that `cat -n` always emits, so the split count
+    // matches the actual rendered lines (no phantom row past EOF).
+    final parsed = _parseReadContent(widget.content);
+    final lines = parsed.content.split('\n');
+    final startLine = parsed.startLine ?? (widget.offset ?? 0) + 1;
 
     return Container(
       decoration: BoxDecoration(
@@ -446,7 +454,7 @@ class _ContentBlockState extends State<_ContentBlock> {
                   // Content column with syntax highlighting
                   Expanded(
                     child: SyntaxHighlighter(
-                      code: widget.content,
+                      code: parsed.content,
                       language: widget.extension.isNotEmpty
                           ? widget.extension.replaceFirst('.', '')
                           : null,
@@ -463,6 +471,45 @@ class _ContentBlockState extends State<_ContentBlock> {
       ),
     );
   }
+}
+
+/// Detects Claude Code's `cat -n` line-number prefix and strips it from
+/// every line of the Read tool result.
+///
+/// Returns the cleaned content plus the first line's number (so callers
+/// can seed the rendered line-number column with the file's actual line
+/// index — important for offset/limit reads where line 1 of the slice is
+/// actually file line 100). When the content is not `cat -n` shaped —
+/// older daemons, raw strings, fixture data — returns it untouched with
+/// `startLine: null`, and callers fall back to `(offset ?? 0) + 1`.
+///
+/// `cat -n` always emits exactly one trailing `\n`; we strip that one
+/// newline so the split count matches the actual rendered lines. A
+/// genuine trailing blank line in the file (content ending `…\n\n`)
+/// would still produce a phantom empty entry on split, but that's the
+/// user-data-preserving behaviour we want.
+({String content, int? startLine}) _parseReadContent(String raw) {
+  if (raw.isEmpty) return (content: raw, startLine: null);
+
+  // Drop the one trailing newline cat -n always appends. We don't trim
+  // arbitrary trailing whitespace — a file's blank trailing line is real
+  // content.
+  final body =
+      raw.endsWith('\n') ? raw.substring(0, raw.length - 1) : raw;
+  final lines = body.split('\n');
+
+  // cat -n line-number prefix: zero+ leading spaces, digits, tab.
+  // GNU cat right-aligns into a 6-wide field, but we accept any width.
+  final prefixRe = RegExp(r'^ *\d+\t');
+  if (!lines.every(prefixRe.hasMatch)) {
+    return (content: raw, startLine: null);
+  }
+  final firstMatch = RegExp(r'^ *(\d+)\t').firstMatch(lines.first)!;
+  final startLine = int.parse(firstMatch.group(1)!);
+  final stripped = lines
+      .map((l) => l.replaceFirst(prefixRe, ''))
+      .join('\n');
+  return (content: stripped, startLine: startLine);
 }
 
 /// Maximum height of the inline Read content pane. Bounds the chat row
