@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_terminal_colors.dart';
 import '../../core/theme/app_tokens.dart'
-    show AppFontSize, AppSpacing, AppDuration, AppCurve, AppTouchTarget;
+    show AppFontSize, AppIconSize, AppSpacing, AppBorder, AppDuration,
+        AppCurve, AppTouchTarget;
 import '../../core/utils/ansi_parser.dart';
 import '../../core/utils/safe_pop.dart';
 
@@ -38,10 +40,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     _cwd = extra?['cwd'] as String? ?? '/';
   }
 
-  static const _terminalTextStyle = TextStyle(
+  static final _terminalTextStyle = TextStyle(
     fontFamily: 'monospace',
     fontSize: AppFontSize.md,
-    color: Color(0xFFD4D4D4),
+    color: AppTerminalColors.dark.foreground,
     height: 1.5,
   );
 
@@ -139,12 +141,16 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    // Resolved once per build so every nested widget reads the same
+    // palette. The extension is registered in ThemeHelper so it's
+    // guaranteed to be present.
+    final term = Theme.of(context).extension<AppTerminalColors>()!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: term.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2D2D2D),
-        foregroundColor: const Color(0xFFD4D4D4),
+        backgroundColor: term.surface,
+        foregroundColor: term.foreground,
         title: Row(
           children: [
             const Icon(Icons.terminal, size: 18),
@@ -189,7 +195,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                         ? Text(
                             line,
                             style: _terminalTextStyle.copyWith(
-                              color: const Color(0xFF569CD6),
+                              color: term.commandText,
                             ),
                           )
                         : SelectableText.rich(
@@ -208,10 +214,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
 
           // Command input bar
           Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF2D2D2D),
+            decoration: BoxDecoration(
+              color: term.surface,
               border: Border(
-                top: BorderSide(color: Color(0xFF3C3C3C), width: 0.5),
+                top: BorderSide(
+                  color: term.border,
+                  width: AppBorder.hairline,
+                ),
               ),
             ),
             padding: EdgeInsets.only(
@@ -222,12 +231,12 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             ),
             child: Row(
               children: [
-                const Text(
+                Text(
                   r'$ ',
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.base,
-                    color: Color(0xFF4EC94E),
+                    color: term.commandPrompt,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -241,7 +250,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                       isDense: true,
                       hintText: context.l10n.terminalEnterCommand,
                       hintStyle: TextStyle(
-                        color: const Color(0xFF6B6B6B),
+                        color: term.hint,
                         fontFamily: 'monospace',
                         fontSize: AppFontSize.md,
                         fontStyle: FontStyle.italic,
@@ -250,21 +259,21 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                         horizontal: AppSpacing.sm,
                       ),
                     ),
-                    cursorColor: const Color(0xFFD4D4D4),
+                    cursorColor: term.cursor,
                     textInputAction: TextInputAction.send,
                     autocorrect: false,
                     onSubmitted: _isSending ? null : _submitCommand,
                   ),
                 ),
                 if (_isSending)
-                  const SizedBox(
+                  SizedBox(
                     width: AppTouchTarget.min,
                     height: AppTouchTarget.min,
                     child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.smd),
+                      padding: const EdgeInsets.all(AppSpacing.smd),
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFF4EC94E),
+                        color: term.accent,
                       ),
                     ),
                   )
@@ -273,10 +282,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     width: AppTouchTarget.min,
                     height: AppTouchTarget.min,
                     child: IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.send,
-                        color: Color(0xFF4EC94E),
-                        size: AppSpacing.xl,
+                        color: term.commandPrompt,
+                        size: AppIconSize.xl,
                       ),
                       onPressed: () => _submitCommand(_commandController.text),
                       tooltip: context.l10n.terminalSendCommand,

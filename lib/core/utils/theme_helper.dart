@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:happy_flutter/core/providers/settings_notifier.dart';
 import 'package:happy_flutter/core/theme/app_color_scheme.dart';
+import 'package:happy_flutter/core/theme/app_terminal_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Theme mode enumeration matching React Native's themePreference
@@ -697,6 +698,7 @@ class ThemeHelper {
       ),
       extensions: <ThemeExtension<dynamic>>[
         AppColorScheme.light(),
+        AppTerminalColors.dark,
       ],
     );
     _lightCache[effectiveSeed] = theme;
@@ -762,6 +764,7 @@ class ThemeHelper {
       ),
       extensions: <ThemeExtension<dynamic>>[
         AppColorScheme.dark(),
+        AppTerminalColors.dark,
       ],
     );
     _darkCache[effectiveSeed] = theme;

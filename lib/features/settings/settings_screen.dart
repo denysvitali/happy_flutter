@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/components/settings/recent_settings_panel.dart';
+import '../../core/config/app_config.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
@@ -515,23 +516,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsNavRow(
           icon: Icons.code,
           title: l10n.settingsGitHub,
-          subtitle: 'slopus/happy',
-          onTap: () => openUrl('https://github.com/slopus/happy'),
+          subtitle: AppConfig.githubSlug,
+          onTap: () => openUrl(AppConfig.githubUrl),
         ),
         SettingsNavRow(
           icon: Icons.bug_report_outlined,
           title: l10n.settingsReportIssue,
-          onTap: () => openUrl('https://github.com/slopus/happy/issues'),
+          onTap: () => openUrl(AppConfig.githubIssuesUrl),
         ),
         SettingsNavRow(
           icon: Icons.privacy_tip_outlined,
           title: l10n.settingsPrivacyPolicy,
-          onTap: () => openUrl('https://happy.dev/privacy'),
+          onTap: () => openUrl(AppConfig.privacyUrl),
         ),
         SettingsNavRow(
           icon: Icons.gavel_outlined,
           title: l10n.settingsTermsOfService,
-          onTap: () => openUrl('https://happy.dev/terms'),
+          onTap: () => openUrl(AppConfig.termsUrl),
         ),
       ],
     );
