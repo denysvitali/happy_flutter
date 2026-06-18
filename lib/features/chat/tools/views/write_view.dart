@@ -485,7 +485,7 @@ class _LineNumberedCode extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                   fontFamily: 'monospace',
-                  fontSize: AppFontSize.sm,
+                  fontSize: AppFontSize.md,
                   height: AppLineHeight.relaxed,
                 ),
               ),
@@ -501,7 +501,7 @@ class _LineNumberedCode extends StatelessWidget {
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurface,
                 fontFamily: 'monospace',
-                fontSize: AppFontSize.sm,
+                fontSize: AppFontSize.md,
                 height: AppLineHeight.relaxed,
               ),
             );

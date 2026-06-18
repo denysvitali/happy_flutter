@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/tools/views/write_view.dart';
 
 Widget _wrap(Widget child) {
@@ -33,7 +34,9 @@ void main() {
       // Path is rendered via RichText with TextSpans
       expect(
         find.byWidgetPredicate(
-          (w) => w is RichText && w.text.toPlainText().contains('new_file.dart'),
+          (w) =>
+              w is RichText &&
+              w.text.toPlainText().contains('new_file.dart'),
         ),
         findsOneWidget,
       );
@@ -233,5 +236,52 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Python'), findsOneWidget);
     });
+
+    // Regression guard: Write tool result used to render code at
+    // AppFontSize.sm (12) while Edit/MultiEdit Apply Changes render at
+    // AppFontSize.md (13) via the canonical DiffView. The mismatch was
+    // visually jarring because both surfaces are titled "Apply Changes".
+    // Pin the body code to the canonical "code blocks, tool output" size
+    // (AppFontSize.md) so a future refactor can't silently shrink it back.
+    testWidgets(
+      'renders code body at AppFontSize.md to match Edit/MultiEdit',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            WriteView(
+              tool: {
+                'input': {
+                  'path': '/font.dart',
+                  'content': 'void main() {}\n',
+                },
+              },
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        // The code body uses monospace Text widgets. Filter to the ones
+        // whose data matches the source line text (line numbers are also
+        // monospace, but their text is just digits).
+        final bodyTexts = tester
+            .widgetList<Text>(find.byType(Text))
+            .where(
+              (t) =>
+                  t.style?.fontFamily == 'monospace' &&
+                  t.data == 'void main() {}',
+            )
+            .toList();
+        expect(bodyTexts, isNotEmpty,
+            reason: 'expected the source line to be rendered as monospace');
+        for (final t in bodyTexts) {
+          expect(t.style?.fontSize, equals(AppFontSize.md),
+              reason: 'Write code body regressed to ${t.style?.fontSize}; '
+                  'expected AppFontSize.md (${AppFontSize.md}) to match '
+                  'Edit/MultiEdit Apply Changes and the canonical '
+                  'CodeBlockWidget default');
+        }
+      },
+    );
   });
 }
