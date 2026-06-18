@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../core/i18n/app_localizations.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/clipboard_utils.dart';
 import '../../../../core/utils/wire_parsers.dart';
 import '../../markdown/markdown_view.dart';
 import '../tool_section_view.dart';
-import '../tool_view_colors.dart';
 
 /// View for displaying ExitPlanMode tool (plan proposal).
 ///
@@ -84,7 +84,6 @@ class _CopyPlanButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
     final l10n = context.l10n;
     return Tooltip(
       message: copied ? l10n.commonCopied : l10n.commonCopy,
@@ -102,7 +101,9 @@ class _CopyPlanButton extends StatelessWidget {
               copied ? Icons.check : Icons.copy,
               key: ValueKey(copied),
               size: 16,
-              color: copied ? c.copyIconDone : c.copyIcon,
+              color: copied
+                  ? AppColors.success
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),

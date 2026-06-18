@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/clipboard_utils.dart';
-import 'package:happy_flutter/features/chat/tools/tool_view_colors.dart';
 
 /// A tap-to-copy icon button for tool views: copies [text] to the clipboard
 /// and briefly swaps to a checkmark for 2 seconds to confirm the copy.
@@ -32,8 +32,6 @@ class _ToolViewCopyButtonState extends State<ToolViewCopyButton> {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
-
     return GestureDetector(
       onTap: _handleCopy,
       child: AnimatedSwitcher(
@@ -42,7 +40,9 @@ class _ToolViewCopyButtonState extends State<ToolViewCopyButton> {
           _copied ? Icons.check : Icons.copy,
           key: ValueKey(_copied),
           size: widget.iconSize,
-          color: _copied ? c.copyIconDone : c.copyIcon,
+          color: _copied
+              ? AppColors.success
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -71,7 +71,7 @@ class ToolViewShowMoreButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final count = hiddenCount;
     final collapsedLabel = count != null
         ? 'Show $count more line${count == 1 ? '' : 's'}'
@@ -83,8 +83,8 @@ class ToolViewShowMoreButton extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsm),
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: c.border)),
-          color: c.headerBg,
+          border: Border(top: BorderSide(color: cs.outlineVariant)),
+          color: cs.surfaceContainer,
           borderRadius: const BorderRadius.only(
             bottomLeft: Radius.circular(AppRadius.sm),
             bottomRight: Radius.circular(AppRadius.sm),
@@ -96,14 +96,14 @@ class ToolViewShowMoreButton extends StatelessWidget {
             Icon(
               expanded ? Icons.expand_less : Icons.expand_more,
               size: 14,
-              color: c.mutedText,
+              color: cs.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(
               expanded ? 'Show less' : collapsedLabel,
               style: TextStyle(
                 fontSize: AppFontSize.xs,
-                color: c.mutedText,
+                color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
               ),
             ),
