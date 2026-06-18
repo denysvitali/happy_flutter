@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
@@ -392,8 +393,6 @@ class _CreatedBadgeState extends State<_CreatedBadge>
   late final AnimationController _controller;
   late final Animation<double> _scale;
 
-  static const _green = Color(0xFF1A7F37);
-
   @override
   void initState() {
     super.initState();
@@ -425,10 +424,10 @@ class _CreatedBadgeState extends State<_CreatedBadge>
           vertical: AppSpacing.xs,
         ),
         decoration: BoxDecoration(
-          color: _green.withValues(alpha: 0.12),
+          color: AppColors.success.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AppRadius.xs),
           border: Border.all(
-            color: _green.withValues(alpha: 0.4),
+            color: AppColors.success.withValues(alpha: 0.4),
             width: AppBorder.hairline,
           ),
         ),
@@ -438,13 +437,13 @@ class _CreatedBadgeState extends State<_CreatedBadge>
             const Icon(
               Icons.check_circle_outline,
               size: 12,
-              color: _green,
+              color: AppColors.success,
             ),
             const SizedBox(width: AppSpacing.xs),
             Text(
               'Created',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: _green,
+                color: AppColors.success,
                 fontWeight: FontWeight.w600,
                 fontSize: AppFontSize.xs,
               ),

@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/components/diff_view_widget.dart'
     as dw
     show DiffView;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'bash_view.dart' show FilePillChip;
@@ -186,12 +187,9 @@ class _LineDeltaBadge extends StatelessWidget {
   final int count;
   final bool isAddition;
 
-  static const _addGreen = Color(0xFF1A7F37);
-  static const _removeRed = Color(0xFFCF222E);
-
   @override
   Widget build(BuildContext context) {
-    final color = isAddition ? _addGreen : _removeRed;
+    final color = isAddition ? AppColors.success : AppColors.error;
     final label = isAddition ? '+$count' : '-$count';
     return Container(
       padding: const EdgeInsets.symmetric(
