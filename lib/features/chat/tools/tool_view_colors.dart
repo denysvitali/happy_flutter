@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:happy_flutter/core/ui/diff/diff_types.dart';
+import 'package:happy_flutter/core/theme/diff_theme.dart' as ext;
+import 'package:happy_flutter/core/ui/diff/diff_types.dart' as ui;
 
 /// Theme-aware color palette for tool views (terminal, diff, file
 /// operations). Resolves to GitHub-light or GitHub-dark colors
 /// depending on [Brightness].
+///
+/// The diff palette is sourced from the [ext.DiffTheme] `ThemeExtension`
+/// registered in ThemeHelper. The remaining chrome (bg, border, chip,
+/// badges, copy icon, blue/green/red, error) is unique to this class
+/// and not part of the diff palette.
 class ToolViewColors {
   ToolViewColors._({
     required this.bg,
@@ -30,13 +36,17 @@ class ToolViewColors {
   });
 
   /// Resolve colors from the current [BuildContext].
+  ///
+  /// The diff palette is sourced from `context.diffTheme` (the
+  /// [ext.DiffTheme] extension). All other fields are local to this
+  /// class.
   factory ToolViewColors.of(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark
-        ? ToolViewColors._dark()
-        : ToolViewColors._light();
+        ? ToolViewColors._dark(context)
+        : ToolViewColors._light(context);
   }
 
-  factory ToolViewColors._dark() {
+  factory ToolViewColors._dark(BuildContext context) {
     return ToolViewColors._(
       bg: const Color(0xFF0D1117),
       headerBg: const Color(0xFF161B22),
@@ -56,29 +66,13 @@ class ToolViewColors {
       redBadgeBorder: const Color(0xFF5A1E1E),
       errorBg: const Color(0xFF160B0B),
       errorBorder: const Color(0xFF5A1E1E),
-      diffTheme: const DiffTheme(
-        addedBg: Color(0xFF0D2818),
-        addedText: Color(0xFF3FB950),
-        removedBg: Color(0xFF2D1117),
-        removedText: Color(0xFFF85149),
-        contextBg: Colors.transparent,
-        contextText: Color(0xFFE6EDF3),
-        lineNumberBg: Color(0xFF161B22),
-        lineNumberText: Color(0xFF484F58),
-        hunkHeaderBg: Color(0xFF1C2128),
-        hunkHeaderText: Color(0xFF8B949E),
-        inlineAddedBg: Color(0xFF1A4328),
-        inlineAddedText: Color(0xFF3FB950),
-        inlineRemovedBg: Color(0xFF5A1E1E),
-        inlineRemovedText: Color(0xFFF85149),
-        leadingSpaceDot: Color(0xFF484F58),
-      ),
+      diffTheme: _diffThemeFromExtension(context),
       copyIcon: const Color(0xFF8B949E),
       copyIconDone: const Color(0xFF3FB950),
     );
   }
 
-  factory ToolViewColors._light() {
+  factory ToolViewColors._light(BuildContext context) {
     return ToolViewColors._(
       bg: const Color(0xFFF6F8FA),
       headerBg: const Color(0xFFEBEDF0),
@@ -98,25 +92,34 @@ class ToolViewColors {
       redBadgeBorder: const Color(0xFFFFADAD),
       errorBg: const Color(0xFFFFF0EE),
       errorBorder: const Color(0xFFFFADAD),
-      diffTheme: const DiffTheme(
-        addedBg: Color(0xFFE6FFEC),
-        addedText: Color(0xFF1A7F37),
-        removedBg: Color(0xFFFFEBE9),
-        removedText: Color(0xFFCF222E),
-        contextBg: Colors.transparent,
-        contextText: Color(0xFF24292F),
-        lineNumberBg: Color(0xFFF5F5F5),
-        lineNumberText: Color(0xFF6E7781),
-        hunkHeaderBg: Color(0xFFF0F0F0),
-        hunkHeaderText: Color(0xFF656D76),
-        inlineAddedBg: Color(0xFFACEDBE),
-        inlineAddedText: Color(0xFF1A7F37),
-        inlineRemovedBg: Color(0xFFFFCECB),
-        inlineRemovedText: Color(0xFFCF222E),
-        leadingSpaceDot: Color(0xFFD4D4D4),
-      ),
+      diffTheme: _diffThemeFromExtension(context),
       copyIcon: const Color(0xFF656D76),
       copyIconDone: const Color(0xFF1A7F37),
+    );
+  }
+
+  /// Bridge the new [ext.DiffTheme] `ThemeExtension` palette onto the
+  /// legacy [ui.DiffTheme] value type expected by the `DiffView`
+  /// widget. The two share the same field set, so the mapping is
+  /// field-for-field.
+  static ui.DiffTheme _diffThemeFromExtension(BuildContext context) {
+    final ext = context.diffTheme;
+    return ui.DiffTheme(
+      addedBg: ext.addedBg,
+      addedText: ext.addedText,
+      removedBg: ext.removedBg,
+      removedText: ext.removedText,
+      contextBg: ext.contextBg,
+      contextText: ext.contextText,
+      lineNumberBg: ext.lineNumberBg,
+      lineNumberText: ext.lineNumberText,
+      hunkHeaderBg: ext.hunkHeaderBg,
+      hunkHeaderText: ext.hunkHeaderText,
+      inlineAddedBg: ext.inlineAddedBg,
+      inlineAddedText: ext.inlineAddedText,
+      inlineRemovedBg: ext.inlineRemovedBg,
+      inlineRemovedText: ext.inlineRemovedText,
+      leadingSpaceDot: ext.leadingSpaceDot,
     );
   }
 
@@ -138,7 +141,7 @@ class ToolViewColors {
   final Color redBadgeBorder;
   final Color errorBg;
   final Color errorBorder;
-  final DiffTheme diffTheme;
+  final ui.DiffTheme diffTheme;
   final Color copyIcon;
   final Color copyIconDone;
 }

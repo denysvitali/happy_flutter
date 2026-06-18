@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/code_viewer_theme.dart';
+import '../../core/theme/language_colors.dart';
 import '../../core/utils/clipboard_utils.dart';
 import 'syntax_highlighter.dart';
 
@@ -311,30 +312,11 @@ class _CodeHeaderState extends State<_CodeHeader> {
   }
 
   /// Returns a subtle accent colour associated with the language.
-  Color _languageColor(String? lang) {
-    final normalized = lang?.toLowerCase() ?? '';
-    return switch (normalized) {
-      'dart' => const Color(0xFF00B4AB),
-      'flutter' => const Color(0xFF54C5F8),
-      'python' || 'py' => const Color(0xFF3572A5),
-      'javascript' || 'js' || 'jsx' => const Color(0xFFF1E05A),
-      'typescript' || 'ts' || 'tsx' => const Color(0xFF3178C6),
-      'rust' || 'rs' => const Color(0xFFDEA584),
-      'go' || 'golang' => const Color(0xFF00ADD8),
-      'swift' => const Color(0xFFF05138),
-      'kotlin' || 'kt' => const Color(0xFFA97BFF),
-      'java' => const Color(0xFFB07219),
-      'ruby' || 'rb' => const Color(0xFF701516),
-      'bash' || 'sh' || 'shell' => const Color(0xFF89E051),
-      'css' || 'scss' || 'sass' => const Color(0xFF563D7C),
-      'html' || 'xml' => const Color(0xFFE34C26),
-      'json' => const Color(0xFF6B8E23),
-      'sql' => const Color(0xFFE38C00),
-      'yaml' || 'yml' => const Color(0xFFCB171E),
-      'markdown' || 'md' => const Color(0xFF083FA1),
-      _ => const Color(0xFF8B949E),
-    };
-  }
+  ///
+  /// Delegates to the canonical [colorForLanguage] lookup in
+  /// `core/theme/language_colors.dart` so all language→colour
+  /// mappings live in a single place.
+  Color _languageColor(String? lang) => colorForLanguage(lang);
 }
 
 /// Animated copy button with "Copied!" feedback.
