@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/exit_code_badge.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
-import '../tool_view_colors.dart';
 
 /// View for displaying Gemini execute tool (lowercase 'execute').
 class GeminiExecuteView extends StatefulWidget {
@@ -163,13 +163,13 @@ class _TerminalCommandBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = ToolViewColors.of(context);
+    final cs = theme.colorScheme;
 
     return Container(
       decoration: BoxDecoration(
-        color: c.bg,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: c.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,21 +182,22 @@ class _TerminalCommandBar extends StatelessWidget {
               vertical: AppSpacing.xsm,
             ),
             decoration: BoxDecoration(
-              color: c.headerBg,
+              color: cs.surfaceContainer,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(bottom: BorderSide(color: c.border)),
+              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
             ),
             child: Row(
               children: [
-                Icon(Icons.terminal, size: AppIconSize.sm, color: c.mutedText),
+                Icon(Icons.terminal,
+                    size: AppIconSize.sm, color: cs.onSurfaceVariant),
                 const SizedBox(width: AppSpacing.xsm),
                 Text(
                   'execute',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: c.mutedText,
+                    color: cs.onSurfaceVariant,
                     fontFamily: 'monospace',
                     letterSpacing: 0.5,
                   ),
@@ -207,7 +208,7 @@ class _TerminalCommandBar extends StatelessWidget {
                     '\u00b7',
                     style: TextStyle(
                       fontSize: AppFontSize.xs,
-                      color: c.lineNumberText,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -218,7 +219,7 @@ class _TerminalCommandBar extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: 'monospace',
                         fontSize: AppFontSize.xs,
-                        color: c.lineNumberText,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -242,7 +243,7 @@ class _TerminalCommandBar extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.md,
-                    color: c.green,
+                    color: AppColors.success,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -253,7 +254,7 @@ class _TerminalCommandBar extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.md,
-                      color: c.primaryText,
+                      color: cs.onSurface,
                       height: AppLineHeight.normal,
                     ),
                   ),
@@ -270,8 +271,8 @@ class _TerminalCommandBar extends StatelessWidget {
                 vertical: AppSpacing.xsm + 1,
               ),
               decoration: BoxDecoration(
-                color: c.headerBg,
-                border: Border(top: BorderSide(color: c.border)),
+                color: cs.surfaceContainer,
+                border: Border(top: BorderSide(color: cs.outlineVariant)),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(AppRadius.sm),
                   bottomRight: Radius.circular(AppRadius.sm),
@@ -279,14 +280,15 @@ class _TerminalCommandBar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: AppIconSize.xs, color: c.blue),
+                  Icon(Icons.info_outline,
+                      size: AppIconSize.xs, color: cs.primary),
                   const SizedBox(width: AppSpacing.xsm),
                   Expanded(
                     child: Text(
                       description!,
                       style: TextStyle(
                         fontSize: AppFontSize.sm,
-                        color: c.mutedText,
+                        color: cs.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -323,7 +325,7 @@ class _TerminalOutputSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = ToolViewColors.of(context);
+    final cs = theme.colorScheme;
     final lines = output.split('\n');
     final totalLines = lines.length;
     final needsTruncation = totalLines > maxLines;
@@ -332,9 +334,9 @@ class _TerminalOutputSection extends StatelessWidget {
         : lines.take(maxLines).toList();
     final visibleText = visibleLines.join('\n');
 
-    final labelColor = isError ? c.red : c.mutedText;
-    final borderColor = isError ? c.errorBorder : c.border;
-    final bgColor = isError ? c.errorBg : c.bg;
+    final labelColor = isError ? AppColors.error : cs.onSurfaceVariant;
+    final borderColor = isError ? AppColors.error : cs.outlineVariant;
+    final bgColor = isError ? cs.errorContainer : cs.surface;
 
     return Container(
       margin: const EdgeInsets.only(top: AppSpacing.xsm),
@@ -353,7 +355,7 @@ class _TerminalOutputSection extends StatelessWidget {
               vertical: AppSpacing.xxs2,
             ),
             decoration: BoxDecoration(
-              color: c.headerBg,
+              color: cs.surfaceContainer,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
@@ -368,7 +370,7 @@ class _TerminalOutputSection extends StatelessWidget {
                     child: Icon(
                       Icons.error_outline,
                       size: AppIconSize.xs,
-                      color: c.red,
+                      color: AppColors.error,
                     ),
                   ),
                 Text(
@@ -385,7 +387,7 @@ class _TerminalOutputSection extends StatelessWidget {
                 Text(
                   '$totalLines line${totalLines == 1 ? '' : 's'}',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: c.lineNumberText,
+                    color: cs.onSurfaceVariant,
                     fontSize: AppFontSize.xxs,
                   ),
                 ),
@@ -403,7 +405,7 @@ class _TerminalOutputSection extends StatelessWidget {
                   defaultStyle: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.sm,
-                    color: isError ? c.errorText : c.primaryText,
+                    color: isError ? AppColors.error : cs.onSurface,
                     height: AppLineHeight.relaxed,
                   ),
                 ),

@@ -10,7 +10,6 @@ import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 
 import '../tool_section_view.dart';
-import '../tool_view_colors.dart';
 import '_section_label.dart';
 import 'bash_view.dart' show FilePillChip;
 
@@ -202,13 +201,13 @@ class _FileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = ToolViewColors.of(context);
+    final cs = theme.colorScheme;
 
     return Container(
       decoration: BoxDecoration(
-        color: c.bg,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: c.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -220,12 +219,12 @@ class _FileHeader extends StatelessWidget {
               vertical: AppSpacing.xsm,
             ),
             decoration: BoxDecoration(
-              color: c.headerBg,
+              color: cs.surfaceContainer,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(bottom: BorderSide(color: c.border)),
+              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
             ),
             child: Row(
               children: [
@@ -237,7 +236,7 @@ class _FileHeader extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.sm,
-                      color: c.primaryText,
+                      color: cs.onSurface,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -259,7 +258,7 @@ class _FileHeader extends StatelessWidget {
                 Text(
                   'read',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: c.mutedText,
+                    color: cs.onSurfaceVariant,
                     fontFamily: 'monospace',
                     letterSpacing: 0.4,
                   ),
@@ -268,9 +267,9 @@ class _FileHeader extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xsm),
                   AppBadge(
                     label: extension.replaceFirst('.', ''),
-                    backgroundColor: c.chipBg,
-                    borderColor: c.chipBorder,
-                    foregroundColor: c.blue,
+                    backgroundColor: cs.surfaceContainerHigh,
+                    borderColor: cs.outlineVariant,
+                    foregroundColor: cs.primary,
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.xxs2,
                       vertical: 1,
@@ -348,13 +347,12 @@ class _MetaChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
-
+    final cs = Theme.of(context).colorScheme;
     return AppBadge(
       label: label,
-      backgroundColor: c.chipBg,
-      borderColor: c.chipBorder,
-      foregroundColor: c.mutedText,
+      backgroundColor: cs.surfaceContainerHigh,
+      borderColor: cs.outlineVariant,
+      foregroundColor: cs.onSurfaceVariant,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xxs2,
         vertical: AppSpacing.xs - 1,
@@ -403,16 +401,16 @@ class _ContentBlockState extends State<_ContentBlock> {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final lines = widget.content.split('\n');
     final startLine = (widget.offset ?? 0) + 1;
 
     return Container(
       decoration: BoxDecoration(
-        color: c.bg,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: c.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       // Bounded scrollable viewport. Long files render in a fixed-height
       // pane (instead of growing the chat row), and the user can drag/scroll
@@ -478,7 +476,7 @@ class _LineNumbers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final buffer = StringBuffer();
     for (var i = 0; i < count; i++) {
       if (i > 0) buffer.write('\n');
@@ -490,7 +488,7 @@ class _LineNumbers extends StatelessWidget {
       style: TextStyle(
         fontFamily: 'monospace',
         fontSize: AppFontSize.sm,
-        color: c.lineNumberText,
+        color: cs.onSurfaceVariant,
         height: AppLineHeight.relaxed,
       ),
       textAlign: TextAlign.right,

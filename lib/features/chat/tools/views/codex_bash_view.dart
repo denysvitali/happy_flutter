@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/exit_code_badge.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
@@ -9,7 +10,6 @@ import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
-import '../tool_view_colors.dart';
 
 /// View for displaying CodexBash tool (parsed bash commands).
 class CodexBashView extends StatelessWidget {
@@ -70,7 +70,7 @@ class CodexBashView extends StatelessWidget {
       return _buildCommandView(context, commandStr ?? '', cwd, null, 'pending');
     }
 
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final resolvedPath = resolvePath(fileName, metadata);
     final lastSlash = resolvedPath.lastIndexOf('/');
     final dir = lastSlash >= 0 ? resolvedPath.substring(0, lastSlash + 1) : '';
@@ -81,7 +81,7 @@ class CodexBashView extends StatelessWidget {
     return ToolSectionView(
       child: _FileOperationBar(
         icon: Icons.visibility_outlined,
-        iconColor: c.blue,
+        iconColor: cs.primary,
         label: context.l10n.toolSectionReading,
         dir: dir,
         filename: displayName,
@@ -100,7 +100,6 @@ class CodexBashView extends StatelessWidget {
       return _buildCommandView(context, commandStr ?? '', cwd, null, 'pending');
     }
 
-    final c = ToolViewColors.of(context);
     final resolvedPath = resolvePath(fileName, metadata);
     final lastSlash = resolvedPath.lastIndexOf('/');
     final dir = lastSlash >= 0 ? resolvedPath.substring(0, lastSlash + 1) : '';
@@ -111,7 +110,7 @@ class CodexBashView extends StatelessWidget {
     return ToolSectionView(
       child: _FileOperationBar(
         icon: Icons.edit_document,
-        iconColor: c.green,
+        iconColor: AppColors.success,
         label: context.l10n.toolSectionWriting,
         dir: dir,
         filename: displayName,
@@ -207,13 +206,13 @@ class _FileOperationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = ToolViewColors.of(context);
+    final cs = theme.colorScheme;
 
     return Container(
       decoration: BoxDecoration(
-        color: c.bg,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: c.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,12 +225,12 @@ class _FileOperationBar extends StatelessWidget {
               vertical: AppSpacing.xsm,
             ),
             decoration: BoxDecoration(
-              color: c.headerBg,
+              color: cs.surfaceContainer,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(bottom: BorderSide(color: c.border)),
+              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
             ),
             child: Row(
               children: [
@@ -260,7 +259,7 @@ class _FileOperationBar extends StatelessWidget {
                 Icon(
                   Icons.insert_drive_file_outlined,
                   size: AppIconSize.sm,
-                  color: c.mutedText,
+                  color: cs.onSurfaceVariant,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
@@ -274,7 +273,7 @@ class _FileOperationBar extends StatelessWidget {
                             style: TextStyle(
                               fontFamily: 'monospace',
                               fontSize: AppFontSize.md,
-                              color: c.mutedText,
+                              color: cs.onSurfaceVariant,
                             ),
                           ),
                         TextSpan(
@@ -282,7 +281,7 @@ class _FileOperationBar extends StatelessWidget {
                           style: TextStyle(
                             fontFamily: 'monospace',
                             fontSize: AppFontSize.md,
-                            color: c.primaryText,
+                            color: cs.onSurface,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -305,7 +304,7 @@ class _FileOperationBar extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: AppFontSize.sm,
-                  color: c.mutedText,
+                  color: cs.onSurfaceVariant,
                   height: AppLineHeight.normal,
                 ),
               ),
@@ -393,13 +392,13 @@ class _TerminalCommandBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = ToolViewColors.of(context);
+    final cs = theme.colorScheme;
 
     return Container(
       decoration: BoxDecoration(
-        color: c.bg,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: c.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,21 +411,22 @@ class _TerminalCommandBar extends StatelessWidget {
               vertical: AppSpacing.xsm,
             ),
             decoration: BoxDecoration(
-              color: c.headerBg,
+              color: cs.surfaceContainer,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
               ),
-              border: Border(bottom: BorderSide(color: c.border)),
+              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
             ),
             child: Row(
               children: [
-                Icon(Icons.terminal, size: AppIconSize.sm, color: c.mutedText),
+                Icon(Icons.terminal,
+                    size: AppIconSize.sm, color: cs.onSurfaceVariant),
                 const SizedBox(width: AppSpacing.xsm),
                 Text(
                   'bash',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: c.mutedText,
+                    color: cs.onSurfaceVariant,
                     fontFamily: 'monospace',
                     letterSpacing: 0.5,
                   ),
@@ -437,7 +437,7 @@ class _TerminalCommandBar extends StatelessWidget {
                     '\u00b7',
                     style: TextStyle(
                       fontSize: AppFontSize.xs,
-                      color: c.lineNumberText,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -448,7 +448,7 @@ class _TerminalCommandBar extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: 'monospace',
                         fontSize: AppFontSize.xs,
-                        color: c.lineNumberText,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -472,7 +472,7 @@ class _TerminalCommandBar extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.md,
-                    color: c.green,
+                    color: AppColors.success,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -483,7 +483,7 @@ class _TerminalCommandBar extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.md,
-                      color: c.primaryText,
+                      color: cs.onSurface,
                       height: AppLineHeight.normal,
                     ),
                   ),
@@ -519,13 +519,14 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = ToolViewColors.of(context);
+    final cs = theme.colorScheme;
+    final isError = widget.isError;
     final totalLines = widget.output.split('\n').length;
     final needsTruncation = totalLines > widget.maxLines;
 
-    final labelColor = widget.isError ? c.red : c.mutedText;
-    final borderColor = widget.isError ? c.errorBorder : c.border;
-    final bgColor = widget.isError ? c.errorBg : c.bg;
+    final labelColor = isError ? AppColors.error : cs.onSurfaceVariant;
+    final borderColor = isError ? AppColors.error : cs.outlineVariant;
+    final bgColor = isError ? cs.errorContainer : cs.surface;
 
     final lines = widget.output.split('\n');
     final visibleLines = _expanded || !needsTruncation
@@ -536,7 +537,7 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
       fontFamily: 'monospace',
       fontFamilyFallback: const ['Courier New', 'Courier'],
       fontSize: AppFontSize.sm,
-      color: c.primaryText,
+      color: cs.onSurface,
       height: AppLineHeight.relaxed,
     );
     final parsedSpans = AnsiParser.parse(
@@ -561,7 +562,7 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
               vertical: AppSpacing.xxs2,
             ),
             decoration: BoxDecoration(
-              color: c.headerBg,
+              color: cs.surfaceContainer,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(AppRadius.sm),
                 topRight: Radius.circular(AppRadius.sm),
@@ -570,13 +571,13 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
             ),
             child: Row(
               children: [
-                if (widget.isError)
+                if (isError)
                   Padding(
                     padding: const EdgeInsets.only(right: AppSpacing.xxs2),
                     child: Icon(
                       Icons.error_outline,
                       size: AppIconSize.xs,
-                      color: c.red,
+                      color: AppColors.error,
                     ),
                   ),
                 Text(
@@ -593,7 +594,7 @@ class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
                 Text(
                   '$totalLines line${totalLines == 1 ? '' : 's'}',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: c.lineNumberText,
+                    color: cs.onSurfaceVariant,
                     fontSize: AppFontSize.xxs,
                   ),
                 ),

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../../syntax_highlighter.dart';
 import '../json_viewer.dart';
 import '../tool_section_view.dart';
-import '../tool_view_colors.dart';
 
 /// File change model for CodexPatch results.
 class FileChange {
@@ -67,7 +67,7 @@ class CodexPatchView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final rawInput = tool['input'];
     final input = WireParsers.asMap(rawInput) ?? {};
     final changes = input['changes'];
@@ -87,9 +87,9 @@ class CodexPatchView extends StatelessWidget {
     return ToolSectionView(
       child: Container(
         decoration: BoxDecoration(
-          color: c.bg,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: c.border),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,27 +364,27 @@ class _PatchHeaderBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = ToolViewColors.of(context);
+    final cs = theme.colorScheme;
     final label = '$fileCount file${fileCount != 1 ? 's' : ''} changed';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: c.headerBg,
+        color: cs.surfaceContainer,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(AppRadius.sm),
           topRight: Radius.circular(AppRadius.sm),
         ),
-        border: Border(bottom: BorderSide(color: c.border)),
+        border: Border(bottom: BorderSide(color: cs.outlineVariant)),
       ),
       child: Row(
         children: [
-          Icon(Icons.edit_note, size: 14, color: c.mutedText),
+          Icon(Icons.edit_note, size: 14, color: cs.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: c.mutedText,
+              color: cs.onSurfaceVariant,
               fontFamily: 'monospace',
               letterSpacing: 0.5,
             ),
@@ -394,20 +394,20 @@ class _PatchHeaderBar extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: c.greenBadgeBg,
+                color: AppColors.success.withValues(alpha: AppOpacity.subtle),
                 borderRadius: BorderRadius.circular(AppRadius.xs),
-                border: Border.all(color: c.greenBadgeBorder),
+                border: Border.all(color: AppColors.success),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_outline, size: 11, color: c.green),
+                  Icon(Icons.check_circle_outline, size: 11, color: AppColors.success),
                   const SizedBox(width: 4),
                   Text(
                     'auto-approved',
                     style: TextStyle(
                       fontSize: AppFontSize.xs,
-                      color: c.green,
+                      color: AppColors.success,
                       fontWeight: FontWeight.w500,
                       fontFamily: 'monospace',
                     ),
@@ -480,29 +480,29 @@ class _FileChangeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     final IconData icon;
     final Color iconColor;
 
     if (change.hasDelete && !change.hasAdd && !change.hasModify) {
       icon = Icons.delete_forever_outlined;
-      iconColor = c.red;
+      iconColor = AppColors.error;
     } else if (change.hasAdd && !change.hasModify && !change.hasDelete) {
       icon = Icons.add_circle_outline;
-      iconColor = c.green;
+      iconColor = AppColors.success;
     } else {
       icon = Icons.edit_outlined;
-      iconColor = c.blue;
+      iconColor = cs.primary;
     }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Container(
         decoration: BoxDecoration(
-          color: c.headerBg,
+          color: cs.surfaceContainer,
           borderRadius: BorderRadius.circular(AppRadius.xsm),
-          border: Border.all(color: c.border),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -532,7 +532,7 @@ class _FileChangeRow extends StatelessWidget {
                                 style: TextStyle(
                                   fontFamily: 'monospace',
                                   fontSize: AppFontSize.sm,
-                                  color: c.mutedText,
+                                  color: cs.onSurfaceVariant,
                                 ),
                               ),
                             TextSpan(
@@ -540,7 +540,7 @@ class _FileChangeRow extends StatelessWidget {
                               style: TextStyle(
                                 fontFamily: 'monospace',
                                 fontSize: AppFontSize.sm,
-                                color: c.primaryText,
+                                color: cs.onSurface,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -554,7 +554,7 @@ class _FileChangeRow extends StatelessWidget {
                     Icon(
                       isExpanded ? Icons.expand_less : Icons.expand_more,
                       size: 14,
-                      color: c.lineNumberText,
+                      color: cs.onSurfaceVariant,
                     ),
                   ],
                 ),
@@ -583,21 +583,21 @@ class _OperationChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: c.chipBg,
+        color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(AppRadius.xxxs),
-        border: Border.all(color: c.chipBorder),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontFamily: 'monospace',
           fontSize: AppFontSize.xxs,
-          color: c.mutedText,
+          color: cs.onSurfaceVariant,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -689,7 +689,7 @@ class _FileChangeDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final sections = <Widget>[];
     final language = _languageForPath(filePath);
 
@@ -715,13 +715,13 @@ class _FileChangeDetail extends StatelessWidget {
       addContentSection(
         'added',
         _firstString(addData, const ['content', 'after', 'new', 'text']),
-        c.green,
+        AppColors.success,
         null,
       );
       addContentSection(
         'patch',
         _firstString(addData, const ['patch', 'diff', 'unified_diff']),
-        c.blue,
+        cs.primary,
         'diff',
       );
     }
@@ -731,25 +731,25 @@ class _FileChangeDetail extends StatelessWidget {
       addContentSection(
         'before',
         _firstString(modifyData, const ['before', 'old', 'original']),
-        c.red,
+        AppColors.error,
         null,
       );
       addContentSection(
         'after',
         _firstString(modifyData, const ['after', 'new', 'content', 'text']),
-        c.green,
+        AppColors.success,
         null,
       );
       addContentSection(
         'diff',
         _firstString(modifyData, const ['diff', 'patch', 'unified_diff']),
-        c.blue,
+        cs.primary,
         'diff',
       );
       addContentSection(
         'modify',
         _firstString(modifyData, const ['content']),
-        c.blue,
+        cs.primary,
         null,
       );
     }
@@ -759,13 +759,13 @@ class _FileChangeDetail extends StatelessWidget {
       addContentSection(
         'removed',
         _firstString(deleteData, const ['content', 'before', 'old', 'text']),
-        c.red,
+        AppColors.error,
         null,
       );
       addContentSection(
         'patch',
         _firstString(deleteData, const ['patch', 'diff', 'unified_diff']),
-        c.blue,
+        cs.primary,
         'diff',
       );
     }
@@ -779,7 +779,7 @@ class _FileChangeDetail extends StatelessWidget {
         bottom: AppSpacing.smd,
       ),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: c.border)),
+        border: Border(top: BorderSide(color: cs.outlineVariant)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,7 +804,7 @@ class _DetailSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -842,14 +842,14 @@ class _DetailSection extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: c.bg,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(AppRadius.xs),
-              border: Border.all(color: c.border),
+              border: Border.all(color: cs.outlineVariant),
             ),
             child: _ExpandableCodeBlock(
               content: content,
               language: language,
-              textColor: c.primaryText,
+              textColor: cs.onSurface,
             ),
           ),
         ],
