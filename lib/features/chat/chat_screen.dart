@@ -40,12 +40,10 @@ import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
 import 'widgets/chat_app_bar.dart';
-import 'widgets/chat_loading_shimmer.dart';
+import 'widgets/chat_messages_body.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
-import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
-import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
 import 'widgets/session_issue_banner.dart';
 import 'widgets/session_tasks_banner.dart';
@@ -1182,16 +1180,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 children: [
                   AnimatedSwitcher(
                     duration: AppDuration.normal,
-                    child: _isLoadingMessages
-                        ? const ChatLoadingShimmer(key: ValueKey('loading'))
-                        : _messages.isEmpty
-                        ? (_loadFailed
-                              ? RetryErrorView(onRetry: _retry)
-                              : EmptyChatView(
-                                  key: const ValueKey('empty'),
-                                  onSuggestionTap: _onSuggestionTap,
-                                ))
-                        : _buildMessageList(hideToolCalls: hideToolCalls),
+                    child: ChatMessagesBody(
+                      isLoading: _isLoadingMessages,
+                      messages: _messages,
+                      loadFailed: _loadFailed,
+                      onRetry: _retry,
+                      onSuggestionTap: _onSuggestionTap,
+                      messageList: _buildMessageList(
+                        hideToolCalls: hideToolCalls,
+                      ),
+                    ),
                   ),
                   // The scroll-to-bottom pill listens to
                   // _autoScrollNotifier directly so scroll events do NOT
