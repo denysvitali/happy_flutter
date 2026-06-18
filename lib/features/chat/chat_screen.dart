@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show ValueListenable, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,6 +62,7 @@ import 'widgets/tts_playback_bar.dart';
 
 part '_chat_screen_actions.dart';
 part '_chat_screen_builders.dart';
+part '_chat_scroll_to_bottom_overlay.dart';
 
 /// Identifies which detail pane (if any) is currently selected when the
 /// chat screen is rendered as a master-detail layout on desktop-width
@@ -1337,48 +1338,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                   // The scroll-to-bottom pill listens to
                   // _autoScrollNotifier directly so scroll events do NOT
-                  // trigger a full _ChatScreenState rebuild.
-                  RepaintBoundary(
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _autoScrollNotifier,
-                      builder: (context, autoScroll, _) {
-                        return ExcludeSemantics(
-                          excluding: autoScroll || _isLoadingMessages,
-                          child: IgnorePointer(
-                            ignoring: autoScroll || _isLoadingMessages,
-                            child: AnimatedOpacity(
-                              opacity: (!autoScroll && !_isLoadingMessages)
-                                  ? 1.0
-                                  : 0.0,
-                              duration: AppDuration.normal,
-                              curve: AppCurve.standard,
-                              child: AnimatedScale(
-                                scale: (!autoScroll && !_isLoadingMessages)
-                                    ? 1.0
-                                    : 0.8,
-                                duration: AppDuration.normal,
-                                curve: AppCurve.standard,
-                                child: Align(
-                                  alignment: Alignment.bottomCenter,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      bottom: AppSpacing.md,
-                                    ),
-                                    child: ScrollToBottomPill(
-                                      onTap: () {
-                                        HapticFeedback.lightImpact();
-                                        _autoScroll = true;
-                                        _scrollToBottom();
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                  // trigger a full _ChatScreenState rebuild. See
+                  // _chat_scroll_to_bottom_overlay.dart.
+                  _ChatScrollToBottomOverlay(
+                    autoScrollNotifier: _autoScrollNotifier,
+                    isLoading: _isLoadingMessages,
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _autoScroll = true;
+                      _scrollToBottom();
+                    },
                   ),
                   const Positioned(
                     top: 0,
