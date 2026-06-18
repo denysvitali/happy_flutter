@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/diff_theme.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
 import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
@@ -331,8 +332,6 @@ class _DiffBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
-
     return ClipRRect(
       clipBehavior: Clip.hardEdge,
       borderRadius: const BorderRadius.only(
@@ -347,7 +346,7 @@ class _DiffBody extends StatelessWidget {
           showPlusMinusSymbols: true,
           showDiffStats: false,
           contextLines: 3,
-          theme: c.diffTheme,
+          theme: context.diffTheme.asLegacy(),
         ),
       ),
     );
