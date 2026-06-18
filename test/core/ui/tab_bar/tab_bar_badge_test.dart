@@ -182,4 +182,65 @@ void main() {
       expect(find.text('1'), findsOneWidget);
     });
   });
+
+  group('TabBar sizing', () {
+    // Regression guard: the bottom bar previously used 16 dp icons
+    // (AppSpacing.xxxl - AppSpacing.lg = 32 - 16) wrapped in a contrived
+    // 36 dp SizedBox. The small icons felt lost inside the big pill.
+    // These tests pin the new sizes so a future refactor can't silently
+    // shrink them back.
+    testWidgets(
+      'icons render at 24 dp (AppIconSize.tab) so they read as nav icons',
+      (tester) async {
+        await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
+        // Four tab icons are mounted; every one must be 24 dp.
+        final icons = tester
+            .widgetList<Icon>(find.byType(Icon))
+            .where((i) => i.size != null)
+            .toList();
+        expect(icons, isNotEmpty);
+        for (final icon in icons) {
+          expect(icon.size, equals(24),
+              reason: 'icon size regressed to ${icon.size}; '
+                  'expected 24 dp (Material 3 / iOS HIG nav bar baseline)');
+        }
+      },
+    );
+
+    testWidgets(
+      'bar default height is 72 dp (not the old 60 dp)',
+      (tester) async {
+        await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
+        // Find the SizedBox that wraps the Stack children — its height
+        // is the visible bar content height.
+        final sizedBoxes = tester
+            .widgetList<SizedBox>(find.byType(SizedBox))
+            .where((b) => b.height != null && b.height! >= 60)
+            .toList();
+        expect(sizedBoxes, isNotEmpty);
+        // At least one SizedBox must declare the new default height.
+        expect(
+          sizedBoxes.any((b) => b.height == 72),
+          isTrue,
+          reason: 'expected a 72 dp SizedBox; bar default height regressed',
+        );
+      },
+    );
+
+    testWidgets(
+      'pill indicator is 48 dp tall (AppTouchTarget.comfortable)',
+      (tester) async {
+        await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
+        // The pill is a Container with a BoxDecoration and an explicit
+        // BoxConstraints.tightFor(height: 48). Find it.
+        final containers = tester
+            .widgetList<Container>(find.byType(Container))
+            .where((c) => c.constraints?.maxHeight == 48)
+            .toList();
+        expect(containers, isNotEmpty,
+            reason: 'pill indicator should declare '
+                'BoxConstraints(maxHeight: 48)');
+      },
+    );
+  });
 }

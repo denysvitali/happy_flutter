@@ -147,6 +147,9 @@ abstract final class AppIconSize {
 
   /// 22 px – large feature / header icons.
   static const double xxl = 22;
+
+  /// 24 px – bottom navigation bar icons (Material 3 / iOS HIG).
+  static const double tab = 24;
 }
 
 // ─── Avatar sizes ────────────────────────────────────────────────────────────

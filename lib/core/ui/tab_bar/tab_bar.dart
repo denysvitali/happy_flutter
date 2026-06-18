@@ -69,7 +69,7 @@ class _TabIndicator extends StatelessWidget {
               bottom: 0,
               width: pillWidth,
               child: Container(
-                height: AppTouchTarget.min - 4,
+                height: AppTouchTarget.comfortable,
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -184,16 +184,19 @@ class _TabIconWithBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible = showBadge && badgeCount > 0;
+    // SizedBox gives the badge a stable anchor at the icon's top-right
+    // corner. Box is icon size + 4 dp on each axis (2 dp padding on each
+    // side) so the badge can sit half-overlapping without being clipped.
     return SizedBox(
-      width: AppSpacing.xxxl + AppSpacing.xs,
-      height: AppSpacing.xxxl + AppSpacing.xs,
+      width: AppIconSize.tab + AppSpacing.xs,
+      height: AppIconSize.tab + AppSpacing.xs,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Positioned.fill(
             child: Icon(
               icon,
-              size: AppSpacing.xxxl - AppSpacing.lg,
+              size: AppIconSize.tab,
               color: color,
             ),
           ),
@@ -286,7 +289,7 @@ class TabBar extends StatefulWidget {
   const TabBar({
     required this.activeTab,
     required this.onTabPress,
-    this.height = 60,
+    this.height = 72,
     this.backgroundColor,
     this.selectedItemColor,
     this.unselectedItemColor,
@@ -307,8 +310,8 @@ class TabBar extends StatefulWidget {
   /// Entries with `0` or missing are treated as no badge.
   final Map<AppTab, int> badgeCounts;
 
-  /// Default height matches iOS tab bar standards.
-  static const double defaultHeight = AppTouchTarget.comfortable + 12;
+  /// Default height — comfortable for 24 dp icons + label + breathing room.
+  static const double defaultHeight = AppTouchTarget.comfortable + 24;
 
   @override
   State<TabBar> createState() => _TabBarState();
@@ -359,7 +362,7 @@ class _TabBarState extends State<TabBar> {
               Positioned.fill(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.sm + AppSpacing.xs,
+                    vertical: AppSpacing.sm,
                   ),
                   child: _TabIndicator(
                     activeIndex: _activeIndex,
