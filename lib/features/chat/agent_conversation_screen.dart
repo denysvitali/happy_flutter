@@ -243,7 +243,8 @@ class _AgentConversationScreenState
     final promptRaw = input?['prompt'] as String?;
     final description =
         descriptionRaw ?? promptRaw ?? l10n.agentFallbackDescription;
-    final subagentType = input?['subagent_type'] as String?;
+    final subagentType =
+        input?['subagent_type'] as String? ?? _taskMsg?['taskType'] as String?;
     final state = _taskMsg?['state'] as String? ?? 'pending';
     final isRunning = state == 'running';
     final children =
@@ -420,7 +421,8 @@ class _AgentConversationScreenState
         input?['description'] as String? ??
         input?['prompt'] as String? ??
         AppLocalizations.of(context).agentFallbackTask;
-    final subagentType = input?['subagent_type'] as String?;
+    final subagentType =
+        input?['subagent_type'] as String? ?? msg['taskType'] as String?;
     final state = msg['state'] as String? ?? 'pending';
     final toolState = _parseToolState(state);
     final children = WireParsers.asList(msg['children']);
