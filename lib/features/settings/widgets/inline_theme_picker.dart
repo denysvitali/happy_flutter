@@ -84,7 +84,10 @@ class _ThemePreviewCard extends StatelessWidget {
         ? AppColorScheme.dark()
         : AppColorScheme.light();
 
-    // Surface colours for preview chrome
+    // Surface colours for the fake preview — these ARE the theme being
+    // shown, so they must stay as raw hexes (replacing them with
+    // Theme.of(context).colorScheme would render the picker's own
+    // colours in every card).
     final bgColor = dark
         ? const Color(0xFF0F1117)
         : const Color(0xFFF8FAFF);
@@ -97,9 +100,14 @@ class _ThemePreviewCard extends StatelessWidget {
     final onSurface = dark
         ? const Color(0xFFE2E8F0)
         : const Color(0xFF1E293B);
-    final onSurfaceVariant = dark
-        ? const Color(0xFF94A3B8)
-        : const Color(0xFF64748B);
+
+    // Chrome colours for the picker card itself (NOT the preview):
+    // unselected border and unselected label follow the live M3 scheme
+    // so the picker adapts to whichever app theme the user is in.
+    final cs = Theme.of(context).colorScheme;
+    final unselectedBorder =
+        cs.outlineVariant.withValues(alpha: AppOpacity.subtle);
+    final unselectedLabel = cs.onSurfaceVariant;
 
     return GestureDetector(
       onTap: onTap,
@@ -111,9 +119,7 @@ class _ThemePreviewCard extends StatelessWidget {
           border: Border.all(
             color: isSelected
                 ? accentColor
-                : onSurface.withValues(
-                    alpha: AppOpacity.subtle,
-                  ),
+                : unselectedBorder,
             width: isSelected ? AppBorder.thick : AppBorder.thin,
           ),
           boxShadow: isSelected
@@ -187,7 +193,7 @@ class _ThemePreviewCard extends StatelessWidget {
                             : FontWeight.w400,
                         color: isSelected
                             ? accentColor
-                            : onSurfaceVariant,
+                            : unselectedLabel,
                       ),
                     ),
                     if (isSelected)

@@ -218,11 +218,15 @@ class _PriorityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Resolve from the canonical AppColors.priority* tokens so the chip
+    // matches the Zen section header (zen_home.dart _Priority.borderColor).
+    // Prior to this, medium/low used colorScheme.primary / onSurfaceVariant,
+    // which disagreed with the section header's iOS amber/gray.
     final (label, color) = switch (priority) {
-      'critical' => ('Critical', AppColors.error),
-      'high' => ('High', AppColors.warning),
-      'medium' => ('Medium', theme.colorScheme.primary),
-      _ => ('Low', theme.colorScheme.onSurfaceVariant),
+      'critical' => ('Critical', AppColors.priorityCritical),
+      'high' => ('High', AppColors.priorityHigh),
+      'medium' => ('Medium', AppColors.priorityMedium),
+      _ => ('Low', AppColors.priorityLow),
     };
 
     return Container(

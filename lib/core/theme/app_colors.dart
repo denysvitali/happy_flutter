@@ -41,6 +41,21 @@ abstract final class AppColors {
   /// Matches [colorForProfile]'s `'zai'` case so the brand color has one home.
   static const Color zai = Color(0xFF6366F1);
 
+  // ─── Priority Colors (Zen / Todo) ────────────────────────────────────
+
+  /// Priority: critical — iOS system red. Aliased to [error] so the two
+  /// signals never drift apart.
+  static const Color priorityCritical = error;
+
+  /// Priority: high — iOS system orange. Aliased to [warning].
+  static const Color priorityHigh = warning;
+
+  /// Priority: medium — iOS system amber.
+  static const Color priorityMedium = Color(0xFFF59E0B);
+
+  /// Priority: low — iOS system gray.
+  static const Color priorityLow = Color(0xFF8E8E93);
+
   // ─── Semantic Neutral & Text Colors (Light Mode) ──────────────────────
 
   /// Shimmer base – light background for skeleton loaders.

@@ -5,6 +5,7 @@ import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/sync_service.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../../core/utils/sync_subscription_mixin.dart';
@@ -44,28 +45,18 @@ enum _Priority {
   }
 
   Color get borderColor {
+    // Resolved from the canonical [AppColors.priority*] tokens so the
+    // Zen section header, the todo-row priority chip, and any future
+    // priority-aware surface all read from one source of truth.
     switch (this) {
       case critical:
-        return const Color(0xFFFF3B30); // red
+        return AppColors.priorityCritical;
       case high:
-        return const Color(0xFFFF9500); // orange
+        return AppColors.priorityHigh;
       case medium:
-        return const Color(0xFFF59E0B); // amber
+        return AppColors.priorityMedium;
       case low:
-        return const Color(0xFF8E8E93); // gray
-    }
-  }
-
-  Color get chipColor {
-    switch (this) {
-      case critical:
-        return const Color(0xFFFF3B30);
-      case high:
-        return const Color(0xFFFF9500);
-      case medium:
-        return const Color(0xFFF59E0B);
-      case low:
-        return const Color(0xFF8E8E93);
+        return AppColors.priorityLow;
     }
   }
 
