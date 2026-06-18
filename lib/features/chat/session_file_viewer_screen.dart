@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/code_viewer_theme.dart';
 import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 
 import '../../core/components/app_empty_state.dart';
@@ -451,12 +452,18 @@ class _LineNumbers extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dividerColor = isDark
-        ? const Color(0xFF313244)
-        : theme.colorScheme.outlineVariant;
-    final numColor = isDark
-        ? const Color(0xFF45475A)
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
+    // Use the CodeViewerTheme extension for code-block chrome (light
+    // and dark). The previous hardcoded Catppuccin Mocha hexes were
+    // correct for dark mode but the light branch fell back to
+    // cs.outlineVariant / onSurfaceVariant@0.5 — using the
+    // extension unifies the palette with the rest of the code-block
+    // chrome (code_block_widget, inline theme picker).
+    final codeViewer = theme.extension<CodeViewerTheme>() ??
+        (theme.brightness == Brightness.dark
+            ? CodeViewerTheme.dark
+            : CodeViewerTheme.light);
+    final dividerColor = codeViewer.divider;
+    final numColor = codeViewer.lineNumberText;
 
     final lineNumbers = List.generate(lineCount, (i) => '${i + 1}').join('\n');
 
