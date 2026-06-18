@@ -147,13 +147,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   final DraftStorage _draftStorage;
   static final _containerRadius = BorderRadius.circular(AppRadius.xl);
-  static final _cardBoxShadow = [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.04),
-      blurRadius: 16,
-      offset: const Offset(0, 4),
-    ),
-  ];
+  // AppShadow.card has brightness-aware variants — dark in light
+  // mode (subtle black 4% + 2%), light in dark mode (subtle white).
+  // The previous Colors.black.withValues(alpha: 0.04) was always
+  // on-top black regardless of theme.
+  static final _cardBoxShadow = AppShadow.card;
 
   final FocusNode _focusNode = FocusNode();
   final AutocompleteController _autocompleteController =

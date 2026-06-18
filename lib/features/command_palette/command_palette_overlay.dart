@@ -42,7 +42,10 @@ class CommandPaletteOverlay extends StatefulWidget {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withValues(alpha: 0.4),
+      // cs.scrim follows the M3 theme — dark in light mode, light in
+      // dark mode. The previous Colors.black.withValues(alpha: 0.4)
+      // was always-on-top black regardless of theme.
+      barrierColor: Theme.of(context).colorScheme.scrim,
       transitionDuration: AppDuration.normal,
       transitionBuilder: (context, animation, _, child) {
         final curve = CurvedAnimation(
