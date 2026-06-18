@@ -270,10 +270,10 @@ class _ProvidersUsageBody extends StatelessWidget {
       padding: AppScreenPadding.standard,
       children: [
         const _ProviderUsageDestinations(),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.md),
         for (final usage in summary.usages)
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: ProviderUsageCard(
               usage: usage,
               isSelectionMode: selectedAccountIds.isNotEmpty,
@@ -288,7 +288,7 @@ class _ProvidersUsageBody extends StatelessWidget {
               onLongPress: () => onSelectAccount(usage.accountId),
             ),
           ),
-        const SizedBox(height: AppSpacing.xxxl),
+        const SizedBox(height: AppSpacing.xxl),
       ],
     );
   }

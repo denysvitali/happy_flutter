@@ -51,7 +51,7 @@ class ProviderUsageCard extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
+            vertical: AppSpacing.xxs2,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,10 +86,10 @@ class ProviderUsageCard extends ConsumerWidget {
                 ],
               ),
               if (usage.error != null) ...[
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
                 _ErrorBanner(error: usage.error!),
               ] else if (usage.windows.isEmpty) ...[
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   l10n.providersNoUsageData,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -97,11 +97,11 @@ class ProviderUsageCard extends ConsumerWidget {
                   ),
                 ),
               ] else ...[
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
                 for (final window in usage.windows) ...[
                   _UsageWindowRow(window: window),
                   if (window != usage.windows.last)
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.xs),
                 ],
               ],
             ],
@@ -195,7 +195,7 @@ class _ProviderIcon extends StatelessWidget {
     };
 
     return CircleAvatar(
-      radius: AppSpacing.lg,
+      radius: AppSpacing.md,
       backgroundColor: color.withValues(alpha: AppOpacity.faint),
       child: Icon(
         switch (type) {
@@ -206,7 +206,7 @@ class _ProviderIcon extends StatelessWidget {
           ProviderUsageType.codex => Icons.code,
         },
         color: color,
-        size: AppSpacing.lg,
+        size: AppSpacing.sm,
       ),
     );
   }
@@ -250,18 +250,18 @@ class _UsageWindowRow extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xxs),
         ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: LinearProgressIndicator(
             value: window.utilization / 100,
             backgroundColor: colorScheme.surfaceContainerHighest,
             valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            minHeight: AppSpacing.xsm,
+            minHeight: AppSpacing.xs,
           ),
         ),
         if (hasMeta) ...[
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.xxs),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
