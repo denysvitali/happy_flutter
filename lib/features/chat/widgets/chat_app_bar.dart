@@ -718,8 +718,13 @@ class ChatStatusChipsInputs {
 /// `_SessionSendIssue` is library-private; the chip builder only
 /// needs the two facts it renders.
 class SendIssue {
-  const SendIssue({required this.title, required this.blocksSend});
+  const SendIssue({
+    required this.title,
+    required this.message,
+    required this.blocksSend,
+  });
   final String title;
+  final String message;
   final bool blocksSend;
 }
 

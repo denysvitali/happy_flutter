@@ -21,7 +21,6 @@ import '../../core/services/opentelemetry_service.dart';
 import '../../core/services/session_activity_coordinator.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
-import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
@@ -48,6 +47,7 @@ import 'widgets/empty_chat_view.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/retry_error_view.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
+import 'widgets/session_issue_banner.dart';
 import 'widgets/session_tasks_banner.dart';
 import 'widgets/sub_agent_status_banner.dart';
 import 'widgets/thinking_pill.dart';
@@ -951,7 +951,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         sendIssue: sendIssue == null
             ? null
             : SendIssue(
-                title: sendIssue.snackBarText,
+                title: sendIssue.title,
+                message: sendIssue.message,
                 blocksSend: sendIssue.blocksSend,
               ),
         latestUserMessage: _latestUserStatusMessage,
@@ -1217,7 +1218,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ),
         if (_sessionSendIssue case final issue?)
-          _SessionIssueBanner(issue: issue),
+          SessionIssueBanner(issue: SendIssue(
+            title: issue.title,
+            message: issue.message,
+            blocksSend: issue.blocksSend,
+          )),
         SessionTasksBanner(sessionId: widget.sessionId),
         TtsPlaybackBar(
           onPrev: _ttsPrev,
@@ -1266,79 +1271,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return buildChatMachineVitals(
       machineId: machineId,
       daemonState: machine?.daemonState,
-    );
-  }
-}
-
-class _SessionIssueBanner extends StatelessWidget {
-  const _SessionIssueBanner({required this.issue});
-
-  final _SessionSendIssue issue;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final appColors = theme.extension<AppColorScheme>();
-    final containerColor = issue.blocksSend
-        ? cs.errorContainer
-        : appColors?.warningContainer ?? cs.tertiaryContainer;
-    final borderColor = issue.blocksSend
-        ? cs.error
-        : appColors?.warning ?? AppColors.warning;
-    final foregroundColor = issue.blocksSend
-        ? cs.onErrorContainer
-        : appColors?.onWarning ?? cs.onTertiaryContainer;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: containerColor.withValues(alpha: 0.65),
-        border: Border(
-          top: BorderSide(color: borderColor.withValues(alpha: 0.22)),
-          bottom: BorderSide(color: borderColor.withValues(alpha: 0.22)),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              issue.blocksSend
-                  ? Icons.error_outline_rounded
-                  : Icons.restart_alt_rounded,
-              size: 18,
-              color: foregroundColor,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    issue.title,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: foregroundColor,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    issue.message,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: foregroundColor,
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

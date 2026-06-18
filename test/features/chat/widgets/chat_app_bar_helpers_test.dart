@@ -181,6 +181,7 @@ void main() {
           hasRequests: false,
           sendIssue: const SendIssue(
             title: 'agent failed',
+            message: 'will restart on next send',
             blocksSend: true,
           ),
           latestUserMessage: null,
