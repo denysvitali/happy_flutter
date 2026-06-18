@@ -8893,6 +8893,18 @@ abstract class AppLocalizations {
   /// **'This provider is not yet supported.'**
   String get providersNotImplemented;
 
+  /// No description provided for @providersRenameAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename account'**
+  String get providersRenameAccount;
+
+  /// No description provided for @providersRenameAccountFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to rename account'**
+  String get providersRenameAccountFailed;
+
   /// No description provided for @providersResetsIn.
   ///
   /// In en, this message translates to:

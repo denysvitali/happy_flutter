@@ -120,18 +120,20 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   }
 
   /// Adds a new provider account and persists it securely.
+  ///
+  /// [name] is the optional display label. An empty or whitespace-only name is
+  /// stored as `null` so the card falls back to showing the vendor name only.
   Future<bool> addAccount({
     required ProviderUsageType type,
     required ProviderCredentials credentials,
     String? name,
   }) async {
     final id = const Uuid().v4();
+    final trimmed = name?.trim();
     final account = ProviderAccount(
       id: id,
       type: type,
-      name: (name?.trim().isNotEmpty ?? false)
-          ? name!.trim()
-          : _defaultName(type),
+      name: (trimmed == null || trimmed.isEmpty) ? null : trimmed,
       credentials: credentials,
     );
 
@@ -153,6 +155,36 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     return true;
   }
 
+  /// Renames an existing account.
+  ///
+  /// [name] follows the same empty-as-null semantics as [addAccount]: pass
+  /// `null` or an empty/whitespace-only string to clear the custom label so
+  /// the card shows the vendor name only.
+  Future<bool> renameAccount(String accountId, String? name) async {
+    final accounts = await _storage.getAccounts();
+    final index = accounts.indexWhere((a) => a.id == accountId);
+    if (index < 0) return false;
+
+    final trimmed = name?.trim();
+    final updatedAccount = accounts[index].copyWith(
+      name: (trimmed == null || trimmed.isEmpty) ? null : trimmed,
+    );
+    final saved = await _storage.saveAccount(updatedAccount);
+    if (!saved) return false;
+
+    // Mirror the rename into the in-memory usage rows so the card updates
+    // immediately without waiting for a usage refresh.
+    final updatedUsages = state.usages
+        .map(
+          (u) => u.accountId == accountId
+              ? u.copyWith(accountName: updatedAccount.name)
+              : u,
+        )
+        .toList();
+    state = state.copyWith(usages: updatedUsages);
+    return true;
+  }
+
   /// Removes an account and clears its stored credentials.
   Future<bool> removeAccount(String accountId) async {
     final deleted = await _storage.deleteAccount(accountId);
@@ -163,16 +195,6 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
       usages: state.usages.where((u) => u.accountId != accountId).toList(),
     );
     return true;
-  }
-
-  static String _defaultName(ProviderUsageType type) {
-    return switch (type) {
-      ProviderUsageType.kimi => 'Kimi',
-      ProviderUsageType.minimax => 'MiniMax',
-      ProviderUsageType.zai => 'Z.AI',
-      ProviderUsageType.claudeCode => 'Claude Code',
-      ProviderUsageType.codex => 'Codex',
-    };
   }
 }
 

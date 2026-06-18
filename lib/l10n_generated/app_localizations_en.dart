@@ -4880,6 +4880,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersNotImplemented => 'This provider is not yet supported.';
 
   @override
+  String get providersRenameAccount => 'Rename account';
+
+  @override
+  String get providersRenameAccountFailed => 'Failed to rename account';
+
+  @override
   String providersResetsIn(String time) {
     return 'Resets in $time';
   }

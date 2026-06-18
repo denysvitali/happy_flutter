@@ -10,6 +10,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/add_provider_dialog.dart';
 import 'widgets/provider_usage_card.dart';
+import 'widgets/rename_provider_dialog.dart';
 
 /// Tab screen showing usage across third-party LLM providers.
 ///
@@ -75,6 +76,33 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
 
   void _clearSelection() {
     setState(_selectedAccountIds.clear);
+  }
+
+  Future<void> _renameAccount(ProviderUsage usage) async {
+    final l10n = context.l10n;
+    final outcome = await showRenameProviderDialog(
+      context,
+      accountId: usage.accountId,
+      currentName: usage.accountName,
+      type: usage.type,
+    );
+    if (outcome == null || !mounted) return;
+
+    // No-op when the user re-saves the same label they had before.
+    final prior = usage.accountName?.trim();
+    if ((prior == null || prior.isEmpty) && outcome.name == null) return;
+    if (prior != null && prior == outcome.name) return;
+
+    final success = await ref
+        .read(providerUsageNotifierProvider.notifier)
+        .renameAccount(usage.accountId, outcome.name);
+
+    if (!mounted) return;
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.providersRenameAccountFailed)),
+      );
+    }
   }
 
   Future<void> _removeSelectedAccounts(List<ProviderUsage> usages) async {
@@ -181,6 +209,7 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
           selectedAccountIds: _selectedAccountIds,
           onSelectAccount: _selectAccount,
           onToggleSelection: _toggleSelection,
+          onTapAccount: _renameAccount,
         ),
       ),
     );
@@ -194,6 +223,7 @@ class _ProvidersUsageBody extends StatelessWidget {
     required this.selectedAccountIds,
     required this.onSelectAccount,
     required this.onToggleSelection,
+    required this.onTapAccount,
   });
 
   final ProviderUsageSummary summary;
@@ -201,6 +231,7 @@ class _ProvidersUsageBody extends StatelessWidget {
   final Set<String> selectedAccountIds;
   final ValueChanged<String> onSelectAccount;
   final ValueChanged<String> onToggleSelection;
+  final ValueChanged<ProviderUsage> onTapAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -250,6 +281,8 @@ class _ProvidersUsageBody extends StatelessWidget {
               onTap: () {
                 if (selectedAccountIds.isNotEmpty) {
                   onToggleSelection(usage.accountId);
+                } else {
+                  onTapAccount(usage);
                 }
               },
               onLongPress: () => onSelectAccount(usage.accountId),

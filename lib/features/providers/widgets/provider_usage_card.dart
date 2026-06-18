@@ -61,27 +61,7 @@ class ProviderUsageCard extends ConsumerWidget {
                   _ProviderIcon(type: usage.type),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          usage.accountName ?? _defaultAccountName(usage.type),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          _providerDisplayName(usage.type),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+                    child: _ProviderLabelColumn(usage: usage),
                   ),
                   if (isSelectionMode) ...[
                     const SizedBox(width: AppSpacing.sm),
@@ -131,16 +111,6 @@ class ProviderUsageCard extends ConsumerWidget {
     );
   }
 
-  static String _defaultAccountName(ProviderUsageType type) {
-    return switch (type) {
-      ProviderUsageType.kimi => 'Kimi',
-      ProviderUsageType.minimax => 'MiniMax',
-      ProviderUsageType.zai => 'Z.AI',
-      ProviderUsageType.claudeCode => 'Claude Code',
-      ProviderUsageType.codex => 'Codex',
-    };
-  }
-
   static String _providerDisplayName(ProviderUsageType type) {
     return switch (type) {
       ProviderUsageType.kimi => 'Kimi',
@@ -149,6 +119,63 @@ class ProviderUsageCard extends ConsumerWidget {
       ProviderUsageType.claudeCode => 'Claude Code',
       ProviderUsageType.codex => 'Codex',
     };
+  }
+}
+
+/// Renders the account label column.
+///
+/// When a custom account name is set the layout shows the name on top
+/// (titleMedium) and the vendor name as a subdued subtitle (bodySmall). When
+/// the custom name is null/empty the custom row is omitted entirely so the
+/// vendor name only appears once and there is no empty placeholder line.
+class _ProviderLabelColumn extends StatelessWidget {
+  const _ProviderLabelColumn({required this.usage});
+
+  final ProviderUsage usage;
+
+  bool get _hasCustomName {
+    final name = usage.accountName;
+    return name != null && name.trim().isNotEmpty;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final vendorName = ProviderUsageCard._providerDisplayName(usage.type);
+
+    if (!_hasCustomName) {
+      return Text(
+        vendorName,
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          usage.accountName!,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          vendorName,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
   }
 }
 

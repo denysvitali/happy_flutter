@@ -1948,6 +1948,8 @@
   "providersZaiBaseUrlLabel": "Base URL",
   "providersZaiBaseUrlHint": "https://api.z.ai",
   "providersNotImplemented": "This provider is not yet supported.",
+  "providersRenameAccount": "Rename account",
+  "providersRenameAccountFailed": "Failed to rename account",
   "providersResetsIn": "Resets in {time}",
   "@providersResetsIn": {
     "placeholders": {
