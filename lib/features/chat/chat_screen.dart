@@ -830,17 +830,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   String _formatLastSeenLabel(BuildContext context, int activeAt) {
-    final l10n = context.l10n;
-    final lastSeen = DateTime.fromMillisecondsSinceEpoch(activeAt);
-    final diff = DateTime.now().difference(lastSeen);
-    if (diff.inMinutes < 1) return l10n.chatLastSeenJustNow;
-    if (diff.inMinutes < 60) {
-      return l10n.chatLastSeenMinutes(diff.inMinutes);
-    }
-    if (diff.inHours < 24) {
-      return l10n.chatLastSeenHours(diff.inHours);
-    }
-    return l10n.chatLastSeenDays(diff.inDays);
+    return formatLastSeenLabel(context, activeAt);
   }
 
   _SessionSendIssue? get _sessionSendIssue {
@@ -1404,11 +1394,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   ChatMachineVitals? _buildMachineVitals() {
     final machineId = _session?.metadata?.machineId;
-    if (machineId == null || machineId.isEmpty) return null;
     final machine = ref.watch(
-      machinesNotifierProvider.select((machines) => machines[machineId]),
+      machinesNotifierProvider.select((machines) => machines[machineId ?? '']),
     );
-    return ChatMachineVitals.fromDaemonState(machine?.daemonState);
+    return buildChatMachineVitals(
+      machineId: machineId,
+      daemonState: machine?.daemonState,
+    );
   }
 }
 

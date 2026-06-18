@@ -622,3 +622,45 @@ class _AppBarTypingIndicatorState extends State<_AppBarTypingIndicator>
     );
   }
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/// Resolves the [ChatMachineVitals] for the current session, returning
+/// `null` if the session has no machine id or the machine is not
+/// present in [machines].
+///
+/// The caller is expected to have already resolved the live machine
+/// (typically via `ref.watch(machinesNotifierProvider.select(...))`).
+/// Keeping the `ref.watch` in the caller lets the chat screen remain
+/// in control of rebuild scope — this helper is a pure resolver.
+///
+/// [daemonStateOf] extracts the daemon-state map from the machine
+/// type without coupling the helper to the `Machine` model — the
+/// caller passes a closure that knows how to read its own type.
+ChatMachineVitals? buildChatMachineVitals({
+  required String? machineId,
+  required Map<String, dynamic>? daemonState,
+}) {
+  if (machineId == null || machineId.isEmpty) return null;
+  return ChatMachineVitals.fromDaemonState(daemonState);
+}
+
+/// Formats a "last seen N ago" label for the offline chip, picking
+/// the closest l10n bucket (just-now / minutes / hours / days).
+///
+/// Pure function — takes a BuildContext for l10n and an epoch-ms
+/// activeAt timestamp. Extracted from _ChatScreenState so the chip
+/// logic can live next to the [ChatAppBar] data classes.
+String formatLastSeenLabel(BuildContext context, int activeAt) {
+  final l10n = context.l10n;
+  final lastSeen = DateTime.fromMillisecondsSinceEpoch(activeAt);
+  final diff = DateTime.now().difference(lastSeen);
+  if (diff.inMinutes < 1) return l10n.chatLastSeenJustNow;
+  if (diff.inMinutes < 60) {
+    return l10n.chatLastSeenMinutes(diff.inMinutes);
+  }
+  if (diff.inHours < 24) {
+    return l10n.chatLastSeenHours(diff.inHours);
+  }
+  return l10n.chatLastSeenDays(diff.inDays);
+}
