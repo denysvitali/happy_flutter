@@ -97,6 +97,11 @@ void main() {
       ),
     );
 
+    // Tap the header to expand — running tools no longer auto-expand.
+    await tester.tap(find.text('web_search_preview'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
     expect(find.text('Web Search'), findsNothing);
     expect(find.text('web_search_preview'), findsOneWidget);
     expect(

@@ -82,6 +82,10 @@ void main() {
       );
 
       await tester.pump();
+      // Tap the header to expand — running tools no longer auto-expand.
+      await tester.tap(find.byType(ToolView));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(find.text('Apply Changes'), findsOneWidget);
       expect(_findRichTextContaining('/src/app.dart'), findsAtLeastNWidgets(1));

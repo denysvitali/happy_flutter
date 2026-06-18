@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'tool_status_indicator.dart' show ToolState;
 
-/// Duration before auto-collapsing a completed/error tool.
-const kAutoCollapseDelay = Duration(seconds: 8);
-
 /// Parses a tool state string into [ToolState].
 ///
 /// Null or unknown values map to [ToolState.pending].

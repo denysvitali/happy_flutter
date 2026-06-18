@@ -101,16 +101,15 @@ const _kStaggerSlideOffset = 6.0;
 
 class _ToolViewState extends ConsumerState<ToolView>
     with TickerProviderStateMixin {
-  // Default to collapsed. Tools that need to be visible while running (e.g.
-  // Bash with streaming output) explicitly expand in [didUpdateWidget];
-  // task-family tools (TaskCreate/Update/List/Get, TodoWrite) never auto-expand.
-  // One-tap preview is a header summary — full body and raw JSON are reached
-  // via long-press → [MessageDetailScreen].
+  // Collapsed by default — the header summary is the one-tap preview, and the
+  // full body is reached via a tap on the header. The only auto-expand case
+  // is a pending permission request: the Allow/Deny footer must stay visible
+  // so the user can respond, and the user dismisses it themselves afterward.
+  // Full input/JSON is always reachable via long-press → [MessageDetailScreen].
   bool _expanded = false;
   bool _showCheckFlash = false;
   bool _collapsing = false;
   ToolState? _prevState;
-  Timer? _collapseTimer;
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnim;
@@ -155,14 +154,17 @@ class _ToolViewState extends ConsumerState<ToolView>
     final initPermission = WireParsers.asMap(widget.tool['permission']);
     final hasPermissionRequest = isPermissionPending(initPermission);
 
-    if (initial == ToolState.running || hasPermissionRequest) {
+    // Only a pending permission request auto-expands — the user needs the
+    // Allow/Deny footer in view. Anything else (running, completed, error,
+    // pending) starts collapsed and waits for an explicit tap. A running
+    // tool still pulses its left border even while collapsed so the user
+    // can see it's in flight.
+    if (hasPermissionRequest) {
       _expanded = true;
       _chevronController.forward();
-      if (initial == ToolState.running) {
-        _pulseController.repeat(reverse: true);
-      }
-    } else {
-      _expanded = false;
+    }
+    if (initial == ToolState.running) {
+      _pulseController.repeat(reverse: true);
     }
   }
 
@@ -199,28 +201,18 @@ class _ToolViewState extends ConsumerState<ToolView>
       Future.delayed(const Duration(milliseconds: 800), () {
         if (mounted) setState(() => _showCheckFlash = false);
       });
-      _scheduleAutoCollapse();
     } else if (_prevState == ToolState.running && newState == ToolState.error) {
       _pulseController
         ..stop()
         ..reset();
-      _scheduleAutoCollapse();
     } else if (newState == ToolState.running) {
-      _collapseTimer?.cancel();
-      // Task-family tools never auto-expand: their body is a short summary
-      // (subject/activeForm/status) and forcing it open just to flash it
-      // closed is noise. The header subtitle carries the same info, and
-      // the full task body is reachable via long-press → details.
-      if (!_expanded && !_isTaskTool) _setExpanded(true);
+      // Keep pulsing the left border so the user can see the tool is in
+      // flight, but do not auto-expand — the header alone tells the story,
+      // and the body stays collapsed until the user taps.
       _pulseController.repeat(reverse: true);
     }
 
     _prevState = newState;
-  }
-
-  bool get _isPlanTool {
-    final name = widget.tool['name'] as String? ?? '';
-    return name == 'ExitPlanMode' || name == 'exit_plan_mode';
   }
 
   bool get _isTaskTool {
@@ -246,15 +238,6 @@ class _ToolViewState extends ConsumerState<ToolView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       TaskToolView.pushToolToGlobalState(context, tool, widget.sessionId);
-    });
-  }
-
-  void _scheduleAutoCollapse() {
-    // Never auto-collapse plan tools — the plan must stay visible.
-    if (_isPlanTool) return;
-    _collapseTimer?.cancel();
-    _collapseTimer = Timer(kAutoCollapseDelay, () {
-      if (mounted && _expanded) _setExpanded(false);
     });
   }
 
@@ -294,7 +277,6 @@ class _ToolViewState extends ConsumerState<ToolView>
   }
 
   void _toggleExpanded() {
-    _collapseTimer?.cancel();
     _setExpanded(!_expanded);
   }
 
@@ -424,7 +406,6 @@ class _ToolViewState extends ConsumerState<ToolView>
 
   @override
   void dispose() {
-    _collapseTimer?.cancel();
     _pulseController.dispose();
     _chevronController.dispose();
     _staggerController.dispose();
