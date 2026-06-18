@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/syntax_theme.dart';
 
 const double _jsonIndent = 8;
 
@@ -31,25 +32,22 @@ class _JsonColors {
   final Color muted;
 
   static _JsonColors of(Brightness brightness, Color onSurface) {
-    if (brightness == Brightness.dark) {
-      return _JsonColors(
-        key: const Color(0xFF9CDCFE),
-        string: const Color(0xFFCE9178),
-        number: const Color(0xFFB5CEA8),
-        boolean: const Color(0xFF569CD6),
-        nullValue: const Color(0xFF569CD6),
-        bracket: const Color(0xFFFFD700),
-        punctuation: onSurface.withValues(alpha: 0.5),
-        muted: onSurface.withValues(alpha: 0.4),
-      );
-    }
+    // Map JSON's semantic roles onto the [SyntaxTheme] tokens so a
+    // single palette drives both the code-block highlighter and the
+    // JSON tree viewer. The ThemeHelper registers both light and dark
+    // variants, so the matching one is always present.
+    final syntax = brightness == Brightness.dark
+        ? SyntaxTheme.dark
+        : SyntaxTheme.light;
     return _JsonColors(
-      key: const Color(0xFF0451A5),
-      string: const Color(0xFFA31515),
-      number: const Color(0xFF098658),
-      boolean: const Color(0xFF0000FF),
-      nullValue: const Color(0xFF0000FF),
-      bracket: const Color(0xFF795E26),
+      key: syntax.colorFor('property'),
+      string: syntax.colorFor('string'),
+      number: syntax.colorFor('number'),
+      boolean: syntax.colorFor('boolean'),
+      nullValue: syntax.colorFor('default'),
+      bracket: syntax.colorFor('bracket'),
+      // Punctuation and muted are alpha tints of onSurface so they
+      // adapt to whatever surface the JSON sits on.
       punctuation: onSurface.withValues(alpha: 0.5),
       muted: onSurface.withValues(alpha: 0.4),
     );

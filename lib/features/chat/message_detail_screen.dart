@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/theme/code_viewer_theme.dart';
 import '../../core/utils/ansi_parser.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/command_utils.dart';
@@ -797,7 +798,7 @@ class _JsonTreeBlock extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.smd),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: CodeViewerTheme.dark.background,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: ToolOutputScrollFrame(
@@ -809,7 +810,7 @@ class _JsonTreeBlock extends StatelessWidget {
             brightness: Brightness.dark,
             colorScheme: Theme.of(context).colorScheme.copyWith(
               brightness: Brightness.dark,
-              onSurface: const Color(0xFFD4D4D4),
+              onSurface: CodeViewerTheme.dark.foreground,
             ),
           ),
           child: JsonTreeViewer(value: value),
@@ -827,10 +828,10 @@ class _CodeBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const defaultStyle = TextStyle(
+    final defaultStyle = TextStyle(
       fontFamily: 'monospace',
       fontSize: AppFontSize.sm,
-      color: Color(0xFFD4D4D4),
+      color: CodeViewerTheme.dark.foreground,
       height: AppLineHeight.relaxed,
     );
     final spans = AnsiParser.parse(content, defaultStyle: defaultStyle);
@@ -839,7 +840,7 @@ class _CodeBlock extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.smd),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: CodeViewerTheme.dark.background,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: ToolOutputScrollFrame(

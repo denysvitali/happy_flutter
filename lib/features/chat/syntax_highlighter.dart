@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/syntax_theme.dart';
 import '../../core/utils/syntax_cache.dart';
 
 /// Global tokenization cache shared across all SyntaxHighlighter instances.
@@ -94,137 +95,55 @@ enum SyntaxTokenType {
 
 /// Syntax color palettes for light and dark themes.
 ///
-/// Dark theme uses Catppuccin Mocha; light theme mirrors the previous
-/// palette which was already well-tuned.
+/// **Deprecated** — kept as a thin shim that delegates to the
+/// [SyntaxTheme] `ThemeExtension`. New code should resolve the theme
+/// via `Theme.of(context).extension<SyntaxTheme>()` (or the
+/// `context.syntaxTheme` convenience). The class still exposes the
+/// original `light` / `dark` map fields and `bracketNestingLight` /
+/// `bracketNestingDark` lists so existing in-tree callers compile, but
+/// the data is now derived from [SyntaxTheme.light] and [SyntaxTheme.dark].
 class SyntaxColors {
-  /// Light theme colors.
-  static const Map<SyntaxTokenType, Color> light = {
-    SyntaxTokenType.keyword: Color(0xFF1d4ed8),
-    SyntaxTokenType.controlFlow: Color(0xFF6d28d9),
-    SyntaxTokenType.type: Color(0xFF0f766e),
-    SyntaxTokenType.modifier: Color(0xFF1d4ed8),
-    SyntaxTokenType.string: Color(0xFF059669),
-    SyntaxTokenType.number: Color(0xFF0891b2),
-    SyntaxTokenType.boolean: Color(0xFF0891b2),
-    SyntaxTokenType.regex: Color(0xFF059669),
-    SyntaxTokenType.function: Color(0xFF7c3aed),
-    SyntaxTokenType.method: Color(0xFF9333ea),
-    SyntaxTokenType.property: Color(0xFF374151),
-    SyntaxTokenType.comment: Color(0xFF6b7280),
-    SyntaxTokenType.docstring: Color(0xFF6b7280),
-    SyntaxTokenType.operator: Color(0xFF374151),
-    SyntaxTokenType.assignment: Color(0xFF1d4ed8),
-    SyntaxTokenType.comparison: Color(0xFF1d4ed8),
-    SyntaxTokenType.logical: Color(0xFF1d4ed8),
-    SyntaxTokenType.decorator: Color(0xFFca8a04),
-    SyntaxTokenType.import: Color(0xFF1d4ed8),
-    SyntaxTokenType.variable: Color(0xFF374151),
-    SyntaxTokenType.parameter: Color(0xFF374151),
-    SyntaxTokenType.bracket: Color(0xFF374151),
-    SyntaxTokenType.punctuation: Color(0xFF374151),
-    SyntaxTokenType.default_: Color(0xFF374151),
-  };
+  /// Light theme colors (alias of [SyntaxTheme.light] tokens).
+  static Map<SyntaxTokenType, Color> get light => _enumMap(SyntaxTheme.light);
 
-  // ---------------------------------------------------------------------------
-  // Catppuccin Mocha dark theme
-  // https://github.com/catppuccin/catppuccin
-  // ---------------------------------------------------------------------------
-  // Colour reference:
-  //   text     #CDD6F4  subtext0 #A6ADC8  overlay0 #6C7086
-  //   red      #F38BA8  peach    #FAB387  yellow   #F9E2AF
-  //   green    #A6E3A1  teal     #94E2D5  sky      #89DCEB
-  //   sapphire #74C7EC  blue     #89B4FA  lavender #B4BEFE
-  //   mauve    #CBA6F7  pink     #F5C2E7  flamingo #F2CDCD
-  // ---------------------------------------------------------------------------
+  /// Dark theme colors (alias of [SyntaxTheme.dark] tokens).
+  static Map<SyntaxTokenType, Color> get dark => _enumMap(SyntaxTheme.dark);
 
-  /// Dark theme colors (Catppuccin Mocha).
-  static const Map<SyntaxTokenType, Color> dark = {
-    // Keywords – blue (VSCode dark+ compatible)
-    SyntaxTokenType.keyword: Color(0xFF569CD6),
-    // Control flow (if/else/for/return) – mauve/purple
-    SyntaxTokenType.controlFlow: Color(0xFFCBA6F7),
-    // Types – teal
-    SyntaxTokenType.type: Color(0xFF94E2D5),
-    // Modifiers (public/static/async) – blue
-    SyntaxTokenType.modifier: Color(0xFF89B4FA),
-    // Strings – green
-    SyntaxTokenType.string: Color(0xFFA6E3A1),
-    // Numbers – peach
-    SyntaxTokenType.number: Color(0xFFFAB387),
-    // Booleans / null – peach
-    SyntaxTokenType.boolean: Color(0xFFFAB387),
-    // Regex literals – green (like strings)
-    SyntaxTokenType.regex: Color(0xFFA6E3A1),
-    // Function names – yellow
-    SyntaxTokenType.function: Color(0xFFF9E2AF),
-    // Method calls – sky
-    SyntaxTokenType.method: Color(0xFF89DCEB),
-    // Property access – subtext0
-    SyntaxTokenType.property: Color(0xFFA6ADC8),
-    // Comments – overlay0 (muted)
-    SyntaxTokenType.comment: Color(0xFF6C7086),
-    // Docstrings – overlay0
-    SyntaxTokenType.docstring: Color(0xFF6C7086),
-    // Arithmetic operators – text
-    SyntaxTokenType.operator: Color(0xFFCDD6F4),
-    // Assignment operators – blue
-    SyntaxTokenType.assignment: Color(0xFF89B4FA),
-    // Comparison operators – sapphire
-    SyntaxTokenType.comparison: Color(0xFF74C7EC),
-    // Logical operators (&&/||) – mauve
-    SyntaxTokenType.logical: Color(0xFFCBA6F7),
-    // Decorators / annotations – yellow
-    SyntaxTokenType.decorator: Color(0xFFF9E2AF),
-    // Import statements – blue
-    SyntaxTokenType.import: Color(0xFF89B4FA),
-    // Variables – text
-    SyntaxTokenType.variable: Color(0xFFCDD6F4),
-    // Parameters – text
-    SyntaxTokenType.parameter: Color(0xFFCDD6F4),
-    // Brackets – handled by nesting colours below
-    SyntaxTokenType.bracket: Color(0xFFCDD6F4),
-    // Punctuation (.,;) – overlay0
-    SyntaxTokenType.punctuation: Color(0xFF6C7086),
-    // Default / plain text
-    SyntaxTokenType.default_: Color(0xFFCDD6F4),
-  };
+  /// Light rainbow brackets (alias of [SyntaxTheme.light] bracketNesting).
+  static List<Color> get bracketNestingLight => SyntaxTheme.light.bracketNesting;
 
-  // Rainbow bracket colours – light theme
-  static const List<Color> bracketNestingLight = [
-    Color(0xFF374151), // level 0 (unused sentinel)
-    Color(0xFFE05252), // 1 – red
-    Color(0xFF00897B), // 2 – teal
-    Color(0xFF1976D2), // 3 – blue
-    Color(0xFFF57F17), // 4 – amber
-    Color(0xFF6A1B9A), // 5 – purple
-  ];
+  /// Dark rainbow brackets (alias of [SyntaxTheme.dark] bracketNesting).
+  static List<Color> get bracketNestingDark => SyntaxTheme.dark.bracketNesting;
 
-  // Rainbow bracket colours – Catppuccin Mocha
-  static const List<Color> bracketNestingDark = [
-    Color(0xFFCDD6F4), // level 0 (unused sentinel) – text
-    Color(0xFFF9E2AF), // 1 – yellow
-    Color(0xFFCBA6F7), // 2 – mauve
-    Color(0xFF89DCEB), // 3 – sky
-    Color(0xFFFAB387), // 4 – peach
-    Color(0xFF74C7EC), // 5 – sapphire
-  ];
-
-  /// Returns the appropriate color for [type] at [nestLevel].
+  /// Resolves a token colour from the appropriate [SyntaxTheme] palette.
+  ///
+  /// Falls back to [SyntaxTheme.defaultText] when the token has no entry
+  /// or when the enum value is the unknown-string sentinel `default_`.
   static Color getColor(
     SyntaxTokenType type,
     int nestLevel,
     bool isDarkMode,
   ) {
-    final colors = isDarkMode ? dark : light;
-    final bracketColors =
-        isDarkMode ? bracketNestingDark : bracketNestingLight;
-
+    final theme = isDarkMode ? SyntaxTheme.dark : SyntaxTheme.light;
     if (type == SyntaxTokenType.bracket) {
-      final level = nestLevel % 5;
-      return bracketColors[level == 0 ? 5 : level];
+      return theme.bracketFor(nestLevel);
     }
+    return theme.colorFor(_tokenName(type));
+  }
 
-    return colors[type] ?? colors[SyntaxTokenType.default_]!;
+  static String _tokenName(SyntaxTokenType type) {
+    final name = type.name;
+    // The enum member is `default_` (Dart forbids the bare keyword) but
+    // the token key in the map is `default` — strip the trailing
+    // underscore to match.
+    return name.endsWith('_') ? name.substring(0, name.length - 1) : name;
+  }
+
+  static Map<SyntaxTokenType, Color> _enumMap(SyntaxTheme theme) {
+    return <SyntaxTokenType, Color>{
+      for (final type in SyntaxTokenType.values)
+        type: theme.colorFor(_tokenName(type)),
+    };
   }
 }
 

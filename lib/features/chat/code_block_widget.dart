@@ -2,27 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/theme/code_viewer_theme.dart';
 import '../../core/utils/clipboard_utils.dart';
 import 'syntax_highlighter.dart';
-
-// Catppuccin Mocha palette constants
-const _mocha = _MochaColors();
-
-class _MochaColors {
-  const _MochaColors();
-
-  // Base surfaces
-  Color get base => const Color(0xFF1E1E2E);
-  Color get mantle => const Color(0xFF181825);
-  Color get crust => const Color(0xFF11111B);
-  Color get surface0 => const Color(0xFF313244);
-  Color get surface1 => const Color(0xFF45475A);
-  Color get overlay0 => const Color(0xFF6C7086);
-  Color get subtext0 => const Color(0xFFA6ADC8);
-  Color get text => const Color(0xFFCDD6F4);
-  Color get green => const Color(0xFFA6E3A1);
-  Color get red => const Color(0xFFF38BA8);
-}
 
 /// Widget for displaying a code block with syntax highlighting, copy button,
 /// line numbers, and language header.
@@ -141,15 +123,15 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   Widget build(BuildContext context) {
     final isDark =
         widget.isDarkMode ?? (Theme.of(context).brightness == Brightness.dark);
-
-    final bgColor = isDark ? _mocha.crust : const Color(0xFFF1F5F9);
-    final borderColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
+    // Resolve the chrome palette once per build. Both light and dark
+    // themes register `CodeViewerTheme`, so this is always non-null.
+    final codeViewer = isDark ? CodeViewerTheme.dark : CodeViewerTheme.light;
 
     return Container(
       decoration: BoxDecoration(
-        color: bgColor,
+        color: codeViewer.background,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: codeViewer.border),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(
@@ -159,19 +141,22 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
           _CodeHeader(
             language: widget.language,
             fileName: widget.fileName,
-            isDark: isDark,
+            codeViewer: codeViewer,
             copied: _copied,
             onCopy: _copyToClipboard,
           ),
           if (_needsVerticalScroll)
-            SizedBox(height: _maxHeight, child: _buildScrollableCode(isDark))
+            SizedBox(
+              height: _maxHeight,
+              child: _buildScrollableCode(isDark, codeViewer),
+            )
           else
-            _buildScrollableCode(isDark),
+            _buildScrollableCode(isDark, codeViewer),
           if (_isTruncated)
             _TruncatedNotice(
               originalChars: widget.code.length,
               displayedChars: _displayCode.length,
-              isDark: isDark,
+              codeViewer: codeViewer,
             ),
         ],
       ),
@@ -179,14 +164,14 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   }
 
   /// Builds the horizontally (and optionally vertically) scrollable code area.
-  Widget _buildScrollableCode(bool isDark) {
+  Widget _buildScrollableCode(bool isDark, CodeViewerTheme codeViewer) {
     final verticalScroll = SingleChildScrollView(
       controller: _vController,
       primary: false,
       physics: const ClampingScrollPhysics(),
       scrollDirection: Axis.vertical,
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: _buildCodeRow(isDark),
+      child: _buildCodeRow(isDark, codeViewer),
     );
 
     return SingleChildScrollView(
@@ -197,7 +182,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     );
   }
 
-  Widget _buildCodeRow(bool isDark) {
+  Widget _buildCodeRow(bool isDark, CodeViewerTheme codeViewer) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -206,7 +191,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             lineCount: _lineCount,
             fontSize: widget.fontSize,
             lineHeight: _lineHeight,
-            isDark: isDark,
+            codeViewer: codeViewer,
           ),
         Padding(
           padding: EdgeInsets.only(
@@ -240,13 +225,13 @@ class _CodeHeader extends StatefulWidget {
   const _CodeHeader({
     required this.language,
     required this.fileName,
-    required this.isDark,
+    required this.codeViewer,
     required this.copied,
     required this.onCopy,
   });
   final String? language;
   final String? fileName;
-  final bool isDark;
+  final CodeViewerTheme codeViewer;
   final bool copied;
   final VoidCallback onCopy;
 
@@ -259,14 +244,10 @@ class _CodeHeaderState extends State<_CodeHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final headerBg =
-        widget.isDark ? _mocha.mantle : const Color(0xFFEFF1F3);
-    final hoverBg =
-        widget.isDark ? _mocha.surface0 : const Color(0xFFE2E5E9);
-    final dividerColor =
-        widget.isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
-    final labelColor =
-        widget.isDark ? _mocha.subtext0 : const Color(0xFF6E7781);
+    final headerBg = widget.codeViewer.headerBackground;
+    final hoverBg = widget.codeViewer.headerHover;
+    final dividerColor = widget.codeViewer.divider;
+    final labelColor = widget.codeViewer.headerLabel;
 
     final displayName = _resolveDisplayName();
 
@@ -311,7 +292,7 @@ class _CodeHeaderState extends State<_CodeHeader> {
             // Copy button – always visible, more discoverable on hover
             _CopyButton(
               copied: widget.copied,
-              isDark: widget.isDark,
+              codeViewer: widget.codeViewer,
               onTap: widget.onCopy,
             ),
           ],
@@ -360,18 +341,18 @@ class _CodeHeaderState extends State<_CodeHeader> {
 class _CopyButton extends StatelessWidget {
   const _CopyButton({
     required this.copied,
-    required this.isDark,
+    required this.codeViewer,
     required this.onTap,
   });
   final bool copied;
-  final bool isDark;
+  final CodeViewerTheme codeViewer;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final iconColor = copied
-        ? (isDark ? _mocha.green : const Color(0xFF1A7F37))
-        : (isDark ? _mocha.overlay0 : const Color(0xFF6E7781));
+        ? codeViewer.successAccent
+        : codeViewer.idleAccent;
 
     final l10n = AppLocalizations.of(context);
     return Tooltip(
@@ -419,24 +400,20 @@ class _TruncatedNotice extends StatelessWidget {
   const _TruncatedNotice({
     required this.originalChars,
     required this.displayedChars,
-    required this.isDark,
+    required this.codeViewer,
   });
 
   final int originalChars;
   final int displayedChars;
-  final bool isDark;
+  final CodeViewerTheme codeViewer;
 
   @override
   Widget build(BuildContext context) {
-    final bg = isDark ? _mocha.mantle : const Color(0xFFEFF1F3);
-    final color = isDark ? _mocha.subtext0 : const Color(0xFF6E7781);
     return Container(
       decoration: BoxDecoration(
-        color: bg,
+        color: codeViewer.headerBackground,
         border: Border(
-          top: BorderSide(
-            color: isDark ? _mocha.surface0 : const Color(0xFFD0D7DE),
-          ),
+          top: BorderSide(color: codeViewer.divider),
         ),
       ),
       padding: const EdgeInsets.symmetric(
@@ -446,7 +423,7 @@ class _TruncatedNotice extends StatelessWidget {
       child: Text(
         'Showing $displayedChars of $originalChars characters',
         style: TextStyle(
-          color: color,
+          color: codeViewer.muted,
           fontSize: AppFontSize.sm,
           fontFamily: 'monospace',
         ),
@@ -465,18 +442,15 @@ class _LineNumbers extends StatelessWidget {
     required this.lineCount,
     required this.fontSize,
     required this.lineHeight,
-    required this.isDark,
+    required this.codeViewer,
   });
   final int lineCount;
   final double fontSize;
   final double lineHeight;
-  final bool isDark;
+  final CodeViewerTheme codeViewer;
 
   @override
   Widget build(BuildContext context) {
-    final dividerColor = isDark ? _mocha.surface0 : const Color(0xFFD0D7DE);
-    final numColor = isDark ? _mocha.surface1 : const Color(0xFF8C959F);
-
     final lineNumbers = List.generate(lineCount, (i) => '${i + 1}').join('\n');
 
     return Container(
@@ -485,7 +459,7 @@ class _LineNumbers extends StatelessWidget {
         right: AppSpacing.sm + AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: dividerColor)),
+        border: Border(right: BorderSide(color: codeViewer.divider)),
       ),
       child: Text(
         lineNumbers,
@@ -493,7 +467,7 @@ class _LineNumbers extends StatelessWidget {
         style: TextStyle(
           fontFamily: 'monospace',
           fontSize: fontSize,
-          color: numColor,
+          color: codeViewer.lineNumberText,
           height: lineHeight / fontSize,
         ),
       ),
