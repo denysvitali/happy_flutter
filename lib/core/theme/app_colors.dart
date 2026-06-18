@@ -84,8 +84,10 @@ abstract final class AppColors {
   /// Diff: inline added text (light mode).
   static const Color diffInlineAddedTextLight = Color(0xFF1A7F37);
 
-  /// Diff: inline removed background (light mode).
-  static const Color diffInlineRemovedBgLight = Color(0xFFA39E4D);
+  /// Diff: inline removed background (light mode) — translucent red.
+  /// Replaces the prior olive `#A39E4D` value, which read as a "modified"
+  /// yellow-green and broke the added/removed mental model.
+  static const Color diffInlineRemovedBgLight = Color(0x4ACF222E);
 
   /// Diff: inline removed text (light mode).
   static const Color diffInlineRemovedTextLight = Color(0xFFCF222E);
@@ -115,6 +117,32 @@ abstract final class AppColors {
 
   /// Diff: context text (dark mode).
   static const Color diffContextTextDark = Color(0xFFC9D1D9);
+
+  /// Diff: hunk header text (dark mode).
+  static const Color diffHunkHeaderTextDark = Color(0xFF8B949E);
+
+  /// Diff: line number text (dark mode).
+  static const Color diffLineNumberTextDark = Color(0xFF6E7681);
+
+  /// Diff: inline added background (dark mode) — translucent green.
+  static const Color diffInlineAddedBgDark = Color(0x4AC26B33);
+
+  /// Diff: inline added text (dark mode).
+  static const Color diffInlineAddedTextDark = Color(0xFF4AC26B);
+
+  /// Diff: inline removed background (dark mode) — translucent red.
+  /// Replaces the prior olive `#A39E33` value, which read as a "modified"
+  /// yellow-green and broke the added/removed mental model. Uses a
+  /// distinct red shade from the light value so the two modes aren't
+  /// visually identical (and so the regression test that asserts
+  /// light≠dark stays meaningful).
+  static const Color diffInlineRemovedBgDark = Color(0x4AFF7B72);
+
+  /// Diff: inline removed text (dark mode).
+  static const Color diffInlineRemovedTextDark = Color(0xFFFF7B72);
+
+  /// Diff: leading space dot (dark mode).
+  static const Color diffLeadingSpaceDotDark = Color(0xFF4A4A4A);
 }
 
 // ─── Opacity ─────────────────────────────────────────────────────────────────

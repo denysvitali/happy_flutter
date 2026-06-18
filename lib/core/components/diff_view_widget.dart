@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/diff_theme.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart' as ui;
 import 'package:happy_flutter/core/ui/diff/diff_view.dart' as ui;
 
@@ -8,6 +8,16 @@ import 'package:happy_flutter/core/ui/diff/diff_view.dart' as ui;
 ///
 /// Legacy color model retained for backward compatibility. Internally
 /// mapped onto the canonical [ui.DiffTheme] used by `core/ui/diff`.
+///
+/// **Deprecated** — the static `DiffViewColors.light()` /
+/// `DiffViewColors.dark()` factories were the source of the prior
+/// olive "inline removed" bug. New code should construct a value
+/// from a [DiffTheme] extension lookup and call [toDiffTheme], e.g.:
+///
+/// ```dart
+/// final colors = DiffViewColors.fromTheme(context.diffTheme);
+/// colors.toDiffTheme();
+/// ```
 class DiffViewColors {
 
   DiffViewColors({
@@ -28,47 +38,28 @@ class DiffViewColors {
     required this.leadingSpaceDot,
   });
 
-  /// Light theme colors
-  factory DiffViewColors.light() {
+  /// Adapt a [DiffTheme] (the canonical ThemeExtension palette) into
+  /// the legacy [DiffViewColors] value type.
+  factory DiffViewColors.fromTheme(DiffTheme theme) {
     return DiffViewColors(
-      addedBg: AppColors.diffAddedBgLight,
-      removedBg: AppColors.diffRemovedBgLight,
-      contextBg: Colors.transparent,
-      hunkHeaderBg: const Color(0xFFF0F0F0),
-      lineNumberBg: const Color(0xFFF5F5F5),
-      addedText: AppColors.diffAddedTextLight,
-      removedText: AppColors.diffRemovedTextLight,
-      contextText: const Color(0xFF24292F),
-      hunkHeaderText: const Color(0xFF656D76),
-      lineNumberText: const Color(0xFF6E7781),
-      inlineAddedBg: const Color(0x4AC26B4D),
-      inlineAddedText: AppColors.diffAddedTextLight,
-      inlineRemovedBg: const Color(0xFFA39E4D),
-      inlineRemovedText: AppColors.diffRemovedTextLight,
-      leadingSpaceDot: const Color(0xFFD4D4D4),
+      addedBg: theme.addedBg,
+      removedBg: theme.removedBg,
+      contextBg: theme.contextBg,
+      hunkHeaderBg: theme.hunkHeaderBg,
+      lineNumberBg: theme.lineNumberBg,
+      addedText: theme.addedText,
+      removedText: theme.removedText,
+      contextText: theme.contextText,
+      hunkHeaderText: theme.hunkHeaderText,
+      lineNumberText: theme.lineNumberText,
+      inlineAddedBg: theme.inlineAddedBg,
+      inlineAddedText: theme.inlineAddedText,
+      inlineRemovedBg: theme.inlineRemovedBg,
+      inlineRemovedText: theme.inlineRemovedText,
+      leadingSpaceDot: theme.leadingSpaceDot,
     );
   }
 
-  /// Dark theme colors
-  factory DiffViewColors.dark() {
-    return DiffViewColors(
-      addedBg: AppColors.diffAddedBgDark,
-      removedBg: AppColors.diffRemovedBgDark,
-      contextBg: Colors.transparent,
-      hunkHeaderBg: const Color(0xFF2D2D2D),
-      lineNumberBg: const Color(0xFF252525),
-      addedText: AppColors.diffAddedTextDark,
-      removedText: AppColors.diffRemovedTextDark,
-      contextText: const Color(0xFFC9D1D9),
-      hunkHeaderText: const Color(0xFF8B949E),
-      lineNumberText: const Color(0xFF6E7681),
-      inlineAddedBg: const Color(0x4AC26B33),
-      inlineAddedText: AppColors.diffAddedTextDark,
-      inlineRemovedBg: const Color(0xFFA39E33),
-      inlineRemovedText: AppColors.diffRemovedTextDark,
-      leadingSpaceDot: const Color(0xFF4A4A4A),
-    );
-  }
   /// Background colors
   final Color addedBg;
   final Color removedBg;
@@ -202,10 +193,13 @@ class DiffView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedColors = colors ??
-        (Theme.of(context).brightness == Brightness.dark
-            ? DiffViewColors.dark()
-            : DiffViewColors.light());
+    // Resolve the diff palette from the ambient DiffTheme extension.
+    // No more inlined hex literals (the prior version of this fallback
+    // hardcoded `#A39E4D` olive for inline-removed, which read as
+    // "modified" instead of "removed" in Edit and MultiEdit tool
+    // outputs — see the regression test in
+    // test/core/theme/diff_theme_test.dart).
+    final resolvedColors = colors ?? DiffViewColors.fromTheme(context.diffTheme);
 
     final diffView = ui.DiffView(
       oldText: oldText,
