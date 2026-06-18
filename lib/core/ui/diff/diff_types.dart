@@ -207,22 +207,34 @@ class DiffViewConfig {
 /// Diff theme colors
 class DiffTheme {
 
+  /// Light-mode defaults. All values are sourced from
+  /// `AppColors.diff*Light` so the legacy default ctor matches the
+  /// canonical palette produced by `DiffTheme.light` (the
+  /// `ThemeExtension` in `core/theme/diff_theme.dart`).
+  ///
+  /// **Note:** no production caller uses the default ctor — every
+  /// consumer routes through either `DiffViewColors.fromTheme(context
+  /// .diffTheme)` (the legacy `DiffView` facade) or
+  /// `context.diffTheme.asLegacy()` (the bridge added in batch 9).
+  /// These defaults are kept for backward compatibility with the
+  /// public constructor signature and so any future caller that
+  /// constructs `DiffTheme()` without args gets consistent values.
   const DiffTheme({
-    this.addedBg = const Color(0xFFDAF8E5),
+    this.addedBg = AppColors.diffAddedBgLight,
     this.addedText = AppColors.diffAddedTextLight,
     this.removedBg = AppColors.diffRemovedBgLight,
     this.removedText = AppColors.diffRemovedTextLight,
     this.contextBg = Colors.transparent,
-    this.contextText = const Color(0xFF1F2328),
-    this.lineNumberBg = const Color(0xFFF6F8FA),
-    this.lineNumberText = const Color(0xFF656D76),
-    this.hunkHeaderBg = const Color(0xFFF6F8FA),
-    this.hunkHeaderText = const Color(0xFF656D76),
-    this.inlineAddedBg = const Color(0xFFDAF8E5),
-    this.inlineAddedText = AppColors.diffAddedTextLight,
-    this.inlineRemovedBg = AppColors.diffRemovedBgLight,
-    this.inlineRemovedText = AppColors.diffRemovedTextLight,
-    this.leadingSpaceDot = const Color(0xFFD0D7DE),
+    this.contextText = AppColors.diffContextTextLight,
+    this.lineNumberBg = AppColors.diffLineNumberBgLight,
+    this.lineNumberText = AppColors.diffLineNumberTextLight,
+    this.hunkHeaderBg = AppColors.diffHunkHeaderBgLight,
+    this.hunkHeaderText = AppColors.diffHunkHeaderTextLight,
+    this.inlineAddedBg = AppColors.diffInlineAddedBgLight,
+    this.inlineAddedText = AppColors.diffInlineAddedTextLight,
+    this.inlineRemovedBg = AppColors.diffInlineRemovedBgLight,
+    this.inlineRemovedText = AppColors.diffInlineRemovedTextLight,
+    this.leadingSpaceDot = AppColors.diffLeadingSpaceDot,
   });
   final Color addedBg;
   final Color addedText;
