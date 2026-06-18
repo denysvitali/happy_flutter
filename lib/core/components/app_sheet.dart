@@ -28,7 +28,10 @@ Future<T?> showAppSheet<T>(
     isScrollControlled: isScrollControlled,
     useSafeArea: useSafeArea,
     backgroundColor: Colors.transparent,
-    barrierColor: barrierColor ?? Colors.black.withValues(alpha: 0.45),
+    // cs.scrim follows the M3 theme — dark in light mode, light in
+    // dark mode. The previous Colors.black.withValues(alpha: 0.45)
+    // was always-on-top black regardless of theme.
+    barrierColor: barrierColor ?? cs.scrim.withValues(alpha: 0.45),
     builder: (ctx) => ClipRRect(
       borderRadius: const BorderRadius.vertical(
         top: Radius.circular(AppRadius.xl),

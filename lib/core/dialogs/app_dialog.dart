@@ -19,6 +19,10 @@ Future<T?> showAppDialog<T>(
   required WidgetBuilder builder,
   bool barrierDismissible = true,
 }) {
+  // cs.scrim follows the M3 theme — dark in light mode, light in
+  // dark mode. The previous Colors.black.withValues(alpha: 0.35 * t)
+  // was always-on-top black regardless of theme.
+  final scrim = Theme.of(context).colorScheme.scrim;
   return showGeneralDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
@@ -42,7 +46,7 @@ Future<T?> showAppDialog<T>(
           sigmaY: _kDialogBlurSigma * t,
         ),
         child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.35 * t),
+          color: scrim.withValues(alpha: 0.35 * t),
           child: Opacity(
             opacity: t.clamp(0.0, 1.0),
             child: Transform.scale(scale: scale, child: child),

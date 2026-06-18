@@ -97,10 +97,13 @@ class _QuickChip extends StatelessWidget {
                   alpha: AppOpacity.soft,
                 ),
           borderRadius: BorderRadius.circular(AppRadius.pill),
+          // cs.outlineVariant follows the M3 theme (subtle in light,
+          // subtle in dark) at AppOpacity.faint (0.08). The previous
+          // Colors.black.withValues(alpha: 0.06) was always-on-top
+          // black in light mode and the white@AppOpacity.faint was
+          // always-on-top white in dark mode.
           border: Border.all(
-            color: dark
-                ? Colors.white.withValues(alpha: AppOpacity.faint)
-                : Colors.black.withValues(alpha: 0.06),
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.faint),
           ),
         ),
         child: Row(
