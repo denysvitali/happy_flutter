@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/diff_theme.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
@@ -7,7 +8,6 @@ import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
-import '../tool_view_colors.dart';
 
 /// View for displaying CodexDiff tool with proper unified diff rendering.
 class CodexDiffView extends StatelessWidget {
@@ -118,7 +118,7 @@ class _DiffContainerState extends State<_DiffContainer> {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final p = widget.parsed;
 
     final oldLines = p.oldText.isEmpty ? 0 : p.oldText.split('\n').length;
@@ -142,9 +142,9 @@ class _DiffContainerState extends State<_DiffContainer> {
 
     return Container(
       decoration: BoxDecoration(
-        color: c.bg,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: c.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,21 +196,22 @@ class _DiffHeaderBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final c = ToolViewColors.of(context);
+    final cs = theme.colorScheme;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: c.headerBg,
+        color: cs.surfaceContainer,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(AppRadius.sm),
           topRight: Radius.circular(AppRadius.sm),
         ),
-        border: Border(bottom: BorderSide(color: c.border)),
+        border: Border(bottom: BorderSide(color: cs.outlineVariant)),
       ),
       child: Row(
         children: [
-          Icon(Icons.difference_outlined, size: 14, color: c.mutedText),
+          Icon(Icons.difference_outlined,
+              size: 14, color: cs.onSurfaceVariant),
           const SizedBox(width: 6),
           if (filename != null) ...[
             if (dir != null)
@@ -219,7 +220,7 @@ class _DiffHeaderBar extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: AppFontSize.sm,
-                  color: c.mutedText,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
             Text(
@@ -227,7 +228,7 @@ class _DiffHeaderBar extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: AppFontSize.sm,
-                color: c.primaryText,
+                color: cs.onSurface,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -235,15 +236,15 @@ class _DiffHeaderBar extends StatelessWidget {
             Text(
               'diff',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: c.mutedText,
+                color: cs.onSurfaceVariant,
                 fontFamily: 'monospace',
               ),
             ),
           const Spacer(),
           // Stats badges
-          _StatBadge(label: '-$oldCount', color: c.red),
+          _StatBadge(label: '-$oldCount', color: AppColors.error),
           const SizedBox(width: 6),
-          _StatBadge(label: '+$newCount', color: c.green),
+          _StatBadge(label: '+$newCount', color: AppColors.success),
           const SizedBox(width: 8),
           ToolViewCopyButton(text: rawDiff, iconSize: 14),
         ],
@@ -287,7 +288,7 @@ class _ExpandToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return InkWell(
       onTap: onToggle,
@@ -295,7 +296,7 @@ class _ExpandToggle extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: c.border)),
+          border: Border(bottom: BorderSide(color: cs.outlineVariant)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -303,14 +304,14 @@ class _ExpandToggle extends StatelessWidget {
             Icon(
               expanded ? Icons.expand_less : Icons.expand_more,
               size: 14,
-              color: c.blue,
+              color: cs.primary,
             ),
             const SizedBox(width: 4),
             Text(
               expanded ? 'Hide diff' : 'Show diff ($totalLines lines)',
               style: TextStyle(
                 fontSize: AppFontSize.sm,
-                color: c.blue,
+                color: cs.primary,
                 fontWeight: FontWeight.w500,
               ),
             ),

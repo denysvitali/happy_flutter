@@ -4,7 +4,6 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/tools/tool_section_view.dart';
 import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart';
 import 'package:happy_flutter/features/chat/tools/tool_error.dart';
-import 'package:happy_flutter/features/chat/tools/tool_view_colors.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(
@@ -264,66 +263,6 @@ void main() {
       expect(bordered, isNotEmpty);
     });
   });
-
-  group('ToolViewColors', () {
-    testWidgets('resolves dark colors', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(brightness: Brightness.dark),
-          home: Builder(
-            builder: (context) {
-              final colors = ToolViewColors.of(context);
-              expect(colors.bg, const Color(0xFF0D1117));
-              return const SizedBox();
-            },
-          ),
-        ),
-      );
-    });
-
-    testWidgets('resolves light colors', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(brightness: Brightness.light),
-          home: Builder(
-            builder: (context) {
-              final colors = ToolViewColors.of(context);
-              expect(colors.bg, const Color(0xFFF6F8FA));
-              return const SizedBox();
-            },
-          ),
-        ),
-      );
-    });
-
-    testWidgets('has all expected color properties', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
-            builder: (context) {
-              final colors = ToolViewColors.of(context);
-              // Verify key properties exist and are Colors
-              expect(colors.bg, isA<Color>());
-              expect(colors.headerBg, isA<Color>());
-              expect(colors.border, isA<Color>());
-              expect(colors.mutedText, isA<Color>());
-              expect(colors.primaryText, isA<Color>());
-              expect(colors.green, isA<Color>());
-              expect(colors.red, isA<Color>());
-              expect(colors.blue, isA<Color>());
-              expect(colors.errorText, isA<Color>());
-              expect(colors.diffTheme, isNotNull);
-              return const SizedBox();
-            },
-          ),
-        ),
-      );
-    });
-  });
 }
+
+

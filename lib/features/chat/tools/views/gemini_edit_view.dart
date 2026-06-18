@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/diff_theme.dart';
 import 'package:happy_flutter/core/ui/diff/diff_types.dart';
@@ -7,7 +8,6 @@ import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
-import '../tool_view_colors.dart';
 
 /// View for displaying Gemini edit tool (lowercase 'edit').
 class GeminiEditView extends StatefulWidget {
@@ -31,7 +31,7 @@ class _GeminiEditViewState extends State<GeminiEditView> {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final input = WireParsers.asMap(widget.tool['input']) ?? {};
 
     String? filePath;
@@ -92,9 +92,9 @@ class _GeminiEditViewState extends State<GeminiEditView> {
     return ToolSectionView(
       child: Container(
         decoration: BoxDecoration(
-          color: c.bg,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: c.border),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,7 +163,7 @@ class _EditHeaderBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
     final lastSlash = resolvedPath.lastIndexOf('/');
     final dir = lastSlash >= 0
         ? resolvedPath.substring(0, lastSlash + 1)
@@ -175,13 +175,13 @@ class _EditHeaderBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: c.headerBg,
+        color: cs.surfaceContainer,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(AppRadius.sm),
           topRight: Radius.circular(AppRadius.sm),
         ),
         border: Border(
-          bottom: BorderSide(color: c.border),
+          bottom: BorderSide(color: cs.outlineVariant),
         ),
       ),
       child: Row(
@@ -189,7 +189,7 @@ class _EditHeaderBar extends StatelessWidget {
           Icon(
             Icons.edit_document,
             size: 14,
-            color: c.blue,
+            color: cs.primary,
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -203,7 +203,7 @@ class _EditHeaderBar extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: 'monospace',
                         fontSize: AppFontSize.sm,
-                        color: c.mutedText,
+                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   TextSpan(
@@ -211,7 +211,7 @@ class _EditHeaderBar extends StatelessWidget {
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.sm,
-                      color: c.primaryText,
+                      color: cs.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -226,7 +226,7 @@ class _EditHeaderBar extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: AppFontSize.sm,
-                color: c.red,
+                color: AppColors.error,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -236,7 +236,7 @@ class _EditHeaderBar extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: AppFontSize.sm,
-                color: c.green,
+                color: AppColors.success,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -264,7 +264,7 @@ class _ExpandToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = ToolViewColors.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return InkWell(
       onTap: onToggle,
@@ -276,7 +276,7 @@ class _ExpandToggle extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: c.border),
+            bottom: BorderSide(color: cs.outlineVariant),
           ),
         ),
         child: Row(
@@ -285,7 +285,7 @@ class _ExpandToggle extends StatelessWidget {
             Icon(
               expanded ? Icons.expand_less : Icons.expand_more,
               size: 14,
-              color: c.blue,
+              color: cs.primary,
             ),
             const SizedBox(width: 4),
             Text(
@@ -294,7 +294,7 @@ class _ExpandToggle extends StatelessWidget {
                   : 'Show diff ($totalLines lines)',
               style: TextStyle(
                 fontSize: AppFontSize.sm,
-                color: c.blue,
+                color: cs.primary,
                 fontWeight: FontWeight.w500,
               ),
             ),
