@@ -23,6 +23,7 @@ import 'widgets/settings_search_widgets.dart';
 import 'widgets/workflow_presets_section.dart';
 
 part 'settings_screen_search.dart';
+part 'settings_screen_specs.dart';
 
 // ─── Settings Screen ─────────────────────────────────────────────────────────
 
@@ -458,84 +459,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required String? firstMachineSubtitle,
   }) {
     if (machineCount == 0) return const SizedBox.shrink();
-
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsMachines,
-      children: [
-        SettingsNavRow(
-          icon: Icons.computer_outlined,
-          title: l10n.settingsMachines,
-          subtitle: firstMachineSubtitle,
-          onTap: () => context.pushNamed('machines'),
-        ),
-      ],
-    );
+    return _machinesSectionSpec(
+      context,
+      firstMachineSubtitle: firstMachineSubtitle,
+    ).build(context);
   }
 
   Widget _buildDeveloperSection(
     BuildContext context, {
     required bool developerModeEnabled,
   }) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsDeveloper,
-      children: [
-        SettingsNavRow(
-          icon: Icons.build,
-          title: l10n.settingsDeveloperOptions,
-          subtitle: developerModeEnabled
-              ? l10n.settingsDeveloperEnabled
-              : l10n.settingsDeveloperTapToEnable,
-          onTap: () => context.pushNamed('developer'),
-        ),
-      ],
-    );
+    return _developerSectionSpec(
+      context,
+      developerModeEnabled: developerModeEnabled,
+    ).build(context);
   }
 
   Widget _buildAccountSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsAccount,
-      children: [
-        SettingsNavRow(
-          icon: Icons.person,
-          title: l10n.accountAccountSettings,
-          subtitle: l10n.settingsAccountSubtitle,
-          onTap: () => context.pushNamed('account'),
-        ),
-      ],
-    );
+    return _accountSectionSpec(context).build(context);
   }
 
   Widget _buildAboutSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return SettingsSection(
-      title: l10n.settingsAbout,
-      children: [
-        SettingsNavRow(
-          icon: Icons.code,
-          title: l10n.settingsGitHub,
-          subtitle: AppConfig.githubSlug,
-          onTap: () => openUrl(AppConfig.githubUrl),
-        ),
-        SettingsNavRow(
-          icon: Icons.bug_report_outlined,
-          title: l10n.settingsReportIssue,
-          onTap: () => openUrl(AppConfig.githubIssuesUrl),
-        ),
-        SettingsNavRow(
-          icon: Icons.privacy_tip_outlined,
-          title: l10n.settingsPrivacyPolicy,
-          onTap: () => openUrl(AppConfig.privacyUrl),
-        ),
-        SettingsNavRow(
-          icon: Icons.gavel_outlined,
-          title: l10n.settingsTermsOfService,
-          onTap: () => openUrl(AppConfig.termsUrl),
-        ),
-      ],
-    );
+    return _aboutSectionSpec(context).build(context);
   }
 
   String _avatarStyleLabel(String style) => switch (style) {
@@ -631,10 +576,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Future<void> openUrl(String url) async {
-    final uri = Uri.parse(url);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  Future<void> openUrl(String url) => _openExternalUrl(url);
 }
 
 class _ServerSection extends StatefulWidget {
