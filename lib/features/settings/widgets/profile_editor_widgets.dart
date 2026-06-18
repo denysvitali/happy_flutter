@@ -80,7 +80,9 @@ class TemplateChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSelected ? color.withAlpha(40) : Colors.transparent,
+      color: isSelected
+          ? color.withValues(alpha: 40 / 255)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: InkWell(
         onTap: onTap,

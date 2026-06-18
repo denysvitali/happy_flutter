@@ -50,7 +50,7 @@ class ProfileHeader extends StatelessWidget {
         border: Border.all(
           color: dark
               ? Colors.white.withValues(alpha: AppOpacity.faint)
-              : Colors.black.withValues(alpha: 0.04),
+              : cs.outline.withValues(alpha: 0.04),
         ),
       ),
       padding: const EdgeInsets.symmetric(

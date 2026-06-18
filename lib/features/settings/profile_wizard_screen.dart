@@ -791,7 +791,9 @@ class _ProviderCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Material(
-      color: isSelected ? color.withAlpha(30) : Colors.transparent,
+      color: isSelected
+          ? color.withValues(alpha: 30 / 255)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: InkWell(
         onTap: onTap,
@@ -812,7 +814,7 @@ class _ProviderCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: color.withAlpha(30),
+                  color: color.withValues(alpha: 30 / 255),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(icon, color: color),
