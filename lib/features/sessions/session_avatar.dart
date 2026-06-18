@@ -9,6 +9,7 @@ import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_neon.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
 import '../../core/ui/avatars/avatar_prism.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/ui/avatars/avatar_rings.dart';
 import '../../core/ui/avatars/avatar_wave.dart';
 
@@ -192,9 +193,13 @@ class SessionAvatar extends StatelessWidget {
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             shape: BoxShape.circle,
+            // cs.shadow follows the M3 theme — light in light mode,
+            // dark in dark mode. The previous Colors.black.withValues
+            // (alpha: 0.15) was always-on-top black regardless of theme.
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
+                color: theme.colorScheme.shadow
+                    .withValues(alpha: AppOpacity.soft),
                 offset: const Offset(0, 1),
                 blurRadius: 2,
                 spreadRadius: 0,
