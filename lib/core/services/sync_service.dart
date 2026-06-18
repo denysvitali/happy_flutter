@@ -1087,14 +1087,20 @@ what you have, you must use the options mode.
         msg.contains('not registered');
   }
 
-  /// Whether [error] is an infra-side RPC forwarding failure during spawn or
-  /// auto-restore. The client cannot recover this locally, so it should not be
-  /// treated as an app bug.
+  /// Whether [error] is an infra-side RPC forwarding failure that the
+  /// client cannot recover from locally:
+  ///   - spawn-time Redis replica timeouts (`forwarded via Redis` +
+  ///     `no replica responded`)
+  ///   - session RPCs whose daemon-side response channel was closed
+  ///     mid-flight (`RPC forwarding failed: response channel closed`).
+  /// Both are non-actionable from the client and should be downgraded
+  /// to info at every call site that uses [_isTransientRpcError].
   static bool _isRpcReplicaTimeout(Object error) {
     if (error is! StateError) return false;
     final msg = error.message;
-    return msg.contains('forwarded via Redis') &&
-        msg.contains('no replica responded');
+    return (msg.contains('forwarded via Redis') &&
+            msg.contains('no replica responded')) ||
+        msg.contains('RPC forwarding failed');
   }
 
   /// Combined transient classification used at machine-RPC call sites:

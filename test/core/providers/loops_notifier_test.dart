@@ -57,6 +57,10 @@ void main() {
 
   setUp(() {
     sync = createTestSync()..testLoopsBySession.clear();
+    // Clear testSessions so the multi-session tests below see a clean
+    // slate — Sync is a singleton and prior tests in this file leave
+    // their seeded sessions behind.
+    sync.testSessions.clear();
     sync.testIsInitialized = true;
     LoopStorage.instance.setStorageForTesting(_FakeMMKVStorage());
   });
@@ -233,6 +237,91 @@ void main() {
         final notifier = container.read(loopsNotifierProvider.notifier);
         // Should not throw or surface the transient socket error.
         await notifier.refreshFromSync();
+        expect(container.read(loopsNotifierProvider), isEmpty);
+      },
+    );
+
+    test(
+      'refreshFromSync treats sessionRPC forwarding failure as transient '
+      'and breaks the loop',
+      () async {
+        // Three sessions — once session #2 raises a forwarding failure,
+        // session #3 must NOT be attempted (each attempt waits for
+        // emitWithAck to time out, so a stuck daemon would otherwise
+        // stall refresh for ~10 s per session and flood Sentry with
+        // warnings).
+        sync.testSessions['s1'] = _session(id: 's1');
+        sync.testSessions['s2'] = _session(id: 's2');
+        sync.testSessions['s3'] = _session(id: 's3');
+        sync.testSocketConnectedOverride = true;
+        final attempted = <String>[];
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          attempted.add(sid);
+          if (sid == 's2') {
+            throw StateError(
+              'Session RPC loop-list failed: '
+              'RPC forwarding failed: response channel closed',
+            );
+          }
+          // Successful sessions return an empty loop list.
+          return {'ok': true, 'result': null};
+        };
+
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        await notifier.refreshFromSync();
+        // s1 succeeded, s2 raised the transient error, s3 was skipped
+        // because the loop broke after the transient failure.
+        expect(attempted, ['s1', 's2']);
+        expect(container.read(loopsNotifierProvider), isEmpty);
+      },
+    );
+
+    test(
+      'refreshFromSync treats Redis replica timeout as transient and '
+      'breaks the loop',
+      () async {
+        sync.testSessions['s1'] = _session(id: 's1');
+        sync.testSessions['s2'] = _session(id: 's2');
+        sync.testSocketConnectedOverride = true;
+        final attempted = <String>[];
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          attempted.add(sid);
+          throw StateError(
+            'Session RPC loop-list failed: forwarded via Redis, '
+            'no replica responded within 5s',
+          );
+        };
+
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        await notifier.refreshFromSync();
+        // First session failed with a transient infra error — the loop
+        // must break so we don't issue another doomed RPC for s2.
+        expect(attempted, ['s1']);
+      },
+    );
+
+    test(
+      'refreshFromSync keeps iterating on non-transient StateError',
+      () async {
+        // A StateError that isn't transient AND isn't method-not-available
+        // should be logged but the loop should continue to the next
+        // session — that's the existing "best-effort" contract.
+        sync.testSessions['s1'] = _session(id: 's1');
+        sync.testSessions['s2'] = _session(id: 's2');
+        sync.testSocketConnectedOverride = true;
+        final attempted = <String>[];
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          attempted.add(sid);
+          throw StateError('some real failure');
+        };
+
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        await notifier.refreshFromSync();
+        // Both sessions should have been attempted despite the failure.
+        expect(attempted, ['s1', 's2']);
         expect(container.read(loopsNotifierProvider), isEmpty);
       },
     );

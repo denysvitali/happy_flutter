@@ -255,18 +255,30 @@ extension SyncLoops on Sync {
           );
           continue;
         }
+        if (Sync._isTransientRpcError(e)) {
+          // Infra-side forwarding broke (Redis replica timeout, or
+          // daemon's response channel closed mid-flight). Stop iterating
+          // — every remaining session would fail the same way, and the
+          // `loops-updated` socket events will refresh us once the
+          // forwarding path recovers.
+          logger.debug(
+            '[loops] listLoops($sessionId) skipped — transient: $e',
+          );
+          break;
+        }
         logger.warning(
           '[loops] listLoops($sessionId) failed: $e',
           e,
         );
       } catch (e, st) {
         if (Sync._isTransientConnectionError(e)) {
-          // Socket dropped mid-iteration (or was already down). Stop the
-          // loop so we don't emit a warning for every remaining session.
+          // Local socket dropped mid-iteration. Stop the loop so we don't
+          // issue N more doomed emits (each one waits for emitWithAck
+          // to time out).
           logger.debug(
             '[loops] listLoops($sessionId) skipped — transient: $e',
           );
-          continue;
+          break;
         }
         logger.warning(
           '[loops] listLoops($sessionId) failed: $e',
