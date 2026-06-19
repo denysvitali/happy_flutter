@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
@@ -323,6 +326,114 @@ void main() {
         // Both sessions should have been attempted despite the failure.
         expect(attempted, ['s1', 's2']);
         expect(container.read(loopsNotifierProvider), isEmpty);
+      },
+    );
+
+    test(
+      'listLoops publishes to onLoopsChanged AND bumps the domain counter '
+      'so notifier state updates',
+      () async {
+        // Regression: client-initiated listLoops used to write to
+        // _loopsBySession + fire the onLoopsChanged stream, but did NOT
+        // bump _domainChangeCounters. The notifier's loadFromSync
+        // short-circuited on the unchanged counter, leaving Riverpod
+        // state empty even though the data was in memory. This made
+        // the Loops page show an empty state immediately after refresh
+        // (and felt like a hang because the user expected their loops).
+        sync.testSessions['s1'] = _session(id: 's1');
+        sync.testSocketConnectedOverride = true;
+        sync.testSessionRPCOverride = (sid, method, params) async => {
+              'ok': true,
+              'result': null,
+              'loops': [_sample(id: 'fresh', sessionId: 's1').toJson()],
+            };
+
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        await notifier.refreshFromSync();
+        // The fix: notifier state now mirrors _loopsBySession after
+        // client-initiated listLoops, not only after server-pushed
+        // `loops-updated` events.
+        expect(container.read(loopsNotifierProvider)['s1'], hasLength(1));
+        expect(
+          container.read(loopsNotifierProvider)['s1']!.single.id,
+          'fresh',
+        );
+      },
+    );
+
+    test(
+      'hydrateFromCache returns true when MMKV has cached loops for '
+      'known sessions',
+      () async {
+        // Seed MMKV with a JSON-encoded loop list for s1 (also add s1
+        // to the sessions map so hydrateAllFromCache visits it). The
+        // setUp installs _FakeMMKVStorage; we re-seed it here with
+        // cached data.
+        final fake = _FakeMMKVStorage()
+          ..setString(
+            'loops:s1',
+            '[${jsonEncode(_sample(id: 'cached', sessionId: 's1').toJson())}]',
+          );
+        LoopStorage.instance.setStorageForTesting(fake);
+        sync.testSessions['s1'] = _session(id: 's1');
+
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        final hasCached = notifier.hydrateFromCache();
+        expect(hasCached, isTrue);
+        // Hydrate published the cached state to Riverpod — the screen
+        // can paint immediately, no spinner needed.
+        expect(
+          container.read(loopsNotifierProvider)['s1']!.single.id,
+          'cached',
+        );
+      },
+    );
+
+    test(
+      'hydrateFromCache returns false when MMKV is empty',
+      () async {
+        sync.testSessions['s1'] = _session(id: 's1');
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        final hasCached = notifier.hydrateFromCache();
+        expect(hasCached, isFalse);
+        expect(container.read(loopsNotifierProvider), isEmpty);
+      },
+    );
+
+    test(
+      'refreshFromSync caps total time so a single slow session cannot '
+      'hang the Loops page',
+      () async {
+        // Regression: with the old code, a single session whose
+        // sessionRPC took its full 30 s ACK timeout would burn 30 s on
+        // the spinner before the break-on-transient could fire. With
+        // many sessions the spinner could be up for many minutes.
+        // The fix adds a hard 10 s deadline to refreshAllLoops so the
+        // call returns well before emitWithAck's per-call ACK timeout.
+        sync.testSessions['s1'] = _session(id: 's1');
+        sync.testSocketConnectedOverride = true;
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          // Hang forever — simulates a wedged daemon.
+          await Completer<void>().future;
+        };
+
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        final stopwatch = Stopwatch()..start();
+        await notifier.refreshFromSync();
+        stopwatch.stop();
+        // Must return well under the old 30 s per-call ACK timeout.
+        // Generous bound to avoid CI flakes — 15 s is plenty for the
+        // 10 s deadline plus bookkeeping.
+        expect(
+          stopwatch.elapsed,
+          lessThan(const Duration(seconds: 15)),
+          reason: 'refreshFromSync should respect the hard deadline, '
+              'not wait for emitWithAck to time out',
+        );
       },
     );
   });

@@ -52,6 +52,22 @@ class LoopsNotifier extends Notifier<Map<String, List<Loop>>> {
     );
   }
 
+  /// Hydrate in-memory loop state from MMKV and publish to listeners.
+  ///
+  /// Fast (synchronous MMKV read). Used to render cached data
+  /// immediately while the server fetch runs in the background — see
+  /// `LoopsScreen._refresh` for the hydrate-then-refresh flow.
+  ///
+  /// Returns `true` if any cached loops were found, so callers can
+  /// decide whether to show a loading spinner or skip straight to the
+  /// populated list. Idempotent.
+  bool hydrateFromCache() {
+    if (!sync.isInitialized) return false;
+    sync.hydrateAllFromCache();
+    loadFromSync();
+    return sync.loopsBySession.values.any((l) => l.isNotEmpty);
+  }
+
   /// Server-fetch + read. Best-effort — failures are logged and ignored.
   Future<void> refreshFromSync() async {
     if (!sync.isInitialized) return;

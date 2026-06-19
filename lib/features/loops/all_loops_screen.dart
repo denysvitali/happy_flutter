@@ -55,10 +55,28 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _initialLoading = true;
-      _error = null;
-    });
+    // Phase 1: hydrate from MMKV so cached loops paint immediately
+    // (instead of a spinner that only clears once the server fetch
+    // resolves or hits a timeout). This is what stops the "page loads
+    // forever" symptom for users who already have cached state.
+    final hasCached = ref.read(loopsNotifierProvider.notifier)
+        .hydrateFromCache();
+    if (mounted) {
+      setState(() {
+        _initialLoading = !hasCached;
+        _error = null;
+      });
+    }
+    if (hasCached) {
+      // Phase 2: refresh in the background — we already have data to
+      // show. unawaited() so the spinner stays hidden and the user
+      // sees fresh data appear as it arrives via the onLoopsChanged
+      // stream.
+      unawaited(
+        ref.read(loopsNotifierProvider.notifier).refreshFromSync(),
+      );
+      return;
+    }
     try {
       await ref.read(loopsNotifierProvider.notifier).refreshFromSync();
     } catch (e, st) {

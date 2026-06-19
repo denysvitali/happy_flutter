@@ -226,14 +226,47 @@ extension SyncLoops on Sync {
     // immediately.
     _loopsBySession[sessionId] = List<Loop>.unmodifiable(loops);
     LoopStorage.instance.save(sessionId, loops);
+    // Bump the domain counter so LoopsNotifier.loadFromSync picks up
+    // the change. Without this, client-initiated listLoops would
+    // publish to onLoopsChanged but the notifier's _lastChangeCounter
+    // guard would short-circuit, leaving the screen's Riverpod state
+    // empty even though the data is right there in _loopsBySession.
     _loopsChangeController.add(sessionId);
+    _notifyDataChanged({SyncDomain.loops});
     return loops;
+  }
+
+  /// Hydrate [loopsBySession] from MMKV for every known session, then
+  /// publish so [LoopsNotifier] subscribers see the cached state.
+  ///
+  /// Instant — no network. Called before [refreshAllLoops] so the UI can
+  /// render cached data immediately instead of a blank spinner while the
+  /// server fetch resolves (or hangs). Idempotent: re-hydrating an
+  /// already-loaded session is a no-op via [hydrateLoopsForSession].
+  void hydrateAllFromCache() {
+    for (final sessionId in _sessions.keys) {
+      hydrateLoopsForSession(sessionId);
+    }
+    // Bump the domain counter so LoopsNotifier.loadFromSync picks up the
+    // newly-hydrated state. Without this, cold-start users would see the
+    // spinner until either refreshAllLoops completes or a real
+    // `loops-updated` socket event arrives.
+    _notifyDataChanged({SyncDomain.loops});
   }
 
   /// Refresh loops for every known session.
   ///
   /// Best-effort — sessions whose `sessionRPC` call fails are logged and
   /// skipped. Used by `LoopsNotifier.refreshFromSync()`.
+  ///
+  /// Bounded by a hard total [_refreshAllLoopsDeadline] so that a slow
+  /// or unresponsive daemon cannot stack N × 30 s ACK timeouts into a
+  /// multi-minute UI hang. On a transient error, iteration stops
+  /// immediately (every remaining session would fail the same way and
+  /// `loops-updated` socket events will refresh us once the forwarding
+  /// path recovers).
+  static const Duration _refreshAllLoopsDeadline = Duration(seconds: 10);
+
   Future<void> refreshAllLoops() async {
     if (!isInitialized) return;
     if (!_isSocketConnected()) {
@@ -244,9 +277,41 @@ extension SyncLoops on Sync {
       return;
     }
     final sessionIds = _sessions.keys.toList(growable: false);
+    if (sessionIds.isEmpty) return;
+
+    final startedAt = DateTime.now();
     for (final sessionId in sessionIds) {
+      final remaining =
+          _refreshAllLoopsDeadline - DateTime.now().difference(startedAt);
+      if (remaining <= Duration.zero) {
+        // Out of time. Any remaining sessions will be refreshed by the
+        // next `loops-updated` event or the next manual refresh.
+        logger.debug(
+          '[loops] refreshAllLoops deadline exceeded — '
+          'skipping ${sessionIds.length - sessionIds.indexOf(sessionId)} '
+          'remaining sessions',
+        );
+        break;
+      }
       try {
-        await listLoops(sessionId: sessionId);
+        // Per-call timeout shrinks to match the remaining budget so a
+        // single wedged RPC cannot block the whole loop until its
+        // internal 30 s ACK timer fires.
+        await listLoops(sessionId: sessionId).timeout(
+          remaining,
+          onTimeout: () {
+            logger.debug(
+              '[loops] listLoops($sessionId) hit refresh deadline — '
+              'breaking out of refreshAllLoops',
+            );
+            throw TimeoutException(
+              'refreshAllLoops deadline exceeded on $sessionId',
+            );
+          },
+        );
+      } on TimeoutException {
+        // Hit the total deadline — stop admitting more RPCs.
+        break;
       } on StateError catch (e) {
         if (Sync._isRpcMethodNotAvailable(e)) {
           // Daemon predates the loop-* methods — skip silently.
