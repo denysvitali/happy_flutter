@@ -552,7 +552,12 @@ void main() {
         // Simulate the cold-start hook (Sync._init calls
         // hydrateAllFromCache right after isInitialized=true).
         final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+        final streamEventsBefore = <String>[];
+        final sub = sync.onLoopsChanged.listen(streamEventsBefore.add);
         sync.hydrateAllFromCache();
+        // Allow the stream event to flush.
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
 
         // MMKV data is now in _loopsBySession.
         expect(sync.loopsBySession['s1']!.single.id, 'cold');
@@ -562,6 +567,19 @@ void main() {
         expect(
           sync.domainChangeCounter(SyncDomain.loops),
           greaterThan(counterBefore),
+        );
+        // onLoopsChanged stream also fired — this is what wakes up
+        // notifier subscribers that were built BEFORE the cold-start
+        // hydrate (e.g. a user who tapped the Loops tab while sync
+        // was still initializing). Without this fire, those
+        // notifiers would see an empty state forever because their
+        // loadFromSync short-circuits on the counter check and
+        // doesn't re-read the in-memory map on its own.
+        expect(
+          streamEventsBefore,
+          isNotEmpty,
+          reason: 'hydrateAllFromCache must fire onLoopsChanged so '
+              'pre-existing notifier subscribers wake up',
         );
       },
     );

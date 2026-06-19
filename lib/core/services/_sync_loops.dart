@@ -252,6 +252,20 @@ extension SyncLoops on Sync {
     // spinner until either refreshAllLoops completes or a real
     // `loops-updated` socket event arrives.
     _notifyDataChanged({SyncDomain.loops});
+    // Also fire the onLoopsChanged stream so notifier subscribers that
+    // were built BEFORE the cold-start hydrate (e.g. a user who tapped
+    // the Loops tab while sync was still initializing) actually wake
+    // up and reload. The notifier's loadFromSync short-circuits on the
+    // domain counter check, so without a stream event the only thing
+    // that could have woken it up was either the user's explicit
+    // hydrateFromCache() call (which already returned false because
+    // !isInitialized at the time) or a real server-pushed
+    // `loops-updated`. One fire per cold start is enough — the
+    // notifier reads the full _loopsBySession map regardless of which
+    // sessionId we pass.
+    if (_loopsBySession.isNotEmpty) {
+      _loopsChangeController.add(_loopsBySession.keys.first);
+    }
   }
 
   /// Refresh loops for every known session.
