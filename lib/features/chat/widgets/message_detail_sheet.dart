@@ -155,8 +155,12 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
       borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
     ),
     builder: (ctx) => DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      minChildSize: 0.3,
+      // Start tall so a finger drag on the text scrolls the content
+      // immediately, instead of being captured by the sheet's own
+      // expand-on-overscroll (which used to start at 0.55 and made the
+      // bottom of any long message feel "unscrollable").
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
       maxChildSize: 0.95,
       expand: false,
       builder: (ctx, scrollController) => Column(
@@ -195,19 +199,17 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
           Divider(color: cs.outlineVariant.withValues(alpha: 0.3)),
           // Selectable content
           Expanded(
-            child: ListView(
+            child: SingleChildScrollView(
               controller: scrollController,
               padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                SelectableText(
-                  markdown,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.md,
-                    height: 1.5,
-                  ),
+              child: SelectableText(
+                markdown,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontFamily: 'monospace',
+                  fontSize: AppFontSize.md,
+                  height: 1.5,
                 ),
-              ],
+              ),
             ),
           ),
         ],
