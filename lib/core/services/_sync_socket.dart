@@ -231,6 +231,15 @@ extension SyncSocket on Sync {
     isInitialized = true;
     _notifyDataChanged(SyncDomain.values.toSet());
 
+    // Cold-start loops hydration: populate the in-memory loops map
+    // from MMKV for every session that came back from the cache
+    // restore above. Without this, the Loops tab shows a blank
+    // spinner until the server pushes a `loops-updated` event for
+    // every session — which can take seconds when the user has many
+    // sessions and the network is slow. New sessions created after
+    // startup are hydrated lazily by their first listLoops call.
+    hydrateAllFromCache();
+
     // Setup socket connection
     final serverUrl = getServerUrl();
     socketIoClient.connect(

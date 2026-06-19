@@ -436,6 +436,135 @@ void main() {
         );
       },
     );
+
+    test(
+      'refreshAllLoops sorts sessions most-recent-first so a transient '
+      'error on an old session does not strand active ones',
+      () async {
+        // Regression: _sessions.keys returns insertion order, which
+        // is arbitrary. If a stale session's daemon fails transient
+        // first, the loop breaks and skips the active sessions
+        // entirely. Sort by activeAt descending so we hit the active
+        // ones first; if those succeed, the stale ones are best-effort.
+        final now = DateTime.now().millisecondsSinceEpoch;
+        sync.testSessions['stale'] =
+            _session(id: 'stale').copyWith(activeAt: now - 30 * 86400000);
+        sync.testSessions['fresh'] = _session(id: 'fresh').copyWith(activeAt: now);
+        sync.testSessions['newest'] =
+            _session(id: 'newest').copyWith(activeAt: now + 1000);
+        sync.testSocketConnectedOverride = true;
+        final attempted = <String>[];
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          attempted.add(sid);
+          if (sid == 'stale') {
+            throw StateError(
+              'Session RPC loop-list failed: '
+              'RPC forwarding failed: response channel closed',
+            );
+          }
+          return {'ok': true, 'result': null};
+        };
+
+        container = ProviderContainer();
+        await container
+            .read(loopsNotifierProvider.notifier)
+            .refreshFromSync();
+        // Contract: the active sessions (newest, fresh) are attempted
+        // BEFORE the transient break on stale. The exact attempt
+        // order is "newest, fresh, stale" — then the loop breaks, so
+        // nothing follows stale.
+        expect(
+          attempted,
+          equals(<String>['newest', 'fresh', 'stale']),
+          reason: 'sort by activeAt desc should put active sessions '
+              'before the stale one that triggers the break',
+        );
+      },
+    );
+
+    test(
+      'refreshAllLoops deadline does not throw when previous iteration '
+      'overshot the budget',
+      () async {
+        // Regression: the old code computed `remaining =
+        // deadline - elapsed` directly. If the previous iteration's
+        // listLoops took longer than the remaining budget (e.g. 12 s
+        // for a 10 s deadline), the subtraction returns a negative
+        // Duration and `Duration.operator-` throws. Fix: compare
+        // against elapsed first, only subtract when elapsed < deadline.
+        sync.testSessions['s1'] = _session(id: 's1');
+        sync.testSessions['s2'] = _session(id: 's2');
+        sync.testSocketConnectedOverride = true;
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          if (sid == 's1') {
+            // Sleep 11s — exceeds the 10s deadline, simulating a
+            // wedged RPC that the underlying emitWithAck timer
+            // hasn't caught yet.
+            await Future<void>.delayed(const Duration(seconds: 11));
+            return {'ok': true, 'result': null};
+          }
+          return {'ok': true, 'result': null};
+        };
+
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        // Must not throw — and must not exceed the deadline by more
+        // than the per-call buffer.
+        final stopwatch = Stopwatch()..start();
+        await notifier.refreshFromSync();
+        stopwatch.stop();
+        // 11s first iteration + the 10s deadline check on the second
+        // iteration (immediate) — should land around 11s, definitely
+        // under 20s.
+        expect(
+          stopwatch.elapsed,
+          lessThan(const Duration(seconds: 20)),
+          reason: 'refreshFromSync must not throw even when one '
+              'session overshoots the deadline',
+        );
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'hydrateAllFromCache hydrates all sessions present in _sessions '
+      'and bumps the domain counter',
+      () async {
+        // Regression: cold-start users had no loops in memory until
+        // either a real `loops-updated` event arrived or the user
+        // explicitly tapped the Loops tab. Fix: Sync._init() now
+        // calls hydrateAllFromCache() right after isInitialized=true,
+        // so MMKV-cached loops are in memory before any screen reads
+        // them.
+        final fake = _FakeMMKVStorage()
+          ..setString(
+            'loops:s1',
+            '[${jsonEncode(_sample(id: 'cold', sessionId: 's1').toJson())}]',
+          )
+          ..setString(
+            'loops:s2',
+            '[${jsonEncode(_sample(id: 'cold2', sessionId: 's2').toJson())}]',
+          );
+        LoopStorage.instance.setStorageForTesting(fake);
+        sync.testSessions['s1'] = _session(id: 's1');
+        sync.testSessions['s2'] = _session(id: 's2');
+
+        // Simulate the cold-start hook (Sync._init calls
+        // hydrateAllFromCache right after isInitialized=true).
+        final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+        sync.hydrateAllFromCache();
+
+        // MMKV data is now in _loopsBySession.
+        expect(sync.loopsBySession['s1']!.single.id, 'cold');
+        expect(sync.loopsBySession['s2']!.single.id, 'cold2');
+        // Counter bumped so the notifier's loadFromSync will pick it
+        // up without the counter short-circuit kicking in.
+        expect(
+          sync.domainChangeCounter(SyncDomain.loops),
+          greaterThan(counterBefore),
+        );
+      },
+    );
   });
 
   // Skip integration with SyncDomain counter — keep the unused import

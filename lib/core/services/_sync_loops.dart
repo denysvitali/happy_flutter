@@ -279,13 +279,26 @@ extension SyncLoops on Sync {
     final sessionIds = _sessions.keys.toList(growable: false);
     if (sessionIds.isEmpty) return;
 
+    // Sort by recent activity so a transient error on one stale
+    // session doesn't strand the active ones we'd most want to
+    // refresh. We rely on `Session.activeAt` (ms timestamp of last
+    // user-visible activity) — 0 means unknown/never and sorts last.
+    sessionIds.sort((a, b) {
+      final aa = _sessions[a]?.activeAt ?? 0;
+      final bb = _sessions[b]?.activeAt ?? 0;
+      return bb.compareTo(aa); // most-recent-first
+    });
+
     final startedAt = DateTime.now();
     for (final sessionId in sessionIds) {
-      final remaining =
-          _refreshAllLoopsDeadline - DateTime.now().difference(startedAt);
-      if (remaining <= Duration.zero) {
+      final elapsed = DateTime.now().difference(startedAt);
+      if (elapsed >= _refreshAllLoopsDeadline) {
         // Out of time. Any remaining sessions will be refreshed by the
-        // next `loops-updated` event or the next manual refresh.
+        // next `loops-updated` event or the next manual refresh. We
+        // compare against the elapsed Duration rather than subtracting
+        // it from the deadline because `Duration.operator-` throws on
+        // negative results — and elapsed can exceed the deadline if
+        // the previous iteration's listLoops ran slow.
         logger.debug(
           '[loops] refreshAllLoops deadline exceeded — '
           'skipping ${sessionIds.length - sessionIds.indexOf(sessionId)} '
@@ -293,6 +306,7 @@ extension SyncLoops on Sync {
         );
         break;
       }
+      final remaining = _refreshAllLoopsDeadline - elapsed;
       try {
         // Per-call timeout shrinks to match the remaining budget so a
         // single wedged RPC cannot block the whole loop until its
