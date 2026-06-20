@@ -164,12 +164,16 @@ void _processOutputContent({
       return;
     }
     // Inline `  ` tags — emit one message per segment with a
-    // `_t<n>` / `_k<n>` suffix so each gets a unique id.
-    var segIndex = 0;
+    // `_t<n>` / `_k<n>` suffix so each gets a unique id. Use
+    // per-type counters so the text and thinking sub-indices stay
+    // parallel (matching the assistant content list convention).
+    var tSegIndex = 0;
+    var kSegIndex = 0;
     for (final segment in segments) {
       final isThinking = segment.isThinking;
+      final segIdx = isThinking ? kSegIndex++ : tSegIndex++;
       messages.add({
-        'id': '${id}_${isThinking ? 'k' : 't'}$segIndex',
+        'id': '${id}_${isThinking ? 'k' : 't'}$segIdx',
         'localId': localId,
         'seq': seq,
         'createdAt': createdAt,
@@ -186,7 +190,6 @@ void _processOutputContent({
         'parentToolUseId': ?parentToolUseId,
         'agentId': ?agentId,
       });
-      segIndex++;
     }
     return;
   }
@@ -338,12 +341,17 @@ void _processOutputContent({
         }
         // Inline `  ` tags — emit one message per segment with a
         // `_t${i}_t<n>` / `_t${i}_k<n>` suffix so each gets a
-        // unique id within the assistant content block.
-        var segIndex = 0;
+        // unique id within the assistant content block. Use
+        // per-type counters so the text and thinking sub-indices
+        // stay parallel (matching the assistant content list
+        // convention).
+        var tSegIndex = 0;
+        var kSegIndex = 0;
         for (final segment in segments) {
           final isThinking = segment.isThinking;
+          final segIdx = isThinking ? kSegIndex++ : tSegIndex++;
           messages.add({
-            'id': '${id}_t${i}_${isThinking ? 'k' : 't'}$segIndex',
+            'id': '${id}_t${i}_${isThinking ? 'k' : 't'}$segIdx',
             'localId': localId,
             'seq': seq,
             'createdAt': createdAt,
@@ -361,7 +369,6 @@ void _processOutputContent({
             'parentToolUseId': ?parentToolUseId,
             'agentId': ?agentId,
           });
-          segIndex++;
         }
         i++;
         continue;
