@@ -32,19 +32,23 @@ class LoopStorage {
   String _key(String sessionId) => '$_prefix$sessionId';
 
   /// Loads the persisted loops for [sessionId]. Returns an empty list when
-  /// nothing is stored or when decoding fails.
+  /// nothing is stored, decoding fails, or every entry was malformed.
+  /// Malformed entries are skipped with a warning rather than failing
+  /// the whole batch — see [Loop.tryFromJson].
   List<Loop> load(String sessionId) {
     try {
       final raw = _storage.getString(_key(sessionId));
       if (raw == null || raw.isEmpty) return const <Loop>[];
       final decoded = jsonDecode(raw);
       if (decoded is! List) return const <Loop>[];
-      return decoded
-          .whereType<Map>()
-          .map(
-            (e) => Loop.fromJson(Map<String, dynamic>.from(e)),
-          )
-          .toList(growable: false);
+      final out = <Loop>[];
+      for (final entry in decoded.whereType<Map>()) {
+        final loop = Loop.tryFromJson(Map<String, dynamic>.from(entry));
+        if (loop != null) {
+          out.add(loop);
+        }
+      }
+      return List<Loop>.unmodifiable(out);
     } catch (e, st) {
       logger.warning('LoopStorage.load($sessionId) failed: $e', e, st);
       return const <Loop>[];

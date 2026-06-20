@@ -8,7 +8,52 @@
 /// The on-the-wire shape is a cross-language contract with `happy-cli-go`
 /// (see `internal/cli/loop_types.go`). The two repos MUST agree on field
 /// names and JSON serialization.
+library;
+
+import '../utils/wire_parsers.dart';
+
 class Loop {
+  /// Build a [Loop] from a wire payload, tolerating lenient numeric and
+  /// boolean coercion (see [WireParsers]).
+  ///
+  /// Returns `null` when the payload is missing a required field
+  /// (id/sessionId/expression/prompt/createdAt/expiresAt) OR when
+  /// [WireParsers.parseInt] returns `null` for any of the required
+  /// numeric fields. Callers must handle `null` rather than relying on
+  /// a thrown exception — a single bad entry must not poison the
+  /// surrounding batch (see `_sync_loops.dart` `listLoops`).
+  static Loop? tryFromJson(Map<String, dynamic> json) {
+    try {
+      final id = WireParsers.parseString(json['id']);
+      final sessionId = WireParsers.parseString(json['sessionId']);
+      final expression = WireParsers.parseString(json['expression']);
+      final prompt = WireParsers.parseString(json['prompt']);
+      final createdAt = WireParsers.parseInt(json['createdAt']);
+      final expiresAt = WireParsers.parseInt(json['expiresAt']);
+      if (id == null ||
+          sessionId == null ||
+          expression == null ||
+          prompt == null ||
+          createdAt == null ||
+          expiresAt == null) {
+        return null;
+      }
+      return Loop(
+        id: id,
+        sessionId: sessionId,
+        expression: expression,
+        prompt: prompt,
+        recurring: WireParsers.parseBool(json['recurring']) ?? true,
+        createdAt: createdAt,
+        expiresAt: expiresAt,
+        lastFiredAt: WireParsers.parseInt(json['lastFiredAt']),
+        fireCount: WireParsers.parseInt(json['fireCount']) ?? 0,
+        paused: WireParsers.parseBool(json['paused']) ?? false,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
   /// 8-char ID, matches Claude Code convention. Format: `[0-9a-f]{8}`
   /// (lowercase hex).
   final String id;

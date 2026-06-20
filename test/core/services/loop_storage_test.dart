@@ -119,5 +119,40 @@ void main() {
       fake.setString('loops:s1', jsonEncode({'not': 'a list'}));
       expect(storage.load('s1'), isEmpty);
     });
+
+    test('individual malformed entries are skipped, valid ones survive', () {
+      // Regression: a single bad entry (missing required field, or
+      // wrong type for a numeric field) used to throw and poison the
+      // whole batch. Now it should be skipped with a warning and the
+      // remaining valid entries still surface. Loop.tryFromJson
+      // returns null on missing/wrong-type fields.
+      final batch = jsonEncode([
+        _sampleLoop(id: 'aaaaaaaa').toJson(),
+        <String, dynamic>{
+          'id': 'bbbbbbbb',
+          // missing sessionId/expression/prompt/createdAt/expiresAt
+        },
+        _sampleLoop(id: 'cccccccc', fireCount: 5).toJson(),
+        <String, dynamic>{
+          'id': 'dddddddd',
+          'sessionId': 's1',
+          'expression': '*/5 * * * *',
+          'prompt': 'check',
+          'recurring': true,
+          // createdAt/expiresAt are string-typed (legacy backend)
+          'createdAt': '1700000000000',
+          'expiresAt': '1700604800000',
+          'fireCount': '0',
+          'paused': 'false',
+        },
+      ]);
+      fake.setString('loops:s1', batch);
+
+      final loaded = storage.load('s1');
+      // 3 valid entries survive (the second one is dropped for
+      // missing fields; the fourth one survives via lenient string
+      // parsing). 2 missing, 2 valid via leniency + 1 full valid.
+      expect(loaded.map((l) => l.id), ['aaaaaaaa', 'cccccccc', 'dddddddd']);
+    });
   });
 }

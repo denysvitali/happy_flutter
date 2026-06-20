@@ -97,11 +97,22 @@ extension SyncLoops on Sync {
   ///
   /// The payload is `{sid, loops: Loop[]}` per `docs/LOOPS.md`. We treat it
   /// as the source of truth and replace the local list wholesale.
+  /// Malformed entries are skipped with a warning rather than
+  /// poisoning the entire batch — see [Loop.tryFromJson] for the
+  /// lenient parser.
   void _applyLoopsUpdate(String sessionId, List<dynamic> loopsJson) {
     final loops = <Loop>[];
     for (final entry in loopsJson) {
       if (entry is Map) {
-        loops.add(Loop.fromJson(Map<String, dynamic>.from(entry)));
+        final loop = Loop.tryFromJson(Map<String, dynamic>.from(entry));
+        if (loop != null) {
+          loops.add(loop);
+        } else {
+          logger.warning(
+            '[loops] _applyLoopsUpdate($sessionId) skipping malformed '
+            'entry',
+          );
+        }
       }
     }
     _loopsBySession[sessionId] = List<Loop>.unmodifiable(loops);
@@ -161,9 +172,17 @@ extension SyncLoops on Sync {
   /// Clear all loops for [sessionId] from in-memory state and MMKV.
   ///
   /// Used when a session is deleted (see [_handleDeleteSession]).
+  /// Fires the per-session stream and bumps the domain counter so
+  /// subscribers see the removal immediately — symmetric with every
+  /// other mutation path in this file (which all fire
+  /// [_loopsChangeController] + [_notifyDataChanged]). Without this,
+  /// the loops screen for the deleted session would render a stale
+  /// list until the next unrelated change.
   void clearLoopsForSession(String sessionId) {
     _loopsBySession.remove(sessionId);
     LoopStorage.instance.clear(sessionId);
+    _loopsChangeController.add(sessionId);
+    _notifyDataChanged({SyncDomain.loops});
   }
 
   /// Clear all in-memory loop state. Test-only — production code should
@@ -278,13 +297,36 @@ extension SyncLoops on Sync {
     final loopsJson = raw['loops'];
     if (loopsJson is! List) {
       // Some daemons return an empty list under a different key — fall
-      // back to checking the raw payload itself.
-      return const <Loop>[];
+      // back to treating the response as a zero-loop list. We still
+      // must mirror the empty list into in-memory state, persist it,
+      // and bump the domain counter so subscribers (and the notifier's
+      // counter guard) see the change — otherwise a daemon that
+      // legitimately has no loops would leave the user looking at a
+      // stale cached list forever. The previous silent early-return
+      // was a real bug: no breadcrumb, no stream fire, no counter
+      // bump, no MMKV clear.
+      logger.warning(
+        '[loops] listLoops($sessionId) returned non-list "loops" '
+        'payload (${loopsJson.runtimeType}); treating as empty',
+      );
+      final empty = const <Loop>[];
+      _loopsBySession[sessionId] = empty;
+      LoopStorage.instance.save(sessionId, empty);
+      _loopsChangeController.add(sessionId);
+      _notifyDataChanged({SyncDomain.loops});
+      return empty;
     }
     final loops = <Loop>[];
     for (final entry in loopsJson) {
       if (entry is Map) {
-        loops.add(Loop.fromJson(Map<String, dynamic>.from(entry)));
+        final loop = Loop.tryFromJson(Map<String, dynamic>.from(entry));
+        if (loop != null) {
+          loops.add(loop);
+        } else {
+          logger.warning(
+            '[loops] listLoops($sessionId) skipping malformed entry',
+          );
+        }
       }
     }
     // Mirror into in-memory state so subscribers see the latest data

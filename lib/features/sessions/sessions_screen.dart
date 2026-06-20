@@ -183,14 +183,20 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     // Active-loop count surfaced as a tab badge. Paused or expired loops
     // do NOT count — only loops that are still scheduled to fire. The
     // watch is scoped to the count shape so unrelated loop mutations
-    // (e.g. prompt text) don't rebuild the tab bar.
+    // (e.g. prompt text) don't rebuild the tab bar — without `.select`,
+    // LoopsNotifier.loadFromSync publishes a brand-new Map on every
+    // counter tick, which `ref.watch(map) == ref.watch(map)` would
+    // compare as unequal and rebuild the entire sessions screen even
+    // when the count is unchanged.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final totalActiveLoops = ref
-        .watch(loopsNotifierProvider)
-        .values
-        .expand((l) => l)
-        .where((l) => !l.isExpired(nowMs: nowMs))
-        .length;
+    final totalActiveLoops = ref.watch(
+      loopsNotifierProvider.select(
+        (state) => state.values
+            .expand((l) => l)
+            .where((l) => !l.isExpired(nowMs: nowMs))
+            .length,
+      ),
+    );
     // On tablet's sessions tab, the master pane owns the sessions AppBar
     // (search/+/selection/folder modes only affect the list) and the detail
     // pane is `ChatScreen`, which has its own AppBar. The outer Scaffold
