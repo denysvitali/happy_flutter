@@ -266,7 +266,6 @@ void main() {
         'parentToolUseId',
         'parent_toolUseId',
         'tool_use_id',
-        'parentUuid',
       ]) {
         expect(
           WireParsers.sidechainParentToolUseId({key: 'tu_1'}),
@@ -274,6 +273,19 @@ void main() {
           reason: '$key is a valid parent tool-use anchor',
         );
       }
+      expect(
+        WireParsers.sidechainParentToolUseId({
+          'isSidechain': true,
+          'parentUuid': 'tu_1',
+        }),
+        'tu_1',
+        reason: 'parentUuid is valid only on sidechain-shaped records',
+      );
+      expect(
+        WireParsers.sidechainParentToolUseId({'parentUuid': 'tu_1'}),
+        isNull,
+        reason: 'top-level chronological parentUuid is not a tool-use anchor',
+      );
     });
 
     test('agent id extractor reads every wire spelling', () {
