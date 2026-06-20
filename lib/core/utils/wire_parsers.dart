@@ -92,11 +92,6 @@ class WireParsers {
     // task_started / task_progress / task_notification carry the spawning
     // Agent tool_use id as `tool_use_id` (no parent_* form exists there).
     'tool_use_id',
-    // Newer Workflow / local_bash children encode the parent tool_use
-    // block uuid as `parentUuid` on the sidechain event envelope. Treated
-    // as a fallback after the explicit *_tool_use_id fields so the
-    // existing priority is preserved.
-    'parentUuid',
   ];
 
   static const _agentIdKeys = ['agentId', 'agent_id', 'task_id'];
@@ -113,8 +108,20 @@ class WireParsers {
   }
 
   /// The spawning Agent/Task tool_use id, or `null` when absent.
-  static String? sidechainParentToolUseId(Map<String, dynamic> data) =>
-      _firstNonEmptyString(data, _parentToolUseIdKeys);
+  static String? sidechainParentToolUseId(Map<String, dynamic> data) {
+    final explicit = _firstNonEmptyString(data, _parentToolUseIdKeys);
+    if (explicit != null) return explicit;
+
+    // Newer Workflow / local_bash children may encode the parent tool_use
+    // block uuid as `parentUuid` on the sidechain event envelope. Keep this
+    // fallback scoped to sidechain-shaped records so normal top-level
+    // chronological parentUuid links are not mistaken for task ancestry.
+    if (isRawSidechain(data)) {
+      final parentUuid = data['parentUuid'];
+      if (parentUuid is String && parentUuid.isNotEmpty) return parentUuid;
+    }
+    return null;
+  }
 
   /// The SDK-assigned agent id (async background agents), or `null`.
   static String? sidechainAgentId(Map<String, dynamic> data) =>

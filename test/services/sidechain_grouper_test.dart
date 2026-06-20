@@ -12,6 +12,7 @@ void main() {
 
   Map<String, dynamic> _taskMsg({
     required String id,
+    String name = 'Task',
     String? uuid,
     String? toolUseId,
     String? prompt,
@@ -20,7 +21,7 @@ void main() {
   }) => <String, dynamic>{
     'id': id,
     'kind': 'tool-call',
-    'name': 'Task',
+    'name': name,
     if (uuid != null) 'uuid': uuid,
     if (toolUseId != null) 'toolUseId': toolUseId,
     if (prompt != null) 'input': <String, dynamic>{'prompt': prompt},
@@ -734,6 +735,27 @@ void main() {
       expect(innerChildren[0]['id'], 'inner-child');
     });
 
+    test('groups inner sidechain children under nested Workflow', () {
+      final children = <Map<String, dynamic>>[
+        _taskMsg(id: 'inner-workflow', name: 'Workflow', uuid: 'workflow-uuid'),
+        _sidechainRoot(
+          id: 'workflow-root',
+          uuid: 'workflow-root-uuid',
+          parentUuid: 'workflow-uuid',
+        ),
+        _sidechainChild(id: 'workflow-child', parentUuid: 'workflow-root-uuid'),
+      ];
+
+      grouper.regroupNestedTasks(children);
+
+      expect(children, hasLength(1));
+      expect(children[0]['id'], 'inner-workflow');
+      final innerChildren =
+          children[0]['children'] as List<Map<String, dynamic>>;
+      expect(innerChildren, hasLength(1));
+      expect(innerChildren[0]['id'], 'workflow-child');
+    });
+
     test('handles no inner Tasks', () {
       final children = <Map<String, dynamic>>[
         _textMsg(id: 'plain-1'),
@@ -1391,8 +1413,7 @@ void main() {
       expect(result.messages, hasLength(1));
       final task = result.messages.first;
       expect(task['name'], 'Workflow');
-      final children = (task['children'] as List)
-          .cast<Map<String, dynamic>>();
+      final children = (task['children'] as List).cast<Map<String, dynamic>>();
       expect(children.map((c) => c['id']).toList(), [
         'msg_seq221',
         'msg_seq222',

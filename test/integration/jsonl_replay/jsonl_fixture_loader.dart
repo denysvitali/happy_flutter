@@ -47,19 +47,285 @@ const Set<String> cliLocalTypes = {
   'ai-title',
 };
 
+const Set<String> _taskLifecycleSubtypes = {
+  'task_started',
+  'task_progress',
+  'task_updated',
+  'task_notification',
+};
+
+const Set<String> _terminalTaskStatuses = {'completed', 'failed', 'stopped'};
+
 /// Wraps one raw .jsonl object in the `{role, content: {type, data}}`
 /// envelope produced by happy-cli-go. Returns `null` for CLI-local
 /// types that are never forwarded.
 Map<String, dynamic>? wrapJsonlLine(Map<String, dynamic> raw) {
-  final type = raw['type'] as String? ?? '';
-  if (cliLocalTypes.contains(type)) return null;
-  return <String, dynamic>{
-    'role': 'agent',
-    'content': <String, dynamic>{
-      'type': 'output',
-      'data': raw,
-    },
-  };
+  return _DaemonFixtureWrapper().wrap(raw);
+}
+
+class _TaskLifecycleRef {
+  _TaskLifecycleRef({this.toolUseId, this.taskType, this.workflowName});
+
+  String? toolUseId;
+  String? taskType;
+  String? workflowName;
+}
+
+class _DaemonFixtureWrapper {
+  final _taskRefsById = <String, _TaskLifecycleRef>{};
+  final _toolUseIdToParentRef = <String, String>{};
+  final _sidechainLastUuid = <String, String>{};
+  var _uuidSeq = 0;
+  String? _lastUuid;
+
+  Map<String, dynamic>? wrap(Map<String, dynamic> raw) {
+    final type = raw['type'] as String? ?? '';
+    if (cliLocalTypes.contains(type)) return null;
+
+    final data = _deepCopyMap(raw);
+
+    if (type == 'assistant') {
+      if (!_filterAssistantContent(data)) return null;
+      _recordToolUses(data);
+      _stamp(data, type: type, isMeta: false);
+      return _envelope(data);
+    }
+
+    if (type == 'user') {
+      _recordAsyncTaskLaunch(data);
+      _stamp(
+        data,
+        type: type,
+        isMeta: false,
+        sidechainToolUseId: _toolResultUseId(data),
+      );
+      return _envelope(data);
+    }
+
+    if (type == 'system') {
+      final subtype = data['subtype'] as String? ?? '';
+      if (subtype == 'thinking_tokens') return null;
+
+      String? toolUseId;
+      if (_taskLifecycleSubtypes.contains(subtype)) {
+        toolUseId = _enrichTaskLifecycle(data);
+      }
+
+      // happy-cli-go enriches task_progress for state tracking, then drops
+      // it before forwarding because it is high-volume progress noise.
+      if (subtype == 'task_progress') return null;
+
+      _stamp(
+        data,
+        type: type,
+        subtype: subtype,
+        isMeta: true,
+        sidechainToolUseId: toolUseId,
+      );
+      return _envelope(data);
+    }
+
+    if (type == 'tool_progress') {
+      _stamp(
+        data,
+        type: type,
+        isMeta: true,
+        sidechainToolUseId: _firstString(data, const [
+          'parent_tool_use_id',
+          'parentToolUseId',
+          'tool_use_id',
+        ]),
+      );
+      return _envelope(data);
+    }
+
+    if (type == 'result' ||
+        type == 'error' ||
+        type == 'rate_limit_event' ||
+        type == 'auth_status' ||
+        type == 'prompt_suggestion' ||
+        type == 'tool_use_summary') {
+      _stamp(data, type: type, isMeta: true);
+      return _envelope(data);
+    }
+
+    _stamp(data, type: type, isMeta: false);
+    return _envelope(data);
+  }
+
+  void _recordToolUses(Map<String, dynamic> data) {
+    final message = _asMap(data['message']);
+    final content = _asList(message?['content']);
+    if (content == null) return;
+
+    for (final block in content) {
+      final item = _asMap(block);
+      if (item == null || item['type'] != 'tool_use') continue;
+      final toolUseId = item['id'] as String?;
+      if (toolUseId == null || toolUseId.isEmpty) continue;
+      _toolUseIdToParentRef[toolUseId] = toolUseId;
+    }
+  }
+
+  bool _filterAssistantContent(Map<String, dynamic> data) {
+    final message = _asMap(data['message']);
+    final content = _asList(message?['content']);
+    if (message == null || content == null) return true;
+
+    final filtered = <dynamic>[];
+    for (final block in content) {
+      final item = _asMap(block);
+      if (item != null && item['type'] == 'redacted_thinking') continue;
+      filtered.add(block);
+    }
+    message['content'] = filtered;
+    return filtered.isNotEmpty;
+  }
+
+  void _recordAsyncTaskLaunch(Map<String, dynamic> data) {
+    final launch = _asMap(data['tool_use_result']);
+    if (launch == null) return;
+
+    final status = launch['status'] as String?;
+    final isAsync = launch['isAsync'] == true;
+    if (status != 'async_launched' && !isAsync) return;
+
+    final taskId = _firstString(launch, const ['taskId', 'task_id']);
+    final toolUseId = _toolResultUseId(data);
+    if (taskId == null || toolUseId == null) return;
+
+    final ref = _taskRefsById.putIfAbsent(taskId, () => _TaskLifecycleRef());
+    ref.toolUseId = toolUseId;
+    ref.taskType =
+        _firstString(launch, const ['taskType', 'task_type']) ?? ref.taskType;
+    ref.workflowName =
+        _firstString(launch, const ['workflowName', 'workflow_name']) ??
+        ref.workflowName;
+  }
+
+  String? _enrichTaskLifecycle(Map<String, dynamic> data) {
+    final taskId = data['task_id'] as String?;
+    var toolUseId = data['tool_use_id'] as String?;
+    var taskType = data['task_type'] as String?;
+    var workflowName = data['workflow_name'] as String?;
+    if (taskId == null || taskId.isEmpty) return toolUseId;
+
+    final ref = _taskRefsById.putIfAbsent(taskId, () => _TaskLifecycleRef());
+    ref.toolUseId = toolUseId ?? ref.toolUseId;
+    ref.taskType = taskType ?? ref.taskType;
+    ref.workflowName = workflowName ?? ref.workflowName;
+
+    toolUseId ??= ref.toolUseId;
+    taskType ??= ref.taskType;
+    workflowName ??= ref.workflowName;
+
+    if (toolUseId != null && toolUseId.isNotEmpty) {
+      data['tool_use_id'] = toolUseId;
+    }
+    if (taskType != null && taskType.isNotEmpty) {
+      data['task_type'] = taskType;
+    }
+    if (workflowName != null && workflowName.isNotEmpty) {
+      data['workflow_name'] = workflowName;
+    }
+    return toolUseId;
+  }
+
+  void _stamp(
+    Map<String, dynamic> data, {
+    required String type,
+    required bool isMeta,
+    String? subtype,
+    String? sidechainToolUseId,
+  }) {
+    final uuid = _nextUuid();
+    dynamic parentUuid;
+    var isSidechain = false;
+
+    if (sidechainToolUseId != null && sidechainToolUseId.isNotEmpty) {
+      isSidechain = true;
+      parentUuid =
+          _sidechainLastUuid[sidechainToolUseId] ??
+          _toolUseIdToParentRef[sidechainToolUseId] ??
+          sidechainToolUseId;
+      if (type == 'user' && !_isTerminalTaskStatus(data)) {
+        _sidechainLastUuid[sidechainToolUseId] = uuid;
+      }
+    } else {
+      parentUuid = _lastUuid;
+    }
+
+    data['uuid'] = uuid;
+    if (parentUuid != null) data['parentUuid'] = parentUuid;
+    data['isSidechain'] = isSidechain;
+    data['userType'] = 'external';
+    data['isMeta'] = isMeta;
+    data['timestamp'] ??= DateTime.fromMillisecondsSinceEpoch(
+      _parseTimestamp(data['timestamp']),
+    ).toUtc().toIso8601String();
+
+    if (type == 'assistant' && !isSidechain) {
+      _lastUuid = uuid;
+    } else if (type == 'user' && !isSidechain) {
+      _lastUuid = uuid;
+    } else if (type == 'system' &&
+        (subtype == 'init' || subtype == 'session_state_changed')) {
+      _lastUuid = uuid;
+    }
+  }
+
+  String _nextUuid() =>
+      'fixture_uuid_${(_uuidSeq++).toString().padLeft(6, '0')}';
+
+  Map<String, dynamic> _envelope(Map<String, dynamic> data) {
+    return <String, dynamic>{
+      'role': 'agent',
+      'content': <String, dynamic>{'type': 'output', 'data': data},
+    };
+  }
+}
+
+Map<String, dynamic> _deepCopyMap(Map<String, dynamic> value) {
+  return jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
+}
+
+Map<String, dynamic>? _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return null;
+}
+
+List<dynamic>? _asList(dynamic value) {
+  if (value is List<dynamic>) return value;
+  if (value is List) return List<dynamic>.from(value);
+  return null;
+}
+
+String? _firstString(Map<String, dynamic> data, List<String> keys) {
+  for (final key in keys) {
+    final value = data[key];
+    if (value is String && value.isNotEmpty) return value;
+  }
+  return null;
+}
+
+String? _toolResultUseId(Map<String, dynamic> data) {
+  final message = _asMap(data['message']);
+  final content = _asList(message?['content']);
+  if (content == null) return null;
+
+  for (final block in content) {
+    final item = _asMap(block);
+    if (item == null || item['type'] != 'tool_result') continue;
+    final toolUseId = item['tool_use_id'] as String?;
+    if (toolUseId != null && toolUseId.isNotEmpty) return toolUseId;
+  }
+  return null;
+}
+
+bool _isTerminalTaskStatus(Map<String, dynamic> data) {
+  final status = data['status'] as String?;
+  return status != null && _terminalTaskStatuses.contains(status);
 }
 
 /// Loads and wraps every line of a .jsonl file.
@@ -68,12 +334,13 @@ List<JsonlLine> loadJsonl(String path) {
   if (!file.existsSync()) return const [];
   final lines = file.readAsLinesSync();
   final out = <JsonlLine>[];
+  final wrapper = _DaemonFixtureWrapper();
   var seq = 0;
   for (final line in lines) {
     if (line.trim().isEmpty) continue;
     final decoded = jsonDecode(line);
     if (decoded is! Map<String, dynamic>) continue;
-    final plaintext = wrapJsonlLine(decoded);
+    final plaintext = wrapper.wrap(decoded);
     final createdAt = _parseTimestamp(decoded['timestamp']);
     final wire = <String, dynamic>{
       'id': 'fx_${seq.toString().padLeft(6, '0')}',
@@ -142,16 +409,26 @@ class FixtureBundle {
     final subagents = Directory('$base/$session/subagents');
     final sidechainPaths = subagents.existsSync()
         ? subagents
-            .listSync()
-            .whereType<File>()
-            .where((f) => f.path.endsWith('.jsonl'))
-            .map((f) => f.path)
-            .toList()
+              .listSync()
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.jsonl'))
+              .map((f) => f.path)
+              .toList()
         : <String>[];
     return FixtureBundle(
       label: 'gps-tracker main + subagents',
       mainPath: '$base/$session.jsonl',
       sidechainPaths: sidechainPaths,
+    );
+  }
+
+  static FixtureBundle claudeDynamicWorkflows() {
+    return FixtureBundle(
+      label: 'claude dynamic workflows',
+      mainPath:
+          'test/integration/jsonl_replay/fixtures/'
+          'claude_dynamic_workflows.stdout.jsonl',
+      sidechainPaths: const [],
     );
   }
 }

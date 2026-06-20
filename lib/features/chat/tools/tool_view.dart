@@ -854,6 +854,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     'CodexDiff',
     'Task',
     'Agent',
+    'Workflow',
     'TaskCreate',
     'TaskUpdate',
     'TaskList',

@@ -335,7 +335,8 @@ class SidechainGrouper {
           sidechainMsgIds.add(msg['id'] as String);
         }
       } else if (msg['isSidechain'] == true ||
-          ((msg['parentUuid'] as String?)?.isNotEmpty ?? false) ||
+          msg['kind'] == 'sidechain-link' ||
+          msg['taskEvent'] == true ||
           ((msg['parentToolUseId'] as String?)?.isNotEmpty ?? false)) {
         final uuid = msg['uuid'] as String?;
         final parentUuid = msg['parentUuid'] as String?;
@@ -546,7 +547,9 @@ class SidechainGrouper {
     final uuidToGroupedTask = <String, Map<String, dynamic>>{};
     for (final child in children) {
       if (child['kind'] == 'tool-call' &&
-          (child['name'] == 'Task' || child['name'] == 'Agent')) {
+          (child['name'] == 'Task' ||
+              child['name'] == 'Agent' ||
+              child['name'] == 'Workflow')) {
         final id = child['id'] as String?;
         if (id != null && id.isNotEmpty) {
           uuidToGroupedTask[id] = child;
