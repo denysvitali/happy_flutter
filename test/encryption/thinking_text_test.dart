@@ -247,4 +247,311 @@ void main() {
     expect(result.toolResults.length, 1);
     expect(result.toolResults[0]['toolUseId'], 'mcp1');
   });
+
+  group('inline   tags in text blocks', () {
+    test('trailing think tag splits into text + thinking messages', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'uuid': 'u1',
+                'message': {
+                  'content': [
+                    {
+                      'type': 'text',
+                      'text':
+                          'Here is my answer. '
+                          'Reasoning about the user request.',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+        ],
+        sessionId: 's1',
+      );
+
+      expect(result.messages.length, 2);
+
+      final text = result.messages[0];
+      expect(text['isThinking'], isNull);
+      expect(text['content'], 'Here is my answer.');
+      expect(text['id'], 'm1_t0_t0');
+
+      final thinking = result.messages[1];
+      expect(thinking['isThinking'], true);
+      expect(
+        thinking['content'],
+        contains('Reasoning about the user request.'),
+      );
+      expect(thinking['id'], 'm1_t0_k0');
+    });
+
+    test('mid-text think tag splits into text + thinking + text', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'uuid': 'u1',
+                'message': {
+                  'content': [
+                    {
+                      'type': 'text',
+                      'text':
+                          'Before.  step one  After.',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+        ],
+        sessionId: 's1',
+      );
+
+      expect(result.messages.length, 3);
+
+      expect(result.messages[0]['isThinking'], isNull);
+      expect(result.messages[0]['content'], 'Before.');
+      expect(result.messages[0]['id'], 'm1_t0_t0');
+
+      expect(result.messages[1]['isThinking'], true);
+      expect(result.messages[1]['content'], contains('step one'));
+      expect(result.messages[1]['id'], 'm1_t0_k0');
+
+      expect(result.messages[2]['isThinking'], isNull);
+      expect(result.messages[2]['content'], 'After.');
+      expect(result.messages[2]['id'], 'm1_t0_t1');
+    });
+
+    test('multiple think tags each emit a separate thinking message', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'uuid': 'u1',
+                'message': {
+                  'content': [
+                    {
+                      'type': 'text',
+                      'text':
+                          'A.  one  B.  two  C.',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+        ],
+        sessionId: 's1',
+      );
+
+      // 5 segments: A. / think(one) / B. / think(two) / C.
+      expect(result.messages.length, 5);
+      expect(result.messages[0]['content'], 'A.');
+      expect(result.messages[0]['id'], 'm1_t0_t0');
+      expect(result.messages[1]['isThinking'], true);
+      expect(result.messages[1]['content'], contains('one'));
+      expect(result.messages[1]['id'], 'm1_t0_k0');
+      expect(result.messages[2]['content'], 'B.');
+      expect(result.messages[2]['id'], 'm1_t0_t1');
+      expect(result.messages[3]['isThinking'], true);
+      expect(result.messages[3]['content'], contains('two'));
+      expect(result.messages[3]['id'], 'm1_t0_k1');
+      expect(result.messages[4]['content'], 'C.');
+      expect(result.messages[4]['id'], 'm1_t0_t2');
+    });
+
+    test('empty think tag is dropped', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'uuid': 'u1',
+                'message': {
+                  'content': [
+                    {
+                      'type': 'text',
+                      'text': 'Hello.  World.',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+        ],
+        sessionId: 's1',
+      );
+
+      // Empty think tag should be dropped; the two text fragments
+      // collapse into a single cleaned text message because both
+      // surrounding segments are text-only with no thinking present.
+      // (The trim trims the empty think away, leaving only 'Hello.' and
+      // 'World.' as separate text segments — both kept.)
+      expect(result.messages.length, 2);
+      expect(result.messages[0]['isThinking'], isNull);
+      expect(result.messages[1]['isThinking'], isNull);
+    });
+
+    test('text containing only a think tag emits one thinking message', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'uuid': 'u1',
+                'message': {
+                  'content': [
+                    {
+                      'type': 'text',
+                      'text': '  only reasoning  ',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+        ],
+        sessionId: 's1',
+      );
+
+      expect(result.messages.length, 1);
+      expect(result.messages[0]['isThinking'], true);
+      expect(result.messages[0]['content'], contains('only reasoning'));
+      expect(result.messages[0]['id'], 'm1_t0_k0');
+    });
+
+    test('unclosed think tag leaves the literal tag visible', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'uuid': 'u1',
+                'message': {
+                  'content': [
+                    {
+                      'type': 'text',
+                      'text': 'hello  world',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+        ],
+        sessionId: 's1',
+      );
+
+      // Unclosed   → no match → single text message with the raw
+      // text preserved so the user still sees the literal tag.
+      expect(result.messages.length, 1);
+      expect(result.messages[0]['isThinking'], isNull);
+      expect(result.messages[0]['content'], 'hello  world');
+      expect(result.messages[0]['id'], 'm1_t0');
+    });
+
+    test('text without think tags is unchanged (single message)', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'assistant',
+                'uuid': 'u1',
+                'message': {
+                  'content': [
+                    {'type': 'text', 'text': 'Plain answer.'},
+                  ],
+                },
+              },
+            },
+          },
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+        ],
+        sessionId: 's1',
+      );
+
+      expect(result.messages.length, 1);
+      expect(result.messages[0]['isThinking'], isNull);
+      expect(result.messages[0]['content'], 'Plain answer.');
+      expect(result.messages[0]['id'], 'm1_t0');
+    });
+
+    test('inline think tags in dataType=message plain-text branch', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'output',
+              'data': {
+                'type': 'message',
+                'message':
+                    'Final answer.  wrap up reasoning',
+              },
+            },
+          },
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 937, 'createdAt': 1774195704000},
+        ],
+        sessionId: 's1',
+      );
+
+      expect(result.messages.length, 2);
+      expect(result.messages[0]['isThinking'], isNull);
+      expect(result.messages[0]['content'], 'Final answer.');
+      expect(result.messages[0]['id'], 'm1_t0');
+
+      expect(result.messages[1]['isThinking'], true);
+      expect(result.messages[1]['content'], contains('wrap up reasoning'));
+      expect(result.messages[1]['id'], 'm1_k0');
+    });
+  });
 }

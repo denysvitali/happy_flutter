@@ -1,5 +1,59 @@
 part of '../message_processor.dart';
 
+/// Matches `  ...  ` reasoning tags emitted inline by reasoning
+/// models (MiniMax-M3, DeepSeek-R1) that surface their chain-of-thought
+/// inside the text stream rather than as a structured
+/// `type: thinking` content block. Non-greedy so multiple tags in one
+/// text block split correctly into independent segments.
+final RegExp _inlineThinkingPattern = RegExp(
+  r'  ([\s\S]*?)  ',
+);
+
+/// A segment of a text content block, split out of any inline `  `
+/// tags. The renderer routes segments with `isThinking == true`
+/// through the [ThinkingBlock] widget so reasoning stays collapsible
+/// instead of leaking as visible markdown text.
+class _TextSegment {
+  const _TextSegment({required this.isThinking, required this.content});
+  final bool isThinking;
+  final String content;
+}
+
+/// Splits a raw text block into text/thinking segments for rendering.
+///
+/// Returns the empty list when [raw] is empty so callers preserve the
+/// existing empty-text behaviour. Returns a single non-thinking
+/// segment containing the original [raw] when no `  ` tags are
+/// present — callers can keep emitting a single message in that
+/// case. Surrounding text is trimmed; empty segments are dropped.
+/// An unclosed `  ` (no matching `  `) leaves the raw text
+/// untouched so the literal tag surfaces verbatim instead of being
+/// silently swallowed as reasoning.
+List<_TextSegment> _splitInlineThinking(String raw) {
+  if (raw.isEmpty) return const [];
+  if (!_inlineThinkingPattern.hasMatch(raw)) {
+    return [_TextSegment(isThinking: false, content: raw)];
+  }
+  final segments = <_TextSegment>[];
+  var cursor = 0;
+  for (final match in _inlineThinkingPattern.allMatches(raw)) {
+    final pre = raw.substring(cursor, match.start).trim();
+    if (pre.isNotEmpty) {
+      segments.add(_TextSegment(isThinking: false, content: pre));
+    }
+    final thought = match.group(1)?.trim() ?? '';
+    if (thought.isNotEmpty) {
+      segments.add(_TextSegment(isThinking: true, content: thought));
+    }
+    cursor = match.end;
+  }
+  final post = raw.substring(cursor).trim();
+  if (post.isNotEmpty) {
+    segments.add(_TextSegment(isThinking: false, content: post));
+  }
+  return segments;
+}
+
 /// Emits a visible `agent-event` for content the handler cannot render.
 ///
 /// Replaces silent drops so the user sees that *something* arrived from
@@ -88,21 +142,52 @@ void _processOutputContent({
       droppedReasons?.add('output message empty');
       return;
     }
-    messages.add({
-      'id': id,
-      'localId': localId,
-      'seq': seq,
-      'createdAt': createdAt,
-      'role': 'agent',
-      'kind': 'text',
-      'content': text,
-      'raw': outerContent,
-      if (meta.isSidechain) 'isSidechain': true,
-      'uuid': ?meta.uuid,
-      'parentUuid': ?meta.parentUuid,
-      'parentToolUseId': ?parentToolUseId,
-      'agentId': ?agentId,
-    });
+    final segments = _splitInlineThinking(text);
+    if (segments.length <= 1 &&
+        (segments.isEmpty || !segments[0].isThinking)) {
+      // No `  ` tags — preserve the original single-message shape.
+      messages.add({
+        'id': id,
+        'localId': localId,
+        'seq': seq,
+        'createdAt': createdAt,
+        'role': 'agent',
+        'kind': 'text',
+        'content': segments.isEmpty ? text : segments[0].content,
+        'raw': outerContent,
+        if (meta.isSidechain) 'isSidechain': true,
+        'uuid': ?meta.uuid,
+        'parentUuid': ?meta.parentUuid,
+        'parentToolUseId': ?parentToolUseId,
+        'agentId': ?agentId,
+      });
+      return;
+    }
+    // Inline `  ` tags — emit one message per segment with a
+    // `_t<n>` / `_k<n>` suffix so each gets a unique id.
+    var segIndex = 0;
+    for (final segment in segments) {
+      final isThinking = segment.isThinking;
+      messages.add({
+        'id': '${id}_${isThinking ? 'k' : 't'}$segIndex',
+        'localId': localId,
+        'seq': seq,
+        'createdAt': createdAt,
+        'role': 'agent',
+        'kind': 'text',
+        if (isThinking) 'isThinking': true,
+        'content': isThinking
+            ? '*Thinking...*\n\n*${segment.content}*'
+            : segment.content,
+        'raw': outerContent,
+        if (meta.isSidechain) 'isSidechain': true,
+        'uuid': ?meta.uuid,
+        'parentUuid': ?meta.parentUuid,
+        'parentToolUseId': ?parentToolUseId,
+        'agentId': ?agentId,
+      });
+      segIndex++;
+    }
     return;
   }
 
@@ -227,22 +312,59 @@ void _processOutputContent({
       final type = block['type'] as String?;
 
       if (type == 'text') {
-        messages.add({
-          'id': '${id}_t$i',
-          'localId': localId,
-          'seq': seq,
-          'createdAt': createdAt,
-          'role': 'agent',
-          'kind': 'text',
-          'content': block['text']?.toString() ?? '',
-          'raw': outerContent,
-          'model': ?agentModel,
-          if (meta.isSidechain) 'isSidechain': true,
-          'uuid': effectiveUuid,
-          'parentUuid': ?meta.parentUuid,
-          'parentToolUseId': ?parentToolUseId,
-          'agentId': ?agentId,
-        });
+        final rawText = block['text']?.toString() ?? '';
+        final segments = _splitInlineThinking(rawText);
+        if (segments.length <= 1 &&
+            (segments.isEmpty || !segments[0].isThinking)) {
+          // No `  ` tags — preserve the original single-message shape.
+          messages.add({
+            'id': '${id}_t$i',
+            'localId': localId,
+            'seq': seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            'content': segments.isEmpty ? rawText : segments[0].content,
+            'raw': outerContent,
+            'model': ?agentModel,
+            if (meta.isSidechain) 'isSidechain': true,
+            'uuid': effectiveUuid,
+            'parentUuid': ?meta.parentUuid,
+            'parentToolUseId': ?parentToolUseId,
+            'agentId': ?agentId,
+          });
+          i++;
+          continue;
+        }
+        // Inline `  ` tags — emit one message per segment with a
+        // `_t${i}_t<n>` / `_t${i}_k<n>` suffix so each gets a
+        // unique id within the assistant content block.
+        var segIndex = 0;
+        for (final segment in segments) {
+          final isThinking = segment.isThinking;
+          messages.add({
+            'id': '${id}_t${i}_${isThinking ? 'k' : 't'}$segIndex',
+            'localId': localId,
+            'seq': seq,
+            'createdAt': createdAt,
+            'role': 'agent',
+            'kind': 'text',
+            if (isThinking) 'isThinking': true,
+            'content': isThinking
+                ? '*Thinking...*\n\n*${segment.content}*'
+                : segment.content,
+            'raw': outerContent,
+            'model': ?agentModel,
+            if (meta.isSidechain) 'isSidechain': true,
+            'uuid': effectiveUuid,
+            'parentUuid': ?meta.parentUuid,
+            'parentToolUseId': ?parentToolUseId,
+            'agentId': ?agentId,
+          });
+          segIndex++;
+        }
+        i++;
+        continue;
       } else if (type == 'thinking') {
         messages.add({
           'id': '${id}_k$i',
