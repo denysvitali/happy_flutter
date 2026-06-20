@@ -613,6 +613,7 @@ class MachineManager {
     required void Function(String sessionId) markSessionOffline,
     required String? visibleSessionId,
     required void Function(String sessionId) invalidateMessagesSync,
+    void Function(String sessionId)? markSessionPendingForFetch,
   }) {
     final payload = _normalizeSocketPayload(
       data,
@@ -737,9 +738,13 @@ class MachineManager {
       return;
     }
 
-    // Only invalidate if this session is currently open.
+    // Only fetch immediately if this session is currently open. For
+    // non-visible sessions, let the caller remember that socket-side
+    // activity happened so opening the chat can catch up.
     if (sessionId == visibleSessionId) {
       invalidateMessagesSync(sessionId);
+    } else {
+      markSessionPendingForFetch?.call(sessionId);
     }
   }
 

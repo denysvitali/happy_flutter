@@ -880,6 +880,12 @@ extension SyncMessagingRpc on Sync {
     final hasPendingSocketMessages = _sessionsWithPendingSocketMessages.remove(
       sessionId,
     );
+    if (hasPendingSocketMessages) {
+      // The session.lastSeq hint can be stale when background socket events
+      // arrived without an embedded message. Bypass fetchMessages()'s
+      // cursor==server skip once so the message API is authoritative.
+      _sessionsNeedingFetchProbe.add(sessionId);
+    }
     if (!isInitialized) return;
     if (!messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId] = InvalidateSync(

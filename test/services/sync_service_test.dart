@@ -279,6 +279,43 @@ void main() {
       );
     });
 
+    test('usage for non-visible session marks pending catch-up '
+        'without fetching immediately', () async {
+      final instance = Sync();
+      resetTestSync(instance);
+      const sessionId = 'session_1';
+      instance.testVisibleSessionId = null;
+      instance.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'online',
+      );
+
+      var messageInvalidations = 0;
+      instance.messagesSync[sessionId] = InvalidateSync(() async {
+        messageInvalidations++;
+      });
+
+      instance.handleEphemeralUpdate({'type': 'usage', 'id': sessionId});
+
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(
+        messageInvalidations,
+        0,
+        reason: 'background ephemeral hints must not start live polling',
+      );
+      expect(instance.testHasPendingSocketMessage(sessionId), isTrue);
+      expect(instance.testHasPendingUpdate(sessionId), isTrue);
+    });
+
     test('session-alive marks session online without clearing thinking', () {
       final instance = Sync();
       instance.testSessions['s1'] = Session(

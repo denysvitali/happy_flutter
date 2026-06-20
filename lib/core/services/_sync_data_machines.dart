@@ -227,14 +227,15 @@ extension SyncDataMachines on Sync {
       return;
     }
 
-    // Only invalidate if this session is currently open -- ephemeral
-    // updates for non-visible sessions are not urgent and can wait
-    // until the user navigates to them. Invalidating all sessions
-    // caused a thundering herd of fetchMessages calls (one per active
-    // typing/tool event x every session the user had previously
-    // opened), blocking the main thread.
+    // Only fetch immediately if this session is currently open. For
+    // non-visible sessions, remember that socket-side activity happened so
+    // onSessionVisible() performs a catch-up fetch. Ignoring these hints made
+    // some sessions appear to advance only while the chat screen was open.
     if (sessionId == _visibleSessionId && messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId]?.invalidate();
+    } else if (_sessions.containsKey(sessionId)) {
+      _sessionsWithPendingSocketMessages.add(sessionId);
+      _sessionsWithPendingUpdates.add(sessionId);
     }
   }
 

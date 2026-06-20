@@ -87,6 +87,7 @@ void main() {
     tearDown(() {
       socketIoClient.testHasConnectedOnce = false;
       sync.testSetVisibleSessionId(null);
+      sync.testFetchMessagesOverride = null;
     });
 
     test('resume() creates messagesSync for non-visible sessions without one '
@@ -514,6 +515,51 @@ void main() {
         isFalse,
         reason: 'Should use delta fetch, not destructive tail refresh',
       );
+    });
+
+    test('onSessionVisible with pending socket messages and cursor == server '
+        'still probes the message API', () async {
+      final sessionId = 'pending-socket-stale-lastseq';
+
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'msg-1', 'role': 'agent', 'seq': 50},
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 50);
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: 1700000000000,
+        updatedAt: 1700000000000,
+        active: true,
+        activeAt: 1700000000000,
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        thinking: false,
+        presence: 'offline',
+        lastSeq: 50,
+      );
+      sync.testSetPendingSocketMessages({sessionId});
+
+      final fetchCalls = <int>[];
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        fetchCalls.add(afterSeq);
+        return <String, dynamic>{
+          'messages': <Map<String, dynamic>>[],
+          'pagination': <String, dynamic>{'hasMore': false},
+        };
+      };
+
+      await sync.onSessionVisible(sessionId);
+      await sync.messagesSync[sessionId]?.awaitQueue();
+
+      expect(
+        fetchCalls,
+        isNotEmpty,
+        reason:
+            'pending socket markers must bypass the cursor==server skip '
+            'because session.lastSeq can be stale',
+      );
+      expect(sync.testHasPendingSocketMessage(sessionId), isFalse);
     });
 
     test('onSessionVisible with pending updates and cursor == server '
