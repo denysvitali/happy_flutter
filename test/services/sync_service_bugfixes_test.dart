@@ -4,6 +4,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
+import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
@@ -894,7 +895,26 @@ Encryption _testEncryption() => _TestEncryption();
 
 class _TestEncryption implements Encryption {
   @override
-  SessionEncryption? getSessionEncryption(String sessionId) => null;
+  SessionEncryption? getSessionEncryption(String sessionId) =>
+      _NoOpSessionEncryption();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoOpSessionEncryption implements SessionEncryption {
+  @override
+  Future<ProcessedMessages> decryptAndProcessMessages(
+    List<Map<String, dynamic>> messages,
+    String sessionId,
+  ) async {
+    return const ProcessedMessages(
+      messages: [],
+      toolResults: [],
+      usageUpdates: [],
+      maxSeq: 0,
+    );
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
