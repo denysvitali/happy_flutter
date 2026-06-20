@@ -255,8 +255,15 @@ extension SyncMessagePipeline on Sync {
       }
 
       bool shouldNotify = false;
-      if (processed.messages.isNotEmpty) {
-        _upsertSessionMessages(sessionId, processed.messages);
+      // Loop control events (loops-updated / loop-fired / loop-expired) ride
+      // the session message stream as agent-events; route them into loop
+      // state and strip them so they never render as chat rows.
+      final renderableMessages = consumeLoopControlMessages(
+        sessionId,
+        processed.messages,
+      );
+      if (renderableMessages.isNotEmpty) {
+        _upsertSessionMessages(sessionId, renderableMessages);
         shouldNotify = true;
       }
       if (processed.toolResults.isNotEmpty) {

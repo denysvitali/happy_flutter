@@ -26,6 +26,71 @@ extension SyncLoops on Sync {
   List<Loop> loopsForSession(String sessionId) =>
       List.unmodifiable(_loopsBySession[sessionId] ?? const <Loop>[]);
 
+  // ── In-band control-event routing ──────────────────────────────────────
+
+  /// Agent-event `data.type` discriminators the daemon uses to push loop
+  /// state changes over the encrypted session message stream.
+  static const Set<String> _loopControlEventTypes = {
+    'loops-updated',
+    'loop-fired',
+    'loop-expired',
+  };
+
+  /// The daemon (`happy-cli-go`) has no server-modeled loop entity, so it
+  /// broadcasts loop state changes as in-band session events via
+  /// `SendSessionEvent` — they arrive decoded as `agent-event` messages with
+  /// `event.type` in [_loopControlEventTypes], NOT as top-level `update`
+  /// socket frames. (The `update`-channel handlers in `_sync_socket_events`
+  /// only fire if a future server learns to model loops.)
+  ///
+  /// This routes those control events into loop state and returns [messages]
+  /// with them stripped out, so they never render as chat rows. Called on the
+  /// main isolate from the ingestion pipeline, just before messages are
+  /// upserted (see `_processMessageBatch`).
+  List<Map<String, dynamic>> consumeLoopControlMessages(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    // Fast path: nothing to do for the overwhelmingly common case of a batch
+    // with no loop control events.
+    final hasControlEvent = messages.any(_isLoopControlMessage);
+    if (!hasControlEvent) return messages;
+
+    final passthrough = <Map<String, dynamic>>[];
+    for (final message in messages) {
+      if (!_isLoopControlMessage(message)) {
+        passthrough.add(message);
+        continue;
+      }
+      // The daemon always stamps `sid`, but default to the owning session so
+      // a malformed payload still updates the right list (the spread lets a
+      // present `sid` win over the default).
+      final event = <String, dynamic>{
+        'sid': sessionId,
+        ...Map<String, dynamic>.from(message['event'] as Map),
+      };
+      switch (event['type'] as String?) {
+        case 'loops-updated':
+          _handleLoopsUpdated(event);
+          break;
+        case 'loop-fired':
+          _handleLoopFired(event);
+          break;
+        case 'loop-expired':
+          _handleLoopExpired(event);
+          break;
+      }
+    }
+    return passthrough;
+  }
+
+  bool _isLoopControlMessage(Map<String, dynamic> message) {
+    if (message['kind'] != 'agent-event') return false;
+    final event = message['event'];
+    if (event is! Map) return false;
+    return _loopControlEventTypes.contains(event['type']);
+  }
+
   // ── Socket event handlers ──────────────────────────────────────────────
 
   /// Apply a `loops-updated` event from the socket.
