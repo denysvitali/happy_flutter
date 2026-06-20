@@ -266,8 +266,14 @@ void main() {
               'RPC forwarding failed: response channel closed',
             );
           }
-          // Successful sessions return an empty loop list.
-          return {'ok': true, 'result': null};
+          // Successful sessions return an empty loop list. We
+          // explicitly include 'loops: []' so the test exercises the
+          // normal list-shape path (rather than the non-List fallback
+          // pinned separately in sync_loops_routing_test.dart — the
+          // fallback now mirrors the empty list into _loopsBySession,
+          // so an absent 'loops' key would no longer leave the
+          // notifier in an empty state for the successful session).
+          return {'ok': true, 'result': null, 'loops': <dynamic>[]};
         };
 
         container = ProviderContainer();

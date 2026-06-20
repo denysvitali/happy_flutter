@@ -217,7 +217,7 @@ void main() {
   });
 
   group('listLoops non-List fallback', () {
-    test('non-List "loops" payload mirrors empty, persists, fires counter', () {
+    test('non-List "loops" payload mirrors empty, persists, fires counter', () async {
       // Regression: the previous code returned `const <Loop>[]` silently
       // on a non-List payload — no breadcrumb, no _loopsChangeController
       // fire, no _notifyDataChanged, no MMKV clear. A daemon that
@@ -236,7 +236,7 @@ void main() {
       final streamEventsBefore = <String>[];
       final sub = sync.onLoopsChanged.listen(streamEventsBefore.add);
 
-      final loops = sync.listLoops(sessionId: 's1');
+      final loops = await sync.listLoops(sessionId: 's1');
 
       // Empty list returned, but every notification path fired.
       expect(loops, isEmpty);
@@ -249,15 +249,15 @@ void main() {
             'any stale cached list',
       );
 
-      return Future<void>.delayed(Duration.zero).then((_) {
-        expect(
-          streamEventsBefore,
-          contains('s1'),
-          reason: 'listLoops must fire onLoopsChanged even on the '
-              'non-List fallback so per-session subscribers rebuild',
-        );
-        return sub.cancel();
-      });
+      // Allow the stream event to flush.
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        streamEventsBefore,
+        contains('s1'),
+        reason: 'listLoops must fire onLoopsChanged even on the '
+            'non-List fallback so per-session subscribers rebuild',
+      );
+      await sub.cancel();
     });
   });
 
