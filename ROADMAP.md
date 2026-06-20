@@ -61,7 +61,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 ## Project Context
 
-- **Flutter Version**: 3.41.x via devenv (Dart 3.11+)
+- **Flutter Version**: 3.41.x via mise (3.41.9 / Dart 3.11.5 / Java 21)
 
 ---
 

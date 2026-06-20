@@ -3,6 +3,11 @@
 devenv.local.nix
 devenv.local.yaml
 
+# mise (per-user overrides; the project .mise.toml IS checked in)
+mise.local.toml
+.mise.local.toml
+.mise.local.env
+
 # Test coverage reports
 coverage/
 

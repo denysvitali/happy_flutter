@@ -1,0 +1,14 @@
+# Flutter / Dart / Java toolchain for happy_flutter.
+#
+# Replaces devenv.nix (which kept getting GC'd from the nix store and
+# pinning flutterPackages.v3_41 — Flutter 3.41.9 / Dart 3.11.5 — the
+# closest nixpkgs version to the project's effective minimum: sodium
+# 4.0.2+1 needs Dart ^3.11.0 and Flutter >3.41.0).
+#
+# Activate with: `mise install` (or `mise use` on first run).
+# When paired with direnv, `.envrc` calls `use mise` so flutter /
+# dart / java land on PATH the moment you `cd` into the repo.
+[tools]
+flutter = "3.41.9"
+dart    = "3.11.5"
+java    = "21.0.2"

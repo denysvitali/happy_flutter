@@ -66,7 +66,7 @@ See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key
 ## Verification Expectations
 
 - **Core messaging changes require targeted contract tests**
-- **Run Flutter commands through `devenv`**
+- **Run Flutter commands through `mise`**
 - **Assert invariants: no duplicate logical message, no orphan optimistic row, no lost retry identity**
 
 ## Documentation Notes
@@ -78,7 +78,7 @@ See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key
 Happy Flutter is **happy's mobile app**, built with Flutter.
 
 **Tech Stack:**
-- Flutter 3.41.x (pinned via devenv; nixpkgs `flutterPackages.v3_41`), Dart 3.11+
+- Flutter 3.41.x (pinned via `.mise.toml` → flutter 3.41.9, Dart 3.11.5, Java 21)
 - Riverpod v3 (manual NotifierProvider, no code generation)
 - Dio + NativeAdapter (Cronet on Android, cupertino_http on iOS) for HTTP
 - Socket.IO for real-time updates
@@ -88,33 +88,33 @@ Happy Flutter is **happy's mobile app**, built with Flutter.
 - Go Router v17 for navigation
 - i18n via Flutter's built-in localization (`flutter: generate: true`)
 
-**Environment:** This project uses [devenv](https://devenv.sh/) to pin Flutter. Run all commands via `devenv shell -- flutter <cmd>`.
+**Environment:** This project uses [mise](https://mise.jdx.dev/) to pin Flutter / Dart / Java. Activate once with `mise install`; then either prefix every command with `mise exec --` (e.g. `mise exec -- flutter test`) or run `direnv allow` so the right `flutter` / `dart` / `java` land on PATH automatically when you `cd` into the repo. Replaces the previous `devenv shell` shim, which depended on the nix store and kept getting GC'd.
 
 ## Common Commands
 
 ```bash
 # Dependencies
-devenv shell -- flutter pub get
+mise exec -- flutter pub get
 
 # Analysis (errors block CI; warnings/infos do not)
-devenv shell -- flutter analyze
+mise exec -- flutter analyze
 
 # Testing
-devenv shell -- flutter test
-devenv shell -- flutter test test/services/sync_service_test.dart
+mise exec -- flutter test
+mise exec -- flutter test test/services/sync_service_test.dart
 
 # Golden screenshots — update after UI changes
-devenv shell -- flutter test test/golden/golden_test.dart --update-goldens
+mise exec -- flutter test test/golden/golden_test.dart --update-goldens
 
 # Code generation (after changing freezed/json_serializable models or ApiClient public API)
-devenv shell -- flutter pub run build_runner build --delete-conflicting-outputs
+mise exec -- flutter pub run build_runner build --delete-conflicting-outputs
 
 # Build APK (flavors: development, preview, production)
-devenv shell -- flutter build apk --debug --flavor development
-devenv shell -- flutter build apk --release --flavor production
+mise exec -- flutter build apk --debug --flavor development
+mise exec -- flutter build apk --release --flavor production
 
 # Run on device/emulator
-devenv shell -- flutter run
+mise exec -- flutter run
 ```
 
 **Build Flavors (Android only — iOS has no flavor separation):**
@@ -254,7 +254,7 @@ Some domains have both `XxxService` (production) and `XxxApi` (injectable for te
 
 **`freezed` + `json_serializable`** for most core models (`session`, `message`, `machine`, `artifact`, `usage`, `auth`, `kv`, `local_settings`, `purchases`, `api_update`, `claude_usage_limits`) since the freezed migration (a1e03c3f); a few simpler models (`profile`, `todo`, `friend_request`, `settings_update`) remain manual `fromJson`/`toJson`/`copyWith`. Timestamps are integers (milliseconds), not `DateTime`.
 
-**NEVER hand-edit `*.g.dart` or `*.freezed.dart` files.** After changing any annotated model, regenerate with `devenv shell -- flutter pub run build_runner build --delete-conflicting-outputs` and commit the regenerated output together with the source change.
+**NEVER hand-edit `*.g.dart` or `*.freezed.dart` files.** After changing any annotated model, regenerate with `mise exec -- flutter pub run build_runner build --delete-conflicting-outputs` and commit the regenerated output together with the source change.
 
 **Exception:** `Settings` uses mutable public fields (`var`, not `final`) and roundtrips through `toJson()`/`fromJson()` in `updateSetting`. Nested config classes within Settings use `final` fields normally.
 
@@ -316,7 +316,7 @@ Golden screenshots in `test/golden/goldens/` are **showcase images** used in the
 **After any UI change that affects visual output**, run:
 
 ```bash
-devenv shell -- flutter test test/golden/golden_test.dart --update-goldens
+mise exec -- flutter test test/golden/golden_test.dart --update-goldens
 ```
 
 Then commit the updated PNGs. Do not leave stale goldens — they will cause false test failures for other contributors.
