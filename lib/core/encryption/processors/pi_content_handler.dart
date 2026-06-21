@@ -178,17 +178,12 @@ void _processPiContent({
         }
         // Inline `  ` tags — emit one message per segment with a
         // `_t${i}_t<n>` / `_t${i}_k<n>` suffix so each gets a
-        // unique id within the assistant content block. Use
-        // per-type counters so the text and thinking sub-indices
-        // stay parallel (matching the assistant content list
-        // convention).
-        var tSegIndex = 0;
-        var kSegIndex = 0;
+        // unique id within the assistant content block.
+        var segIndex = 0;
         for (final segment in segments) {
           final isThinking = segment.isThinking;
-          final segIdx = isThinking ? kSegIndex++ : tSegIndex++;
           messages.add({
-            'id': '${id}_t${i}_${isThinking ? 'k' : 't'}$segIdx',
+            'id': '${id}_t${i}_${isThinking ? 'k' : 't'}$segIndex',
             'localId': localId,
             'seq': seq,
             'createdAt': createdAt,
@@ -205,6 +200,7 @@ void _processPiContent({
             'parentToolUseId': ?parentToolUseId,
             'agentId': ?agentId,
           });
+          segIndex++;
         }
         i++;
         continue;
