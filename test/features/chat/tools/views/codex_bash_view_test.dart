@@ -35,13 +35,13 @@ void main() {
               'input': {
                 'command': [
                   '/bin/bash -lc '
-                      "'devenv shell -- flutter test test/foo_test.dart'",
+                      "'mise exec -- flutter test test/foo_test.dart'",
                 ],
                 'parsed_cmd': [
                   {
                     'cmd':
                         '/bin/bash -lc '
-                        "'devenv shell -- flutter test test/foo_test.dart'",
+                        "'mise exec -- flutter test test/foo_test.dart'",
                   },
                 ],
               },
@@ -57,10 +57,7 @@ void main() {
         ),
       );
 
-      expect(
-        find.textContaining('devenv shell -- flutter test'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('mise exec -- flutter test'), findsOneWidget);
       expect(find.text('stdout'), findsOneWidget);
       expect(find.textContaining('All tests passed!'), findsOneWidget);
       expect(find.text('exit 0'), findsOneWidget);

@@ -17,7 +17,7 @@ subprojects {
 // copy via sed before Gradle runs. Local dev should run:
 //   flutter pub get && sed -i 's/compileSdkVersion 34/compileSdkVersion 36/' \
 //     .dart_tool/package_config.json  (find cronet_http path first)
-// or use devenv which pins a compatible Flutter version.
+// or use mise which pins a compatible Flutter version.
 // Do NOT add a Gradle-level compileSdk override here — it changes the
 // task graph after AGP 9.x has already wired up task inputs/outputs,
 // causing BundleAar validation failures.

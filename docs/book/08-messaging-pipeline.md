@@ -310,10 +310,10 @@ The merge function is the dedup. It's idempotent: calling it twice with the same
 The merge function is the most-tested code in the app. If you're making changes here, run:
 
 ```bash
-devenv shell -- flutter test test/integration/message_deduplication_e2e_test.dart
-devenv shell -- flutter test test/integration/socket_echo_before_fetch_e2e_test.dart
-devenv shell -- flutter test test/integration/socket_echo_before_rest_e2e_test.dart
-devenv shell -- flutter test test/fsm/message_state_machine_contract_test.dart
+mise exec -- flutter test test/integration/message_deduplication_e2e_test.dart
+mise exec -- flutter test test/integration/socket_echo_before_fetch_e2e_test.dart
+mise exec -- flutter test test/integration/socket_echo_before_rest_e2e_test.dart
+mise exec -- flutter test test/fsm/message_state_machine_contract_test.dart
 ```
 
 These four tests cover every documented out-of-order delivery case.

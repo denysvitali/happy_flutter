@@ -34,7 +34,7 @@ This book is opinionated. It tells you which files matter and which are noise. I
 ### Part IV — Wire, Storage, Tests
 
 13. **[Wire & Storage](13-wire-and-storage.md)** — Dio+NativeAdapter, `WireParsers`, AES+NaCl, MMKV, secrets.
-14. **[Tests & Dev Loop](14-tests-and-dev.md)** — helpers, `mock_sync_server`, goldens, `devenv`, CI.
+14. **[Tests & Dev Loop](14-tests-and-dev.md)** — helpers, `mock_sync_server`, goldens, `mise`, CI.
 
 ## Conventions
 

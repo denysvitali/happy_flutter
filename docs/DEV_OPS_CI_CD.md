@@ -32,12 +32,12 @@ test:
   runs-on: ubuntu-latest
   steps:
     - uses: actions/checkout@v4
-    - uses: subosito/flutter-action@v2
+    - uses: jdx/mise-action@v3
       with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
+        install: true
         cache: true
-    - run: flutter pub get
-    - run: flutter test --coverage
+    - run: mise exec -- flutter pub get
+    - run: mise exec -- flutter test --coverage
     - uses: codecov/codecov-action@v3
       with:
         files: ./coverage/lcov.info
@@ -85,9 +85,10 @@ updates:
 
 Debug/preview builds have no distribution channel for QA.
 
-### 7. Java Version Mismatch
+### 7. Java Version Alignment
 
-`devenv.nix` uses JDK 21 but CI uses JDK 17. Should match.
+`.mise.toml` pins Java 21. CI should install tools through mise so local and
+CI builds use the same Java, Flutter, and Dart versions.
 
 ---
 

@@ -66,7 +66,7 @@ lib/
 
 ## Technology Stack
 
-- **Flutter**: 3.41.x via devenv (Dart 3.11+)
+- **Flutter**: 3.41.x via mise (Dart 3.11+)
 - **State Management**: Riverpod v3
 - **HTTP Client**: Dio with NativeAdapter (Cronet/cupertino_http)
 - **WebSocket**: Socket.IO protocol implementation
@@ -79,29 +79,29 @@ lib/
 
 ### Prerequisites
 
-1. Install devenv: `curl -fsSL https://devenv.sh | bash`
-2. Ensure you have the Flutter SDK (managed via devenv)
+1. Install mise: <https://mise.jdx.dev/getting-started.html>
+2. Install the pinned toolchain: `mise install`
 
 ### Development Environment
 
 ```bash
-# Enter the development shell
-devenv shell
+# Install the pinned Flutter / Dart / Java toolchain
+mise install
 
 # Get dependencies
-devenv shell -- flutter pub get
+mise exec -- flutter pub get
 
 # Run code generation (for mocks)
-devenv shell -- flutter pub run build_runner build
+mise exec -- flutter pub run build_runner build
 
 # Run the app
-devenv shell -- flutter run
+mise exec -- flutter run
 
 # Run tests
-devenv shell -- flutter test
+mise exec -- flutter test
 
 # Analyze code
-devenv shell -- flutter analyze
+mise exec -- flutter analyze
 ```
 
 ### Build Flavors
@@ -112,13 +112,13 @@ devenv shell -- flutter analyze
 
 ```bash
 # Build APK for development
-devenv shell -- flutter build apk --debug --flavor development
+mise exec -- flutter build apk --debug --flavor development
 
 # Build APK for production
-devenv shell -- flutter build apk --release --flavor production
+mise exec -- flutter build apk --release --flavor production
 
 # Build for iOS
-devenv shell -- flutter build ios --release
+mise exec -- flutter build ios --release
 ```
 
 ## Project Structure
@@ -181,7 +181,7 @@ Providers live in `lib/core/providers/`, one notifier per file. `app_providers.d
 - **Integration / e2e**: ~18 e2e files in `test/integration/` covering session spawning, message dedup, pagination, cold starts, reconnection, concurrent sends. Backed by `mock_sync_server.dart` and `fake_session_encryption.dart`, plus replay fixtures in `test/integration/jsonl_replay/`.
 - **Golden screenshots**: `test/golden/golden_test.dart` — phone viewport (390×844 @ 2x). PNGs tracked via Git LFS. Update with `--update-goldens` after any UI change.
 - **Mock generation**: Mockito for `ApiClient` mocking; `.mocks.dart` files sit next to each test
-- **Test command**: `devenv shell -- flutter test`
+- **Test command**: `mise exec -- flutter test`
 
 ### Test Structure
 
@@ -211,8 +211,8 @@ test/
 
 1. Create a feature branch from `main`
 2. Make changes following the architecture patterns
-3. Run tests: `devenv shell -- flutter test`
-4. Run analysis: `devenv shell -- flutter analyze`
+3. Run tests: `mise exec -- flutter test`
+4. Run analysis: `mise exec -- flutter analyze`
 5. Commit with clear messages
 6. Push and create PR
 
@@ -232,7 +232,7 @@ test/
 ## References
 
 - **Source of Truth**: `../happy` (React Native implementation)
-- **Flutter Version**: 3.41.x via devenv (Dart 3.11+)
+- **Flutter Version**: 3.41.x via mise (Dart 3.11+)
 - **CI/CD**: GitHub Actions with build flavors
 
 ## License

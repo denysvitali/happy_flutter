@@ -55,8 +55,8 @@ dependencies:
   cryptography: ^2.7.0
   http: ^1.3.0
   fuzzy: ^0.5.1
-  # record 7.x requires Dart >=3.12 (Flutter 3.44), but devenv/nixpkgs tops
-  # out at Flutter 3.41 (Dart 3.11). Keep 6.x until nixpkgs ships 3.44+.
+  # record 7.x requires Dart >=3.12 (Flutter 3.44), but mise pins Flutter
+  # 3.41 (Dart 3.11). Keep 6.x until the project moves to Flutter 3.44+.
   record: ^6.2.1
   archive: ^4.0.9
   sherpa_onnx: ^1.13.0
@@ -112,15 +112,15 @@ dependency_overrides:
   # as upstream packages (sentry_flutter, build_runner, etc.) widen
   # their own constraints.
   #
-  # NOTE: record 7.x needs Dart ^3.12.0 / Flutter >=3.44.0 — nixpkgs
-  # tops out at 3.41, so the `^6.2.1` direct-dep constraint below
+  # NOTE: record 7.x needs Dart ^3.12.0 / Flutter >=3.44.0. mise currently
+  # pins Flutter 3.41, so the `^6.2.1` direct-dep constraint below
   # already pins us to 6.x. The 1.x record_* family is held the same
   # way; do not add overrides here.
   #
   # NOTE: analyzer 13.x requires `meta ^1.18.3`, but the Flutter SDK's
   # `flutter_test` pins `meta` to 1.17.0 — an SDK-level pin we cannot
-  # override from the project. analyzer stays at 10.2.0 until nixpkgs
-  # ships Flutter 3.44+. _fe_analyzer_shared is coupled to analyzer.
+  # override from the project. analyzer stays at 10.2.0 until the project
+  # moves to Flutter 3.44+. _fe_analyzer_shared is coupled to analyzer.
   cli_util: 0.5.1
   code_assets: 1.2.1
   # cupertino_http 3.x ships a native-assets build hook (hook/build.dart) that
@@ -141,11 +141,12 @@ dependency_overrides:
   objective_c: 9.4.1
   package_config: 3.0.0
   # NOTE: do NOT force-bump any package whose latest release declares Dart
-  # language version 3.12. nixpkgs tops out at Flutter 3.41 (Dart 3.11), and
+  # language version 3.12. mise pins Flutter 3.41 (Dart 3.11), and
   # dependency_overrides bypass pub's SDK check — so such a force-pin resolves
   # cleanly but then fails at compile time ("language version 3.12 ... too
   # high"). Leaving these unpinned lets pub pick the newest Dart-3.11-compatible
-  # release. Removed for this reason (re-add only after nixpkgs ships 3.44+):
+  # release. Removed for this reason (re-add only after the project moves to
+  # Flutter 3.44+):
   #   idb_shim (2.9.4), sembast (3.8.9), synchronized (3.4.1),
   #   url_launcher_android (6.3.32), and the sqflite cluster (sqflite 2.4.3 /
   #   sqflite_common 2.5.11 — transitive via flutter_cache_manager).

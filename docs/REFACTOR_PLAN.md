@@ -23,11 +23,11 @@ This codebase has solid bones: feature-based layout, strong localization, a matu
 | `sync.` calls inside `features/` | 137 | < 10 |
 | `setState` calls | 354 | < 150 |
 | Test files | 260 | keep growing |
-| CI Flutter version | 3.44.0 | matches local (3.41.x or unified) |
+| CI Flutter version | `.mise.toml` | matches local |
 
 ### Top 5 problems to solve
 
-1. **The build is broken locally.** `record: ^7.0.0` requires Dart 3.12; devenv pins Dart 3.11.5.
+1. **The build is broken locally.** `record: ^7.0.0` requires Dart 3.12; mise pins Dart 3.11.5.
 2. **`Sync` is a runtime god object.** It owns HTTP, WebSocket, MMKV, encryption, lifecycle, and business rules.
 3. **`ChatScreen` is a presentation-layer god object.** Pagination, caches, TTS, model/profile selection, and send/delete/abort logic all live in one widget.
 4. **3,548 force-unwraps and 1,748 casts** create a minefield of `Null check operator` / `TypeError` crashes.
@@ -76,9 +76,9 @@ Data Layer
 
 | # | Task | Files / Evidence | Acceptance Criteria |
 |---|------|------------------|---------------------|
-| 0.1 | Fix dependency version mismatch | `pubspec.yaml` (`record: ^7.0.0` vs Dart 3.11.5) | `devenv shell -- flutter analyze` completes without version-solving errors |
+| 0.1 | Fix dependency version mismatch | `pubspec.yaml` (`record: ^7.0.0` vs Dart 3.11.5) | `mise exec -- flutter analyze` completes without version-solving errors |
 | 0.2 | Resolve `go_router` / `flutterrific_opentelemetry` override | `pubspec.yaml` dependency_overrides | Remove the `go_router` override or upgrade observability package |
-| 0.3 | Unify CI and local Flutter versions | `.github/workflows/ci.yml`, `devenv.nix` | CI and devenv use the same Flutter/Dart minor version |
+| 0.3 | Unify CI and local Flutter versions | `.github/workflows/ci.yml`, `.mise.toml` | CI and local development use the same Flutter/Dart minor version |
 | 0.4 | Audit top crash sites from force-unwraps | `features/chat/chat_screen.dart`, `features/machine/machine_detail_screen.dart`, `core/widgets/error_boundary.dart` | Open 5 most frequent `!` sites and replace with pattern matching or `WireParsers` |
 | 0.5 | Add defensive null handling to `ChatScreen._loadInitialSettings` | `ROADMAP.md` notes 9 fatal/day from `session!.permissionMode!` | No force-unwraps in async init paths |
 | 0.6 | Fix `InvalidateSync` disposed race | `lib/core/utils/invalidate_sync.dart` | Dispose no longer throws `StateError`; add stress test |
@@ -246,8 +246,8 @@ Data Layer
 |---|------|---------|
 | 7.1 | Add AAB build job | Required for Play Store |
 | 7.2 | Fix NDK/plugin compileSdk workaround | Move from `sed` in CI to a local Gradle plugin patch or fork |
-| 7.3 | Align JDK | Use JDK 17 in devenv to match Android build config |
-| 7.4 | Add pre-commit hooks via devenv | `flutter analyze` + fast unit-test subset |
+| 7.3 | Align JDK | Use the Java version pinned in `.mise.toml` for local and CI builds |
+| 7.4 | Add pre-commit hooks via mise | `flutter analyze` + fast unit-test subset |
 | 7.5 | Update `docs/DEV_OPS_CI_CD.md` | Document current CI reality (tests now run, sharding, etc.) |
 | 7.6 | Add performance regression CI | Track cold-start and `fetchMessages` p95 |
 
@@ -359,7 +359,7 @@ For risky changes (messaging, session creation), consider gating behind a remote
 
 ## 9. Open Questions / Decisions Needed
 
-1. **Flutter version:** Bump devenv to 3.44.x to match CI, or pin CI to 3.41.x?
+1. **Flutter version:** Bump `.mise.toml` to 3.44.x, or keep CI and local pinned to 3.41.x?
 2. **Code generation:** Continue checking in `*.g.dart` / `*.freezed.dart`, or generate in CI?
 3. **Riverpod code generation:** Project currently avoids `@riverpod`. Keep manual notifiers or adopt code gen for new providers?
 4. **Repository scope:** Should `MessagesRepository` own the outbox, or should `OutboxCoordinator` remain separate?
@@ -372,7 +372,7 @@ For risky changes (messaging, session creation), consider gating behind a remote
 ### Phase 0
 - `pubspec.yaml`
 - `.github/workflows/ci.yml`
-- `devenv.nix`
+- `.mise.toml`
 - `lib/core/utils/invalidate_sync.dart`
 - `lib/features/chat/chat_screen.dart`
 - `lib/features/machine/machine_detail_screen.dart`

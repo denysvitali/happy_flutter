@@ -88,7 +88,7 @@ Happy Flutter is **happy's mobile app**, built with Flutter.
 - Go Router v17 for navigation
 - i18n via Flutter's built-in localization (`flutter: generate: true`)
 
-**Environment:** This project uses [mise](https://mise.jdx.dev/) to pin Flutter / Dart / Java. Activate once with `mise install`; then either prefix every command with `mise exec --` (e.g. `mise exec -- flutter test`) or run `direnv allow` so the right `flutter` / `dart` / `java` land on PATH automatically when you `cd` into the repo. Replaces the previous `devenv shell` shim, which depended on the nix store and kept getting GC'd.
+**Environment:** This project uses [mise](https://mise.jdx.dev/) to pin Flutter / Dart / Java. Activate once with `mise install`; then either prefix every command with `mise exec --` (e.g. `mise exec -- flutter test`) or run `direnv allow` so the right `flutter` / `dart` / `java` land on PATH automatically when you `cd` into the repo.
 
 ## Common Commands
 

@@ -156,45 +156,50 @@ The golden test is `test/golden/golden_test.dart`. It renders the showcase scree
 **When to update goldens:** after **any** UI change that affects visual output. Run:
 
 ```bash
-devenv shell -- flutter test test/golden/golden_test.dart --update-goldens
+mise exec -- flutter test test/golden/golden_test.dart --update-goldens
 ```
 
 Then commit the updated PNGs. Do not leave stale goldens — they will cause false test failures for other contributors.
 
 **Git LFS:** the PNGs are tracked via Git LFS (see `.gitattributes`). Contributors must have `git-lfs` installed (`git lfs install`).
 
-## Dev loop: devenv
+## Dev loop: mise
 
-The app uses [devenv](https://devenv.sh/) to pin Flutter. **All commands go through devenv:**
+The app uses [mise](https://mise.jdx.dev/) to pin Flutter, Dart, and Java.
+**All Flutter commands go through mise:**
 
 ```bash
+# Install the pinned toolchain
+mise install
+
 # Install dependencies
-devenv shell -- flutter pub get
+mise exec -- flutter pub get
 
 # Analyze
-devenv shell -- flutter analyze
+mise exec -- flutter analyze
 
 # Run all tests
-devenv shell -- flutter test
+mise exec -- flutter test
 
 # Run a specific test
-devenv shell -- flutter test test/services/sync_service_test.dart
+mise exec -- flutter test test/services/sync_service_test.dart
 
 # Update goldens
-devenv shell -- flutter test test/golden/golden_test.dart --update-goldens
+mise exec -- flutter test test/golden/golden_test.dart --update-goldens
 
 # Code generation (after changing ApiClient public API)
-devenv shell -- flutter pub run build_runner build
+mise exec -- flutter pub run build_runner build
 
 # Build APK
-devenv shell -- flutter build apk --debug --flavor development
-devenv shell -- flutter build apk --release --flavor production
+mise exec -- flutter build apk --debug --flavor development
+mise exec -- flutter build apk --release --flavor production
 
 # Run on device/emulator
-devenv shell -- flutter run
+mise exec -- flutter run
 ```
 
-The `.devenv/` directory has the pinned Flutter version. Don't run `flutter` directly — always through `devenv shell`.
+`.mise.toml` pins the toolchain. Don't run `flutter` directly; use
+`mise exec --` or enable direnv so `use mise` puts the pinned tools on PATH.
 
 ### Build flavors (Android only)
 
@@ -272,7 +277,7 @@ When asked about app crashes, production errors, regressions, or latest issues, 
 - The `mockResponse<T>()` helper requires `RequestOptions(path: '')`. Don't forget it.
 - Widget tests that touch MMKV need a `_FakeMMKVPlatform` registration. Don't forget it.
 - Golden tests are read-only in CI. Locally, update with `--update-goldens` and commit the new PNGs.
-- The dev loop goes through `devenv shell`. Don't run `flutter` directly.
+- The dev loop goes through `mise exec --`. Don't run `flutter` directly.
 - The CI blocks on errors only. Warnings/infos don't block.
 - The build flavors are Android-only. iOS has no flavor separation.
 - The `v*` tag pipeline obfuscates the build. Don't try to debug a release build locally — use the `development` flavor.

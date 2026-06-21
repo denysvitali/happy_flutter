@@ -53,11 +53,10 @@ jobs:
           fetch-depth: 1
           lfs: true
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup mise
+        uses: jdx/mise-action@v3
         with:
-          channel: stable
-          flutter-version: 3.44.0
+          install: true
           cache: true
 
       - name: Cache pub dependencies
@@ -71,10 +70,10 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get
+        run: mise exec -- flutter pub get
 
       - name: Analyze code
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: mise exec -- flutter analyze --no-fatal-infos --no-fatal-warnings
 
   test:
     name: Test (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
@@ -91,11 +90,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup mise
+        uses: jdx/mise-action@v3
         with:
-          channel: stable
-          flutter-version: 3.44.0
+          install: true
           cache: true
 
       - name: Cache pub dependencies
@@ -109,7 +107,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get
+        run: mise exec -- flutter pub get
 
       - name: Run tests (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
         run: |
@@ -126,7 +124,7 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          flutter test --coverage --concurrency=4 "${shard_tests[@]}"
+          mise exec -- flutter test --coverage --concurrency=4 "${shard_tests[@]}"
 
       - name: Upload coverage artifact
         if: always()
@@ -199,11 +197,10 @@ jobs:
           fetch-depth: 1
           lfs: true
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup mise
+        uses: jdx/mise-action@v3
         with:
-          channel: stable
-          flutter-version: 3.44.0
+          install: true
           cache: true
 
       - name: Cache pub dependencies
@@ -217,12 +214,12 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get
+        run: mise exec -- flutter pub get
 
       - name: Run golden tests
         # Runs both the phone suite (golden_test.dart) and the tablet suite
         # (tablet_golden_test.dart) in `test/golden/`.
-        run: flutter test test/golden/
+        run: mise exec -- flutter test test/golden/
 
   build-debug:
     name: Build Debug APK
@@ -273,11 +270,10 @@ jobs:
           sudo rm -rf /usr/share/swift
           df -h
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup mise
+        uses: jdx/mise-action@v3
         with:
-          channel: stable
-          flutter-version: 3.44.0
+          install: true
           cache: true
 
       - name: Cache Android NDK
@@ -319,7 +315,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get
+        run: mise exec -- flutter pub get
 
       - name: Determine flavor
         id: flavor
@@ -332,7 +328,7 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          flutter build apk --debug --no-pub \
+          mise exec -- flutter build apk --debug --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -409,12 +405,11 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      - name: Setup Flutter
+      - name: Setup mise
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        uses: subosito/flutter-action@v2
+        uses: jdx/mise-action@v3
         with:
-          channel: stable
-          flutter-version: 3.44.0
+          install: true
           cache: true
 
       - name: Cache Android NDK
@@ -461,7 +456,7 @@ jobs:
 
       - name: Get dependencies
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
-        run: flutter pub get
+        run: mise exec -- flutter pub get
 
       - name: Determine flavor
         id: flavor
@@ -483,7 +478,7 @@ jobs:
           GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g'
         run: |
           set +e
-          flutter build apk --release --no-pub \
+          mise exec -- flutter build apk --release --no-pub \
             --flavor ${{ steps.flavor.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -506,7 +501,7 @@ jobs:
       - name: Upload debug symbols to Sentry
         if: ${{ steps.check_keystore.outputs.skip_release != 'true' && env.SENTRY_AUTH_TOKEN != '' }}
         run: |
-          flutter pub run sentry_dart_plugin
+          mise exec -- flutter pub run sentry_dart_plugin
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
@@ -571,11 +566,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build libgtk-3-dev libsecret-1-dev libcurl4-openssl-dev
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup mise
+        uses: jdx/mise-action@v3
         with:
-          channel: stable
-          flutter-version: 3.44.0
+          install: true
           cache: true
 
       - name: Cache pub dependencies
@@ -589,7 +583,7 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get
+        run: mise exec -- flutter pub get
 
       - name: Compute build metadata
         id: build_meta
@@ -599,7 +593,7 @@ jobs:
 
       - name: Build Linux x64 Release
         run: |
-          flutter build linux --release \
+          mise exec -- flutter build linux --release \
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Bundle release archive
@@ -627,11 +621,10 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup mise
+        uses: jdx/mise-action@v3
         with:
-          channel: stable
-          flutter-version: 3.44.0
+          install: true
           cache: true
 
       - name: Cache pub dependencies
@@ -645,11 +638,11 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        run: flutter pub get
+        run: mise exec -- flutter pub get
 
       - name: Build Web
         run: |
-          flutter build web --release \
+          mise exec -- flutter build web --release \
             --base-href '/' \
             --source-maps \
             --dart-define=COMMIT_SHA=${{ github.sha }} \
@@ -658,7 +651,7 @@ jobs:
       - name: Upload web source maps to Sentry
         if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
         run: |
-          flutter pub run sentry_dart_plugin
+          mise exec -- flutter pub run sentry_dart_plugin
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}

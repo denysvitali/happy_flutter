@@ -19,14 +19,14 @@ run() {
 run_in_flutter() {
   (
     cd "$ROOT"
-    HAPPY_CLI_GO_PATH="$CLI_ROOT" run devenv shell -- "$@"
+    HAPPY_CLI_GO_PATH="$CLI_ROOT" run mise exec -- "$@"
   )
 }
 
 run_in_cli() {
   (
     cd "$CLI_ROOT"
-    run devenv shell -- "$@"
+    run mise exec -- "$@"
   )
 }
 
