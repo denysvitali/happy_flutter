@@ -102,6 +102,21 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen> {
     }
   }
 
+  Future<void> _deleteLoop(String loopId) async {
+    try {
+      await ref.read(loopsNotifierProvider.notifier).deleteLoop(
+            sessionId: widget.sessionId,
+            loopId: loopId,
+          );
+    } catch (e, st) {
+      logger.warning('LoopsScreen delete failed: $e', e, st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${context.l10n.loopsLoopCancelFailed}: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -178,14 +193,7 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen> {
                                     paused: paused,
                                   );
                             },
-                            onDelete: () async {
-                              await ref
-                                  .read(loopsNotifierProvider.notifier)
-                                  .deleteLoop(
-                                    sessionId: widget.sessionId,
-                                    loopId: loop.id,
-                                  );
-                            },
+                            onDelete: () => _deleteLoop(loop.id),
                           );
                         },
                       ),

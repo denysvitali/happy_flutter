@@ -261,6 +261,37 @@ void main() {
     });
   });
 
+  group('deleteLoop', () {
+    test('removes the confirmed delete from local loop state', () async {
+      sync.testLoopsBySession['s1'] = [
+        _sample(id: 'aaaaaaaa'),
+        _sample(id: 'bbbbbbbb'),
+      ];
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        expect(sid, 's1');
+        expect(method, 'loop-delete');
+        expect(params['loopId'], 'aaaaaaaa');
+        return {'ok': true};
+      };
+      final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+      final streamEvents = <String>[];
+      final sub = sync.onLoopsChanged.listen(streamEvents.add);
+
+      await sync.deleteLoop(sessionId: 's1', loopId: 'aaaaaaaa');
+
+      final ids = sync.loopsForSession('s1').map((l) => l.id).toList();
+      expect(ids, ['bbbbbbbb']);
+      expect(
+        sync.domainChangeCounter(SyncDomain.loops),
+        greaterThan(counterBefore),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(streamEvents, contains('s1'));
+      await sub.cancel();
+    });
+  });
+
   group('clearLoopsForSession', () {
     test('fires onLoopsChanged + bumps the domain counter', () {
       // Regression: clear was the only mutating path that didn't

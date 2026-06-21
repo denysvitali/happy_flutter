@@ -110,6 +110,24 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen> {
     return session.metadata?.name ?? 'Session $preview';
   }
 
+  Future<void> _deleteLoop({
+    required String sessionId,
+    required String loopId,
+  }) async {
+    try {
+      await ref.read(loopsNotifierProvider.notifier).deleteLoop(
+            sessionId: sessionId,
+            loopId: loopId,
+          );
+    } catch (e, st) {
+      logger.warning('AllLoopsScreen delete failed: $e', e, st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${context.l10n.loopsLoopCancelFailed}: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -234,12 +252,10 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen> {
                                         );
                                   },
                                   onLoopDelete: (loopId) async {
-                                    await ref
-                                        .read(loopsNotifierProvider.notifier)
-                                        .deleteLoop(
-                                          sessionId: group.sessionId,
-                                          loopId: loopId,
-                                        );
+                                    await _deleteLoop(
+                                      sessionId: group.sessionId,
+                                      loopId: loopId,
+                                    );
                                   },
                                 );
                               },

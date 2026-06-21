@@ -282,7 +282,9 @@ void main() {
         // s1 succeeded, s2 raised the transient error, s3 was skipped
         // because the loop broke after the transient failure.
         expect(attempted, ['s1', 's2']);
-        expect(container.read(loopsNotifierProvider), isEmpty);
+        expect(container.read(loopsNotifierProvider), {
+          's1': isEmpty,
+        });
       },
     );
 

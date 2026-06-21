@@ -156,6 +156,19 @@ extension SyncLoops on Sync {
     _loopsChangeController.add(sessionId);
   }
 
+  /// Apply a locally confirmed delete. A later `loops-updated` event can
+  /// still replace this mirror with the daemon's full authoritative list.
+  void _applyLoopDeleted(String sessionId, String loopId) {
+    final loops = _loopsBySession[sessionId];
+    if (loops == null) return;
+    final filtered = loops.where((l) => l.id != loopId).toList();
+    if (filtered.length == loops.length) return;
+    _loopsBySession[sessionId] = List<Loop>.unmodifiable(filtered);
+    LoopStorage.instance.save(sessionId, filtered);
+    _loopsChangeController.add(sessionId);
+    _notifyDataChanged({SyncDomain.loops});
+  }
+
   // ── Hydration ──────────────────────────────────────────────────────────
 
   /// Restore cached loops for [sessionId] from MMKV into the in-memory map.
@@ -231,9 +244,9 @@ extension SyncLoops on Sync {
     return Loop.fromJson(Map<String, dynamic>.from(loopJson));
   }
 
-  /// Delete a loop. The daemon is authoritative; the client does not need
-  /// to remove the loop from local state — a `loops-updated` event will
-  /// arrive with the trimmed list.
+  /// Delete a loop. The daemon is authoritative, but after it confirms the
+  /// delete we also trim the local mirror immediately. A later
+  /// `loops-updated` event still wins with the full daemon list.
   Future<void> deleteLoop({
     required String sessionId,
     required String loopId,
@@ -253,6 +266,7 @@ extension SyncLoops on Sync {
       final err = raw['error']?.toString() ?? 'unknown error';
       throw StateError('loop-delete failed: $err');
     }
+    _applyLoopDeleted(sessionId, loopId);
   }
 
   /// Pause or resume a loop. Same pattern as [deleteLoop].
