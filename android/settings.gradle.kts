@@ -1,9 +1,9 @@
 import org.gradle.api.Action
 import org.gradle.api.Project
 
-// AGP 9 removes the org.jetbrains.kotlin.android plugin in favor of built-in
-// Kotlin support, but many published Flutter plugins still apply it and use the
-// kotlinOptions DSL. Patch them in the pub cache before Gradle evaluates them.
+// AGP 9 has built-in Kotlin support, but many published Flutter plugins still
+// apply kotlin-android and use the old kotlinOptions DSL. Patch them in the pub
+// cache before Gradle evaluates them.
 // This replaces the CI-level sed patching and works for local builds too.
 fun patchPluginBuildForAgp9(buildFile: java.io.File) {
     if (!buildFile.exists()) return
@@ -18,6 +18,21 @@ fun patchPluginBuildForAgp9(buildFile: java.io.File) {
     text = text.replace(
         Regex("""compileSdk\s*=\s*3[0-5]([^0-9]|$)"""),
         "compileSdk = 36$1"
+    )
+
+    // AGP 9 rejects applying kotlin-android. Built-in Kotlin support still
+    // compiles src/main/kotlin; root build.gradle.kts configures KotlinCompile.
+    text = text.replace(
+        Regex("""(?m)^\s*apply plugin:\s*["'](?:kotlin-android|org\.jetbrains\.kotlin\.android)["']\s*\r?\n"""),
+        ""
+    )
+    text = text.replace(
+        Regex("""(?m)^\s*id\(["'](?:kotlin-android|org\.jetbrains\.kotlin\.android)["']\)\s*\r?\n"""),
+        ""
+    )
+    text = text.replace(
+        Regex("""(?ms)^\s*kotlinOptions\s*\{.*?^\s*\}\s*"""),
+        ""
     )
 
     if (text != original) {
@@ -89,9 +104,7 @@ dependencyResolutionManagement {
 }
 
 // Apply the AGP 9 compatibility patch to every Flutter plugin in the pub cache
-// before Gradle evaluates it. Keep kotlin-android intact: several plugins ship
-// Kotlin-generated Pigeon APIs used by Java sources, so disabling Kotlin drops
-// required classes from the Java compile classpath.
+// before Gradle evaluates it.
 gradle.beforeProject(Action<Project> {
     // Only patch Flutter plugin build.gradle(.kts) files in the pub cache.
     if (buildFile.path.contains("hosted/pub.dev/") &&
