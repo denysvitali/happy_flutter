@@ -1,11 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/encryption/encryption_cache.dart';
+import 'package:happy_flutter/core/encryption/encryption_manager.dart';
+import 'package:happy_flutter/core/encryption/encryptor.dart';
+import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
@@ -96,9 +102,9 @@ void main() {
   });
 
   tearDown(() async {
-    sync.testSetSessionMessages('session_1', const []);
+    sync.testFetchOlderMessagesOverride = null;
+    sync.testClearSessionMessageState('session_1');
     sync.testSessions.remove('session_1');
-    sync.messagesSync.remove('session_1')?.dispose();
     sync.isInitialized = false;
     await TtsService().dispose();
   });
@@ -1037,6 +1043,71 @@ void main() {
       expect(find.text('Message number 0'), findsOneWidget);
     });
 
+    testWidgets('scrollback continues fetching server pages while at top', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.encryption = _FakeEncryption();
+      sync.sessionsSync = InvalidateSync(() async {});
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+
+      final messages = List.generate(50, (i) {
+        final seq = 201 + i;
+        return {
+          'id': 'msg_$seq',
+          'seq': seq,
+          'role': i.isEven ? 'user' : 'assistant',
+          'content': 'Message number $seq',
+          'createdAt': 1700000000000 + seq * 1000,
+        };
+      });
+      sync.testSetSessionMessages('session_1', messages);
+      sync.testSetSessionFirstLoadedSeq('session_1', 201);
+      sync.testSessions['session_1'] = _makeSession();
+
+      final requestedAfterSeqs = <int>[];
+      sync.testFetchOlderMessagesOverride = (sessionId, afterSeq, limit) async {
+        requestedAfterSeqs.add(afterSeq);
+        final start = afterSeq + 1;
+        final end = afterSeq == 0 ? 100 : 200;
+        return {
+          'messages': [
+            for (var seq = start; seq <= end; seq++)
+              _makeEncryptedMessage(
+                'msg_$seq',
+                seq: seq,
+                content: 'Message number $seq',
+              ),
+          ],
+          'hasMore': afterSeq != 0,
+        };
+      };
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Message number 250'), findsOneWidget);
+      expect(find.text('Message number 1'), findsNothing);
+
+      await tester.drag(find.byType(ListView), const Offset(0, 5000));
+      for (var i = 0; i < 30 && requestedAfterSeqs.length < 2; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(requestedAfterSeqs, <int>[100, 0]);
+      expect(sync.hasOlderMessages('session_1'), isFalse);
+      expect(sync.testSessionFirstLoadedSeq('session_1'), 0);
+      expect(
+        sync.testSessionMessages('session_1')?.any((m) => m['seq'] == 1),
+        isTrue,
+      );
+      sync.testFlushPendingMessageSaves();
+    });
+
     testWidgets('PopScope handles unsent message dialog', (tester) async {
       sync.testSetSessionMessages('session_1', const []);
 
@@ -1052,4 +1123,87 @@ void main() {
       expect(find.text('Unsent message'), findsOneWidget);
     });
   });
+}
+
+class _FakeEncryption implements Encryption {
+  final Map<String, _FakeSessionEncryption> _sessions = {};
+  var _nextId = 0;
+
+  @override
+  SessionEncryption? getSessionEncryption(String sessionId) {
+    return _sessions.putIfAbsent(
+      sessionId,
+      () => _FakeSessionEncryption(sessionId: sessionId),
+    );
+  }
+
+  @override
+  String generateId() => 'test-local-id-${_nextId++}';
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeSessionEncryption extends SessionEncryption {
+  _FakeSessionEncryption({required String sessionId})
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
+}
+
+class _FakeEncryptor implements Encryptor {
+  @override
+  Future<List<Uint8List>> encrypt(List<dynamic> data) async {
+    return data.map((item) {
+      final json = jsonEncode(item);
+      final bytes = utf8.encode(json);
+      final output = Uint8List(bytes.length + 1);
+      output[0] = 0x01;
+      output.setRange(1, output.length, bytes);
+      return output;
+    }).toList();
+  }
+
+  @override
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    return data.map((item) {
+      if (item.isEmpty) return null;
+      try {
+        return item[0] == 0x01
+            ? jsonDecode(utf8.decode(item.sublist(1)))
+            : utf8.decode(item);
+      } catch (_) {
+        return null;
+      }
+    }).toList();
+  }
+}
+
+Map<String, dynamic> _makeEncryptedMessage(
+  String id, {
+  required int seq,
+  required String content,
+}) {
+  final innerContent = {
+    'role': 'agent',
+    'content': {
+      'type': 'output',
+      'data': {'type': 'assistant', 'message': content},
+    },
+  };
+  final json = jsonEncode(innerContent);
+  final bytes = utf8.encode(json);
+  final output = Uint8List(bytes.length + 1);
+  output[0] = 0x01;
+  output.setRange(1, output.length, bytes);
+  return {
+    'id': id,
+    'seq': seq,
+    'role': 'agent',
+    'content': {'t': 'encrypted', 'c': base64Encode(output)},
+    'createdAt': 1700000000000 + seq * 1000,
+  };
 }

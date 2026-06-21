@@ -78,6 +78,8 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testClearSessionMessageState(String sessionId) {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
+    _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
+    _saveMsgsFirstScheduledAtMs.remove(sessionId);
     _sidechainRegroupTimers[sessionId]?.cancel();
     _sidechainRegroupTimers.remove(sessionId);
     _sidechainRegroupFirstRequestMs.remove(sessionId);

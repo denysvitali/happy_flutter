@@ -159,6 +159,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _lastLoadMoreMs = 0;
   bool _canTriggerHistoryLoad = true;
   bool _isAdjustingHistoryScroll = false;
+  bool _continueHistoryLoadAfterServerPage = false;
   double? _lastScrollMaxExtent;
   double? _lastScrollPixels;
   static const double _historyLoadThreshold = 300;
@@ -563,6 +564,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _bumpMessagePaneRevision();
     }
 
+    final continueHistoryLoadAfterServerPage =
+        messagesChanged && _continueHistoryLoadAfterServerPage;
+    if (continueHistoryLoadAfterServerPage) {
+      _continueHistoryLoadAfterServerPage = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _continueHistoryLoadIfStillAtEdge(alignToHistoryEdge: true);
+      });
+    }
+
     // Post-state-update side effects
     if (messagesChanged && _autoScroll) {
       _scrollToBottom();
@@ -767,8 +777,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return pos.pixels >= pos.maxScrollExtent - _historyLoadThreshold;
   }
 
-  void _continueLocalHistoryLoadIfStillAtEdge() {
-    if (!mounted || _isLoadingMore || !_isAtHistoryEdge()) return;
+  void _continueHistoryLoadIfStillAtEdge({bool alignToHistoryEdge = false}) {
+    if (!mounted || _isLoadingMore || !_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    final previousMax = _lastScrollMaxExtent;
+    final atCurrentHistoryEdge =
+        pos.pixels >= pos.maxScrollExtent - _historyLoadThreshold;
+    final atPreviousHistoryEdge =
+        previousMax != null &&
+        pos.pixels >= previousMax - _historyLoadThreshold;
+    if (!atCurrentHistoryEdge && !atPreviousHistoryEdge) return;
+
+    if (alignToHistoryEdge && !atCurrentHistoryEdge) {
+      _isAdjustingHistoryScroll = true;
+      try {
+        pos.jumpTo(pos.maxScrollExtent);
+      } finally {
+        _isAdjustingHistoryScroll = false;
+      }
+    }
+
     _canTriggerHistoryLoad = true;
     _loadMore();
   }
@@ -798,7 +826,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           }
         }
         _isLoadingMore = false;
-        _continueLocalHistoryLoadIfStillAtEdge();
+        _continueHistoryLoadIfStillAtEdge();
       });
       return;
     }
@@ -806,10 +834,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (sync.hasOlderMessages(widget.sessionId) &&
         !sync.isLoadingOlderMessages(widget.sessionId)) {
       _isLoadingMore = true;
+      final revisionBeforeLoad = sync.messagesRevision(widget.sessionId);
+      _continueHistoryLoadAfterServerPage = true;
       sync.fetchOlderMessages(widget.sessionId).whenComplete(() {
         if (mounted) {
           _isLoadingMore = false;
           _bumpMessagePaneRevision();
+          if (sync.messagesRevision(widget.sessionId) == revisionBeforeLoad) {
+            _continueHistoryLoadAfterServerPage = false;
+          }
         }
       });
     }
