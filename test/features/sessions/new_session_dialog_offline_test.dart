@@ -17,6 +17,8 @@ Machine _machine({
   required String displayName,
   required bool active,
   required int activeAtMs,
+  List<String>? spawnBackends,
+  String? defaultSpawnBackend,
 }) {
   return Machine(
     id: id,
@@ -27,7 +29,12 @@ Machine _machine({
     activeAt: activeAtMs,
     metadataVersion: 1,
     daemonStateVersion: 1,
-    metadata: MachineMetadata(displayName: displayName, host: displayName),
+    metadata: MachineMetadata(
+      displayName: displayName,
+      host: displayName,
+      spawnBackends: spawnBackends,
+      defaultSpawnBackend: defaultSpawnBackend,
+    ),
   );
 }
 
@@ -264,6 +271,31 @@ void main() {
         isNotNull,
         reason: 'online machine + path must allow Create',
       );
+    });
+
+    testWidgets('shows spawn backend selector when machine advertises it', (
+      tester,
+    ) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final machine = _machine(
+        id: 'm-kube',
+        displayName: 'Kube Box',
+        active: true,
+        activeAtMs: now,
+        spawnBackends: const ['local', 'kubernetes'],
+        defaultSpawnBackend: 'kubernetes',
+      );
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {'m-kube': machine},
+          initialMachineId: 'm-kube',
+        ),
+      );
+
+      expect(find.text('Spawn on'), findsOneWidget);
+      expect(find.text('Local'), findsOneWidget);
+      expect(find.text('Kubernetes'), findsOneWidget);
     });
 
     testWidgets(

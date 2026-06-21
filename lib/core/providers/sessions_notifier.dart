@@ -242,6 +242,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     required String agent,
     String? profileId,
     String? modelMode,
+    String? spawnBackend,
   }) async {
     if (!sync.isInitialized) {
       throw StateError('Sync is not initialized');
@@ -252,6 +253,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       agent: agent,
       profileId: profileId,
       modelMode: modelMode,
+      spawnBackend: spawnBackend,
     );
   }
 

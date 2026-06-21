@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$MachineMetadata {
 
-@JsonKey(fromJson: _asApiStringNullable) String? get host;@JsonKey(fromJson: _asApiStringNullable) String? get platform;@JsonKey(fromJson: _asApiStringNullable) String? get happyCliVersion;@JsonKey(fromJson: _asApiStringNullable) String? get happyHomeDir;@JsonKey(fromJson: _asApiStringNullable) String? get homeDir;@JsonKey(fromJson: _asApiStringNullable) String? get username;@JsonKey(fromJson: _asApiStringNullable) String? get arch;@JsonKey(fromJson: _asApiStringNullable) String? get displayName;@JsonKey(fromJson: _asApiStringNullable) String? get daemonLastKnownStatus;@JsonKey(fromJson: _asApiIntNullable) int? get daemonLastKnownPid;@JsonKey(fromJson: _asApiIntNullable) int? get shutdownRequestedAt;@JsonKey(fromJson: _asApiStringNullable) String? get shutdownSource;
+@JsonKey(fromJson: _asApiStringNullable) String? get host;@JsonKey(fromJson: _asApiStringNullable) String? get platform;@JsonKey(fromJson: _asApiStringNullable) String? get happyCliVersion;@JsonKey(fromJson: _asApiStringNullable) String? get happyHomeDir;@JsonKey(fromJson: _asApiStringNullable) String? get homeDir;@JsonKey(fromJson: _asApiStringNullable) String? get username;@JsonKey(fromJson: _asApiStringNullable) String? get arch;@JsonKey(fromJson: _asApiStringNullable) String? get displayName;@JsonKey(fromJson: _asApiStringNullable) String? get daemonLastKnownStatus;@JsonKey(fromJson: _asApiIntNullable) int? get daemonLastKnownPid;@JsonKey(fromJson: _asApiIntNullable) int? get shutdownRequestedAt;@JsonKey(fromJson: _asApiStringNullable) String? get shutdownSource;@JsonKey(fromJson: _stringListOrNull) List<String>? get spawnBackends;@JsonKey(fromJson: _asApiStringNullable) String? get defaultSpawnBackend;
 /// Create a copy of MachineMetadata
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $MachineMetadataCopyWith<MachineMetadata> get copyWith => _$MachineMetadataCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MachineMetadata&&(identical(other.host, host) || other.host == host)&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.happyCliVersion, happyCliVersion) || other.happyCliVersion == happyCliVersion)&&(identical(other.happyHomeDir, happyHomeDir) || other.happyHomeDir == happyHomeDir)&&(identical(other.homeDir, homeDir) || other.homeDir == homeDir)&&(identical(other.username, username) || other.username == username)&&(identical(other.arch, arch) || other.arch == arch)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.daemonLastKnownStatus, daemonLastKnownStatus) || other.daemonLastKnownStatus == daemonLastKnownStatus)&&(identical(other.daemonLastKnownPid, daemonLastKnownPid) || other.daemonLastKnownPid == daemonLastKnownPid)&&(identical(other.shutdownRequestedAt, shutdownRequestedAt) || other.shutdownRequestedAt == shutdownRequestedAt)&&(identical(other.shutdownSource, shutdownSource) || other.shutdownSource == shutdownSource));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MachineMetadata&&(identical(other.host, host) || other.host == host)&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.happyCliVersion, happyCliVersion) || other.happyCliVersion == happyCliVersion)&&(identical(other.happyHomeDir, happyHomeDir) || other.happyHomeDir == happyHomeDir)&&(identical(other.homeDir, homeDir) || other.homeDir == homeDir)&&(identical(other.username, username) || other.username == username)&&(identical(other.arch, arch) || other.arch == arch)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.daemonLastKnownStatus, daemonLastKnownStatus) || other.daemonLastKnownStatus == daemonLastKnownStatus)&&(identical(other.daemonLastKnownPid, daemonLastKnownPid) || other.daemonLastKnownPid == daemonLastKnownPid)&&(identical(other.shutdownRequestedAt, shutdownRequestedAt) || other.shutdownRequestedAt == shutdownRequestedAt)&&(identical(other.shutdownSource, shutdownSource) || other.shutdownSource == shutdownSource)&&const DeepCollectionEquality().equals(other.spawnBackends, spawnBackends)&&(identical(other.defaultSpawnBackend, defaultSpawnBackend) || other.defaultSpawnBackend == defaultSpawnBackend));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,host,platform,happyCliVersion,happyHomeDir,homeDir,username,arch,displayName,daemonLastKnownStatus,daemonLastKnownPid,shutdownRequestedAt,shutdownSource);
+int get hashCode => Object.hash(runtimeType,host,platform,happyCliVersion,happyHomeDir,homeDir,username,arch,displayName,daemonLastKnownStatus,daemonLastKnownPid,shutdownRequestedAt,shutdownSource,const DeepCollectionEquality().hash(spawnBackends),defaultSpawnBackend);
 
 @override
 String toString() {
-  return 'MachineMetadata(host: $host, platform: $platform, happyCliVersion: $happyCliVersion, happyHomeDir: $happyHomeDir, homeDir: $homeDir, username: $username, arch: $arch, displayName: $displayName, daemonLastKnownStatus: $daemonLastKnownStatus, daemonLastKnownPid: $daemonLastKnownPid, shutdownRequestedAt: $shutdownRequestedAt, shutdownSource: $shutdownSource)';
+  return 'MachineMetadata(host: $host, platform: $platform, happyCliVersion: $happyCliVersion, happyHomeDir: $happyHomeDir, homeDir: $homeDir, username: $username, arch: $arch, displayName: $displayName, daemonLastKnownStatus: $daemonLastKnownStatus, daemonLastKnownPid: $daemonLastKnownPid, shutdownRequestedAt: $shutdownRequestedAt, shutdownSource: $shutdownSource, spawnBackends: $spawnBackends, defaultSpawnBackend: $defaultSpawnBackend)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $MachineMetadataCopyWith<$Res>  {
   factory $MachineMetadataCopyWith(MachineMetadata value, $Res Function(MachineMetadata) _then) = _$MachineMetadataCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(fromJson: _asApiStringNullable) String? host,@JsonKey(fromJson: _asApiStringNullable) String? platform,@JsonKey(fromJson: _asApiStringNullable) String? happyCliVersion,@JsonKey(fromJson: _asApiStringNullable) String? happyHomeDir,@JsonKey(fromJson: _asApiStringNullable) String? homeDir,@JsonKey(fromJson: _asApiStringNullable) String? username,@JsonKey(fromJson: _asApiStringNullable) String? arch,@JsonKey(fromJson: _asApiStringNullable) String? displayName,@JsonKey(fromJson: _asApiStringNullable) String? daemonLastKnownStatus,@JsonKey(fromJson: _asApiIntNullable) int? daemonLastKnownPid,@JsonKey(fromJson: _asApiIntNullable) int? shutdownRequestedAt,@JsonKey(fromJson: _asApiStringNullable) String? shutdownSource
+@JsonKey(fromJson: _asApiStringNullable) String? host,@JsonKey(fromJson: _asApiStringNullable) String? platform,@JsonKey(fromJson: _asApiStringNullable) String? happyCliVersion,@JsonKey(fromJson: _asApiStringNullable) String? happyHomeDir,@JsonKey(fromJson: _asApiStringNullable) String? homeDir,@JsonKey(fromJson: _asApiStringNullable) String? username,@JsonKey(fromJson: _asApiStringNullable) String? arch,@JsonKey(fromJson: _asApiStringNullable) String? displayName,@JsonKey(fromJson: _asApiStringNullable) String? daemonLastKnownStatus,@JsonKey(fromJson: _asApiIntNullable) int? daemonLastKnownPid,@JsonKey(fromJson: _asApiIntNullable) int? shutdownRequestedAt,@JsonKey(fromJson: _asApiStringNullable) String? shutdownSource,@JsonKey(fromJson: _stringListOrNull) List<String>? spawnBackends,@JsonKey(fromJson: _asApiStringNullable) String? defaultSpawnBackend
 });
 
 
@@ -65,7 +65,7 @@ class _$MachineMetadataCopyWithImpl<$Res>
 
 /// Create a copy of MachineMetadata
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? host = freezed,Object? platform = freezed,Object? happyCliVersion = freezed,Object? happyHomeDir = freezed,Object? homeDir = freezed,Object? username = freezed,Object? arch = freezed,Object? displayName = freezed,Object? daemonLastKnownStatus = freezed,Object? daemonLastKnownPid = freezed,Object? shutdownRequestedAt = freezed,Object? shutdownSource = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? host = freezed,Object? platform = freezed,Object? happyCliVersion = freezed,Object? happyHomeDir = freezed,Object? homeDir = freezed,Object? username = freezed,Object? arch = freezed,Object? displayName = freezed,Object? daemonLastKnownStatus = freezed,Object? daemonLastKnownPid = freezed,Object? shutdownRequestedAt = freezed,Object? shutdownSource = freezed,Object? spawnBackends = freezed,Object? defaultSpawnBackend = freezed,}) {
   return _then(_self.copyWith(
 host: freezed == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
 as String?,platform: freezed == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
@@ -79,6 +79,8 @@ as String?,daemonLastKnownStatus: freezed == daemonLastKnownStatus ? _self.daemo
 as String?,daemonLastKnownPid: freezed == daemonLastKnownPid ? _self.daemonLastKnownPid : daemonLastKnownPid // ignore: cast_nullable_to_non_nullable
 as int?,shutdownRequestedAt: freezed == shutdownRequestedAt ? _self.shutdownRequestedAt : shutdownRequestedAt // ignore: cast_nullable_to_non_nullable
 as int?,shutdownSource: freezed == shutdownSource ? _self.shutdownSource : shutdownSource // ignore: cast_nullable_to_non_nullable
+as String?,spawnBackends: freezed == spawnBackends ? _self.spawnBackends : spawnBackends // ignore: cast_nullable_to_non_nullable
+as List<String>?,defaultSpawnBackend: freezed == defaultSpawnBackend ? _self.defaultSpawnBackend : defaultSpawnBackend // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -164,10 +166,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _asApiStringNullable)  String? host, @JsonKey(fromJson: _asApiStringNullable)  String? platform, @JsonKey(fromJson: _asApiStringNullable)  String? happyCliVersion, @JsonKey(fromJson: _asApiStringNullable)  String? happyHomeDir, @JsonKey(fromJson: _asApiStringNullable)  String? homeDir, @JsonKey(fromJson: _asApiStringNullable)  String? username, @JsonKey(fromJson: _asApiStringNullable)  String? arch, @JsonKey(fromJson: _asApiStringNullable)  String? displayName, @JsonKey(fromJson: _asApiStringNullable)  String? daemonLastKnownStatus, @JsonKey(fromJson: _asApiIntNullable)  int? daemonLastKnownPid, @JsonKey(fromJson: _asApiIntNullable)  int? shutdownRequestedAt, @JsonKey(fromJson: _asApiStringNullable)  String? shutdownSource)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _asApiStringNullable)  String? host, @JsonKey(fromJson: _asApiStringNullable)  String? platform, @JsonKey(fromJson: _asApiStringNullable)  String? happyCliVersion, @JsonKey(fromJson: _asApiStringNullable)  String? happyHomeDir, @JsonKey(fromJson: _asApiStringNullable)  String? homeDir, @JsonKey(fromJson: _asApiStringNullable)  String? username, @JsonKey(fromJson: _asApiStringNullable)  String? arch, @JsonKey(fromJson: _asApiStringNullable)  String? displayName, @JsonKey(fromJson: _asApiStringNullable)  String? daemonLastKnownStatus, @JsonKey(fromJson: _asApiIntNullable)  int? daemonLastKnownPid, @JsonKey(fromJson: _asApiIntNullable)  int? shutdownRequestedAt, @JsonKey(fromJson: _asApiStringNullable)  String? shutdownSource, @JsonKey(fromJson: _stringListOrNull)  List<String>? spawnBackends, @JsonKey(fromJson: _asApiStringNullable)  String? defaultSpawnBackend)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MachineMetadata() when $default != null:
-return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeDir,_that.homeDir,_that.username,_that.arch,_that.displayName,_that.daemonLastKnownStatus,_that.daemonLastKnownPid,_that.shutdownRequestedAt,_that.shutdownSource);case _:
+return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeDir,_that.homeDir,_that.username,_that.arch,_that.displayName,_that.daemonLastKnownStatus,_that.daemonLastKnownPid,_that.shutdownRequestedAt,_that.shutdownSource,_that.spawnBackends,_that.defaultSpawnBackend);case _:
   return orElse();
 
 }
@@ -185,10 +187,10 @@ return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeD
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _asApiStringNullable)  String? host, @JsonKey(fromJson: _asApiStringNullable)  String? platform, @JsonKey(fromJson: _asApiStringNullable)  String? happyCliVersion, @JsonKey(fromJson: _asApiStringNullable)  String? happyHomeDir, @JsonKey(fromJson: _asApiStringNullable)  String? homeDir, @JsonKey(fromJson: _asApiStringNullable)  String? username, @JsonKey(fromJson: _asApiStringNullable)  String? arch, @JsonKey(fromJson: _asApiStringNullable)  String? displayName, @JsonKey(fromJson: _asApiStringNullable)  String? daemonLastKnownStatus, @JsonKey(fromJson: _asApiIntNullable)  int? daemonLastKnownPid, @JsonKey(fromJson: _asApiIntNullable)  int? shutdownRequestedAt, @JsonKey(fromJson: _asApiStringNullable)  String? shutdownSource)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(fromJson: _asApiStringNullable)  String? host, @JsonKey(fromJson: _asApiStringNullable)  String? platform, @JsonKey(fromJson: _asApiStringNullable)  String? happyCliVersion, @JsonKey(fromJson: _asApiStringNullable)  String? happyHomeDir, @JsonKey(fromJson: _asApiStringNullable)  String? homeDir, @JsonKey(fromJson: _asApiStringNullable)  String? username, @JsonKey(fromJson: _asApiStringNullable)  String? arch, @JsonKey(fromJson: _asApiStringNullable)  String? displayName, @JsonKey(fromJson: _asApiStringNullable)  String? daemonLastKnownStatus, @JsonKey(fromJson: _asApiIntNullable)  int? daemonLastKnownPid, @JsonKey(fromJson: _asApiIntNullable)  int? shutdownRequestedAt, @JsonKey(fromJson: _asApiStringNullable)  String? shutdownSource, @JsonKey(fromJson: _stringListOrNull)  List<String>? spawnBackends, @JsonKey(fromJson: _asApiStringNullable)  String? defaultSpawnBackend)  $default,) {final _that = this;
 switch (_that) {
 case _MachineMetadata():
-return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeDir,_that.homeDir,_that.username,_that.arch,_that.displayName,_that.daemonLastKnownStatus,_that.daemonLastKnownPid,_that.shutdownRequestedAt,_that.shutdownSource);case _:
+return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeDir,_that.homeDir,_that.username,_that.arch,_that.displayName,_that.daemonLastKnownStatus,_that.daemonLastKnownPid,_that.shutdownRequestedAt,_that.shutdownSource,_that.spawnBackends,_that.defaultSpawnBackend);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -205,10 +207,10 @@ return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeD
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: _asApiStringNullable)  String? host, @JsonKey(fromJson: _asApiStringNullable)  String? platform, @JsonKey(fromJson: _asApiStringNullable)  String? happyCliVersion, @JsonKey(fromJson: _asApiStringNullable)  String? happyHomeDir, @JsonKey(fromJson: _asApiStringNullable)  String? homeDir, @JsonKey(fromJson: _asApiStringNullable)  String? username, @JsonKey(fromJson: _asApiStringNullable)  String? arch, @JsonKey(fromJson: _asApiStringNullable)  String? displayName, @JsonKey(fromJson: _asApiStringNullable)  String? daemonLastKnownStatus, @JsonKey(fromJson: _asApiIntNullable)  int? daemonLastKnownPid, @JsonKey(fromJson: _asApiIntNullable)  int? shutdownRequestedAt, @JsonKey(fromJson: _asApiStringNullable)  String? shutdownSource)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(fromJson: _asApiStringNullable)  String? host, @JsonKey(fromJson: _asApiStringNullable)  String? platform, @JsonKey(fromJson: _asApiStringNullable)  String? happyCliVersion, @JsonKey(fromJson: _asApiStringNullable)  String? happyHomeDir, @JsonKey(fromJson: _asApiStringNullable)  String? homeDir, @JsonKey(fromJson: _asApiStringNullable)  String? username, @JsonKey(fromJson: _asApiStringNullable)  String? arch, @JsonKey(fromJson: _asApiStringNullable)  String? displayName, @JsonKey(fromJson: _asApiStringNullable)  String? daemonLastKnownStatus, @JsonKey(fromJson: _asApiIntNullable)  int? daemonLastKnownPid, @JsonKey(fromJson: _asApiIntNullable)  int? shutdownRequestedAt, @JsonKey(fromJson: _asApiStringNullable)  String? shutdownSource, @JsonKey(fromJson: _stringListOrNull)  List<String>? spawnBackends, @JsonKey(fromJson: _asApiStringNullable)  String? defaultSpawnBackend)?  $default,) {final _that = this;
 switch (_that) {
 case _MachineMetadata() when $default != null:
-return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeDir,_that.homeDir,_that.username,_that.arch,_that.displayName,_that.daemonLastKnownStatus,_that.daemonLastKnownPid,_that.shutdownRequestedAt,_that.shutdownSource);case _:
+return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeDir,_that.homeDir,_that.username,_that.arch,_that.displayName,_that.daemonLastKnownStatus,_that.daemonLastKnownPid,_that.shutdownRequestedAt,_that.shutdownSource,_that.spawnBackends,_that.defaultSpawnBackend);case _:
   return null;
 
 }
@@ -220,7 +222,7 @@ return $default(_that.host,_that.platform,_that.happyCliVersion,_that.happyHomeD
 @JsonSerializable()
 
 class _MachineMetadata implements MachineMetadata {
-  const _MachineMetadata({@JsonKey(fromJson: _asApiStringNullable) this.host, @JsonKey(fromJson: _asApiStringNullable) this.platform, @JsonKey(fromJson: _asApiStringNullable) this.happyCliVersion, @JsonKey(fromJson: _asApiStringNullable) this.happyHomeDir, @JsonKey(fromJson: _asApiStringNullable) this.homeDir, @JsonKey(fromJson: _asApiStringNullable) this.username, @JsonKey(fromJson: _asApiStringNullable) this.arch, @JsonKey(fromJson: _asApiStringNullable) this.displayName, @JsonKey(fromJson: _asApiStringNullable) this.daemonLastKnownStatus, @JsonKey(fromJson: _asApiIntNullable) this.daemonLastKnownPid, @JsonKey(fromJson: _asApiIntNullable) this.shutdownRequestedAt, @JsonKey(fromJson: _asApiStringNullable) this.shutdownSource});
+  const _MachineMetadata({@JsonKey(fromJson: _asApiStringNullable) this.host, @JsonKey(fromJson: _asApiStringNullable) this.platform, @JsonKey(fromJson: _asApiStringNullable) this.happyCliVersion, @JsonKey(fromJson: _asApiStringNullable) this.happyHomeDir, @JsonKey(fromJson: _asApiStringNullable) this.homeDir, @JsonKey(fromJson: _asApiStringNullable) this.username, @JsonKey(fromJson: _asApiStringNullable) this.arch, @JsonKey(fromJson: _asApiStringNullable) this.displayName, @JsonKey(fromJson: _asApiStringNullable) this.daemonLastKnownStatus, @JsonKey(fromJson: _asApiIntNullable) this.daemonLastKnownPid, @JsonKey(fromJson: _asApiIntNullable) this.shutdownRequestedAt, @JsonKey(fromJson: _asApiStringNullable) this.shutdownSource, @JsonKey(fromJson: _stringListOrNull) final  List<String>? spawnBackends, @JsonKey(fromJson: _asApiStringNullable) this.defaultSpawnBackend}): _spawnBackends = spawnBackends;
   factory _MachineMetadata.fromJson(Map<String, dynamic> json) => _$MachineMetadataFromJson(json);
 
 @override@JsonKey(fromJson: _asApiStringNullable) final  String? host;
@@ -235,6 +237,16 @@ class _MachineMetadata implements MachineMetadata {
 @override@JsonKey(fromJson: _asApiIntNullable) final  int? daemonLastKnownPid;
 @override@JsonKey(fromJson: _asApiIntNullable) final  int? shutdownRequestedAt;
 @override@JsonKey(fromJson: _asApiStringNullable) final  String? shutdownSource;
+ final  List<String>? _spawnBackends;
+@override@JsonKey(fromJson: _stringListOrNull) List<String>? get spawnBackends {
+  final value = _spawnBackends;
+  if (value == null) return null;
+  if (_spawnBackends is EqualUnmodifiableListView) return _spawnBackends;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
+
+@override@JsonKey(fromJson: _asApiStringNullable) final  String? defaultSpawnBackend;
 
 /// Create a copy of MachineMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -249,16 +261,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MachineMetadata&&(identical(other.host, host) || other.host == host)&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.happyCliVersion, happyCliVersion) || other.happyCliVersion == happyCliVersion)&&(identical(other.happyHomeDir, happyHomeDir) || other.happyHomeDir == happyHomeDir)&&(identical(other.homeDir, homeDir) || other.homeDir == homeDir)&&(identical(other.username, username) || other.username == username)&&(identical(other.arch, arch) || other.arch == arch)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.daemonLastKnownStatus, daemonLastKnownStatus) || other.daemonLastKnownStatus == daemonLastKnownStatus)&&(identical(other.daemonLastKnownPid, daemonLastKnownPid) || other.daemonLastKnownPid == daemonLastKnownPid)&&(identical(other.shutdownRequestedAt, shutdownRequestedAt) || other.shutdownRequestedAt == shutdownRequestedAt)&&(identical(other.shutdownSource, shutdownSource) || other.shutdownSource == shutdownSource));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MachineMetadata&&(identical(other.host, host) || other.host == host)&&(identical(other.platform, platform) || other.platform == platform)&&(identical(other.happyCliVersion, happyCliVersion) || other.happyCliVersion == happyCliVersion)&&(identical(other.happyHomeDir, happyHomeDir) || other.happyHomeDir == happyHomeDir)&&(identical(other.homeDir, homeDir) || other.homeDir == homeDir)&&(identical(other.username, username) || other.username == username)&&(identical(other.arch, arch) || other.arch == arch)&&(identical(other.displayName, displayName) || other.displayName == displayName)&&(identical(other.daemonLastKnownStatus, daemonLastKnownStatus) || other.daemonLastKnownStatus == daemonLastKnownStatus)&&(identical(other.daemonLastKnownPid, daemonLastKnownPid) || other.daemonLastKnownPid == daemonLastKnownPid)&&(identical(other.shutdownRequestedAt, shutdownRequestedAt) || other.shutdownRequestedAt == shutdownRequestedAt)&&(identical(other.shutdownSource, shutdownSource) || other.shutdownSource == shutdownSource)&&const DeepCollectionEquality().equals(other._spawnBackends, _spawnBackends)&&(identical(other.defaultSpawnBackend, defaultSpawnBackend) || other.defaultSpawnBackend == defaultSpawnBackend));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,host,platform,happyCliVersion,happyHomeDir,homeDir,username,arch,displayName,daemonLastKnownStatus,daemonLastKnownPid,shutdownRequestedAt,shutdownSource);
+int get hashCode => Object.hash(runtimeType,host,platform,happyCliVersion,happyHomeDir,homeDir,username,arch,displayName,daemonLastKnownStatus,daemonLastKnownPid,shutdownRequestedAt,shutdownSource,const DeepCollectionEquality().hash(_spawnBackends),defaultSpawnBackend);
 
 @override
 String toString() {
-  return 'MachineMetadata(host: $host, platform: $platform, happyCliVersion: $happyCliVersion, happyHomeDir: $happyHomeDir, homeDir: $homeDir, username: $username, arch: $arch, displayName: $displayName, daemonLastKnownStatus: $daemonLastKnownStatus, daemonLastKnownPid: $daemonLastKnownPid, shutdownRequestedAt: $shutdownRequestedAt, shutdownSource: $shutdownSource)';
+  return 'MachineMetadata(host: $host, platform: $platform, happyCliVersion: $happyCliVersion, happyHomeDir: $happyHomeDir, homeDir: $homeDir, username: $username, arch: $arch, displayName: $displayName, daemonLastKnownStatus: $daemonLastKnownStatus, daemonLastKnownPid: $daemonLastKnownPid, shutdownRequestedAt: $shutdownRequestedAt, shutdownSource: $shutdownSource, spawnBackends: $spawnBackends, defaultSpawnBackend: $defaultSpawnBackend)';
 }
 
 
@@ -269,7 +281,7 @@ abstract mixin class _$MachineMetadataCopyWith<$Res> implements $MachineMetadata
   factory _$MachineMetadataCopyWith(_MachineMetadata value, $Res Function(_MachineMetadata) _then) = __$MachineMetadataCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(fromJson: _asApiStringNullable) String? host,@JsonKey(fromJson: _asApiStringNullable) String? platform,@JsonKey(fromJson: _asApiStringNullable) String? happyCliVersion,@JsonKey(fromJson: _asApiStringNullable) String? happyHomeDir,@JsonKey(fromJson: _asApiStringNullable) String? homeDir,@JsonKey(fromJson: _asApiStringNullable) String? username,@JsonKey(fromJson: _asApiStringNullable) String? arch,@JsonKey(fromJson: _asApiStringNullable) String? displayName,@JsonKey(fromJson: _asApiStringNullable) String? daemonLastKnownStatus,@JsonKey(fromJson: _asApiIntNullable) int? daemonLastKnownPid,@JsonKey(fromJson: _asApiIntNullable) int? shutdownRequestedAt,@JsonKey(fromJson: _asApiStringNullable) String? shutdownSource
+@JsonKey(fromJson: _asApiStringNullable) String? host,@JsonKey(fromJson: _asApiStringNullable) String? platform,@JsonKey(fromJson: _asApiStringNullable) String? happyCliVersion,@JsonKey(fromJson: _asApiStringNullable) String? happyHomeDir,@JsonKey(fromJson: _asApiStringNullable) String? homeDir,@JsonKey(fromJson: _asApiStringNullable) String? username,@JsonKey(fromJson: _asApiStringNullable) String? arch,@JsonKey(fromJson: _asApiStringNullable) String? displayName,@JsonKey(fromJson: _asApiStringNullable) String? daemonLastKnownStatus,@JsonKey(fromJson: _asApiIntNullable) int? daemonLastKnownPid,@JsonKey(fromJson: _asApiIntNullable) int? shutdownRequestedAt,@JsonKey(fromJson: _asApiStringNullable) String? shutdownSource,@JsonKey(fromJson: _stringListOrNull) List<String>? spawnBackends,@JsonKey(fromJson: _asApiStringNullable) String? defaultSpawnBackend
 });
 
 
@@ -286,7 +298,7 @@ class __$MachineMetadataCopyWithImpl<$Res>
 
 /// Create a copy of MachineMetadata
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? host = freezed,Object? platform = freezed,Object? happyCliVersion = freezed,Object? happyHomeDir = freezed,Object? homeDir = freezed,Object? username = freezed,Object? arch = freezed,Object? displayName = freezed,Object? daemonLastKnownStatus = freezed,Object? daemonLastKnownPid = freezed,Object? shutdownRequestedAt = freezed,Object? shutdownSource = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? host = freezed,Object? platform = freezed,Object? happyCliVersion = freezed,Object? happyHomeDir = freezed,Object? homeDir = freezed,Object? username = freezed,Object? arch = freezed,Object? displayName = freezed,Object? daemonLastKnownStatus = freezed,Object? daemonLastKnownPid = freezed,Object? shutdownRequestedAt = freezed,Object? shutdownSource = freezed,Object? spawnBackends = freezed,Object? defaultSpawnBackend = freezed,}) {
   return _then(_MachineMetadata(
 host: freezed == host ? _self.host : host // ignore: cast_nullable_to_non_nullable
 as String?,platform: freezed == platform ? _self.platform : platform // ignore: cast_nullable_to_non_nullable
@@ -300,6 +312,8 @@ as String?,daemonLastKnownStatus: freezed == daemonLastKnownStatus ? _self.daemo
 as String?,daemonLastKnownPid: freezed == daemonLastKnownPid ? _self.daemonLastKnownPid : daemonLastKnownPid // ignore: cast_nullable_to_non_nullable
 as int?,shutdownRequestedAt: freezed == shutdownRequestedAt ? _self.shutdownRequestedAt : shutdownRequestedAt // ignore: cast_nullable_to_non_nullable
 as int?,shutdownSource: freezed == shutdownSource ? _self.shutdownSource : shutdownSource // ignore: cast_nullable_to_non_nullable
+as String?,spawnBackends: freezed == spawnBackends ? _self._spawnBackends : spawnBackends // ignore: cast_nullable_to_non_nullable
+as List<String>?,defaultSpawnBackend: freezed == defaultSpawnBackend ? _self.defaultSpawnBackend : defaultSpawnBackend // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

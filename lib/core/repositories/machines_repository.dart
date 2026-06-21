@@ -48,6 +48,7 @@ class MachinesRepository {
     required String agent,
     String? profileId,
     String? modelMode,
+    String? spawnBackend,
   }) =>
       _manager.createSession(
         machineId: machineId,
@@ -55,6 +56,7 @@ class MachinesRepository {
         agent: agent,
         profileId: profileId,
         modelMode: modelMode,
+        spawnBackend: spawnBackend,
       );
 
   /// Creates a git worktree on [machineId] under [basePath].

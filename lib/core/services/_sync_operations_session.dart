@@ -39,6 +39,10 @@ extension SyncSessionOperations on Sync {
     /// the daemon via --model so it writes the model into session metadata.
     /// Used to detect model changes and respawn the session automatically.
     String? modelMode,
+
+    /// Optional daemon spawn backend. When omitted, the daemon uses its
+    /// configured default.
+    String? spawnBackend,
   }) async {
     final createStopwatch = Stopwatch()..start();
     if (!isInitialized) {
@@ -159,6 +163,7 @@ extension SyncSessionOperations on Sync {
         profile: spawnProfileResolution.profile,
         modelMode: effectiveModelMode,
       ),
+      spawnBackend: spawnBackend,
       environmentVariables: envVars,
     );
 
@@ -286,6 +291,7 @@ extension SyncSessionOperations on Sync {
         profileId: profileId,
         message: message,
         modelMode: modelMode,
+        spawnBackend: spawnBackend,
       );
     }
 

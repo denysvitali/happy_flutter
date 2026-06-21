@@ -18,6 +18,8 @@ void main() {
           'daemonLastKnownPid': 1234,
           'shutdownRequestedAt': 9876543210,
           'shutdownSource': 'manual',
+          'spawnBackends': ['local', 'kubernetes'],
+          'defaultSpawnBackend': 'kubernetes',
         };
 
         final metadata = MachineMetadata.fromJson(json);
@@ -34,6 +36,8 @@ void main() {
         expect(metadata.daemonLastKnownPid, 1234);
         expect(metadata.shutdownRequestedAt, 9876543210);
         expect(metadata.shutdownSource, 'manual');
+        expect(metadata.spawnBackends, ['local', 'kubernetes']);
+        expect(metadata.defaultSpawnBackend, 'kubernetes');
       });
 
       test('handles null and missing fields', () {
@@ -51,6 +55,16 @@ void main() {
         expect(metadata.daemonLastKnownPid, isNull);
         expect(metadata.shutdownRequestedAt, isNull);
         expect(metadata.shutdownSource, isNull);
+        expect(metadata.spawnBackends, isNull);
+        expect(metadata.defaultSpawnBackend, isNull);
+      });
+
+      test('filters non-string spawn backend values', () {
+        final metadata = MachineMetadata.fromJson({
+          'spawnBackends': ['local', 1, 'kubernetes', null],
+        });
+
+        expect(metadata.spawnBackends, ['local', 'kubernetes']);
       });
 
       test('handles double values for int fields', () {
@@ -81,6 +95,8 @@ void main() {
           daemonLastKnownPid: 5678,
           shutdownRequestedAt: 1111111111,
           shutdownSource: 'auto',
+          spawnBackends: ['local', 'kubernetes'],
+          defaultSpawnBackend: 'local',
         );
 
         final json = metadata.toJson();
@@ -97,6 +113,8 @@ void main() {
         expect(json['daemonLastKnownPid'], 5678);
         expect(json['shutdownRequestedAt'], 1111111111);
         expect(json['shutdownSource'], 'auto');
+        expect(json['spawnBackends'], ['local', 'kubernetes']);
+        expect(json['defaultSpawnBackend'], 'local');
       });
 
       test('includes null values in output', () {

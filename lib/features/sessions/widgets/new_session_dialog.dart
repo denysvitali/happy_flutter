@@ -63,6 +63,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _createError;
   String _selectedAgent = 'claude';
   String _sessionType = 'simple';
+  String? _selectedSpawnBackend;
+  bool _spawnBackendTouched = false;
 
   @override
   void initState() {
@@ -107,6 +109,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final selectedMachineObj = _selectedMachine != null
         ? allMachines[_selectedMachine]
         : null;
+    final spawnBackends = _spawnBackendsForMachine(selectedMachineObj);
+    final selectedSpawnBackend = _spawnBackendTouched
+        ? _selectedSpawnBackendForMachine(
+            selectedMachineObj,
+            _selectedSpawnBackend,
+          )
+        : _defaultSpawnBackendForMachine(selectedMachineObj);
     final selectedMachineOffline =
         selectedMachineObj != null && !isMachineOnline(selectedMachineObj);
     final createBlocker = newSessionCreateBlocker(
@@ -222,6 +231,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 setState(() {
                   if (_selectedMachine != value) {
                     _selectedPath = null;
+                    _selectedSpawnBackend = _defaultSpawnBackendForMachine(
+                      allMachines[value],
+                    );
+                    _spawnBackendTouched = false;
                   }
                   _selectedMachine = value;
                 });
@@ -297,6 +310,19 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             },
           ),
           const SizedBox(height: AppSpacing.lg),
+          if (spawnBackends.length > 1) ...[
+            _SpawnBackendPicker(
+              backends: spawnBackends,
+              selectedBackend: selectedSpawnBackend,
+              onSelected: (backend) {
+                setState(() {
+                  _selectedSpawnBackend = backend;
+                  _spawnBackendTouched = true;
+                });
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           _AgentPicker(
             selectedAgent: _selectedAgent,
             onSelected: (agent) => setState(() => _selectedAgent = agent),
@@ -365,6 +391,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     if (machineId == null || path == null || path.isEmpty) {
       return;
     }
+    final machine = ref.read(machinesNotifierProvider)[machineId];
+    final spawnBackend = _spawnBackendRequestValueForMachine(
+      machine,
+      _spawnBackendTouched
+          ? _selectedSpawnBackend
+          : _defaultSpawnBackendForMachine(machine),
+    );
     final navigator = Navigator.of(context, rootNavigator: true);
 
     setState(() {
@@ -420,6 +453,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         agent: _selectedAgent,
         profileId: profileId,
         modelMode: modelMode,
+        spawnBackend: spawnBackend,
       );
       // Persist the profile so auto-restore reads correct env vars.
       if (profileId != null) {
@@ -459,6 +493,102 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         _createError = userMessage;
       });
     }
+  }
+}
+
+List<String> _spawnBackendsForMachine(Machine? machine) {
+  final advertised = machine?.metadata?.spawnBackends ?? const <String>[];
+  final supported = advertised
+      .where((backend) => backend == 'local' || backend == 'kubernetes')
+      .toList(growable: false);
+  return supported.isEmpty ? const ['local'] : supported;
+}
+
+String _defaultSpawnBackendForMachine(Machine? machine) {
+  final backends = _spawnBackendsForMachine(machine);
+  final advertisedDefault = machine?.metadata?.defaultSpawnBackend;
+  return backends.contains(advertisedDefault)
+      ? advertisedDefault!
+      : backends.first;
+}
+
+String _selectedSpawnBackendForMachine(Machine? machine, String? selected) {
+  final backends = _spawnBackendsForMachine(machine);
+  return backends.contains(selected)
+      ? selected!
+      : _defaultSpawnBackendForMachine(machine);
+}
+
+String? _spawnBackendRequestValueForMachine(
+  Machine? machine,
+  String? selected,
+) {
+  final advertised = machine?.metadata?.spawnBackends;
+  if (advertised == null || advertised.isEmpty) return null;
+  return _selectedSpawnBackendForMachine(machine, selected);
+}
+
+String _spawnBackendLabel(String backend) {
+  switch (backend) {
+    case 'kubernetes':
+      return 'Kubernetes';
+    case 'local':
+    default:
+      return 'Local';
+  }
+}
+
+IconData _spawnBackendIcon(String backend) {
+  switch (backend) {
+    case 'kubernetes':
+      return Icons.cloud_queue_outlined;
+    case 'local':
+    default:
+      return Icons.computer_outlined;
+  }
+}
+
+class _SpawnBackendPicker extends StatelessWidget {
+  const _SpawnBackendPicker({
+    required this.backends,
+    required this.selectedBackend,
+    required this.onSelected,
+  });
+
+  final List<String> backends;
+  final String selectedBackend;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Spawn on',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SegmentedButton<String>(
+          segments: backends
+              .map(
+                (backend) => ButtonSegment(
+                  value: backend,
+                  label: Text(_spawnBackendLabel(backend)),
+                  icon: Icon(_spawnBackendIcon(backend)),
+                ),
+              )
+              .toList(growable: false),
+          selected: {selectedBackend},
+          onSelectionChanged: (selection) => onSelected(selection.first),
+        ),
+      ],
+    );
   }
 }
 

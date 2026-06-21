@@ -9,12 +9,14 @@ void main() {
         directory: '/tmp/project',
         sessionId: 'c1af40f2f18914fb43a9d19b4',
         agent: 'claude',
+        spawnBackend: 'kubernetes',
       );
 
       expect(
         request.toJson(),
         containsPair('sessionId', 'c1af40f2f18914fb43a9d19b4'),
       );
+      expect(request.toJson(), containsPair('spawnBackend', 'kubernetes'));
     });
   });
 

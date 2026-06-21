@@ -20,6 +20,7 @@ class SpawnSessionRequest {
     this.startupBashScript,
     this.permissionMode,
     this.model,
+    this.spawnBackend,
   });
   final String type;
   final String directory;
@@ -30,6 +31,7 @@ class SpawnSessionRequest {
   final String? startupBashScript;
   final String? permissionMode;
   final String? model;
+  final String? spawnBackend;
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -43,6 +45,7 @@ class SpawnSessionRequest {
       'startupBashScript': startupBashScript,
     if (permissionMode != null) 'permissionMode': permissionMode,
     if (model != null) 'model': model,
+    if (spawnBackend != null) 'spawnBackend': spawnBackend,
   };
 }
 

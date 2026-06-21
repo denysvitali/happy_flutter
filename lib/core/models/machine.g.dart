@@ -22,6 +22,8 @@ _MachineMetadata _$MachineMetadataFromJson(Map<String, dynamic> json) =>
       daemonLastKnownPid: _asApiIntNullable(json['daemonLastKnownPid']),
       shutdownRequestedAt: _asApiIntNullable(json['shutdownRequestedAt']),
       shutdownSource: _asApiStringNullable(json['shutdownSource']),
+      spawnBackends: _stringListOrNull(json['spawnBackends']),
+      defaultSpawnBackend: _asApiStringNullable(json['defaultSpawnBackend']),
     );
 
 Map<String, dynamic> _$MachineMetadataToJson(_MachineMetadata instance) =>
@@ -38,6 +40,8 @@ Map<String, dynamic> _$MachineMetadataToJson(_MachineMetadata instance) =>
       'daemonLastKnownPid': instance.daemonLastKnownPid,
       'shutdownRequestedAt': instance.shutdownRequestedAt,
       'shutdownSource': instance.shutdownSource,
+      'spawnBackends': instance.spawnBackends,
+      'defaultSpawnBackend': instance.defaultSpawnBackend,
     };
 
 _Machine _$MachineFromJson(Map<String, dynamic> json) => _Machine(

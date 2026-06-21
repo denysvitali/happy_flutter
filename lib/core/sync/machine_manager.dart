@@ -760,6 +760,7 @@ class MachineManager {
     String? profileId,
     String? message,
     String? modelMode,
+    String? spawnBackend,
   }) async {
     final createStopwatch = Stopwatch()..start();
     final requestedSessionId = sessionId ?? _createClientSessionId();
@@ -839,6 +840,7 @@ class MachineManager {
         profile: spawnProfileResolution.profile,
         modelMode: effectiveModelMode,
       ),
+      spawnBackend: spawnBackend,
       environmentVariables: envVars,
     );
 
@@ -904,6 +906,7 @@ class MachineManager {
         profileId: profileId,
         message: message,
         modelMode: modelMode,
+        spawnBackend: spawnBackend,
       );
     }
 
