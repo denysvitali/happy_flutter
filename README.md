@@ -85,7 +85,7 @@ lib/
 ### Development Environment
 
 ```bash
-# Install the pinned Flutter / Dart / Java toolchain
+# Install the pinned Flutter / Dart / Java / Make toolchain
 mise install
 
 # Get dependencies

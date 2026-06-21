@@ -165,7 +165,8 @@ Then commit the updated PNGs. Do not leave stale goldens — they will cause fal
 
 ## Dev loop: mise
 
-The app uses [mise](https://mise.jdx.dev/) to pin Flutter, Dart, and Java.
+The app uses [mise](https://mise.jdx.dev/) to pin Flutter, Dart, Java, and
+Make.
 **All Flutter commands go through mise:**
 
 ```bash

@@ -78,7 +78,7 @@ See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key
 Happy Flutter is **happy's mobile app**, built with Flutter.
 
 **Tech Stack:**
-- Flutter 3.41.x (pinned via `.mise.toml` → flutter 3.41.9, Dart 3.11.5, Java 21)
+- Flutter 3.41.x (pinned via `.mise.toml` → flutter 3.41.9, Dart 3.11.5, Java 21, GNU Make 4.4.1)
 - Riverpod v3 (manual NotifierProvider, no code generation)
 - Dio + NativeAdapter (Cronet on Android, cupertino_http on iOS) for HTTP
 - Socket.IO for real-time updates
@@ -88,7 +88,7 @@ Happy Flutter is **happy's mobile app**, built with Flutter.
 - Go Router v17 for navigation
 - i18n via Flutter's built-in localization (`flutter: generate: true`)
 
-**Environment:** This project uses [mise](https://mise.jdx.dev/) to pin Flutter / Dart / Java. Activate once with `mise install`; then either prefix every command with `mise exec --` (e.g. `mise exec -- flutter test`) or run `direnv allow` so the right `flutter` / `dart` / `java` land on PATH automatically when you `cd` into the repo.
+**Environment:** This project uses [mise](https://mise.jdx.dev/) to pin Flutter / Dart / Java / Make. Activate once with `mise install`; then either prefix every command with `mise exec --` (e.g. `mise exec -- flutter test`) or run `direnv allow` so the right `flutter` / `dart` / `java` / `make` land on PATH automatically when you `cd` into the repo.
 
 ## Common Commands
 
