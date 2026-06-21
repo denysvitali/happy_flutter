@@ -154,56 +154,21 @@ void _processPiContent({
           i++;
           continue;
         }
-        final segments = _splitInlineThinking(text);
-        if (segments.length <= 1 &&
-            (segments.isEmpty || !segments[0].isThinking)) {
-          // No `  ` tags — preserve the original single-message shape.
-          messages.add({
-            'id': '${id}_t$i',
-            'localId': localId,
-            'seq': seq,
-            'createdAt': createdAt,
-            'role': 'agent',
-            'kind': 'text',
-            'content': segments.isEmpty ? text : segments[0].content,
-            'raw': outerContent,
-            if (meta.isSidechain) 'isSidechain': true,
-            'uuid': effectiveUuid,
-            'parentUuid': ?meta.parentUuid,
-            'parentToolUseId': ?parentToolUseId,
-            'agentId': ?agentId,
-          });
-          i++;
-          continue;
-        }
-        // Inline `  ` tags — emit one message per segment with a
-        // `_t${i}_t<n>` / `_t${i}_k<n>` suffix so each gets a
-        // unique id within the assistant content block.
-        var segIndex = 0;
-        for (final segment in segments) {
-          final isThinking = segment.isThinking;
-          messages.add({
-            'id': '${id}_t${i}_${isThinking ? 'k' : 't'}$segIndex',
-            'localId': localId,
-            'seq': seq,
-            'createdAt': createdAt,
-            'role': 'agent',
-            'kind': 'text',
-            if (isThinking) 'isThinking': true,
-            'content': isThinking
-                ? '*Thinking...*\n\n*${segment.content}*'
-                : segment.content,
-            'raw': outerContent,
-            if (meta.isSidechain) 'isSidechain': true,
-            'uuid': effectiveUuid,
-            'parentUuid': ?meta.parentUuid,
-            'parentToolUseId': ?parentToolUseId,
-            'agentId': ?agentId,
-          });
-          segIndex++;
-        }
-        i++;
-        continue;
+        messages.add({
+          'id': '${id}_t$i',
+          'localId': localId,
+          'seq': seq,
+          'createdAt': createdAt,
+          'role': 'agent',
+          'kind': 'text',
+          'content': text,
+          'raw': outerContent,
+          if (meta.isSidechain) 'isSidechain': true,
+          'uuid': effectiveUuid,
+          'parentUuid': ?meta.parentUuid,
+          'parentToolUseId': ?parentToolUseId,
+          'agentId': ?agentId,
+        });
       } else if (type == 'thinking') {
         final thinking = block['thinking']?.toString() ?? '';
         if (thinking.isEmpty) {
