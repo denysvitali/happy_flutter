@@ -85,14 +85,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final connectionStatus = ref.watch(connectionNotifierProvider);
-    final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 120 * 1000;
     final allMachines = ref.watch(machinesNotifierProvider);
     // Sort machines: online first, then offline. Show all so users can see
     // (and understand) which machines are unavailable rather than silently
     // hiding them.
-    bool isMachineOnline(Machine m) =>
-        m.active && now - m.activeAt < onlineThresholdMs;
+    bool isMachineOnline(Machine m) => m.isOnline;
     final machines = allMachines.values.toList()
       ..sort((a, b) {
         final aOnline = isMachineOnline(a) ? 0 : 1;

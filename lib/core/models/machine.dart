@@ -104,6 +104,21 @@ String _machineIdFromJson(dynamic value) {
   );
 }
 
+/// Client-side online check used by UI screens.
+///
+/// Mirrors the logic in [new_session_dialog.dart]: a machine is online only
+/// when the server explicitly says so ([active]) AND the last activity
+/// timestamp is within the 2-minute threshold. Checking only [activeAt] made
+/// some screens disagree with others when the server marked a machine
+/// inactive while a stale timestamp was still recent.
+extension MachineOnline on Machine {
+  bool get isOnline {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    const onlineThresholdMs = 120 * 1000;
+    return active && now - activeAt < onlineThresholdMs;
+  }
+}
+
 /// Git status model
 @freezed
 abstract class GitStatus with _$GitStatus {

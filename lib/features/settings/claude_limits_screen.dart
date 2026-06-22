@@ -59,11 +59,7 @@ class _ClaudeLimitsScreenState
     }
   }
 
-  bool _isMachineOnline(Machine m) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 120 * 1000; // 2 min
-    return now - m.activeAt < onlineThresholdMs;
-  }
+  bool _isMachineOnline(Machine m) => m.isOnline;
 
   Future<void> _loadAll(String machineId) async {
     setState(() {
@@ -387,10 +383,7 @@ class _MachinePicker extends StatelessWidget {
               final name = m.metadata?.displayName ??
                   m.metadata?.host ??
                   m.id;
-              final now =
-                  DateTime.now().millisecondsSinceEpoch;
-              const threshold = 120 * 1000; // 2 min
-              final online = now - m.activeAt < threshold;
+              final online = m.isOnline;
               return DropdownMenuItem(
                 value: m.id,
                 child: Row(

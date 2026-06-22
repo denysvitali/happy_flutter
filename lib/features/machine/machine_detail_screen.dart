@@ -49,12 +49,6 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     });
   }
 
-  bool _isMachineOnline(int activeAt) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 120 * 1000; // 2 min
-    return now - activeAt < onlineThresholdMs;
-  }
-
   String _formatTimestamp(int ms) {
     final dt = DateTime.fromMillisecondsSinceEpoch(ms);
     final now = DateTime.now();
@@ -147,7 +141,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
 
     final metadata = machine.metadata;
     final machineName = metadata?.displayName ?? metadata?.host ?? machine.id;
-    final isOnline = _isMachineOnline(machine.activeAt);
+    final isOnline = machine.isOnline;
     final stats = _MachineStats.fromDaemonState(machine.daemonState);
 
     // Sessions for this machine, sorted by most recently updated.

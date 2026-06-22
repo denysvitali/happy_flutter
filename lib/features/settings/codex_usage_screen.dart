@@ -41,11 +41,7 @@ class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
     }
   }
 
-  bool _isMachineOnline(Machine machine) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 120 * 1000;
-    return now - machine.activeAt < onlineThresholdMs;
-  }
+  bool _isMachineOnline(Machine machine) => machine.isOnline;
 
   Future<void> _loadUsage(String machineId) async {
     setState(() {
@@ -414,9 +410,7 @@ class _CodexMachinePicker extends StatelessWidget {
                   machine.metadata?.displayName ??
                   machine.metadata?.host ??
                   machine.id;
-              final now = DateTime.now().millisecondsSinceEpoch;
-              const threshold = 120 * 1000;
-              final online = now - machine.activeAt < threshold;
+              final online = machine.isOnline;
               return DropdownMenuItem<String>(
                 value: machine.id,
                 child: Row(
