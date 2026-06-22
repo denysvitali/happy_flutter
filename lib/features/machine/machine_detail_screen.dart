@@ -12,6 +12,7 @@ import '../../core/components/app_tappable.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
