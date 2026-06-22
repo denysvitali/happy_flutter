@@ -33,6 +33,21 @@ extension SyncMessagePipeline on Sync {
     }
   }
 
+  /// Collects the `id` of every just-appended message so the sidechain
+  /// grouper's `changedIds` fast-path can skip a full re-walk when the
+  /// batch carries nothing sidechain-relevant. Returns an empty set when
+  /// the batch has no messages with a string `id` (the grouper treats an
+  /// empty set as "no changed ids known, do a full pass" — fine because
+  /// a zero-message batch already short-circuits earlier).
+  Set<String> _collectJustAppendedIds(List<Map<String, dynamic>> batch) {
+    final ids = <String>{};
+    for (final m in batch) {
+      final id = m['id'];
+      if (id is String && id.isNotEmpty) ids.add(id);
+    }
+    return ids;
+  }
+
   NormalizedMessageBatch normalizeSocketIngress(MessageIngressEvent event) {
     final traceId = event.traceId ?? _newTraceId(event.sessionId, 's');
     _logPipelineStage(
@@ -299,13 +314,26 @@ extension SyncMessagePipeline on Sync {
         }
       }
 
+      // Group sidechain children under their parent Task/Agent/Workflow
+      // tool-call messages on EVERY append that carries sidechain content,
+      // not only when the user is currently viewing this session. The
+      // grouper is idempotent and a no-op when no relevant ids are
+      // present, so running it off-screen has no UI cost — but skipping
+      // it used to strand sub-agent children as orphans when the user
+      // navigated away mid-burst, so they never collapsed back into
+      // their parent Task tile on return. Pass the just-appended ids as
+      // `changedIds` so the grouper's fast-path can skip a full re-walk
+      // when nothing sidechain-relevant arrived in this batch.
       final hasSidechain = processed.messages.any(
         (message) =>
             message['isSidechain'] == true ||
             message['kind'] == 'sidechain-root',
       );
-      if (hasSidechain && _visibleSessionId == sessionId) {
-        _groupSidechainMessages(sessionId);
+      if (hasSidechain) {
+        _groupSidechainMessages(
+          sessionId,
+          changedIds: _collectJustAppendedIds(renderableMessages),
+        );
         _logPipelineStage(
           traceId,
           sessionId,
