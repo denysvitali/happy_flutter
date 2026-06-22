@@ -124,7 +124,7 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          mise exec -- flutter test --coverage --concurrency=4 "${shard_tests[@]}"
+          mise exec -- flutter test --coverage --concurrency=4 --reporter=expanded "${shard_tests[@]}"
 
       - name: Upload coverage artifact
         if: always()
