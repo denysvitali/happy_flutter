@@ -623,6 +623,13 @@ what you have, you must use the options mode.
   )?
   testFetchMessagesOverride;
 
+  /// Test hook fired whenever [_requestTailRefresh] is called.
+  /// Tests can use this to observe tail-refresh requests without racing
+  /// [fetchMessages], which removes the session from
+  /// [_sessionsNeedingTailRefresh] before the assertion can run.
+  @visibleForTesting
+  void Function(String sessionId)? onTailRefreshRequested;
+
   /// Overrides the HTTP fetch path in [fetchOlderMessages] for
   /// integration tests.
   @visibleForTesting

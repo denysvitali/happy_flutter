@@ -1064,6 +1064,7 @@ extension SyncMessagingRpc on Sync {
 
   void _requestTailRefresh(String sessionId) {
     _sessionsNeedingTailRefresh.add(sessionId);
+    onTailRefreshRequested?.call(sessionId);
   }
 
   bool _shouldForceTailRefreshForPendingSession(String sessionId) {

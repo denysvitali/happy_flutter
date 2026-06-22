@@ -465,6 +465,9 @@ void main() {
       final sessionId = 'pending-socket-session';
       sync.testSetPendingSocketMessages({sessionId});
 
+      final tailRefreshed = <String>[];
+      sync.onTailRefreshRequested = tailRefreshed.add;
+
       expect(
         sync.testHasPendingSocketMessage(sessionId),
         isTrue,
@@ -475,7 +478,7 @@ void main() {
       // tail refresh (and skip cache restore since it may be stale).
       await sync.onSessionVisible(sessionId);
 
-      expect(sync.testSessionsNeedingTailRefresh().contains(sessionId), isTrue);
+      expect(tailRefreshed, contains(sessionId));
     });
 
     test('onSessionVisible with pending socket messages and messages '
@@ -849,12 +852,15 @@ void main() {
         sync.testSetPendingSocketMessages({sessionId});
         sync.sessionsSync = InvalidateSync(() async {});
 
+        final tailRefreshed = <String>[];
+        sync.onTailRefreshRequested = tailRefreshed.add;
+
         sync.resume();
         async.elapse(const Duration(milliseconds: 1600));
 
         expect(
-          sync.testSessionsNeedingTailRefresh().contains(sessionId),
-          isTrue,
+          tailRefreshed,
+          contains(sessionId),
           reason:
               'resume must keep the tail-refresh fallback when no local '
               'messages or cursor are available',
