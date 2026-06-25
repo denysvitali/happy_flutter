@@ -90,6 +90,12 @@ class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
           ? const AppLoadingIndicator()
           : _error != null
           ? _CodexUsageErrorBody(
+              machines: machines,
+              selectedMachineId: _selectedMachineId,
+              onMachineChanged: (id) {
+                setState(() => _selectedMachineId = id);
+                if (id != null) _loadUsage(id);
+              },
               error: _error!,
               onRetry: () {
                 if (_selectedMachineId != null) {
@@ -351,23 +357,49 @@ class _CodexUsageEmptyBody extends StatelessWidget {
 }
 
 class _CodexUsageErrorBody extends StatelessWidget {
-  const _CodexUsageErrorBody({required this.error, required this.onRetry});
+  const _CodexUsageErrorBody({
+    required this.machines,
+    required this.selectedMachineId,
+    required this.onMachineChanged,
+    required this.error,
+    required this.onRetry,
+  });
 
+  final Map<String, Machine> machines;
+  final String? selectedMachineId;
+  final ValueChanged<String?> onMachineChanged;
   final String error;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppEmptyState(
-      icon: Icons.error_outline,
-      title: l10n.codexUsageNotAvailable,
-      subtitle: error,
-      action: FilledButton.icon(
-        onPressed: onRetry,
-        icon: const Icon(Icons.refresh),
-        label: Text(l10n.commonRetry),
-      ),
+    // Picker included so the error state is escapable: when the
+    // auto-selected machine lacks Codex, the user can switch to one that
+    // has it instead of being stuck retrying the same broken machine.
+    return Column(
+      children: [
+        Padding(
+          padding: AppScreenPadding.settings,
+          child: _CodexMachinePicker(
+            machines: machines,
+            selectedMachineId: selectedMachineId,
+            onChanged: onMachineChanged,
+          ),
+        ),
+        const Spacer(),
+        AppEmptyState(
+          icon: Icons.error_outline,
+          title: l10n.codexUsageNotAvailable,
+          subtitle: error,
+          action: FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: Text(l10n.commonRetry),
+          ),
+        ),
+        const Spacer(),
+      ],
     );
   }
 }

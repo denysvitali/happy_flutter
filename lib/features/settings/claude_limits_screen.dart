@@ -169,6 +169,14 @@ class _ClaudeLimitsScreenState
           ? const AppLoadingIndicator()
           : _error != null
               ? _ErrorBody(
+                  machines: machines,
+                  selectedMachineId: _selectedMachineId,
+                  onMachineChanged: (id) {
+                    setState(
+                      () => _selectedMachineId = id,
+                    );
+                    if (id != null) _loadAll(id);
+                  },
                   error: _error!,
                   onRetry: () {
                     if (_selectedMachineId != null) {
@@ -321,25 +329,50 @@ class _NoDataBody extends StatelessWidget {
 
 class _ErrorBody extends StatelessWidget {
   const _ErrorBody({
+    required this.machines,
+    required this.selectedMachineId,
+    required this.onMachineChanged,
     required this.error,
     required this.onRetry,
   });
 
+  final Map<String, Machine> machines;
+  final String? selectedMachineId;
+  final ValueChanged<String?> onMachineChanged;
   final String error;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppEmptyState(
-      icon: Icons.error_outline,
-      title: l10n.claudeLimitsNotAvailable,
-      subtitle: error,
-      action: FilledButton.icon(
-        onPressed: onRetry,
-        icon: const Icon(Icons.refresh),
-        label: Text(l10n.commonRetry),
-      ),
+    // Picker is intentionally included here (not just in the no-data body):
+    // when the auto-selected machine lacks Claude, the usage RPC fails and
+    // the user must be able to switch to a machine that has it. Without the
+    // picker the error state is a dead end — Retry re-queries the same
+    // broken machine.
+    return Column(
+      children: [
+        Padding(
+          padding: AppScreenPadding.settings,
+          child: _MachinePicker(
+            machines: machines,
+            selectedMachineId: selectedMachineId,
+            onChanged: onMachineChanged,
+          ),
+        ),
+        const Spacer(),
+        AppEmptyState(
+          icon: Icons.error_outline,
+          title: l10n.claudeLimitsNotAvailable,
+          subtitle: error,
+          action: FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: Text(l10n.commonRetry),
+          ),
+        ),
+        const Spacer(),
+      ],
     );
   }
 }
