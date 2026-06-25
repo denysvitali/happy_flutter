@@ -74,6 +74,27 @@ void main() {
       expect(snapshot.outboxAttempts, 1);
       expect(snapshot.outboxFailures, 1);
       expect(snapshot.recentEvents, hasLength(14));
+
+      // All records land in one 2-min bucket (test runs in milliseconds).
+      expect(snapshot.activitySeries, hasLength(1));
+      final sample = snapshot.activitySeries.single;
+      expect(sample.socket, 3); // update + ephemeral + non-ack send
+      expect(sample.rpc, 1); // ack send
+      expect(sample.http, 1);
+      expect(sample.sync, 1);
+      expect(sample.total, 6);
+    });
+
+    test('activity series starts empty and ignores non-radio events', () {
+      powerDiagnostics
+        ..recordLifecycle('paused')
+        ..recordSocketStatus(ConnectionStatus.connecting)
+        ..recordSyncBackgroundSkip('fetchMessages')
+        ..recordOutboxSchedule(localId: 'a', delayMs: 1)
+        ..recordOutboxAttempt('a');
+
+      final snapshot = powerDiagnostics.snapshot();
+      expect(snapshot.activitySeries, isEmpty);
     });
 
     test('does not count sync lifecycle states as app transitions', () {

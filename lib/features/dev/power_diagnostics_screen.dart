@@ -91,6 +91,8 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
         children: [
           _SummaryHeader(snapshot: snapshot),
           const SizedBox(height: AppSpacing.lg),
+          _ActivityChartCard(snapshot: snapshot),
+          const SizedBox(height: AppSpacing.lg),
           _MetricSection(
             title: 'Lifecycle',
             metrics: [
@@ -319,6 +321,222 @@ class _SummaryHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _ActivityChartCard extends StatelessWidget {
+  const _ActivityChartCard({required this.snapshot});
+
+  final PowerDiagnosticsSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final samples = snapshot.activitySeries;
+    final peak = samples.fold<int>(
+      0,
+      (m, s) => s.total > m ? s.total : m,
+    );
+    final minutes = snapshot.runtime.inMinutes;
+    final ratePerMin = minutes == 0
+        ? 0.0
+        : samples.fold<int>(0, (m, s) => m + s.total) / minutes;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: cs.outlineVariant),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Activity over time',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        'Radio wakeups per 2-min bucket. Bars, not bytes — '
+                        'mobile power scales with request count and tail '
+                        'duration, so a tall red spike drains more than a '
+                        'long one of any color.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _Pill(label: 'Peak/bucket', value: peak.toString()),
+                    if (minutes > 0) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      _Pill(
+                        label: 'Avg/min',
+                        value: ratePerMin.toStringAsFixed(1),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.md,
+              runSpacing: AppSpacing.xs,
+              children: [
+                _legendDot(context, cs.primary, 'Socket'),
+                _legendDot(context, cs.error, 'RPC'),
+                _legendDot(context, cs.tertiary, 'HTTP'),
+                _legendDot(context, cs.secondary, 'Sync'),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (samples.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                child: Text(
+                  'Collecting activity… check back after a minute of use.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                height: 150,
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: _ActivityPainter(
+                    samples: samples,
+                    startMs: snapshot.startedAt.millisecondsSinceEpoch,
+                    endMs: snapshot.generatedAt.millisecondsSinceEpoch,
+                    bucketMs: PowerDiagnosticsSnapshot.activityBucketMs,
+                    socketColor: cs.primary,
+                    rpcColor: cs.error,
+                    httpColor: cs.tertiary,
+                    syncColor: cs.secondary,
+                    baseline: cs.outlineVariant,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _legendDot(BuildContext context, Color color, String label) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActivityPainter extends CustomPainter {
+  const _ActivityPainter({
+    required this.samples,
+    required this.startMs,
+    required this.endMs,
+    required this.bucketMs,
+    required this.socketColor,
+    required this.rpcColor,
+    required this.httpColor,
+    required this.syncColor,
+    required this.baseline,
+  });
+
+  final List<PowerDiagnosticSample> samples;
+  final int startMs;
+  final int endMs;
+  final int bucketMs;
+  final Color socketColor;
+  final Color rpcColor;
+  final Color httpColor;
+  final Color syncColor;
+  final Color baseline;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final span = (endMs - startMs).clamp(1, 1 << 40);
+    final peak = samples.fold<int>(
+      1,
+      (m, s) => s.total > m ? s.total : m,
+    );
+    final pxPerMs = size.width / span;
+    final barWidthPx = (bucketMs * pxPerMs).clamp(1.0, size.width);
+    final baseY = size.height - 1;
+
+    canvas.drawLine(
+      Offset(0, baseY),
+      Offset(size.width, baseY),
+      Paint()
+        ..color = baseline
+        ..strokeWidth = 1,
+    );
+
+    final paint = Paint()..style = PaintingStyle.fill;
+    final usableHeight = size.height - 2;
+
+    for (final s in samples) {
+      final frac = ((s.bucketStartMs - startMs) / span).clamp(0.0, 1.0);
+      final x = frac * size.width;
+      var y = baseY;
+      void bar(int value, Color color) {
+        if (value == 0) return;
+        final h = (value / peak) * usableHeight;
+        paint.color = color;
+        canvas.drawRect(Rect.fromLTWH(x, y - h, barWidthPx, h), paint);
+        y -= h;
+      }
+
+      // Stack bottom -> top: socket, http, rpc, sync.
+      bar(s.socket, socketColor);
+      bar(s.http, httpColor);
+      bar(s.rpc, rpcColor);
+      bar(s.sync, syncColor);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ActivityPainter old) {
+    return old.endMs != endMs ||
+        old.startMs != startMs ||
+        old.samples.length != samples.length ||
+        (old.samples.isNotEmpty &&
+            old.samples.last.bucketStartMs != samples.last.bucketStartMs);
   }
 }
 

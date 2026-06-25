@@ -49,6 +49,30 @@ class PowerDiagnosticEvent {
   }
 }
 
+/// One time-bucket of radio-relevant activity for the power chart.
+///
+/// Channels track the work that keeps the mobile radio awake: inbound socket
+/// events, outbound RPC acks (the burst culprit), HTTP requests, and sync
+/// invalidations. Bytes are deliberately excluded — radio tail energy scales
+/// with request count and duration, not payload size.
+class PowerDiagnosticSample {
+  const PowerDiagnosticSample({
+    required this.bucketStartMs,
+    required this.socket,
+    required this.rpc,
+    required this.http,
+    required this.sync,
+  });
+
+  final int bucketStartMs;
+  final int socket;
+  final int rpc;
+  final int http;
+  final int sync;
+
+  int get total => socket + rpc + http + sync;
+}
+
 class PowerDiagnosticsSnapshot {
   const PowerDiagnosticsSnapshot({
     required this.startedAt,
@@ -84,6 +108,7 @@ class PowerDiagnosticsSnapshot {
     required this.outboxFailures,
     required this.lifecycleStateCounts,
     required this.recentEvents,
+    required this.activitySeries,
   });
 
   final DateTime startedAt;
@@ -119,6 +144,10 @@ class PowerDiagnosticsSnapshot {
   final int outboxFailures;
   final Map<String, int> lifecycleStateCounts;
   final List<PowerDiagnosticEvent> recentEvents;
+  final List<PowerDiagnosticSample> activitySeries;
+
+  /// Bucket width used by [activitySeries], in milliseconds.
+  static const int activityBucketMs = 2 * 60 * 1000;
 
   Duration get runtime => generatedAt.difference(startedAt);
 
@@ -142,6 +171,8 @@ class PowerDiagnosticsService extends ChangeNotifier {
   static const int _maxEvents = 300;
   static const int _maxHttpEndpoints = 200;
   static const int _notifyDebounceMs = 1000;
+  static const int _activityBucketMs = 2 * 60 * 1000; // 2 min
+  static const int _maxActivityBuckets = 360; // 12 h at 2 min
 
   final Queue<PowerDiagnosticEvent> _events = Queue<PowerDiagnosticEvent>();
   DateTime _startedAt = DateTime.now();
@@ -178,6 +209,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
   final Map<String, int> _syncInvalidationCounts = {};
   final Map<String, int> _syncBackgroundSkipCounts = {};
   final Map<String, int> _lifecycleStateCounts = {};
+  final _activity = Queue<_MutableActivityBucket>();
 
   PowerDiagnosticsSnapshot snapshot() {
     return PowerDiagnosticsSnapshot(
@@ -216,6 +248,9 @@ class PowerDiagnosticsService extends ChangeNotifier {
       outboxFailures: _outboxFailures,
       lifecycleStateCounts: Map.unmodifiable(_lifecycleStateCounts),
       recentEvents: List.unmodifiable(_events),
+      activitySeries: List.unmodifiable(
+        _activity.map((bucket) => bucket.toSample()),
+      ),
     );
   }
 
@@ -252,6 +287,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _syncInvalidationCounts.clear();
     _syncBackgroundSkipCounts.clear();
     _lifecycleStateCounts.clear();
+    _activity.clear();
     _notifySoon();
   }
 
@@ -292,6 +328,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordSocketEvent(String event, {String? updateType}) {
     _socketEvents++;
+    _recordActivity(socket: true);
     _increment(_socketEventCounts, event);
     if (updateType != null) {
       _increment(_socketUpdateTypeCounts, updateType);
@@ -308,6 +345,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       _socketSends++;
       _increment(_socketSendCounts, event);
     }
+    _recordActivity(rpc: ack, socket: !ack);
     _addEvent(
       PowerDiagnosticEventType.socket,
       ack ? 'emitWithAck=$event' : 'send=$event',
@@ -316,6 +354,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordHttpRequest(HttpRequestEntry entry) {
     _httpRequests++;
+    _recordActivity(http: true);
     _httpRequestBytes += entry.requestBytes ?? 0;
     _httpResponseBytes += entry.responseBytes ?? 0;
     final status = entry.statusCode;
@@ -339,6 +378,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordSyncInvalidation(String name, {bool global = false}) {
     _syncInvalidations++;
+    _recordActivity(sync: true);
     if (global) _globalSyncInvalidations++;
     _increment(_syncInvalidationCounts, name);
     _addEvent(
@@ -495,6 +535,37 @@ class PowerDiagnosticsService extends ChangeNotifier {
     return buffer.toString();
   }
 
+  void _recordActivity({
+    bool socket = false,
+    bool rpc = false,
+    bool http = false,
+    bool sync = false,
+  }) {
+    if (!socket && !rpc && !http && !sync) return;
+    final bucketStartMs =
+        (DateTime.now().millisecondsSinceEpoch ~/ _activityBucketMs) *
+            _activityBucketMs;
+    if (_activity.isEmpty) {
+      _activity.add(_MutableActivityBucket(bucketStartMs));
+    } else {
+      final last = _activity.last;
+      if (bucketStartMs > last.bucketStartMs) {
+        _activity.add(_MutableActivityBucket(bucketStartMs));
+        while (_activity.length > _maxActivityBuckets) {
+          _activity.removeFirst();
+        }
+      } else if (bucketStartMs < last.bucketStartMs) {
+        // Clock moved backwards (skew / manual time change). Drop stale sample.
+        return;
+      }
+    }
+    final bucket = _activity.last;
+    if (socket) bucket.socket++;
+    if (rpc) bucket.rpc++;
+    if (http) bucket.http++;
+    if (sync) bucket.sync++;
+  }
+
   void _addEvent(PowerDiagnosticEventType type, String message) {
     _events.add(
       PowerDiagnosticEvent(
@@ -524,6 +595,24 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _notifyTimer?.cancel();
     super.dispose();
   }
+}
+
+class _MutableActivityBucket {
+  _MutableActivityBucket(this.bucketStartMs);
+
+  final int bucketStartMs;
+  int socket = 0;
+  int rpc = 0;
+  int http = 0;
+  int sync = 0;
+
+  PowerDiagnosticSample toSample() => PowerDiagnosticSample(
+        bucketStartMs: bucketStartMs,
+        socket: socket,
+        rpc: rpc,
+        http: http,
+        sync: sync,
+      );
 }
 
 class _MutableHttpEndpointStats {
