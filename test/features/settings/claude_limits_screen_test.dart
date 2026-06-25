@@ -36,8 +36,6 @@ Machine _onlineMachine({required String id, String? displayName}) {
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensure_initialized();
-
   group('ClaudeLimitsScreen error state', () {
     testWidgets(
       'renders the machine picker so the user can switch off a machine '
