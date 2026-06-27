@@ -384,14 +384,27 @@ what you have, you must use the options mode.
   /// when the app cycles between paused and resumed states repeatedly.
   static const int _resumeDebounceWindowMs = 2000;
 
+  /// Delay before the socket is actually disconnected on suspend. Short
+  /// Android lifecycle bounces commonly produce hidden/inactive/resumed
+  /// transitions within tens of milliseconds; disconnecting immediately turns
+  /// those into reconnect storms.
+  static const int _suspendSocketDisconnectDelayMs = 2000;
+
   /// Delay before the reconnection watchdog fires on resume. If the
   /// socket hasn't connected by this point, force a fresh reconnect
   /// cycle to recover from exhausted Socket.IO attempts.
   static const int _reconnectWatchdogDelayMs = 15000;
 
+  /// Minimum interval between broad sessions/catalog refreshes caused by
+  /// socket reconnect recovery. Visible chat messages are refreshed on every
+  /// reconnect; the expensive `/v2/sessions` recovery path is capped so a
+  /// flaky transport cannot keep the radio awake with repeated catalog fetches.
+  static const int _reconnectGlobalInvalidationCooldownMs = 60 * 1000;
+
   /// Delay before firing network invalidations on resume. Cancelled by
   /// suspend() so that rapid foreground/background cycling does not produce
   /// wasted HTTP requests that the OS aborts mid-flight.
+  Timer? _deferredSocketDisconnectTimer;
   Timer? _deferredResumeInvalidationTimer;
   Timer? _reconnectWatchdogTimer;
   Timer? _resumeBatchTimer;

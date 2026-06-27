@@ -33,6 +33,8 @@ extension SyncLifecycle on Sync {
     // before the 1.5s timer fired, no HTTP requests should be started.
     _deferredResumeInvalidationTimer?.cancel();
     _deferredResumeInvalidationTimer = null;
+    _deferredSocketDisconnectTimer?.cancel();
+    _deferredSocketDisconnectTimer = null;
     _reconnectWatchdogTimer?.cancel();
     _reconnectWatchdogTimer = null;
     _resumeBatchTimer?.cancel();
@@ -134,12 +136,19 @@ extension SyncLifecycle on Sync {
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     _persistSessionsCache();
 
-    // Always disconnect the socket when the app is backgrounded.
-    // On physical devices the OS may keep a cached connection alive across
-    // rapid lifecycle cycles, causing Socket.IO to accumulate reconnection
-    // attempts and orphan messages.  Disconnecting on every background
-    // ensures no traffic flows while the app is not visible.
-    socketIoClient.disconnect(preserveConnectionHistory: true);
+    // Disconnect the socket only after a short grace period. Android can emit
+    // hidden/inactive/resumed lifecycle bounces in tens of milliseconds; an
+    // immediate disconnect turns those into websocket reconnect storms.
+    _deferredSocketDisconnectTimer = Timer(
+      const Duration(milliseconds: Sync._suspendSocketDisconnectDelayMs),
+      () {
+        _deferredSocketDisconnectTimer = null;
+        if (!isInitialized || !InvalidateSync.isBackgrounded) {
+          return;
+        }
+        socketIoClient.disconnect(preserveConnectionHistory: true);
+      },
+    );
   }
 
   /// Resume the sync engine when the app returns to the foreground.
@@ -166,12 +175,22 @@ extension SyncLifecycle on Sync {
     // await _action().
     InvalidateSync.isBackgrounded = false;
 
+    final socketDisconnectWasDeferred = _deferredSocketDisconnectTimer != null;
+    _deferredSocketDisconnectTimer?.cancel();
+    _deferredSocketDisconnectTimer = null;
+
     if (isRapidResume) {
       logger.debug(
         '[Sync] rapid resume — previous resume ${lastResumeGapMs}ms ago',
       );
     }
-    logger.info('[Sync] resuming — reconnecting socket');
+    final socketAlreadyConnected =
+        socketIoClient.connectionStatus == ConnectionStatus.connected;
+    logger.info(
+      socketAlreadyConnected
+          ? '[Sync] resuming — socket already connected'
+          : '[Sync] resuming — reconnecting socket',
+    );
     unawaited(
       Sentry.addBreadcrumb(
         Breadcrumb(
@@ -184,27 +203,30 @@ extension SyncLifecycle on Sync {
             'visibleSessionId': _visibleSessionId,
             'pendingSocketSessions': _sessionsWithPendingSocketMessages.length,
             'messageSyncCount': messagesSync.length,
+            'socketDisconnectWasDeferred': socketDisconnectWasDeferred,
             'socketStatus': socketIoClient.connectionStatus.name,
           },
         ),
       ),
     );
 
-    // Reconnect the socket on every resume.  The socket was disconnected on
-    // suspend, so a fresh connect is always needed.
-    socketIoClient.reconnect();
+    if (!socketAlreadyConnected) {
+      socketIoClient.reconnect();
+    }
 
     // Resume lightweight services immediately.
     messageOutbox.resume();
     NetworkMonitorService().resume();
 
-    // Start a reconnection watchdog that fires if the socket hasn't
-    // connected within a reasonable window. This covers the case where
-    // Socket.IO's internal reconnection attempts are exhausted (e.g.
-    // flaky network on resume) and no connectivity change event fires
-    // to trigger a fresh reconnect. The watchdog is cancelled on
-    // suspend() and on successful socket connect.
-    _scheduleReconnectWatchdog();
+    if (!socketAlreadyConnected) {
+      // Start a reconnection watchdog that fires if the socket hasn't
+      // connected within a reasonable window. This covers the case where
+      // Socket.IO's internal reconnection attempts are exhausted (e.g.
+      // flaky network on resume) and no connectivity change event fires
+      // to trigger a fresh reconnect. The watchdog is cancelled on
+      // suspend() and on successful socket connect.
+      _scheduleReconnectWatchdog();
+    }
 
     // Defer network-heavy invalidations so that foreground/background
     // cycling (e.g. Android 16 aggressive background management) does not
@@ -310,7 +332,7 @@ extension SyncLifecycle on Sync {
           for (final sessionId in batch) {
             _sessionsWithPendingSocketMessages.remove(sessionId);
             if (_shouldForceTailRefreshForPendingSession(sessionId)) {
-              _sessionsNeedingTailRefresh.add(sessionId);
+              _requestTailRefresh(sessionId);
             }
             sessionsToRefresh.add(sessionId);
           }
@@ -560,7 +582,7 @@ extension SyncLifecycle on Sync {
         _sessionsWithPendingSocketMessages.remove(sessionId);
         try {
           if (_shouldForceTailRefreshForPendingSession(sessionId)) {
-            _sessionsNeedingTailRefresh.add(sessionId);
+            _requestTailRefresh(sessionId);
           }
           if (!messagesSync.containsKey(sessionId)) {
             messagesSync[sessionId] = InvalidateSync(
@@ -652,9 +674,22 @@ extension SyncLifecycle on Sync {
         );
 
         socketIoClient.reconnect();
-        // Force-invalidate all syncs since the deferred timer may
-        // have already fired and been dropped by the cooldown.
-        _invalidateAllSyncs(force: true);
+        // Refresh the expensive sessions/catalog path only when it has not
+        // run recently. The visible chat fetch below still runs after each
+        // watchdog cycle so foreground recovery does not wait on catalog
+        // freshness.
+        final watchdogNowMs = DateTime.now().millisecondsSinceEpoch;
+        if (_shouldRunReconnectGlobalInvalidation(
+          watchdogNowMs,
+          resumeHttpFallbackRecentlyFired: false,
+        )) {
+          _invalidateAllSyncs(force: true);
+        } else {
+          logger.info(
+            '[Sync] reconnect watchdog skipped broad invalidation; '
+            'recent sessions recovery already ran',
+          );
+        }
 
         // If the visible session has a message sync, kick it too.
         // Snapshot inside the awaited callback to avoid a null-deref
@@ -676,6 +711,8 @@ extension SyncLifecycle on Sync {
 
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
+    _deferredSocketDisconnectTimer?.cancel();
+    _deferredSocketDisconnectTimer = null;
     _reconnectWatchdogTimer?.cancel();
     _reconnectWatchdogTimer = null;
     _resumeBatchTimer?.cancel();

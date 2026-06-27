@@ -20,6 +20,18 @@ String? _extractUpdateType(Map<String, dynamic> payload) {
 }
 
 extension SyncSocketEvents on Sync {
+  bool _shouldRunReconnectGlobalInvalidation(
+    int nowMs, {
+    required bool resumeHttpFallbackRecentlyFired,
+  }) {
+    if (resumeHttpFallbackRecentlyFired) return false;
+    if (_forceFullFetchNext) return true;
+
+    final lastRunMs = _lastInvalidateAllSyncsAtMs;
+    return lastRunMs == null ||
+        nowMs - lastRunMs >= Sync._reconnectGlobalInvalidationCooldownMs;
+  }
+
   /// Subscribe to socket updates
   void subscribeToUpdates() {
     _unsubscribeSocketUpdate?.call();
@@ -50,19 +62,10 @@ extension SyncSocketEvents on Sync {
       if (_visibleSessionId != null) {
         _reconnectCursorSnapshot = _sessionLastSeq[_visibleSessionId] ?? 0;
       }
-      // Force-bypass the 10s cooldown gate — a reconnect means the
-      // socket was down and the local session catalog (especially
-      // lastSeq) is potentially stale.  Without force, rapid
-      // reconnects (or a reconnect shortly after the deferred resume
-      // timer) silently skip the sessions fetch.  fetchMessages then
-      // sees cursorSeq == serverLastSeq (both stale) and skips the
-      // HTTP round-trip, permanently losing messages that arrived
-      // during the disconnect gap.
-      //
-      // Debounce forced invalidation: on cold start, _init() already
-      // called _invalidateAllSyncs(force: true) moments before the
-      // socket connects.  Without this guard, every cold start pays
-      // for two full sync cycles (18 HTTP requests instead of 9).
+      // A reconnect means the local session catalog can be stale, but
+      // repeated broad catalog refreshes are expensive. Keep the visible
+      // message recovery below on every reconnect, and throttle only the
+      // global sessions/catalog recovery path.
       final reconnectNowMs = DateTime.now().millisecondsSinceEpoch;
       final resumeHttpFallbackRecentlyFired =
           _lastResumeHttpFallbackAtMs != null &&
@@ -72,9 +75,16 @@ extension SyncSocketEvents on Sync {
           '[Sync] skipping reconnect global invalidation; '
           'resume HTTP fallback already refreshed sessions',
         );
-      } else if (_lastInvalidateAllSyncsAtMs == null ||
-          reconnectNowMs - _lastInvalidateAllSyncsAtMs! >= 2000) {
+      } else if (_shouldRunReconnectGlobalInvalidation(
+        reconnectNowMs,
+        resumeHttpFallbackRecentlyFired: resumeHttpFallbackRecentlyFired,
+      )) {
         _invalidateAllSyncs(force: true);
+      } else {
+        logger.debug(
+          '[Sync] skipping reconnect global invalidation; '
+          'recent sessions recovery already ran',
+        );
       }
       // Refresh _lastEphemeralAt for all sessions that show as online.
       // Without this, stale timestamps from before the disconnect cause
@@ -188,7 +198,8 @@ extension SyncSocketEvents on Sync {
             kind: SpanKind.consumer,
             attributes: {
               'event.type': updateType,
-              if (payload['sid'] is String) 'session.id': payload['sid'] as String,
+              if (payload['sid'] is String)
+                'session.id': payload['sid'] as String,
               if (payload['id'] is String) 'entity.id': payload['id'] as String,
             },
           )
@@ -197,7 +208,8 @@ extension SyncSocketEvents on Sync {
             kind: SpanKind.consumer,
             attributes: {
               'event.type': updateType,
-              if (payload['sid'] is String) 'session.id': payload['sid'] as String,
+              if (payload['sid'] is String)
+                'session.id': payload['sid'] as String,
               if (payload['id'] is String) 'entity.id': payload['id'] as String,
             },
           );

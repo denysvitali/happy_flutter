@@ -78,6 +78,8 @@ void main() {
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
       sync.testSetVisibleSessionId(null);
+      sync.testForceFullFetchNext = false;
+      sync.testLastInvalidateAllSyncsAtMs = null;
       // Reset state to ensure test isolation (resume() has a 5s debounce that
       // can cause early return if resume() was called recently in prior test)
       sync.testClearSessionsWithPendingSocketMessages();
@@ -89,6 +91,8 @@ void main() {
       socketIoClient.testHasConnectedOnce = false;
       sync.testSetVisibleSessionId(null);
       sync.testFetchMessagesOverride = null;
+      sync.testForceFullFetchNext = false;
+      sync.testLastInvalidateAllSyncsAtMs = null;
     });
 
     test('resume() creates messagesSync for non-visible sessions without one '
@@ -158,6 +162,89 @@ void main() {
           reason:
               'Lifecycle suspend must preserve reconnect history so resume '
               'triggers the socket reconnected recovery path',
+        );
+      },
+    );
+
+    test('suspend() defers socket disconnect for rapid lifecycle bounces', () {
+      fakeAsync((async) {
+        sync.suspend();
+
+        expect(
+          sync.testDeferredSocketDisconnectTimerActive,
+          isTrue,
+          reason:
+              'Short hidden/inactive lifecycle bounces should not '
+              'disconnect the socket immediately and trigger a reconnect',
+        );
+
+        async.elapse(const Duration(milliseconds: 1999));
+
+        expect(
+          sync.testDeferredSocketDisconnectTimerActive,
+          isTrue,
+          reason: 'Socket disconnect grace period should still be active',
+        );
+
+        async.elapse(const Duration(milliseconds: 1));
+
+        expect(
+          sync.testDeferredSocketDisconnectTimerActive,
+          isFalse,
+          reason: 'Socket disconnect timer should clear after the grace period',
+        );
+      });
+    });
+
+    test('resume() cancels deferred socket disconnect from rapid suspend', () {
+      fakeAsync((async) {
+        sync.suspend();
+        expect(sync.testDeferredSocketDisconnectTimerActive, isTrue);
+
+        sync.resume();
+        async.elapse(const Duration(milliseconds: 2100));
+
+        expect(
+          sync.testDeferredSocketDisconnectTimerActive,
+          isFalse,
+          reason:
+              'Foregrounding before the grace period ends should cancel '
+              'the delayed socket disconnect',
+        );
+        expect(
+          InvalidateSync.isBackgrounded,
+          isFalse,
+          reason: 'resume should restore foreground sync execution',
+        );
+      });
+    });
+
+    test('reconnect recovery throttles broad sessions invalidation', () {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      sync.testLastInvalidateAllSyncsAtMs = nowMs - 10 * 1000;
+
+      expect(
+        sync.testShouldRunReconnectGlobalInvalidation(nowMs),
+        isFalse,
+        reason:
+            'A flaky websocket must not trigger another expensive '
+            'sessions refresh when recovery already ran recently',
+      );
+    });
+
+    test(
+      'reconnect recovery still runs when a full sessions fetch is pending',
+      () {
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        sync.testLastInvalidateAllSyncsAtMs = nowMs - 10 * 1000;
+        sync.testForceFullFetchNext = true;
+
+        expect(
+          sync.testShouldRunReconnectGlobalInvalidation(nowMs),
+          isTrue,
+          reason:
+              'Explicit full-fetch recovery should bypass the reconnect '
+              'battery throttle',
         );
       },
     );
@@ -699,10 +786,13 @@ void main() {
       sync.artifactsSync = InvalidateSync(() async {});
       sync.sessionGitStatusSync = InvalidateSync(() async {});
       sync.messagesSync.clear();
+      sync.testSetVisibleSessionId(null);
       sync.testClearSessionsWithPendingSocketMessages();
       sync.testResetLastResumeAtMs();
+      sync.testForceFullFetchNext = false;
       // Reset _invalidateAllSyncs debounce so resume() actually runs
       sync.testLastInvalidateAllSyncsAtMs = null;
+      sync.onTailRefreshRequested = null;
     });
 
     test('resume() chains visible session messagesSync invalidation '

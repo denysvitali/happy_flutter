@@ -52,6 +52,19 @@ extension SyncTestHelpers on Sync {
       _lastInvalidateAllSyncsAtMs = value;
 
   @visibleForTesting
+  bool get testDeferredSocketDisconnectTimerActive =>
+      _deferredSocketDisconnectTimer != null;
+
+  @visibleForTesting
+  bool testShouldRunReconnectGlobalInvalidation(
+    int nowMs, {
+    bool resumeHttpFallbackRecentlyFired = false,
+  }) => _shouldRunReconnectGlobalInvalidation(
+    nowMs,
+    resumeHttpFallbackRecentlyFired: resumeHttpFallbackRecentlyFired,
+  );
+
+  @visibleForTesting
   bool get testIsInitialized => isInitialized;
 
   @visibleForTesting
