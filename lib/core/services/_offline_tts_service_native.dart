@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:archive/archive.dart';
+import 'package:audio_session/audio_session.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -850,9 +851,72 @@ class OfflineTtsService {
     }
   }
 
+  /// Configure the platform audio session so the offline engine
+  /// ducks other audio (music, podcasts, navigation) instead of
+  /// stopping it. Called once before the first [_playFile].
+  ///
+  /// On Android this maps to
+  /// `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` — the system lowers the
+  /// volume of any currently-playing music/podcast while we speak
+  /// and restores it to its original volume the moment playback
+  /// completes.
+  ///
+  /// On iOS this sets the `AVAudioSession` category to `.playback`
+  /// with `[.duckOthers, .mixWithOthers]` options and `.spokenAudio`
+  /// mode, which is the canonical combination for a spoken-prompt
+  /// app that should mix with the user's other audio.
+  ///
+  /// We use the [AudioSession] singleton (transitively available
+  /// through `just_audio`) rather than rolling our own
+  /// audio-focus channel — `just_audio` reads its config from this
+  /// singleton on every `play()` and re-uses it across app
+  /// sessions, so this only needs to run once per process.
+  ///
+  /// Errors are logged at warning level and swallowed: a
+  /// fallback to interrupt-style audio is better than refusing to
+  /// speak.
+  Future<void> _configureAudioSessionForDucking() async {
+    if (!isSupported) return;
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(
+        AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playback,
+          avAudioSessionCategoryOptions:
+              AVAudioSessionCategoryOptions.duckOthers |
+                  AVAudioSessionCategoryOptions.mixWithOthers,
+          avAudioSessionMode: AVAudioSessionMode.spokenAudio,
+          androidAudioAttributes: const AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.speech,
+            usage: AndroidAudioUsage.assistanceAccessibility,
+          ),
+          androidAudioFocusGainType:
+              AndroidAudioFocusGainType.gainTransientMayDuck,
+          androidWillPauseWhenDucked: false,
+        ),
+      );
+      logger.info('[OfflineTTS] audio session configured for ducking');
+    } catch (e, st) {
+      logger.warning(
+        '[OfflineTTS] audio session configure failed: $e',
+        e,
+        st,
+      );
+    }
+  }
+
   Future<void> _playFile(String path, {String? token}) async {
     var player = _player;
     if (player == null) {
+      // Configure the platform audio session *before* the first
+      // play() so just_audio's internal audio-session activation
+      // requests transient-may-duck focus on Android (music keeps
+      // playing at a reduced volume) and uses an iOS category with
+      // `.duckOthers` + `.mixWithOthers` on iOS. Without this the
+      // first utterance would interrupt whatever the user is
+      // listening to, just like the system engine did before the
+      // audio-focus fix.
+      await _configureAudioSessionForDucking();
       player = AudioPlayer();
       _player = player;
       // just_audio emits a stream of PlayerState; we react to the

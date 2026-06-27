@@ -75,6 +75,12 @@ dependencies:
   # Android plugin drags an old android-junit5 Gradle plugin into the
   # buildscript classpath, which 403s through the CI's Maven proxy.
   just_audio: ^0.10.4
+  # audio_session is a transitive dependency of just_audio, but we now
+  # import it directly in OfflineTtsService to configure ducking audio
+  # focus (transient-may-duck on Android, AVAudioSessionCategoryOptions
+  # `.duckOthers` + `.mixWithOthers` on iOS). Promote to a direct dep
+  # to silence `depend_on_referenced_packages`.
+  audio_session: ^0.2.0
   url_launcher: ^6.3.1
   qr: ^4.0.0
   web: ^1.1.1

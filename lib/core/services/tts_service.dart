@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -153,6 +154,13 @@ class TtsService {
         logger.warning('[TTS] init failed: $e');
         return;
       }
+      // Configure the audio session *before* the first [speak] so the
+      // engine requests `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` on
+      // Android (via `speak(..., focus: true)` below) and uses an
+      // iOS category that ducks rather than interrupts whatever
+      // music/podcast the user is already listening to. Without this,
+      // calling [speak] would clobber the user's other audio.
+      await _configureAudioSessionForDucking();
       _tts!.setStartHandler(() {
         logger.info('[TTS] Speech started');
       });
@@ -181,6 +189,47 @@ class TtsService {
     if (language != null && language.isNotEmpty) {
       await _tts!.setLanguage(language);
       logger.info('[TTS] Language set to $language');
+    }
+  }
+
+  /// Configure the underlying TTS audio session so speech ducks other
+  /// audio (music, podcasts, navigation) instead of stopping it.
+  ///
+  /// On Android, [FlutterTts.speak]'s `focus` parameter handles
+  /// ducking at speak-time — see [_speakInternal]. There is no global
+  /// audio-session configuration to apply here.
+  ///
+  /// On iOS, the flutter_tts plugin activates the shared
+  /// [AVAudioSession] when speech begins and deactivates it with
+  /// `.notifyOthersOnDeactivation` when it finishes — but only when
+  /// the session's *category options* include `.duckOthers` (see
+  /// `shouldDeactivateAndNotifyOthers` in SwiftFlutterTtsPlugin). We
+  /// therefore set the category once during [init] to `.playback`
+  /// with `[.duckOthers, .mixWithOthers]` and mode `.spokenAudio`,
+  /// which is the canonical combination for a turn-by-turn-style
+  /// spoken-prompt app: other audio keeps playing at a lower volume
+  /// while the assistant is speaking, and is restored to full volume
+  /// the moment [speak.onComplete] fires.
+  ///
+  /// Failures are logged and swallowed — falling back to default
+  /// session behaviour (interrupt) is better than refusing to speak.
+  Future<void> _configureAudioSessionForDucking() async {
+    final tts = _tts;
+    if (tts == null) return;
+    if (!kIsWeb && Platform.isIOS) {
+      try {
+        await tts.setIosAudioCategory(
+          IosTextToSpeechAudioCategory.playback,
+          <IosTextToSpeechAudioCategoryOptions>[
+            IosTextToSpeechAudioCategoryOptions.duckOthers,
+            IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+          ],
+          IosTextToSpeechAudioMode.spokenAudio,
+        );
+        logger.info('[TTS] iOS audio session configured for ducking');
+      } catch (e) {
+        logger.warning('[TTS] iOS audio category set failed: $e');
+      }
     }
   }
 
@@ -423,7 +472,15 @@ class TtsService {
     }
     _setCurrentToken(token);
     _currentText.value = clean;
-    final result = await _tts!.speak(clean);
+    // `focus: true` asks the plugin to request
+    // `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK` on Android — the system
+    // lowers the volume of any currently-playing music/podcast while
+    // we speak, and restores it to its original volume the moment the
+    // utterance completes. On non-Android platforms the parameter is
+    // ignored; iOS ducking is handled by the audio-session category
+    // configured in [_configureAudioSessionForDucking].
+    final focus = !kIsWeb && Platform.isAndroid;
+    final result = await _tts!.speak(clean, focus: focus);
     logger.info('[TTS] speak() returned: $result');
   }
 
