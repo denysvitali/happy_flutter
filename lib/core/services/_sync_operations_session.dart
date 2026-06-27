@@ -83,25 +83,23 @@ extension SyncSessionOperations on Sync {
     // activeAt.
     final machine = _machines[machineId];
     if (machine != null) {
-      if (!machine.active) {
-        throw StateError('Machine is offline');
-      }
       final now = DateTime.now().millisecondsSinceEpoch;
-      const onlineThresholdMs = 120 * 1000;
-      if (now - machine.activeAt >= onlineThresholdMs) {
+      if (!machine.isOnlineAt(now)) {
         // Rate-limit the warning to once per machine per 60 seconds.
-        final lastWarnedAt = _machineOfflineWarnedAtMs[machineId] ?? 0;
-        if (now - lastWarnedAt > 60000) {
-          _machineOfflineWarnedAtMs[machineId] = now;
-          // Keep absolute timestamps out of the primary message so
-          // GlitchTip groups all offline machines under one issue
-          // rather than minting a new issue for every (activeAt, now)
-          // pair.
-          final deltaSec = ((now - machine.activeAt) / 1000).round();
-          logger.warning(
-            'Machine appears offline '
-            '(machineId=$machineId, delta=${deltaSec}s)',
-          );
+        if (machine.isStaleAt(now)) {
+          final lastWarnedAt = _machineOfflineWarnedAtMs[machineId] ?? 0;
+          if (now - lastWarnedAt > 60000) {
+            _machineOfflineWarnedAtMs[machineId] = now;
+            // Keep absolute timestamps out of the primary message so
+            // GlitchTip groups all offline machines under one issue
+            // rather than minting a new issue for every (activeAt, now)
+            // pair.
+            final deltaSec = ((now - machine.activeAt) / 1000).round();
+            logger.warning(
+              'Machine appears offline '
+              '(machineId=$machineId, delta=${deltaSec}s)',
+            );
+          }
         }
         throw StateError('Machine is offline');
       }
@@ -1306,7 +1304,7 @@ PY
 
     // Fail fast if the machine is offline — don't wait 60 s for a timeout.
     final machine = _machines[machineId];
-    if (machine != null && !machine.active) {
+    if (machine != null && !machine.isOnline) {
       logger.info(
         '[sendMessage] machine=$machineId is offline, '
         'skipping auto-restore',

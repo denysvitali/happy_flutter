@@ -383,6 +383,54 @@ void main() {
       });
     });
 
+    group('online status', () {
+      Machine machine({required bool active, required int activeAt}) {
+        return Machine(
+          id: 'status-machine',
+          seq: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          active: active,
+          activeAt: activeAt,
+          metadataVersion: 0,
+          daemonStateVersion: 0,
+        );
+      }
+
+      test('requires active flag and fresh heartbeat', () {
+        const now = 1_000_000;
+
+        expect(
+          machine(
+            active: true,
+            activeAt: now - machineOnlineThresholdMs + 1,
+          ).isOnlineAt(now),
+          isTrue,
+        );
+        expect(
+          machine(
+            active: true,
+            activeAt: now - machineOnlineThresholdMs,
+          ).isOnlineAt(now),
+          isFalse,
+        );
+        expect(machine(active: false, activeAt: now).isOnlineAt(now), isFalse);
+      });
+
+      test('reports stale only for active machines with expired heartbeat', () {
+        const now = 1_000_000;
+
+        expect(
+          machine(
+            active: true,
+            activeAt: now - machineOnlineThresholdMs,
+          ).isStaleAt(now),
+          isTrue,
+        );
+        expect(machine(active: false, activeAt: 1).isStaleAt(now), isFalse);
+      });
+    });
+
     group('equality', () {
       test('equal machines compare as equal', () {
         final a = Machine(

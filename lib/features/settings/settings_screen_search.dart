@@ -19,7 +19,7 @@ extension _SettingsScreenSearch on _SettingsScreenState {
     })
     settings,
     required ({int total, int online}) sessionStats,
-    required ({int total, int active, String? firstSubtitle}) machineStats,
+    required ({int total, int online, String? firstSubtitle}) machineStats,
   }) {
     final l10n = AppLocalizations.of(context);
     return [
@@ -28,7 +28,7 @@ extension _SettingsScreenSearch on _SettingsScreenState {
           sessionTotal: sessionStats.total,
           onlineSessions: sessionStats.online,
           machineTotal: machineStats.total,
-          activeMachines: machineStats.active,
+          onlineMachines: machineStats.online,
         ),
         terms: [
           'status',

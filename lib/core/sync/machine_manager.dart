@@ -768,20 +768,18 @@ class MachineManager {
     // Fail fast if the machine is offline.
     final machine = _machines[machineId];
     if (machine != null) {
-      if (!machine.active) {
-        throw StateError('Machine is offline');
-      }
       final now = DateTime.now().millisecondsSinceEpoch;
-      const onlineThresholdMs = 120 * 1000;
-      if (now - machine.activeAt >= onlineThresholdMs) {
-        final lastWarnedAt = _machineOfflineWarnedAtMs[machineId] ?? 0;
-        if (now - lastWarnedAt > 60000) {
-          _machineOfflineWarnedAtMs[machineId] = now;
-          final deltaSec = ((now - machine.activeAt) / 1000).round();
-          logger.warning(
-            'Machine appears offline '
-            '(machineId=$machineId, delta=${deltaSec}s)',
-          );
+      if (!machine.isOnlineAt(now)) {
+        if (machine.isStaleAt(now)) {
+          final lastWarnedAt = _machineOfflineWarnedAtMs[machineId] ?? 0;
+          if (now - lastWarnedAt > 60000) {
+            _machineOfflineWarnedAtMs[machineId] = now;
+            final deltaSec = ((now - machine.activeAt) / 1000).round();
+            logger.warning(
+              'Machine appears offline '
+              '(machineId=$machineId, delta=${deltaSec}s)',
+            );
+          }
         }
         throw StateError('Machine is offline');
       }

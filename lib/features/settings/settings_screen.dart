@@ -8,6 +8,7 @@ import '../../core/config/app_config.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
+import '../../core/models/machine.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/server_config.dart';
@@ -96,7 +97,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       machinesNotifierProvider.select(
         (machines) => (
           total: machines.length,
-          active: machines.values.where((machine) => machine.active).length,
+          online: machines.values.where((machine) => machine.isOnline).length,
           firstSubtitle: machines.isEmpty
               ? null
               : machines.values.first.metadata?.displayName ??

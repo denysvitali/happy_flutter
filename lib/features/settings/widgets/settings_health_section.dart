@@ -10,14 +10,14 @@ class SettingsHealthSection extends StatelessWidget {
     required this.sessionTotal,
     required this.onlineSessions,
     required this.machineTotal,
-    required this.activeMachines,
+    required this.onlineMachines,
     super.key,
   });
 
   final int sessionTotal;
   final int onlineSessions;
   final int machineTotal;
-  final int activeMachines;
+  final int onlineMachines;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +35,7 @@ class SettingsHealthSection extends StatelessWidget {
         : 'Waiting for account data to initialize';
     final machineSubtitle = machineTotal == 0
         ? 'No machines linked yet'
-        : '$activeMachines active of $machineTotal linked';
+        : '$onlineMachines online of $machineTotal linked';
 
     return SettingsSection(
       title: 'Status',

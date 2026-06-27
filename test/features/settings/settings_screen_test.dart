@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/models/settings_update.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -21,11 +22,44 @@ class _TestSettingsNotifier extends SettingsNotifier {
   }
 }
 
-Widget _buildApp(Settings initialSettings) {
+class _TestMachinesNotifier extends MachinesNotifier {
+  _TestMachinesNotifier(this._initial);
+
+  final Map<String, Machine> _initial;
+
+  @override
+  Map<String, Machine> build() => _initial;
+}
+
+Machine _machine({
+  required String id,
+  required bool active,
+  required int activeAt,
+}) {
+  return Machine(
+    id: id,
+    seq: 1,
+    createdAt: 1,
+    updatedAt: 1,
+    active: active,
+    activeAt: activeAt,
+    metadataVersion: 1,
+    daemonStateVersion: 1,
+    metadata: MachineMetadata(displayName: id),
+  );
+}
+
+Widget _buildApp(
+  Settings initialSettings, {
+  Map<String, Machine> machines = const {},
+}) {
   return ProviderScope(
     overrides: [
       settingsNotifierProvider.overrideWith(
         () => _TestSettingsNotifier(initialSettings),
+      ),
+      machinesNotifierProvider.overrideWith(
+        () => _TestMachinesNotifier(machines),
       ),
     ],
     child: MaterialApp(
@@ -73,5 +107,23 @@ void main() {
     expect(settings.compactSessionView, isTrue);
     expect(settings.hideInactiveSessions, isTrue);
     expect(settings.sessionsViewStyle, 'unread_focus');
+  });
+
+  testWidgets('status summary counts only online machines', (tester) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final staleAt = now - machineOnlineThresholdMs;
+
+    await tester.pumpWidget(
+      _buildApp(
+        Settings(),
+        machines: {
+          'online': _machine(id: 'online', active: true, activeAt: now),
+          'stale': _machine(id: 'stale', active: true, activeAt: staleAt),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 online of 2 linked'), findsOneWidget);
   });
 }

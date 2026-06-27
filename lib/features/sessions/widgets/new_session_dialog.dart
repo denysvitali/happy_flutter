@@ -89,11 +89,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     // Sort machines: online first, then offline. Show all so users can see
     // (and understand) which machines are unavailable rather than silently
     // hiding them.
-    bool isMachineOnline(Machine m) => m.isOnline;
     final machines = allMachines.values.toList()
       ..sort((a, b) {
-        final aOnline = isMachineOnline(a) ? 0 : 1;
-        final bOnline = isMachineOnline(b) ? 0 : 1;
+        final aOnline = a.isOnline ? 0 : 1;
+        final bOnline = b.isOnline ? 0 : 1;
         if (aOnline != bOnline) return aOnline.compareTo(bOnline);
         final aName =
             a.metadata?.displayName ?? a.metadata?.host ?? a.id;
@@ -114,7 +113,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           )
         : _defaultSpawnBackendForMachine(selectedMachineObj);
     final selectedMachineOffline =
-        selectedMachineObj != null && !isMachineOnline(selectedMachineObj);
+        selectedMachineObj != null && !selectedMachineObj.isOnline;
     final createBlocker = newSessionCreateBlocker(
       machine: selectedMachineObj,
       machineOnline: selectedMachineObj != null && !selectedMachineOffline,
@@ -158,7 +157,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   child: Text(l10n.sessionSelectMachine),
                 ),
                 ...machines.map((machine) {
-                  final online = isMachineOnline(machine);
+                  final online = machine.isOnline;
                   // Disable offline items so the user cannot select a
                   // machine that will fail at session creation time.
                   return DropdownMenuItem(
@@ -221,7 +220,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 // disabled DropdownMenuItem is somehow tapped.
                 if (value != null) {
                   final m = allMachines[value];
-                  if (m != null && !isMachineOnline(m)) {
+                  if (m != null && !m.isOnline) {
                     return;
                   }
                 }

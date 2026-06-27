@@ -33,15 +33,13 @@ class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
 
   void _autoSelectMachine() {
     final machines = ref.read(machinesNotifierProvider).values.toList();
-    final online = machines.where(_isMachineOnline).toList();
+    final online = machines.where((machine) => machine.isOnline).toList();
     final target = online.isNotEmpty ? online.first : null;
     if (target != null) {
       setState(() => _selectedMachineId = target.id);
       _loadUsage(target.id);
     }
   }
-
-  bool _isMachineOnline(Machine machine) => machine.isOnline;
 
   Future<void> _loadUsage(String machineId) async {
     setState(() {
@@ -427,6 +425,13 @@ class _CodexMachinePicker extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: DropdownButtonFormField<String>(
             initialValue: selectedMachineId,
+            selectedItemBuilder: (context) => machines.values.map((machine) {
+              final name =
+                  machine.metadata?.displayName ??
+                  machine.metadata?.host ??
+                  machine.id;
+              return Text(name, overflow: TextOverflow.ellipsis);
+            }).toList(),
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.sm),

@@ -51,15 +51,13 @@ class _ClaudeLimitsScreenState
   void _autoSelectMachine() {
     final machines =
         ref.read(machinesNotifierProvider).values.toList();
-    final online = machines.where(_isMachineOnline).toList();
+    final online = machines.where((machine) => machine.isOnline).toList();
     final target = online.isNotEmpty ? online.first : null;
     if (target != null) {
       setState(() => _selectedMachineId = target.id);
       _loadAll(target.id);
     }
   }
-
-  bool _isMachineOnline(Machine m) => m.isOnline;
 
   Future<void> _loadAll(String machineId) async {
     setState(() {
@@ -401,6 +399,13 @@ class _MachinePicker extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: DropdownButtonFormField<String>(
             initialValue: selectedMachineId,
+            selectedItemBuilder: (context) => machines.values.map((machine) {
+              final name =
+                  machine.metadata?.displayName ??
+                  machine.metadata?.host ??
+                  machine.id;
+              return Text(name, overflow: TextOverflow.ellipsis);
+            }).toList(),
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius:

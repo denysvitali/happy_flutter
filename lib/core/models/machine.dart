@@ -104,19 +104,26 @@ String _machineIdFromJson(dynamic value) {
   );
 }
 
-/// Client-side online check used by UI screens.
+/// Maximum accepted age for a machine heartbeat when deciding whether the
+/// machine is available for user actions.
+const int machineOnlineThresholdMs = 120 * 1000;
+
+/// Client-side online check used by UI screens and spawn guards.
 ///
-/// Mirrors the logic in [new_session_dialog.dart]: a machine is online only
-/// when the server explicitly says so ([active]) AND the last activity
-/// timestamp is within the 2-minute threshold. Checking only [activeAt] made
-/// some screens disagree with others when the server marked a machine
-/// inactive while a stale timestamp was still recent.
+/// A machine is online only when the server explicitly says so ([active]) and
+/// the last activity timestamp is still fresh. Checking only [active], or only
+/// [activeAt], makes screens and create-session guards disagree.
 extension MachineOnline on Machine {
   bool get isOnline {
     final now = DateTime.now().millisecondsSinceEpoch;
-    const onlineThresholdMs = 120 * 1000;
-    return active && now - activeAt < onlineThresholdMs;
+    return isOnlineAt(now);
   }
+
+  bool isOnlineAt(int nowMs) =>
+      active && nowMs - activeAt < machineOnlineThresholdMs;
+
+  bool isStaleAt(int nowMs) =>
+      active && nowMs - activeAt >= machineOnlineThresholdMs;
 }
 
 /// Git status model
