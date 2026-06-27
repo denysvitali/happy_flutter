@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:happy_flutter/core/theme/app_colors.dart';
-import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/theme/diff_theme.dart';
-import 'package:happy_flutter/core/ui/diff/diff_types.dart';
-import 'package:happy_flutter/core/ui/diff/diff_view.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
+import 'file_diff_view.dart';
 
 /// View for displaying Gemini edit tool (lowercase 'edit').
-class GeminiEditView extends StatefulWidget {
-
+class GeminiEditView extends StatelessWidget {
+  /// Creates a [GeminiEditView].
   const GeminiEditView({
-    required this.tool, super.key,
+    required this.tool,
+    super.key,
     this.metadata,
   });
+
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
 
@@ -23,16 +21,8 @@ class GeminiEditView extends StatefulWidget {
   final Map<String, dynamic>? metadata;
 
   @override
-  State<GeminiEditView> createState() => _GeminiEditViewState();
-}
-
-class _GeminiEditViewState extends State<GeminiEditView> {
-  bool _expanded = false;
-
-  @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final input = WireParsers.asMap(widget.tool['input']) ?? {};
+    final input = WireParsers.asMap(tool['input']) ?? {};
 
     String? filePath;
     String? oldText;
@@ -74,57 +64,23 @@ class _GeminiEditViewState extends State<GeminiEditView> {
     newText ??= input['newText'] as String?;
 
     final resolvedPath = filePath != null
-        ? resolvePath(filePath, widget.metadata)
+        ? resolvePath(filePath, metadata)
         : 'Unknown';
 
     final trimmedOld = _trimIndent(oldText ?? '');
     final trimmedNew = _trimIndent(newText ?? '');
-    final hasContent = trimmedOld.isNotEmpty || trimmedNew.isNotEmpty;
 
-    final oldLines =
-        trimmedOld.isEmpty ? 0 : trimmedOld.split('\n').length;
-    final newLines =
-        trimmedNew.isEmpty ? 0 : trimmedNew.split('\n').length;
-    final totalLines = oldLines + newLines;
-    final isShort = totalLines <= 16;
-    final showDiff = !hasContent || isShort || _expanded;
+    if (trimmedOld.isEmpty && trimmedNew.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return ToolSectionView(
-      child: Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: cs.outlineVariant),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // -- Header bar
-            _EditHeaderBar(
-              resolvedPath: resolvedPath,
-              hasContent: hasContent,
-              oldLines: oldLines,
-              newLines: newLines,
-            ),
-
-            // -- Expand / collapse
-            if (hasContent && !isShort)
-              _ExpandToggle(
-                expanded: _expanded,
-                totalLines: totalLines,
-                onToggle: () =>
-                    setState(() => _expanded = !_expanded),
-              ),
-
-            // -- Diff content
-            if (hasContent && showDiff)
-              _EditDiffBody(
-                oldText: trimmedOld,
-                newText: trimmedNew,
-              ),
-          ],
-        ),
+      child: FileDiffView(
+        oldText: trimmedOld,
+        newText: trimmedNew,
+        filePath: resolvedPath,
+        icon: Icons.edit_document,
+        collapseThreshold: 16,
       ),
     );
   }
@@ -141,202 +97,5 @@ class _GeminiEditViewState extends State<GeminiEditView> {
       if (l.trim().isEmpty) return l;
       return l.length > minIndent ? l.substring(minIndent) : l;
     }).join('\n');
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header bar
-// ---------------------------------------------------------------------------
-
-class _EditHeaderBar extends StatelessWidget {
-
-  const _EditHeaderBar({
-    required this.resolvedPath,
-    required this.hasContent,
-    required this.oldLines,
-    required this.newLines,
-  });
-  final String resolvedPath;
-  final bool hasContent;
-  final int oldLines;
-  final int newLines;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final lastSlash = resolvedPath.lastIndexOf('/');
-    final dir = lastSlash >= 0
-        ? resolvedPath.substring(0, lastSlash + 1)
-        : '';
-    final filename = lastSlash >= 0
-        ? resolvedPath.substring(lastSlash + 1)
-        : resolvedPath;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(AppRadius.sm),
-          topRight: Radius.circular(AppRadius.sm),
-        ),
-        border: Border(
-          bottom: BorderSide(color: cs.outlineVariant),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.edit_document,
-            size: 14,
-            color: cs.primary,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: RichText(
-              overflow: TextOverflow.ellipsis,
-              text: TextSpan(
-                children: [
-                  if (dir.isNotEmpty)
-                    TextSpan(
-                      text: dir,
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: AppFontSize.sm,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  TextSpan(
-                    text: filename,
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.sm,
-                      color: cs.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (hasContent) ...[
-            const SizedBox(width: 8),
-            Text(
-              '-$oldLines',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: AppFontSize.sm,
-                color: AppColors.error,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '+$newLines',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: AppFontSize.sm,
-                color: AppColors.success,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Expand toggle
-// ---------------------------------------------------------------------------
-
-class _ExpandToggle extends StatelessWidget {
-
-  const _ExpandToggle({
-    required this.expanded,
-    required this.totalLines,
-    required this.onToggle,
-  });
-  final bool expanded;
-  final int totalLines;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return InkWell(
-      onTap: onToggle,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 7,
-        ),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: cs.outlineVariant),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              expanded ? Icons.expand_less : Icons.expand_more,
-              size: 14,
-              color: cs.primary,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              expanded
-                  ? 'Hide diff'
-                  : 'Show diff ($totalLines lines)',
-              style: TextStyle(
-                fontSize: AppFontSize.sm,
-                color: cs.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Diff body
-// ---------------------------------------------------------------------------
-
-class _EditDiffBody extends StatelessWidget {
-
-  const _EditDiffBody({
-    required this.oldText,
-    required this.newText,
-  });
-  final String oldText;
-  final String newText;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      clipBehavior: Clip.hardEdge,
-      borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(AppRadius.sm),
-        bottomRight: Radius.circular(AppRadius.sm),
-      ),
-      child: DiffView(
-        oldText: oldText,
-        newText: newText,
-        config: DiffViewConfig(
-          showLineNumbers: true,
-          showPlusMinusSymbols: true,
-          showDiffStats: false,
-          contextLines: 3,
-          theme: context.diffTheme.asLegacy(),
-        ),
-      ),
-    );
   }
 }
