@@ -32,7 +32,9 @@ class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
   }
 
   void _autoSelectMachine() {
-    final machines = ref.read(machinesNotifierProvider).values.toList();
+    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
+    final machines = ref.read(machinesNotifierProvider).values.toList()
+      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
     final online = machines.where((machine) => machine.isOnline).toList();
     final target = online.isNotEmpty ? online.first : null;
     if (target != null) {
@@ -416,7 +418,11 @@ class _CodexMachinePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
+    final machineList = machines.values.toList()
+      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
 
     return SettingsSection(
       title: l10n.codexUsageSelectMachine,
@@ -425,13 +431,14 @@ class _CodexMachinePicker extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: DropdownButtonFormField<String>(
             initialValue: selectedMachineId,
-            selectedItemBuilder: (context) => machines.values.map((machine) {
-              final name =
-                  machine.metadata?.displayName ??
-                  machine.metadata?.host ??
-                  machine.id;
-              return Text(name, overflow: TextOverflow.ellipsis);
-            }).toList(),
+            selectedItemBuilder: (context) => machineList
+                .map(
+                  (machine) => Text(
+                    machine.displayLabel,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )
+                .toList(),
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -442,14 +449,11 @@ class _CodexMachinePicker extends StatelessWidget {
               ),
               isDense: true,
             ),
-            items: machines.values.map((machine) {
-              final name =
-                  machine.metadata?.displayName ??
-                  machine.metadata?.host ??
-                  machine.id;
+            items: machineList.map((machine) {
               final online = machine.isOnline;
               return DropdownMenuItem<String>(
                 value: machine.id,
+                enabled: online,
                 child: Row(
                   children: [
                     Icon(
@@ -459,13 +463,33 @@ class _CodexMachinePicker extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(
-                      child: Text(name, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        machine.displayLabel,
+                        overflow: TextOverflow.ellipsis,
+                        style: online
+                            ? null
+                            : theme.textTheme.bodyMedium?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                      ),
                     ),
+                    if (!online) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        l10n.machineOffline,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
             }).toList(),
-            onChanged: onChanged,
+            onChanged: (id) {
+              if (id != null && !(machines[id]?.isOnline ?? false)) return;
+              onChanged(id);
+            },
           ),
         ),
       ],

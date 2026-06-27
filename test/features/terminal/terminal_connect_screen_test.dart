@@ -117,11 +117,6 @@ extension _L10nX on BuildContext {
       const _TestAppLocalizations();
 }
 
-String _machineLabel(Machine machine) {
-  final meta = machine.metadata;
-  return meta?.displayName ?? meta?.host ?? machine.id;
-}
-
 Machine? _machineById(List<Machine> machines, String id) {
   for (final machine in machines) {
     if (machine.id == id) return machine;
@@ -172,13 +167,9 @@ class _TestTerminalConnectScreenState
   @override
   Widget build(BuildContext context) {
     final machines = ref.watch(machinesNotifierProvider);
+    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
     final machineList = machines.values.toList()
-      ..sort((a, b) {
-        final aOnline = a.isOnline ? 0 : 1;
-        final bOnline = b.isOnline ? 0 : 1;
-        if (aOnline != bOnline) return aOnline.compareTo(bOnline);
-        return _machineLabel(a).compareTo(_machineLabel(b));
-      });
+      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
     final hasOnlineMachine = machineList.any((machine) => machine.isOnline);
     final theme = Theme.of(context);
 
@@ -230,21 +221,20 @@ class _TestTerminalConnectScreenState
                   selectedItemBuilder: (context) => machineList
                       .map(
                         (machine) => Text(
-                          _machineLabel(machine),
+                          machine.displayLabel,
                           overflow: TextOverflow.ellipsis,
                         ),
                       )
                       .toList(),
                   hint: Text(context.l10n.terminalSelectMachineHint),
                   items: machineList.map((machine) {
-                    final label = _machineLabel(machine);
                     final online = machine.isOnline;
                     return DropdownMenuItem<String>(
                       value: machine.id,
                       enabled: online,
                       child: Row(
                         children: [
-                          Text(label),
+                          Text(machine.displayLabel),
                           if (!online) ...[
                             const SizedBox(width: 8),
                             Text(context.l10n.machineOffline),

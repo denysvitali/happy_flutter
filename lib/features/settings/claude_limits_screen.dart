@@ -22,12 +22,10 @@ class ClaudeLimitsScreen extends ConsumerStatefulWidget {
   const ClaudeLimitsScreen({super.key});
 
   @override
-  ConsumerState<ClaudeLimitsScreen> createState() =>
-      _ClaudeLimitsScreenState();
+  ConsumerState<ClaudeLimitsScreen> createState() => _ClaudeLimitsScreenState();
 }
 
-class _ClaudeLimitsScreenState
-    extends ConsumerState<ClaudeLimitsScreen> {
+class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
   String? _selectedMachineId;
   ClaudeUsageLimits? _limits;
   bool _isLoading = false;
@@ -49,8 +47,9 @@ class _ClaudeLimitsScreenState
   }
 
   void _autoSelectMachine() {
-    final machines =
-        ref.read(machinesNotifierProvider).values.toList();
+    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
+    final machines = ref.read(machinesNotifierProvider).values.toList()
+      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
     final online = machines.where((machine) => machine.isOnline).toList();
     final target = online.isNotEmpty ? online.first : null;
     if (target != null) {
@@ -68,10 +67,7 @@ class _ClaudeLimitsScreenState
       _limits = null;
       _localUsage = null;
     });
-    await Future.wait([
-      _loadLimits(machineId),
-      _loadLocalUsage(machineId),
-    ]);
+    await Future.wait([_loadLimits(machineId), _loadLocalUsage(machineId)]);
   }
 
   Future<void> _loadLimits(String machineId) async {
@@ -90,8 +86,7 @@ class _ClaudeLimitsScreenState
     }
 
     try {
-      final json =
-          jsonDecode(response.data!) as Map<String, dynamic>;
+      final json = jsonDecode(response.data!) as Map<String, dynamic>;
       setState(() {
         _limits = ClaudeUsageLimits.fromJson(json);
         _isLoading = false;
@@ -120,8 +115,7 @@ class _ClaudeLimitsScreenState
     }
 
     try {
-      final json =
-          jsonDecode(response.data!) as Map<String, dynamic>;
+      final json = jsonDecode(response.data!) as Map<String, dynamic>;
       setState(() {
         _localUsage = ClaudeLocalUsage.fromJson(json);
         _isLoadingLocal = false;
@@ -166,47 +160,41 @@ class _ClaudeLimitsScreenState
       body: _isLoading
           ? const AppLoadingIndicator()
           : _error != null
-              ? _ErrorBody(
-                  machines: machines,
-                  selectedMachineId: _selectedMachineId,
-                  onMachineChanged: (id) {
-                    setState(
-                      () => _selectedMachineId = id,
-                    );
-                    if (id != null) _loadAll(id);
-                  },
-                  error: _error!,
-                  onRetry: () {
-                    if (_selectedMachineId != null) {
-                      _loadAll(_selectedMachineId!);
-                    }
-                  },
-                )
-              : _limits != null
-                  ? _LimitsBody(
-                      machines: machines,
-                      selectedMachineId: _selectedMachineId,
-                      limits: _limits!,
-                      localUsage: _localUsage,
-                      isLoadingLocal: _isLoadingLocal,
-                      localError: _localError,
-                      onMachineChanged: (id) {
-                        setState(
-                          () => _selectedMachineId = id,
-                        );
-                        if (id != null) _loadAll(id);
-                      },
-                    )
-                  : _NoDataBody(
-                      machines: machines,
-                      selectedMachineId: _selectedMachineId,
-                      onMachineChanged: (id) {
-                        setState(
-                          () => _selectedMachineId = id,
-                        );
-                        if (id != null) _loadAll(id);
-                      },
-                    ),
+          ? _ErrorBody(
+              machines: machines,
+              selectedMachineId: _selectedMachineId,
+              onMachineChanged: (id) {
+                setState(() => _selectedMachineId = id);
+                if (id != null) _loadAll(id);
+              },
+              error: _error!,
+              onRetry: () {
+                if (_selectedMachineId != null) {
+                  _loadAll(_selectedMachineId!);
+                }
+              },
+            )
+          : _limits != null
+          ? _LimitsBody(
+              machines: machines,
+              selectedMachineId: _selectedMachineId,
+              limits: _limits!,
+              localUsage: _localUsage,
+              isLoadingLocal: _isLoadingLocal,
+              localError: _localError,
+              onMachineChanged: (id) {
+                setState(() => _selectedMachineId = id);
+                if (id != null) _loadAll(id);
+              },
+            )
+          : _NoDataBody(
+              machines: machines,
+              selectedMachineId: _selectedMachineId,
+              onMachineChanged: (id) {
+                setState(() => _selectedMachineId = id);
+                if (id != null) _loadAll(id);
+              },
+            ),
     );
   }
 }
@@ -235,6 +223,15 @@ class _LimitsBody extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     final windows = limits.activeWindows;
+    final extraUsage = limits.extraUsage;
+    final monthlyLimit = extraUsage?.monthlyLimit;
+    final usedCredits = extraUsage?.usedCredits;
+    final monthlyLimitLabel = monthlyLimit == null
+        ? null
+        : '\$${monthlyLimit.toStringAsFixed(2)}';
+    final usedCreditsLabel = usedCredits == null
+        ? null
+        : '\$${usedCredits.toStringAsFixed(2)}';
 
     return ListView(
       padding: AppScreenPadding.settings,
@@ -253,26 +250,23 @@ class _LimitsBody extends StatelessWidget {
                 _UsageWindowRow(label: label, window: window),
             ],
           ),
-        if (limits.extraUsage != null &&
-            limits.extraUsage!.isEnabled) ...[
+        if (extraUsage != null && extraUsage.isEnabled) ...[
           const SizedBox(height: AppSpacing.lg),
           SettingsSection(
             title: l10n.claudeLimitsExtraUsage,
             children: [
-              if (limits.extraUsage!.monthlyLimit != null)
+              if (monthlyLimitLabel != null)
                 _StatRow(
                   icon: Icons.credit_card,
                   title: l10n.claudeLimitsMonthlyLimit,
-                  value: '\$${limits.extraUsage!.monthlyLimit!
-                      .toStringAsFixed(2)}',
+                  value: monthlyLimitLabel,
                   iconColor: cs.primary,
                 ),
-              if (limits.extraUsage!.usedCredits != null)
+              if (usedCreditsLabel != null)
                 _StatRow(
                   icon: Icons.receipt_long,
                   title: l10n.claudeLimitsUsedCredits,
-                  value: '\$${limits.extraUsage!.usedCredits!
-                      .toStringAsFixed(2)}',
+                  value: usedCreditsLabel,
                   iconColor: AppColors.warning,
                 ),
             ],
@@ -391,6 +385,9 @@ class _MachinePicker extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
+    final machineList = machines.values.toList()
+      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
 
     return SettingsSection(
       title: l10n.claudeLimitsSelectMachine,
@@ -399,17 +396,17 @@ class _MachinePicker extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: DropdownButtonFormField<String>(
             initialValue: selectedMachineId,
-            selectedItemBuilder: (context) => machines.values.map((machine) {
-              final name =
-                  machine.metadata?.displayName ??
-                  machine.metadata?.host ??
-                  machine.id;
-              return Text(name, overflow: TextOverflow.ellipsis);
-            }).toList(),
+            selectedItemBuilder: (context) => machineList
+                .map(
+                  (machine) => Text(
+                    machine.displayLabel,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )
+                .toList(),
             decoration: InputDecoration(
               border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(AppRadius.sm),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
@@ -417,36 +414,47 @@ class _MachinePicker extends StatelessWidget {
               ),
               isDense: true,
             ),
-            items: machines.values.map((m) {
-              final name = m.metadata?.displayName ??
-                  m.metadata?.host ??
-                  m.id;
-              final online = m.isOnline;
+            items: machineList.map((machine) {
+              final online = machine.isOnline;
               return DropdownMenuItem(
-                value: m.id,
+                value: machine.id,
+                enabled: online,
                 child: Row(
                   children: [
                     Icon(
-                      online
-                          ? Icons.circle
-                          : Icons.circle_outlined,
+                      online ? Icons.circle : Icons.circle_outlined,
                       size: 10,
-                      color: online
-                          ? AppColors.success
-                          : cs.onSurfaceVariant,
+                      color: online ? AppColors.success : cs.onSurfaceVariant,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(
                       child: Text(
-                        name,
+                        machine.displayLabel,
                         overflow: TextOverflow.ellipsis,
+                        style: online
+                            ? null
+                            : theme.textTheme.bodyMedium?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
                       ),
                     ),
+                    if (!online) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        l10n.machineOffline,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
             }).toList(),
-            onChanged: onChanged,
+            onChanged: (id) {
+              if (id != null && !(machines[id]?.isOnline ?? false)) return;
+              onChanged(id);
+            },
           ),
         ),
       ],
@@ -455,10 +463,7 @@ class _MachinePicker extends StatelessWidget {
 }
 
 class _UsageWindowRow extends StatelessWidget {
-  const _UsageWindowRow({
-    required this.label,
-    required this.window,
-  });
+  const _UsageWindowRow({required this.label, required this.window});
 
   final String label;
   final ClaudeUsageWindow window;
@@ -508,14 +513,12 @@ class _UsageWindowRow extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           ClipRRect(
-            borderRadius:
-                BorderRadius.circular(AppRadius.xs),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
             child: LinearProgressIndicator(
               value: window.fraction,
               minHeight: 6,
               backgroundColor: cs.surfaceContainerHighest,
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(barColor),
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
           if (resetsIn != null) ...[
@@ -573,10 +576,7 @@ class _StatRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          SettingsIconContainer(
-            icon: icon,
-            color: iconColor,
-          ),
+          SettingsIconContainer(icon: icon, color: iconColor),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
@@ -629,7 +629,8 @@ class _LocalUsageSection extends StatelessWidget {
       );
     } else if (usage == null) {
       // Error / no data branch — never block the OAuth limits.
-      final isOldDaemon = error != null &&
+      final isOldDaemon =
+          error != null &&
           error!.toLowerCase().contains('rpc method not available');
       children.add(
         Padding(
@@ -650,7 +651,7 @@ class _LocalUsageSection extends StatelessWidget {
                   isOldDaemon
                       ? l10n.claudeLocalUsageRequiresUpdate
                       : (l10n.claudeLocalUsageFailed +
-                          (error != null ? ' — $error' : '')),
+                            (error != null ? ' — $error' : '')),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
                   ),
@@ -667,7 +668,8 @@ class _LocalUsageSection extends StatelessWidget {
         _StatRow(
           icon: Icons.functions,
           title: l10n.claudeLocalUsageTotal,
-          value: '${ClaudeLocalUsage.formatTokenCount(u.totalTokens)} '
+          value:
+              '${ClaudeLocalUsage.formatTokenCount(u.totalTokens)} '
               'tokens',
           iconColor: cs.primary,
         ),
@@ -675,9 +677,7 @@ class _LocalUsageSection extends StatelessWidget {
       if (u.lastComputedDate != null) {
         children.add(
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Text(
               '${l10n.claudeLocalUsageLifetime}: '
               '${u.lastComputedDate}',
@@ -881,12 +881,7 @@ class _DailyTokenRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              date,
-              style: theme.textTheme.bodySmall,
-            ),
-          ),
+          Expanded(child: Text(date, style: theme.textTheme.bodySmall)),
           if (topModelName != null) ...[
             Text(
               topModelName!,

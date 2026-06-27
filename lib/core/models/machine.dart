@@ -85,10 +85,7 @@ abstract class Machine with _$Machine {
     @JsonKey(fromJson: _asApiInt) required int activeAt,
     @JsonKey(fromJson: _asApiInt) required int metadataVersion,
     @JsonKey(fromJson: _asApiInt) required int daemonStateVersion,
-    @JsonKey(
-      fromJson: _machineMetadataFromJson,
-      toJson: _machineMetadataToJson,
-    )
+    @JsonKey(fromJson: _machineMetadataFromJson, toJson: _machineMetadataToJson)
     MachineMetadata? metadata,
     @JsonKey(fromJson: _mapOrNull) Map<String, dynamic>? daemonState,
   }) = _Machine;
@@ -99,9 +96,7 @@ abstract class Machine with _$Machine {
 
 String _machineIdFromJson(dynamic value) {
   if (value is String) return value;
-  throw FormatException(
-    'Expected String for id, got ${value.runtimeType}',
-  );
+  throw FormatException('Expected String for id, got ${value.runtimeType}');
 }
 
 /// Maximum accepted age for a machine heartbeat when deciding whether the
@@ -119,11 +114,32 @@ extension MachineOnline on Machine {
     return isOnlineAt(now);
   }
 
+  String get displayLabel {
+    final meta = metadata;
+    return meta?.displayName ?? meta?.host ?? id;
+  }
+
   bool isOnlineAt(int nowMs) =>
       active && nowMs - activeAt < machineOnlineThresholdMs;
 
   bool isStaleAt(int nowMs) =>
       active && nowMs - activeAt >= machineOnlineThresholdMs;
+}
+
+int compareMachinesByAvailability(Machine a, Machine b) {
+  final now = DateTime.now().millisecondsSinceEpoch;
+  return compareMachinesByAvailabilityAt(now, a, b);
+}
+
+int compareMachinesByAvailabilityAt(int nowMs, Machine a, Machine b) {
+  final aOffline = a.isOnlineAt(nowMs) ? 0 : 1;
+  final bOffline = b.isOnlineAt(nowMs) ? 0 : 1;
+  if (aOffline != bOffline) return aOffline.compareTo(bOffline);
+
+  final labelComparison = a.displayLabel.compareTo(b.displayLabel);
+  if (labelComparison != 0) return labelComparison;
+
+  return a.id.compareTo(b.id);
 }
 
 /// Git status model

@@ -45,13 +45,9 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
     final machineList = ref.watch(machinesListProvider).toList()
-      ..sort((a, b) {
-        final aOnline = a.isOnline ? 0 : 1;
-        final bOnline = b.isOnline ? 0 : 1;
-        if (aOnline != bOnline) return aOnline.compareTo(bOnline);
-        return _machineLabel(a).compareTo(_machineLabel(b));
-      });
+      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
     final hasOnlineMachine = machineList.any((machine) => machine.isOnline);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -151,7 +147,7 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
                     selectedItemBuilder: (context) => machineList
                         .map(
                           (machine) => Text(
-                            _machineLabel(machine),
+                            machine.displayLabel,
                             overflow: TextOverflow.ellipsis,
                           ),
                         )
@@ -171,7 +167,6 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
                     hint: Text(context.l10n.terminalSelectMachineHint),
                     isExpanded: true,
                     items: machineList.map((machine) {
-                      final label = _machineLabel(machine);
                       final online = machine.isOnline;
                       return DropdownMenuItem<String>(
                         value: machine.id,
@@ -191,7 +186,7 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
                             const SizedBox(width: AppSpacing.sm),
                             Flexible(
                               child: Text(
-                                label,
+                                machine.displayLabel,
                                 overflow: TextOverflow.ellipsis,
                                 style: online
                                     ? null
@@ -321,11 +316,6 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
       ),
     );
   }
-}
-
-String _machineLabel(Machine machine) {
-  final meta = machine.metadata;
-  return meta?.displayName ?? meta?.host ?? machine.id;
 }
 
 Machine? _machineById(List<Machine> machines, String id) {

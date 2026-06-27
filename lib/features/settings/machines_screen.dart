@@ -90,15 +90,9 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen>
     // Watch the identity-stable derived list to avoid rebuilds when other
     // map-shaped providers change. The list is unmodifiable, so copy before
     // sorting.
+    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
     final machineList = ref.watch(machinesListProvider).toList()
-      ..sort((a, b) {
-        final aOnline = a.isOnline;
-        final bOnline = b.isOnline;
-        if (aOnline == bOnline) {
-          return b.activeAt.compareTo(a.activeAt);
-        }
-        return aOnline ? -1 : 1;
-      });
+      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.settingsMachines)),
@@ -128,11 +122,6 @@ class _MachinesList extends StatelessWidget {
   final Set<String> deletingIds;
   final void Function(Machine machine) onDelete;
 
-  String _machineTitle(Machine machine) {
-    final metadata = machine.metadata;
-    return metadata?.displayName ?? metadata?.host ?? machine.id;
-  }
-
   String _machineSubtitle(BuildContext context, Machine machine) {
     final l10n = AppLocalizations.of(context);
     final platform = machine.metadata?.platform ?? l10n.commonUnknown;
@@ -153,11 +142,10 @@ class _MachinesList extends StatelessWidget {
                 icon: Icons.computer_outlined,
                 iconColor: machine.isOnline
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: AppOpacity.medium),
-                title: _machineTitle(machine),
+                    : Theme.of(context).colorScheme.onSurface.withValues(
+                        alpha: AppOpacity.medium,
+                      ),
+                title: machine.displayLabel,
                 subtitle: _machineSubtitle(context, machine),
                 onTap: () => context.pushNamed(
                   'machine-detail',
@@ -169,12 +157,9 @@ class _MachinesList extends StatelessWidget {
                     AppStatusDot(
                       color: machine.isOnline
                           ? AppColors.success
-                          : Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(
-                                alpha: AppOpacity.medium,
-                              ),
+                          : Theme.of(context).colorScheme.onSurface.withValues(
+                              alpha: AppOpacity.medium,
+                            ),
                       size: AppSpacing.sm,
                       pulse: machine.isOnline,
                     ),
@@ -184,21 +169,15 @@ class _MachinesList extends StatelessWidget {
                         width: AppSpacing.xl,
                         height: AppSpacing.xl,
                         child: Padding(
-                          padding: EdgeInsets.all(
-                            AppSpacing.xxs,
-                          ),
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
+                          padding: EdgeInsets.all(AppSpacing.xxs),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       )
                     else
                       IconButton(
                         icon: Icon(
                           Icons.delete_outline,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .error,
+                          color: Theme.of(context).colorScheme.error,
                         ),
                         onPressed: () => onDelete(machine),
                       ),
@@ -220,9 +199,7 @@ class _MachinesEmptyState extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        SizedBox(
-          height: MediaQuery.sizeOf(context).height * 0.15,
-        ),
+        SizedBox(height: MediaQuery.sizeOf(context).height * 0.15),
         AppEmptyState(
           icon: Icons.computer_outlined,
           title: context.l10n.machinesNoMachines,

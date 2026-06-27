@@ -217,8 +217,8 @@ void main() {
             'host': 'test-host',
             'platform': 'win32',
             'happyCliVersion': '3.0.0',
-            'happyHomeDir': 'C:\\\\.happy',
-            'homeDir': 'C:\\',
+            'happyHomeDir': r'C:\\.happy',
+            'homeDir': r'C:\',
           },
         };
 
@@ -239,10 +239,7 @@ void main() {
           'activeAt': 1000000000,
           'metadataVersion': 0,
           'daemonStateVersion': 1,
-          'daemonState': <String, dynamic>{
-            'status': 'idle',
-            'pid': 9999,
-          },
+          'daemonState': <String, dynamic>{'status': 'idle', 'pid': 9999},
         };
 
         final machine = Machine.fromJson(json);
@@ -271,10 +268,7 @@ void main() {
           'daemonStateVersion': 0,
         };
 
-        expect(
-          () => Machine.fromJson(json),
-          throwsA(isA<FormatException>()),
-        );
+        expect(() => Machine.fromJson(json), throwsA(isA<FormatException>()));
       });
 
       test('throws on wrong type for active', () {
@@ -289,10 +283,7 @@ void main() {
           'daemonStateVersion': 0,
         };
 
-        expect(
-          () => Machine.fromJson(json),
-          throwsA(isA<FormatException>()),
-        );
+        expect(() => Machine.fromJson(json), throwsA(isA<FormatException>()));
       });
 
       test('converts double values to int for numeric fields', () {
@@ -428,6 +419,65 @@ void main() {
           isTrue,
         );
         expect(machine(active: false, activeAt: 1).isStaleAt(now), isFalse);
+      });
+    });
+
+    group('selection helpers', () {
+      Machine machine({
+        required String id,
+        required int activeAt,
+        String? displayName,
+        String? host,
+        bool active = true,
+      }) {
+        return Machine(
+          id: id,
+          seq: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          active: active,
+          activeAt: activeAt,
+          metadataVersion: 0,
+          daemonStateVersion: 0,
+          metadata: MachineMetadata(displayName: displayName, host: host),
+        );
+      }
+
+      test('display label prefers display name, host, then id', () {
+        expect(
+          machine(
+            id: 'id-1',
+            displayName: 'Display',
+            host: 'host.local',
+            activeAt: 1,
+          ).displayLabel,
+          'Display',
+        );
+        expect(
+          machine(id: 'id-2', host: 'host.local', activeAt: 1).displayLabel,
+          'host.local',
+        );
+        expect(machine(id: 'id-3', activeAt: 1).displayLabel, 'id-3');
+      });
+
+      test('sorts online machines before offline machines by label', () {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final machines = [
+          machine(
+            id: 'offline',
+            displayName: 'Alpha Offline',
+            active: false,
+            activeAt: now,
+          ),
+          machine(id: 'z-online', displayName: 'Zed Online', activeAt: now),
+          machine(id: 'a-online', displayName: 'Alpha Online', activeAt: now),
+        ]..sort((a, b) => compareMachinesByAvailabilityAt(now, a, b));
+
+        expect(machines.map((machine) => machine.id), [
+          'a-online',
+          'z-online',
+          'offline',
+        ]);
       });
     });
 

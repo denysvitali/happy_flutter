@@ -89,17 +89,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     // Sort machines: online first, then offline. Show all so users can see
     // (and understand) which machines are unavailable rather than silently
     // hiding them.
+    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
     final machines = allMachines.values.toList()
-      ..sort((a, b) {
-        final aOnline = a.isOnline ? 0 : 1;
-        final bOnline = b.isOnline ? 0 : 1;
-        if (aOnline != bOnline) return aOnline.compareTo(bOnline);
-        final aName =
-            a.metadata?.displayName ?? a.metadata?.host ?? a.id;
-        final bName =
-            b.metadata?.displayName ?? b.metadata?.host ?? b.id;
-        return aName.compareTo(bName);
-      });
+      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
 
     // Check whether the currently selected machine is still online.
     final selectedMachineObj = _selectedMachine != null
@@ -144,9 +136,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 ),
                 ...machines.map(
                   (machine) => Text(
-                    machine.metadata?.displayName ??
-                        machine.metadata?.host ??
-                        machine.id,
+                    machine.displayLabel,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -178,9 +168,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                         const SizedBox(width: AppSpacing.sm),
                         Flexible(
                           child: Text(
-                            machine.metadata?.displayName ??
-                                machine.metadata?.host ??
-                                machine.id,
+                            machine.displayLabel,
                             overflow: TextOverflow.ellipsis,
                             style: online
                                 ? null
@@ -198,9 +186,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                             ),
                             decoration: BoxDecoration(
                               color: cs.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(
-                                AppRadius.xs,
-                              ),
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
                             ),
                             child: Text(
                               l10n.machineOffline,
