@@ -247,15 +247,62 @@ extension SyncLoops on Sync {
   /// Delete a loop. The daemon is authoritative, but after it confirms the
   /// delete we also trim the local mirror immediately. A later
   /// `loops-updated` event still wins with the full daemon list.
+  ///
+  /// Optimistically removes the loop from local state before the RPC so
+  /// the UI updates without waiting for the round-trip. If the daemon
+  /// rejects because the session is dead ("no scheduler for session" or
+  /// "Session encryption not found"), the optimistic removal is retained —
+  /// the on-disk loop file will be cleaned up by the daemon's disk-fallback
+  /// handler when it restarts. Socket disconnection or RPC timeouts are also
+  /// swallowed; the authoritative state will be refreshed on reconnect.
   Future<void> deleteLoop({
     required String sessionId,
     required String loopId,
   }) async {
-    final raw = await sessionRPC(
-      sessionId,
-      'loop-delete',
-      <String, dynamic>{'loopId': loopId},
-    );
+    // Optimistic: remove from local state immediately so the UI updates
+    // without waiting for the RPC round-trip.
+    _applyLoopDeleted(sessionId, loopId);
+
+    dynamic raw;
+    try {
+      raw = await sessionRPC(
+        sessionId,
+        'loop-delete',
+        <String, dynamic>{'loopId': loopId},
+      );
+    } on StateError catch (e) {
+      if (e.message.contains('Session encryption not found') ||
+          e.message.contains('no scheduler for session')) {
+        // Session is dead — the optimistic removal is the best we can do.
+        // The daemon's disk-fallback handler (happy-cli-go) will clean up
+        // the on-disk file if it ever restarts this session.
+        logger.info(
+          '[loops] deleteLoop($sessionId, $loopId) — session dead, '
+          'optimistic removal retained',
+        );
+        return;
+      }
+      // Unexpected StateError — rethrow so the caller can show an error.
+      rethrow;
+    } on SocketNotConnectedException {
+      // Socket down — keep the optimistic removal. A reconnect will
+      // refresh the full list via loops-updated.
+      logger.info(
+        '[loops] deleteLoop($sessionId, $loopId) — socket disconnected, '
+        'optimistic removal retained',
+      );
+      return;
+    } on SocketAckTimeoutException {
+      // Daemon may be wedged — keep the optimistic removal. The user
+      // can refresh later; a timeout here is not a reason to resurrect
+      // the loop in the UI.
+      logger.info(
+        '[loops] deleteLoop($sessionId, $loopId) — RPC timed out, '
+        'optimistic removal retained',
+      );
+      return;
+    }
+
     if (raw is! Map) {
       throw StateError(
         'loop-delete returned unexpected type: ${raw.runtimeType}',
@@ -264,22 +311,76 @@ extension SyncLoops on Sync {
     final ok = raw['ok'];
     if (ok == false) {
       final err = raw['error']?.toString() ?? 'unknown error';
+      // Daemon explicitly rejected — roll back the optimistic removal
+      // so the user can retry or investigate.
+      logger.warning(
+        '[loops] deleteLoop($sessionId, $loopId) daemon rejected: $err — '
+        'rolling back optimistic removal',
+      );
+      // Rollback: re-fetch the authoritative list from the daemon.
+      // We can't reconstruct the single loop, so we refresh the whole
+      // session's loops. This is rare (daemon rejection with live session).
+      await listLoops(sessionId: sessionId);
       throw StateError('loop-delete failed: $err');
     }
-    _applyLoopDeleted(sessionId, loopId);
+    // RPC confirmed — optimistic state is already correct.
   }
 
-  /// Pause or resume a loop. Same pattern as [deleteLoop].
+  /// Pause or resume a loop. Same optimistic pattern as [deleteLoop]:
+  /// toggles the paused flag locally first, then confirms with the daemon.
+  /// If the session is dead, socket is down, or the RPC times out, the
+  /// optimistic state is retained and will be reconciled on reconnect.
   Future<void> pauseLoop({
     required String sessionId,
     required String loopId,
     required bool paused,
   }) async {
-    final raw = await sessionRPC(
-      sessionId,
-      'loop-pause',
-      <String, dynamic>{'loopId': loopId, 'paused': paused},
-    );
+    // Optimistic: toggle the paused flag locally so the UI updates
+    // immediately without waiting for the RPC round-trip.
+    final loops = _loopsBySession[sessionId];
+    if (loops != null) {
+      final idx = loops.indexWhere((l) => l.id == loopId);
+      if (idx >= 0) {
+        final updated = List<Loop>.from(loops);
+        updated[idx] = loops[idx].copyWith(paused: paused);
+        _loopsBySession[sessionId] = List<Loop>.unmodifiable(updated);
+        LoopStorage.instance.save(sessionId, updated);
+        _loopsChangeController.add(sessionId);
+        _notifyDataChanged({SyncDomain.loops});
+      }
+    }
+
+    dynamic raw;
+    try {
+      raw = await sessionRPC(
+        sessionId,
+        'loop-pause',
+        <String, dynamic>{'loopId': loopId, 'paused': paused},
+      );
+    } on StateError catch (e) {
+      if (e.message.contains('Session encryption not found') ||
+          e.message.contains('no scheduler for session')) {
+        logger.info(
+          '[loops] pauseLoop($sessionId, $loopId) — session dead, '
+          'optimistic pause retained',
+        );
+        return;
+      }
+      rethrow;
+    } on SocketNotConnectedException {
+      logger.info(
+        '[loops] pauseLoop($sessionId, $loopId) — socket disconnected, '
+        'optimistic pause retained',
+      );
+      return;
+    } on SocketAckTimeoutException {
+      logger.info(
+        '[loops] pauseLoop($sessionId, $loopId) — RPC timed out, '
+        'optimistic pause retained',
+      );
+      return;
+    }
+
     if (raw is! Map) {
       throw StateError(
         'loop-pause returned unexpected type: ${raw.runtimeType}',
@@ -288,6 +389,12 @@ extension SyncLoops on Sync {
     final ok = raw['ok'];
     if (ok == false) {
       final err = raw['error']?.toString() ?? 'unknown error';
+      // Rollback: re-fetch the authoritative list from the daemon.
+      logger.warning(
+        '[loops] pauseLoop($sessionId, $loopId) daemon rejected: $err — '
+        'rolling back optimistic pause',
+      );
+      await listLoops(sessionId: sessionId);
       throw StateError('loop-pause failed: $err');
     }
   }
