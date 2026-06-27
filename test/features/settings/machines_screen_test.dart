@@ -22,6 +22,7 @@ class _StubMachinesNotifier extends MachinesNotifier {
 Machine _makeMachine({
   required String id,
   required bool active,
+  int? activeAt,
   String? displayName,
   String? platform,
   String? host,
@@ -32,7 +33,7 @@ Machine _makeMachine({
     createdAt: 1000,
     updatedAt: 2000,
     active: active,
-    activeAt: 3000,
+    activeAt: activeAt ?? DateTime.now().millisecondsSinceEpoch,
     metadataVersion: 1,
     daemonStateVersion: 1,
     metadata: MachineMetadata(
@@ -185,6 +186,43 @@ void main() {
       expect(find.text('linux • Online'), findsOneWidget);
     });
 
+    testWidgets('shows offline status for stale active machine', (
+      tester,
+    ) async {
+      final staleActiveAt = DateTime.now()
+          .subtract(const Duration(minutes: 10))
+          .millisecondsSinceEpoch;
+      final machines = {
+        'machine-1': _makeMachine(
+          id: 'machine-1',
+          active: true,
+          activeAt: staleActiveAt,
+          displayName: 'Stale Laptop',
+          platform: 'linux',
+        ),
+      };
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            machinesNotifierProvider.overrideWith(
+              () => _StubMachinesNotifier(machines),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates:
+                AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const MachinesScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('linux • Offline'), findsOneWidget);
+    });
+
     testWidgets('shows offline status for inactive machine',
         (tester) async {
       final machines = {
@@ -280,7 +318,7 @@ void main() {
       expect(find.byIcon(Icons.computer_outlined), findsOneWidget);
     });
 
-    testWidgets('sorts active machines before inactive ones',
+    testWidgets('sorts online machines before offline ones',
         (tester) async {
       final machines = {
         'machine-inactive': _makeMachine(
@@ -315,7 +353,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      // Active machine should appear before inactive
+      // Online machine should appear before offline.
       final activeFinder = find.text('Active Machine');
       final inactiveFinder = find.text('Inactive Machine');
       expect(activeFinder, findsOneWidget);

@@ -92,10 +92,12 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen>
     // sorting.
     final machineList = ref.watch(machinesListProvider).toList()
       ..sort((a, b) {
-        if (a.active == b.active) {
+        final aOnline = a.isOnline;
+        final bOnline = b.isOnline;
+        if (aOnline == bOnline) {
           return b.activeAt.compareTo(a.activeAt);
         }
-        return a.active ? -1 : 1;
+        return aOnline ? -1 : 1;
       });
 
     return Scaffold(
@@ -134,7 +136,7 @@ class _MachinesList extends StatelessWidget {
   String _machineSubtitle(BuildContext context, Machine machine) {
     final l10n = AppLocalizations.of(context);
     final platform = machine.metadata?.platform ?? l10n.commonUnknown;
-    final status = machine.active ? l10n.machineOnline : l10n.machineOffline;
+    final status = machine.isOnline ? l10n.machineOnline : l10n.machineOffline;
     return '$platform • $status';
   }
 
@@ -149,7 +151,7 @@ class _MachinesList extends StatelessWidget {
             for (final machine in machines)
               SettingsRow(
                 icon: Icons.computer_outlined,
-                iconColor: machine.active
+                iconColor: machine.isOnline
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context)
                         .colorScheme
@@ -165,7 +167,7 @@ class _MachinesList extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     AppStatusDot(
-                      color: machine.active
+                      color: machine.isOnline
                           ? AppColors.success
                           : Theme.of(context)
                               .colorScheme
@@ -174,7 +176,7 @@ class _MachinesList extends StatelessWidget {
                                 alpha: AppOpacity.medium,
                               ),
                       size: AppSpacing.sm,
-                      pulse: machine.active,
+                      pulse: machine.isOnline,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     if (deletingIds.contains(machine.id))
