@@ -178,12 +178,17 @@ class _DiffViewState extends State<DiffView> {
     final number = line.type == DiffLineType.remove
         ? line.oldLineNumber
         : line.type == DiffLineType.add
-        ? line.newLineNumber
-        : line.oldLineNumber;
+            ? line.newLineNumber
+            : line.oldLineNumber;
+    final bgColor = line.type == DiffLineType.add
+        ? colors.addedBg
+        : line.type == DiffLineType.remove
+            ? colors.removedBg
+            : colors.lineNumberBg;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      color: colors.lineNumberBg,
+      color: bgColor,
       constraints: const BoxConstraints(minWidth: 50),
       child: Text(
         (number ?? '').toString().padLeft(3, ' '),
@@ -220,9 +225,18 @@ class _DiffViewState extends State<DiffView> {
 
   Widget _buildContent(DiffLine line, ThemeData theme, DiffTheme colors) {
     final formatted = _formatLineContent(line.content);
+    final lineBg = line.type == DiffLineType.add
+        ? colors.addedBg
+        : line.type == DiffLineType.remove
+            ? colors.removedBg
+            : null;
 
     if (line.tokens != null && line.tokens!.isNotEmpty) {
-      return _buildTokenizedContent(line.tokens!, colors);
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        color: lineBg,
+        child: _buildTokenizedContent(line.tokens!, colors),
+      );
     }
 
     // Regular rendering
@@ -236,7 +250,7 @@ class _DiffViewState extends State<DiffView> {
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      color: null,
+      color: lineBg,
       child: RichText(
         text: TextSpan(
           children: [
@@ -251,8 +265,8 @@ class _DiffViewState extends State<DiffView> {
                 color: line.type == DiffLineType.add
                     ? colors.addedText
                     : line.type == DiffLineType.remove
-                    ? colors.removedText
-                    : colors.contextText,
+                        ? colors.removedText
+                        : colors.contextText,
                 fontFamily: 'monospace',
                 fontSize: AppFontSize.md,
                 height: AppLineHeight.relaxed,

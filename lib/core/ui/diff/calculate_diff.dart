@@ -437,8 +437,10 @@ List<DiffHunk> _createHunks(List<DiffLine> lines, int contextLines) {
     final endContext =
         (change.index + contextLines).clamp(0, lines.length - 1);
 
-    // Add lines from last included index to current hunk
-    for (var j = (lastIncludedIndex + 1).clamp(0, startContext);
+    // Add lines from last included index to current hunk. Ensure we never
+    // walk backwards (duplicating lines) when the next change's context
+    // window starts before the previously included line.
+    for (var j = (lastIncludedIndex + 1).clamp(startContext, lines.length - 1);
         j <= endContext;
         j++) {
       currentHunk.add(lines[j]);
