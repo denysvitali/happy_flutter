@@ -99,24 +99,6 @@ void main() {
         isNot(equals(DiffTheme.dark.inlineRemovedBg)),
       );
     });
-
-    test('asLegacy maps every named field to the legacy DiffTheme', () {
-      // The asLegacy bridge is used by callers that need to pass the
-      // palette to a widget (DiffView) that still expects the legacy
-      // core/ui/diff/diff_types.DiffTheme value type. Every field
-      // must round-trip.
-      const theme = DiffTheme.dark;
-      final legacy = theme.asLegacy();
-      // ui.DiffTheme fields — the legacy type uses slightly
-      // different names (addedBg vs inlineAddedBg are both
-      // present). Pin a representative sample.
-      // ignore: avoid_dynamic_calls
-      expect(legacy.addedBg, theme.addedBg);
-      // ignore: avoid_dynamic_calls
-      expect(legacy.inlineRemovedBg, theme.inlineRemovedBg);
-      // ignore: avoid_dynamic_calls
-      expect(legacy.leadingSpaceDot, theme.leadingSpaceDot);
-    });
   });
 
   group('AppColors diff tokens', () {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/theme/diff_theme.dart';
-import 'package:happy_flutter/core/ui/diff/diff_types.dart' as ui;
-import 'package:happy_flutter/core/ui/diff/diff_view.dart' as diff_view;
+import 'package:happy_flutter/core/ui/diff/unified_diff_view.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
 
 void main() {
@@ -50,27 +48,17 @@ class Greeter {
       darkTheme: ThemeHelper.buildDarkTheme(),
       themeMode: dark ? ThemeMode.dark : ThemeMode.light,
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
+      home: const Scaffold(
         body: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Builder(
-              builder: (context) {
-                final theme = context.diffTheme.asLegacy();
-                return diff_view.DiffView(
-                  oldText: oldText,
-                  newText: newText,
-                  oldTitle: 'lib/greeter.dart',
-                  newTitle: 'lib/greeter.dart',
-                  config: ui.DiffViewConfig(
-                    contextLines: 3,
-                    showLineNumbers: true,
-                    showPlusMinusSymbols: true,
-                    showDiffStats: true,
-                    theme: theme,
-                  ),
-                );
-              },
+            padding: EdgeInsets.all(16),
+            child: UnifiedDiffView(
+              oldText: oldText,
+              newText: newText,
+              contextLines: 3,
+              showLineNumbers: true,
+              showPlusMinusSymbols: true,
+              showDiffStats: true,
             ),
           ),
         ),
@@ -78,7 +66,7 @@ class Greeter {
     );
   }
 
-  group('DiffView golden', () {
+  group('UnifiedDiffView golden', () {
     testWidgets('renders a unified diff in light mode', (tester) async {
       tester.view.physicalSize = const Size(600 * 2, 1500 * 2);
       tester.view.devicePixelRatio = 2.0;
@@ -89,7 +77,7 @@ class Greeter {
 
       await expectLater(
         find.byType(MaterialApp),
-        matchesGoldenFile('goldens/diff_view_light.png'),
+        matchesGoldenFile('goldens/unified_diff_light.png'),
       );
     });
 
@@ -103,7 +91,7 @@ class Greeter {
 
       await expectLater(
         find.byType(MaterialApp),
-        matchesGoldenFile('goldens/diff_view_dark.png'),
+        matchesGoldenFile('goldens/unified_diff_dark.png'),
       );
     });
   });

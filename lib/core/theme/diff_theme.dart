@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../ui/diff/diff_types.dart' as ui;
 import 'app_colors.dart';
 
 /// Theme extension carrying the diff palette used by the chat tool
@@ -164,35 +163,4 @@ class DiffTheme extends ThemeExtension<DiffTheme> {
 extension DiffThemeContext on BuildContext {
   DiffTheme get diffTheme =>
       Theme.of(this).extension<DiffTheme>() ?? DiffTheme.light;
-}
-
-/// Bridge from the new extension palette to the legacy
-/// `core/ui/diff/diff_types.DiffTheme` value type.
-///
-/// `DiffView.config.theme` still expects the legacy value type. This
-/// extension lets call sites that already consume the new extension
-/// pass `context.diffTheme.asLegacy()` directly without going through
-/// the `ToolViewColors` bridge.
-extension DiffThemeLegacyBridge on DiffTheme {
-  /// Map this extension palette onto the legacy
-  /// `core/ui/diff/diff_types.DiffTheme` value type.
-  ui.DiffTheme asLegacy() {
-    return ui.DiffTheme(
-      addedBg: addedBg,
-      addedText: addedText,
-      removedBg: removedBg,
-      removedText: removedText,
-      contextBg: contextBg,
-      contextText: contextText,
-      lineNumberBg: lineNumberBg,
-      lineNumberText: lineNumberText,
-      hunkHeaderBg: hunkHeaderBg,
-      hunkHeaderText: hunkHeaderText,
-      inlineAddedBg: inlineAddedBg,
-      inlineAddedText: inlineAddedText,
-      inlineRemovedBg: inlineRemovedBg,
-      inlineRemovedText: inlineRemovedText,
-      leadingSpaceDot: leadingSpaceDot,
-    );
-  }
 }
