@@ -298,7 +298,12 @@ extension _ChatScreenActions on _ChatScreenState {
         attributes: {'has_cached_messages': hasCached},
       );
       final queueFuture = sync.messagesSync[sessionId]?.awaitQueue();
-      const backgroundTimeout = Duration(seconds: 30);
+      // Cap background await at 8s so network-change stalls (Cronet
+      // ERR_NETWORK_CHANGED) fail fast instead of blocking for 30s.
+      // The per-page fetch already uses 8s connect+receive timeouts;
+      // aligning the UI await prevents the 15s+ stalls seen in
+      // trace 9554856ddcc15b9250663f04e65daa61.
+      const backgroundTimeout = Duration(seconds: 8);
       if (hasCached) {
         awaitSpan.setData('mode', 'background');
         otelAwaitSpan?.setAttribute('mode', 'background');
@@ -734,7 +739,7 @@ extension _ChatScreenActions on _ChatScreenState {
     }
 
     if (text.toLowerCase().startsWith('/loop ')) {
-      _handleLoopCommand(text);
+      unawaited(_handleLoopCommand(text));
       return;
     }
 
@@ -941,10 +946,10 @@ extension _ChatScreenActions on _ChatScreenState {
     if (body == 'list') {
       unawaited(DraftStorage().removeDraft(sessionId));
       _controller.clear();
-      context.pushNamed(
+      unawaited(context.pushNamed(
         'chat-loops',
         pathParameters: {'sessionId': sessionId},
-      );
+      ));
       return;
     }
 

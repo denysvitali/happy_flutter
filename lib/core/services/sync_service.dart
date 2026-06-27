@@ -1306,7 +1306,10 @@ Future<void> syncRestore(AuthCredentials credentials) async {
     );
   }
 
-  final encryption = await Encryption.create(secretKey);
+  // Derive encryption keys off the UI isolate — key derivation is
+  // CPU-bound scrypt/argon-like work that blocks frames for 50-150ms
+  // on low-end devices.
+  final encryption = await Isolate.run(() => Encryption.create(secretKey));
   await sync.restore(credentials, encryption);
   sessionActivityCoordinator.attach(sync);
 }

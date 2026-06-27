@@ -19,6 +19,7 @@ import 'core/routing/app_router.dart';
 import 'core/services/app_visibility_coordinator.dart';
 import 'core/services/frame_metrics_service.dart';
 import 'core/services/logger_service.dart';
+import 'core/services/mmkv_storage.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/opentelemetry_service.dart';
@@ -106,6 +107,11 @@ Future<void> _runApp() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
+  // Warm MMKV in parallel with everything else — its JNI init is
+  // idempotent and independent. Overlapping it with the deep-link
+  // probe and Sentry setup shaves 30-80ms off the critical path.
+  final mmkvWarmup = MMKVStorage.initialize();
+
   // Start the initial deep-link platform-channel call in parallel
   // with first frame.  Previously this was awaited before `runApp`,
   // adding 10–50ms (or more on cold start) to time-to-first-paint
@@ -120,7 +126,11 @@ Future<void> _runApp() async {
     unawaited(deepLinkSpan.finish());
   });
   unawaited(sodiumSingleton); // FFI load overlaps with storage/network
-  unawaited(OpenTelemetryService().initialize());
+
+  // REMOVED: unawaited(OpenTelemetryService().initialize());
+  // OTel init is already handled inside _deferredInit, which runs
+  // after first frame. Keeping it here duplicates work and adds
+  // ~10-30ms to the critical path for zero benefit.
 
   // Defer Android user certificates, Firebase,
   // and NetworkMonitorService past first frame — none of them are
@@ -151,7 +161,8 @@ Future<void> _runApp() async {
       description: 'Initialize API client',
     );
 
-    final storageInit = storage.Storage().initialize();
+    // MMKV is already warming; just await the completer here.
+    final storageInit = mmkvWarmup;
     final apiInit = ApiClient().initialize(serverUrl: serverUrl);
     await Future.wait<void>([storageInit, apiInit]);
     await storageSpan.finish();

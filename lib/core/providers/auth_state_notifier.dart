@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -85,10 +86,19 @@ class AuthStateNotifier extends Notifier<AuthState> {
         // refreshFromSync() from the screen is a cheap no-op.
         // invalidate() returns void (not Future) so we just call
         // it directly without unawaited().
+        // Only invalidate the two syncs needed for the default screen.
+        // Artifacts and git-status are deferred to a post-frame callback so
+        // they don't compete with the first paint for the main-thread event
+        // loop.
         sync.sessionsSync.invalidate();
         sync.machinesSync.invalidate();
-        sync.artifactsSync.invalidate();
-        sync.sessionGitStatusSync.invalidate();
+
+        // Defer non-critical syncs to a post-frame callback so they don't
+        // compete with the first paint for the main-thread event loop.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          sync.artifactsSync.invalidate();
+          sync.sessionGitStatusSync.invalidate();
+        });
 
         // Remaining auth-critical syncs complete in the background.
         unawaited(

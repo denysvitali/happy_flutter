@@ -233,12 +233,9 @@ extension SyncSocket on Sync {
 
     // Cold-start loops hydration: populate the in-memory loops map
     // from MMKV for every session that came back from the cache
-    // restore above. Without this, the Loops tab shows a blank
-    // spinner until the server pushes a `loops-updated` event for
-    // every session — which can take seconds when the user has many
-    // sessions and the network is slow. New sessions created after
-    // startup are hydrated lazily by their first listLoops call.
-    hydrateAllFromCache();
+    // restore above. Defer to a microtask so it doesn't block
+    // isInitialized = true and the first frame paint.
+    Future<void>.microtask(hydrateAllFromCache);
 
     // Setup socket connection
     final serverUrl = getServerUrl();
@@ -702,6 +699,9 @@ extension SyncSocket on Sync {
         _sessionEncryptedDataKeys.clear();
         // Collect all entries first, then decrypt in parallel instead of
         // sequentially awaiting each one.
+        // Only initialize encryption for the sessions we restored
+        // synchronously — the rest are initialized on-demand when
+        // the user opens the session.
         final entries = encryptedKeysRaw.entries
             .where(
               (e) =>
@@ -710,6 +710,7 @@ extension SyncSocket on Sync {
                   (e.value as String).isNotEmpty,
             )
             .map((e) => (e.key as String, e.value as String))
+            .where((e) => _sessions.containsKey(e.$1))
             .toList();
         for (final (id, key) in entries) {
           _sessionEncryptedDataKeys[id] = key;
@@ -913,10 +914,10 @@ extension SyncSocket on Sync {
   }
 
   /// Sessions warmed per batch when restoring cached messages on cold
-  /// start. Yielding to the event loop between batches keeps the UI
-  /// isolate responsive while still warming previews quickly.
-  static const int _coldStartMessageCacheBatchSize = 20;
-  static const int _maxColdStartMessageCacheWarmSessions = 20;
+  /// start. Only warm the message cache for the sessions that were restored
+  /// synchronously. Older sessions load their cache on-demand when opened.
+  static const int _coldStartMessageCacheBatchSize = 5;
+  static const int _maxColdStartMessageCacheWarmSessions = 5;
 
   /// Number of sessions decoded per batch in
   /// [_restoreRemainingSessionsAsync]. Yielding to the event loop between

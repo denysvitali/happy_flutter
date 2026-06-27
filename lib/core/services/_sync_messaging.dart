@@ -614,6 +614,22 @@ extension SyncMessaging on Sync {
 
         if (!apiClient.isSuccess(response)) {
           final statusCode = response.statusCode;
+          // Connectivity-aware fast-path: if the page failed because of a
+          // mobile network transition (Cronet ERR_NETWORK_CHANGED), retry
+          // the same page immediately after a short delay instead of
+          // breaking and waiting for the next InvalidateSync cycle.
+          final isNetworkChanged =
+              response.statusCode == null &&
+              response.statusMessage?.contains('ERR_NETWORK_CHANGED') == true;
+          if (isNetworkChanged) {
+            logger.info(
+              '[fetchMessages] $sessionId page=$page: '
+              'ERR_NETWORK_CHANGED — retrying same page in 500ms',
+            );
+            await Future<void>.delayed(const Duration(milliseconds: 500));
+            continue; // retry same page
+          }
+
           pageSpan
             ..status = const SpanStatus.internalError()
             ..setData('statusCode', statusCode ?? 0);

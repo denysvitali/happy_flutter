@@ -102,7 +102,9 @@ class ApiClient {
     final baseOptions = BaseOptions(
       baseUrl: serverUrl,
       connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 60),
+      // 15s default receive — the 60s fallback was excessive for chat
+      // fetches and allowed Cronet stalls to hang for too long.
+      receiveTimeout: const Duration(seconds: 15),
       sendTimeout: const Duration(seconds: 30),
       contentType: 'application/json',
       responseType: ResponseType.json,

@@ -209,6 +209,13 @@ class RetryInterceptor extends Interceptor {
   }
 
   bool _isRetryable(DioException err) {
+    // Cronet transient errors (ERR_NETWORK_CHANGED, ERR_CONNECTION_ABORTED,
+    // etc.) are surfaced as DioExceptionType.unknown — check the inner
+    // error string so mobile network transitions get retried immediately.
+    if (isTransientConnectionError(err)) {
+      return true;
+    }
+
     // Retry on 5xx server errors
     if (err.response?.statusCode != null &&
         err.response!.statusCode! >= 500 &&
