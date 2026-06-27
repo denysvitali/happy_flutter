@@ -41,7 +41,8 @@ void main() {
       expect(find.text('Unsupported agent message'), findsOneWidget);
     });
 
-    testWidgets('renders fallback text for unknown event types', (tester) async {
+    testWidgets(
+        'renders fallback text for unknown event types', (tester) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
@@ -58,7 +59,8 @@ void main() {
       expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
     });
 
-    testWidgets('uses explicit message over generated fallback', (tester) async {
+    testWidgets(
+        'uses explicit message over generated fallback', (tester) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
@@ -74,17 +76,48 @@ void main() {
       expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
     });
 
-    testWidgets('renders generic fallback for malformed event payload', (tester) async {
+    testWidgets(
+        'renders sub-agent tool name and icon when provided', (tester) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
-            event: <String, dynamic>{'not': 'a-type-field'},
+            event: <String, dynamic>{'type': 'message', 'message': 'Working'},
+            message: <String, dynamic>{'subAgentLastTool': 'Bash'},
           ),
         ),
       );
 
-      expect(find.text('Unsupported agent event'), findsOneWidget);
-      expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
+      expect(find.text('Bash'), findsOneWidget);
+      expect(find.text('Working'), findsOneWidget);
+    });
+
+    testWidgets('ignores empty sub-agent tool name', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const AgentEventWidget(
+            event: <String, dynamic>{
+              'type': 'unrendered',
+              'message': 'Unsupported message',
+            },
+            message: <String, dynamic>{'subAgentLastTool': ''},
+          ),
+        ),
+      );
+
+      expect(find.text('Unsupported message'), findsOneWidget);
+      expect(find.byIcon(Icons.help_outline_rounded), findsOneWidget);
+    });
+
+    testWidgets('message parameter is optional', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const AgentEventWidget(
+            event: <String, dynamic>{'type': 'message', 'message': 'Hello'},
+          ),
+        ),
+      );
+
+      expect(find.text('Hello'), findsOneWidget);
     });
   });
 

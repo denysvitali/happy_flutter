@@ -23,6 +23,8 @@ class ThinkingPill extends StatefulWidget {
     super.key,
     this.lastToolName,
     this.thinkingAt,
+    this.subAgentToolName,
+    this.subAgentStartedAt,
   });
 
   /// Whether the agent is currently in the thinking state.
@@ -37,6 +39,19 @@ class ThinkingPill extends StatefulWidget {
 
   /// Unix-ms timestamp of when thinking started.
   final int? thinkingAt;
+
+  /// Name of the tool the most-recent sub-agent is running, if any.
+  ///
+  /// Distinct from [lastToolName] (which is the most recent main-agent
+  /// tool). When set, the pill stays visible even after the main agent
+  /// finishes "thinking" — because in dynamic-workflow dispatches the
+  /// CLI only emits `task_progress` meta events for sub-agents, so the
+  /// wire never reports a main-agent tool call while the workflow runs.
+  final String? subAgentToolName;
+
+  /// Unix-ms timestamp of when the current sub-agent activity started.
+  /// Drives the elapsed counter when the pill is showing sub-agent work.
+  final int? subAgentStartedAt;
 
   @override
   State<ThinkingPill> createState() => _ThinkingPillState();
@@ -71,12 +86,18 @@ class _ThinkingPillState extends State<ThinkingPill>
   void didUpdateWidget(ThinkingPill old) {
     super.didUpdateWidget(old);
     if (widget.isThinking != old.isThinking ||
-        widget.isTextStreaming != old.isTextStreaming) {
+        widget.isTextStreaming != old.isTextStreaming ||
+        widget.subAgentToolName != old.subAgentToolName) {
       _syncState();
     }
   }
 
-  bool get _shouldShow => widget.isThinking && !widget.isTextStreaming;
+  bool get _shouldShow {
+    if (widget.isTextStreaming) return false;
+    if (widget.isThinking) return true;
+    final sub = widget.subAgentToolName;
+    return sub != null && sub.isNotEmpty;
+  }
 
   void _syncState() {
     if (_shouldShow) {
@@ -104,7 +125,9 @@ class _ThinkingPillState extends State<ThinkingPill>
   }
 
   int _currentElapsed() {
-    final at = widget.thinkingAt;
+    final at = widget.isThinking
+        ? widget.thinkingAt
+        : widget.subAgentStartedAt;
     if (at == null) return 0;
     return ((DateTime.now().millisecondsSinceEpoch - at) / 1000)
         .floor()
@@ -117,7 +140,7 @@ class _ThinkingPillState extends State<ThinkingPill>
   }
 
   String _label() {
-    final tool = widget.lastToolName;
+    final tool = widget.subAgentToolName ?? widget.lastToolName;
     if (tool == null || tool.isEmpty) return 'Working…';
     // CamelCase → spaced words, then capitalise first letter.
     final spaced = tool
@@ -186,7 +209,7 @@ class _ThinkingPillState extends State<ThinkingPill>
             children: [
               AnimatedBuilder(
                 animation: _dotPulse,
-                builder: (_, __) => Container(
+                builder: (context, child) => Container(
                   width: 7,
                   height: 7,
                   decoration: BoxDecoration(

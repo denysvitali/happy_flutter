@@ -11,6 +11,7 @@ import 'package:sentry_flutter/sentry_flutter.dart'
 import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
+import '../../core/models/loop.dart';
 import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
@@ -26,9 +27,8 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/wire_parsers.dart';
 import '../../core/widgets/sync_progress_bar.dart';
-import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
-import '../../core/models/loop.dart';
 import '../loops/create_loop_sheet.dart';
+import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
 import 'chat_tts_gate.dart';
@@ -914,14 +914,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return false;
   }
 
-  /// Name of the most recent tool-call message, if any.
+  /// Name of the most recent tool the main or sub-agent is running, if any.
+  ///
+  /// Prefers main-agent tool-call messages but, when the user dispatched a
+  /// dynamic workflow (the CLI only streams task_* meta events for the
+  /// sub-agent), falls back to the most recent in-flight `subAgentLastTool`
+  /// stamp on an agent-event chip so the ThinkingPill surfaces "Bash…"
+  /// / "Read…" rather than going silent while the workflow churns.
   String? _lastRunningToolName() {
     for (var i = _messages.length - 1; i >= 0; i--) {
-      if (_messages[i]['kind'] == 'tool-call') {
-        return _messages[i]['name'] as String?;
+      final message = _messages[i];
+      final kind = message['kind'];
+      if (kind == 'tool-call') {
+        return message['name'] as String?;
+      }
+      if (kind == 'agent-event') {
+        final tool = message['subAgentLastTool'];
+        if (tool is String && tool.isNotEmpty) return tool;
       }
     }
     return null;
+  }
+
+  /// Returns the most recent in-flight sub-agent tool and the message
+  /// timestamp it came in on. Distinct from [_lastRunningToolName]
+  /// because the ThinkingPill needs to keep showing after the main
+  /// agent stops "thinking" — once the main agent returns from
+  /// dispatching the workflow, only the sub-agent is still working.
+  ({String? toolName, int? startedAt}) _lastSubAgentToolName() {
+    for (var i = _messages.length - 1; i >= 0; i--) {
+      final message = _messages[i];
+      if (message['kind'] != 'agent-event') continue;
+      final tool = message['subAgentLastTool'];
+      if (tool is! String || tool.isEmpty) continue;
+      final ts = message['createdAt'];
+      return (toolName: tool, startedAt: ts is int ? ts : null);
+    }
+    return (toolName: null, startedAt: null);
   }
 
   /// Recomputes the memoized backward scans over [_messages]:
@@ -1268,6 +1297,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               (_session?.thinking ?? false) && _isNewestMessageAgentText(),
           lastToolName: _lastRunningToolName(),
           thinkingAt: _session?.thinkingAt,
+          subAgentToolName: _lastSubAgentToolName().toolName,
+          subAgentStartedAt: _lastSubAgentToolName().startedAt,
         ),
         ChatInput(
           sessionId: widget.sessionId,

@@ -368,7 +368,7 @@ class _AgentConversationScreenState
     }
 
     if (kind == 'agent-event') {
-      return AgentEventWidget(event: msg['event']);
+      return AgentEventWidget(event: msg['event'], message: msg);
     }
 
     return const SizedBox.shrink();
@@ -662,7 +662,7 @@ class _ThinkingRow extends StatelessWidget {
 // ----------------------------------------------------------
 
 class _ErrorRow extends StatelessWidget {
-  const _ErrorRow({required this.theme, required this.msg, super.key});
+  const _ErrorRow({required this.theme, required this.msg});
 
   final ThemeData theme;
   final Map<String, dynamic> msg;

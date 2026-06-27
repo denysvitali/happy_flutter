@@ -9,6 +9,7 @@ import 'widgets/bot_message.dart';
 import 'widgets/error_message_widget.dart';
 import 'widgets/hidden_tool_summary.dart';
 import 'widgets/streaming_cursor.dart';
+import 'widgets/task_event_summary_card.dart';
 import 'widgets/thinking_block.dart';
 import 'widgets/user_bubble.dart';
 
@@ -143,6 +144,27 @@ class _MessageWidgetState extends State<MessageWidget>
         msg['localId'] as String? ??
         msg['key'] as String?;
     final sigContent = msg['content'] ?? msg['text'];
+    // Agent-event labels and sub-agent tool chips live on `event` and
+    // `subAgentLastTool`, not on `content`/`text`. Task-event cards carry
+    // `taskEvent` plus metadata like `taskStatus`/`transcriptDir`. If these
+    // fields change in-place (e.g. a progress event updates the currently
+    // running tool), the cache must invalidate so the widget height matches
+    // the new content — otherwise the list scroll position can jump when the
+    // rendered size finally catches up.
+    final event = msg['event'] is Map<String, dynamic>
+        ? msg['event'] as Map<String, dynamic>
+        : null;
+    // Object.hash only accepts 20 positional arguments, so the volatile
+    // task-event fields are folded into a nested hash.
+    final taskEventSignature = Object.hash(
+      msg['subAgentLastTool'],
+      msg['taskEvent'],
+      msg['taskStatus'],
+      msg['taskType'],
+      msg['workflowName'],
+      msg['transcriptDir'],
+      msg['workflowRunId'],
+    );
     final signature = Object.hash(
       messageId,
       msg['kind'],
@@ -152,6 +174,8 @@ class _MessageWidgetState extends State<MessageWidget>
       msg['isThinking'],
       msg['updatedAt'] ?? msg['createdAt'],
       sigContent is String ? sigContent : sigContent?.toString(),
+      event == null ? 0 : Object.hash(event['type'], event['message']),
+      taskEventSignature,
       // Tool/Agent messages also need to invalidate when the messages
       // list reference changes meaningfully. List identity is acceptable
       // because chat_screen only passes `_messages` for Task/Agent and
@@ -178,7 +202,10 @@ class _MessageWidgetState extends State<MessageWidget>
     if (kind == 'agent-event') {
       return _cacheBody(
         signature,
-        AgentEventWidget(event: widget.messageData['event']),
+        AgentEventWidget(
+          event: widget.messageData['event'],
+          message: widget.messageData,
+        ),
       );
     }
 
@@ -231,6 +258,28 @@ class _MessageWidgetState extends State<MessageWidget>
             metadata: widget.metadata,
             sessionId: widget.sessionId,
             isSessionOnline: widget.isSessionOnline,
+          ),
+        ),
+      );
+    }
+
+    // Sub-agent task completion summary (emitted by the CLI's
+    // task_notification / task_updated meta events).  Render as a
+    // compact card with a "copy transcript path" affordance when the
+    // CLI surfaced the on-disk transcript directory — the wire stream
+    // never carries the individual tool calls from inside the sub-agent,
+    // so the transcript path is the only way for the user to audit them.
+    if (kind == 'text' && widget.messageData['taskEvent'] == true) {
+      return _cacheBody(
+        signature,
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          child: TaskEventSummaryCard(
+            data: widget.messageData,
+            sessionId: widget.sessionId,
           ),
         ),
       );

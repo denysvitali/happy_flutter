@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../tools/known_tools.dart';
 
 /// Renders a centered system-style label for agent lifecycle events.
 ///
 /// Returns an empty widget for telemetry-only events and malformed payloads.
 class AgentEventWidget extends StatelessWidget {
-  const AgentEventWidget({required this.event, super.key});
+  const AgentEventWidget({
+    required this.event,
+    this.message,
+    super.key,
+  });
 
   final dynamic event;
+
+  /// The full parent message map. Used to surface sub-agent tool activity
+  /// (e.g. `subAgentLastTool`) that lives on the message envelope rather
+  /// than on the inner `event` payload.
+  final Map<String, dynamic>? message;
 
   static const Set<String> _hiddenEventTypes = <String>{
     'ready',
@@ -31,6 +41,15 @@ class AgentEventWidget extends StatelessWidget {
     return type is! String || !_hiddenEventTypes.contains(type);
   }
 
+  /// The sub-agent's currently running tool, when one is being tracked via
+  /// `task_progress` events. Empty/null when the chip represents anything
+  /// else (mode switch, completion summary, etc.).
+  String? get _subAgentToolName {
+    final raw = message?['subAgentLastTool'];
+    if (raw is String && raw.isNotEmpty) return raw;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -44,6 +63,7 @@ class AgentEventWidget extends StatelessWidget {
     final color = isUnrendered
         ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55)
         : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
+    final subAgentTool = _subAgentToolName;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -53,7 +73,21 @@ class AgentEventWidget extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isUnrendered) ...[
+            if (subAgentTool != null) ...[
+              IconTheme(
+                data: IconThemeData(size: 12, color: color),
+                child: KnownTools.iconFor(subAgentTool, 12, color),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                subAgentTool,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ] else if (isUnrendered) ...[
               Icon(
                 Icons.help_outline_rounded,
                 size: 12,

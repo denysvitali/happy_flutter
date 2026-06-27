@@ -743,10 +743,31 @@ void _processMetaOutput({
       final status = data['status'] as String?;
       final taskType = data['task_type'] as String?;
       final workflowName = data['workflow_name'] as String?;
+      // `last_tool_name` is the name of the tool the sub-agent is
+      // CURRENTLY running. Forwarding it as `subAgentLastTool` lets the
+      // chat chip and ThinkingPill render "Bash: ..." / "Read: ..." so
+      // the user has a live signal of sub-agent activity even though the
+      // individual tool_use blocks from inside the sub-agent never cross
+      // the wire.  Only meaningful for in-flight subtasks; on completion
+      // it is intentionally ignored.
+      final lastToolName = (data['last_tool_name'] ??
+              data['lastToolName']) as String?;
+      // `task_notification` for local_workflow completion carries
+      // `transcriptDir` + `runId` pointing at the on-disk transcript.
+      // Stamping them on the chip lets the UI deep-link to the actual
+      // sub-agent tool calls, which the wire stream never exposes.
+      final transcriptDir = (data['transcript_dir'] ??
+              data['transcriptDir']) as String?;
+      final runId = (data['run_id'] ?? data['runId']) as String?;
       final taskExtras = <String, dynamic>{
         'taskStatus': ?status,
         'taskType': ?taskType,
         'workflowName': ?workflowName,
+        if (lastToolName != null && lastToolName.isNotEmpty)
+          'subAgentLastTool': lastToolName,
+        if (transcriptDir != null && transcriptDir.isNotEmpty)
+          'transcriptDir': transcriptDir,
+        if (runId != null && runId.isNotEmpty) 'workflowRunId': runId,
       };
 
       if ((subtype == 'task_notification' || subtype == 'task_updated') &&
@@ -769,7 +790,15 @@ void _processMetaOutput({
         return;
       }
 
-      final label = description ?? summary ?? 'Task $subtype';
+      // For in-flight subtasks, surface the current tool in the chip
+      // label so the user can see what the sub-agent is doing right now.
+      final baseLabel = description ?? summary ?? 'Task $subtype';
+      final label = (subtype == 'task_progress' &&
+              lastToolName != null &&
+              lastToolName.isNotEmpty &&
+              !baseLabel.startsWith(lastToolName))
+          ? '$lastToolName · $baseLabel'
+          : baseLabel;
       addEvent(
         'te',
         'message',
