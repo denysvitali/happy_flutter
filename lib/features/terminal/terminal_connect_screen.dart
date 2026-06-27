@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/components/app_card.dart';
+import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -17,8 +19,7 @@ class TerminalConnectScreen extends ConsumerStatefulWidget {
       _TerminalConnectScreenState();
 }
 
-class _TerminalConnectScreenState
-    extends ConsumerState<TerminalConnectScreen> {
+class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
   String? _selectedMachineId;
   final _terminalIdController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -44,7 +45,14 @@ class _TerminalConnectScreenState
 
   @override
   Widget build(BuildContext context) {
-    final machineList = ref.watch(machinesListProvider);
+    final machineList = ref.watch(machinesListProvider).toList()
+      ..sort((a, b) {
+        final aOnline = a.isOnline ? 0 : 1;
+        final bOnline = b.isOnline ? 0 : 1;
+        if (aOnline != bOnline) return aOnline.compareTo(bOnline);
+        return _machineLabel(a).compareTo(_machineLabel(b));
+      });
+    final hasOnlineMachine = machineList.any((machine) => machine.isOnline);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -80,18 +88,10 @@ class _TerminalConnectScreenState
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: cs.primary.withValues(
-                          alpha: AppOpacity.faint,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.sm,
-                        ),
+                        color: cs.primary.withValues(alpha: AppOpacity.faint),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
-                      child: Icon(
-                        Icons.terminal,
-                        color: cs.primary,
-                        size: 18,
-                      ),
+                      child: Icon(Icons.terminal, color: cs.primary, size: 18),
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
@@ -148,46 +148,101 @@ class _TerminalConnectScreenState
                   padding: EdgeInsets.zero,
                   child: DropdownButtonFormField<String>(
                     initialValue: _selectedMachineId,
+                    selectedItemBuilder: (context) => machineList
+                        .map(
+                          (machine) => Text(
+                            _machineLabel(machine),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        )
+                        .toList(),
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.lg,
                         vertical: AppSpacing.sm,
                       ),
-                      prefixIcon: const Icon(
-                        Icons.computer_outlined,
-                      ),
+                      prefixIcon: const Icon(Icons.computer_outlined),
                       prefixIconConstraints: const BoxConstraints(
                         minWidth: AppTouchTarget.min,
                         minHeight: AppTouchTarget.min,
                       ),
                     ),
-                    hint: Text(
-                      context.l10n.terminalSelectMachineHint,
-                    ),
+                    hint: Text(context.l10n.terminalSelectMachineHint),
                     isExpanded: true,
                     items: machineList.map((machine) {
-                      final meta = machine.metadata;
-                      final label = meta?.displayName ??
-                          meta?.host ??
-                          machine.id;
+                      final label = _machineLabel(machine);
+                      final online = machine.isOnline;
                       return DropdownMenuItem<String>(
                         value: machine.id,
-                        child: Text(
-                          label,
-                          overflow: TextOverflow.ellipsis,
+                        enabled: online,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AppStatusDot(
+                              color: online
+                                  ? AppColors.success
+                                  : cs.onSurfaceVariant,
+                              size: 8,
+                              semanticLabel: online
+                                  ? context.l10n.machineOnline
+                                  : context.l10n.machineOffline,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Flexible(
+                              child: Text(
+                                label,
+                                overflow: TextOverflow.ellipsis,
+                                style: online
+                                    ? null
+                                    : theme.textTheme.bodyMedium?.copyWith(
+                                        color: cs.onSurfaceVariant,
+                                      ),
+                              ),
+                            ),
+                            if (!online) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.xxs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cs.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.xs,
+                                  ),
+                                ),
+                                child: Text(
+                                  context.l10n.machineOffline,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       );
                     }).toList(),
                     onChanged: (value) {
+                      if (value != null) {
+                        final machine = _machineById(machineList, value);
+                        if (machine != null && !machine.isOnline) {
+                          return;
+                        }
+                      }
                       setState(() {
                         _selectedMachineId = value;
                       });
                     },
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return context
-                            .l10n.terminalSelectMachineError;
+                        return context.l10n.terminalSelectMachineError;
+                      }
+                      final machine = _machineById(machineList, value);
+                      if (machine != null && !machine.isOnline) {
+                        return context.l10n.terminalSelectMachineError;
                       }
                       return null;
                     },
@@ -227,8 +282,9 @@ class _TerminalConnectScreenState
                     ),
                     hintText: context.l10n.terminalIdHint,
                     hintStyle: TextStyle(
-                      color: cs.onSurfaceVariant
-                          .withValues(alpha: AppOpacity.half),
+                      color: cs.onSurfaceVariant.withValues(
+                        alpha: AppOpacity.half,
+                      ),
                     ),
                   ),
                   autocorrect: false,
@@ -246,8 +302,7 @@ class _TerminalConnectScreenState
               const SizedBox(height: AppSpacing.xxxl),
 
               FilledButton.icon(
-                onPressed:
-                    machineList.isEmpty ? null : _handleConnect,
+                onPressed: hasOnlineMachine ? _handleConnect : null,
                 icon: const Icon(Icons.link),
                 label: Text(context.l10n.commonContinue),
                 style: FilledButton.styleFrom(
@@ -256,8 +311,7 @@ class _TerminalConnectScreenState
                     AppTouchTarget.comfortable,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.md),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                 ),
               ),
@@ -267,4 +321,16 @@ class _TerminalConnectScreenState
       ),
     );
   }
+}
+
+String _machineLabel(Machine machine) {
+  final meta = machine.metadata;
+  return meta?.displayName ?? meta?.host ?? machine.id;
+}
+
+Machine? _machineById(List<Machine> machines, String id) {
+  for (final machine in machines) {
+    if (machine.id == id) return machine;
+  }
+  return null;
 }
