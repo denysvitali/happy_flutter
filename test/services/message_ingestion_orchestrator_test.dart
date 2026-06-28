@@ -24,6 +24,12 @@ class _ThrowingSessionEncryption implements SessionEncryption {
 
   final Object _error;
 
+  // The orchestrator probes `canDecryptAes` to decide whether to refresh
+  // the DEK before decrypting. Returning `false` skips the refresh so the
+  // decrypt path runs and `decryptAndProcessMessages` always throws.
+  @override
+  bool get canDecryptAes => false;
+
   @override
   Future<ProcessedMessages> decryptAndProcessMessages(
     List<Map<String, dynamic>> messages,
@@ -38,6 +44,9 @@ class _ThrowingSessionEncryption implements SessionEncryption {
 
 class _OkSessionEncryption implements SessionEncryption {
   const _OkSessionEncryption();
+
+  @override
+  bool get canDecryptAes => true;
 
   @override
   Future<ProcessedMessages> decryptAndProcessMessages(
