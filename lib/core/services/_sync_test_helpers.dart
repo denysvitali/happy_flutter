@@ -117,6 +117,18 @@ extension SyncTestHelpers on Sync {
     _orphanSuppressedUntilMs.remove(sessionId);
   }
 
+  @visibleForTesting
+  Map<String, int> get testSessionEncryptionRecoveryAttempts =>
+      _sessionEncryptionRecoveryAttempts;
+
+  @visibleForTesting
+  int get testSessionEncryptionRecoveryThrottleMs =>
+      Sync._sessionEncryptionRecoveryThrottleMs;
+
+  @visibleForTesting
+  Future<void> testRecoverSessionEncryption(String sessionId) =>
+      _recoverSessionEncryption(sessionId);
+
   /// Test helper: clear the throttle timestamp for orphan-recovery
   /// fetchOlder attempts so the next sweep can call fetchOlderMessages
   /// again without waiting for the real wall clock.

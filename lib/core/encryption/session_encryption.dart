@@ -97,6 +97,11 @@ class SessionEncryption {
   final Decryptor _decryptor;
   final EncryptionCache _cache;
 
+  /// Whether this session is backed by the AES-256-GCM decryptor. When
+  /// `false`, the session fell back to legacy NaCl and may need a key
+  /// refresh before it can decrypt newer AES envelopes.
+  bool get canDecryptAes => _decryptor is AES256Encryption;
+
   /// Batch decrypt messages
   Future<List<DecryptedMessage?>> decryptMessages(
     List<Map<String, dynamic>> messages,

@@ -225,7 +225,19 @@ extension SyncMessagePipeline on Sync {
         );
       }
 
-      final processed = await sessionEncryption.decryptAndProcessMessages(
+      // If the session fell back to legacy NaCl but the server still
+      // advertises an encrypted data key, try to refresh the DEK before
+      // decrypting. This recovers from server-side DEK rotation that
+      // happened while the client held a stale/failed plaintext key.
+      if (!sessionEncryption.canDecryptAes &&
+          _sessionEncryptedDataKeys.containsKey(sessionId)) {
+        await _recoverSessionEncryption(sessionId);
+      }
+
+      final sessionEncryptionToUse =
+          encryption.getSessionEncryption(sessionId) ?? sessionEncryption;
+
+      final processed = await sessionEncryptionToUse.decryptAndProcessMessages(
         normalized.messages,
         sessionId,
       );

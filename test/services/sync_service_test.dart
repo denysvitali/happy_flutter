@@ -268,6 +268,71 @@ void main() {
     );
   });
 
+  group('Sync._recoverSessionEncryption', () {
+    late Sync instance;
+
+    setUp(() {
+      instance = createTestSync();
+      instance.testSessionEncryptionRecoveryAttempts.clear();
+    });
+
+    tearDown(() {
+      instance.testFetchSingleSessionOverride = null;
+      resetTestSync(instance);
+    });
+
+    test('fetches single session when not throttled', () async {
+      var fetchCount = 0;
+      instance.testFetchSingleSessionOverride = (sessionId) async {
+        fetchCount++;
+        return null;
+      };
+
+      await instance.testRecoverSessionEncryption('session_1');
+
+      expect(fetchCount, 1);
+      expect(
+        instance.testSessionEncryptionRecoveryAttempts['session_1'],
+        isNotNull,
+      );
+    });
+
+    test('throttles repeated recovery attempts', () async {
+      var fetchCount = 0;
+      instance.testFetchSingleSessionOverride = (sessionId) async {
+        fetchCount++;
+        return null;
+      };
+
+      await instance.testRecoverSessionEncryption('session_1');
+      await instance.testRecoverSessionEncryption('session_1');
+      await instance.testRecoverSessionEncryption('session_1');
+
+      expect(fetchCount, 1);
+    });
+
+    test('allows recovery again after throttle window passes', () async {
+      var fetchCount = 0;
+      instance.testFetchSingleSessionOverride = (sessionId) async {
+        fetchCount++;
+        return null;
+      };
+
+      final before = DateTime.now().millisecondsSinceEpoch -
+          instance.testSessionEncryptionRecoveryThrottleMs -
+          1;
+      instance.testSessionEncryptionRecoveryAttempts['session_1'] = before;
+
+      await instance.testRecoverSessionEncryption('session_1');
+
+      expect(fetchCount, 1);
+      expect(
+        instance.testSessionEncryptionRecoveryAttempts['session_1'],
+        greaterThan(before),
+      );
+    });
+  });
+
   group('Sync.handleEphemeralUpdate', () {
     test('accepts single-element list payloads', () {
       final instance = Sync();

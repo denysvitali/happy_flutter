@@ -213,6 +213,13 @@ what you have, you must use the options mode.
   final Map<String, String> _sessionEncryptedDataKeys = {};
   final Map<String, Uint8List> _machineDataKeys = {};
 
+  /// Per-session rate-limiter for encryption-key recovery attempts. When a
+  /// session's decryptor is the legacy NaCl implementation but the server
+  /// still advertises an encrypted data key, we try to re-fetch the session
+  /// once so a rotated/wrapped key can be decrypted with the current keypair.
+  final Map<String, int> _sessionEncryptionRecoveryAttempts = {};
+  static const int _sessionEncryptionRecoveryThrottleMs = 30000;
+
   // Sync managers
   late InvalidateSync sessionsSync;
   final Map<String, InvalidateSync> messagesSync = {};

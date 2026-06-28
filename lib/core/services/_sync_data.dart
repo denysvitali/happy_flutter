@@ -630,6 +630,38 @@ extension SyncData on Sync {
     }
   }
 
+  /// Attempt to recover a session whose cached plaintext data key is missing
+  /// or stale. This is triggered from the message pipeline when we are about
+  /// to decrypt AES envelopes using a legacy NaCl decryptor: the server may
+  /// have rotated/re-wrapped the DEK, and re-fetching the session gives us a
+  /// fresh encrypted key to decrypt with the current content keypair.
+  ///
+  /// The attempt is rate-limited per session to avoid a tight loop when the
+  /// key mismatch is permanent (e.g. the device was re-linked with different
+  /// key material).
+  Future<void> _recoverSessionEncryption(String sessionId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final lastAttempt = _sessionEncryptionRecoveryAttempts[sessionId];
+    if (lastAttempt != null &&
+        now - lastAttempt < Sync._sessionEncryptionRecoveryThrottleMs) {
+      return;
+    }
+    _sessionEncryptionRecoveryAttempts[sessionId] = now;
+
+    logger.info(
+      '[Encryption] Attempting session encryption recovery for $sessionId',
+    );
+    try {
+      await fetchSingleSession(sessionId);
+    } catch (e, stack) {
+      logger.warning(
+        'Session encryption recovery fetch failed for $sessionId',
+        e,
+        stack,
+      );
+    }
+  }
+
   /// Decrypt every session's `metadata` + `agentState` concurrently.
   ///
   /// The previous implementation `await`-ed each decrypt sequentially

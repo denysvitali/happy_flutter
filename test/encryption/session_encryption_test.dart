@@ -63,6 +63,28 @@ SessionEncryption _makeSessionEncryption(AES256Encryption enc) {
 // ---------------------------------------------------------------------------
 
 void main() {
+  group('SessionEncryption.canDecryptAes', () {
+    test('is true when decryptor is AES256Encryption', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final se = _makeSessionEncryption(enc);
+
+      expect(se.canDecryptAes, isTrue);
+    });
+
+    test('is false when decryptor is a legacy NaCl implementation', () async {
+      final legacy = _FakeNaClDecryptor();
+      final se = SessionEncryption(
+        sessionId: 'test-session',
+        encryptor: _FakeNaClEncryptor(),
+        decryptor: legacy,
+        cache: EncryptionCache(),
+      );
+
+      expect(se.canDecryptAes, isFalse);
+    });
+  });
+
   group('SessionEncryption.decryptMessages — completeness', () {
     test(
       'returns one result per input message (10 messages)',
@@ -283,4 +305,18 @@ void main() {
       },
     );
   });
+}
+
+class _FakeNaClEncryptor implements Encryptor {
+  @override
+  Future<List<Uint8List>> encrypt(List<dynamic> data) async {
+    return data.map((_) => Uint8List(0)).toList(growable: false);
+  }
+}
+
+class _FakeNaClDecryptor implements Decryptor {
+  @override
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    return data.map((_) => null).toList(growable: false);
+  }
 }
