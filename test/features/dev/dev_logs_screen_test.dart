@@ -69,6 +69,7 @@ LoggerState _emptyState() {
 Widget _buildApp({
   required Settings settings,
   LoggerState? loggerState,
+  bool requireDeveloperMode = true,
 }) {
   return ProviderScope(
     overrides: [
@@ -83,7 +84,7 @@ Widget _buildApp({
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: const DevLogsScreen(),
+      home: DevLogsScreen(requireDeveloperMode: requireDeveloperMode),
     ),
   );
 }
@@ -129,6 +130,24 @@ void main() {
         find.textContaining('Logs are only available'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('can show logs without developer mode when explicitly allowed',
+        (tester) async {
+      final logs = [_makeLogEntry(message: 'Startup failed')];
+
+      await tester.pumpWidget(
+        _buildApp(
+          settings: _makeSettings(developerModeEnabled: false),
+          loggerState: _stateWith(logs),
+          requireDeveloperMode: false,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Startup failed'), findsOneWidget);
+      expect(find.textContaining('Logs are only available'), findsNothing);
     });
 
     testWidgets('shows log list when developer mode is on', (tester) async {

@@ -47,7 +47,6 @@ class ServerConfigStorage {
       logger.warning(
         'ServerConfigStorage: Initialization failed: $e',
       );
-      rethrow;
     }
   }
 

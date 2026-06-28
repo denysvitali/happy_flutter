@@ -65,10 +65,12 @@ class AuthStateNotifier extends Notifier<AuthState> {
   Future<void> checkAuth() async {
     state = AuthState.authenticating;
     try {
+      logger.info('AuthStateNotifier: checking stored credentials');
       final credentials = await TokenStorage().getCredentials();
       final isAuth = credentials != null;
       state = isAuth ? AuthState.authenticated : AuthState.unauthenticated;
       if (credentials != null) {
+        logger.info('AuthStateNotifier: restoring authenticated sync state');
         ApiClient().updateToken(credentials.token);
         // Keep the WebSocket token in sync with the HTTP token.
         socket_io.socketIoClient.updateToken(credentials.token);
@@ -121,6 +123,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
         }
       }
     } catch (e, stack) {
+      logger.error('AuthStateNotifier: auth check failed', e, stack);
       unawaited(Sentry.captureException(e, stackTrace: stack));
       state = AuthState.error;
     }

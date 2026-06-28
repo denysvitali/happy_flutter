@@ -10,6 +10,18 @@ void _accumulateDroppedReasons(Map<String, int> counts, List<String> reasons) {
 int _droppedReasonTotal(Map<String, int> counts) =>
     counts.values.fold(0, (sum, count) => sum + count);
 
+int? _maxCachedMessageSeq(List<Map<String, dynamic>>? messages) {
+  if (messages == null || messages.isEmpty) return null;
+  int? maxSeq;
+  for (final message in messages) {
+    final seq = message['seq'];
+    if (seq is int && (maxSeq == null || seq > maxSeq)) {
+      maxSeq = seq;
+    }
+  }
+  return maxSeq;
+}
+
 final Map<String, int> _lastDroppedReasonWarningMs = {};
 const int _droppedReasonWarningCooldownMs = 5 * 60 * 1000;
 
@@ -325,7 +337,12 @@ extension SyncMessaging on Sync {
       // socket events arriving after reconnect can advance the cursor
       // past messages that arrived while the socket was down — using
       // the snapshot ensures the fetch starts from the correct position.
-      final rawCursorSeq = _sessionLastSeq[sessionId] ?? 0;
+      final persistedCursorSeq = _sessionLastSeq[sessionId] ?? 0;
+      final cachedCursorSeq = _maxCachedMessageSeq(_sessionMessages[sessionId]);
+      if (cachedCursorSeq != null && cachedCursorSeq > persistedCursorSeq) {
+        _advanceSeqCursor(sessionId, cachedCursorSeq);
+      }
+      final rawCursorSeq = max(persistedCursorSeq, cachedCursorSeq ?? 0);
       final cursorSeq =
           (forceProbe &&
               sessionId == _visibleSessionId &&

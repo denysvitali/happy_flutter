@@ -943,6 +943,10 @@ extension SyncMessagingRpc on Sync {
         if (cached.isNotEmpty) {
           _sessionMessages[sessionId] = cached;
           _invalidateMessageCaches(sessionId);
+          final maxSeq = _maxCachedMessageSeq(cached);
+          if (maxSeq != null) {
+            _advanceSeqCursor(sessionId, maxSeq);
+          }
           hasMessages = true;
           // Re-run the sidechain grouper so cached sidechain messages
           // are correctly re-parented into their parent Task messages.

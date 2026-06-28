@@ -19,7 +19,6 @@ import 'core/routing/app_router.dart';
 import 'core/services/app_visibility_coordinator.dart';
 import 'core/services/frame_metrics_service.dart';
 import 'core/services/logger_service.dart';
-import 'core/services/mmkv_storage.dart';
 import 'core/services/network_monitor_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/opentelemetry_service.dart';
@@ -107,10 +106,10 @@ Future<void> _runApp() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
 
-  // Warm MMKV in parallel with everything else — its JNI init is
-  // idempotent and independent. Overlapping it with the deep-link
-  // probe and Sentry setup shaves 30-80ms off the critical path.
-  final mmkvWarmup = MMKVStorage.initialize();
+  // Warm storage in parallel with everything else. This initializes both
+  // MMKV and the separate server-config store so startup can recover custom
+  // server URLs before the first auth/sync request.
+  final storageWarmup = storage.Storage().initialize();
 
   // Start the initial deep-link platform-channel call in parallel
   // with first frame.  Previously this was awaited before `runApp`,
@@ -161,8 +160,8 @@ Future<void> _runApp() async {
       description: 'Initialize API client',
     );
 
-    // MMKV is already warming; just await the completer here.
-    final storageInit = mmkvWarmup;
+    // Storage is already warming; just await the completer here.
+    final storageInit = storageWarmup;
     final apiInit = ApiClient().initialize(serverUrl: serverUrl);
     await Future.wait<void>([storageInit, apiInit]);
     await storageSpan.finish();
@@ -405,10 +404,6 @@ class _HappyAppState extends ConsumerState<HappyApp>
       } catch (error, stack) {
         logger.error('Startup initialization failed', error, stack);
         unawaited(Sentry.captureException(error, stackTrace: stack));
-        if (mounted) {
-          ref.read(authStateNotifierProvider.notifier).failAuthCheck();
-        }
-        return;
       }
       if (!mounted) return;
       unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());

@@ -13,6 +13,7 @@ import '../../core/services/server_config.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../dev/dev_logs_screen.dart';
 import 'widgets/auth_animated_widgets.dart';
 import 'widgets/auth_landing_widgets.dart';
 import 'widgets/restore_key_dialog.dart';
@@ -371,6 +372,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     );
   }
 
+  void _showLogs() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (context) => const DevLogsScreen(
+          requireDeveloperMode: false,
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildDiagnosticsButton(BuildContext context) {
+    if (!widget.showError) return null;
+    return OutlinedButton.icon(
+      onPressed: _showLogs,
+      icon: const Icon(Icons.receipt_long_outlined),
+      label: Text('View ${context.l10n.devLogsTitle}'),
+    );
+  }
+
   // -- build ----------------------------------
 
   @override
@@ -466,6 +487,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       isLoadingCreate: _isLoadingCreateAccount,
       l10n: context.l10n,
     );
+    final diagnosticsButton =
+        _buildDiagnosticsButton(context);
 
     if (isLandscape) {
       return KeyedSubtree(
@@ -500,7 +523,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                         ),
                         SizedBox(
                           width: 300,
-                          child: buttons,
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.stretch,
+                            children: [
+                              buttons,
+                              if (diagnosticsButton != null) ...[
+                                const SizedBox(
+                                  height: AppSpacing.md,
+                                ),
+                                diagnosticsButton,
+                              ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -541,7 +576,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     ),
                     SizedBox(
                       width: 300,
-                      child: buttons,
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.stretch,
+                        children: [
+                          buttons,
+                          if (diagnosticsButton != null) ...[
+                            const SizedBox(
+                              height: AppSpacing.md,
+                            ),
+                            diagnosticsButton,
+                          ],
+                        ],
+                      ),
                     ),
                     const SizedBox(
                       height: AppSpacing.xxl,

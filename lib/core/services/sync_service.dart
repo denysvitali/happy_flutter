@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:isolate';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
@@ -1346,10 +1345,7 @@ Future<void> syncRestore(AuthCredentials credentials) async {
     );
   }
 
-  // Derive encryption keys off the UI isolate — key derivation is
-  // CPU-bound scrypt/argon-like work that blocks frames for 50-150ms
-  // on low-end devices.
-  final encryption = await Isolate.run(() => Encryption.create(secretKey));
+  final encryption = await Encryption.create(secretKey);
   await sync.restore(credentials, encryption);
   sessionActivityCoordinator.attach(sync);
 }

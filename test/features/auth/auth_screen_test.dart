@@ -87,6 +87,23 @@ void main() {
         expect(find.byType(CircularProgressIndicator), findsNothing);
       },
     );
+
+    testWidgets(
+      'shows logs action in error state',
+      (tester) async {
+        await tester.pumpWidget(
+          _buildApp(
+            const AuthGate(child: _MockContent()),
+            authState: AuthState.error,
+          ),
+        );
+
+        await tester.pump();
+
+        expect(find.text('View Logs'), findsOneWidget);
+        expect(find.textContaining('Something went wrong'), findsOneWidget);
+      },
+    );
   });
 
   group('AuthGate state transitions', () {

@@ -14,7 +14,12 @@ import '../../core/utils/datetime_extensions.dart';
 
 /// Debug logs screen - available when developer mode is enabled
 class DevLogsScreen extends ConsumerWidget {
-  const DevLogsScreen({super.key});
+  const DevLogsScreen({
+    super.key,
+    this.requireDeveloperMode = true,
+  });
+
+  final bool requireDeveloperMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,7 +28,7 @@ class DevLogsScreen extends ConsumerWidget {
       settingsNotifierProvider.select((s) => s.developerModeEnabled),
     );
     final l10n = AppLocalizations.of(context);
-    if (!isDeveloperMode) {
+    if (requireDeveloperMode && !isDeveloperMode) {
       return Scaffold(
         appBar: AppBar(title: Text(l10n.devLogsTitle)),
         body: Center(
@@ -47,16 +52,17 @@ class DevLogsScreen extends ConsumerWidget {
         title: Text(l10n.devLogsCount(filteredLogs.length)),
         actions: [
           // Add test log button
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: l10n.devLogsAddTestLog,
-            onPressed: () {
-              final timestamp = DateTime.now().toIsoTimeString();
-              ref
-                  .read(loggerNotifierProvider.notifier)
-                  .debug('Test log entry at $timestamp');
-            },
-          ),
+          if (isDeveloperMode)
+            IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: l10n.devLogsAddTestLog,
+              onPressed: () {
+                final timestamp = DateTime.now().toIsoTimeString();
+                ref
+                    .read(loggerNotifierProvider.notifier)
+                    .debug('Test log entry at $timestamp');
+              },
+            ),
           // Copy all logs
           IconButton(
             icon: const Icon(Icons.copy),

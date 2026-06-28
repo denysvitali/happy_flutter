@@ -1015,6 +1015,10 @@ extension SyncSocket on Sync {
           _sessionMessages[sessionId] = cached;
           _rebuildSessionContentSignatures(sessionId);
           _sessionMessagesViewCache.remove(sessionId);
+          final maxSeq = _maxCachedMessageSeq(cached);
+          if (maxSeq != null) {
+            _advanceSeqCursor(sessionId, maxSeq);
+          }
 
           // Defer sidechain grouping to onSessionVisible() instead of
           // running O(4N) grouper for every session on cold start.

@@ -485,7 +485,7 @@ void main() {
       );
     });
 
-    test('cache with no cursor (first load) fetches full window', () async {
+    test('cache with no cursor fetches from cached max seq', () async {
       const sessionId = 'sess-nocursor-1';
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 50);
       // Cache has messages but cursor is NOT set (simulates restored
@@ -507,17 +507,41 @@ void main() {
 
       await sync.fetchMessages(sessionId);
 
-      // With cursor=0 and messages in memory (isFirstLoad=false),
-      // the code falls into the `cursorSeq == 0` branch which uses
-      // _tailAfterSeqForSession (server hint-based tail).
-      // lastSeq=50 <= initialLoad(200) → afterSeq=0.
       expect(capturedAfterSeqs, isNotEmpty);
       expect(
         capturedAfterSeqs.first,
-        0,
-        reason: 'No cursor with short history should start at afterSeq=0',
+        3,
+        reason: 'No cursor should resume after the cached max seq',
       );
     });
+
+    test(
+      'cache with high seq and stale session hint avoids full crawl',
+      () async {
+        const sessionId = 'sess-nocursor-high';
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 0);
+        final cached = List.generate(
+          3,
+          (i) => _makePlainMessage('cache-msg-${998 + i}', seq: 998 + i),
+        );
+        sync.testSetSessionMessages(sessionId, cached);
+
+        final capturedAfterSeqs = <int>[];
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          capturedAfterSeqs.add(afterSeq);
+          return _buildResponse(const []);
+        };
+
+        await sync.fetchMessages(sessionId);
+
+        expect(capturedAfterSeqs, isNotEmpty);
+        expect(
+          capturedAfterSeqs.first,
+          1000,
+          reason: 'Cached seq should prevent startup from crawling afterSeq=0',
+        );
+      },
+    );
   });
 
   // -------------------------------------------------------------------------
