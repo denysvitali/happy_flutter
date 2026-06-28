@@ -1668,9 +1668,9 @@ PY
             }),
           ),
         );
-        unawaited(
-          _safeRecordAppError('app.auto_restore.failed'),
-        );
+        // `_safeRecordAppError` returns void (counter bump is sync); do
+        // not wrap in `unawaited(...)` — that requires a `Future`.
+        _safeRecordAppError('app.auto_restore.failed');
         _safeEmitAutoRestoreFailure(
           AutoRestoreFailure(
             sessionId: sessionId,

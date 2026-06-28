@@ -312,9 +312,19 @@ class _FakeNaClEncryptor implements Encryptor {
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
     return data.map((_) => Uint8List(0)).toList(growable: false);
   }
+
+  @override
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    return data.map((_) => null).toList(growable: false);
+  }
 }
 
 class _FakeNaClDecryptor implements Decryptor {
+  @override
+  Future<List<Uint8List>> encrypt(List<dynamic> data) async {
+    return data.map((_) => Uint8List(0)).toList(growable: false);
+  }
+
   @override
   Future<List<dynamic>> decrypt(List<Uint8List> data) async {
     return data.map((_) => null).toList(growable: false);
