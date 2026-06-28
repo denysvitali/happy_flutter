@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../api/socket_io_client.dart';
 import 'http_request_logger.dart';
 import 'performance_context_service.dart';
+import 'power_diagnostics_otel_reporter.dart';
 
 enum PowerDiagnosticEventType { lifecycle, socket, http, sync, outbox }
 
@@ -311,10 +312,13 @@ class PowerDiagnosticsService extends ChangeNotifier {
     switch (status) {
       case ConnectionStatus.connected:
         _socketConnects++;
+        PowerDiagnosticsOtelReporter.instance.recordSocketConnect();
       case ConnectionStatus.disconnected:
         _socketDisconnects++;
+        PowerDiagnosticsOtelReporter.instance.recordSocketDisconnect();
       case ConnectionStatus.error:
         _socketErrors++;
+        PowerDiagnosticsOtelReporter.instance.recordSocketError();
       case ConnectionStatus.connecting:
         break;
     }
@@ -323,6 +327,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordSocketError(String error) {
     _socketErrors++;
+    PowerDiagnosticsOtelReporter.instance.recordSocketError();
     _addEvent(PowerDiagnosticEventType.socket, 'error=$error');
   }
 
@@ -357,6 +362,10 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _recordActivity(http: true);
     _httpRequestBytes += entry.requestBytes ?? 0;
     _httpResponseBytes += entry.responseBytes ?? 0;
+    PowerDiagnosticsOtelReporter.instance.recordHttpBytes(
+      requestBytes: entry.requestBytes ?? 0,
+      responseBytes: entry.responseBytes ?? 0,
+    );
     final status = entry.statusCode;
     final failed = status != null && status >= 400;
     final slow = (entry.durationMs ?? 0) >= 1000;
@@ -379,7 +388,11 @@ class PowerDiagnosticsService extends ChangeNotifier {
   void recordSyncInvalidation(String name, {bool global = false}) {
     _syncInvalidations++;
     _recordActivity(sync: true);
-    if (global) _globalSyncInvalidations++;
+    if (global) {
+      _globalSyncInvalidations++;
+      PowerDiagnosticsOtelReporter.instance.recordGlobalSyncInvalidation();
+    }
+    PowerDiagnosticsOtelReporter.instance.recordSyncInvalidation();
     _increment(_syncInvalidationCounts, name);
     _addEvent(
       PowerDiagnosticEventType.sync,
@@ -389,12 +402,14 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordSyncBackgroundSkip(String name) {
     _syncBackgroundSkips++;
+    PowerDiagnosticsOtelReporter.instance.recordSyncBackgroundSkip();
     _increment(_syncBackgroundSkipCounts, name);
     _addEvent(PowerDiagnosticEventType.sync, 'background skip $name');
   }
 
   void recordOutboxSchedule({required String localId, required int delayMs}) {
     _outboxSchedules++;
+    PowerDiagnosticsOtelReporter.instance.recordOutboxSchedule();
     _addEvent(
       PowerDiagnosticEventType.outbox,
       'schedule localId=$localId delay=${delayMs}ms',
@@ -403,11 +418,13 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordOutboxAttempt(String localId) {
     _outboxAttempts++;
+    PowerDiagnosticsOtelReporter.instance.recordOutboxAttempt();
     _addEvent(PowerDiagnosticEventType.outbox, 'attempt localId=$localId');
   }
 
   void recordOutboxFailure(String localId) {
     _outboxFailures++;
+    PowerDiagnosticsOtelReporter.instance.recordOutboxFailure();
     _addEvent(PowerDiagnosticEventType.outbox, 'failure localId=$localId');
   }
 
