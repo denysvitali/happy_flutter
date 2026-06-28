@@ -74,4 +74,28 @@ void resetTestSync(Sync sync) {
   sync.testSessionEncryptionRecoveryAttempts.clear();
   // testSessionsNeedingTailRefresh() returns a copy, so we can't clear it
   // here — tests should use testAddSessionsNeedingTailRefresh() to manage it.
+  // Mirrors shutdown()'s reset of sync-running counters so a stale
+  // `_activeSyncCount` / `_runningSyncNames` from a previous test does not
+  // make `isSyncing` permanently true.
+  sync.testResetSyncState();
+  // Per-session shutdown clears — mirrors fields wiped by
+  // Sync.shutdown() so per-test residue does not leak across cases.
+  sync.testLoopsBySession.clear();
+  sync.testLastEphemeralAt.clear();
+  // Reset the monotonic data-change counters so the next test starts at 0.
+  sync.testResetDataChangeCounters();
+  // Clear the dedup/inline-processing state so a key from the previous
+  // test cannot suppress the same key in the next.
+  sync.testClearInlineDedupState();
+  // Clear encryption-key caches so a key cached for user A's session
+  // does not decrypt user B's data after a logout/login in the same test.
+  sync.testClearEncryptionKeyCaches();
+  // Clear session-spawn / auto-restore / DEK-fallback guard sets so
+  // in-flight restoration tracking from a previous test cannot deadlock
+  // the next test's sendMessage.
+  sync.testClearSpawnGuardState();
+  // Clear per-session message/regroup/orphan state so residue from a
+  // previous test does not survive into the next (matches the
+  // per-session fields cleared by Sync.shutdown()).
+  sync.testClearAllSessionMessageState();
 }

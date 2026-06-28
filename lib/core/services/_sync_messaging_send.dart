@@ -317,11 +317,12 @@ extension SyncMessagingSend on Sync {
       final spawnedAt = _sessionSpawnedAt[targetSessionId];
       final recentlySpawned =
           spawnedAt != null &&
-          DateTime.now().millisecondsSinceEpoch - spawnedAt < 30000;
-      final ready = await waitForAgentReady(
-        targetSessionId,
-        recentlySpawned ? 15000 : Sync.sessionReadyTimeoutMs,
-      );
+          DateTime.now().millisecondsSinceEpoch - spawnedAt <
+              Sync.recentlySpawnedFlagMs;
+      final waitBudget = recentlySpawned
+          ? Sync.recentlySpawnedWaitMs
+          : Sync.sessionReadyTimeoutMs;
+      final ready = await waitForAgentReady(targetSessionId, waitBudget);
       waitSpan
         ..setData('ready', ready)
         ..setData('recentlySpawned', recentlySpawned);
@@ -338,6 +339,30 @@ extension SyncMessagingSend on Sync {
             '[sendMessage] recently spawned session did not become ready '
             'within timeout, sending anyway session=$targetSessionId',
           );
+          // Promote the single-line warn to Sentry so we can correlate
+          // user-visible "send feels slow" reports with a real spawn-readiness
+          // failure. One event per occurrence — the OTel counter below
+          // provides the rate.
+          Sentry.captureMessage(
+            'sendMessage: spawn readiness timeout',
+            level: SentryLevel.warning,
+            hint: Hint.withMap({
+              'sessionId': targetSessionId,
+              'spawnedAt': spawnedAt,
+              'waitMs': Sync.recentlySpawnedWaitMs,
+              'recentlySpawned': true,
+            }),
+          );
+          // Mirror the hint into the test-only capture list so tests can
+          // assert the exact payload without mocking Sentry directly.
+          _spawnReadinessTimeoutCaptures.add({
+            'sessionId': targetSessionId,
+            'spawnedAt': spawnedAt,
+            'waitMs': Sync.recentlySpawnedWaitMs,
+            'recentlySpawned': true,
+          });
+          PowerDiagnosticsOtelReporter.instance
+              .recordAppError('app.session.spawn_timeout');
         }
         logger.info(
           '[sendMessage] agent not ready for '

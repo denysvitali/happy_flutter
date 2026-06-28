@@ -409,12 +409,57 @@ extension SyncTestHelpers on Sync {
     _sessionSpawnedAt[sessionId] = epochMs;
   }
 
-  /// Test helper: clear all spawn timestamps.
+  /// Test helper: clear all spawn-tracking maps.
   @visibleForTesting
   void testClearSessionSpawnedAt() {
     _sessionSpawnedAt.clear();
     _sessionSpawnedProfile.clear();
+    _sessionSpawnedModel.clear();
+    _sessionSpawnedAgent.clear();
   }
+
+  /// Captured spawn-readiness timeout events. Each entry is the
+  /// `Hint.withMap({...})` payload from the production Sentry
+  /// capture, so tests can assert the exact sessionId / waitMs /
+  /// spawnedAt triple without mocking `Sentry` directly.
+  @visibleForTesting
+  List<Map<String, Object?>> get testSpawnReadinessTimeoutCaptures =>
+      _spawnReadinessTimeoutCaptures;
+
+  /// Test helper: clear captured spawn-readiness timeout events.
+  @visibleForTesting
+  void testClearSpawnReadinessTimeoutCaptures() {
+    _spawnReadinessTimeoutCaptures.clear();
+  }
+
+  /// Test helper: record a fake spawn-readiness timeout capture so
+  /// tests can simulate the Sentry-capture side of the production
+  /// code path without going through `Sentry.captureMessage`. Use this
+  /// from test harnesses that wrap `sendMessage`.
+  @visibleForTesting
+  void testRecordSpawnReadinessTimeoutCapture(Map<String, Object?> hint) {
+    _spawnReadinessTimeoutCaptures.add(hint);
+  }
+
+  /// Test helper: invoke the private [_registerSpawn] funnel from
+  /// production code paths so the helper's behaviour (default `at`,
+  /// optional profile / model / agent writes, atomic write to all
+  /// four spawn maps) can be exercised in isolation.
+  @visibleForTesting
+  void testRegisterSpawn(
+    String sessionId, {
+    String? profileId,
+    String? modelMode,
+    String? agent,
+    DateTime? at,
+  }) =>
+      _registerSpawn(
+        sessionId,
+        profileId: profileId,
+        modelMode: modelMode,
+        agent: agent,
+        at: at,
+      );
 
   /// Test helper: get _sessionSpawnedProfile map.
   @visibleForTesting
@@ -515,6 +560,104 @@ extension SyncTestHelpers on Sync {
     _activeSyncCount = 0;
     _runningSyncNames.clear();
     _syncProgress = null;
+  }
+
+  /// Test helper: reset the monotonic data-change counters so tests that
+  /// rely on `dataChangeCounter` / `domainChangeCounter` start from a
+  /// clean baseline. Mirrors the reset performed by `shutdown()`.
+  @visibleForTesting
+  void testResetDataChangeCounters() {
+    _dataChangeCounter = 0;
+    for (final domain in SyncDomain.values) {
+      _domainChangeCounters[domain] = 0;
+    }
+  }
+
+  /// Test helper: clear the inline-message dedup state (recent keys,
+  /// pending keys, dedup queue) so a key that survived across tests
+  /// cannot suppress a real emit. Mirrors `shutdown()` clears.
+  @visibleForTesting
+  void testClearInlineDedupState() {
+    _recentInlineMessageKeys.clear();
+    _recentInlineMessageKeyOrder.clear();
+    _pendingInlineMessageKeys.clear();
+    _notifiedPermissionIds.clear();
+    _pendingUpdateSessionIds.clear();
+    _pendingNewSessionIds.clear();
+    _loadingOlderMessages.clear();
+    _sessionsWithPendingUpdates.clear();
+    _sessionsWithPendingSocketMessages.clear();
+    _sessionsNeedingFetchProbe.clear();
+    _sessionsNeedingTailRefresh.clear();
+    _sessionsNeedingVisibleRegroup.clear();
+    _sessionsNeedingSidechainRegroup.clear();
+  }
+
+  /// Test helper: clear the encryption-key caches so a key cached for
+  /// user A's session cannot decrypt user B's data after a logout/login
+  /// within a single test. Mirrors `shutdown()` clears.
+  @visibleForTesting
+  void testClearEncryptionKeyCaches() {
+    _sessionDataKeys.clear();
+    _sessionEncryptedDataKeys.clear();
+    _machineDataKeys.clear();
+    _sessionEncryptionRecoveryAttempts.clear();
+    _dekFallbackCaptured.clear();
+    _sessionContentSignatures.clear();
+    _lastNoEmbedEventMs.clear();
+    _lastNoEmbedEventCursorSeq.clear();
+    _lastMachineRpcWarnMs.clear();
+  }
+
+  /// Test helper: clear spawn/auto-restore guard sets so in-flight
+  /// restoration tracking from a previous test cannot deadlock the next
+  /// test's `sendMessage`. Mirrors `shutdown()` clears.
+  @visibleForTesting
+  void testClearSpawnGuardState() {
+    _profileModelKillInFlight.clear();
+    _autoRestoreInFlight.clear();
+    _autoRestoreCompleters.clear();
+    _autoRestoreProfileIds.clear();
+    _optimisticallyArchivedSessions.clear();
+    _sessionUnreadCounts.clear();
+    _sessionUnreadLastIncrementMs.clear();
+    _pendingToolResults.clear();
+    _machineOfflineWarnedAtMs.clear();
+  }
+
+  /// Test helper: clear all per-session message/regroup/orphan state so
+  /// residue from a previous test does not survive into the next.
+  /// Mirrors the per-session fields cleared by `shutdown()`.
+  @visibleForTesting
+  void testClearAllSessionMessageState() {
+    for (final entry in _postSendCatchUpTimers.entries.toList()) {
+      entry.value.cancel();
+    }
+    _postSendCatchUpTimers.clear();
+    for (final entry in _saveMsgsDebounceTimers.entries.toList()) {
+      entry.value.cancel();
+    }
+    _saveMsgsDebounceTimers.clear();
+    _saveMsgsFirstScheduledAtMs.clear();
+    for (final entry in _sidechainRegroupTimers.entries.toList()) {
+      entry.value.cancel();
+    }
+    _sidechainRegroupTimers.clear();
+    _sidechainRegroupFirstRequestMs.clear();
+    _sidechainRegroupSweepCount.clear();
+    _sessionMessages.clear();
+    _sessionMessagesRevision.clear();
+    _previewCache.clear();
+    _previewCacheVersion.clear();
+    _sessionMessagesViewCache.clear();
+    _sessionMessagesCache = null;
+    _orphanFetchOlderAttemptedMs.clear();
+    _orphanFetchOlderNoProgressCount.clear();
+    _orphanWalkbackSignature.clear();
+    _orphanSuppressedUntilMs.clear();
+    _sessionUsage.clear();
+    _lastEphemeralAt.clear();
+    _pendingToolResults.clear();
   }
   @visibleForTesting
   SyncProgress? get testSyncProgress => _syncProgress;

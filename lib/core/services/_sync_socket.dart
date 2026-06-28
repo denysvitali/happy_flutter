@@ -1121,8 +1121,7 @@ extension SyncSocket on Sync {
       }
     }
 
-    _sessionSpawnedAt[restoredSessionId] =
-        DateTime.now().millisecondsSinceEpoch;
+    _registerSpawn(restoredSessionId);
 
     if (_sessions.containsKey(restoredSessionId)) {
       _scheduleSaveSessionsCache();
