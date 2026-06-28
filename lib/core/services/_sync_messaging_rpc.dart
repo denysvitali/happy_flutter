@@ -945,7 +945,7 @@ extension SyncMessagingRpc on Sync {
           _invalidateMessageCaches(sessionId);
           final maxSeq = _maxCachedMessageSeq(cached);
           if (maxSeq != null) {
-            _advanceSeqCursor(sessionId, maxSeq);
+            _seedSeqCursorFromCache(sessionId, maxSeq);
           }
           hasMessages = true;
           // Re-run the sidechain grouper so cached sidechain messages

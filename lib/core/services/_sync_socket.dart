@@ -546,6 +546,13 @@ extension SyncSocket on Sync {
     }
   }
 
+  void _seedSeqCursorFromCache(String sessionId, int newSeq) {
+    if (!_cursorManager.advanceSeqCursor(sessionId, newSeq)) {
+      return;
+    }
+    _scheduleSaveSeq();
+  }
+
   /// Debounced MMKV persist for session seq cursors.
   ///
   /// [saveSessionLastSeq] does a synchronous jsonEncode + MMKV disk write on
@@ -1017,7 +1024,7 @@ extension SyncSocket on Sync {
           _sessionMessagesViewCache.remove(sessionId);
           final maxSeq = _maxCachedMessageSeq(cached);
           if (maxSeq != null) {
-            _advanceSeqCursor(sessionId, maxSeq);
+            _seedSeqCursorFromCache(sessionId, maxSeq);
           }
 
           // Defer sidechain grouping to onSessionVisible() instead of

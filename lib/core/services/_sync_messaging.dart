@@ -340,7 +340,7 @@ extension SyncMessaging on Sync {
       final persistedCursorSeq = _sessionLastSeq[sessionId] ?? 0;
       final cachedCursorSeq = _maxCachedMessageSeq(_sessionMessages[sessionId]);
       if (cachedCursorSeq != null && cachedCursorSeq > persistedCursorSeq) {
-        _advanceSeqCursor(sessionId, cachedCursorSeq);
+        _seedSeqCursorFromCache(sessionId, cachedCursorSeq);
       }
       final rawCursorSeq = max(persistedCursorSeq, cachedCursorSeq ?? 0);
       final cursorSeq =
