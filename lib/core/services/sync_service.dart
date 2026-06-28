@@ -836,7 +836,7 @@ what you have, you must use the options mode.
 
   /// Mutable spawn agent map — use in agent change tests.
   @visibleForTesting
-  Map<String, String?> get testSessionSpawnedAgent => _sessionSpawnedAgent;
+  Map<String, String> get testSessionSpawnedAgent => _sessionSpawnedAgent;
 
   /// Mutable pending-updates set.
   @visibleForTesting

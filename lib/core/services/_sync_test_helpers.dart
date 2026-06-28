@@ -483,11 +483,11 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: get _sessionSpawnedAgent map.
   @visibleForTesting
-  Map<String, String?> get testSessionSpawnedAgent => _sessionSpawnedAgent;
+  Map<String, String> get testSessionSpawnedAgent => _sessionSpawnedAgent;
 
   /// Test helper: set the agent used when spawning a session.
   @visibleForTesting
-  void testSetSessionSpawnedAgent(String sessionId, String? agent) {
+  void testSetSessionSpawnedAgent(String sessionId, String agent) {
     _sessionSpawnedAgent[sessionId] = agent;
   }
 

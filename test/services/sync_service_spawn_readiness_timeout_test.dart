@@ -28,7 +28,7 @@ import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
-import '../../../helpers/test_helpers.dart';
+import '../helpers/test_helpers.dart';
 
 class _CapturingSessionEncryption implements SessionEncryption {
   @override
