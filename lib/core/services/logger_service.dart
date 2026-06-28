@@ -87,6 +87,13 @@ class LoggerService {
   /// This is set when developer mode is enabled in settings.
   bool _developerModeEnabled = false;
 
+  /// Optional OTel log sink installed by [OpenTelemetryService].
+  /// All logs that pass the level/mode gate are forwarded here.
+  void Function(LogEntry)? _otelLogSink;
+
+  /// Re-entrancy guard so an OTel forwarding failure cannot recurse.
+  bool _forwardingToOtel = false;
+
   /// Get the current minimum log level
   LogLevel get minLevel => _minLevel;
 
@@ -99,6 +106,13 @@ class LoggerService {
   /// When enabled, all log levels are captured even in release builds.
   void setDeveloperMode(bool enabled) {
     _developerModeEnabled = enabled;
+  }
+
+  /// Install a sink that receives every log entry that survives level/mode
+  /// gating. Used by [OpenTelemetryService] to forward logs to the OTel
+  /// collector. The sink is wrapped in a re-entrancy guard and never throws.
+  void installOtelSink(void Function(LogEntry) sink) {
+    _otelLogSink = sink;
   }
 
   /// Add a log entry
@@ -148,6 +162,7 @@ class LoggerService {
       }
 
       _forwardToSentry(entry);
+      _forwardToOtel(entry);
     }
 
     // Write to console in debug mode (or release with dev mode). ANSI
@@ -230,6 +245,24 @@ class LoggerService {
           });
     } catch (e) {
       warning('[Sentry] Forward failed: $e');
+    }
+  }
+
+  /// Forward a log entry to the installed OTel sink.
+  ///
+  /// This is a best-effort, fire-and-forget path: OTel transport failures are
+  /// not allowed to crash the logger or to recurse.
+  void _forwardToOtel(LogEntry entry) {
+    final sink = _otelLogSink;
+    if (sink == null || _forwardingToOtel) return;
+
+    _forwardingToOtel = true;
+    try {
+      sink(entry);
+    } catch (_) {
+      // Swallow — the logger must never fail because its sink failed.
+    } finally {
+      _forwardingToOtel = false;
     }
   }
 

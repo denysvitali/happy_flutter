@@ -14,12 +14,12 @@ void main() {
       );
     });
 
-    test('enables tracing by default with metrics and logs disabled', () {
+    test('enables tracing, metrics, logs and auto log events by default', () {
       final service = OpenTelemetryService();
 
       expect(service.configuredTracingEnabledByDefault, isTrue);
-      expect(service.configuredEnableMetrics, isFalse);
-      expect(service.configuredEnableLogs, isFalse);
+      expect(service.configuredEnableMetrics, isTrue);
+      expect(service.configuredEnableLogs, isTrue);
       expect(service.configuredEnableAutoLogEvents, isFalse);
       expect(service.configuredTraceExporterProtocol, 'otlp_http_protobuf');
     });

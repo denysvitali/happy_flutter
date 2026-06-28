@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
-    hide Logger;
+    hide Logger, LogLevel;
 
 import '../utils/package_info_cache.dart';
 import 'logger_service.dart';
@@ -18,8 +18,8 @@ class OpenTelemetryService {
   static const String serviceName = 'happy-flutter';
   static const String endpoint = 'https://otel.k2.k8s.best';
   static const bool tracingEnabledByDefault = true;
-  static const bool metricsEnabled = false;
-  static const bool logsEnabled = false;
+  static const bool metricsEnabled = true;
+  static const bool logsEnabled = true;
   static const bool autoLogEventsEnabled = false;
   static const String traceExporterProtocol = 'otlp_http_protobuf';
 
@@ -115,6 +115,16 @@ class OpenTelemetryService {
     try {
       await _trustedCertsFuture;
       final packageInfo = await PackageInfoCache.get();
+
+      // Use OTLP/HTTP for all signals so native builds talk to the same
+      // collector ingress as web builds.
+      final metricExporter = OtlpHttpMetricExporter(
+        OtlpHttpMetricExporterConfig(endpoint: endpoint),
+      );
+      final logRecordExporter = OtlpHttpLogRecordExporter(
+        OtlpHttpLogRecordExporterConfig(endpoint: endpoint),
+      );
+
       await FlutterOTel.initialize(
         appName: serviceName,
         endpoint: endpoint,
@@ -126,11 +136,18 @@ class OpenTelemetryService {
         spanProcessor: BatchSpanProcessor(
           OtlpHttpSpanExporter(OtlpHttpExporterConfig(endpoint: endpoint)),
         ),
+        metricExporter: metricExporter,
+        metricReader: PeriodicExportingMetricReader(
+          metricExporter,
+          interval: const Duration(seconds: 30),
+        ),
+        logRecordExporter: logRecordExporter,
         enableMetrics: metricsEnabled,
         enableLogs: logsEnabled,
         enableAutoLogEvents: autoLogEventsEnabled,
       );
       _replacePackageLifecycleObserver();
+      _installLoggerSink();
       _initialized = true;
       logger.info('[OpenTelemetry] initialized endpoint=$endpoint');
     } catch (e, stack) {
@@ -167,6 +184,39 @@ class OpenTelemetryService {
     }
     _lifecycleObserver ??= _HappyOtelLifecycleObserver();
     WidgetsBinding.instance.addObserver(_lifecycleObserver!);
+  }
+
+  void _installLoggerSink() {
+    logger.installOtelSink(_forwardLogToOtel);
+  }
+
+  static void _forwardLogToOtel(LogEntry entry) {
+    try {
+      final otelLogger = FlutterOTel.logger('happy_flutter');
+      final attributes = OTel.attributesFromMap(
+        _safeAttributes({
+          'logger.level': entry.level.name,
+          if (entry.error != null)
+            'error.type': entry.error.runtimeType.toString(),
+          if (entry.stackTrace != null)
+            'error.stack_trace': entry.stackTrace.toString(),
+        }),
+      );
+      final body = entry.message;
+
+      switch (entry.level) {
+        case LogLevel.debug:
+          otelLogger.debug(body, attributes: attributes);
+        case LogLevel.info:
+          otelLogger.info(body, attributes: attributes);
+        case LogLevel.warning:
+          otelLogger.warn(body, attributes: attributes);
+        case LogLevel.error:
+          otelLogger.error(body, attributes: attributes);
+      }
+    } catch (_) {
+      // OTel may not be initialized yet; logs must never fail because of it.
+    }
   }
 
   OTelSpan? startTrace(
