@@ -780,6 +780,10 @@ extension SyncLifecycle on Sync {
     // reused after logout+login, and closing a final StreamController is
     // permanent. Listeners (screens that subscribe to onDataChanged) would
     // never receive events again, silently breaking all real-time updates.
+    //
+    // [_autoRestoreFailureController] follows the same convention;
+    // [_safeEmitAutoRestoreFailure] guards `isClosed` so the stream
+    // silently no-ops if a test ever closes it directly.
 
     for (final sync in messagesSync.values) {
       sync.dispose();
@@ -794,9 +798,83 @@ extension SyncLifecycle on Sync {
     _recentInlineMessageKeyOrder.clear();
     _pendingInlineMessageKeys.clear();
     _lastNoEmbedEventMs.clear();
+    _lastNoEmbedEventCursorSeq.clear();
+    // _lastNoEmbedEventCursorSeq cleared in shutdown (per cursor seq must
+    // not survive logout — a stale cursor would suppress the post-login
+    // no-embed probe cooldown).
     _lastMachineRpcWarnMs.clear();
     _sessionsWithPendingSocketMessages.clear();
     _notifiedPermissionIds.clear();
+    // _sessionMessagesRevision cleared in shutdown (per-session revision
+    // counter must reset so a new login does not compare revisions
+    // against a different user's session IDs and skip change notifications).
+    _sessionMessagesRevision.clear();
+    // _sessionContentSignatures cleared in shutdown (signatures from
+    // the previous user's sessions must not suppress merge of new
+    // messages after login).
+    _sessionContentSignatures.clear();
+    // _sessionsNeedingFetchProbe cleared in shutdown (set membership
+    // from the previous user would force spurious fetch probes for
+    // sessions that do not exist post-login).
+    _sessionsNeedingFetchProbe.clear();
+    // _sessionsNeedingVisibleRegroup cleared in shutdown (orphans from
+    // the previous user would be re-grouped on next login, causing
+    // spurious UI work).
+    _sessionsNeedingVisibleRegroup.clear();
+    // _sessionsNeedingSidechainRegroup cleared in shutdown (sidechain
+    // regroup requests for the previous user's sessions would fire on
+    // next login against unrelated sessions).
+    _sessionsNeedingSidechainRegroup.clear();
+    // _sidechainRegroupSweepCount cleared in shutdown (per-session
+    // sweep counters must not leak across logout — a high count
+    // would prevent the orphan-absorption cap from ever resetting).
+    _sidechainRegroupSweepCount.clear();
+    // _orphanFetchOlderAttemptedMs cleared in shutdown (per-session
+    // throttle timestamps must not survive logout — a stale entry
+    // would block the post-login fetchOlder orphan-recovery path
+    // for an unrelated session).
+    _orphanFetchOlderAttemptedMs.clear();
+    // _orphanFetchOlderNoProgressCount cleared in shutdown (per-session
+    // no-progress counters must reset so the next user cannot inherit
+    // a near-cap counter that blocks orphan recovery immediately).
+    _orphanFetchOlderNoProgressCount.clear();
+    // _orphanWalkbackSignature cleared in shutdown (per-session
+    // signatures from a different user would suppress a fresh
+    // walk-back budget on next login).
+    _orphanWalkbackSignature.clear();
+    // _orphanSuppressedUntilMs cleared in shutdown (per-session
+    // suppression windows must not leak across logout).
+    _orphanSuppressedUntilMs.clear();
+    // _dekFallbackCaptured cleared in shutdown (the per-launch
+    // DEK-fallback Sentry guard must reset so the next user gets
+    // a fresh capture opportunity).
+    _dekFallbackCaptured.clear();
+    // _profileModelKillInFlight cleared in shutdown (in-flight kill
+    // tracking from the previous user must not deadlock the next
+    // user's sendMessage auto-restore path).
+    _profileModelKillInFlight.clear();
+    // _loopsBySession cleared in shutdown (loop list per session
+    // belongs to the previous user; must not leak into the new
+    // session IDs after login).
+    _loopsBySession.clear();
+    // _dataChangeCounter reset in shutdown (monotonic counter must
+    // restart at 0 so the next login's providers see a clean
+    // baseline and do not compare against stale last-seen values).
+    _dataChangeCounter = 0;
+    // _domainChangeCounters reset in shutdown (per-domain monotonic
+    // counters must restart so the next login's per-domain
+    // subscribers see a clean baseline).
+    for (final domain in SyncDomain.values) {
+      _domainChangeCounters[domain] = 0;
+    }
+    // _activeSyncCount reset in shutdown (running-sync count must
+    // restart at 0 so the next login's UI does not show a stale
+    // "syncing" indicator).
+    _activeSyncCount = 0;
+    // _runningSyncNames cleared in shutdown (running-sync names
+    // belong to the previous user — leaking them would show the
+    // wrong sync label on first launch of the next login).
+    _runningSyncNames.clear();
 
     sessionsSync.dispose();
     settingsSync.dispose();
@@ -822,6 +900,7 @@ extension SyncLifecycle on Sync {
       timer.cancel();
     }
     _saveMsgsDebounceTimers.clear();
+    _saveMsgsFirstScheduledAtMs.clear();
     _sessionMessages.clear();
     _previewCache.clear();
     _previewCacheVersion.clear();

@@ -104,6 +104,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   StreamSubscription<void>? _dataSyncSubscription;
   StreamSubscription<String>? _messageSyncSubscription;
   StreamSubscription<String>? _paginationErrorSubscription;
+  StreamSubscription<AutoRestoreFailure>? _autoRestoreFailureSubscription;
   bool _isSending = false;
   bool _isAborting = false;
   bool _isLoadingMessages = true;
@@ -331,6 +332,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
     _paginationErrorSubscription?.cancel();
+    _autoRestoreFailureSubscription?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     _autoScrollNotifier.dispose();
@@ -387,6 +389,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             });
           }
         });
+
+    // ROADMAP P0 — surface auto-restore failures to the user.  Without
+    // this, `_resolveSendTargetSession`'s catch-all branch POSTed to a
+    // broken session and silently swallowed the failure.  We flip the
+    // optimistic message to `sendStatus: 'failed'` (preserving its
+    // `localId` per the core messaging invariant) and show a snackbar
+    // so the user can retry.
+    _autoRestoreFailureSubscription = sync.onAutoRestoreFailure
+        .where((failure) => failure.sessionId == widget.sessionId)
+        .listen(_handleAutoRestoreFailure);
 
     if (!sync.isInitialized) {
       return;

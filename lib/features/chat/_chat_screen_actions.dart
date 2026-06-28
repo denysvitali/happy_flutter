@@ -1074,4 +1074,55 @@ extension _ChatScreenActions on _ChatScreenState {
       if (mounted && _isSending) setState(() => _isSending = false);
     }
   }
+
+  /// Handle an [AutoRestoreFailure] emitted by the sync layer when
+  /// `_resolveSendTargetSession`'s catch-all branch fired.  Flips the
+  /// most recent in-flight optimistic message for the current session
+  /// to `sendStatus: 'failed'` (preserving `localId` for retry) and
+  /// surfaces a snackbar with `chatFailedToSend`.
+  ///
+  /// ROADMAP P0: previously the catch-all branch POSTed to a broken
+  /// session and the failure vanished — the optimistic row kept
+  /// showing `'sending'` forever and the user had no recourse.
+  void _handleAutoRestoreFailure(AutoRestoreFailure failure) {
+    if (!mounted) return;
+    if (failure.sessionId != widget.sessionId) return;
+
+    // Flip the most recent optimistic user message to 'failed' so
+    // the user can retry with the same `localId`.  Walk backwards
+    // because the optimistic insert always appends.
+    String? failedLocalId;
+    setState(() {
+      for (var i = _messages.length - 1; i >= 0; i--) {
+        final m = _messages[i];
+        if ((m['role'] as String? ?? '') != 'user') continue;
+        final status = m['sendStatus'] as String? ?? '';
+        if (status != 'sending' && status != 'pending') continue;
+        _messages = [
+          ..._messages.sublist(0, i),
+          {...m, 'sendStatus': 'failed'},
+          ..._messages.sublist(i + 1),
+        ];
+        failedLocalId = m['localId'] as String?;
+        break;
+      }
+      _isSending = false;
+      _invalidateNeighborCache();
+    });
+
+    if (failedLocalId != null) {
+      logger.info(
+        '[ChatScreen] auto-restore failed; optimistic row marked failed '
+        'localId=$failedLocalId session=${widget.sessionId} '
+        'reason=${failure.reason}',
+      );
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.chatFailedToSend),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
 }

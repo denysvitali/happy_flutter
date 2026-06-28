@@ -28,6 +28,11 @@ class PowerDiagnosticsOtelReporter {
   Counter<int>? _outboxAttemptCounter;
   Counter<int>? _outboxFailureCounter;
 
+  // Lazy lookup for app-level error counters. Keyed by an opaque
+  // "metric.name" string (e.g. "app.auto_restore.failed"). Created on
+  // first bump so we never pay for counters that are never used.
+  final Map<String, Counter<int>> _appErrorCounters = {};
+
   UIMeter get _meter {
     return FlutterOTel.meter(name: 'happy_flutter.power_diagnostics');
   }
@@ -151,5 +156,27 @@ class PowerDiagnosticsOtelReporter {
       );
       _outboxFailureCounter!.add(1);
     } catch (_) {}
+  }
+
+  /// Bump an app-level error counter.
+  ///
+  /// `name` is a short, dotted identifier such as `app.auto_restore.failed`.
+  /// We lazily create the underlying OTel counter on first use so call
+  /// sites that never fire don't pay the creation cost.  All work is
+  /// wrapped in try/catch — OTel initialization failures must never
+  /// break the host flow.
+  void recordAppError(String name) {
+    try {
+      final counter = _appErrorCounters.putIfAbsent(name, () {
+        return _meter.createCounter<int>(
+          name: 'happy_flutter.$name',
+          description: 'App-level error event: $name',
+          unit: '{events}',
+        );
+      });
+      counter.add(1);
+    } catch (_) {
+      // Best-effort: OTel failures must not break the host flow.
+    }
   }
 }

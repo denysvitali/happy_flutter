@@ -48,6 +48,7 @@ import '../services/network_monitor_service.dart';
 import '../services/opentelemetry_service.dart';
 import '../services/performance_context_service.dart';
 import '../services/power_diagnostics_service.dart';
+import '../services/power_diagnostics_otel_reporter.dart';
 import '../services/server_config.dart';
 import '../services/sessions_cache_storage.dart';
 import '../services/storage_service.dart';
@@ -103,6 +104,44 @@ part 'message_pipeline/message_ingestion_orchestrator.dart';
 part '_sync_test_helpers.dart';
 
 // Global singleton instance
+
+/// Typed event emitted on [Sync.onAutoRestoreFailure] when an
+/// auto-restore attempt fails in a way that the chat UI needs to
+/// surface to the user (the optimistic send cannot proceed because
+/// the underlying session could not be restored).
+///
+/// Subscribers (notably [ChatScreen]) use this to show a snackbar
+/// and flip the optimistic message's `sendStatus` to `'failed'` so
+/// the user can retry with the same `localId`.
+class AutoRestoreFailure {
+  const AutoRestoreFailure({
+    required this.sessionId,
+    required this.error,
+    required this.reason,
+    this.stack,
+  });
+
+  /// The session whose auto-restore failed.
+  final String sessionId;
+
+  /// The underlying error object. Kept opaque so we never
+  /// accidentally smuggle a non-stringifiable value across the
+  /// broadcast boundary.
+  final Object error;
+
+  /// Stack trace of the originating failure, when available.
+  final StackTrace? stack;
+
+  /// Classification of the failure for downstream handling.
+  ///
+  /// - `'transient'` — network/RPC blip; retry may succeed.
+  /// - `'permanent'` — server says session is gone; retry won't help.
+  /// - `'lifecycle_error'` — session was in errored state already.
+  /// - `'unknown'` — catch-all branch; failure surfaced silently
+  ///   before this stream existed.
+  final String reason;
+}
+
 class Sync {
   factory Sync() => _instance;
   Sync._();
@@ -119,6 +158,18 @@ class Sync {
   /// short-circuit; this constant only governs the worst-case stall
   /// when neither signal is fresh.
   static const int sessionReadyTimeoutMs = 750;
+
+  /// Inline window (ms) during which a freshly-spawned session is considered
+  /// "recently spawned" for readiness purposes. Outside this window the short
+  /// [sessionReadyTimeoutMs] (750 ms) applies.
+  static const int recentlySpawnedFlagMs = 30000;
+
+  /// Wait budget for a recently-spawned session to become ready before
+  /// sending the message anyway. The 15 s window accommodates cold-start
+  /// agent boot (daemon waits 15 s for the agent's startup webhook before
+  /// returning an error — see createSession).
+  static const int recentlySpawnedWaitMs = 15000;
+
   static const int _visibleMessageFetchPageLimit = kIsWeb ? 4 : 12;
   static const int _backgroundMessageFetchPageLimit = 1;
   static const int _maxVisibleSessionMessages = kIsWeb ? 600 : 1000;
@@ -443,6 +494,8 @@ what you have, you must use the options mode.
   final _sessionMessageChangeController = StreamController<String>.broadcast();
   final _paginationErrorController = StreamController<String>.broadcast();
   final _syncStateController = StreamController<void>.broadcast();
+  final _autoRestoreFailureController =
+      StreamController<AutoRestoreFailure>.broadcast();
   int _activeSyncCount = 0;
   SyncProgress? _syncProgress;
   final Map<String, int> _runningSyncNames = {};
@@ -543,6 +596,44 @@ what you have, you must use the options mode.
   // session.metadata?.flavor is null (e.g., metadata decryption failed)
   // so auto-restore uses the correct agent instead of defaulting to 'claude'.
   final Map<String, String> _sessionSpawnedAgent = {};
+
+  /// Captured `Hint.withMap({...})` payloads from the spawn-readiness
+  /// timeout `Sentry.captureMessage` branch. Production writes via the
+  /// helper in `_sync_messaging_send.dart`; tests read through
+  /// `testSpawnReadinessTimeoutCaptures`.
+  final List<Map<String, Object?>> _spawnReadinessTimeoutCaptures = [];
+
+  /// Funnel all spawn-metadata writes through a single helper so the four
+  /// `_sessionSpawned*` maps stay in lock-step and `wasRecentlySpawned` /
+  /// `_resolveSendTargetSession` agree on the same anchor time.
+  ///
+  /// Pass [at] when the caller already has the canonical spawn epoch
+  /// (e.g. a session recovered via `found.createdAt` after a webhook
+  /// timeout); otherwise the helper stamps `DateTime.now()`. [agent] is
+  /// stored verbatim; [profileId] / [modelMode] accept null when the
+  /// caller cannot resolve them yet (caller is responsible for updating
+  /// those entries later if needed — see `_sync_operations_session.dart`
+  /// auto-restore path).
+  void _registerSpawn(
+    String sessionId, {
+    String? profileId,
+    String? modelMode,
+    String? agent,
+    DateTime? at,
+  }) {
+    final atMs = (at ?? DateTime.now()).millisecondsSinceEpoch;
+    _sessionSpawnedAt[sessionId] = atMs;
+    if (profileId != null) {
+      _sessionSpawnedProfile[sessionId] = profileId;
+    }
+    if (modelMode != null) {
+      _sessionSpawnedModel[sessionId] = modelMode;
+    }
+    if (agent != null) {
+      _sessionSpawnedAgent[sessionId] = agent;
+    }
+  }
+
   // machineId → epoch-ms of last offline warning. Deduplicates the
   // "Machine appears offline" warning that fires on every createSession().
   final Map<String, int> _machineOfflineWarnedAtMs = {};
@@ -1039,6 +1130,66 @@ what you have, you must use the options mode.
   /// Stream that emits the sessionId when older-message pagination fails.
   /// ChatScreen listens to this to show an inline error or snackbar.
   Stream<String> get onPaginationError => _paginationErrorController.stream;
+
+  /// Stream that emits an [AutoRestoreFailure] whenever an auto-restore
+  /// attempt in `_resolveSendTargetSession` falls into the catch-all
+  /// branch (neither transient, nor permanent, nor lifecycle-error).
+  ///
+  /// Previously the catch-all branch only logged at error level — the
+  /// user-visible signal was lost and `_completeSend` POSTed to a
+  /// broken session.  ChatScreen now subscribes to this stream to
+  /// surface a snackbar and flip the optimistic message's
+  /// `sendStatus` to `'failed'`.
+  Stream<AutoRestoreFailure> get onAutoRestoreFailure =>
+      _autoRestoreFailureController.stream;
+
+  // ── Safe helpers for auto-restore failure observability ─────────────
+  //
+  // These are split out of the catch-all branch in
+  // `_resolveSendTargetSession` so the call site stays readable, and
+  // so unit tests can override each hook independently
+  // (`testAutoRestoreFailureSink`).
+  //
+  // They are best-effort and must never throw — the catch-all branch
+  // is already in an error path, and re-throwing here would mask the
+  // real failure from the user.
+
+  @visibleForTesting
+  void Function(AutoRestoreFailure failure)? testAutoRestoreFailureSink;
+
+  @visibleForTesting
+  void Function(String name)? testRecordAppErrorSink;
+
+  void _safeRecordAppError(String name) {
+    final sink = testRecordAppErrorSink;
+    if (sink != null) {
+      try {
+        sink(name);
+      } catch (_) {
+        // Test sinks must never propagate.
+      }
+      return;
+    }
+    try {
+      PowerDiagnosticsOtelReporter.instance.recordAppError(name);
+    } catch (_) {
+      // OTel initialization failures must not break the host flow.
+    }
+  }
+
+  void _safeEmitAutoRestoreFailure(AutoRestoreFailure failure) {
+    final sink = testAutoRestoreFailureSink;
+    if (sink != null) {
+      try {
+        sink(failure);
+      } catch (_) {
+        // Test sinks must never propagate.
+      }
+      return;
+    }
+    if (_autoRestoreFailureController.isClosed) return;
+    _autoRestoreFailureController.add(failure);
+  }
 
   /// Stream that emits whenever sync state changes (any sync starts or stops).
   Stream<void> get onSyncStateChanged => _syncStateController.stream;

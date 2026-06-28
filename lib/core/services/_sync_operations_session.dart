@@ -212,10 +212,12 @@ extension SyncSessionOperations on Sync {
           await _ensureSessionEncryptionInitialized(sessionId, decryptedKey);
         }
       }
-      _sessionSpawnedAt[sessionId] = DateTime.now().millisecondsSinceEpoch;
-      _sessionSpawnedProfile[sessionId] = effectiveProfileId;
-      _sessionSpawnedModel[sessionId] = effectiveModelMode;
-      _sessionSpawnedAgent[sessionId] = agent;
+      _registerSpawn(
+        sessionId,
+        profileId: effectiveProfileId,
+        modelMode: effectiveModelMode,
+        agent: agent,
+      );
       logger.info(
         '[createSession] Registered session $sessionId '
         'in _sessionSpawnedAt '
@@ -342,8 +344,14 @@ extension SyncSessionOperations on Sync {
           '[createSession] recovered session ${found.id} '
           'after webhook timeout',
         );
-        _sessionSpawnedAt[found.id] = found.createdAt;
-        _sessionSpawnedProfile[found.id] = effectiveProfileId;
+        // Anchor on the server-reported createdAt so the recently-spawned
+        // window aligns with the actual spawn moment rather than the local
+        // clock at recovery time.
+        _registerSpawn(
+          found.id,
+          profileId: effectiveProfileId,
+          at: DateTime.fromMillisecondsSinceEpoch(found.createdAt),
+        );
         _notifyDataChanged({SyncDomain.sessions});
         return found.id;
       }
@@ -1512,14 +1520,15 @@ PY
       // be resolved locally (e.g. profile sync hasn't completed yet). Storing
       // null here causes a null != profileId mismatch on the very next send,
       // which triggers an infinite kill-restore loop.
-      _sessionSpawnedProfile[restoredSessionId] =
-          spawnResult.profile?.id ?? profileId;
-      _sessionSpawnedModel[restoredSessionId] = modelMode;
-      // Register a spawn timestamp so wasRecentlySpawned returns true for
-      // the restored session. Without this, the restored session has no grace
-      // period and is immediately eligible for another profile/model kill.
-      _sessionSpawnedAt[restoredSessionId] =
-          DateTime.now().millisecondsSinceEpoch;
+      // Register the spawn timestamp + metadata via the funnel helper so
+      // wasRecentlySpawned returns true for the restored session. Without
+      // this, the restored session has no grace period and is immediately
+      // eligible for another profile/model kill.
+      _registerSpawn(
+        restoredSessionId,
+        profileId: spawnResult.profile?.id ?? profileId,
+        modelMode: modelMode,
+      );
       if (restoredSessionId != sessionId) {
         // Migrate conversation history from the old session to the new
         // one so the user doesn't lose context after an auto-restore
@@ -1640,6 +1649,35 @@ PY
           'session=$sessionId',
           error,
           stack,
+        );
+        // ROADMAP P0: this catch-all branch used to be invisible to
+        // both Sentry and the user — the message was POSTed to a
+        // broken session and the optimistic row vanished.  Capture
+        // to Sentry, bump the app-level counter, and emit a
+        // structured event so ChatScreen can show a snackbar and
+        // flip the optimistic message's `sendStatus` to `'failed'`
+        // (preserving `localId` for retry, per the core messaging
+        // invariant).
+        unawaited(
+          Sentry.captureException(
+            error,
+            stackTrace: stack,
+            hint: Hint.withMap({
+              'context': 'sendMessage.autoRestore',
+              'sessionId': sessionId,
+            }),
+          ),
+        );
+        unawaited(
+          _safeRecordAppError('app.auto_restore.failed'),
+        );
+        _safeEmitAutoRestoreFailure(
+          AutoRestoreFailure(
+            sessionId: sessionId,
+            error: error,
+            stack: stack,
+            reason: 'unknown',
+          ),
         );
       }
       if (lifecycleErrored) {
