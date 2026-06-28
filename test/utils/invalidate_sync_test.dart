@@ -114,6 +114,22 @@ void main() {
         await sync.awaitQueue();
       });
 
+      test('dispose reports in-flight operation as no longer running', () async {
+        final blocker = Completer<void>();
+        final events = <bool>[];
+        final sync = InvalidateSync(
+          () => blocker.future,
+          onRunningChanged: (_, isRunning) => events.add(isRunning),
+        );
+
+        sync.invalidate();
+        await Future<void>.delayed(Duration.zero);
+
+        sync.dispose();
+
+        expect(events, [true, false]);
+      });
+
       test('dispose during in-flight op does not crash '
           'invalidateAndAwait callers', () async {
         final blocker = Completer<void>();

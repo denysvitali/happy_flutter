@@ -183,5 +183,25 @@ void main() {
       completer.complete();
       await instance.sessionsSync.awaitQueue();
     });
+
+    test('disposing a running sync clears fallback progress', () async {
+      final completer = Completer<void>();
+      instance.settingsSync = InvalidateSync(
+        () => completer.future,
+        name: 'syncSettings',
+        onRunningChanged: instance.testOnSyncRunningChanged,
+      );
+
+      instance.settingsSync.invalidate();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(instance.isSyncing, isTrue);
+      expect(instance.syncProgress!.label, equals('Syncing Settings'));
+
+      instance.settingsSync.dispose();
+
+      expect(instance.isSyncing, isFalse);
+      expect(instance.syncProgress, isNull);
+    });
   });
 }

@@ -372,6 +372,7 @@ class InvalidateSync {
     _runGeneration++;
     _retryTimer?.cancel();
     _cooldownTimer?.cancel();
+    _setRunning(false);
     final op = _currentOperation;
     _currentOperation = null;
     if (op != null && !op.isCompleted) {
