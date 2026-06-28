@@ -481,6 +481,16 @@ extension SyncTestHelpers on Sync {
     _sessionSpawnedModel[sessionId] = modelMode;
   }
 
+  /// Test helper: get _sessionSpawnedAgent map.
+  @visibleForTesting
+  Map<String, String?> get testSessionSpawnedAgent => _sessionSpawnedAgent;
+
+  /// Test helper: set the agent used when spawning a session.
+  @visibleForTesting
+  void testSetSessionSpawnedAgent(String sessionId, String? agent) {
+    _sessionSpawnedAgent[sessionId] = agent;
+  }
+
   /// Test helper: record a recent ephemeral event for a session so
   /// that [_isSessionReady] trusts its 'online' presence.
   @visibleForTesting

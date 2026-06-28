@@ -33,6 +33,9 @@ class _NoOpSessionEncryption implements SessionEncryption {
   }
 
   @override
+  bool get canDecryptAes => false;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
