@@ -1658,6 +1658,12 @@ PY
         // flip the optimistic message's `sendStatus` to `'failed'`
         // (preserving `localId` for retry, per the core messaging
         // invariant).
+        // `.catchError` swallows any async rejection from the Sentry SDK
+        // (uninitialized SDK, dropped event, transport error) so the
+        // catch-all branch can never leak an uncaught async error into
+        // the host caller. Without this, tests that throw a StateError
+        // from `testMachineRPCOverride` see the StateError re-emerge
+        // from `unawaited(...)` even after the catch block completes.
         unawaited(
           Sentry.captureException(
             error,
@@ -1666,7 +1672,10 @@ PY
               'context': 'sendMessage.autoRestore',
               'sessionId': sessionId,
             }),
-          ),
+          ).catchError((_) {
+            // Test sinks + DSN-less environments must never propagate.
+            return SentryId.empty();
+          }),
         );
         // `_safeRecordAppError` returns void (counter bump is sync); do
         // not wrap in `unawaited(...)` — that requires a `Future`.

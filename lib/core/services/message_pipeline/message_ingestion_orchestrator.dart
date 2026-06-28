@@ -15,12 +15,21 @@ extension SyncMessagePipeline on Sync {
     String sessionId,
     MessagePipelineStage stage,
     String outcome,
-    Map<String, dynamic> data,
-  ) {
-    logger.debug(
-      '[pipeline] $traceId session=$sessionId stage=${stage.name} '
-      'outcome=$outcome payload=$data',
-    );
+    Map<String, dynamic> data, {
+    LogLevel level = LogLevel.debug,
+  }) {
+    final message = '[pipeline] $traceId session=$sessionId '
+        'stage=${stage.name} outcome=$outcome payload=$data';
+    switch (level) {
+      case LogLevel.info:
+        logger.info(message);
+      case LogLevel.warning:
+        logger.warning(message);
+      case LogLevel.error:
+        logger.error(message);
+      case LogLevel.debug:
+        logger.debug(message);
+    }
   }
 
   void _releaseInlineDedupKey(String sessionId, String? dedupKey) {
@@ -226,12 +235,9 @@ extension SyncMessagePipeline on Sync {
           MessagePipelineStage.normalized,
           'no-encryption',
           const <String, dynamic>{},
-        );
-        // Promote to warning so missing-encryption failures show up in
-        // production Loki (debug logs are not forwarded outside dev mode).
-        logger.warning(
-          '[pipeline] $traceId session=$sessionId stage=normalized '
-          'outcome=no-encryption',
+          // Promote to warning so missing-encryption failures show up in
+          // production Loki (debug logs are not forwarded outside dev mode).
+          level: LogLevel.warning,
         );
         messagesSync[sessionId]?.invalidate();
         if (emitSessionNotification) {
