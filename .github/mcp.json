@@ -5,6 +5,15 @@
       "env": {
         "GITHUB_TOKEN": "${GITHUB_TOKEN}"
       }
+    },
+    "loki-mcp": {
+      "command": "/home/workspace/.local/share/mise/installs/go/1.26.4/bin/loki-mcp",
+      "args": [
+        "stdio"
+      ],
+      "env": {
+        "LOKI_URL": "http://loki.monitoring.svc.cluster.local:3100"
+      }
     }
   }
 }
