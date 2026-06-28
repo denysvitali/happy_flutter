@@ -138,19 +138,38 @@ extension SyncMessagePipeline on Sync {
 
   Future<void> ingestFromSocket(MessageIngressEvent event) async {
     final normalized = normalizeSocketIngress(event);
-    await _processMessageBatch(
+    final processed = await _processMessageBatch(
       normalized: normalized,
       notifySessionsDomain: event.notifySessionsDomain,
       emitSessionNotification: true,
       applyMutations: true,
     );
-    _logPipelineStage(
-      normalized.traceId,
-      normalized.sessionId,
-      MessagePipelineStage.notified,
-      'ok',
-      <String, dynamic>{'source': 'socket'},
-    );
+    // Surface inner-pipeline failures as `notified=error` so Loki never
+    // reports a successful notification when `errorMessage` is set.
+    // Without this, `outcome=(error|dropped)` greps miss every failure
+    // that the inner work captured (e.g. encryptionMissing, decrypt
+    // exceptions propagated up via `errorMessage`).
+    final errorMessage = processed.errorMessage;
+    if (errorMessage != null) {
+      _logPipelineStage(
+        normalized.traceId,
+        normalized.sessionId,
+        MessagePipelineStage.notified,
+        'error',
+        <String, dynamic>{
+          'source': 'socket',
+          'errorMessage': errorMessage,
+        },
+      );
+    } else {
+      _logPipelineStage(
+        normalized.traceId,
+        normalized.sessionId,
+        MessagePipelineStage.notified,
+        'ok',
+        <String, dynamic>{'source': 'socket'},
+      );
+    }
   }
 
   Future<ProcessedMessageBundle> ingestFromHttp(
@@ -207,6 +226,12 @@ extension SyncMessagePipeline on Sync {
           MessagePipelineStage.normalized,
           'no-encryption',
           const <String, dynamic>{},
+        );
+        // Promote to warning so missing-encryption failures show up in
+        // production Loki (debug logs are not forwarded outside dev mode).
+        logger.warning(
+          '[pipeline] $traceId session=$sessionId stage=normalized '
+          'outcome=no-encryption',
         );
         messagesSync[sessionId]?.invalidate();
         if (emitSessionNotification) {
@@ -400,6 +425,18 @@ extension SyncMessagePipeline on Sync {
     } catch (error, stack) {
       _releaseInlineDedupKey(sessionId, dedupKey);
       messagesSync[sessionId]?.invalidate();
+      // Emit the structured `[pipeline]` breadcrumb first so Loki greps
+      // for `outcome=(error|dropped)` capture the failure under the
+      // pipeline namespace. The plain `logger.warning` below keeps the
+      // full error + stack trace for Sentry but is not greppable by the
+      // pipeline outcome query.
+      _logPipelineStage(
+        traceId,
+        sessionId,
+        MessagePipelineStage.processed,
+        'error',
+        <String, dynamic>{'errorMessage': error.toString()},
+      );
       logger.warning(
         'Message pipeline failed for session=$sessionId',
         error,
