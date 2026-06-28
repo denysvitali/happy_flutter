@@ -496,10 +496,27 @@ extension SyncTestHelpers on Sync {
   bool get testResumeConversationProgressSafetyTimerActive =>
       _resumeConversationProgressSafetyTimer != null;
 
-  /// Test helper: read [_syncProgress] directly (vs the public getter,
-  /// which is identical but kept symmetrical with the other helpers).
+  /// Test helper: reset sync-running state so unit tests can reuse the
+  /// singleton without leaking running counts/names from previous tests.
+  @visibleForTesting
+  void testResetSyncState() {
+    _activeSyncCount = 0;
+    _runningSyncNames.clear();
+    _syncProgress = null;
+  }
   @visibleForTesting
   SyncProgress? get testSyncProgress => _syncProgress;
+
+  /// Test helper: directly set [_syncProgress] so tests can verify that
+  /// explicit progress takes precedence over the running-sync fallback label.
+  @visibleForTesting
+  set testSyncProgress(SyncProgress? value) => _syncProgress = value;
+
+  /// Test helper: expose the private running-changed callback so tests can
+  /// wire standalone [InvalidateSync] instances into the same state tracking.
+  @visibleForTesting
+  void Function(String? name, bool isRunning) get testOnSyncRunningChanged =>
+      _onSyncRunningChanged;
 
   /// Test helper: invoke the dropped-reason summarizer with a fabricated
   /// reason list so we can assert the info-vs-warning split that

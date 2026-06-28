@@ -438,6 +438,7 @@ what you have, you must use the options mode.
   final _syncStateController = StreamController<void>.broadcast();
   int _activeSyncCount = 0;
   SyncProgress? _syncProgress;
+  final Map<String, int> _runningSyncNames = {};
   Timer? _dataChangeDebounceTimer;
   final Map<SyncDomain, Timer> _domainChangeDebounceTimers = {};
   final Map<String, Timer> _sessionMessageDebounceTimers = {};
@@ -1039,7 +1040,34 @@ what you have, you must use the options mode.
   bool get isSyncing => _activeSyncCount > 0;
 
   /// Human-readable sync progress for status UI.
-  SyncProgress? get syncProgress => _syncProgress;
+  SyncProgress? get syncProgress {
+    final explicit = _syncProgress;
+    if (explicit != null) return explicit;
+    if (_activeSyncCount <= 0 || _runningSyncNames.isEmpty) return null;
+    return SyncProgress(label: _fallbackSyncLabel(_runningSyncNames.keys));
+  }
+
+  static String _fallbackSyncLabel(Iterable<String> names) {
+    final sorted = names.toList()..sort();
+    if (sorted.length == 1) {
+      return 'Syncing ${_displayName(sorted.first)}';
+    }
+    final first = _displayName(sorted.first);
+    return 'Syncing $first and ${sorted.length - 1} more';
+  }
+
+  static String _displayName(String name) {
+    // Strip common prefixes so the label reads naturally.
+    var base = name;
+    if (base.startsWith('fetch')) {
+      base = base.substring(5);
+    } else if (base.startsWith('sync')) {
+      base = base.substring(4);
+    }
+    if (base.isEmpty) return name;
+    // Lower-case with leading capital, e.g. 'settings' -> 'Settings'.
+    return '${base[0].toUpperCase()}${base.substring(1)}';
+  }
 
   void _setSyncProgress(SyncProgress? progress) {
     final current = _syncProgress;
@@ -1052,14 +1080,26 @@ what you have, you must use the options mode.
     _syncStateController.add(null);
   }
 
-  void _onSyncRunningChanged(bool isRunning) {
+  void _onSyncRunningChanged(String? name, bool isRunning) {
     if (isRunning) {
       _activeSyncCount++;
+      if (name != null && name.isNotEmpty) {
+        _runningSyncNames[name] = (_runningSyncNames[name] ?? 0) + 1;
+      }
     } else {
       _activeSyncCount--;
+      if (name != null && name.isNotEmpty) {
+        final count = (_runningSyncNames[name] ?? 0) - 1;
+        if (count <= 0) {
+          _runningSyncNames.remove(name);
+        } else {
+          _runningSyncNames[name] = count;
+        }
+      }
       if (_activeSyncCount < 0) _activeSyncCount = 0;
       if (_activeSyncCount == 0) {
         _syncProgress = null;
+        _runningSyncNames.clear();
       }
     }
     _syncStateController.add(null);

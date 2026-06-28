@@ -13,7 +13,7 @@ class InvalidateSync {
     this._action, {
     Duration? minInterval,
     String? name,
-    void Function(bool isRunning)? onRunningChanged,
+    void Function(String? name, bool isRunning)? onRunningChanged,
     int? maxRetries,
   }) : _minInterval = minInterval,
        _name = name,
@@ -22,7 +22,7 @@ class InvalidateSync {
   final Future<void> Function() _action;
   final Duration? _minInterval;
   final String? _name;
-  final void Function(bool isRunning)? _onRunningChanged;
+  final void Function(String? name, bool isRunning)? _onRunningChanged;
   final int _maxRetries;
   Completer<void>? _currentOperation;
   bool _invalidated = false;
@@ -147,7 +147,7 @@ class InvalidateSync {
   void _setRunning(bool value) {
     if (_running != value) {
       _running = value;
-      _onRunningChanged?.call(value);
+      _onRunningChanged?.call(_name, value);
     }
   }
 
