@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Always commit and push** after completing changes — do not wait for the user to ask
 - **Use conventional commits** — prefix messages with `feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`, etc.
 - **Check CI status** after pushing using GitHub Actions MCP tools — aim for green CI
+- **Never run tests locally** — the full test suite consumes large amounts of RAM and can crash the device. Always rely on CI for test execution.
 - **Always use `rg` (ripgrep)** when searching for code, symbols, or strings
 - **Never create documentation files** (*.md, README updates) unless explicitly requested
 - **Treat chat send reliability as a P0 surface** — preserve one canonical `localId` across optimistic UI, REST send, retry, socket forwarding, and merge
@@ -99,11 +100,11 @@ mise exec -- flutter pub get
 # Analysis (errors block CI; warnings/infos do not)
 mise exec -- flutter analyze
 
-# Testing
+# Testing (run in CI only — never locally)
 mise exec -- flutter test
 mise exec -- flutter test test/services/sync_service_test.dart
 
-# Golden screenshots — update after UI changes
+# Golden screenshots — update after UI changes (run in CI only)
 mise exec -- flutter test test/golden/golden_test.dart --update-goldens
 
 # Code generation (after changing freezed/json_serializable models or ApiClient public API)
@@ -313,13 +314,7 @@ ProviderContainer(overrides: [
 
 Golden screenshots in `test/golden/goldens/` are **showcase images** used in the README and to track visual regressions. They **must always be kept up-to-date** when the UI changes.
 
-**After any UI change that affects visual output**, run:
-
-```bash
-mise exec -- flutter test test/golden/golden_test.dart --update-goldens
-```
-
-Then commit the updated PNGs. Do not leave stale goldens — they will cause false test failures for other contributors.
+**After any UI change that affects visual output**, update goldens via CI — do not run the golden update command locally (see the "Never run tests locally" workflow rule above). Commit the updated PNGs produced by the CI run. Do not leave stale goldens — they will cause false test failures for other contributors.
 
 **Git LFS:** Golden PNGs are tracked via Git LFS (see `.gitattributes`). Contributors must have `git-lfs` installed (`git lfs install`). The golden test file is `test/golden/golden_test.dart`.
 
