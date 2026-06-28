@@ -1,0 +1,5 @@
+# Default test runner configuration for happy_flutter.
+# These settings mirror CI so local `flutter test` runs do not OOM on
+# high-core-count machines.
+concurrency: 4
+reporter: expanded

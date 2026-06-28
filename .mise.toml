@@ -13,3 +13,7 @@ flutter = "3.41.9"
 dart    = "3.11.5"
 java    = "21.0.2"
 make    = "4.4.1"
+
+[env]
+# Cap the Dart VM heap to match CI and avoid OOMs on heavy local runs.
+DART_VM_OPTIONS = "--max-gen-heap-size=4096"
