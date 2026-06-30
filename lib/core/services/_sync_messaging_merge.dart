@@ -95,20 +95,33 @@ extension SyncMessagingMerge on Sync {
   /// Default throttle between consecutive orphan-recovery
   /// fetchOlderMessages attempts. Prevents tight retry loops when
   /// pagination alone is paginating in circles (e.g. parent Task
-  /// lives outside the loaded window).
-  static const int _orphanFetchOlderDefaultThrottleMs = 60000;
+  /// lives outside the loaded window). See [Sync._orphanSuppressionWindowMs].
+  static const int _orphanFetchOlderDefaultThrottleMs =
+      Sync._orphanSuppressionWindowMs;
+
+  /// Extended throttle applied once history is genuinely exhausted (no
+  /// older messages left to page through). See
+  /// [Sync._orphanSuppressionExtendedWindowMs].
+  static const int _orphanFetchOlderExhaustedThrottleMs =
+      Sync._orphanSuppressionExtendedWindowMs;
 
   /// Number of consecutive no-progress fetchOlder attempts allowed in
   /// aggressive mode. While a parent Task likely exists just below the
   /// loaded window, we want to paginate quickly; after this many futile
   /// pages we fall back to the default throttle to avoid hammering the
-  /// server when the parent is genuinely missing.
-  static const int _orphanFetchOlderAggressiveAttempts = 6;
+  /// server when the parent is genuinely missing. See
+  /// [Sync._orphanPageSequencesPerAggressiveAttempt].
+  static const int _orphanFetchOlderAggressiveAttempts =
+      Sync._orphanPageSequencesPerAggressiveAttempt;
 
   /// Hard cap on total no-progress fetchOlder attempts. Once reached,
   /// orphan recovery gives up and the sidechain messages render inline
   /// until new activity (new messages arriving) resets the counter.
-  static const int _orphanFetchOlderMaxAttempts = 12;
+  /// Page-counted (not a flat attempt count) so deeply nested sub-agent
+  /// trees get enough budget to recover. See
+  /// [Sync._orphanFetchOlderMaxPageSequences].
+  static const int _orphanFetchOlderMaxAttempts =
+      Sync._orphanFetchOlderMaxPageSequences ~/ Sync._orphanFetchOlderPageSize;
 
   /// Group sidechain messages as children of their parent Task
   /// tool-call messages and remove them from the main message list.
@@ -322,6 +335,14 @@ extension SyncMessagingMerge on Sync {
               // The fetch path upserts and notifies; the next grouper
               // pass will rerun automatically. Reset the no-progress
               // counter if we actually made progress, otherwise bump it.
+              // Reaching the end of history also counts as a resolved
+              // outcome for this counter's purposes — the synchronous
+              // hasMoreOlder check on the next sweep already routes to
+              // the "history exhausted" give-up path below, so crediting
+              // it here avoids an extra spurious no-progress increment
+              // right at the boundary where pagination legitimately ran
+              // out rather than the walk-back simply failing to find a
+              // parent.
               final afterSweep = _sessionMessages[sessionId];
               final afterSweepOrphans =
                   afterSweep
@@ -331,7 +352,8 @@ extension SyncMessagingMerge on Sync {
                       .toSet() ??
                   const <String>{};
               if (afterSweepOrphans.isEmpty ||
-                  afterSweepOrphans.length < beforeOrphans.length) {
+                  afterSweepOrphans.length < beforeOrphans.length ||
+                  !hasOlderMessages(sessionId)) {
                 _orphanFetchOlderNoProgressCount.remove(sessionId);
               } else {
                 final currentNoProgress =
@@ -382,7 +404,7 @@ extension SyncMessagingMerge on Sync {
       _orphanFetchOlderNoProgressCount.remove(sessionId);
       _orphanFetchOlderAttemptedMs.remove(sessionId);
       _orphanSuppressedUntilMs[sessionId] =
-          nowMs + _orphanFetchOlderDefaultThrottleMs;
+          nowMs + _orphanFetchOlderExhaustedThrottleMs;
       logger.info(
         '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
         'session=$sessionId — history exhausted, rendering inline',

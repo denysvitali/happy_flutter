@@ -251,9 +251,10 @@ void main() {
     'suppression — new orphan grants fresh budget without waiting '
     'for the 60s window to expire',
     () async {
-      // Set the no-progress counter AT the hard cap (12) and prime
-      // the signature so the sweep treats the current orphan set as
+      // Set the no-progress counter AT the hard cap and prime the
+      // signature so the sweep treats the current orphan set as
       // already-seen. This simulates the post-give-up state.
+      final maxAttempts = sync.testOrphanFetchOlderMaxAttempts;
       sync.testSetSessionMessages('s1', [
         <String, dynamic>{
           'id': 'orph-1',
@@ -269,7 +270,7 @@ void main() {
       ]);
       sync.testSetSessionFirstLoadedSeq('s1', 800);
       sync.testPrimeOrphanWalkbackSignature('s1');
-      sync.testSetOrphanFetchOlderNoProgressCount('s1', 12);
+      sync.testSetOrphanFetchOlderNoProgressCount('s1', maxAttempts);
 
       // One sweep at the cap must NOT fire fetchOlder.
       sync.testRunDeferredRegroupSweep('s1');
@@ -303,7 +304,7 @@ void main() {
 
       // The fresh signature must have granted a new budget — at
       // least one fetchOlder call should have fired even though the
-      // previous cap (12) would normally block it.
+      // previous cap would normally block it.
       expect(
         fetchOlderCount,
         greaterThanOrEqualTo(1),
@@ -315,7 +316,7 @@ void main() {
       // signature change.
       expect(
         sync.testOrphanFetchOlderNoProgressCount('s1'),
-        lessThan(12),
+        lessThan(maxAttempts),
         reason: 'fresh signature must reset the no-progress counter',
       );
     },

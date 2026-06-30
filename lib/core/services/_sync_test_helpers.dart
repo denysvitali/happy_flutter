@@ -175,6 +175,13 @@ extension SyncTestHelpers on Sync {
     return _orphanFetchOlderNoProgressCount[sessionId] ?? 0;
   }
 
+  /// Test helper: read the hard cap on no-progress fetchOlder attempts.
+  /// Exposed so tests can drive the counter to "at the cap" without
+  /// hardcoding a magic number that drifts when the budget changes.
+  @visibleForTesting
+  int get testOrphanFetchOlderMaxAttempts =>
+      SyncMessagingMerge._orphanFetchOlderMaxAttempts;
+
   /// Test helper: prime the orphan walk-back signature from the current
   /// persisting orphan set, as if a sweep had already seen it. Lets
   /// tests exercise the no-progress caps directly without the sweep's
