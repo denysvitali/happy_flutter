@@ -602,8 +602,28 @@ class ApiClient {
 
     final requestFuture = _issueGet(path, queryParameters, options);
     _activeRequests[key] = requestFuture;
-    unawaited(requestFuture.whenComplete(() => _activeRequests.remove(key)));
+    _scheduleDedupCleanup(key, requestFuture);
     return requestFuture;
+  }
+
+  /// Removes [key] from [_activeRequests] once [requestFuture] settles,
+  /// regardless of success or failure.
+  ///
+  /// MUST swallow the error itself rather than chaining `.whenComplete()`
+  /// directly off `requestFuture` and passing that to `unawaited()`:
+  /// `.whenComplete()` returns a brand-new Future that re-throws on
+  /// rejection, and `unawaited()` is a no-op type marker — it does not
+  /// attach an error handler. The real caller already awaits and handles
+  /// `requestFuture` itself, but the second, derived Future from
+  /// `.whenComplete()` would be left with no listener, surfacing as an
+  /// unhandled async error (and failing whatever test happens to be
+  /// running when it settles) on every failed request.
+  void _scheduleDedupCleanup(String key, Future<Response> requestFuture) {
+    unawaited(
+      requestFuture
+          .then((_) {}, onError: (_) {})
+          .whenComplete(() => _activeRequests.remove(key)),
+    );
   }
 
   Future<Response> _issueGet(
@@ -625,7 +645,7 @@ class ApiClient {
 
     final requestFuture = _issuePost(path, data, options);
     _activeRequests[key] = requestFuture;
-    unawaited(requestFuture.whenComplete(() => _activeRequests.remove(key)));
+    _scheduleDedupCleanup(key, requestFuture);
     return requestFuture;
   }
 
@@ -651,7 +671,7 @@ class ApiClient {
 
     final requestFuture = _issuePut(path, data, options);
     _activeRequests[key] = requestFuture;
-    unawaited(requestFuture.whenComplete(() => _activeRequests.remove(key)));
+    _scheduleDedupCleanup(key, requestFuture);
     return requestFuture;
   }
 
@@ -677,7 +697,7 @@ class ApiClient {
 
     final requestFuture = _issueDelete(path, options);
     _activeRequests[key] = requestFuture;
-    unawaited(requestFuture.whenComplete(() => _activeRequests.remove(key)));
+    _scheduleDedupCleanup(key, requestFuture);
     return requestFuture;
   }
 
