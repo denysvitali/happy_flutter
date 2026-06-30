@@ -647,7 +647,14 @@ void main() {
               'seq': 102,
             },
           ]);
-          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+          // Aggressive budget is orphanAggressiveAttempts fetchOlder calls
+          // × pageSize 500; bump firstLoadedSeq so the boundary does not
+          // collapse to 0 before the budget exhausts (800 seqs of headroom
+          // was tightened by the pageSize bump to 500).
+          syncWithEnc.testSetSessionFirstLoadedSeq(
+            's2',
+            orphanAggressiveAttempts * orphanFetchOlderPageSize + 1000,
+          );
           expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
 
           // Run enough sweeps to exhaust the aggressive budget.
@@ -719,7 +726,11 @@ void main() {
               'seq': 102,
             },
           ]);
-          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+          // Burn through the aggressive budget × pageSize 500 seqs each.
+          syncWithEnc.testSetSessionFirstLoadedSeq(
+            's2',
+            orphanAggressiveAttempts * orphanFetchOlderPageSize + 1000,
+          );
 
           // Burn through the aggressive budget.
           for (var i = 0; i < orphanAggressiveAttempts; i++) {
@@ -791,7 +802,11 @@ void main() {
               'seq': 102,
             },
           ]);
-          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+          // Aggressive budget × pageSize 500 each, plus slack.
+          syncWithEnc.testSetSessionFirstLoadedSeq(
+            's2',
+            orphanAggressiveAttempts * orphanFetchOlderPageSize + 1000,
+          );
 
           // Burn through the aggressive budget on orph-1.
           for (var i = 0; i < orphanAggressiveAttempts; i++) {
