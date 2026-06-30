@@ -103,7 +103,7 @@ extension SyncMessagingMerge on Sync {
   /// loaded window, we want to paginate quickly; after this many futile
   /// pages we fall back to the default throttle to avoid hammering the
   /// server when the parent is genuinely missing.
-  static const int _orphanFetchOlderAggressiveAttempts = 3;
+  static const int _orphanFetchOlderAggressiveAttempts = 6;
 
   /// Hard cap on total no-progress fetchOlder attempts. Once reached,
   /// orphan recovery gives up and the sidechain messages render inline
@@ -258,12 +258,10 @@ extension SyncMessagingMerge on Sync {
     // parent, and otherwise let the sidechain messages render in
     // place at the top level of the chat list.
     //
-    // For sessions with many Agent spawns deep in history (worst-case
-    // 15 Agents at seqs 13..494 inside a 1000+ message session,
-    // cache=200, page=100), the user needs ~8 fetchOlder pages to walk
-    // back to the first Agent. Aggressive cadence fires when every
-    // orphan carries parent_tool_use_id (Claude's strong wire
-    // promise that a real parent exists upstream).
+    // For sessions with many Agent spawns deep in history, the parent
+    // Task can sit thousands of seqs behind the newest completion events.
+    // Use the server-supported large page only for this automatic visible
+    // recovery path; normal user scroll pagination stays small.
     final messagesNow =
         _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];
     final visibleOrphanMessages = messagesNow
@@ -319,13 +317,14 @@ extension SyncMessagingMerge on Sync {
         'noProgressCount=$noProgressCount)',
       );
       unawaited(
-        fetchOlderMessages(sessionId)
+        fetchOlderMessages(sessionId, pageSize: Sync._orphanFetchOlderPageSize)
             .then((_) {
               // The fetch path upserts and notifies; the next grouper
               // pass will rerun automatically. Reset the no-progress
               // counter if we actually made progress, otherwise bump it.
               final afterSweep = _sessionMessages[sessionId];
-              final afterSweepOrphans = afterSweep
+              final afterSweepOrphans =
+                  afterSweep
                       ?.where(isVisibleSidechainOrphan)
                       .map((m) => m['id'] as String?)
                       .whereType<String>()

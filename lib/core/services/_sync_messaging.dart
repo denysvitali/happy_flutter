@@ -1408,7 +1408,10 @@ extension SyncMessaging on Sync {
   /// Fetch the page of messages that precedes what has already been loaded
   /// for [sessionId].  Call [hasOlderMessages] first to guard against
   /// unnecessary requests.
-  Future<void> fetchOlderMessages(String sessionId) async {
+  Future<void> fetchOlderMessages(
+    String sessionId, {
+    int pageSize = Sync._olderMessagePageSize,
+  }) async {
     if (isLoadingOlderMessages(sessionId)) return;
     final firstLoaded = _sessionFirstLoadedSeq[sessionId] ?? 0;
     if (firstLoaded <= 1) return; // nothing older to fetch
@@ -1426,8 +1429,13 @@ extension SyncMessaging on Sync {
     )..setData('sessionId', sessionId);
 
     try {
-      const pageSize = 100;
-      final startSeq = (firstLoaded - 1 - pageSize).clamp(0, firstLoaded - 1);
+      final effectivePageSize = pageSize
+          .clamp(1, Sync._orphanFetchOlderPageSize)
+          .toInt();
+      final startSeq = (firstLoaded - 1 - effectivePageSize).clamp(
+        0,
+        firstLoaded - 1,
+      );
 
       final Response<dynamic> response;
       final httpSpan = transaction.startChild(
@@ -1438,7 +1446,7 @@ extension SyncMessaging on Sync {
         final overrideResult = await testFetchOlderMessagesOverride!(
           sessionId,
           startSeq,
-          pageSize,
+          effectivePageSize,
         );
         response = Response(
           requestOptions: RequestOptions(path: ''),
@@ -1449,7 +1457,7 @@ extension SyncMessaging on Sync {
         final apiClient = ApiClient();
         response = await apiClient.get(
           '/v3/sessions/$sessionId/messages',
-          queryParameters: {'after_seq': startSeq, 'limit': pageSize},
+          queryParameters: {'after_seq': startSeq, 'limit': effectivePageSize},
           options: Options(
             extra: const {'bypassCache': true, 'disableRetry': true},
             connectTimeout: Sync._messageFetchConnectTimeout,

@@ -446,8 +446,11 @@ void main() {
     // trying. When history is exhausted, the sweep stops running
     // and the orphans remain inline in the chat.
     group('parent_tool_use_id walk-back policy', () {
+      const orphanAggressiveAttempts = 6;
+      const orphanFetchOlderPageSize = 500;
       late Sync syncWithEnc;
       late int fetchOlderCount;
+      late List<int> fetchOlderLimits;
 
       setUp(() {
         // We need real session encryption so fetchOlderMessages can
@@ -463,9 +466,11 @@ void main() {
           lastSeq: 500,
         );
         fetchOlderCount = 0;
+        fetchOlderLimits = <int>[];
         syncWithEnc.testFetchOlderMessagesOverride =
             (sessionId, afterSeq, limit) async {
           fetchOlderCount++;
+          fetchOlderLimits.add(limit);
           // Return an empty page so the sweep's follow-up logic
           // doesn't actually upsert anything — we want to isolate
           // the walk-back scheduling behavior.
@@ -516,6 +521,7 @@ void main() {
 
           expect(fetchOlderCount, 1,
               reason: 'first sweep must call fetchOlderMessages');
+          expect(fetchOlderLimits.last, orphanFetchOlderPageSize);
           var msgs = syncWithEnc.testGetSessionMessages('s2');
           expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty,
               reason: 'no synthetic Task may exist while we can still '
@@ -557,6 +563,7 @@ void main() {
           expect(fetchOlderCount, 2,
               reason: 'aggressive mode must allow a second fetchOlder '
                   'call rather than absorbing the orphans');
+          expect(fetchOlderLimits.last, orphanFetchOlderPageSize);
           msgs = syncWithEnc.testGetSessionMessages('s2');
           expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
           // Top-level orphans must still be present — they were not
@@ -625,7 +632,7 @@ void main() {
       );
 
       test(
-        'aggressive mode stops after 3 no-progress attempts and falls '
+        'aggressive mode stops after bounded no-progress attempts and falls '
         'back to the default throttle',
         () async {
           syncWithEnc.testSetSessionMessages('s2', [
@@ -644,7 +651,7 @@ void main() {
           expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
 
           // Run enough sweeps to exhaust the aggressive budget.
-          for (var i = 0; i < 3; i++) {
+          for (var i = 0; i < orphanAggressiveAttempts; i++) {
             syncWithEnc.testRunDeferredRegroupSweep('s2');
             await _drainAsyncWork();
             // Re-seed the orphan because the sweep's then() schedules a
@@ -666,8 +673,8 @@ void main() {
 
           expect(
             fetchOlderCount,
-            3,
-            reason: 'aggressive mode should fire for the first 3 attempts',
+            orphanAggressiveAttempts,
+            reason: 'aggressive mode should fire for its bounded budget',
           );
 
           // The next sweep is within the 60s throttle window, so it must
@@ -677,7 +684,7 @@ void main() {
 
           expect(
             fetchOlderCount,
-            3,
+            orphanAggressiveAttempts,
             reason: 'after aggressive budget is exhausted, sweep must '
                 'respect the default throttle and not call fetchOlder',
           );
@@ -697,9 +704,9 @@ void main() {
           // Production regression: fetchOlderMessages upserts every page
           // it fetches. A blanket counter reset in _upsertSessionMessages
           // pinned the counter at 1 (reset-then-increment each cycle),
-          // so neither the aggressive cutoff (3) nor the hard cap (12)
-          // could ever fire — the walk-back fetched a 100-message page
-          // every ~450ms indefinitely.
+          // so neither the aggressive cutoff nor the hard cap (12)
+          // could ever fire — the walk-back fetched older pages every
+          // ~450ms indefinitely.
           syncWithEnc.testSetSessionMessages('s2', [
             <String, dynamic>{
               'id': 'orph-1',
@@ -715,7 +722,7 @@ void main() {
           syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
 
           // Burn through the aggressive budget.
-          for (var i = 0; i < 3; i++) {
+          for (var i = 0; i < orphanAggressiveAttempts; i++) {
             syncWithEnc.testRunDeferredRegroupSweep('s2');
             await _drainAsyncWork();
             syncWithEnc.testSetSessionMessages('s2', [
@@ -731,10 +738,10 @@ void main() {
               },
             ]);
           }
-          expect(fetchOlderCount, 3);
+          expect(fetchOlderCount, orphanAggressiveAttempts);
           expect(
             syncWithEnc.testOrphanFetchOlderNoProgressCount('s2'),
-            3,
+            orphanAggressiveAttempts,
           );
 
           // A message upsert that does not change the orphan set (e.g.
@@ -752,7 +759,7 @@ void main() {
           ]);
           expect(
             syncWithEnc.testOrphanFetchOlderNoProgressCount('s2'),
-            3,
+            orphanAggressiveAttempts,
             reason: 'upserts must not reset the no-progress counter — '
                 'this is what kept the production walk-back looping',
           );
@@ -762,7 +769,7 @@ void main() {
 
           expect(
             fetchOlderCount,
-            3,
+            orphanAggressiveAttempts,
             reason: 'with the aggressive budget exhausted and the orphan '
                 'set unchanged, the sweep must not fetch again',
           );
@@ -787,7 +794,7 @@ void main() {
           syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
 
           // Burn through the aggressive budget on orph-1.
-          for (var i = 0; i < 3; i++) {
+          for (var i = 0; i < orphanAggressiveAttempts; i++) {
             syncWithEnc.testRunDeferredRegroupSweep('s2');
             await _drainAsyncWork();
             syncWithEnc.testSetSessionMessages('s2', [
@@ -803,7 +810,7 @@ void main() {
               },
             ]);
           }
-          expect(fetchOlderCount, 3);
+          expect(fetchOlderCount, orphanAggressiveAttempts);
 
           // A NEW orphan (fresh sidechain burst) changes the orphan-set
           // signature: budget resets, suppression lifts, recovery retries.
@@ -835,7 +842,7 @@ void main() {
 
           expect(
             fetchOlderCount,
-            4,
+            orphanAggressiveAttempts + 1,
             reason: 'a changed orphan set must grant a fresh budget',
           );
         },

@@ -192,6 +192,8 @@ class Sync {
   /// 1000. Web uses smaller pages/limits to avoid browser main-thread and
   /// CanvasKit memory spikes while decrypting and rendering large sessions.
   static const int _messageFetchPageSize = kIsWeb ? 100 : 200;
+  static const int _olderMessagePageSize = 100;
+  static const int _orphanFetchOlderPageSize = 500;
 
   /// Soft budget for a single [fetchMessages] cycle.  When the elapsed
   /// time exceeds this, we stop crawling forward pages and let the
