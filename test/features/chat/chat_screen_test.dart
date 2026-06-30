@@ -22,6 +22,10 @@ import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_loading_shimmer.dart';
 import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
+import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart'
+    show ModelChip;
+import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
+import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
 import '../../helpers/fake_mmkv_platform.dart';
@@ -106,6 +110,7 @@ void main() {
     sync.testClearSessionMessageState('session_1');
     sync.testSessions.remove('session_1');
     sync.isInitialized = false;
+    ChatScreen.testInitialSettingsApplyBarrier = null;
     await TtsService().dispose();
   });
 
@@ -1122,6 +1127,130 @@ void main() {
 
       expect(find.text('Unsent message'), findsOneWidget);
     });
+  });
+
+  // Regression coverage for the model/permission-mode restore race: a user
+  // interacts with a picker (model, profile, or permission mode) while
+  // `_loadInitialSettings`'s async `DraftStorage` read is still in flight.
+  // These tests mount the *real* `ChatScreen` / `_ChatScreenState` and drive
+  // the actual picker UI, using `ChatScreen.testInitialSettingsApplyBarrier`
+  // to deterministically pause the async restore mid-flight — unlike
+  // `model_override_guard_test.dart`'s hand-copied mirror, a regression in
+  // the real `_loadInitialSettings` guard (e.g. reverting to the dead
+  // `_effectiveModelModeString == null` check, or dropping the permission-
+  // mode guard) will fail these tests.
+  group('ChatScreen initial-settings restore race (real widget)', () {
+    testWidgets(
+      'interactive permission-mode pick survives a still-in-flight restore',
+      (tester) async {
+        sync.isInitialized = true;
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSetSessionMessages('session_1', [
+          {'id': 'msg_1', 'role': 'user', 'content': 'hi'},
+        ]);
+        // No saved draft (the fake MMKV platform always reads null), so
+        // the resolver falls back to the session's permission mode —
+        // distinct from the mode the user is about to pick interactively.
+        sync.testSessions['session_1'] = _makeSession().copyWith(
+          permissionMode: 'acceptEdits',
+        );
+
+        final barrier = Completer<void>();
+        ChatScreen.testInitialSettingsApplyBarrier = () => barrier.future;
+
+        await tester.pumpWidget(
+          _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // The async restore is parked on the barrier. Interact with the
+        // permission-mode picker before it resolves.
+        await tester.tap(find.byType(PermissionModeSelector));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        await tester.tap(find.text('Plan'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          tester
+              .widget<PermissionModeSelector>(
+                find.byType(PermissionModeSelector),
+              )
+              .selectedMode,
+          PermissionMode.plan,
+        );
+
+        // Release the in-flight restore. Its stale session-derived
+        // resolution (acceptEdits) must not clobber the user's pick.
+        barrier.complete();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(
+          tester
+              .widget<PermissionModeSelector>(
+                find.byType(PermissionModeSelector),
+              )
+              .selectedMode,
+          PermissionMode.plan,
+        );
+      },
+    );
+
+    testWidgets(
+      'interactive model-mode pick survives a still-in-flight restore',
+      (tester) async {
+        sync.isInitialized = true;
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSetSessionMessages('session_1', [
+          {'id': 'msg_1', 'role': 'user', 'content': 'hi'},
+        ]);
+        // No saved draft, so the resolver falls back to the session's
+        // model mode (sonnet) — distinct from the model the user is
+        // about to pick interactively (opus).
+        sync.testSessions['session_1'] = _makeSession().copyWith(
+          modelMode: 'sonnet',
+        );
+
+        final barrier = Completer<void>();
+        ChatScreen.testInitialSettingsApplyBarrier = () => barrier.future;
+
+        await tester.pumpWidget(
+          _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // The async restore is parked on the barrier. Interact with the
+        // model picker before it resolves.
+        await tester.tap(find.byType(ModelChip));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        await tester.tap(find.text('Opus'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(
+          tester.widget<ModelChip>(find.byType(ModelChip)).model,
+          ChatModelMode.opus,
+        );
+
+        // Release the in-flight restore. Its stale session-derived
+        // resolution (sonnet) must not clobber the user's pick.
+        barrier.complete();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(
+          tester.widget<ModelChip>(find.byType(ModelChip)).model,
+          ChatModelMode.opus,
+        );
+      },
+    );
   });
 }
 

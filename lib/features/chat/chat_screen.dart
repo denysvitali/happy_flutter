@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show ValueListenable, kDebugMode;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, kDebugMode, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,6 +98,17 @@ class ChatScreen extends ConsumerStatefulWidget {
   final String sessionId;
   final VoidCallback? onBack;
 
+  /// Test-only hook: when non-null, `_loadInitialSettings` awaits it after
+  /// the `DraftStorage` reads have resolved but before this resolution is
+  /// persisted/applied. Lets widget tests pause the async restore
+  /// mid-flight to deterministically simulate a user interacting with a
+  /// picker (model, profile, or permission mode) while the restore is
+  /// still in progress. See the race-condition coverage in
+  /// `chat_screen_test.dart`. Must be reset to `null` in `tearDown` —
+  /// it is a static field shared by every `ChatScreen` instance.
+  @visibleForTesting
+  static Future<void> Function()? testInitialSettingsApplyBarrier;
+
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
@@ -143,12 +155,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// remains ChatModelMode.defaultModel for UI purposes.
   String? _profileModelOverride;
 
-  /// True once the user interactively changes the model or profile via
-  /// [_onModelModeChanged] / [_onProfileChanged]. Guards
-  /// `_loadInitialSettings` against clobbering that choice if the async
-  /// `DraftStorage` read it depends on is still in flight when the user
-  /// acts. Without this, the async load would silently overwrite an
-  /// interactive pick made a moment earlier.
+  /// True once the user interactively changes the model, profile, or
+  /// permission mode via [_onModelModeChanged] / [_onProfileChanged] /
+  /// [_onPermissionModeChanged]. Guards `_loadInitialSettings` against
+  /// clobbering that choice if the async `DraftStorage` read it depends on
+  /// is still in flight when the user acts. Without this, the async load
+  /// would silently overwrite an interactive pick made a moment earlier.
   bool _userOverrodeModelOrProfile = false;
   AIBackendProfile? _selectedProfile;
   List<AIBackendProfile> _availableProfiles = const [];
@@ -1304,10 +1316,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (orphanCount <= 0) return const SizedBox.shrink();
     return Material(
       elevation: 0,
-      child: OrphanBanner(
-        orphanCount: orphanCount,
-        onTap: _expandOrphans,
-      ),
+      child: OrphanBanner(orphanCount: orphanCount, onTap: _expandOrphans),
     );
   }
 
@@ -1401,11 +1410,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ),
         if (_sessionSendIssue case final issue?)
-          SessionIssueBanner(issue: SendIssue(
-            title: issue.title,
-            message: issue.message,
-            blocksSend: issue.blocksSend,
-          )),
+          SessionIssueBanner(
+            issue: SendIssue(
+              title: issue.title,
+              message: issue.message,
+              blocksSend: issue.blocksSend,
+            ),
+          ),
         SessionTasksBanner(sessionId: widget.sessionId),
         TtsPlaybackBar(
           onPrev: _ttsPrev,
@@ -1441,8 +1452,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           contextSize: sessionUiEntry.sessionUsage['contextSize'] as int?,
           isSessionOnline: _session?.isPresenceOnline ?? false,
           enterToSend: enterToSend,
-          lastDeliveryStatus: _latestUserStatusMessage?['sendStatus']
-              as String?,
+          lastDeliveryStatus:
+              _latestUserStatusMessage?['sendStatus'] as String?,
         ),
       ],
     );

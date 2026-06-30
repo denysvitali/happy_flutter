@@ -42,6 +42,27 @@ extension _ChatScreenActions on _ChatScreenState {
       lastUsedModelMode: settings.lastUsedModelMode,
     );
 
+    // Test-only hook (see `testInitialSettingsApplyBarrier` doc comment):
+    // lets widget tests pause here, after the DraftStorage reads resolved
+    // but before this resolution is persisted/applied, to deterministically
+    // race an interactive picker change against this async restore.
+    if (ChatScreen.testInitialSettingsApplyBarrier case final barrier?) {
+      await barrier();
+      if (!mounted) return;
+    }
+
+    // Guard: only persist/apply permission mode / model / profile if the
+    // user hasn't already interacted with one of the pickers before this
+    // async load completed. _userOverrodeModelOrProfile starts false and is
+    // set by _onPermissionModeChanged / _onModelModeChanged /
+    // _onProfileChanged. Once true, this resolution is stale — applying any
+    // of its fields (including permission mode) to UI state *or* storage
+    // would silently discard an interactive pick.
+    if (_userOverrodeModelOrProfile) {
+      setState(() => _availableProfiles = resolution.availableProfiles);
+      return;
+    }
+
     if (resolution.shouldPersistPermissionMode) {
       unawaited(
         storage.savePermissionMode(
@@ -60,16 +81,9 @@ extension _ChatScreenActions on _ChatScreenState {
 
     setState(() {
       _permissionMode = resolution.resolvedPermissionMode;
-      // Guard: only apply model/profile if the user hasn't already
-      // interacted with the model or profile pickers before this async load
-      // completed. _userOverrodeModelOrProfile starts false and is set by
-      // _onModelModeChanged / _onProfileChanged. Once true, we must not
-      // overwrite their choice here.
-      if (!_userOverrodeModelOrProfile) {
-        _modelMode = resolution.resolvedModelMode;
-        _profileModelOverride = resolution.resolvedRawModelString;
-        _selectedProfile = resolution.resolvedProfile;
-      }
+      _modelMode = resolution.resolvedModelMode;
+      _profileModelOverride = resolution.resolvedRawModelString;
+      _selectedProfile = resolution.resolvedProfile;
       _availableProfiles = resolution.availableProfiles;
     });
   }
@@ -257,8 +271,9 @@ extension _ChatScreenActions on _ChatScreenState {
                   return;
                 })
                 .whenComplete(() {
-                  final postRefreshCount =
-                      sync.messagesForSession(sessionId).length;
+                  final postRefreshCount = sync
+                      .messagesForSession(sessionId)
+                      .length;
                   awaitSpan.setData('postRefreshCount', postRefreshCount);
                   otelAwaitSpan?.setAttribute(
                     'message.post_refresh_count',
@@ -369,7 +384,10 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   void _onPermissionModeChanged(PermissionMode mode) {
-    setState(() => _permissionMode = mode);
+    setState(() {
+      _userOverrodeModelOrProfile = true;
+      _permissionMode = mode;
+    });
     ref
         .read(chatActionNotifierProvider.notifier)
         .savePermissionMode(widget.sessionId, mode.toModeString());
@@ -741,9 +759,7 @@ extension _ChatScreenActions on _ChatScreenState {
                 'chat_send: optimistic message not found for '
                 'localId=$localId (session=${widget.sessionId})';
             logger.warning(msg);
-            unawaited(
-              Sentry.captureMessage(msg, level: SentryLevel.warning),
-            );
+            unawaited(Sentry.captureMessage(msg, level: SentryLevel.warning));
           }
           _controller.text = text;
           _isSending = false;
@@ -765,13 +781,15 @@ extension _ChatScreenActions on _ChatScreenState {
   /// Returns the agent text messages currently in the chat buffer
   /// that the TTS engine could speak, in chronological order.
   List<Map<String, dynamic>> _ttsSpeakableMessages() {
-    return _messages.where((m) {
-      if ((m['role'] as String? ?? '') != 'agent') return false;
-      if ((m['kind'] as String?) != 'text') return false;
-      if (m['isThinking'] == true) return false;
-      final text = (m['content'] ?? m['text'] ?? '').toString();
-      return text.isNotEmpty;
-    }).toList(growable: false);
+    return _messages
+        .where((m) {
+          if ((m['role'] as String? ?? '') != 'agent') return false;
+          if ((m['kind'] as String?) != 'text') return false;
+          if (m['isThinking'] == true) return false;
+          final text = (m['content'] ?? m['text'] ?? '').toString();
+          return text.isNotEmpty;
+        })
+        .toList(growable: false);
   }
 
   int _ttsCurrentIndex(List<Map<String, dynamic>> speakable) {
@@ -878,10 +896,12 @@ extension _ChatScreenActions on _ChatScreenState {
     if (body == 'list') {
       unawaited(DraftStorage().removeDraft(sessionId));
       _controller.clear();
-      unawaited(context.pushNamed(
-        'chat-loops',
-        pathParameters: {'sessionId': sessionId},
-      ));
+      unawaited(
+        context.pushNamed(
+          'chat-loops',
+          pathParameters: {'sessionId': sessionId},
+        ),
+      );
       return;
     }
 
@@ -891,10 +911,9 @@ extension _ChatScreenActions on _ChatScreenState {
       unawaited(DraftStorage().removeDraft(sessionId));
       _controller.clear();
       try {
-        await ref.read(loopsNotifierProvider.notifier).deleteLoop(
-              sessionId: sessionId,
-              loopId: cancelId,
-            );
+        await ref
+            .read(loopsNotifierProvider.notifier)
+            .deleteLoop(sessionId: sessionId, loopId: cancelId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.loopsLoopCancelled(cancelId))),
