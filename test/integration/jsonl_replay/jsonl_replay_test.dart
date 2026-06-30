@@ -79,12 +79,12 @@ void main() {
       expect(
         taskEvents.every(
           (m) =>
-              (m['parentToolUseId'] as String?)?.startsWith('toolu_') == true,
+              (m['parentToolUseId'] as String?)?.startsWith('toolu_') ?? false,
         ),
         true,
       );
       expect(
-        taskEvents.every((m) => (m['agentId'] as String?)?.isNotEmpty == true),
+        taskEvents.every((m) => (m['agentId'] as String?)?.isNotEmpty ?? false),
         true,
       );
 
@@ -140,6 +140,45 @@ void main() {
       }
     });
 
+    test('happy-cli-go minimax probe parses command and read tools', () {
+      final bundle = FixtureBundle.minimaxHappyCliProbe();
+      if (!bundle.isAvailable) {
+        markTestSkipped('fixture not present on this machine');
+        return;
+      }
+
+      final result = _replay(bundle.loadMain(), bundle.label);
+      expect(
+        result.droppedReasons,
+        isEmpty,
+        reason: 'happy-cli-go MiniMax probe should replay without drops.',
+      );
+
+      final toolCalls = result.messages
+          .where((m) => m['kind'] == 'tool-call')
+          .toList();
+      expect(_toolNameCount(toolCalls, 'Bash'), 1);
+      expect(_toolNameCount(toolCalls, 'Read'), 1);
+
+      final toolResultIds = result.toolResults
+          .map((r) => r['toolUseId'])
+          .whereType<String>()
+          .toSet();
+      for (final call in toolCalls) {
+        expect(toolResultIds, contains(call['toolUseId']));
+      }
+
+      expect(
+        result.messages.any((m) {
+          final content = m['content'] as String?;
+          return m['kind'] == 'text' &&
+              (content?.contains('github.com/denysvitali/happy-cli-go') ??
+                  false);
+        }),
+        true,
+      );
+    });
+
     test('every forwarded line produces exactly one rendered message', () {
       final bundle = FixtureBundle.happyFlutterInterrupts();
       if (!bundle.isAvailable) {
@@ -171,13 +210,17 @@ void main() {
 
 void _assertZeroDrops(FixtureBundle bundle) {
   final result = _replay(bundle.loadMain(), bundle.label);
+  final hiddenDropCount = result.droppedReasons.length - 20;
+  final truncatedSuffix = result.droppedReasons.length > 20
+      ? '\n...and $hiddenDropCount more'
+      : '';
   expect(
     result.droppedReasons,
     isEmpty,
     reason:
         'Fixture "${bundle.label}" triggered silent drops:\n'
         '${result.droppedReasons.take(20).join("\n")}'
-        '${result.droppedReasons.length > 20 ? "\n...and ${result.droppedReasons.length - 20} more" : ""}',
+        '$truncatedSuffix',
   );
 }
 

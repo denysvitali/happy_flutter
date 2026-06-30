@@ -64,8 +64,6 @@ Map<String, dynamic>? wrapJsonlLine(Map<String, dynamic> raw) {
 }
 
 class _TaskLifecycleRef {
-  _TaskLifecycleRef({this.toolUseId, this.taskType, this.workflowName});
-
   String? toolUseId;
   String? taskType;
   String? workflowName;
@@ -195,12 +193,16 @@ class _DaemonFixtureWrapper {
     if (taskId == null || toolUseId == null) return;
 
     final ref = _taskRefsById.putIfAbsent(taskId, () => _TaskLifecycleRef());
-    ref.toolUseId = toolUseId;
-    ref.taskType =
-        _firstString(launch, const ['taskType', 'task_type']) ?? ref.taskType;
-    ref.workflowName =
-        _firstString(launch, const ['workflowName', 'workflow_name']) ??
-        ref.workflowName;
+    final existingTaskType = ref.taskType;
+    final existingWorkflowName = ref.workflowName;
+    ref
+      ..toolUseId = toolUseId
+      ..taskType =
+          _firstString(launch, const ['taskType', 'task_type']) ??
+          existingTaskType
+      ..workflowName =
+          _firstString(launch, const ['workflowName', 'workflow_name']) ??
+          existingWorkflowName;
   }
 
   String? _enrichTaskLifecycle(Map<String, dynamic> data) {
@@ -211,9 +213,13 @@ class _DaemonFixtureWrapper {
     if (taskId == null || taskId.isEmpty) return toolUseId;
 
     final ref = _taskRefsById.putIfAbsent(taskId, () => _TaskLifecycleRef());
-    ref.toolUseId = toolUseId ?? ref.toolUseId;
-    ref.taskType = taskType ?? ref.taskType;
-    ref.workflowName = workflowName ?? ref.workflowName;
+    final existingToolUseId = ref.toolUseId;
+    final existingTaskType = ref.taskType;
+    final existingWorkflowName = ref.workflowName;
+    ref
+      ..toolUseId = toolUseId ?? existingToolUseId
+      ..taskType = taskType ?? existingTaskType
+      ..workflowName = workflowName ?? existingWorkflowName;
 
     toolUseId ??= ref.toolUseId;
     taskType ??= ref.taskType;
@@ -438,6 +444,16 @@ class FixtureBundle {
       mainPath:
           'test/integration/jsonl_replay/fixtures/'
           'minimax_e2e_tasks_commands_files.stdout.jsonl',
+      sidechainPaths: const [],
+    );
+  }
+
+  static FixtureBundle minimaxHappyCliProbe() {
+    return FixtureBundle(
+      label: 'minimax happy cli probe',
+      mainPath:
+          'test/integration/jsonl_replay/fixtures/'
+          'minimax_happy_cli_probe.transcript.jsonl',
       sidechainPaths: const [],
     );
   }
