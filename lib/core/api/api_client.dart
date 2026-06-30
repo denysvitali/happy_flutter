@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
     show W3CTraceContextPropagator;
@@ -860,13 +861,32 @@ class ApiClient {
         );
     }
     if (data != null && (method == 'POST' || method == 'PUT')) {
-      // For POST/PUT, include a hash of the data to differentiate
-      // requests
+      // For POST/PUT, include a content-based fingerprint of the data so
+      // two calls with equal-but-distinct body objects (e.g. two separate
+      // `{'a': 1}` map literals — the normal call shape in production
+      // code) dedup onto the same key. `data.hashCode` previously used
+      // here is identity-based for plain Maps/Lists (two literals with
+      // identical content get different hash codes), which silently
+      // defeated POST/PUT deduplication entirely — every call appeared
+      // "unique" even when issued back-to-back with the same body.
       buffer
         ..write(':')
-        ..write(data.hashCode);
+        ..write(_stableDataFingerprint(data));
     }
     return buffer.toString();
+  }
+
+  /// Best-effort content-based fingerprint for request bodies used in
+  /// [_generateRequestKey]. JSON-encodes [data] when possible (covers the
+  /// common `Map`/`List`/primitive bodies); falls back to [Object.toString]
+  /// for anything that isn't JSON-encodable so dedup key generation never
+  /// throws.
+  static String _stableDataFingerprint(Object data) {
+    try {
+      return jsonEncode(data);
+    } catch (_) {
+      return data.toString();
+    }
   }
 
   /// Dispose resources
