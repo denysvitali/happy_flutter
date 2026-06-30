@@ -4765,6 +4765,19 @@ abstract class AppLocalizations {
   /// **'Failed to load messages'**
   String get chatFailedToLoadMessages;
 
+  /// Banner shown above the message list when orphan sidechain messages
+  /// are present but hidden by the visible-window clamp.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} orphan sidechain message(s) — scroll down to see them'**
+  String chatOrphanBanner(int count);
+
+  /// Tap-hint shown on the orphan banner.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to show {count} more orphan sidechain message(s)'**
+  String chatOrphanBannerTapToShow(int count);
+
   /// No description provided for @settingsTheme.
   ///
   /// In en, this message translates to:

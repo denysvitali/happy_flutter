@@ -40,7 +40,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
         _visibleCount != _cachedListItemsVisibleCount ||
         _cachedListItems == null ||
         _cachedKeyToListIndex == null ||
-        _cachedListItemsHideToolCalls != hideToolCalls) {
+        _cachedListItemsHideToolCalls != hideToolCalls ||
+        _cachedListItemsShowOrphans != _showOrphans) {
       final items = <Map<String, dynamic>?>[];
       var hiddenToolCalls = <Map<String, dynamic>>[];
 
@@ -88,6 +89,20 @@ extension _ChatScreenBuilders on _ChatScreenState {
               !AgentEventWidget.shouldRenderInChat(msg['event'])) {
             continue;
           }
+          // Orphan-visibility filter (ROADMAP P0 user report:
+          // "I only see task completion messages").  When the user
+          // hasn't tapped the orphan banner yet, drop visible-sidechain
+          // orphans from the build list so the [_pageSize] clamp
+          // doesn't crowd them out with top-level entries.  The banner
+          // sets [showOrphans] on tap, and from that point on every
+          // orphan in the visible window renders inline (the existing
+          // sync-side grouping will keep re-attaching them to their
+          // parent Task when the parent arrives).
+          if (!_showOrphans &&
+              msg['isSidechain'] == true &&
+              msg['kind'] != 'sidechain-link') {
+            continue;
+          }
           if (_shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
             hiddenToolCalls.add(msg);
             continue;
@@ -127,6 +142,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
       _cachedListItemsSource = visibleMessages;
       _cachedListItemsVisibleCount = _visibleCount;
       _cachedListItemsHideToolCalls = hideToolCalls;
+      _cachedListItemsShowOrphans = _showOrphans;
       _cachedListItems = items;
       _cachedKeyToListIndex = keyToListIndex;
     }

@@ -2609,6 +2609,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatFailedToLoadMessages => 'Failed to load messages';
 
   @override
+  String chatOrphanBanner(int count) {
+    return '$count orphan sidechain message(s) — scroll down to see them';
+  }
+
+  @override
+  String chatOrphanBannerTapToShow(int count) {
+    return 'Tap to show $count more orphan sidechain message(s)';
+  }
+
+  @override
   String get settingsTheme => 'Theme';
 
   @override

@@ -44,6 +44,7 @@ import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_messages_body.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
+import 'widgets/orphan_banner.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
 import 'widgets/session_issue_banner.dart';
@@ -162,6 +163,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _canTriggerHistoryLoad = true;
   bool _isAdjustingHistoryScroll = false;
   bool _continueHistoryLoadAfterServerPage = false;
+
+  // ── Orphan-visibility state ─────────────────────────────────────────────
+  // When the orphan banner is tapped, [showOrphans] flips true and we
+  // bump [_visibleCount] to surface the orphan sidechain messages that
+  // would otherwise be hidden by the [_pageSize] clamp. The flag is
+  // sticky for the lifetime of the screen — once the user has chosen
+  // to expand, we stop filtering orphans out of the visible window.
+  // (Auto-clears once the orphan count returns to 0; see
+  // [_orphanCountForVisibleWindow] below.)
+  bool _showOrphans = false;
   double? _lastScrollMaxExtent;
   double? _lastScrollPixels;
   static const double _historyLoadThreshold = 300;
@@ -175,6 +186,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<Map<String, dynamic>>? _cachedListItemsSource;
   int _cachedListItemsVisibleCount = -1;
   bool? _cachedListItemsHideToolCalls;
+  bool? _cachedListItemsShowOrphans;
   Map<String, int>? _cachedKeyToListIndex;
 
   bool _initialLoadComplete = false;
@@ -646,6 +658,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _cachedListItemsSource = null;
     _cachedListItemsVisibleCount = -1;
     _cachedListItemsHideToolCalls = null;
+    _cachedListItemsShowOrphans = null;
     _cachedKeyToListIndex = null;
   }
 
@@ -846,6 +859,73 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
       });
     }
+  }
+
+  /// Tapped from [OrphanBanner] when orphan sidechain messages exist but
+  /// are hidden by the [_visibleCount] clamp. Sets [showOrphans] so the
+  /// builder stops excluding orphans from the visible window, then runs
+  /// the standard `_loadMore` path so the visible count grows by
+  /// `min(orphan count, _pageSize)` to surface at least one new page
+  /// containing the orphans. The flag is sticky for the lifetime of the
+  /// screen — once the user has chosen to expand, we stop filtering
+  /// orphans out of the visible window.
+  void _expandOrphans() {
+    if (_showOrphans) {
+      _loadMore();
+      return;
+    }
+    setState(() {
+      _showOrphans = true;
+    });
+    // Invalidate the visible-window slice + list-item caches so the
+    // builder re-reads _showOrphans on the next frame.
+    _cachedVisibleMessages = null;
+    _cachedVisibleSource = null;
+    _cachedMessagesLength = -1;
+    _cachedVisibleCount = -1;
+    _cachedListItems = null;
+    _cachedListItemsSource = null;
+    _cachedListItemsVisibleCount = -1;
+    _cachedKeyToListIndex = null;
+    _loadMore();
+  }
+
+  /// Returns the number of orphan sidechain messages that are LOADED but
+  /// hidden by the visible-window clamp. The chat banner renders only
+  /// when this is > 0; once the user taps the banner and [showOrphans]
+  /// flips true, the banner is suppressed so it doesn't keep nagging
+  /// about orphans that are already visible.
+  ///
+  /// Counts orphans inside `[startIndex, totalCount)` (the slice the
+  /// user is currently looking at) and subtracts from the total loaded
+  /// orphan count, so the banner label matches "how many will appear
+  /// when you tap".
+  ///
+  /// Side effect: when the loaded orphan count drops to 0 (e.g. all
+  /// orphans were absorbed into their parent Task by a late
+  /// re-group sweep), [_showOrphans] resets to false so future orphan
+  /// bursts once again trigger the banner — the filter is sticky per
+  /// "visit" but resets when there's nothing left to filter.
+  int _orphanCountForVisibleWindow() {
+    final totalOrphans = sync.orphanCountForSession(widget.sessionId);
+    if (_showOrphans && totalOrphans == 0) {
+      _showOrphans = false;
+      _invalidateNeighborCache();
+    }
+    if (_showOrphans) return 0; // already expanded — no banner needed
+    if (_messages.isEmpty) return 0;
+    if (totalOrphans == 0) return 0;
+    final total = _messages.length;
+    final startIndex = (total - _visibleCount).clamp(0, total);
+    var visibleOrphans = 0;
+    for (var i = startIndex; i < total; i++) {
+      final m = _messages[i];
+      if (m['isSidechain'] == true && m['kind'] != 'sidechain-link') {
+        visibleOrphans++;
+      }
+    }
+    final hidden = totalOrphans - visibleOrphans;
+    return hidden > 0 ? hidden : 0;
   }
 
   String _getSessionTitle() {
@@ -1200,6 +1280,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  /// Returns an [OrphanBanner] positioned at the top of the message
+  /// stack when orphan sidechain messages are loaded but hidden by
+  /// the visible-window clamp. Returns an empty widget when there are
+  /// no orphans to reveal — the [Positioned] wrapper above always
+  /// renders this method's output, but the empty widget collapses to
+  /// a [SizedBox.shrink] so layout is unaffected.
+  Widget _buildOrphanBanner() {
+    // Re-read the orphan count from sync on every build. The cost is
+    // one O(n) scan over the loaded message list (~200 entries max),
+    // and it ensures the banner shows up immediately when a new orphan
+    // burst arrives while the user is staring at the chat.
+    final orphanCount = _orphanCountForVisibleWindow();
+    if (orphanCount <= 0) return const SizedBox.shrink();
+    return Material(
+      elevation: 0,
+      child: OrphanBanner(
+        orphanCount: orphanCount,
+        onTap: _expandOrphans,
+      ),
+    );
+  }
+
   Widget _buildScaffoldBody({
     required bool isWide,
     required bool hideToolCalls,
@@ -1252,6 +1354,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         hideToolCalls: hideToolCalls,
                       ),
                     ),
+                  ),
+                  // Orphan banner pinned to the top of the chat surface.
+                  // Sits above the message list so the user always sees
+                  // it regardless of scroll position, but below the
+                  // scroll-to-bottom pill (which is a transient
+                  // affordance) and the SyncProgressBar (which is a
+                  // passive overlay that should never steal taps).
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildOrphanBanner(),
                   ),
                   // The scroll-to-bottom pill listens to
                   // _autoScrollNotifier directly so scroll events do NOT
