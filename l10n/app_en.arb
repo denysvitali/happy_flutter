@@ -988,6 +988,24 @@
   "chatChat": "Chat",
   "chatChatLoading": "Loading...",
   "chatFailedToLoadMessages": "Failed to load messages",
+  "chatOrphanBanner": "{count} orphan sidechain message(s) — scroll down to see them",
+  "@chatOrphanBanner": {
+    "description": "Banner shown above the message list when orphan sidechain messages are present but hidden by the visible-window clamp.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatOrphanBannerTapToShow": "Tap to show {count} more orphan sidechain message(s)",
+  "@chatOrphanBannerTapToShow": {
+    "description": "Tap-hint shown on the orphan banner.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsTheme": "Theme",
   "settingsThemeLight": "Light",
   "settingsThemeDark": "Dark",
