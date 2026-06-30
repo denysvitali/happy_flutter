@@ -1197,6 +1197,10 @@ void main() {
               .selectedMode,
           PermissionMode.plan,
         );
+
+        // Flush MMKVStorage's debounced persist timer (500ms) so the test
+        // binding doesn't flag a pending timer on teardown.
+        await tester.pump(const Duration(milliseconds: 600));
       },
     );
 
@@ -1249,6 +1253,10 @@ void main() {
           tester.widget<ModelChip>(find.byType(ModelChip)).model,
           ChatModelMode.opus,
         );
+
+        // Flush MMKVStorage's debounced persist timer (500ms) so the test
+        // binding doesn't flag a pending timer on teardown.
+        await tester.pump(const Duration(milliseconds: 600));
       },
     );
   });
