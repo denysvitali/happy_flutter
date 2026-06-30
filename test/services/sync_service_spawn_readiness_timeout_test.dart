@@ -32,6 +32,9 @@ import '../helpers/test_helpers.dart';
 
 class _CapturingSessionEncryption implements SessionEncryption {
   @override
+  bool get canDecryptAes => false;
+
+  @override
   Future<String> encryptRawRecord(Map<String, dynamic> record) async {
     return 'encrypted-content';
   }
