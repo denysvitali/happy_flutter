@@ -68,291 +68,264 @@ void main() {
     });
 
     // ── Top-level invariant: no absorb path may create synthetics ──
-    test(
-      'deferred sweep on stuck orphans NEVER creates '
-      '_orphanRecovery synthetics — orphans stay at top level',
-      () {
-        sync.testSetSessionMessages('s1', [
-          <String, dynamic>{
-            'id': 'text-1',
-            'kind': 'text',
-            'role': 'user',
-            'content': 'hello',
-            'seq': 1,
-            'createdAt': 100,
-          },
-          <String, dynamic>{
-            'id': 'orph-1',
-            'isSidechain': true,
-            'parentUuid': 'parent-A',
-            'uuid': 'u-1',
-            'kind': 'text',
-            'role': 'agent',
-            'content': 'A first',
-            'seq': 2,
-            'createdAt': 200,
-          },
-          <String, dynamic>{
-            'id': 'orph-2',
-            'isSidechain': true,
-            'parentUuid': 'parent-A',
-            'uuid': 'u-2',
-            'kind': 'text',
-            'role': 'agent',
-            'content': 'A second',
-            'seq': 3,
-            'createdAt': 300,
-          },
-          <String, dynamic>{
-            'id': 'orph-3',
-            'isSidechain': true,
-            'parentUuid': 'parent-B',
-            'uuid': 'u-3',
-            'kind': 'text',
-            'role': 'agent',
-            'content': 'B first',
-            'seq': 4,
-            'createdAt': 400,
-          },
-        ]);
+    test('deferred sweep on stuck orphans NEVER creates '
+        '_orphanRecovery synthetics — orphans stay at top level', () {
+      sync.testSetSessionMessages('s1', [
+        <String, dynamic>{
+          'id': 'text-1',
+          'kind': 'text',
+          'role': 'user',
+          'content': 'hello',
+          'seq': 1,
+          'createdAt': 100,
+        },
+        <String, dynamic>{
+          'id': 'orph-1',
+          'isSidechain': true,
+          'parentUuid': 'parent-A',
+          'uuid': 'u-1',
+          'kind': 'text',
+          'role': 'agent',
+          'content': 'A first',
+          'seq': 2,
+          'createdAt': 200,
+        },
+        <String, dynamic>{
+          'id': 'orph-2',
+          'isSidechain': true,
+          'parentUuid': 'parent-A',
+          'uuid': 'u-2',
+          'kind': 'text',
+          'role': 'agent',
+          'content': 'A second',
+          'seq': 3,
+          'createdAt': 300,
+        },
+        <String, dynamic>{
+          'id': 'orph-3',
+          'isSidechain': true,
+          'parentUuid': 'parent-B',
+          'uuid': 'u-3',
+          'kind': 'text',
+          'role': 'agent',
+          'content': 'B first',
+          'seq': 4,
+          'createdAt': 400,
+        },
+      ]);
 
-        // Run more sweeps than the legacy absorb threshold (4) so a
-        // regression cannot sneak past by accident.
-        for (var i = 0; i < 8; i++) {
-          sync.testRunDeferredRegroupSweep('s1');
-        }
+      // Run more sweeps than the legacy absorb threshold (4) so a
+      // regression cannot sneak past by accident.
+      for (var i = 0; i < 8; i++) {
+        sync.testRunDeferredRegroupSweep('s1');
+      }
 
-        final messages = sync.testGetSessionMessages('s1');
-        // No synthetic Task placeholder was ever created.
-        expect(
-          messages.where((m) => m['_orphanRecovery'] == true).toList(),
-          isEmpty,
-          reason: 'sidechain messages must never be absorbed into a '
-              '_orphanRecovery synthetic Task',
-        );
-        // Every sidechain message is still on the top-level list so
-        // the chat can render it inline.
-        final orphanIds = messages
-            .where((m) => m['isSidechain'] == true)
-            .map((m) => m['id'])
-            .toList();
-        expect(orphanIds, ['orph-1', 'orph-2', 'orph-3']);
-        // Non-sidechain messages also preserved.
-        expect(
-          messages.where((m) => m['id'] == 'text-1').toList(),
-          hasLength(1),
-        );
-      },
-    );
+      final messages = sync.testGetSessionMessages('s1');
+      // No synthetic Task placeholder was ever created.
+      expect(
+        messages.where((m) => m['_orphanRecovery'] == true).toList(),
+        isEmpty,
+        reason:
+            'sidechain messages must never be absorbed into a '
+            '_orphanRecovery synthetic Task',
+      );
+      // Every sidechain message is still on the top-level list so
+      // the chat can render it inline.
+      final orphanIds = messages
+          .where((m) => m['isSidechain'] == true)
+          .map((m) => m['id'])
+          .toList();
+      expect(orphanIds, ['orph-1', 'orph-2', 'orph-3']);
+      // Non-sidechain messages also preserved.
+      expect(messages.where((m) => m['id'] == 'text-1').toList(), hasLength(1));
+    });
 
-    test(
-      'orphans without any parentUuid are preserved verbatim (no '
-      'synthetic grouping)',
-      () {
-        sync.testSetSessionMessages('s1', [
-          <String, dynamic>{
-            'id': 'orph-1',
-            'isSidechain': true,
-            'kind': 'text',
-            'role': 'agent',
-            'content': 'unparented A',
-            'seq': 5,
-          },
-          <String, dynamic>{
-            'id': 'orph-2',
-            'isSidechain': true,
-            'kind': 'text',
-            'role': 'agent',
-            'content': 'unparented B',
-            'seq': 6,
-          },
-        ]);
-        for (var i = 0; i < 6; i++) {
-          sync.testRunDeferredRegroupSweep('s1');
-        }
-        final messages = sync.testGetSessionMessages('s1');
-        expect(messages, hasLength(2));
-        expect(messages.map((m) => m['id']), ['orph-1', 'orph-2']);
-        // No synthetic was inserted.
-        expect(
-          messages.where((m) => m['kind'] == 'tool-call'),
-          isEmpty,
-          reason: 'no synthetic Task may be created for unparented '
-              'orphans — they render inline as text bubbles',
-        );
-      },
-    );
+    test('orphans without any parentUuid are preserved verbatim (no '
+        'synthetic grouping)', () {
+      sync.testSetSessionMessages('s1', [
+        <String, dynamic>{
+          'id': 'orph-1',
+          'isSidechain': true,
+          'kind': 'text',
+          'role': 'agent',
+          'content': 'unparented A',
+          'seq': 5,
+        },
+        <String, dynamic>{
+          'id': 'orph-2',
+          'isSidechain': true,
+          'kind': 'text',
+          'role': 'agent',
+          'content': 'unparented B',
+          'seq': 6,
+        },
+      ]);
+      for (var i = 0; i < 6; i++) {
+        sync.testRunDeferredRegroupSweep('s1');
+      }
+      final messages = sync.testGetSessionMessages('s1');
+      expect(messages, hasLength(2));
+      expect(messages.map((m) => m['id']), ['orph-1', 'orph-2']);
+      // No synthetic was inserted.
+      expect(
+        messages.where((m) => m['kind'] == 'tool-call'),
+        isEmpty,
+        reason:
+            'no synthetic Task may be created for unparented '
+            'orphans — they render inline as text bubbles',
+      );
+    });
 
-    test(
-      'chain-root orphans: long subagent runs do NOT collapse into '
-      'a synthetic — each message stays at the top level',
-      () {
-        // Subagent transcripts chain via the previous message uuid.
-        // Pre-fix this would have produced one synthetic per chain
-        // (3 here). Post-fix every orphan stays at the top level
-        // so the chat can render the actual subagent text in
-        // chronological order.
-        sync.testSetSessionMessages('s1', [
-          <String, dynamic>{
-            'id': 'orph-1',
-            'isSidechain': true,
-            'uuid': 'u1',
-            'parentUuid': 'task-A',
-            'kind': 'text',
-            'role': 'agent',
-            'seq': 10,
-          },
-          <String, dynamic>{
-            'id': 'orph-2',
-            'isSidechain': true,
-            'uuid': 'u2',
-            'parentUuid': 'u1',
-            'kind': 'text',
-            'role': 'agent',
-            'seq': 11,
-          },
-          <String, dynamic>{
-            'id': 'orph-3',
-            'isSidechain': true,
-            'uuid': 'u3',
-            'parentUuid': 'u2',
-            'kind': 'tool-call',
-            'name': 'Bash',
-            'role': 'agent',
-            'seq': 12,
-          },
-        ]);
-        for (var i = 0; i < 6; i++) {
-          sync.testRunDeferredRegroupSweep('s1');
-        }
-        final messages = sync.testGetSessionMessages('s1');
-        expect(
-          messages.where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
-        expect(
-          messages.where((m) => m['isSidechain'] == true).map(
-                (m) => m['id'],
-              ),
-          ['orph-1', 'orph-2', 'orph-3'],
-        );
-      },
-    );
+    test('chain-root orphans: long subagent runs do NOT collapse into '
+        'a synthetic — each message stays at the top level', () {
+      // Subagent transcripts chain via the previous message uuid.
+      // Pre-fix this would have produced one synthetic per chain
+      // (3 here). Post-fix every orphan stays at the top level
+      // so the chat can render the actual subagent text in
+      // chronological order.
+      sync.testSetSessionMessages('s1', [
+        <String, dynamic>{
+          'id': 'orph-1',
+          'isSidechain': true,
+          'uuid': 'u1',
+          'parentUuid': 'task-A',
+          'kind': 'text',
+          'role': 'agent',
+          'seq': 10,
+        },
+        <String, dynamic>{
+          'id': 'orph-2',
+          'isSidechain': true,
+          'uuid': 'u2',
+          'parentUuid': 'u1',
+          'kind': 'text',
+          'role': 'agent',
+          'seq': 11,
+        },
+        <String, dynamic>{
+          'id': 'orph-3',
+          'isSidechain': true,
+          'uuid': 'u3',
+          'parentUuid': 'u2',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'role': 'agent',
+          'seq': 12,
+        },
+      ]);
+      for (var i = 0; i < 6; i++) {
+        sync.testRunDeferredRegroupSweep('s1');
+      }
+      final messages = sync.testGetSessionMessages('s1');
+      expect(messages.where((m) => m['_orphanRecovery'] == true), isEmpty);
+      expect(
+        messages.where((m) => m['isSidechain'] == true).map((m) => m['id']),
+        ['orph-1', 'orph-2', 'orph-3'],
+      );
+    });
 
-    test(
-      'two independent subagent chains do NOT each get a synthetic',
-      () {
-        sync.testSetSessionMessages('s1', [
-          // Chain A: rootA → uA1 → uA2
-          <String, dynamic>{
-            'id': 'a1',
-            'isSidechain': true,
-            'uuid': 'uA1',
-            'parentUuid': 'rootA',
-            'seq': 1,
-          },
-          <String, dynamic>{
-            'id': 'a2',
-            'isSidechain': true,
-            'uuid': 'uA2',
-            'parentUuid': 'uA1',
-            'seq': 2,
-          },
-          // Chain B: rootB → uB1
-          <String, dynamic>{
-            'id': 'b1',
-            'isSidechain': true,
-            'uuid': 'uB1',
-            'parentUuid': 'rootB',
-            'seq': 3,
-          },
-        ]);
-        for (var i = 0; i < 6; i++) {
-          sync.testRunDeferredRegroupSweep('s1');
-        }
-        final messages = sync.testGetSessionMessages('s1');
-        expect(
-          messages.where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
-        expect(
-          messages.map((m) => m['id']).toList(),
-          ['a1', 'a2', 'b1'],
-        );
-      },
-    );
+    test('two independent subagent chains do NOT each get a synthetic', () {
+      sync.testSetSessionMessages('s1', [
+        // Chain A: rootA → uA1 → uA2
+        <String, dynamic>{
+          'id': 'a1',
+          'isSidechain': true,
+          'uuid': 'uA1',
+          'parentUuid': 'rootA',
+          'seq': 1,
+        },
+        <String, dynamic>{
+          'id': 'a2',
+          'isSidechain': true,
+          'uuid': 'uA2',
+          'parentUuid': 'uA1',
+          'seq': 2,
+        },
+        // Chain B: rootB → uB1
+        <String, dynamic>{
+          'id': 'b1',
+          'isSidechain': true,
+          'uuid': 'uB1',
+          'parentUuid': 'rootB',
+          'seq': 3,
+        },
+      ]);
+      for (var i = 0; i < 6; i++) {
+        sync.testRunDeferredRegroupSweep('s1');
+      }
+      final messages = sync.testGetSessionMessages('s1');
+      expect(messages.where((m) => m['_orphanRecovery'] == true), isEmpty);
+      expect(messages.map((m) => m['id']).toList(), ['a1', 'a2', 'b1']);
+    });
 
     // ── Real parent arrival still works through the grouper ──
-    test(
-      'real Task arrival attaches orphans to its children — no '
-      'synthetic was ever needed',
-      () {
-        // Cold start: only sidechain children in cache, no parent
-        // Task. Sweep enough times to exercise the (now-removed)
-        // absorb path. Then backfill the real Task and re-run the
-        // grouper. The orphans must attach directly to the real
-        // Task; no synthetic placeholder should exist at any point.
-        sync.testSetSessionMessages('s1', [
-          <String, dynamic>{
-            'id': 'c1',
-            'isSidechain': true,
-            'uuid': 'cu1',
-            'parentUuid': 'task-real',
-            'parentToolUseId': 'toolu_real',
-            'role': 'agent',
-            'kind': 'text',
-            'seq': 2,
-          },
-          <String, dynamic>{
-            'id': 'c2',
-            'isSidechain': true,
-            'uuid': 'cu2',
-            'parentUuid': 'cu1',
-            'parentToolUseId': 'toolu_real',
-            'role': 'agent',
-            'kind': 'text',
-            'seq': 3,
-          },
-        ]);
-        for (var i = 0; i < 6; i++) {
-          sync.testRunDeferredRegroupSweep('s1');
-        }
-        // Sweeps must not have absorbed anything.
-        expect(
-          sync
-              .testGetSessionMessages('s1')
-              .where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
+    test('real Task arrival attaches orphans to its children — no '
+        'synthetic was ever needed', () {
+      // Cold start: only sidechain children in cache, no parent
+      // Task. Sweep enough times to exercise the (now-removed)
+      // absorb path. Then backfill the real Task and re-run the
+      // grouper. The orphans must attach directly to the real
+      // Task; no synthetic placeholder should exist at any point.
+      sync.testSetSessionMessages('s1', [
+        <String, dynamic>{
+          'id': 'c1',
+          'isSidechain': true,
+          'uuid': 'cu1',
+          'parentUuid': 'task-real',
+          'parentToolUseId': 'toolu_real',
+          'role': 'agent',
+          'kind': 'text',
+          'seq': 2,
+        },
+        <String, dynamic>{
+          'id': 'c2',
+          'isSidechain': true,
+          'uuid': 'cu2',
+          'parentUuid': 'cu1',
+          'parentToolUseId': 'toolu_real',
+          'role': 'agent',
+          'kind': 'text',
+          'seq': 3,
+        },
+      ]);
+      for (var i = 0; i < 6; i++) {
+        sync.testRunDeferredRegroupSweep('s1');
+      }
+      // Sweeps must not have absorbed anything.
+      expect(
+        sync
+            .testGetSessionMessages('s1')
+            .where((m) => m['_orphanRecovery'] == true),
+        isEmpty,
+      );
 
-        // Backfill the real Task and re-run the grouper.
-        final state = sync.testGetSessionMessages('s1');
-        final withReal = <Map<String, dynamic>>[
-          <String, dynamic>{
-            'id': 'real-task',
-            'kind': 'tool-call',
-            'name': 'Task',
-            'role': 'agent',
-            'uuid': 'task-real',
-            'toolUseId': 'toolu_real',
-            'seq': 1,
-          },
-          ...state,
-        ];
-        sync.testSetSessionMessages('s1', withReal);
-        sync.testGroupSidechainMessages('s1');
+      // Backfill the real Task and re-run the grouper.
+      final state = sync.testGetSessionMessages('s1');
+      final withReal = <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'real-task',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'role': 'agent',
+          'uuid': 'task-real',
+          'toolUseId': 'toolu_real',
+          'seq': 1,
+        },
+        ...state,
+      ];
+      sync.testSetSessionMessages('s1', withReal);
+      sync.testGroupSidechainMessages('s1');
 
-        final after = sync.testGetSessionMessages('s1');
-        // Still no synthetic — we never need one.
-        expect(after.where((m) => m['_orphanRecovery'] == true), isEmpty);
-        // Real Task picked up the children via parentToolUseId.
-        final realTask = after.firstWhere((m) => m['id'] == 'real-task');
-        final children =
-            (realTask['children'] as List?)?.cast<Map<String, dynamic>>() ??
-                const <Map<String, dynamic>>[];
-        expect(children.map((c) => c['id']).toList(), ['c1', 'c2']);
-      },
-    );
+      final after = sync.testGetSessionMessages('s1');
+      // Still no synthetic — we never need one.
+      expect(after.where((m) => m['_orphanRecovery'] == true), isEmpty);
+      // Real Task picked up the children via parentToolUseId.
+      final realTask = after.firstWhere((m) => m['id'] == 'real-task');
+      final children =
+          (realTask['children'] as List?)?.cast<Map<String, dynamic>>() ??
+          const <Map<String, dynamic>>[];
+      expect(children.map((c) => c['id']).toList(), ['c1', 'c2']);
+    });
 
     // ── Legacy cache scrub still strips pre-fix synthetics ──
     //
@@ -417,10 +390,7 @@ void main() {
         expect(stripped[1]['isSidechain'], isTrue);
         expect(stripped[2]['isSidechain'], isTrue);
         // No synthetics remain.
-        expect(
-          stripped.where((m) => m['_orphanRecovery'] == true),
-          isEmpty,
-        );
+        expect(stripped.where((m) => m['_orphanRecovery'] == true), isEmpty);
       });
 
       test('returns the same list when no synthetics are present', () {
@@ -446,11 +416,11 @@ void main() {
     // trying. When history is exhausted, the sweep stops running
     // and the orphans remain inline in the chat.
     group('parent_tool_use_id walk-back policy', () {
-      const orphanAggressiveAttempts = 6;
       const orphanFetchOlderPageSize = 500;
       late Sync syncWithEnc;
       late int fetchOlderCount;
       late List<int> fetchOlderLimits;
+      late int orphanAggressiveAttempts;
 
       setUp(() {
         // We need real session encryption so fetchOlderMessages can
@@ -459,23 +429,22 @@ void main() {
         syncWithEnc = createTestSync();
         syncWithEnc.encryption = _OrphanFakeEncryption();
         syncWithEnc.testIsInitialized = true;
+        orphanAggressiveAttempts =
+            syncWithEnc.testOrphanFetchOlderAggressiveAttempts;
         // Walk-back only runs for the visible session.
         syncWithEnc.testSetVisibleSessionId('s2');
-        syncWithEnc.testSessions['s2'] = _makeOrphanSession(
-          's2',
-          lastSeq: 500,
-        );
+        syncWithEnc.testSessions['s2'] = _makeOrphanSession('s2', lastSeq: 500);
         fetchOlderCount = 0;
         fetchOlderLimits = <int>[];
         syncWithEnc.testFetchOlderMessagesOverride =
             (sessionId, afterSeq, limit) async {
-          fetchOlderCount++;
-          fetchOlderLimits.add(limit);
-          // Return an empty page so the sweep's follow-up logic
-          // doesn't actually upsert anything — we want to isolate
-          // the walk-back scheduling behavior.
-          return {'messages': <Map<String, dynamic>>[], 'hasMore': true};
-        };
+              fetchOlderCount++;
+              fetchOlderLimits.add(limit);
+              // Return an empty page so the sweep's follow-up logic
+              // doesn't actually upsert anything — we want to isolate
+              // the walk-back scheduling behavior.
+              return {'messages': <Map<String, dynamic>>[], 'hasMore': true};
+            };
       });
 
       tearDown(() {
@@ -484,10 +453,188 @@ void main() {
         syncWithEnc.testSetVisibleSessionId(null);
       });
 
-      test(
-        'with parentToolUseId and more history: fetchOlder fires, '
-        'no absorb occurs',
-        () async {
+      test('with parentToolUseId and more history: fetchOlder fires, '
+          'no absorb occurs', () async {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+          <String, dynamic>{
+            'id': 'orph-2',
+            'isSidechain': true,
+            'uuid': 'u2',
+            'parentUuid': 'u1',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'seq': 103,
+          },
+        ]);
+        // firstLoadedSeq > 1 means hasOlderMessages == true.
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+        expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
+
+        // Sweep 1 — fires fetchOlderMessages. Drain microtasks.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+
+        expect(
+          fetchOlderCount,
+          1,
+          reason: 'first sweep must call fetchOlderMessages',
+        );
+        expect(fetchOlderLimits.last, orphanFetchOlderPageSize);
+        var msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(
+          msgs.where((m) => m['_orphanRecovery'] == true),
+          isEmpty,
+          reason:
+              'no synthetic Task may exist while we can still '
+              'paginate to find the real parent',
+        );
+        // hasOlderMessages must remain true so the next sweep is
+        // allowed to paginate further.
+        expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
+
+        // Re-seed orphans to focus on scheduling behavior.
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+          <String, dynamic>{
+            'id': 'orph-2',
+            'isSidechain': true,
+            'uuid': 'u2',
+            'parentUuid': 'u1',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'seq': 103,
+          },
+        ]);
+
+        // Sweep 2 — fetchOlder fires again; absorb remains
+        // forbidden.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+
+        expect(
+          fetchOlderCount,
+          2,
+          reason:
+              'aggressive mode must allow a second fetchOlder '
+              'call rather than absorbing the orphans',
+        );
+        expect(fetchOlderLimits.last, orphanFetchOlderPageSize);
+        msgs = syncWithEnc.testGetSessionMessages('s2');
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
+        // Top-level orphans must still be present — they were not
+        // absorbed into a synthetic Task.
+        expect(
+          msgs.where((m) => m['isSidechain'] == true).length,
+          2,
+          reason:
+              'orphans must remain on the top-level list until '
+              'we either find the parent or exhaust history',
+        );
+      });
+
+      test('with no remaining history: sweep stops, orphans stay inline', () {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 2,
+          },
+          <String, dynamic>{
+            'id': 'orph-2',
+            'isSidechain': true,
+            'uuid': 'u2',
+            'parentUuid': 'u1',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Bash',
+            'seq': 3,
+          },
+        ]);
+        // firstLoadedSeq == 0 means history is exhausted.
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 0);
+        expect(syncWithEnc.hasOlderMessages('s2'), isFalse);
+
+        for (var i = 0; i < 8; i++) {
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+        }
+
+        // No fetchOlder attempted (no history available).
+        expect(
+          fetchOlderCount,
+          0,
+          reason: 'no history → no fetchOlder attempts',
+        );
+        final msgs = syncWithEnc.testGetSessionMessages('s2');
+        // Still no synthetic.
+        expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
+        // Orphans are preserved at the top level so the chat
+        // renders them inline.
+        expect(
+          msgs.where((m) => m['isSidechain'] == true).map((m) => m['id']),
+          ['orph-1', 'orph-2'],
+        );
+      });
+
+      test('aggressive mode stops after bounded no-progress attempts and falls '
+          'back to the default throttle', () async {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+        ]);
+        // Aggressive budget is orphanAggressiveAttempts fetchOlder calls
+        // × pageSize 500; bump firstLoadedSeq so the boundary does not
+        // collapse to 0 before the budget exhausts (800 seqs of headroom
+        // was tightened by the pageSize bump to 500).
+        syncWithEnc.testSetSessionFirstLoadedSeq(
+          's2',
+          orphanAggressiveAttempts * orphanFetchOlderPageSize + 1000,
+        );
+        expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
+
+        // Run enough sweeps to exhaust the aggressive budget.
+        for (var i = 0; i < orphanAggressiveAttempts; i++) {
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+          await _drainAsyncWork();
+          // Re-seed the orphan because the sweep's then() schedules a
+          // regroup but the fake fetchOlder returns no messages, so the
+          // grouper would otherwise see an empty list on the next pass.
           syncWithEnc.testSetSessionMessages('s2', [
             <String, dynamic>{
               'id': 'orph-1',
@@ -499,210 +646,34 @@ void main() {
               'kind': 'text',
               'seq': 102,
             },
-            <String, dynamic>{
-              'id': 'orph-2',
-              'isSidechain': true,
-              'uuid': 'u2',
-              'parentUuid': 'u1',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'tool-call',
-              'name': 'Bash',
-              'seq': 103,
-            },
           ]);
-          // firstLoadedSeq > 1 means hasOlderMessages == true.
-          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
-          expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
+        }
 
-          // Sweep 1 — fires fetchOlderMessages. Drain microtasks.
-          syncWithEnc.testRunDeferredRegroupSweep('s2');
-          await _drainAsyncWork();
+        expect(
+          fetchOlderCount,
+          orphanAggressiveAttempts,
+          reason: 'aggressive mode should fire for its bounded budget',
+        );
 
-          expect(fetchOlderCount, 1,
-              reason: 'first sweep must call fetchOlderMessages');
-          expect(fetchOlderLimits.last, orphanFetchOlderPageSize);
-          var msgs = syncWithEnc.testGetSessionMessages('s2');
-          expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty,
-              reason: 'no synthetic Task may exist while we can still '
-                  'paginate to find the real parent');
-          // hasOlderMessages must remain true so the next sweep is
-          // allowed to paginate further.
-          expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
+        // The next sweep is within the 60s throttle window, so it must
+        // NOT fire another fetchOlder and must set suppression.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
 
-          // Re-seed orphans to focus on scheduling behavior.
-          syncWithEnc.testSetSessionMessages('s2', [
-            <String, dynamic>{
-              'id': 'orph-1',
-              'isSidechain': true,
-              'uuid': 'u1',
-              'parentUuid': 'task-A',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'text',
-              'seq': 102,
-            },
-            <String, dynamic>{
-              'id': 'orph-2',
-              'isSidechain': true,
-              'uuid': 'u2',
-              'parentUuid': 'u1',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'tool-call',
-              'name': 'Bash',
-              'seq': 103,
-            },
-          ]);
-
-          // Sweep 2 — fetchOlder fires again; absorb remains
-          // forbidden.
-          syncWithEnc.testRunDeferredRegroupSweep('s2');
-          await _drainAsyncWork();
-
-          expect(fetchOlderCount, 2,
-              reason: 'aggressive mode must allow a second fetchOlder '
-                  'call rather than absorbing the orphans');
-          expect(fetchOlderLimits.last, orphanFetchOlderPageSize);
-          msgs = syncWithEnc.testGetSessionMessages('s2');
-          expect(msgs.where((m) => m['_orphanRecovery'] == true), isEmpty);
-          // Top-level orphans must still be present — they were not
-          // absorbed into a synthetic Task.
-          expect(
-            msgs.where((m) => m['isSidechain'] == true).length,
-            2,
-            reason: 'orphans must remain on the top-level list until '
-                'we either find the parent or exhaust history',
-          );
-        },
-      );
-
-      test(
-        'with no remaining history: sweep stops, orphans stay inline',
-        () {
-          syncWithEnc.testSetSessionMessages('s2', [
-            <String, dynamic>{
-              'id': 'orph-1',
-              'isSidechain': true,
-              'uuid': 'u1',
-              'parentUuid': 'task-A',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'text',
-              'seq': 2,
-            },
-            <String, dynamic>{
-              'id': 'orph-2',
-              'isSidechain': true,
-              'uuid': 'u2',
-              'parentUuid': 'u1',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'tool-call',
-              'name': 'Bash',
-              'seq': 3,
-            },
-          ]);
-          // firstLoadedSeq == 0 means history is exhausted.
-          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 0);
-          expect(syncWithEnc.hasOlderMessages('s2'), isFalse);
-
-          for (var i = 0; i < 8; i++) {
-            syncWithEnc.testRunDeferredRegroupSweep('s2');
-          }
-
-          // No fetchOlder attempted (no history available).
-          expect(fetchOlderCount, 0,
-              reason: 'no history → no fetchOlder attempts');
-          final msgs = syncWithEnc.testGetSessionMessages('s2');
-          // Still no synthetic.
-          expect(
-            msgs.where((m) => m['_orphanRecovery'] == true),
-            isEmpty,
-          );
-          // Orphans are preserved at the top level so the chat
-          // renders them inline.
-          expect(
-            msgs.where((m) => m['isSidechain'] == true).map(
-                  (m) => m['id'],
-                ),
-            ['orph-1', 'orph-2'],
-          );
-        },
-      );
-
-      test(
-        'aggressive mode stops after bounded no-progress attempts and falls '
-        'back to the default throttle',
-        () async {
-          syncWithEnc.testSetSessionMessages('s2', [
-            <String, dynamic>{
-              'id': 'orph-1',
-              'isSidechain': true,
-              'uuid': 'u1',
-              'parentUuid': 'task-A',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'text',
-              'seq': 102,
-            },
-          ]);
-          // Aggressive budget is orphanAggressiveAttempts fetchOlder calls
-          // × pageSize 500; bump firstLoadedSeq so the boundary does not
-          // collapse to 0 before the budget exhausts (800 seqs of headroom
-          // was tightened by the pageSize bump to 500).
-          syncWithEnc.testSetSessionFirstLoadedSeq(
-            's2',
-            orphanAggressiveAttempts * orphanFetchOlderPageSize + 1000,
-          );
-          expect(syncWithEnc.hasOlderMessages('s2'), isTrue);
-
-          // Run enough sweeps to exhaust the aggressive budget.
-          for (var i = 0; i < orphanAggressiveAttempts; i++) {
-            syncWithEnc.testRunDeferredRegroupSweep('s2');
-            await _drainAsyncWork();
-            // Re-seed the orphan because the sweep's then() schedules a
-            // regroup but the fake fetchOlder returns no messages, so the
-            // grouper would otherwise see an empty list on the next pass.
-            syncWithEnc.testSetSessionMessages('s2', [
-              <String, dynamic>{
-                'id': 'orph-1',
-                'isSidechain': true,
-                'uuid': 'u1',
-                'parentUuid': 'task-A',
-                'parentToolUseId': 'toolu_A',
-                'role': 'agent',
-                'kind': 'text',
-                'seq': 102,
-              },
-            ]);
-          }
-
-          expect(
-            fetchOlderCount,
-            orphanAggressiveAttempts,
-            reason: 'aggressive mode should fire for its bounded budget',
-          );
-
-          // The next sweep is within the 60s throttle window, so it must
-          // NOT fire another fetchOlder and must set suppression.
-          syncWithEnc.testRunDeferredRegroupSweep('s2');
-          await _drainAsyncWork();
-
-          expect(
-            fetchOlderCount,
-            orphanAggressiveAttempts,
-            reason: 'after aggressive budget is exhausted, sweep must '
-                'respect the default throttle and not call fetchOlder',
-          );
-          expect(
-            syncWithEnc.testGetSessionMessages('s2').where(
-              (m) => m['_orphanRecovery'] == true,
-            ),
-            isEmpty,
-          );
-        },
-      );
+        expect(
+          fetchOlderCount,
+          orphanAggressiveAttempts,
+          reason:
+              'after aggressive budget is exhausted, sweep must '
+              'respect the default throttle and not call fetchOlder',
+        );
+        expect(
+          syncWithEnc
+              .testGetSessionMessages('s2')
+              .where((m) => m['_orphanRecovery'] == true),
+          isEmpty,
+        );
+      });
 
       test(
         'message upserts do NOT reset the no-progress counter — the '
@@ -711,7 +682,7 @@ void main() {
           // Production regression: fetchOlderMessages upserts every page
           // it fetches. A blanket counter reset in _upsertSessionMessages
           // pinned the counter at 1 (reset-then-increment each cycle),
-          // so neither the aggressive cutoff nor the hard cap (12)
+          // so neither the aggressive cutoff nor the hard cap
           // could ever fire — the walk-back fetched older pages every
           // ~450ms indefinitely.
           syncWithEnc.testSetSessionMessages('s2', [
@@ -771,7 +742,8 @@ void main() {
           expect(
             syncWithEnc.testOrphanFetchOlderNoProgressCount('s2'),
             orphanAggressiveAttempts,
-            reason: 'upserts must not reset the no-progress counter — '
+            reason:
+                'upserts must not reset the no-progress counter — '
                 'this is what kept the production walk-back looping',
           );
 
@@ -781,97 +753,36 @@ void main() {
           expect(
             fetchOlderCount,
             orphanAggressiveAttempts,
-            reason: 'with the aggressive budget exhausted and the orphan '
+            reason:
+                'with the aggressive budget exhausted and the orphan '
                 'set unchanged, the sweep must not fetch again',
           );
         },
       );
 
-      test(
-        'a changed orphan set opens a fresh walk-back budget',
-        () async {
-          syncWithEnc.testSetSessionMessages('s2', [
-            <String, dynamic>{
-              'id': 'orph-1',
-              'isSidechain': true,
-              'uuid': 'u1',
-              'parentUuid': 'task-A',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'text',
-              'seq': 102,
-            },
-          ]);
-          // Aggressive budget × pageSize 500 each, plus slack.
-          syncWithEnc.testSetSessionFirstLoadedSeq(
-            's2',
-            orphanAggressiveAttempts * orphanFetchOlderPageSize + 1000,
-          );
+      test('a changed orphan set opens a fresh walk-back budget', () async {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+        ]);
+        // Aggressive budget × pageSize 500 each, plus slack.
+        syncWithEnc.testSetSessionFirstLoadedSeq(
+          's2',
+          orphanAggressiveAttempts * orphanFetchOlderPageSize + 1000,
+        );
 
-          // Burn through the aggressive budget on orph-1.
-          for (var i = 0; i < orphanAggressiveAttempts; i++) {
-            syncWithEnc.testRunDeferredRegroupSweep('s2');
-            await _drainAsyncWork();
-            syncWithEnc.testSetSessionMessages('s2', [
-              <String, dynamic>{
-                'id': 'orph-1',
-                'isSidechain': true,
-                'uuid': 'u1',
-                'parentUuid': 'task-A',
-                'parentToolUseId': 'toolu_A',
-                'role': 'agent',
-                'kind': 'text',
-                'seq': 102,
-              },
-            ]);
-          }
-          expect(fetchOlderCount, orphanAggressiveAttempts);
-
-          // A NEW orphan (fresh sidechain burst) changes the orphan-set
-          // signature: budget resets, suppression lifts, recovery retries.
-          syncWithEnc.testSetSessionMessages('s2', [
-            <String, dynamic>{
-              'id': 'orph-1',
-              'isSidechain': true,
-              'uuid': 'u1',
-              'parentUuid': 'task-A',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'text',
-              'seq': 102,
-            },
-            <String, dynamic>{
-              'id': 'orph-NEW',
-              'isSidechain': true,
-              'uuid': 'u9',
-              'parentUuid': 'task-B',
-              'parentToolUseId': 'toolu_B',
-              'role': 'agent',
-              'kind': 'text',
-              'seq': 300,
-            },
-          ]);
-
+        // Burn through the aggressive budget on orph-1.
+        for (var i = 0; i < orphanAggressiveAttempts; i++) {
           syncWithEnc.testRunDeferredRegroupSweep('s2');
           await _drainAsyncWork();
-
-          expect(
-            fetchOlderCount,
-            orphanAggressiveAttempts + 1,
-            reason: 'a changed orphan set must grant a fresh budget',
-          );
-        },
-      );
-
-      test(
-        'background sessions never walk back — recovery is deferred '
-        'until the session becomes visible',
-        () async {
-          // Production regression: a background session (trimmed to the
-          // newest 200 messages on every upsert) looped fetchOlderMessages
-          // even though each fetched page was discarded by the trim
-          // before the grouper could see the parent Task.
-          syncWithEnc.testSetVisibleSessionId('other-session');
           syncWithEnc.testSetSessionMessages('s2', [
             <String, dynamic>{
               'id': 'orph-1',
@@ -884,84 +795,138 @@ void main() {
               'seq': 102,
             },
           ]);
-          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+        }
+        expect(fetchOlderCount, orphanAggressiveAttempts);
 
-          for (var i = 0; i < 5; i++) {
-            syncWithEnc.testRunDeferredRegroupSweep('s2');
-            await _drainAsyncWork();
-          }
-          expect(
-            fetchOlderCount,
-            0,
-            reason: 'background sessions must not fetch older pages — '
-                'the background trim cap discards them anyway',
-          );
+        // A NEW orphan (fresh sidechain burst) changes the orphan-set
+        // signature: budget resets, suppression lifts, recovery retries.
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+          <String, dynamic>{
+            'id': 'orph-NEW',
+            'isSidechain': true,
+            'uuid': 'u9',
+            'parentUuid': 'task-B',
+            'parentToolUseId': 'toolu_B',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 300,
+          },
+        ]);
 
-          // Once the session is visible, the sweep may walk back.
-          syncWithEnc.testSetVisibleSessionId('s2');
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+
+        expect(
+          fetchOlderCount,
+          orphanAggressiveAttempts + 1,
+          reason: 'a changed orphan set must grant a fresh budget',
+        );
+      });
+
+      test('background sessions never walk back — recovery is deferred '
+          'until the session becomes visible', () async {
+        // Production regression: a background session (trimmed to the
+        // newest 200 messages on every upsert) looped fetchOlderMessages
+        // even though each fetched page was discarded by the trim
+        // before the grouper could see the parent Task.
+        syncWithEnc.testSetVisibleSessionId('other-session');
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+        ]);
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+
+        for (var i = 0; i < 5; i++) {
           syncWithEnc.testRunDeferredRegroupSweep('s2');
           await _drainAsyncWork();
-          expect(
-            fetchOlderCount,
-            1,
-            reason: 'visible session gets a fresh walk-back budget',
-          );
-        },
-      );
+        }
+        expect(
+          fetchOlderCount,
+          0,
+          reason:
+              'background sessions must not fetch older pages — '
+              'the background trim cap discards them anyway',
+        );
 
-      test(
-        'hard cap gives up and suppresses further work once the no-progress '
-        'counter reaches the limit',
-        () async {
-          syncWithEnc.testSetSessionMessages('s2', [
-            <String, dynamic>{
-              'id': 'orph-1',
-              'isSidechain': true,
-              'uuid': 'u1',
-              'parentUuid': 'task-A',
-              'parentToolUseId': 'toolu_A',
-              'role': 'agent',
-              'kind': 'text',
-              'seq': 102,
-            },
-          ]);
-          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
+        // Once the session is visible, the sweep may walk back.
+        syncWithEnc.testSetVisibleSessionId('s2');
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+        expect(
+          fetchOlderCount,
+          1,
+          reason: 'visible session gets a fresh walk-back budget',
+        );
+      });
 
-          // Set the counter at the cap. The signature must be primed so
-          // the sweep treats this orphan set as already-seen — otherwise
-          // first sight grants a fresh budget by design.
-          syncWithEnc.testPrimeOrphanWalkbackSignature('s2');
-          syncWithEnc.testSetOrphanFetchOlderNoProgressCount('s2', 12);
+      test('hard cap gives up and suppresses further work once the no-progress '
+          'counter reaches the limit', () async {
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+        ]);
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 800);
 
+        // Set the counter at the cap. The signature must be primed so
+        // the sweep treats this orphan set as already-seen — otherwise
+        // first sight grants a fresh budget by design.
+        syncWithEnc.testPrimeOrphanWalkbackSignature('s2');
+        final maxAttempts = syncWithEnc.testOrphanFetchOlderMaxAttempts;
+        syncWithEnc.testSetOrphanFetchOlderNoProgressCount('s2', maxAttempts);
+
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+
+        expect(
+          fetchOlderCount,
+          0,
+          reason: 'at the hard cap sweep must not call fetchOlder',
+        );
+
+        // Subsequent sweeps are also suppressed, and the counter
+        // stays at the cap so the give-up cannot undo itself.
+        for (var i = 0; i < 5; i++) {
           syncWithEnc.testRunDeferredRegroupSweep('s2');
           await _drainAsyncWork();
-
-          expect(
-            fetchOlderCount,
-            0,
-            reason: 'at the hard cap sweep must not call fetchOlder',
-          );
-
-          // Subsequent sweeps are also suppressed, and the counter
-          // stays at the cap so the give-up cannot undo itself.
-          for (var i = 0; i < 5; i++) {
-            syncWithEnc.testRunDeferredRegroupSweep('s2');
-            await _drainAsyncWork();
-          }
-          expect(
-            fetchOlderCount,
-            0,
-            reason: 'suppression must persist across repeated sweeps',
-          );
-          expect(
-            syncWithEnc.testOrphanFetchOlderNoProgressCount('s2'),
-            12,
-            reason: 'hard-cap give-up must keep the counter sticky',
-          );
-        },
-      );
+        }
+        expect(
+          fetchOlderCount,
+          0,
+          reason: 'suppression must persist across repeated sweeps',
+        );
+        expect(
+          syncWithEnc.testOrphanFetchOlderNoProgressCount('s2'),
+          maxAttempts,
+          reason: 'hard-cap give-up must keep the counter sticky',
+        );
+      });
     });
-
   });
 }
 
@@ -1008,18 +973,17 @@ class _OrphanFakeEncryption implements Encryption {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _OrphanFakeSessionEncryption extends SessionEncryption {
   _OrphanFakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _OrphanFakeEncryptor(),
-          decryptor: _OrphanFakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _OrphanFakeEncryptor(),
+        decryptor: _OrphanFakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _OrphanFakeEncryptor implements Encryptor {

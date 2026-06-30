@@ -162,10 +162,7 @@ extension SyncTestHelpers on Sync {
   /// Used to exercise the hard cap without waiting for real wall-clock
   /// throttle windows.
   @visibleForTesting
-  void testSetOrphanFetchOlderNoProgressCount(
-    String sessionId,
-    int count,
-  ) {
+  void testSetOrphanFetchOlderNoProgressCount(String sessionId, int count) {
     _orphanFetchOlderNoProgressCount[sessionId] = count;
   }
 
@@ -181,6 +178,13 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   int get testOrphanFetchOlderMaxAttempts =>
       SyncMessagingMerge._orphanFetchOlderMaxAttempts;
+
+  /// Test helper: read the aggressive no-progress fetchOlder budget.
+  /// Exposed so tests can assert the current page-counted budget without
+  /// hardcoding constants that drift when the recovery window changes.
+  @visibleForTesting
+  int get testOrphanFetchOlderAggressiveAttempts =>
+      SyncMessagingMerge._orphanFetchOlderAggressiveAttempts;
 
   /// Test helper: prime the orphan walk-back signature from the current
   /// persisting orphan set, as if a sweep had already seen it. Lets
@@ -243,10 +247,7 @@ extension SyncTestHelpers on Sync {
 
   /// Test helper: directly set usage data for a session.
   @visibleForTesting
-  void testSetSessionUsage(
-    String sessionId,
-    Map<String, dynamic> usage,
-  ) {
+  void testSetSessionUsage(String sessionId, Map<String, dynamic> usage) {
     _sessionUsage[sessionId] = usage;
   }
 
@@ -459,14 +460,13 @@ extension SyncTestHelpers on Sync {
     String? modelMode,
     String? agent,
     DateTime? at,
-  }) =>
-      _registerSpawn(
-        sessionId,
-        profileId: profileId,
-        modelMode: modelMode,
-        agent: agent,
-        at: at,
-      );
+  }) => _registerSpawn(
+    sessionId,
+    profileId: profileId,
+    modelMode: modelMode,
+    agent: agent,
+    at: at,
+  );
 
   /// Test helper: get _sessionSpawnedProfile map.
   @visibleForTesting
@@ -676,6 +676,7 @@ extension SyncTestHelpers on Sync {
     _lastEphemeralAt.clear();
     _pendingToolResults.clear();
   }
+
   @visibleForTesting
   SyncProgress? get testSyncProgress => _syncProgress;
 
