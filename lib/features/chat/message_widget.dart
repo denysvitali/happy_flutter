@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
+import 'message_render_signature.dart';
 import 'tools/tools.dart';
 import 'widgets/agent_event_widget.dart';
 import 'widgets/bot_message.dart';
@@ -143,28 +144,10 @@ class _MessageWidgetState extends State<MessageWidget>
         msg['id'] as String? ??
         msg['localId'] as String? ??
         msg['key'] as String?;
-    final sigContent = msg['content'] ?? msg['text'];
-    // Agent-event labels and sub-agent tool chips live on `event` and
-    // `subAgentLastTool`, not on `content`/`text`. Task-event cards carry
-    // `taskEvent` plus metadata like `taskStatus`/`transcriptDir`. If these
-    // fields change in-place (e.g. a progress event updates the currently
-    // running tool), the cache must invalidate so the widget height matches
-    // the new content — otherwise the list scroll position can jump when the
-    // rendered size finally catches up.
-    final event = msg['event'] is Map<String, dynamic>
-        ? msg['event'] as Map<String, dynamic>
-        : null;
-    // Object.hash only accepts 20 positional arguments, so the volatile
-    // task-event fields are folded into a nested hash.
-    final taskEventSignature = Object.hash(
-      msg['subAgentLastTool'],
-      msg['taskEvent'],
-      msg['taskStatus'],
-      msg['taskType'],
-      msg['workflowName'],
-      msg['transcriptDir'],
-      msg['workflowRunId'],
-    );
+    final rowSignature = messageRenderSignature(msg);
+    final relatedMessagesSignature = widget.messages == null
+        ? 0
+        : compactMessageListRenderSignature(widget.messages!);
     final signature = Object.hash(
       messageId,
       msg['kind'],
@@ -173,14 +156,8 @@ class _MessageWidgetState extends State<MessageWidget>
       msg['sendStatus'],
       msg['isThinking'],
       msg['updatedAt'] ?? msg['createdAt'],
-      sigContent is String ? sigContent : sigContent?.toString(),
-      event == null ? 0 : Object.hash(event['type'], event['message']),
-      taskEventSignature,
-      // Tool/Agent messages also need to invalidate when the messages
-      // list reference changes meaningfully. List identity is acceptable
-      // because chat_screen only passes `_messages` for Task/Agent and
-      // recreates it deliberately when contents change.
-      widget.messages == null ? 0 : widget.messages!.length,
+      rowSignature,
+      relatedMessagesSignature,
       widget.sessionId,
       widget.isSessionOnline,
       widget.isFromCurrentUser,

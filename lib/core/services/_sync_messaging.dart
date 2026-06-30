@@ -22,6 +22,22 @@ int? _maxCachedMessageSeq(List<Map<String, dynamic>>? messages) {
   return maxSeq;
 }
 
+int? _maxRawMessageSeq(List<Map<String, dynamic>> messages) {
+  int? maxSeq;
+  for (final message in messages) {
+    final seq = message['seq'];
+    final parsed = switch (seq) {
+      final int value => value,
+      final double value => value.toInt(),
+      _ => null,
+    };
+    if (parsed != null && (maxSeq == null || parsed > maxSeq)) {
+      maxSeq = parsed;
+    }
+  }
+  return maxSeq;
+}
+
 final Map<String, int> _lastDroppedReasonWarningMs = {};
 const int _droppedReasonWarningCooldownMs = 5 * 60 * 1000;
 
@@ -710,11 +726,13 @@ extension SyncMessaging on Sync {
             .whereType<Map<String, dynamic>>()
             .toList();
         final hasMore = data['hasMore'] as bool? ?? false;
+        final rawMaxSeq = _maxRawMessageSeq(messages);
         totalPagesFetched++;
         totalFetchedMessages += messages.length;
         pageSpan
           ..setData('fetchedMessages', messages.length)
-          ..setData('hasMore', hasMore);
+          ..setData('hasMore', hasMore)
+          ..setData('rawMaxSeq', rawMaxSeq ?? 0);
 
         logger.debug(
           '[fetchMessages] $sessionId page=$page '
@@ -965,7 +983,9 @@ extension SyncMessaging on Sync {
         await mergeSpan.finish();
         pageSpan.setData('mergeApplyMs', mergeStart.elapsedMilliseconds);
 
-        if (processed.maxSeq > afterSeq) {
+        if (rawMaxSeq != null && rawMaxSeq > afterSeq) {
+          afterSeq = rawMaxSeq;
+        } else if (processed.maxSeq > afterSeq) {
           afterSeq = processed.maxSeq;
         }
         _advanceSeqCursor(sessionId, afterSeq);

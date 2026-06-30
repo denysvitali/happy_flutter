@@ -367,15 +367,15 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 2300));
       expect(
         fetchCalls.length,
-        fetchCountAfterSend,
+        greaterThan(fetchCountAfterSend),
         reason:
-            'REST ACK advances the cursor to the accepted user message, '
-            'so the post-send probe can stop without re-fetching it',
+            'REST ACK only proves the user message was stored. The fallback '
+            'probe must still run so a missed assistant response can heal.',
       );
     });
 
     test(
-      'non-visible session skips probe once REST ACK advances cursor',
+      'non-visible session probes after REST ACK until a response arrives',
       () async {
         final fetchCalls = <int>[];
         instance.testVisibleSessionId = 'other-session';
@@ -396,10 +396,10 @@ void main() {
 
         expect(
           fetchCalls,
-          isEmpty,
+          isNotEmpty,
           reason:
-              'The REST ACK already moved the cursor to the accepted user '
-              'message, so background catch-up should not re-fetch it',
+              'The REST ACK already moved the cursor to the user message, '
+              'but background catch-up must still look for the response',
         );
       },
     );

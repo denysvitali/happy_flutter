@@ -35,6 +35,7 @@ import 'chat_tts_gate.dart';
 import 'helpers/chat_dialogs.dart';
 import 'loop_command_parser.dart';
 import 'message_detail_screen.dart';
+import 'message_render_signature.dart';
 import 'message_widget.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
@@ -190,7 +191,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _detailFileContent;
 
   // Track when the actual messages list changes (not just rebuilds)
-  List<Map<String, dynamic>>? _lastMessagesList;
   int _lastMessageFingerprint = 0;
   int _lastMessagesRevision = -1;
 
@@ -434,7 +434,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // mutation. Trust it over the tail-of-5 fingerprint, which misses
     // in-place edits to messages outside the tail — the "a message silently
     // goes stale / disappears mid-thread" class of bug.
-    if (latestRevision != _lastMessagesRevision) {
+    final revisionChanged = latestRevision != _lastMessagesRevision;
+    if (revisionChanged) {
       messagesChanged = true;
     }
 
@@ -474,9 +475,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     if (!mounted) return;
 
-    if (messagesChanged && !identical(latestMessages, _lastMessagesList)) {
+    if (messagesChanged) {
       _invalidateNeighborCache();
-      _lastMessagesList = latestMessages;
     }
 
     final hadRequests = _session?.agentState?.requests?.isNotEmpty ?? false;
@@ -675,24 +675,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   static int _hashMessage(int seed, Map<String, dynamic> message) {
-    final content = message['content'] ?? message['text'];
-    final contentHash = switch (content) {
-      final String text => Object.hash(text.length, text.hashCode),
-      final List<dynamic> list => list.length,
-      final Map<dynamic, dynamic> map => map.length,
-      _ => content?.hashCode ?? 0,
-    };
     return Object.hash(
       seed,
       message['id'],
       message['toolUseId'],
       message['seq'],
-      message['role'],
-      message['kind'],
-      message['state'],
-      message['isThinking'],
-      message['sendStatus'],
-      contentHash,
+      messageRenderSignature(message),
     );
   }
 

@@ -244,9 +244,7 @@ extension SyncMessagingSend on Sync {
         'sendStatus': 'sending',
       },
     ]);
-    if (!_sessionMessageChangeController.isClosed) {
-      _sessionMessageChangeController.add(targetSessionId);
-    }
+    _notifySessionMessagesChanged(targetSessionId);
 
     // Encrypt after the optimistic insert so the user sees instant feedback.
     // The encrypted record is only needed for the HTTP POST to the server.
@@ -555,7 +553,7 @@ extension SyncMessagingSend on Sync {
         if (sent && messagesSync.containsKey(targetSessionId)) {
           _startPostSendCatchUp(
             targetSessionId,
-            stopAfterSeq: catchUpStopAfterSeq,
+            sentUserSeq: catchUpStopAfterSeq,
           );
         }
       } else {
@@ -607,10 +605,10 @@ extension SyncMessagingSend on Sync {
     if (otelSpan != null) {
       OpenTelemetryService().popCurrentSpan();
     }
-    // Notify so the UI picks up status changes (sent/failed/pending).
-    if (!_sessionMessageChangeController.isClosed) {
-      _sessionMessageChangeController.add(targetSessionId);
-    }
+    // Wake any listener that is still waiting on the send attempt; real
+    // message mutations above use _notifySessionMessagesChanged and bump the
+    // revision.
+    _notifySessionMessagesChangedUiOnly(targetSessionId);
   }
 
   /// Returns true for errors that indicate the message will never succeed
@@ -727,7 +725,7 @@ extension SyncMessagingSend on Sync {
           );
         }
         if (messagesSync.containsKey(entry.sessionId)) {
-          _startPostSendCatchUp(entry.sessionId, stopAfterSeq: serverSeq ?? 0);
+          _startPostSendCatchUp(entry.sessionId, sentUserSeq: serverSeq ?? 0);
         }
         logger.info(
           '[MessageOutbox] delivered localId=${entry.localId} '
@@ -957,7 +955,7 @@ extension SyncMessagingSend on Sync {
     );
   }
 
-  void _startPostSendCatchUp(String sessionId, {required int stopAfterSeq}) {
+  void _startPostSendCatchUp(String sessionId, {required int sentUserSeq}) {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     final deadline = DateTime.now().add(const Duration(seconds: 30));
 
@@ -974,14 +972,14 @@ extension SyncMessagingSend on Sync {
         return true;
       }
 
-      final currentSeq = _sessionLastSeq[sessionId] ?? 0;
-      if (currentSeq >= stopAfterSeq) {
+      if (_hasPostSendResponseAfterSeq(sessionId, sentUserSeq)) {
         _postSendCatchUpTimers.remove(sessionId)?.cancel();
         _sessionsNeedingFetchProbe.remove(sessionId);
+        final currentSeq = _sessionLastSeq[sessionId] ?? 0;
         logger.info(
           '[sendMessage] catch-up polling ended '
-          'session=$sessionId reason=seq_advanced '
-          'stopAfter=$stopAfterSeq current=$currentSeq',
+          'session=$sessionId reason=response_seen '
+          'sentSeq=$sentUserSeq current=$currentSeq',
         );
         return true;
       }
@@ -1034,5 +1032,39 @@ extension SyncMessagingSend on Sync {
       return;
     }
     startPeriodicPolling();
+  }
+
+  bool _hasPostSendResponseAfterSeq(String sessionId, int sentUserSeq) {
+    if (sentUserSeq <= 0) return false;
+
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return false;
+
+    for (final message in messages) {
+      final seq = _asInt(message['seq']) ?? 0;
+      if (seq <= sentUserSeq) continue;
+      if (_isPostSendResponseMessage(message)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isPostSendResponseMessage(Map<String, dynamic> message) {
+    if (message['isSidechain'] == true) return false;
+    if (message['role'] == MessageRole.agent) return true;
+
+    final kind = message['kind'] as String?;
+    if (kind == 'agent-event') {
+      final event = WireParsers.asMap(message['event']);
+      final type = event?['type'] as String?;
+      return type != 'ready' &&
+          type != 'thinking' &&
+          type != 'tool-execution-update' &&
+          type != 'usage_report';
+    }
+    return kind == 'tool-call' ||
+        kind == 'task-event' ||
+        message['isThinking'] == true;
   }
 }

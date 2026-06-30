@@ -241,5 +241,42 @@ void main() {
         );
       },
     );
+
+    test(
+      'pagination advances from raw page max seq when processing yields no UI',
+      () async {
+        final requestedAfterSeqs = <int>[];
+        instance.encryption = _FakeEncryption(
+          _ConfigurableSessionEncryption(maxSeq: 0),
+        );
+        instance.testFetchMessagesOverride = (_, afterSeq, ___) async {
+          requestedAfterSeqs.add(afterSeq);
+          if (requestedAfterSeqs.length == 1) {
+            return <String, dynamic>{
+              'messages': <Map<String, dynamic>>[
+                {'id': 'm8', 'seq': 8},
+                {'id': 'm9', 'seq': 9},
+                {'id': 'm10', 'seq': 10},
+              ],
+              'hasMore': true,
+            };
+          }
+          return <String, dynamic>{
+            'messages': <Map<String, dynamic>>[],
+            'hasMore': false,
+          };
+        };
+
+        await instance.fetchMessages(sessionId);
+
+        expect(
+          requestedAfterSeqs,
+          [0, 10],
+          reason:
+              'A duplicate/no-op page with hasMore must not be fetched '
+              'again just because ProcessedMessages.maxSeq stayed at 0',
+        );
+      },
+    );
   });
 }

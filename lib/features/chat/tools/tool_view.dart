@@ -9,6 +9,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/utils/tool_error_parser.dart';
 import '../../../core/utils/wire_parsers.dart';
+import '../message_render_signature.dart';
 import 'json_viewer.dart';
 import 'known_tools.dart';
 import 'permission_footer.dart';
@@ -110,6 +111,7 @@ class _ToolViewState extends ConsumerState<ToolView>
   bool _showCheckFlash = false;
   bool _collapsing = false;
   ToolState? _prevState;
+  late int _toolSignature;
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnim;
@@ -123,6 +125,7 @@ class _ToolViewState extends ConsumerState<ToolView>
   void initState() {
     super.initState();
 
+    _toolSignature = messageRenderSignature(widget.tool);
     _maybePushTaskTool();
 
     _pulseController = AnimationController(
@@ -176,7 +179,9 @@ class _ToolViewState extends ConsumerState<ToolView>
     // tool is auto-collapsed — the body that would normally push the state
     // is unmounted in that case. Push from here so the session banner and
     // Zen list stay in sync with the latest tool data.
-    if (!identical(widget.tool, oldWidget.tool)) {
+    final nextToolSignature = messageRenderSignature(widget.tool);
+    if (nextToolSignature != _toolSignature) {
+      _toolSignature = nextToolSignature;
       _maybePushTaskTool();
     }
 

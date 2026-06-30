@@ -275,9 +275,7 @@ extension SyncSocket on Sync {
       deliver: _deliverOutboxEntry,
       onStatusChanged: (sessionId, localId, status) {
         _updateMessageSendStatus(sessionId, localId, status);
-        if (!_sessionMessageChangeController.isClosed) {
-          _sessionMessageChangeController.add(sessionId);
-        }
+        _notifySessionMessagesChanged(sessionId);
       },
     );
     unawaited(messageOutbox.restoreAndFlush());
