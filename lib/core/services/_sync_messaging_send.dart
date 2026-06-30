@@ -287,6 +287,7 @@ extension SyncMessagingSend on Sync {
     final apiClient = ApiClient();
     var sent = false;
     var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
+    var handledPermanentFailure = false;
     try {
       if (InvalidateSync.isBackgrounded) {
         logger.info(
@@ -339,17 +340,19 @@ extension SyncMessagingSend on Sync {
           );
           // Promote the single-line warn to Sentry so we can correlate
           // user-visible "send feels slow" reports with a real spawn-readiness
-          // failure. One event per occurrence — the OTel counter below
+          // failure. One event per occurrence; the OTel counter below
           // provides the rate.
-          Sentry.captureMessage(
-            'sendMessage: spawn readiness timeout',
-            level: SentryLevel.warning,
-            hint: Hint.withMap({
-              'sessionId': targetSessionId,
-              'spawnedAt': spawnedAt,
-              'waitMs': Sync.recentlySpawnedWaitMs,
-              'recentlySpawned': true,
-            }),
+          unawaited(
+            Sentry.captureMessage(
+              'sendMessage: spawn readiness timeout',
+              level: SentryLevel.warning,
+              hint: Hint.withMap({
+                'sessionId': targetSessionId,
+                'spawnedAt': spawnedAt,
+                'waitMs': Sync.recentlySpawnedWaitMs,
+                'recentlySpawned': true,
+              }),
+            ),
           );
           // Mirror the hint into the test-only capture list so tests can
           // assert the exact payload without mocking Sentry directly.
@@ -359,8 +362,9 @@ extension SyncMessagingSend on Sync {
             'waitMs': Sync.recentlySpawnedWaitMs,
             'recentlySpawned': true,
           });
-          PowerDiagnosticsOtelReporter.instance
-              .recordAppError('app.session.spawn_timeout');
+          PowerDiagnosticsOtelReporter.instance.recordAppError(
+            'app.session.spawn_timeout',
+          );
         }
         logger.info(
           '[sendMessage] agent not ready for '
@@ -562,10 +566,25 @@ extension SyncMessagingSend on Sync {
           'session=$targetSessionId '
           'body=${response.data}',
         );
-        throw StateError('Failed to send message: ${response.statusCode}');
+        final error = StateError(
+          'Failed to send message: ${response.statusCode}',
+        );
+        if (_isPermanentSendFailure(error)) {
+          handledPermanentFailure = true;
+          transaction.setData('error', error.toString());
+          await transaction.finish(status: const SpanStatus.internalError());
+          otelSpan?.recordError(error, StackTrace.current);
+          otelSpan?.end(ok: false);
+          _updateMessageSendStatus(targetSessionId, localId, 'failed');
+          _notifySessionMessagesChanged(targetSessionId);
+        } else {
+          throw error;
+        }
       }
-      await transaction.finish(status: const SpanStatus.ok());
-      otelSpan?.end(ok: true);
+      if (!handledPermanentFailure) {
+        await transaction.finish(status: const SpanStatus.ok());
+        otelSpan?.end(ok: true);
+      }
     } catch (e, stack) {
       final permanent = !sent && _isPermanentSendFailure(e);
       // A permanently-unrestorable session is an expected user-facing
