@@ -40,6 +40,7 @@ class ApiClient {
 
   String? _authToken;
   String? _cachedServerUrl;
+  int _dioGeneration = 0;
 
   /// Completer for the deferred [NativeAdapter] setup.  Set on
   /// the first HTTP request; resolves once Cronet / cupertino_http
@@ -49,6 +50,7 @@ class ApiClient {
   /// config, and the first HTTP call (during the auth check) pays
   /// the adapter-init cost in exchange for a faster first frame.
   Completer<void>? _nativeAdapterCompleter;
+  int? _nativeAdapterGeneration;
 
   /// Initialize the Dio client with optional user CA certificates.
   ///
@@ -61,6 +63,7 @@ class ApiClient {
   /// never created and we save the init cost entirely.
   Future<void> initialize({required String serverUrl}) async {
     _cachedServerUrl = serverUrl;
+    _disposeCurrentDio();
     await _configureDio(serverUrl);
   }
 
@@ -69,13 +72,14 @@ class ApiClient {
   /// request paths — only the first caller performs the
   /// [createNativeAdapter] work; subsequent callers wait on the
   /// same in-flight future.
-  Future<void> _ensureNativeAdapter() {
+  Future<void> _ensureNativeAdapter(Dio dio, int generation) {
     final existing = _nativeAdapterCompleter;
-    if (existing != null) {
+    if (existing != null && _nativeAdapterGeneration == generation) {
       return existing.future;
     }
     final completer = Completer<void>();
     _nativeAdapterCompleter = completer;
+    _nativeAdapterGeneration = generation;
     // Run on a microtask so the first request doesn't block
     // synchronously while we set up Cronet.  All callers await
     // the same completer, so concurrent first-requests serialize
@@ -83,7 +87,7 @@ class ApiClient {
     // own.
     scheduleMicrotask(() async {
       try {
-        await _configureHttpClient();
+        await _configureHttpClient(dio, generation);
         completer.complete();
       } catch (e, s) {
         // Surface the error to the waiting requests but don't
@@ -99,6 +103,7 @@ class ApiClient {
   }
 
   Future<void> _configureDio(String serverUrl) async {
+    final generation = ++_dioGeneration;
     final baseOptions = BaseOptions(
       baseUrl: serverUrl,
       connectTimeout: const Duration(seconds: 30),
@@ -111,23 +116,24 @@ class ApiClient {
       validateStatus: (_) => true,
     );
 
-    _dio = Dio(baseOptions);
+    final dio = Dio(baseOptions);
+    _dio = dio;
 
     // Native HTTP adapter (Cronet / cupertino_http) is wired
     // lazily on the first request via [_ensureNativeAdapter];
     // see [initialize] for the rationale.
 
     // Add retry interceptor first (executes last on error)
-    _dio!.interceptors.add(
+    dio.interceptors.add(
       RetryInterceptor(
-        dioGetter: () => _dio!,
+        dioGetter: () => dio,
         maxRetries: 4,
         baseDelayMs: 1000,
         maxDelayMs: 10000,
       ),
     );
 
-    _dio!.interceptors.add(
+    dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
           if (_authToken != null) {
@@ -145,10 +151,10 @@ class ApiClient {
       ),
     );
     if (sentryEnabled && sentryEnableDioInterceptor) {
-      _dio!.addSentry();
+      dio.addSentry();
     }
 
-    _dio!.interceptors.add(
+    dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
           options.extra['_otelStart'] = DateTime.now().millisecondsSinceEpoch;
@@ -205,7 +211,7 @@ class ApiClient {
     );
 
     // HTTP request tracker — records all requests to httpRequestLogger.
-    _dio!.interceptors.add(
+    dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
           options.extra['_trackId'] = httpRequestLogger.takeNextId();
@@ -234,7 +240,7 @@ class ApiClient {
 
     // Cache last so cache hits still pass through auth, tracing, and
     // request-tracker interceptors before the response is resolved.
-    _dio!.interceptors.add(
+    dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
           if (options.method == 'GET' && options.extra['bypassCache'] != true) {
@@ -325,6 +331,7 @@ class ApiClient {
         },
       ),
     );
+    assert(_dioGeneration == generation);
   }
 
   static Map<String, Object?> _otelHttpAttributes(RequestOptions options) {
@@ -528,8 +535,7 @@ class ApiClient {
     final newUrl = getServerUrl();
     if (newUrl != _cachedServerUrl) {
       _cachedServerUrl = newUrl;
-      _dio?.close(force: true);
-      _dio = null;
+      _disposeCurrentDio();
       await _configureDio(newUrl);
       logger.info('Server URL refreshed to: $newUrl');
     }
@@ -541,14 +547,21 @@ class ApiClient {
   /// Configure HTTP client with Cronet engine.
   /// Cronet respects Android's network_security_config.xml and
   /// user-installed CA certificates.
-  Future<void> _configureHttpClient() async {
+  Future<void> _configureHttpClient(Dio dio, int generation) async {
+    if (!identical(_dio, dio) || _dioGeneration != generation) {
+      return;
+    }
     try {
       // Use NativeAdapter which uses Cronet on Android
       // (cupertino_http on iOS/macOS). This automatically respects
       // Android's network_security_config.xml and user-installed CA
       // certificates in the Android trust store.
       final nativeAdapter = createNativeAdapter();
-      _dio!.httpClientAdapter = nativeAdapter;
+      if (!identical(_dio, dio) || _dioGeneration != generation) {
+        nativeAdapter.close(force: true);
+        return;
+      }
+      dio.httpClientAdapter = nativeAdapter;
       logger.info(
         'Native HTTP adapter configured for platform-specific CA support',
       );
@@ -800,10 +813,14 @@ class ApiClient {
   /// on a null value" TypeError from `_dio!.get()` etc.
   Future<Dio> _ensureAdapterForRequest() async {
     _ensureInitialized();
-    await _ensureNativeAdapter();
     final dio = _dio;
     if (dio == null) {
       throw StateError('ApiClient not initialized. Call initialize() first.');
+    }
+    final generation = _dioGeneration;
+    await _ensureNativeAdapter(dio, generation);
+    if (!identical(_dio, dio) || _dioGeneration != generation) {
+      throw StateError('ApiClient was reconfigured during request startup.');
     }
     return dio;
   }
@@ -839,9 +856,18 @@ class ApiClient {
 
   /// Dispose resources
   void dispose() {
+    _disposeCurrentDio();
+  }
+
+  void _disposeCurrentDio() {
+    _dioGeneration++;
     _httpCache.clear();
-    _dio?.close(force: true);
+    _activeRequests.clear();
+    _nativeAdapterCompleter = null;
+    _nativeAdapterGeneration = null;
+    final dio = _dio;
     _dio = null;
+    dio?.close(force: true);
   }
 }
 

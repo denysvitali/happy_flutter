@@ -114,6 +114,27 @@ void main() {
       },
     );
 
+    test(
+      'in-flight lazy adapter startup does not escape after reinitialize',
+      () async {
+        final oldRequest = apiClient.get('/v2/sessions');
+
+        apiClient.dispose();
+        await apiClient.initialize(serverUrl: 'https://new.example.com');
+
+        await expectLater(
+          oldRequest,
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('reconfigured'),
+            ),
+          ),
+        );
+      },
+    );
+
     test('updateToken updates auth header', () async {
       apiClient.updateToken('test-token');
       expect(apiClient.testDio, isNotNull);
