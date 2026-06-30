@@ -192,7 +192,7 @@ extension SyncMessagingMerge on Sync {
       // No orphans left — clear any leftover counter state.
       _sidechainRegroupSweepCount.remove(sessionId);
       _orphanFetchOlderNoProgressCount.remove(sessionId);
-      _orphanWalkbackSignature.remove(sessionId);
+      _orphanWalkbackOrphanIds.remove(sessionId);
       return;
     }
 
@@ -209,19 +209,27 @@ extension SyncMessagingMerge on Sync {
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
-    // A changed orphan set (new sidechain burst, partial attach) opens a
-    // fresh walk-back budget and lifts any suppression. This is the ONLY
-    // reset path besides explicit progress: in particular, message
-    // upserts must not reset the counter — the walk-back's own
-    // fetchOlderMessages upserts every page it fetches, and a blanket
-    // reset pinned the counter below both caps, looping a 100-message
-    // fetch+decrypt every ~450ms indefinitely.
-    final orphanSignature = Object.hashAllUnordered(beforeOrphans);
-    if (_orphanWalkbackSignature[sessionId] != orphanSignature) {
-      _orphanWalkbackSignature[sessionId] = orphanSignature;
+    // A genuinely new orphan situation (some previously-unresolved id
+    // disappeared, or this is a disjoint new burst) opens a fresh
+    // walk-back budget and lifts any suppression. Pure growth — the new
+    // set still contains every id from the previous sweep, just with
+    // more added on top — must NOT reset the budget: that was a real
+    // production bug (orphan count climbing every retry while
+    // noProgressCount stayed pinned at 0 forever, so the hard cap below
+    // was never reached and the walk-back hammered fetchOlderMessages
+    // indefinitely). Message upserts must not reset the counter either —
+    // the walk-back's own fetchOlderMessages upserts every page it
+    // fetches, and a blanket reset pinned the counter below both caps,
+    // looping a 100-message fetch+decrypt every ~450ms indefinitely.
+    final previousOrphanIds = _orphanWalkbackOrphanIds[sessionId];
+    final isPureGrowth =
+        previousOrphanIds != null &&
+        beforeOrphans.containsAll(previousOrphanIds);
+    if (!isPureGrowth) {
       _orphanFetchOlderNoProgressCount.remove(sessionId);
       _orphanSuppressedUntilMs.remove(sessionId);
     }
+    _orphanWalkbackOrphanIds[sessionId] = beforeOrphans;
 
     // If we've already given up on exactly this orphan set (throttled,
     // hard cap reached, or history exhausted), don't keep running the
@@ -255,7 +263,7 @@ extension SyncMessagingMerge on Sync {
     if (afterOrphans.isEmpty || afterOrphans.length < beforeOrphans.length) {
       _sidechainRegroupSweepCount.remove(sessionId);
       _orphanFetchOlderNoProgressCount.remove(sessionId);
-      _orphanWalkbackSignature.remove(sessionId);
+      _orphanWalkbackOrphanIds.remove(sessionId);
       final messagesUpdated = !identical(beforeMessages, after);
       if (messagesUpdated) {
         _notifySessionMessagesChanged(sessionId);

@@ -579,19 +579,27 @@ what you have, you must use the options mode.
   /// Per-session count of consecutive orphan-recovery fetchOlder attempts
   /// that did not reduce the orphan set. Resets when a fetchOlder page
   /// actually attaches orphans or when the persisting orphan set changes
-  /// (tracked via [_orphanWalkbackSignature]). Used to cap the aggressive
+  /// (tracked via [_orphanWalkbackOrphanIds]). Used to cap the aggressive
   /// walk-back so a session whose parent Task is genuinely missing cannot
   /// poll the server indefinitely.
   final Map<String, int> _orphanFetchOlderNoProgressCount = {};
 
-  /// Per-session hash of the orphan-id set seen by the last deferred
-  /// regroup sweep. A changed set (new sidechain burst, partial attach)
-  /// opens a fresh walk-back budget and lifts suppression; a stable set
-  /// keeps accumulating no-progress attempts toward the caps. This must
-  /// NOT be reset by message upserts — the walk-back's own fetchOlder
-  /// upserts every page it fetches, and a blanket reset pinned the
-  /// no-progress counter below both caps, looping fetchOlder forever.
-  final Map<String, int> _orphanWalkbackSignature = {};
+  /// Per-session orphan-id set seen by the last deferred regroup sweep.
+  /// A fresh walk-back budget (no-progress reset + suppression lifted)
+  /// is granted only when the new set does NOT contain every id from
+  /// this tracked set — i.e. at least one previously-unresolved orphan
+  /// disappeared (resolved/attached), or the new set is wholly/partially
+  /// disjoint from the old one (a genuinely new, unrelated burst). A new
+  /// set that is a pure superset of this one — orphan count only grew,
+  /// nothing resolved — must NOT grant a fresh budget: that was a real
+  /// production bug where unbounded orphan growth pinned the no-progress
+  /// counter at 0 forever, so the hard cap below was never reached and
+  /// the walk-back hammered fetchOlderMessages indefinitely. This must
+  /// also NOT be reset by message upserts — the walk-back's own
+  /// fetchOlder upserts every page it fetches, and a blanket reset
+  /// pinned the no-progress counter below both caps, looping fetchOlder
+  /// forever.
+  final Map<String, Set<String>> _orphanWalkbackOrphanIds = {};
 
   /// Per-session epoch-ms until which orphan regroup work is suppressed.
   /// Used after history is exhausted so caught-up fetches don't repeatedly
@@ -623,8 +631,8 @@ what you have, you must use the options mode.
   final Map<String, int> _orphanDeepestParentDistance = {};
 
   /// Per-session signature seen when the most recent suppression
-  /// window was opened. When the merge sweep sees a fresh
-  /// [_orphanWalkbackSignature] while suppression is still active, it
+  /// window was opened. When the merge sweep sees a genuinely new
+  /// [_orphanWalkbackOrphanIds] set while suppression is still active, it
   /// flips this flag to indicate the suppression should be bypassed
   /// for the next regroup attempt — orphan activity arriving during
   /// the window is a signal the user wants recovery to keep

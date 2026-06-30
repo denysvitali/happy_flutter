@@ -113,7 +113,7 @@ extension SyncTestHelpers on Sync {
     _sidechainRegroupSweepCount.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
     _orphanFetchOlderNoProgressCount.remove(sessionId);
-    _orphanWalkbackSignature.remove(sessionId);
+    _orphanWalkbackOrphanIds.remove(sessionId);
     _orphanSuppressedUntilMs.remove(sessionId);
   }
 
@@ -186,10 +186,11 @@ extension SyncTestHelpers on Sync {
   int get testOrphanFetchOlderAggressiveAttempts =>
       SyncMessagingMerge._orphanFetchOlderAggressiveAttempts;
 
-  /// Test helper: prime the orphan walk-back signature from the current
-  /// persisting orphan set, as if a sweep had already seen it. Lets
-  /// tests exercise the no-progress caps directly without the sweep's
-  /// signature check granting a fresh budget on first sight.
+  /// Test helper: prime the orphan walk-back tracked-id set from the
+  /// current persisting orphan set, as if a sweep had already seen it.
+  /// Lets tests exercise the no-progress caps directly without the
+  /// sweep's reset-on-genuinely-new-orphans check granting a fresh
+  /// budget on first sight.
   @visibleForTesting
   void testPrimeOrphanWalkbackSignature(String sessionId) {
     final messages =
@@ -199,7 +200,7 @@ extension SyncTestHelpers on Sync {
         .map((m) => m['id'] as String?)
         .whereType<String>()
         .toSet();
-    _orphanWalkbackSignature[sessionId] = Object.hashAllUnordered(orphans);
+    _orphanWalkbackOrphanIds[sessionId] = orphans;
   }
 
   @visibleForTesting
@@ -670,7 +671,7 @@ extension SyncTestHelpers on Sync {
     _sessionMessagesCache = null;
     _orphanFetchOlderAttemptedMs.clear();
     _orphanFetchOlderNoProgressCount.clear();
-    _orphanWalkbackSignature.clear();
+    _orphanWalkbackOrphanIds.clear();
     _orphanSuppressedUntilMs.clear();
     _sessionUsage.clear();
     _lastEphemeralAt.clear();

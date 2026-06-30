@@ -1674,7 +1674,7 @@ extension SyncMessaging on Sync {
     _sessionsNeedingFetchProbe.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
     _orphanFetchOlderNoProgressCount.remove(sessionId);
-    _orphanWalkbackSignature.remove(sessionId);
+    _orphanWalkbackOrphanIds.remove(sessionId);
     _orphanSuppressedUntilMs.remove(sessionId);
     _sessionSpawnedAt.remove(sessionId);
     _sessionSpawnedProfile.remove(sessionId);

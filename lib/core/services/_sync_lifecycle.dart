@@ -850,10 +850,10 @@ extension SyncLifecycle on Sync {
     // no-progress counters must reset so the next user cannot inherit
     // a near-cap counter that blocks orphan recovery immediately).
     _orphanFetchOlderNoProgressCount.clear();
-    // _orphanWalkbackSignature cleared in shutdown (per-session
-    // signatures from a different user would suppress a fresh
-    // walk-back budget on next login).
-    _orphanWalkbackSignature.clear();
+    // _orphanWalkbackOrphanIds cleared in shutdown (per-session
+    // tracked orphan-id sets from a different user would suppress a
+    // fresh walk-back budget on next login).
+    _orphanWalkbackOrphanIds.clear();
     // _orphanSuppressedUntilMs cleared in shutdown (per-session
     // suppression windows must not leak across logout).
     _orphanSuppressedUntilMs.clear();

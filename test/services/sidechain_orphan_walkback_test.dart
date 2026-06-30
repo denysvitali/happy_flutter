@@ -321,6 +321,135 @@ void main() {
       );
     },
   );
+
+  // ──────────────────────────────────────────────────────────────────
+  // Test 4 (regression): the orphan set growing as a strict superset
+  // every sweep — never losing an id, only ever adding new ones — must
+  // NOT keep granting a fresh walk-back budget. This is the exact
+  // production bug: a hash/hashAllUnordered-based "did the set change"
+  // check fires on pure growth too, pinning the no-progress counter at
+  // 0 forever so the hard cap can never be reached and the walk-back
+  // hammers fetchOlderMessages indefinitely.
+  // ──────────────────────────────────────────────────────────────────
+  test(
+    'no-progress counter must not be pinned at zero when the orphan set '
+    'only grows (never shrinks) — regression for unbounded walk-back '
+    'retries',
+    () async {
+      sync.testSetSessionFirstLoadedSeq('s1', 40000);
+
+      final maxAttempts = sync.testOrphanFetchOlderMaxAttempts;
+      var countAtCap = -1;
+      final ids = <String>[];
+
+      // Drive enough sweeps to exceed the hard cap, growing the orphan
+      // set by one new id every sweep and never removing any.
+      for (var i = 0; i < maxAttempts + 10; i++) {
+        ids.add('orph-${i + 1}');
+        sync.testSetSessionMessages(
+          's1',
+          ids
+              .map(
+                (id) => <String, dynamic>{
+                  'id': id,
+                  'isSidechain': true,
+                  'uuid': 'u-$id',
+                  'parentUuid': 'task-$id',
+                  'parentToolUseId': 'toolu-$id',
+                  'role': 'agent',
+                  'kind': 'text',
+                  'seq': 1000 + ids.length,
+                  'createdAt': 1000,
+                },
+              )
+              .toList(),
+        );
+        sync.testClearOrphanFetchOlderAttemptedMs('s1');
+        sync.testRunDeferredRegroupSweep('s1');
+        await _drainAsyncWork();
+
+        if (countAtCap == -1 &&
+            sync.testOrphanFetchOlderNoProgressCount('s1') >= maxAttempts) {
+          countAtCap = fetchOlderCount;
+        }
+      }
+
+      // This is the exact regression: before the fix, pure growth of
+      // the orphan set reset the no-progress counter on every sweep
+      // (signature changed because the set changed), so it never left
+      // 0 and the hard cap below was unreachable.
+      expect(
+        sync.testOrphanFetchOlderNoProgressCount('s1'),
+        greaterThanOrEqualTo(maxAttempts),
+        reason: 'no-progress counter must climb toward the hard cap '
+            'even when the orphan set only ever grows — pure growth '
+            'must not reset the walk-back budget',
+      );
+      expect(
+        countAtCap,
+        greaterThan(-1),
+        reason: 'the hard cap must actually be reached within the '
+            'driven sweeps',
+      );
+
+      // Once the cap is reached, the walk-back must give up: further
+      // sweeps (even with the orphan set growing further) must not
+      // fire any more fetchOlder calls — suppression must hold.
+      ids.add('orph-after-cap-1');
+      sync.testSetSessionMessages(
+        's1',
+        ids
+            .map(
+              (id) => <String, dynamic>{
+                'id': id,
+                'isSidechain': true,
+                'uuid': 'u-$id',
+                'parentUuid': 'task-$id',
+                'parentToolUseId': 'toolu-$id',
+                'role': 'agent',
+                'kind': 'text',
+                'seq': 1000 + ids.length,
+                'createdAt': 1000,
+              },
+            )
+            .toList(),
+      );
+      sync.testClearOrphanFetchOlderAttemptedMs('s1');
+      sync.testRunDeferredRegroupSweep('s1');
+      await _drainAsyncWork();
+
+      ids.add('orph-after-cap-2');
+      sync.testSetSessionMessages(
+        's1',
+        ids
+            .map(
+              (id) => <String, dynamic>{
+                'id': id,
+                'isSidechain': true,
+                'uuid': 'u-$id',
+                'parentUuid': 'task-$id',
+                'parentToolUseId': 'toolu-$id',
+                'role': 'agent',
+                'kind': 'text',
+                'seq': 1000 + ids.length,
+                'createdAt': 1000,
+              },
+            )
+            .toList(),
+      );
+      sync.testClearOrphanFetchOlderAttemptedMs('s1');
+      sync.testRunDeferredRegroupSweep('s1');
+      await _drainAsyncWork();
+
+      expect(
+        fetchOlderCount,
+        countAtCap,
+        reason: 'once the hard cap is reached, growing the orphan set '
+            'further must not lift suppression or fire more '
+            'fetchOlder calls',
+      );
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------

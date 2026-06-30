@@ -847,7 +847,7 @@ extension SyncMessagingRpc on Sync {
         // Now that the session is visible the larger cap applies —
         // grant a fresh budget and schedule a sweep so the deferred
         // recovery actually runs.
-        _orphanWalkbackSignature.remove(sessionId);
+        _orphanWalkbackOrphanIds.remove(sessionId);
         _orphanFetchOlderNoProgressCount.remove(sessionId);
         _orphanSuppressedUntilMs.remove(sessionId);
         _scheduleSidechainRegroup(sessionId);
