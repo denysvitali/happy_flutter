@@ -1311,6 +1311,17 @@ extension SyncMessaging on Sync {
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
     } catch (error, stack) {
+      if (Sync._isTransientConnectionError(error)) {
+        fetchSpan
+          ..setData('status', 'transientConnectionError')
+          ..setData('error', error.toString())
+          ..setData('totalElapsedMs', fetchStopwatch.elapsedMilliseconds);
+        unawaited(fetchSpan.finish());
+        logger.info('[fetchMessages] $sessionId transient fetch error: $error');
+        _notifySessionMessagesChanged(sessionId);
+        _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        return;
+      }
       fetchSpan
         ..status = SpanStatus.internalError()
         ..setData('error', error.toString())

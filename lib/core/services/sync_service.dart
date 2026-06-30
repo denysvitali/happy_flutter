@@ -1391,6 +1391,8 @@ what you have, you must use the options mode.
         msg.contains('No address associated') ||
         msg.contains('Connection closed') ||
         msg.contains('Software caused connection abort') ||
+        msg.contains('ApiClient not initialized') ||
+        msg.contains('ApiClient was reconfigured during request startup') ||
         msg.contains('Machine encryption not found') ||
         msg.contains('operation has timed out');
   }
