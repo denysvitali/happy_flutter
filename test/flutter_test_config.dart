@@ -28,22 +28,21 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   await testMain();
 }
 
-/// Loads Roboto Mono TTF files from `google_fonts/` and registers them
+/// Loads Roboto Mono TTF files from `test_fonts/` and registers them
 /// under the family name `monospace` so that widgets using
-/// `fontFamily: 'monospace'` render real glyphs in tests.
+/// `fontFamily: 'monospace'` render real glyphs in tests. Production
+/// builds rely on the platform's built-in monospace font (Roboto Mono
+/// on Android, SF Mono on iOS), so the TTFs live outside the asset
+/// bundle.
 Future<void> _loadMonospaceFont() async {
-  final fontsDir = Directory('google_fonts');
+  final fontsDir = Directory('test_fonts');
   if (!fontsDir.existsSync()) return;
 
   final loader = FontLoader('monospace');
   final files = fontsDir
       .listSync()
       .whereType<File>()
-      .where(
-        (f) =>
-            f.path.endsWith('.ttf') &&
-            f.uri.pathSegments.last.startsWith('RobotoMono'),
-      );
+      .where((f) => f.path.endsWith('.ttf'));
 
   for (final file in files) {
     final bytes = file.readAsBytesSync();

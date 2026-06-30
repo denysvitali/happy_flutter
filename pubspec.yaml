@@ -83,7 +83,6 @@ dependencies:
   audio_session: ^0.2.0
   url_launcher: ^6.3.1
   qr: ^4.0.0
-  web: ^1.1.1
   flutter_markdown_plus: ^1.0.0
   markdown: ^7.3.0
 

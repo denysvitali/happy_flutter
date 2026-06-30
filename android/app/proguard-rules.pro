@@ -8,8 +8,10 @@
 -keep class io.flutter.view.** { *; }
 -keep class io.flutter.embedding.** { *; }
 
-# Keep plugin classes
--keep class com.example.happy_flutter.** { *; }
+# Keep the launchable activity (referenced from AndroidManifest). R8 picks
+# this up automatically from the manifest, but the explicit rule keeps
+# the companion object's private field from being silently stripped.
+-keep class com.example.happy_flutter.MainActivity { *; }
 
 # Keep NaCl/libsodium
 -keep class org.libsodium.** { *; }
