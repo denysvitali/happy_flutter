@@ -135,6 +135,110 @@ void main() {
       expect(result.resolvedModelMode.modeString, 'gpt-5.5:medium');
       expect(result.resolvedRawModelString, 'gpt-5.5:medium');
     });
+
+    test('session model wins over profile default and global last used', () {
+      final profile = _profile(id: 'glm', defaultModelMode: 'GLM-5');
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: 'glm',
+        sessionModelMode: 'opus:high',
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: [profile],
+        builtInProfiles: const [],
+        lastUsedModelMode: 'fable',
+      );
+
+      expect(result.resolvedModelMode.modeString, 'opus:high');
+      expect(result.resolvedRawModelString, 'opus:high');
+    });
+
+    test('global lastUsedModelMode wins over ChatModelMode.defaultModel', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: 'fable',
+      );
+
+      expect(result.resolvedModelMode, ChatModelMode.fable);
+      expect(result.resolvedRawModelString, 'fable');
+    });
+
+    test('falls back to ChatModelMode.defaultModel with nothing saved', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+      expect(result.resolvedRawModelString, isNull);
+    });
+
+    test('provider-owned raw model string (MiniMax) survives unmodified for '
+        'a Claude-flavor session via the saved draft', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'MiniMax-Text-01',
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedRawModelString, 'MiniMax-Text-01');
+    });
+  });
+
+  group('regression: model/profile pairing', () {
+    test('restores model and profile together after reopening a session', () {
+      // Pin for the bug fixed in this change: _effectiveModelModeString
+      // derived from a non-nullable ChatModelMode field and was never
+      // null, so the restore branch in `_loadInitialSettings` was
+      // permanently dead code — the saved model was silently discarded
+      // on every load even though the saved profile id restored fine
+      // (it used `??=` against an initially-null field). User-visible
+      // symptom: reopen a session and the profile chip shows the right
+      // provider but the model chip resets to "Default". Both must
+      // resolve together here.
+      final selectedProfile = _profile(
+        id: 'profile-x',
+        defaultModelMode: 'opus',
+      );
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'opus:high',
+        savedProfileId: 'profile-x',
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: [selectedProfile],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedProfile?.id, 'profile-x');
+      expect(result.resolvedModelMode.modeString, 'opus:high');
+      expect(result.resolvedRawModelString, 'opus:high');
+    });
   });
 }
 

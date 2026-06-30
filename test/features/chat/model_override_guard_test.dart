@@ -17,7 +17,7 @@ import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 /// and `lib/features/chat/chat_screen.dart`). If that guard logic
 /// regresses (e.g. back to the broken `_effectiveModelModeString == null`
 /// check), this test and the production code diverge and must be kept in
-/// sync by hand — but it still proves the *pattern* is race-safe.
+/// sync by hand, but it still proves the *pattern* is race-safe.
 class _FakeChatScreenState {
   ChatModelMode modelMode = ChatModelMode.defaultModel;
   String? profileModelOverride;
