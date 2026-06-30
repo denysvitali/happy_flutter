@@ -613,30 +613,48 @@ class ApiClient {
     final activeRequest = _activeRequests[key];
     if (activeRequest != null) return activeRequest;
 
-    final requestFuture = _issueGet(path, queryParameters, options);
-    _activeRequests[key] = requestFuture;
-    _scheduleDedupCleanup(key, requestFuture);
-    return requestFuture;
+    final tracked = _trackRequest(
+      key,
+      _issueGet(path, queryParameters, options),
+    );
+    _activeRequests[key] = tracked;
+    return tracked;
   }
 
-  /// Removes [key] from [_activeRequests] once [requestFuture] settles,
-  /// regardless of success or failure.
+  /// Wraps [requestFuture] so [key] is removed from [_activeRequests] once
+  /// it settles, regardless of success or failure, and returns the *same*
+  /// future every caller (the original requester and any deduped callers)
+  /// awaits.
   ///
-  /// MUST swallow the error itself rather than chaining `.whenComplete()`
-  /// directly off `requestFuture` and passing that to `unawaited()`:
-  /// `.whenComplete()` returns a brand-new Future that re-throws on
-  /// rejection, and `unawaited()` is a no-op type marker — it does not
-  /// attach an error handler. The real caller already awaits and handles
-  /// `requestFuture` itself, but the second, derived Future from
-  /// `.whenComplete()` would be left with no listener, surfacing as an
-  /// unhandled async error (and failing whatever test happens to be
-  /// running when it settles) on every failed request.
-  void _scheduleDedupCleanup(String key, Future<Response> requestFuture) {
-    unawaited(
-      requestFuture
-          .then((_) {}, onError: (_) {})
-          .whenComplete(() => _activeRequests.remove(key)),
-    );
+  /// This MUST stay a single `async` function with `try`/`finally` rather
+  /// than a second, independently-chained `.then()`/`.whenComplete()`
+  /// listener attached to `requestFuture` (the previous approach, even
+  /// after swallowing the error with `.then((_) {}, onError: (_) {})`
+  /// before `.whenComplete()`). Verified with a standalone repro
+  /// (`runZonedGuarded` + a throwing async call, with and without a
+  /// second listener chain): attaching *any* second multicast listener
+  /// to a future the real caller already awaits can still report the
+  /// error to the current `Zone` as unhandled — surfacing as "ApiClient
+  /// not initialized" failures in unrelated tests/screens (e.g.
+  /// `ConnectedServicesLoader` in `account_screen_test.dart`) — even
+  /// though the real caller's own `try`/`catch` handles it correctly.
+  /// A `try`/`finally` inside one `async` function has no second
+  /// listener: cleanup runs as part of resolving the one future everyone
+  /// is already awaiting, so there is nothing left unobserved to report.
+  Future<Response> _trackRequest(
+    String key,
+    Future<Response> requestFuture,
+  ) async {
+    try {
+      return await requestFuture;
+    } finally {
+      // `Map.remove` returns the removed value, which here happens to be
+      // a `Future<Response>` — the one we're already returning above —
+      // so there's nothing meaningful to await; this is just a map
+      // mutation for dedup bookkeeping.
+      // ignore: unawaited_futures
+      _activeRequests.remove(key);
+    }
   }
 
   Future<Response> _issueGet(
@@ -656,10 +674,9 @@ class ApiClient {
     final activeRequest = _activeRequests[key];
     if (activeRequest != null) return activeRequest;
 
-    final requestFuture = _issuePost(path, data, options);
-    _activeRequests[key] = requestFuture;
-    _scheduleDedupCleanup(key, requestFuture);
-    return requestFuture;
+    final tracked = _trackRequest(key, _issuePost(path, data, options));
+    _activeRequests[key] = tracked;
+    return tracked;
   }
 
   Future<Response> _issuePost(
@@ -682,10 +699,9 @@ class ApiClient {
     final activeRequest = _activeRequests[key];
     if (activeRequest != null) return activeRequest;
 
-    final requestFuture = _issuePut(path, data, options);
-    _activeRequests[key] = requestFuture;
-    _scheduleDedupCleanup(key, requestFuture);
-    return requestFuture;
+    final tracked = _trackRequest(key, _issuePut(path, data, options));
+    _activeRequests[key] = tracked;
+    return tracked;
   }
 
   Future<Response> _issuePut(
@@ -708,10 +724,9 @@ class ApiClient {
     final activeRequest = _activeRequests[key];
     if (activeRequest != null) return activeRequest;
 
-    final requestFuture = _issueDelete(path, options);
-    _activeRequests[key] = requestFuture;
-    _scheduleDedupCleanup(key, requestFuture);
-    return requestFuture;
+    final tracked = _trackRequest(key, _issueDelete(path, options));
+    _activeRequests[key] = tracked;
+    return tracked;
   }
 
   Future<Response> _issueDelete(String path, Options? options) async {
