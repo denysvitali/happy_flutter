@@ -431,4 +431,14 @@ class FixtureBundle {
       sidechainPaths: const [],
     );
   }
+
+  static FixtureBundle minimaxTasksCommandsFiles() {
+    return FixtureBundle(
+      label: 'minimax tasks commands files',
+      mainPath:
+          'test/integration/jsonl_replay/fixtures/'
+          'minimax_e2e_tasks_commands_files.stdout.jsonl',
+      sidechainPaths: const [],
+    );
+  }
 }

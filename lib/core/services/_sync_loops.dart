@@ -36,6 +36,11 @@ extension SyncLoops on Sync {
     'loop-expired',
   };
 
+  static bool _isDeadLoopSessionError(StateError error) {
+    return error.message.contains('Session encryption not found') ||
+        error.message.contains('no scheduler for session');
+  }
+
   /// The daemon (`happy-cli-go`) has no server-modeled loop entity, so it
   /// broadcasts loop state changes as in-band session events via
   /// `SendSessionEvent` — they arrive decoded as `agent-event` messages with
@@ -271,8 +276,7 @@ extension SyncLoops on Sync {
         <String, dynamic>{'loopId': loopId},
       );
     } on StateError catch (e) {
-      if (e.message.contains('Session encryption not found') ||
-          e.message.contains('no scheduler for session')) {
+      if (_isDeadLoopSessionError(e)) {
         // Session is dead — the optimistic removal is the best we can do.
         // The daemon's disk-fallback handler (happy-cli-go) will clean up
         // the on-disk file if it ever restarts this session.
@@ -358,8 +362,7 @@ extension SyncLoops on Sync {
         <String, dynamic>{'loopId': loopId, 'paused': paused},
       );
     } on StateError catch (e) {
-      if (e.message.contains('Session encryption not found') ||
-          e.message.contains('no scheduler for session')) {
+      if (_isDeadLoopSessionError(e)) {
         logger.info(
           '[loops] pauseLoop($sessionId, $loopId) — session dead, '
           'optimistic pause retained',
@@ -569,6 +572,12 @@ extension SyncLoops on Sync {
         // Hit the total deadline — stop admitting more RPCs.
         break;
       } on StateError catch (e) {
+        if (_isDeadLoopSessionError(e)) {
+          logger.debug(
+            '[loops] listLoops($sessionId) skipped - session dead: $e',
+          );
+          continue;
+        }
         if (Sync._isRpcMethodNotAvailable(e)) {
           // Daemon predates the loop-* methods — skip silently.
           logger.debug(

@@ -107,6 +107,39 @@ void main() {
       }
     });
 
+    test('minimax fixture parses task, command, and file tool events', () {
+      final bundle = FixtureBundle.minimaxTasksCommandsFiles();
+      if (!bundle.isAvailable) {
+        markTestSkipped('fixture not present on this machine');
+        return;
+      }
+
+      final result = _replay(bundle.loadMain(), bundle.label);
+      expect(
+        result.droppedReasons,
+        isEmpty,
+        reason: 'MiniMax fixture should replay without drops.',
+      );
+
+      final toolCalls = result.messages
+          .where((m) => m['kind'] == 'tool-call')
+          .toList();
+      expect(_toolNameCount(toolCalls, 'TaskCreate'), 2);
+      expect(_toolNameCount(toolCalls, 'TaskUpdate'), 2);
+      expect(_toolNameCount(toolCalls, 'TaskGet'), 3);
+      expect(_toolNameCount(toolCalls, 'Bash'), 1);
+      expect(_toolNameCount(toolCalls, 'Write'), 1);
+      expect(_toolNameCount(toolCalls, 'Edit'), 1);
+
+      final toolResultIds = result.toolResults
+          .map((r) => r['toolUseId'])
+          .whereType<String>()
+          .toSet();
+      for (final call in toolCalls) {
+        expect(toolResultIds, contains(call['toolUseId']));
+      }
+    });
+
     test('every forwarded line produces exactly one rendered message', () {
       final bundle = FixtureBundle.happyFlutterInterrupts();
       if (!bundle.isAvailable) {
