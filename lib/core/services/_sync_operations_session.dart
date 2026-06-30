@@ -1644,11 +1644,9 @@ PY
           stack,
         );
       } else {
-        logger.error(
+        logger.warning(
           '[sendMessage] auto-restore failed for '
-          'session=$sessionId',
-          error,
-          stack,
+          'session=$sessionId: $error',
         );
         // ROADMAP P0: this catch-all branch used to be invisible to
         // both Sentry and the user — the message was POSTed to a
