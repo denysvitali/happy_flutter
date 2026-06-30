@@ -170,10 +170,14 @@ void main() {
 
       expect(
         result.messages.any((m) {
-          final content = m['content'] as String?;
-          return m['kind'] == 'text' &&
-              (content?.contains('github.com/denysvitali/happy-cli-go') ??
-                  false);
+          if (m['kind'] != 'text') return false;
+          // `content` is a plain string for simple text messages, but can
+          // also be a structured content-block map for richer payloads —
+          // guard with `is String` instead of casting so this probe
+          // doesn't throw on the latter shape.
+          final content = m['content'];
+          return content is String &&
+              content.contains('github.com/denysvitali/happy-cli-go');
         }),
         true,
       );
