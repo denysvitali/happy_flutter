@@ -14,6 +14,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/safe_pop.dart';
 import '../../core/utils/session_utils.dart';
+import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
 
 // Minimum CLI version required for full compatibility.
@@ -114,7 +115,10 @@ class _InfoShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!embedded) {
-      return Scaffold(appBar: AppBar(title: Text(title)), body: body);
+      return Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: body,
+      );
     }
     final theme = Theme.of(context);
     return Column(
@@ -199,8 +203,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     return flavor;
   }
 
-  Future<void> _copyToClipboard(String text, {String? message}) async {
-    final result = await setClipboardTextSafely(text);
+  Future<void> _copyToClipboard(
+    String text, {
+    String? message,
+    int maxBytes = defaultClipboardMaxBytes,
+  }) async {
+    final result = await setClipboardTextSafely(text, maxBytes: maxBytes);
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     final copiedMessage = message ?? l10n.sessionInfoCopied;
@@ -215,9 +223,15 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     );
   }
 
-  String _clipboardSuccessMessage(String message, bool truncated) {
-    if (!truncated) return message;
-    return '$message (truncated)';
+  String _clipboardSuccessMessage(String message, bool truncated) =>
+      truncated ? '$message (truncated)' : message;
+
+  Future<void> _exportDebugInfo() async {
+    await _copyToClipboard(
+      buildSessionDebugExportText(widget.session),
+      message: AppLocalizations.of(context).sessionInfoDebugExportCopied,
+      maxBytes: sessionDebugExportClipboardMaxBytes,
+    );
   }
 
   void _showError(String message) {
@@ -343,6 +357,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final meta = session.metadata;
 
     final isOnline = session.presence == 'online';
+    final hasMachineAction = meta?.machineId != null;
+    final hasArchiveAction = isOnline;
+    final hasDeleteAction = !session.active;
     final isCliOutdated =
         meta?.version != null && !_isVersionSupported(meta!.version!);
 
@@ -508,7 +525,15 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
           child: Column(
             children: [
-              if (meta?.machineId != null) ...[
+              ActionRow(
+                icon: Icons.bug_report_outlined,
+                label: l10n.sessionInfoActionExportDebug,
+                color: theme.colorScheme.primary,
+                onTap: _exportDebugInfo,
+              ),
+              if (hasMachineAction || hasArchiveAction || hasDeleteAction)
+                _kRowDivider,
+              if (hasMachineAction) ...[
                 ActionRow(
                   icon: Icons.dns_outlined,
                   label: l10n.sessionInfoActionViewMachine,
@@ -516,9 +541,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   onTap: () => context.push('/machine/${meta!.machineId}'),
                 ),
               ],
-              if (meta?.machineId != null && (isOnline || !session.active))
+              if (hasMachineAction && (hasArchiveAction || hasDeleteAction))
                 _kRowDivider,
-              if (isOnline)
+              if (hasArchiveAction)
                 ActionRow(
                   icon: Icons.archive_outlined,
                   label: l10n.sessionInfoActionArchive,
@@ -526,9 +551,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   isLoading: _isArchiving,
                   onTap: _isArchiving ? null : _handleArchiveSession,
                 ),
-              if (isOnline && !session.active)
-                _kRowDivider,
-              if (!session.active)
+              if (hasArchiveAction && hasDeleteAction) _kRowDivider,
+              if (hasDeleteAction)
                 ActionRow(
                   icon: Icons.delete_outline,
                   label: l10n.sessionInfoActionDelete,

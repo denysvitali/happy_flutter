@@ -6859,6 +6859,12 @@ abstract class AppLocalizations {
   /// **'Quick Actions'**
   String get sessionInfoSectionQuickActions;
 
+  /// No description provided for @sessionInfoActionExportDebug.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Debug Info'**
+  String get sessionInfoActionExportDebug;
+
   /// No description provided for @sessionInfoActionViewMachine.
   ///
   /// In en, this message translates to:
@@ -6942,6 +6948,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy Metadata'**
   String get sessionInfoActionCopyMetadata;
+
+  /// No description provided for @sessionInfoDebugExportCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug info copied to clipboard'**
+  String get sessionInfoDebugExportCopied;
 
   /// No description provided for @sessionInfoSectionAgentState.
   ///

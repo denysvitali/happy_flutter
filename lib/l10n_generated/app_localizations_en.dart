@@ -3672,6 +3672,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionInfoSectionQuickActions => 'Quick Actions';
 
   @override
+  String get sessionInfoActionExportDebug => 'Export Debug Info';
+
+  @override
   String get sessionInfoActionViewMachine => 'View Machine';
 
   @override
@@ -3712,6 +3715,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionInfoActionCopyMetadata => 'Copy Metadata';
+
+  @override
+  String get sessionInfoDebugExportCopied => 'Debug info copied to clipboard';
 
   @override
   String get sessionInfoSectionAgentState => 'Agent State';
