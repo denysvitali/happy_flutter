@@ -11,10 +11,13 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 
 /// Cold-start contract test for the user's worst-case session:
-/// 1000 messages including 15 background `Agent` tool_uses, where the
+/// 1500 messages including 15 background `Agent` tool_uses, where the
 /// MMKV cache (200 msg window) covers only the trailing sidechain
 /// children whose `parent_tool_use_id` resolves to Agent tool_uses that
-/// live earlier than the cached window.
+/// live earlier than the cached window. The 500-seq-deep tail beyond the
+/// cache window forces the walk-back to span 3+ orphan-recovery pages at
+/// the 500-seq orphan page size, exercising the aggressive multi-round
+/// cadence rather than resolving in a single page.
 ///
 /// Reproduces session `c3758ad7b964191fd6b96c6dc` shape.
 ///
@@ -29,14 +32,18 @@ import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 ///   * At end state: 15 real Agent tool_uses, each with non-empty
 ///     children, and zero orphan top-level sidechain messages.
 void main() {
-  group('orphan cold start: 15 agents @ session ~1000 msgs', () {
+  group('orphan cold start: 15 agents @ session ~1500 msgs', () {
     // Agent seqs taken verbatim from the user's session.
     const agentSeqs = <int>[
       5, 27, 57, 84, 118, 166, 222, 274, 313, 373,
       417, 453, 494, 545, 612,
     ];
     const sessionId = 'sess-15-agents-worst-case';
-    const lastSeq = 1000;
+    // 1500 (not 1000): the cache window must sit far enough below the
+    // last Agent's trailing sidechain output that walking back to seq 0
+    // takes 3+ pages at the 500-seq orphan page size — exercising the
+    // aggressive cadence contract instead of resolving in 1-2 pages.
+    const lastSeq = 1500;
 
     late Sync sync;
     late _FakeEncryption encryption;
@@ -68,14 +75,15 @@ void main() {
       'non-empty children',
       () async {
         // ------------------------------------------------------------
-        // Build the 1000-message synthetic session.
+        // Build the 1500-message synthetic session.
         //
         // Layout:
         //   - 15 Agent tool_use messages at the spec'd seqs.
         //   - The remaining seqs are sidechain children stamped with
         //     parentToolUseId = the *most recent* Agent's toolUseId
         //     up to that point. This produces "runs" of ~60-70 sidechain
-        //     messages per Agent.
+        //     messages per Agent, with the last Agent's run extending all
+        //     the way to seq 1500.
         //   - For each Agent, one of its children is a `task_started`
         //     marker (kind: 'text', isSidechain: true) at agent.seq + 1.
         //
@@ -84,7 +92,7 @@ void main() {
         //   agentId         = 'agent-task-<n>'
         //
         // The cache window covers ONLY the trailing 200 seqs
-        // (seq 801-1000) — none of those 200 are real Agent tool_uses;
+        // (seq 1301-1500) — none of those 200 are real Agent tool_uses;
         // all are sidechain children whose parent_tool_use_id points to
         // a real Agent at seq <= 612 which lives OUTSIDE the cache.
         // ------------------------------------------------------------
@@ -329,7 +337,7 @@ void main() {
 // Synthetic session generator
 // ===========================================================================
 
-/// Builds the 1000-message worst-case session shape.
+/// Builds the 1500-message worst-case session shape.
 ///
 /// Returns the *display-ready* (already-processed) message maps that would
 /// normally come out of `decryptAndProcessMessages`.  Inserting them via
