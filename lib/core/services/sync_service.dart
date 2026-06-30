@@ -491,6 +491,17 @@ what you have, you must use the options mode.
   /// flaky transport cannot keep the radio awake with repeated catalog fetches.
   static const int _reconnectGlobalInvalidationCooldownMs = 60 * 1000;
 
+  /// Base delay before phase-1 (deferred) syncs fire after phase-0
+  /// (sessions). Was `Duration.zero` — fired on the very next event-loop
+  /// tick, which meant every global invalidation queued sessions, machines,
+  /// settings, and profile fetches (plus their socket RPCs) into the same
+  /// microtask burst. A small stagger spreads the radio-busy window without
+  /// adding visible latency. Combined with [_deferredSyncPhaseJitterMs] for
+  /// some randomness so concurrent devices/sessions don't line up either.
+  static const int _deferredSyncPhaseBaseDelayMs = 150;
+  static const int _deferredSyncPhaseJitterMs = 150;
+  static final Random _syncPhaseJitterRng = Random();
+
   /// Delay before firing network invalidations on resume. Cancelled by
   /// suspend() so that rapid foreground/background cycling does not produce
   /// wasted HTTP requests that the OS aborts mid-flight.
@@ -1194,16 +1205,12 @@ what you have, you must use the options mode.
             'sync.on_data_changed',
             parent: active,
             kind: SpanKind.internal,
-            attributes: {
-              'data_change_counter': _dataChangeCounter,
-            },
+            attributes: {'data_change_counter': _dataChangeCounter},
           )
         : OpenTelemetryService().startTrace(
             'sync.on_data_changed',
             kind: SpanKind.internal,
-            attributes: {
-              'data_change_counter': _dataChangeCounter,
-            },
+            attributes: {'data_change_counter': _dataChangeCounter},
           );
     // Spans are short — the data tick itself is synchronous and
     // the span is consumed by listeners. End immediately; downstream

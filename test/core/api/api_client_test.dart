@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartastic_opentelemetry_api/dartastic_opentelemetry_api.dart'
     show TraceFlags;
 import 'package:dio/dio.dart';
@@ -67,6 +69,50 @@ void main() {
         throwsA(isA<StateError>()),
       );
     });
+
+    test('get() deduplicates calls issued before the adapter await resolves '
+        '(battery regression: the dedup key was previously checked only '
+        'after `await _ensureAdapterForRequest()`, so two calls issued in '
+        'the same tick both saw an empty in-flight map and each fired an '
+        'independent HTTP request to the same endpoint — observed in '
+        'production power diagnostics as bursts of duplicate simultaneous '
+        'GETs after a resume/reconnect invalidation cascade)', () {
+      final f1 = apiClient.get('/v2/sessions');
+      final f2 = apiClient.get('/v2/sessions');
+
+      expect(
+        identical(f1, f2),
+        isTrue,
+        reason:
+            'both calls must share the exact same in-flight request '
+            'future — checked and registered synchronously, with no '
+            'await in between',
+      );
+
+      // The test server URL is not reachable; swallow the eventual
+      // rejection so it is not reported as an unhandled async error.
+      unawaited(
+        f1.catchError(
+          (_) => Response(requestOptions: RequestOptions(path: '')),
+        ),
+      );
+    });
+
+    test(
+      'post() deduplicates calls issued before the adapter await resolves',
+      () {
+        final f1 = apiClient.post('/v1/account/settings', data: {'a': 1});
+        final f2 = apiClient.post('/v1/account/settings', data: {'a': 1});
+
+        expect(identical(f1, f2), isTrue);
+
+        unawaited(
+          f1.catchError(
+            (_) => Response(requestOptions: RequestOptions(path: '')),
+          ),
+        );
+      },
+    );
 
     test('updateToken updates auth header', () async {
       apiClient.updateToken('test-token');

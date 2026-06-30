@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
+import 'package:happy_flutter/core/services/power_diagnostics_service.dart';
 
 void main() {
   group('SocketIoClient disconnect lifecycle', () {
     tearDown(() {
       socketIoClient.testHasConnectedOnce = false;
+      socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
     });
 
     test('disconnect() resets connection history by default', () {
@@ -49,6 +51,31 @@ void main() {
         reason:
             'Late callbacks from a disposed lifecycle socket must be ignored',
       );
+    });
+
+    test('disconnect() records the status transition for power diagnostics '
+        '(battery regression: app-initiated disconnects — suspend, logout, '
+        'reconnect — bump the connection generation before the underlying '
+        "socket.io library's own 'disconnect' event fires, so that event's "
+        'generation guard drops it; without recording here, '
+        'socketDisconnects stayed at 0 forever while socketConnects kept '
+        'incrementing on every real onConnect, hiding how often the '
+        'socket actually churned)', () {
+      powerDiagnostics.reset();
+      socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+      socketIoClient.disconnect();
+
+      expect(powerDiagnostics.snapshot().socketDisconnects, equals(1));
+    });
+
+    test('disconnect() does not double-count when already disconnected', () {
+      powerDiagnostics.reset();
+      socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
+
+      socketIoClient.disconnect();
+
+      expect(powerDiagnostics.snapshot().socketDisconnects, equals(0));
     });
   });
 

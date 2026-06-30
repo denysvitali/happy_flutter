@@ -583,106 +583,110 @@ class ApiClient {
   }
 
   /// GET request
+  ///
+  /// The dedup-key check/registration MUST stay synchronous (no `await`
+  /// between reading and writing [_activeRequests]) — `get` previously
+  /// awaited [_ensureAdapterForRequest] before checking the key, which let
+  /// several callers issued in close succession (e.g. a resume/reconnect
+  /// invalidation cascade firing the same sync from multiple call sites)
+  /// all observe an empty dedup map and each fire an independent HTTP
+  /// request to the same endpoint instead of sharing one.
   Future<Response> get(
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
-  }) async {
-    final dio = await _ensureAdapterForRequest();
-    // Generate deduplication key
+  }) {
     final key = _generateRequestKey('GET', path, queryParameters);
-
-    // Check if there's an active request for this key
     final activeRequest = _activeRequests[key];
     if (activeRequest != null) return activeRequest;
 
-    // Start the request and store it
-    final requestFuture = dio.get(
-      path,
-      queryParameters: queryParameters,
-      options: options,
-    );
+    final requestFuture = _issueGet(path, queryParameters, options);
     _activeRequests[key] = requestFuture;
+    unawaited(requestFuture.whenComplete(() => _activeRequests.remove(key)));
+    return requestFuture;
+  }
 
-    try {
-      final response = await requestFuture;
-      return response;
-    } finally {
-      // Clean up after request completes (whether successful or not)
-      unawaited(_activeRequests.remove(key));
-    }
+  Future<Response> _issueGet(
+    String path,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  ) async {
+    final dio = await _ensureAdapterForRequest();
+    return dio.get(path, queryParameters: queryParameters, options: options);
   }
 
   /// POST request
-  Future<Response> post(String path, {dynamic data, Options? options}) async {
-    final dio = await _ensureAdapterForRequest();
-    // Generate deduplication key (includes data hash for mutations)
+  ///
+  /// See [get] for why the dedup-key check/registration must be synchronous.
+  Future<Response> post(String path, {dynamic data, Options? options}) {
     final key = _generateRequestKey('POST', path, null, data);
-
-    // Check if there's an active request for this key
     final activeRequest = _activeRequests[key];
     if (activeRequest != null) return activeRequest;
 
-    // Start the request and store it
-    final requestFuture = dio.post(path, data: data, options: options);
+    final requestFuture = _issuePost(path, data, options);
     _activeRequests[key] = requestFuture;
+    unawaited(requestFuture.whenComplete(() => _activeRequests.remove(key)));
+    return requestFuture;
+  }
 
-    try {
-      final response = await requestFuture;
-      // Invalidate cache entries matching this path
-      _httpCache.invalidate(path);
-      return response;
-    } finally {
-      unawaited(_activeRequests.remove(key));
-    }
+  Future<Response> _issuePost(
+    String path,
+    dynamic data,
+    Options? options,
+  ) async {
+    final dio = await _ensureAdapterForRequest();
+    final response = await dio.post(path, data: data, options: options);
+    // Invalidate cache entries matching this path
+    _httpCache.invalidate(path);
+    return response;
   }
 
   /// PUT request
-  Future<Response> put(String path, {dynamic data, Options? options}) async {
-    final dio = await _ensureAdapterForRequest();
-    // Generate deduplication key (includes data hash for mutations)
+  ///
+  /// See [get] for why the dedup-key check/registration must be synchronous.
+  Future<Response> put(String path, {dynamic data, Options? options}) {
     final key = _generateRequestKey('PUT', path, null, data);
-
-    // Check if there's an active request for this key
     final activeRequest = _activeRequests[key];
     if (activeRequest != null) return activeRequest;
 
-    // Start the request and store it
-    final requestFuture = dio.put(path, data: data, options: options);
+    final requestFuture = _issuePut(path, data, options);
     _activeRequests[key] = requestFuture;
+    unawaited(requestFuture.whenComplete(() => _activeRequests.remove(key)));
+    return requestFuture;
+  }
 
-    try {
-      final response = await requestFuture;
-      // Invalidate cache entries matching this path
-      _httpCache.invalidate(path);
-      return response;
-    } finally {
-      unawaited(_activeRequests.remove(key));
-    }
+  Future<Response> _issuePut(
+    String path,
+    dynamic data,
+    Options? options,
+  ) async {
+    final dio = await _ensureAdapterForRequest();
+    final response = await dio.put(path, data: data, options: options);
+    // Invalidate cache entries matching this path
+    _httpCache.invalidate(path);
+    return response;
   }
 
   /// DELETE request
-  Future<Response> delete(String path, {Options? options}) async {
-    final dio = await _ensureAdapterForRequest();
-    // Generate deduplication key for DELETE
+  ///
+  /// See [get] for why the dedup-key check/registration must be synchronous.
+  Future<Response> delete(String path, {Options? options}) {
     final key = _generateRequestKey('DELETE', path);
-
-    // Check if there's an active request for this key
     final activeRequest = _activeRequests[key];
     if (activeRequest != null) return activeRequest;
 
-    // Start the request and store it
-    final requestFuture = dio.delete(path, options: options);
+    final requestFuture = _issueDelete(path, options);
     _activeRequests[key] = requestFuture;
+    unawaited(requestFuture.whenComplete(() => _activeRequests.remove(key)));
+    return requestFuture;
+  }
 
-    try {
-      final response = await requestFuture;
-      // Invalidate cache entries matching this path
-      _httpCache.invalidate(path);
-      return response;
-    } finally {
-      unawaited(_activeRequests.remove(key));
-    }
+  Future<Response> _issueDelete(String path, Options? options) async {
+    final dio = await _ensureAdapterForRequest();
+    final response = await dio.delete(path, options: options);
+    // Invalidate cache entries matching this path
+    _httpCache.invalidate(path);
+    return response;
   }
 
   /// Upload file with progress

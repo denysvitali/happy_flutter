@@ -45,7 +45,8 @@ extension SyncSocket on Sync {
       onSessionMessagesChanged: _notifySessionMessagesChanged,
       ensureSessionEncryptionInitialized: _ensureSessionEncryptionInitialized,
       isTransientConnectionError: Sync._isTransientConnectionError,
-      applyPermissionRequests: (sessionId) async => _applyPermissionRequests(sessionId),
+      applyPermissionRequests: (sessionId) async =>
+          _applyPermissionRequests(sessionId),
       checkForNewPermissionRequests: _checkForNewPermissionRequests,
       onFetchSessionsStarted: null,
       onSyncProgress: _setSyncProgress,
@@ -57,7 +58,8 @@ extension SyncSocket on Sync {
     );
     machineManager = MachineManager(
       encryption: encryption,
-      settingsSnapshotGetter: () => settingsManager?.settingsSnapshot ?? Settings(),
+      settingsSnapshotGetter: () =>
+          settingsManager?.settingsSnapshot ?? Settings(),
       machinesSyncGetter: () => machinesSync,
       onDataChanged: _notifyDataChanged,
       fetchSingleSession: (sessionId) async {
@@ -129,7 +131,8 @@ extension SyncSocket on Sync {
       onSessionMessagesChanged: _notifySessionMessagesChanged,
       ensureSessionEncryptionInitialized: _ensureSessionEncryptionInitialized,
       isTransientConnectionError: Sync._isTransientConnectionError,
-      applyPermissionRequests: (sessionId) async => _applyPermissionRequests(sessionId),
+      applyPermissionRequests: (sessionId) async =>
+          _applyPermissionRequests(sessionId),
       checkForNewPermissionRequests: _checkForNewPermissionRequests,
       onFetchSessionsStarted: null,
       onSyncProgress: _setSyncProgress,
@@ -141,7 +144,8 @@ extension SyncSocket on Sync {
     );
     machineManager = MachineManager(
       encryption: encryption,
-      settingsSnapshotGetter: () => settingsManager?.settingsSnapshot ?? Settings(),
+      settingsSnapshotGetter: () =>
+          settingsManager?.settingsSnapshot ?? Settings(),
       machinesSyncGetter: () => machinesSync,
       onDataChanged: _notifyDataChanged,
       fetchSingleSession: (sessionId) async {
@@ -340,7 +344,10 @@ extension SyncSocket on Sync {
     // background race.
     if (phase == null || phase == Sync._deferredSyncPhase) {
       _deferredSyncsTimer?.cancel();
-      _deferredSyncsTimer = Timer(Duration.zero, () {
+      final staggerMs =
+          Sync._deferredSyncPhaseBaseDelayMs +
+          Sync._syncPhaseJitterRng.nextInt(Sync._deferredSyncPhaseJitterMs);
+      _deferredSyncsTimer = Timer(Duration(milliseconds: staggerMs), () {
         // Only invalidate if sync is still initialized to avoid
         // errors after logout/dispose
         if (!isInitialized) return;
@@ -579,14 +586,13 @@ extension SyncSocket on Sync {
     final firstScheduledAt = _saveMsgsFirstScheduledAtMs[sessionId];
     _saveMsgsFirstScheduledAtMs[sessionId] = firstScheduledAt ?? nowMs;
     // Remaining budget before the max-delay ceiling kicks in.
-    final elapsed =
-        firstScheduledAt == null ? 0 : nowMs - firstScheduledAt;
+    final elapsed = firstScheduledAt == null ? 0 : nowMs - firstScheduledAt;
     final remainingBudget = _saveMsgsMaxDelayMs - elapsed;
     final delayMs = remainingBudget <= 0
         ? 0
         : remainingBudget < _saveMsgsDebounceMs
-            ? remainingBudget
-            : _saveMsgsDebounceMs;
+        ? remainingBudget
+        : _saveMsgsDebounceMs;
     _saveMsgsDebounceTimers[sessionId]?.cancel();
     _saveMsgsDebounceTimers[sessionId] = Timer(
       Duration(milliseconds: delayMs),

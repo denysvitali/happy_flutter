@@ -2,6 +2,16 @@ part of 'sync_service.dart';
 
 extension SyncSessions on Sync {
   void _scheduleSessionsRefresh() {
+    // Socket events can still arrive for up to
+    // [Sync._suspendSocketDisconnectDelayMs] after suspend() runs (the
+    // socket disconnect is itself deferred to absorb short Android
+    // lifecycle bounces). Without this guard, an update-session event
+    // landing in that grace window schedules a debounce timer that fires
+    // after the app is already backgrounded, waking the CPU only to have
+    // InvalidateSync skip it as a no-op (recorded as a background skip).
+    // suspend() already cancels any timer scheduled before backgrounding;
+    // this stops new ones from being scheduled during the grace window.
+    if (InvalidateSync.isBackgrounded) return;
     _sessionsRefreshDebounceTimer?.cancel();
     _sessionsRefreshDebounceTimer = Timer(
       Sync._sessionsRefreshDebounce,

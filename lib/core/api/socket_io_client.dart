@@ -494,6 +494,17 @@ class SocketIoClient {
     if (!preserveConnectionHistory) {
       _hasConnectedOnce = false;
     }
+    // Bumping the connection generation above means the underlying
+    // socket.io library's own 'disconnect' event (which would otherwise
+    // call powerDiagnostics.recordSocketStatus) is dropped by the
+    // generation guard in _setupEventHandlers — record it here instead so
+    // every app-initiated disconnect (suspend, logout, reconnect) is
+    // still counted. Without this, _socketDisconnects stays at 0 forever
+    // while _socketConnects keeps incrementing on every real onConnect,
+    // hiding how often the socket actually churns.
+    if (_status != ConnectionStatus.disconnected) {
+      powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
+    }
     _updateStatus(ConnectionStatus.disconnected);
   }
 
@@ -751,6 +762,12 @@ class SocketIoClient {
 
   @visibleForTesting
   bool get testHasConnectedOnce => _hasConnectedOnce;
+
+  /// Test-only hook to force [_status] without a real Socket.IO
+  /// connection, so disconnect-telemetry tests can set up a "currently
+  /// connected" precondition without dialing a real server.
+  @visibleForTesting
+  set testConnectionStatus(ConnectionStatus value) => _status = value;
 
   @visibleForTesting
   set testHasConnectedOnce(bool value) => _hasConnectedOnce = value;

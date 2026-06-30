@@ -261,7 +261,19 @@ extension SyncLifecycle on Sync {
         // _deferredResumeInvalidationTimer plus suspend-cancel
         // protection still guards the Android-16 background-abort
         // race for sub-second cycles.
-        final shouldRunGlobalInvalidation = suspendDuration > 5 * 1000;
+        //
+        // isRapidResume also gates this: it was previously computed
+        // (above) and only logged, so a resume that landed within
+        // [Sync._resumeDebounceWindowMs] of the *previous* resume — an
+        // OS-level pause/resume bounce, not a real backgrounding — still
+        // replayed the full critical/deferred/background sync cascade
+        // (~10 invalidations) every time. That was the single largest
+        // contributor to battery drain from foreground/background
+        // churn: 60 resumes in one session each re-fetched sessions,
+        // machines, settings, profile, purchases, push token, native
+        // update, and git status.
+        final shouldRunGlobalInvalidation =
+            suspendDuration > 5 * 1000 && !isRapidResume;
         final socketNeedsHttpFallback =
             socketIoClient.connectionStatus != ConnectionStatus.connected;
         unawaited(

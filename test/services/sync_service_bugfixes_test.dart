@@ -219,6 +219,48 @@ void main() {
       });
     });
 
+    test('a socket update-session event handled while backgrounded does not '
+        'schedule a sessions-refresh timer '
+        '(battery regression: the socket disconnect on suspend is itself '
+        'deferred by Sync._suspendSocketDisconnectDelayMs to absorb short '
+        'Android lifecycle bounces, so update-session events can still '
+        'arrive for up to 2s after suspend() runs and isBackgrounded is '
+        'set. Each one used to schedule a fresh '
+        '_sessionsRefreshDebounceTimer that suspend() never gets another '
+        'chance to cancel, waking the CPU to fire — and immediately skip '
+        '— a sync after the app is already backgrounded)', () {
+      fakeAsync((async) {
+        var sessionsSyncRuns = 0;
+        sync.sessionsSync = InvalidateSync(() async {
+          sessionsSyncRuns++;
+        });
+
+        sync.suspend();
+        expect(InvalidateSync.isBackgrounded, isTrue);
+
+        // Socket event with an encrypted-field change arrives during
+        // the post-suspend socket grace period.
+        sync.handleUpdate(<String, dynamic>{
+          't': 'update-session',
+          'id': 'session-during-grace-window',
+          'metadata': {'host': 'example'},
+        });
+
+        async.elapse(const Duration(seconds: 3));
+
+        expect(
+          sessionsSyncRuns,
+          equals(0),
+          reason:
+              'no sessions refresh should ever run while backgrounded — '
+              'the guard must stop the timer from being scheduled in '
+              'the first place, not just let it fire and skip',
+        );
+
+        sync.resume();
+      });
+    });
+
     test('reconnect recovery throttles broad sessions invalidation', () {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       sync.testLastInvalidateAllSyncsAtMs = nowMs - 10 * 1000;
@@ -334,6 +376,102 @@ void main() {
           reason:
               'resume() must still refresh the visible session even '
               'inside the resume debounce window',
+        );
+      });
+    });
+
+    test('rapid resume does not replay the global sync cascade a second time '
+        '(battery regression: isRapidResume was computed but only logged, '
+        'never gating shouldRunGlobalInvalidation, so every resume — even '
+        'an OS-level pause/resume bounce landing inside the rapid-resume '
+        'debounce window — replayed the full critical/deferred/background '
+        'cascade: sessions, machines, settings, profile, purchases, push '
+        'token, native update, git status)', () {
+      fakeAsync((async) {
+        var machinesSyncRuns = 0;
+        sync.machinesSync = InvalidateSync(() async {
+          machinesSyncRuns++;
+        });
+        sync.testSetVisibleSessionId(null);
+        sync.testClearSessionsWithPendingSocketMessages();
+
+        // First resume after a long background: not rapid (no prior
+        // resume in this test run), so the global cascade runs once.
+        sync.testLastSuspendedAtMs =
+            DateTime.now().millisecondsSinceEpoch - 60000;
+        sync.testLastInvalidateAllSyncsAtMs = null;
+        sync.resume();
+        // 500ms initial deferred-resume timer + up to ~300ms phase-1
+        // stagger (base + jitter) — elapse comfortably past the worst case.
+        async.elapse(const Duration(milliseconds: 900));
+
+        expect(machinesSyncRuns, equals(1));
+
+        // Second resume, again after a (simulated) long background —
+        // shouldRunGlobalInvalidation's suspendDuration check alone
+        // would say "run it again". But this resume() call lands only
+        // milliseconds of real wall-clock time after the first one
+        // (well under Sync._resumeDebounceWindowMs), so isRapidResume
+        // must be true and must suppress the replay.
+        sync.testLastSuspendedAtMs =
+            DateTime.now().millisecondsSinceEpoch - 60000;
+        sync.testLastInvalidateAllSyncsAtMs = null;
+        sync.resume();
+        async.elapse(const Duration(milliseconds: 900));
+
+        expect(
+          machinesSyncRuns,
+          equals(1),
+          reason:
+              'a resume landing inside the rapid-resume debounce window '
+              'must not replay the broad sync cascade — doing so on '
+              'every foreground/background bounce is the dominant '
+              'contributor to battery drain from lifecycle churn',
+        );
+      });
+    });
+
+    test('phase-1 deferred syncs are staggered, not fired on the same tick '
+        'as phase-0 '
+        '(battery regression: Timer(Duration.zero, ...) queued machines, '
+        'settings, and profile invalidations — plus their socket RPCs — '
+        'into the exact same microtask burst as the sessions fetch on '
+        'every resume/reconnect, instead of spreading the radio-busy '
+        'window)', () {
+      fakeAsync((async) {
+        var machinesSyncRuns = 0;
+        sync.machinesSync = InvalidateSync(() async {
+          machinesSyncRuns++;
+        });
+        sync.testSetVisibleSessionId(null);
+        sync.testClearSessionsWithPendingSocketMessages();
+        sync.testLastSuspendedAtMs =
+            DateTime.now().millisecondsSinceEpoch - 60000;
+        sync.testLastInvalidateAllSyncsAtMs = null;
+
+        sync.resume();
+        // resume() itself defers invalidation by 500ms before phase-0
+        // even starts; phase-1's stagger (150-300ms, randomized) is
+        // scheduled only after phase-0's sessionsSync queue settles, so
+        // its fire time is always strictly after this 500ms mark.
+        async.elapse(const Duration(milliseconds: 500));
+
+        expect(
+          machinesSyncRuns,
+          equals(0),
+          reason:
+              'phase-1 must not fire on the same tick as phase-0 — it '
+              'needs at least Sync._deferredSyncPhaseBaseDelayMs before '
+              'it runs',
+        );
+
+        // Comfortably past the worst-case stagger (base + jitter).
+        async.elapse(const Duration(milliseconds: 400));
+
+        expect(
+          machinesSyncRuns,
+          equals(1),
+          reason: 'phase-1 must still fire shortly after, just staggered',
         );
       });
     });
@@ -712,62 +850,56 @@ void main() {
       );
     });
 
-    test(
-      'onSessionInvisible does not clobber a newer onSessionVisible '
-      '(chat switch race)',
-      () async {
-        // THE RACE CONDITION BEING TESTED:
-        //
-        // When switching from chat A to chat B, Flutter calls new B's
-        // initState BEFORE old A's dispose. Both call unawaited() on
-        // onSessionVisible(B) and onSessionInvisible(A) respectively.
-        // The microtasks run in FIFO order: onSessionVisible(B) sets
-        // _visibleSessionId = B, then onSessionInvisible(A) must NOT
-        // set _visibleSessionId = null because the user is now viewing B.
-        final sessionA = 'session-a';
-        final sessionB = 'session-b';
+    test('onSessionInvisible does not clobber a newer onSessionVisible '
+        '(chat switch race)', () async {
+      // THE RACE CONDITION BEING TESTED:
+      //
+      // When switching from chat A to chat B, Flutter calls new B's
+      // initState BEFORE old A's dispose. Both call unawaited() on
+      // onSessionVisible(B) and onSessionInvisible(A) respectively.
+      // The microtasks run in FIFO order: onSessionVisible(B) sets
+      // _visibleSessionId = B, then onSessionInvisible(A) must NOT
+      // set _visibleSessionId = null because the user is now viewing B.
+      final sessionA = 'session-a';
+      final sessionB = 'session-b';
 
-        // Start with A visible
-        await sync.onSessionVisible(sessionA);
-        expect(sync.testGetVisibleSessionId(), equals(sessionA));
+      // Start with A visible
+      await sync.onSessionVisible(sessionA);
+      expect(sync.testGetVisibleSessionId(), equals(sessionA));
 
-        // Simulate the switch: new B's onSessionVisible runs first
-        await sync.onSessionVisible(sessionB);
-        expect(sync.testGetVisibleSessionId(), equals(sessionB));
+      // Simulate the switch: new B's onSessionVisible runs first
+      await sync.onSessionVisible(sessionB);
+      expect(sync.testGetVisibleSessionId(), equals(sessionB));
 
-        // Then old A's onSessionInvisible runs (late, after dispose)
-        await sync.onSessionInvisible(sessionA);
+      // Then old A's onSessionInvisible runs (late, after dispose)
+      await sync.onSessionInvisible(sessionA);
 
-        // B must STAY visible — the late dispose must not wipe it
-        expect(
-          sync.testGetVisibleSessionId(),
-          equals(sessionB),
-          reason:
-              'onSessionInvisible(sessionA) must not clobber a newer '
-              'onSessionVisible(sessionB) (chat switch race)',
-        );
-      },
-    );
+      // B must STAY visible — the late dispose must not wipe it
+      expect(
+        sync.testGetVisibleSessionId(),
+        equals(sessionB),
+        reason:
+            'onSessionInvisible(sessionA) must not clobber a newer '
+            'onSessionVisible(sessionB) (chat switch race)',
+      );
+    });
 
-    test(
-      'onSessionInvisible clears _visibleSessionId when it still matches '
-      'the session being left',
-      () async {
-        final sessionId = 'session-a';
-        await sync.onSessionVisible(sessionId);
-        expect(sync.testGetVisibleSessionId(), equals(sessionId));
+    test('onSessionInvisible clears _visibleSessionId when it still matches '
+        'the session being left', () async {
+      final sessionId = 'session-a';
+      await sync.onSessionVisible(sessionId);
+      expect(sync.testGetVisibleSessionId(), equals(sessionId));
 
-        await sync.onSessionInvisible(sessionId);
+      await sync.onSessionInvisible(sessionId);
 
-        expect(
-          sync.testGetVisibleSessionId(),
-          isNull,
-          reason:
-              'onSessionInvisible(sessionId) must clear _visibleSessionId '
-              'when it still matches the session being left',
-        );
-      },
-    );
+      expect(
+        sync.testGetVisibleSessionId(),
+        isNull,
+        reason:
+            'onSessionInvisible(sessionId) must clear _visibleSessionId '
+            'when it still matches the session being left',
+      );
+    });
   });
 
   group('Sync resume race condition fix', () {
