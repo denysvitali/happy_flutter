@@ -354,8 +354,15 @@ void main() {
                   'id': id,
                   'isSidechain': true,
                   'uuid': 'u-$id',
-                  'parentUuid': 'task-$id',
-                  'parentToolUseId': 'toolu-$id',
+                  // Same stuck parent for every orphan — this is the real
+                  // production bug shape: one subagent Task keeps emitting
+                  // new child sidechain events while its own parent Task
+                  // message never arrives, so the orphan *id* set grows
+                  // every sweep even though the parent *group* never
+                  // changes. A genuinely new, unrelated parent group is
+                  // covered separately by Test 3 above.
+                  'parentUuid': 'task-STUCK',
+                  'parentToolUseId': 'toolu-STUCK',
                   'role': 'agent',
                   'kind': 'text',
                   'seq': 1000 + ids.length,
@@ -404,8 +411,8 @@ void main() {
                 'id': id,
                 'isSidechain': true,
                 'uuid': 'u-$id',
-                'parentUuid': 'task-$id',
-                'parentToolUseId': 'toolu-$id',
+                'parentUuid': 'task-STUCK',
+                'parentToolUseId': 'toolu-STUCK',
                 'role': 'agent',
                 'kind': 'text',
                 'seq': 1000 + ids.length,
@@ -427,8 +434,8 @@ void main() {
                 'id': id,
                 'isSidechain': true,
                 'uuid': 'u-$id',
-                'parentUuid': 'task-$id',
-                'parentToolUseId': 'toolu-$id',
+                'parentUuid': 'task-STUCK',
+                'parentToolUseId': 'toolu-STUCK',
                 'role': 'agent',
                 'kind': 'text',
                 'seq': 1000 + ids.length,
@@ -447,6 +454,102 @@ void main() {
         reason: 'once the hard cap is reached, growing the orphan set '
             'further must not lift suppression or fire more '
             'fetchOlder calls',
+      );
+    },
+  );
+
+  // ──────────────────────────────────────────────────────────────────
+  // Test 5 (regression): a disjoint new parent group arriving WHILE an
+  // older, still-stuck parent group's orphan is still pending — not
+  // resolved, not removed — must still open a fresh walk-back budget
+  // for the new group. This is the exact scenario the parent-key
+  // tracking (alongside the orphan-id tracking) was added for:
+  // distinguishing "more children of an already-tracked stuck parent"
+  // (must NOT reset, see Test 4) from "a genuinely new parent group"
+  // (must reset) even when both coexist in the same orphan set at
+  // once — every other test that exercises a "new parent" reset also
+  // happens to lose the old orphan id at the same instant, so this is
+  // the only test where the parent-key axis is load-bearing on its
+  // own.
+  // ──────────────────────────────────────────────────────────────────
+  test(
+    'a disjoint new parent group opens a fresh budget even while an '
+    'older stuck parent group is still pending and unresolved',
+    () async {
+      sync.testSetSessionFirstLoadedSeq('s1', 40000);
+
+      // Burn a few no-progress attempts on a single stuck parent group
+      // (well below the hard cap).
+      const burnAttempts = 3;
+      for (var i = 0; i < burnAttempts; i++) {
+        sync.testSetSessionMessages('s1', [
+          <String, dynamic>{
+            'id': 'orph-stuck',
+            'isSidechain': true,
+            'uuid': 'u-stuck',
+            'parentUuid': 'task-STUCK',
+            'parentToolUseId': 'toolu-STUCK',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 100,
+            'createdAt': 100,
+          },
+        ]);
+        sync.testClearOrphanFetchOlderAttemptedMs('s1');
+        sync.testRunDeferredRegroupSweep('s1');
+        await _drainAsyncWork();
+      }
+
+      expect(
+        sync.testOrphanFetchOlderNoProgressCount('s1'),
+        burnAttempts,
+        reason: 'pre-condition: the stuck parent group must have '
+            'accumulated no-progress attempts without resetting',
+      );
+
+      // A brand-new, disjoint parent group arrives ALONGSIDE the
+      // still-unresolved stuck orphan — the stuck orphan is neither
+      // removed nor resolved.
+      sync.testSetSessionMessages('s1', [
+        <String, dynamic>{
+          'id': 'orph-stuck',
+          'isSidechain': true,
+          'uuid': 'u-stuck',
+          'parentUuid': 'task-STUCK',
+          'parentToolUseId': 'toolu-STUCK',
+          'role': 'agent',
+          'kind': 'text',
+          'seq': 100,
+          'createdAt': 100,
+        },
+        <String, dynamic>{
+          'id': 'orph-fresh',
+          'isSidechain': true,
+          'uuid': 'u-fresh',
+          'parentUuid': 'task-FRESH',
+          'parentToolUseId': 'toolu-FRESH',
+          'role': 'agent',
+          'kind': 'text',
+          'seq': 200,
+          'createdAt': 200,
+        },
+      ]);
+      sync.testClearOrphanFetchOlderAttemptedMs('s1');
+      sync.testRunDeferredRegroupSweep('s1');
+      await _drainAsyncWork();
+
+      // The no-progress counter must have been reset by the new
+      // parent group, then bumped at most once more by this sweep's
+      // own no-progress fetchOlder — well below where it would sit
+      // (burnAttempts + 1) if the stuck orphan's continued presence
+      // had suppressed the reset.
+      expect(
+        sync.testOrphanFetchOlderNoProgressCount('s1'),
+        lessThan(burnAttempts),
+        reason: 'the no-progress counter must reset when a genuinely '
+            'new parent group arrives, even alongside an unresolved '
+            'older one — it must not be held back by the still-stuck '
+            'orphan that coexists with it',
       );
     },
   );

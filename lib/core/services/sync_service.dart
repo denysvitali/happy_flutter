@@ -585,21 +585,33 @@ what you have, you must use the options mode.
   final Map<String, int> _orphanFetchOlderNoProgressCount = {};
 
   /// Per-session orphan-id set seen by the last deferred regroup sweep.
-  /// A fresh walk-back budget (no-progress reset + suppression lifted)
-  /// is granted only when the new set does NOT contain every id from
-  /// this tracked set — i.e. at least one previously-unresolved orphan
-  /// disappeared (resolved/attached), or the new set is wholly/partially
-  /// disjoint from the old one (a genuinely new, unrelated burst). A new
-  /// set that is a pure superset of this one — orphan count only grew,
-  /// nothing resolved — must NOT grant a fresh budget: that was a real
-  /// production bug where unbounded orphan growth pinned the no-progress
-  /// counter at 0 forever, so the hard cap below was never reached and
-  /// the walk-back hammered fetchOlderMessages indefinitely. This must
-  /// also NOT be reset by message upserts — the walk-back's own
-  /// fetchOlder upserts every page it fetches, and a blanket reset
-  /// pinned the no-progress counter below both caps, looping fetchOlder
-  /// forever.
+  /// Paired with [_orphanWalkbackParentKeys] to decide whether a fresh
+  /// walk-back budget (no-progress reset + suppression lifted) is
+  /// granted: only when some previously-unresolved orphan id disappeared
+  /// (resolved/attached), or a newly-arrived orphan belongs to a parent
+  /// Task group not already tracked (a genuinely new, unrelated burst).
+  /// Pure growth of an ALREADY-TRACKED parent group — more children of
+  /// the same un-found Task arriving, every previously-seen id still
+  /// present — must NOT grant a fresh budget: that was a real production
+  /// bug where a single stuck subagent kept emitting child sidechain
+  /// messages (new ids every sweep, same parentToolUseId) and the old
+  /// id-set-changed check reset the no-progress counter to 0 every time,
+  /// so the hard cap below was never reached and the walk-back hammered
+  /// fetchOlderMessages indefinitely. This must also NOT be reset by
+  /// message upserts — the walk-back's own fetchOlder upserts every page
+  /// it fetches, and a blanket reset pinned the no-progress counter below
+  /// both caps, looping fetchOlder forever.
   final Map<String, Set<String>> _orphanWalkbackOrphanIds = {};
+
+  /// Per-session set of parent Task group keys (see
+  /// [WireParsers.sidechainParentToolUseId]) seen across the orphans
+  /// tracked by [_orphanWalkbackOrphanIds] as of the last sweep. A newly
+  /// arrived orphan whose parent key is not in this set is a genuinely
+  /// new burst and grants a fresh walk-back budget even while an older,
+  /// stuck parent group's orphans are still pending — see
+  /// [_orphanWalkbackOrphanIds] for why pure growth of an already-tracked
+  /// group must NOT do the same.
+  final Map<String, Set<String>> _orphanWalkbackParentKeys = {};
 
   /// Per-session epoch-ms until which orphan regroup work is suppressed.
   /// Used after history is exhausted so caught-up fetches don't repeatedly

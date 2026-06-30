@@ -182,8 +182,10 @@ extension SyncMessagingMerge on Sync {
     // Only run if there are still ungrouped sidechain messages
     // sitting in the main list (a normal message list has no
     // isSidechain entries after successful grouping).
-    final beforeOrphans = messages
+    final beforeOrphanMessages = messages
         .where(isVisibleSidechainOrphan)
+        .toList(growable: false);
+    final beforeOrphans = beforeOrphanMessages
         .map((m) => m['id'] as String?)
         .whereType<String>()
         .toSet();
@@ -193,6 +195,7 @@ extension SyncMessagingMerge on Sync {
       _sidechainRegroupSweepCount.remove(sessionId);
       _orphanFetchOlderNoProgressCount.remove(sessionId);
       _orphanWalkbackOrphanIds.remove(sessionId);
+      _orphanWalkbackParentKeys.remove(sessionId);
       return;
     }
 
@@ -209,27 +212,51 @@ extension SyncMessagingMerge on Sync {
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
-    // A genuinely new orphan situation (some previously-unresolved id
-    // disappeared, or this is a disjoint new burst) opens a fresh
-    // walk-back budget and lifts any suppression. Pure growth — the new
-    // set still contains every id from the previous sweep, just with
-    // more added on top — must NOT reset the budget: that was a real
-    // production bug (orphan count climbing every retry while
-    // noProgressCount stayed pinned at 0 forever, so the hard cap below
-    // was never reached and the walk-back hammered fetchOlderMessages
-    // indefinitely). Message upserts must not reset the counter either —
+    // A genuinely new orphan situation opens a fresh walk-back budget and
+    // lifts any suppression: either some previously-unresolved id
+    // disappeared (real progress), or a newly-arrived orphan belongs to a
+    // parent Task group we haven't already been walking back for (a
+    // disjoint new burst deserves its own look even while an older,
+    // stuck burst is still pending). Pure growth of an ALREADY-TRACKED
+    // parent group — more children of the same un-found Task arriving,
+    // every previously-seen id still present — must NOT reset the
+    // budget: that was a real production bug. A single stuck subagent
+    // kept emitting child sidechain messages sharing one parentToolUseId
+    // whose own parent Task never arrived; because the orphan *id* set
+    // changed on every sweep (new child ids), the old hash-based check
+    // reset noProgressCount to 0 every time, so the hard cap below was
+    // never reached and the walk-back hammered fetchOlderMessages
+    // indefinitely. Message upserts must not reset the counter either —
     // the walk-back's own fetchOlderMessages upserts every page it
     // fetches, and a blanket reset pinned the counter below both caps,
     // looping a 100-message fetch+decrypt every ~450ms indefinitely.
     final previousOrphanIds = _orphanWalkbackOrphanIds[sessionId];
-    final isPureGrowth =
+    final previousParentKeys = _orphanWalkbackParentKeys[sessionId];
+    final newlyArrivedMessages = previousOrphanIds == null
+        ? beforeOrphanMessages
+        : beforeOrphanMessages
+              .where((m) => !previousOrphanIds.contains(m['id']))
+              .toList(growable: false);
+    final hasNewParentGroup =
+        previousParentKeys == null ||
+        newlyArrivedMessages.any((m) {
+          final parentKey = WireParsers.sidechainParentToolUseId(m);
+          return parentKey == null || !previousParentKeys.contains(parentKey);
+        });
+    final resolvedSome =
         previousOrphanIds != null &&
-        beforeOrphans.containsAll(previousOrphanIds);
+        !beforeOrphans.containsAll(previousOrphanIds);
+    final isPureGrowth =
+        previousOrphanIds != null && !resolvedSome && !hasNewParentGroup;
     if (!isPureGrowth) {
       _orphanFetchOlderNoProgressCount.remove(sessionId);
       _orphanSuppressedUntilMs.remove(sessionId);
     }
     _orphanWalkbackOrphanIds[sessionId] = beforeOrphans;
+    _orphanWalkbackParentKeys[sessionId] = beforeOrphanMessages
+        .map(WireParsers.sidechainParentToolUseId)
+        .whereType<String>()
+        .toSet();
 
     // If we've already given up on exactly this orphan set (throttled,
     // hard cap reached, or history exhausted), don't keep running the
@@ -264,6 +291,7 @@ extension SyncMessagingMerge on Sync {
       _sidechainRegroupSweepCount.remove(sessionId);
       _orphanFetchOlderNoProgressCount.remove(sessionId);
       _orphanWalkbackOrphanIds.remove(sessionId);
+      _orphanWalkbackParentKeys.remove(sessionId);
       final messagesUpdated = !identical(beforeMessages, after);
       if (messagesUpdated) {
         _notifySessionMessagesChanged(sessionId);

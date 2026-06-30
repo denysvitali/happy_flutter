@@ -114,6 +114,7 @@ extension SyncTestHelpers on Sync {
     _orphanFetchOlderAttemptedMs.remove(sessionId);
     _orphanFetchOlderNoProgressCount.remove(sessionId);
     _orphanWalkbackOrphanIds.remove(sessionId);
+    _orphanWalkbackParentKeys.remove(sessionId);
     _orphanSuppressedUntilMs.remove(sessionId);
   }
 
@@ -186,21 +187,27 @@ extension SyncTestHelpers on Sync {
   int get testOrphanFetchOlderAggressiveAttempts =>
       SyncMessagingMerge._orphanFetchOlderAggressiveAttempts;
 
-  /// Test helper: prime the orphan walk-back tracked-id set from the
-  /// current persisting orphan set, as if a sweep had already seen it.
-  /// Lets tests exercise the no-progress caps directly without the
-  /// sweep's reset-on-genuinely-new-orphans check granting a fresh
+  /// Test helper: prime the orphan walk-back tracked-id/parent-key sets
+  /// from the current persisting orphan set, as if a sweep had already
+  /// seen it. Lets tests exercise the no-progress caps directly without
+  /// the sweep's reset-on-genuinely-new-orphans check granting a fresh
   /// budget on first sight.
   @visibleForTesting
   void testPrimeOrphanWalkbackSignature(String sessionId) {
     final messages =
         _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[];
-    final orphans = messages
+    final orphanMessages = messages
         .where(isVisibleSidechainOrphan)
+        .toList(growable: false);
+    final orphans = orphanMessages
         .map((m) => m['id'] as String?)
         .whereType<String>()
         .toSet();
     _orphanWalkbackOrphanIds[sessionId] = orphans;
+    _orphanWalkbackParentKeys[sessionId] = orphanMessages
+        .map(WireParsers.sidechainParentToolUseId)
+        .whereType<String>()
+        .toSet();
   }
 
   @visibleForTesting
@@ -672,6 +679,7 @@ extension SyncTestHelpers on Sync {
     _orphanFetchOlderAttemptedMs.clear();
     _orphanFetchOlderNoProgressCount.clear();
     _orphanWalkbackOrphanIds.clear();
+    _orphanWalkbackParentKeys.clear();
     _orphanSuppressedUntilMs.clear();
     _sessionUsage.clear();
     _lastEphemeralAt.clear();
