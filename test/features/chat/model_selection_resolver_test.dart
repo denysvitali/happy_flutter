@@ -212,7 +212,7 @@ void main() {
       // Pin for the bug fixed in this change: _effectiveModelModeString
       // derived from a non-nullable ChatModelMode field and was never
       // null, so the restore branch in `_loadInitialSettings` was
-      // permanently dead code — the saved model was silently discarded
+      // permanently dead code: the saved model was silently discarded
       // on every load even though the saved profile id restored fine
       // (it used `??=` against an initially-null field). User-visible
       // symptom: reopen a session and the profile chip shows the right
