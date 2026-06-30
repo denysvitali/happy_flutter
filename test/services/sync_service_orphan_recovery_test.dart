@@ -798,19 +798,14 @@ void main() {
         }
         expect(fetchOlderCount, orphanAggressiveAttempts);
 
-        // A NEW orphan (fresh sidechain burst) changes the orphan-set
-        // signature: budget resets, suppression lifts, recovery retries.
+        // orph-1 resolves (attached to its real parent) and a disjoint
+        // orph-NEW burst arrives in its place. This is NOT pure growth —
+        // the tracked set does not contain orph-NEW, and orph-1 is gone
+        // — so it must open a fresh budget. (Pure growth, where orph-1
+        // would still be present alongside orph-NEW, must NOT grant a
+        // fresh budget — see sidechain_orphan_walkback_test.dart's
+        // "no-progress counter must not be pinned at zero" regression.)
         syncWithEnc.testSetSessionMessages('s2', [
-          <String, dynamic>{
-            'id': 'orph-1',
-            'isSidechain': true,
-            'uuid': 'u1',
-            'parentUuid': 'task-A',
-            'parentToolUseId': 'toolu_A',
-            'role': 'agent',
-            'kind': 'text',
-            'seq': 102,
-          },
           <String, dynamic>{
             'id': 'orph-NEW',
             'isSidechain': true,
@@ -829,7 +824,7 @@ void main() {
         expect(
           fetchOlderCount,
           orphanAggressiveAttempts + 1,
-          reason: 'a changed orphan set must grant a fresh budget',
+          reason: 'a genuinely changed orphan set must grant a fresh budget',
         );
       });
 
