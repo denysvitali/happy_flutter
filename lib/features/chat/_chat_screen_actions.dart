@@ -27,120 +27,50 @@ extension _ChatScreenActions on _ChatScreenState {
     final savedProfileId = results[2];
 
     final session = sync.sessions[sessionId];
-
-    var permissionMode = PermissionMode.defaultMode;
-    if (savedPermMode != null) {
-      permissionMode =
-          PermissionModeExtension.fromString(savedPermMode) ??
-          PermissionMode.defaultMode;
-    } else {
-      final sessionPermMode = session?.permissionMode;
-      if (sessionPermMode != null) {
-        permissionMode =
-            PermissionModeExtension.fromString(sessionPermMode) ??
-            PermissionMode.defaultMode;
-        unawaited(
-          storage.savePermissionMode(sessionId, permissionMode.toModeString()),
-        );
-      }
-    }
-
-    // Profile & settings (read once, used below for both model and profile).
+    final flavor = session?.metadata?.flavor;
     final settings = ref.read(settingsNotifierProvider);
 
-    // First, determine the selected profile so we can use its
-    // defaultModelMode.
-    // Profile.
-    final seen = <String>{};
-    final deduped = <AIBackendProfile>[];
-    final flavor = session?.metadata?.flavor;
-    for (final p in [...settings.profiles, ...builtInProfiles]) {
-      if (!p.compatibility.supportsAgent(flavor ?? 'claude')) {
-        continue;
-      }
-      if (seen.add(p.id)) deduped.add(p);
+    final resolution = resolveModelSelection(
+      savedPermissionMode: savedPermMode,
+      savedModelMode: savedModelMode,
+      savedProfileId: savedProfileId,
+      sessionModelMode: session?.modelMode,
+      sessionPermissionMode: session?.permissionMode,
+      flavor: flavor,
+      settingsProfiles: settings.profiles,
+      builtInProfiles: builtInProfiles,
+      lastUsedModelMode: settings.lastUsedModelMode,
+    );
+
+    if (resolution.shouldPersistPermissionMode) {
+      unawaited(
+        storage.savePermissionMode(
+          sessionId,
+          resolution.resolvedPermissionMode.toModeString(),
+        ),
+      );
     }
-
-    AIBackendProfile? selectedProfile;
-    // Profile selection is session-scoped: only honor the per-session draft.
-    // Falling back to the global last-used profile would leak the most
-    // recent choice (e.g. from creating a new session) into every existing
-    // session that has no explicit profile saved.
-    if (savedProfileId != null) {
-      try {
-        selectedProfile = deduped.firstWhere((p) => p.id == savedProfileId);
-      } catch (_) {
-        selectedProfile = null;
-        logger.info(
-          '[ChatScreen] saved profile "$savedProfileId" no longer '
-          'exists in settings; falling back to no profile',
-        );
-        unawaited(DraftStorage().removeProfileId(sessionId));
-      }
-    }
-
-    // Model mode.
-    String? rawModelModeString;
-    var modelMode = ChatModelMode.defaultModel;
-
-    // Priority: saved draft > session model > profile default
-    // > settings default
-    if (savedModelMode != null) {
-      rawModelModeString = ChatModelMode.normalizeRawForFlavor(
-        savedModelMode,
-        flavor,
+    if (resolution.hadGhostProfileReference) {
+      logger.info(
+        '[ChatScreen] saved profile "$savedProfileId" no longer '
+        'exists in settings; falling back to no profile',
       );
-      modelMode = ChatModelMode.normalizeForFlavor(
-        ChatModelMode.fromString(savedModelMode),
-        flavor,
-      );
-    } else if (session?.modelMode case final sessionModelMode?) {
-      rawModelModeString = ChatModelMode.normalizeRawForFlavor(
-        sessionModelMode,
-        flavor,
-      );
-      modelMode = ChatModelMode.normalizeForFlavor(
-        ChatModelMode.fromString(sessionModelMode),
-        flavor,
-      );
-    } else if (selectedProfile?.defaultModelMode case final profileModelMode?) {
-      rawModelModeString = ChatModelMode.normalizeRawForFlavor(
-        profileModelMode,
-        flavor,
-      );
-      modelMode = ChatModelMode.normalizeForFlavor(
-        ChatModelMode.fromString(profileModelMode),
-        flavor,
-      );
-    } else if (settings.lastUsedModelMode != null) {
-      // Fall back to the user's last-used model preference so new sessions
-      // inherit the model the user most recently picked. `lastUsedModelMode`
-      // is a global preference, so only inherit it when it is compatible
-      // with the current flavor — otherwise a Codex selection (e.g.
-      // `gpt-5.5:medium`) leaks into a Claude session and Claude CLI rejects
-      // it on respawn.
-      final candidate = ChatModelMode.fromString(settings.lastUsedModelMode);
-      final available = ChatModelMode.availableForFlavor(flavor);
-      if (available.contains(candidate) ||
-          (flavor == 'codex' && candidate.isCodex)) {
-        rawModelModeString = settings.lastUsedModelMode;
-        modelMode = candidate;
-      }
+      unawaited(storage.removeProfileId(sessionId));
     }
 
     setState(() {
-      _permissionMode = permissionMode;
-      // Guard: only apply model/profile if the user hasn't already interacted
-      // with the model or profile pickers before this async load completed.
-      // _effectiveModelModeString starts null; once the user picks a model via
-      // _onModelModeChanged or a profile via _onProfileChanged, it becomes
-      // non-null. We must not overwrite their choice here.
-      if (_effectiveModelModeString == null) {
-        _modelMode = modelMode;
-        _profileModelOverride = rawModelModeString;
+      _permissionMode = resolution.resolvedPermissionMode;
+      // Guard: only apply model/profile if the user hasn't already
+      // interacted with the model or profile pickers before this async load
+      // completed. _userOverrodeModelOrProfile starts false and is set by
+      // _onModelModeChanged / _onProfileChanged. Once true, we must not
+      // overwrite their choice here.
+      if (!_userOverrodeModelOrProfile) {
+        _modelMode = resolution.resolvedModelMode;
+        _profileModelOverride = resolution.resolvedRawModelString;
+        _selectedProfile = resolution.resolvedProfile;
       }
-      _availableProfiles = deduped;
-      _selectedProfile ??= selectedProfile;
+      _availableProfiles = resolution.availableProfiles;
     });
   }
 
@@ -451,12 +381,17 @@ extension _ChatScreenActions on _ChatScreenState {
       _session?.metadata?.flavor,
     );
     setState(() {
+      _userOverrodeModelOrProfile = true;
       _modelMode = normalized;
       _profileModelOverride = normalized.modeString;
     });
     ref
         .read(chatActionNotifierProvider.notifier)
-        .saveModelMode(widget.sessionId, normalized.modeString);
+        .saveSelection(
+          widget.sessionId,
+          profileId: _selectedProfile?.id,
+          modelMode: normalized.modeString,
+        );
 
     // The next sendMessage call will automatically detect the model
     // change and kill+respawn the session with the new model.
@@ -502,9 +437,7 @@ extension _ChatScreenActions on _ChatScreenState {
       // model list rather than crashing the screen.  The next
       // applyUpdates / onSessionVisible cycle can retry once sync
       // is ready.
-      logger.warning(
-        '_refreshCodexModelModes: skipping — $e',
-      );
+      logger.warning('_refreshCodexModelModes: skipping - $e');
     } finally {
       _isLoadingCodexModelModes = false;
     }
@@ -536,26 +469,25 @@ extension _ChatScreenActions on _ChatScreenState {
         : _permissionMode;
 
     setState(() {
+      _userOverrodeModelOrProfile = true;
       _selectedProfile = profile;
       _modelMode = newModel;
       _profileModelOverride = rawModelString;
       _permissionMode = newPermissionMode;
     });
-    if (profilePermMode != null) {
-      ref.read(chatActionNotifierProvider.notifier)
-        ..saveProfile(widget.sessionId, profile?.id)
-        // Save the profile's defaultModelMode, not 'default'
-        ..saveModelMode(widget.sessionId, rawModelString)
-        ..savePermissionMode(
+    // Save the profile's defaultModelMode, not 'default'. Profile, model,
+    // and (when the profile defines one) permission mode are written
+    // atomically so the pairing can never desync.
+    ref
+        .read(chatActionNotifierProvider.notifier)
+        .saveSelection(
           widget.sessionId,
-          newPermissionMode.toModeString(),
+          profileId: profile?.id,
+          modelMode: rawModelString,
+          permissionMode: profilePermMode != null
+              ? newPermissionMode.toModeString()
+              : null,
         );
-    } else {
-      ref.read(chatActionNotifierProvider.notifier)
-        ..saveProfile(widget.sessionId, profile?.id)
-        // Save the profile's defaultModelMode, not 'default'
-        ..saveModelMode(widget.sessionId, rawModelString);
-    }
 
     // The next sendMessage call will automatically detect the profile
     // mismatch and kill+respawn the session with the new env vars.

@@ -37,6 +37,7 @@ import 'loop_command_parser.dart';
 import 'message_detail_screen.dart';
 import 'message_render_signature.dart';
 import 'message_widget.dart';
+import 'model_selection_resolver.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
@@ -141,6 +142,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// model string (e.g., 'GLM-5', 'MiniMax-Text-01') while _modelMode
   /// remains ChatModelMode.defaultModel for UI purposes.
   String? _profileModelOverride;
+
+  /// True once the user interactively changes the model or profile via
+  /// [_onModelModeChanged] / [_onProfileChanged]. Guards
+  /// `_loadInitialSettings` against clobbering that choice if the async
+  /// `DraftStorage` read it depends on is still in flight when the user
+  /// acts. Without this, the async load would silently overwrite an
+  /// interactive pick made a moment earlier.
+  bool _userOverrodeModelOrProfile = false;
   AIBackendProfile? _selectedProfile;
   List<AIBackendProfile> _availableProfiles = const [];
   List<ChatModelMode> _codexModelModes = const [ChatModelMode.defaultModel];

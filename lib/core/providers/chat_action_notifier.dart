@@ -77,7 +77,7 @@ class ChatActionNotifier extends Notifier<void> {
 
   /// Save the permission mode for a session and update settings.
   void savePermissionMode(String sessionId, String modeString) {
-    DraftStorage().savePermissionMode(sessionId, modeString);
+    unawaited(DraftStorage().savePermissionMode(sessionId, modeString));
     // updateSetting() calls sync.applySettings() internally.
     unawaited(
       ref
@@ -88,7 +88,7 @@ class ChatActionNotifier extends Notifier<void> {
 
   /// Save the model mode for a session and update settings.
   void saveModelMode(String sessionId, String modeString) {
-    DraftStorage().saveModelMode(sessionId, modeString);
+    unawaited(DraftStorage().saveModelMode(sessionId, modeString));
     // updateSetting() calls sync.applySettings() internally.
     unawaited(
       ref
@@ -121,6 +121,23 @@ class ChatActionNotifier extends Notifier<void> {
             settings.lastUsedProfilesWithAgent(agent, profileId),
           ),
     );
+  }
+
+  /// Save profile, model mode, and (optionally) permission mode as a
+  /// single atomic call so the profile/model pairing can never desync -
+  /// e.g. a profile switch must always persist its `defaultModelMode`
+  /// alongside the new profile id, never one without the other.
+  void saveSelection(
+    String sessionId, {
+    required String modelMode,
+    String? profileId,
+    String? permissionMode,
+  }) {
+    saveProfile(sessionId, profileId);
+    saveModelMode(sessionId, modelMode);
+    if (permissionMode != null) {
+      savePermissionMode(sessionId, permissionMode);
+    }
   }
 }
 
