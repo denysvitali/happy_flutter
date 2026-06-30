@@ -798,14 +798,30 @@ void main() {
         }
         expect(fetchOlderCount, orphanAggressiveAttempts);
 
-        // orph-1 resolves (attached to its real parent) and a disjoint
-        // orph-NEW burst arrives in its place. This is NOT pure growth —
-        // the tracked set does not contain orph-NEW, and orph-1 is gone
-        // — so it must open a fresh budget. (Pure growth, where orph-1
-        // would still be present alongside orph-NEW, must NOT grant a
-        // fresh budget — see sidechain_orphan_walkback_test.dart's
-        // "no-progress counter must not be pinned at zero" regression.)
+        // orph-1 is still unresolved and still present, but a disjoint
+        // orph-NEW burst (a different parent Task group) arrives
+        // alongside it. The walk-back tracks parent Task groups
+        // alongside orphan ids precisely so this case still opens a
+        // fresh budget: a brand-new, unrelated burst deserves its own
+        // look even while an older, stuck burst is still pending. This
+        // is distinct from pure growth of the SAME parent group (more
+        // children of orph-1's own stuck parent arriving) — see
+        // sidechain_orphan_walkback_test.dart's "no-progress counter
+        // must not be pinned at zero" and "a disjoint new parent group
+        // opens a fresh budget even while an older stuck parent group
+        // is still pending" regressions for both halves of this
+        // contract.
         syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
           <String, dynamic>{
             'id': 'orph-NEW',
             'isSidechain': true,
@@ -824,7 +840,8 @@ void main() {
         expect(
           fetchOlderCount,
           orphanAggressiveAttempts + 1,
-          reason: 'a genuinely changed orphan set must grant a fresh budget',
+          reason: 'a disjoint new parent group must grant a fresh budget '
+              'even while the older orphan is still present',
         );
       });
 
