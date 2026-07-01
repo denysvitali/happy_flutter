@@ -321,6 +321,56 @@ void main() {
       expect(matching.single['sendStatus'], 'pending');
     });
 
+    test('outbox delivery applies REST ACK with the same localId', () async {
+      instance.testSocketConnectedOverride = true;
+      instance.testSocketSendOverride = (event, data) {
+        capturedSocketEvent = event;
+        capturedSocketData = data;
+      };
+      final raw = <String, dynamic>{
+        'role': 'user',
+        'content': <String, dynamic>{'type': 'text', 'text': 'outbox'},
+      };
+      instance.testSetSessionMessages('sess-1', [
+        <String, dynamic>{
+          'id': 'client-local-outbox',
+          'localId': 'client-local-outbox',
+          'role': 'user',
+          'kind': 'text',
+          'content': 'outbox',
+          'raw': raw,
+          'sendStatus': 'pending',
+        },
+      ]);
+
+      final delivered = await instance.testDeliverOutboxEntry(
+        OutboxEntry(
+          localId: 'client-local-outbox',
+          sessionId: 'sess-1',
+          text: 'outbox',
+          encryptedContent: 'encrypted-content',
+          rawRecord: raw,
+          queuedAt: 1700000000000,
+        ),
+      );
+
+      expect(delivered, isTrue);
+      expect(instance.sessionMessageCursors['sess-1'], 2);
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final matching = localMessages.where(
+        (m) => m['localId'] == 'client-local-outbox',
+      );
+      expect(matching, hasLength(1));
+      expect(matching.single['id'], 'srv-msg-1');
+      expect(matching.single['sendStatus'], 'sent');
+
+      expect(capturedSocketEvent, 'message');
+      final socketPayload = capturedSocketData as Map<String, dynamic>;
+      expect(socketPayload['sid'], 'sess-1');
+      expect(socketPayload['localId'], 'client-local-outbox');
+      expect(socketPayload['message'], 'encrypted-content');
+    });
+
     test('backgrounded send queues retry without touching REST', () async {
       InvalidateSync.isBackgrounded = true;
 

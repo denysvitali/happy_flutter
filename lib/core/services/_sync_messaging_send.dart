@@ -433,80 +433,29 @@ extension SyncMessagingSend on Sync {
           '${serverMessages.length} message(s) localId=$localId',
         );
 
-        Map<String, dynamic>? ackedServerMsg;
-        for (final msg in serverMessages) {
-          if (msg['localId'] == localId) {
-            ackedServerMsg = msg;
-            break;
-          }
-        }
+        final ackedServerMsg = _findAckedServerMessage(serverMessages, localId);
 
         if (ackedServerMsg != null) {
           sent = true;
-          final serverId = ackedServerMsg['id'] as String?;
-          final serverSeq = _asInt(ackedServerMsg['seq']);
-          final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
+          final serverSeq = _applyServerAckedUserMessage(
+            sessionId: targetSessionId,
+            localId: localId,
+            text: text,
+            rawRecord: rawRecord,
+            ackedServerMsg: ackedServerMsg,
+            logPrefix: '[sendMessage]',
+            notifyOnComplete: true,
+          );
           if (serverSeq != null) {
             catchUpStopAfterSeq = serverSeq;
-            _advanceSeqCursor(targetSessionId, serverSeq);
-          }
-          logger.info(
-            '[sendMessage] ACK localId=$localId '
-            'serverId=${serverId ?? 'null'} '
-            'seq=${serverSeq ?? -1}',
-          );
-          if (serverId != null &&
-              serverSeq != null &&
-              serverCreatedAt != null) {
-            _upsertSessionMessages(targetSessionId, [
-              {
-                'id': serverId,
-                'localId': localId,
-                'seq': serverSeq,
-                'createdAt': serverCreatedAt,
-                'role': 'user',
-                'kind': 'text',
-                'content': text,
-                'raw': rawRecord,
-                'sendStatus': 'sent',
-              },
-            ]);
-            _notifySessionMessagesChanged(targetSessionId);
-          } else {
-            // Mark sent even without full server fields.
-            _updateMessageSendStatus(targetSessionId, localId, 'sent');
-            _notifySessionMessagesChanged(targetSessionId);
-            logger.warning(
-              '[sendMessage] server ack missing '
-              'id/seq/createdAt '
-              'session=$targetSessionId localId=$localId',
-            );
           }
 
-          final socketNow = _isSocketConnected();
-          if (socketNow) {
-            logger.info(
-              '[sendMessage] emitting socket message event '
-              'session=$targetSessionId localId=$localId',
-            );
-            _emitSocketMessage(targetSessionId, encryptedRawRecord, localId);
-          } else {
-            // Socket is reconnecting — the REST POST already succeeded so
-            // the message is stored on the server.  Retry the daemon
-            // notification after a delay so the agent picks it up promptly
-            // once the socket reconnects, instead of waiting for the next
-            // daemon poll cycle (which may be 30+ seconds).
-            logger.warning(
-              '[sendMessage] socket not connected, scheduling '
-              'daemon notification retry '
-              'session=$targetSessionId localId=$localId',
-            );
-            _retryDaemonNotification(
-              targetSessionId,
-              encryptedRawRecord,
-              localId,
-            );
-          }
+          _notifyDaemonOfStoredMessage(
+            sessionId: targetSessionId,
+            encryptedRawRecord: encryptedRawRecord,
+            localId: localId,
+            logPrefix: '[sendMessage]',
+          );
         } else {
           logger.warning(
             '[sendMessage] REST send had no localId ack; '
@@ -655,6 +604,88 @@ extension SyncMessagingSend on Sync {
     return message['localId'] == localId || message['id'] == localId;
   }
 
+  Map<String, dynamic>? _findAckedServerMessage(
+    List<Map<String, dynamic>> serverMessages,
+    String localId,
+  ) {
+    for (final msg in serverMessages) {
+      if (msg['localId'] == localId) return msg;
+    }
+    return null;
+  }
+
+  int? _applyServerAckedUserMessage({
+    required String sessionId,
+    required String localId,
+    required String text,
+    required Map<String, dynamic> rawRecord,
+    required Map<String, dynamic> ackedServerMsg,
+    required String logPrefix,
+    required bool notifyOnComplete,
+  }) {
+    final serverId = ackedServerMsg['id'] as String?;
+    final serverSeq = _asInt(ackedServerMsg['seq']);
+    final serverCreatedAt = _asInt(ackedServerMsg['createdAt']);
+    if (serverSeq != null) {
+      _advanceSeqCursor(sessionId, serverSeq);
+    }
+    logger.info(
+      '$logPrefix ACK localId=$localId '
+      'serverId=${serverId ?? 'null'} '
+      'seq=${serverSeq ?? -1}',
+    );
+    if (serverId != null && serverSeq != null && serverCreatedAt != null) {
+      _upsertSessionMessages(sessionId, [
+        {
+          'id': serverId,
+          'localId': localId,
+          'seq': serverSeq,
+          'createdAt': serverCreatedAt,
+          'role': 'user',
+          'kind': 'text',
+          'content': text,
+          'raw': rawRecord,
+          'sendStatus': 'sent',
+        },
+      ]);
+      if (notifyOnComplete) {
+        _notifySessionMessagesChanged(sessionId);
+      }
+    } else {
+      _updateMessageSendStatus(sessionId, localId, 'sent');
+      _notifySessionMessagesChanged(sessionId);
+      logger.warning(
+        '$logPrefix server ack missing id/seq/createdAt '
+        'session=$sessionId localId=$localId',
+      );
+    }
+    return serverSeq;
+  }
+
+  void _notifyDaemonOfStoredMessage({
+    required String sessionId,
+    required String encryptedRawRecord,
+    required String localId,
+    required String logPrefix,
+  }) {
+    if (_isSocketConnected()) {
+      logger.info(
+        '$logPrefix emitting socket message event '
+        'session=$sessionId localId=$localId',
+      );
+      _emitSocketMessage(sessionId, encryptedRawRecord, localId);
+      return;
+    }
+
+    // Socket is reconnecting; REST already stored the message. Retry the
+    // daemon notification so the agent picks it up before its next poll.
+    logger.warning(
+      '$logPrefix socket not connected, scheduling '
+      'daemon notification retry session=$sessionId localId=$localId',
+    );
+    _retryDaemonNotification(sessionId, encryptedRawRecord, localId);
+  }
+
   /// Returns true for errors that indicate the message will never succeed
   /// (e.g. session doesn't exist).  These should be marked failed
   /// immediately rather than queued for retry.
@@ -713,61 +744,24 @@ extension SyncMessagingSend on Sync {
           .whereType<Map<String, dynamic>>()
           .toList();
 
-      Map<String, dynamic>? ackedMsg;
-      for (final msg in serverMessages) {
-        if (msg['localId'] == entry.localId) {
-          ackedMsg = msg;
-          break;
-        }
-      }
+      final ackedMsg = _findAckedServerMessage(serverMessages, entry.localId);
 
       if (ackedMsg != null) {
-        final serverId = ackedMsg['id'] as String?;
-        final serverSeq = _asInt(ackedMsg['seq']);
-        final serverCreatedAt = _asInt(ackedMsg['createdAt']);
-        if (serverSeq != null) {
-          _advanceSeqCursor(entry.sessionId, serverSeq);
-        }
-        if (serverId != null && serverSeq != null && serverCreatedAt != null) {
-          _upsertSessionMessages(entry.sessionId, [
-            {
-              'id': serverId,
-              'localId': entry.localId,
-              'seq': serverSeq,
-              'createdAt': serverCreatedAt,
-              'role': 'user',
-              'kind': 'text',
-              'content': entry.text,
-              'raw': entry.rawRecord,
-              'sendStatus': 'sent',
-            },
-          ]);
-        } else {
-          // Mark sent even without full server fields — matches
-          // the else-case in _completeSend.  Without this the
-          // optimistic placeholder stays stuck in "sending" state
-          // forever after the outbox removes the entry.
-          _updateMessageSendStatus(entry.sessionId, entry.localId, 'sent');
-          _notifySessionMessagesChanged(entry.sessionId);
-          logger.warning(
-            '[MessageOutbox] server ack missing id/seq/createdAt '
-            'session=${entry.sessionId} '
-            'localId=${entry.localId}',
-          );
-        }
-        if (_isSocketConnected()) {
-          _emitSocketMessage(
-            entry.sessionId,
-            entry.encryptedContent,
-            entry.localId,
-          );
-        } else {
-          _retryDaemonNotification(
-            entry.sessionId,
-            entry.encryptedContent,
-            entry.localId,
-          );
-        }
+        final serverSeq = _applyServerAckedUserMessage(
+          sessionId: entry.sessionId,
+          localId: entry.localId,
+          text: entry.text,
+          rawRecord: entry.rawRecord,
+          ackedServerMsg: ackedMsg,
+          logPrefix: '[MessageOutbox]',
+          notifyOnComplete: false,
+        );
+        _notifyDaemonOfStoredMessage(
+          sessionId: entry.sessionId,
+          encryptedRawRecord: entry.encryptedContent,
+          localId: entry.localId,
+          logPrefix: '[MessageOutbox]',
+        );
         if (messagesSync.containsKey(entry.sessionId)) {
           _startPostSendCatchUp(entry.sessionId, sentUserSeq: serverSeq ?? 0);
         }
