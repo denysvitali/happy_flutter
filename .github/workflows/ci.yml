@@ -124,7 +124,15 @@ jobs:
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
-          mise exec -- flutter test --coverage --concurrency=1 --reporter=expanded "${shard_tests[@]}"
+          set +e
+          mise exec -- flutter test --coverage --concurrency=1 --reporter=expanded "${shard_tests[@]}" 2>&1 | tee test-output.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            grep -n -E -B 20 -A 40 "EXCEPTION CAUGHT|Expected:|Actual:|Which:|TestFailure|Error:|══╡" test-output.log \
+              | sed 's/^/::error::/' || true
+          fi
+          exit "$status"
 
       - name: Upload coverage artifact
         if: always()
