@@ -90,22 +90,25 @@ class MessageProjection {
                 localId: localId,
                 state: ProjectedState.sending,
               );
-          base.state = ProjectedState.merged;
-          base.serverId =
-              (event.payload['serverId'] as String?) ?? base.serverId;
-          base.seq = (event.payload['seq'] as int?) ?? base.seq;
-          base.text = (event.payload['content'] as String?) ?? base.text;
-          base.lastLamport = event.lamport;
+          base
+            ..state = ProjectedState.merged
+            ..serverId =
+                (event.payload['serverId'] as String?) ?? base.serverId
+            ..seq = (event.payload['seq'] as int?) ?? base.seq
+            ..text = (event.payload['content'] as String?) ?? base.text
+            ..lastLamport = event.lamport;
           byLocal[localId] = base;
         case MessageEventKind.retryRequested:
           if (existing != null && existing.state != ProjectedState.merged) {
-            existing.state = ProjectedState.sending;
-            existing.lastLamport = event.lamport;
+            existing
+              ..state = ProjectedState.sending
+              ..lastLamport = event.lamport;
           }
         case MessageEventKind.sendFailed:
           if (existing != null && existing.state != ProjectedState.merged) {
-            existing.state = ProjectedState.failed;
-            existing.lastLamport = event.lamport;
+            existing
+              ..state = ProjectedState.failed
+              ..lastLamport = event.lamport;
           }
       }
     }
