@@ -294,14 +294,12 @@ extension SyncMessagingSend on Sync {
           '[sendMessage] app backgrounded before delivery; '
           'queueing outbox retry session=$targetSessionId localId=$localId',
         );
-        await messageOutbox.add(
-          _createOutboxEntry(
-            sessionId: targetSessionId,
-            localId: localId,
-            text: text,
-            encryptedRawRecord: encryptedRawRecord,
-            rawRecord: rawRecord,
-          ),
+        await _queueMessageRetry(
+          sessionId: targetSessionId,
+          localId: localId,
+          text: text,
+          encryptedRawRecord: encryptedRawRecord,
+          rawRecord: rawRecord,
         );
         await transaction.finish(status: const SpanStatus.cancelled());
         return;
@@ -387,14 +385,12 @@ extension SyncMessagingSend on Sync {
           '[sendMessage] app backgrounded before POST; '
           'queueing outbox retry session=$targetSessionId localId=$localId',
         );
-        await messageOutbox.add(
-          _createOutboxEntry(
-            sessionId: targetSessionId,
-            localId: localId,
-            text: text,
-            encryptedRawRecord: encryptedRawRecord,
-            rawRecord: rawRecord,
-          ),
+        await _queueMessageRetry(
+          sessionId: targetSessionId,
+          localId: localId,
+          text: text,
+          encryptedRawRecord: encryptedRawRecord,
+          rawRecord: rawRecord,
         );
         unawaited(postSpan.finish(status: const SpanStatus.cancelled()));
         await transaction.finish(status: const SpanStatus.cancelled());
@@ -544,14 +540,12 @@ extension SyncMessagingSend on Sync {
       } else if (!sent) {
         // Queue in the outbox for automatic retry with backoff.
         unawaited(
-          messageOutbox.add(
-            _createOutboxEntry(
-              sessionId: targetSessionId,
-              localId: localId,
-              text: text,
-              encryptedRawRecord: encryptedRawRecord,
-              rawRecord: rawRecord,
-            ),
+          _queueMessageRetry(
+            sessionId: targetSessionId,
+            localId: localId,
+            text: text,
+            encryptedRawRecord: encryptedRawRecord,
+            rawRecord: rawRecord,
           ),
         );
         // The outbox onStatusChanged callback sets 'pending' status.
@@ -569,7 +563,7 @@ extension SyncMessagingSend on Sync {
     _notifySessionMessagesChangedUiOnly(targetSessionId);
   }
 
-  OutboxEntry _createOutboxEntry({
+  Future<void> _queueMessageRetry({
     required String sessionId,
     required String localId,
     required String text,
@@ -577,14 +571,16 @@ extension SyncMessagingSend on Sync {
     required Map<String, dynamic> rawRecord,
     int retryCount = 0,
   }) {
-    return OutboxEntry(
-      localId: localId,
-      sessionId: sessionId,
-      text: text,
-      encryptedContent: encryptedRawRecord,
-      rawRecord: rawRecord,
-      queuedAt: DateTime.now().millisecondsSinceEpoch,
-      retryCount: retryCount,
+    return messageOutbox.add(
+      OutboxEntry(
+        localId: localId,
+        sessionId: sessionId,
+        text: text,
+        encryptedContent: encryptedRawRecord,
+        rawRecord: rawRecord,
+        queuedAt: DateTime.now().millisecondsSinceEpoch,
+        retryCount: retryCount,
+      ),
     );
   }
 
@@ -930,7 +926,9 @@ extension SyncMessagingSend on Sync {
 
     final encryptedRawRecord = await sessionEncryption.encryptRawRecord(raw);
 
-    final entry = _createOutboxEntry(
+    _updateMessageSendStatus(sessionId, localId, 'sending');
+
+    await _queueMessageRetry(
       sessionId: sessionId,
       localId: localId,
       text: text,
@@ -938,10 +936,6 @@ extension SyncMessagingSend on Sync {
       rawRecord: raw,
       retryCount: 0,
     );
-
-    _updateMessageSendStatus(sessionId, localId, 'sending');
-
-    await messageOutbox.add(entry);
 
     logger.info(
       '[retryFailedMessage] queued for retry: '

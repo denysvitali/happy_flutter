@@ -177,14 +177,3 @@ int? _clampTimestampToNow(int? value, int nowMs) {
 bool? _asSessionBool(dynamic value) {
   return WireParsers.parseBool(value);
 }
-
-int _parseCreatedAtMs(dynamic raw) {
-  if (raw is int) return raw;
-  if (raw is String) {
-    final parsed = DateTime.tryParse(raw);
-    if (parsed != null) {
-      return parsed.millisecondsSinceEpoch;
-    }
-  }
-  return DateTime.now().millisecondsSinceEpoch;
-}

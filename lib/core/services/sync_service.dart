@@ -201,12 +201,6 @@ class Sync {
   /// without resolution, switch to throttled mode.
   static const int _orphanPageSequencesPerAggressiveAttempt = 5;
 
-  /// 5-minute window used to gate the "persistent orphan" observability
-  /// breadcrumb so we emit at most one capture per orphan signature
-  /// per 5 minutes, preventing Sentry/Loki noise from a session stuck
-  /// in a permanent orphan state.
-  static const int _orphanDwellSignatureWindowMs = 300000;
-
   /// Per-page fetch size for [/v3/sessions/:id/messages].
   ///
   /// Previously 1000 — which on outlier sessions with large encrypted
@@ -617,47 +611,6 @@ what you have, you must use the options mode.
   /// Used after history is exhausted so caught-up fetches don't repeatedly
   /// run the O(n) grouper for sidechain children that must render inline.
   final Map<String, int> _orphanSuppressedUntilMs = {};
-
-  /// Per-session lowest [_sessionFirstLoadedSeq] reached during the
-  /// orphan-recovery walk-back. Independent of orphan-count changes: a
-  /// fetchOlder page that pulls older history without attaching any
-  /// orphans still advances this value, letting the merge sweep credit
-  /// progress on the "fetch window advanced" axis. Without this, the
-  /// sweep can only see "did the orphan count change?" — which misses
-  /// the common case where the parent Task is genuinely just below the
-  /// loaded window and progress is measured in seqs not orphans.
-  final Map<String, int> _orphanLowestFirstLoadedSeq = {};
-
-  /// Per-session count of orphan resolutions that did not come from the
-  /// fetchOlder axis (i.e. resolved via prompt / agentId / parentUuid
-  /// fallback during a regular grouping pass). Tracked so the
-  /// "fallback axis resolved" progress axis is observable to the merge
-  /// sweep's 4-axis progress ledger.
-  final Map<String, int> _orphanFallbackResolves = {};
-
-  /// Per-session deepest parentToolUseId distance still needed. Tracked
-  /// across walk-back cycles so the budget can be depth-proportional:
-  /// orphans whose parent sits 30k seqs below the loaded window get
-  /// more aggressive retry headroom than orphans whose parent sits
-  /// only 200 seqs below.
-  final Map<String, int> _orphanDeepestParentDistance = {};
-
-  /// Per-session signature seen when the most recent suppression
-  /// window was opened. When the merge sweep sees a genuinely new
-  /// [_orphanWalkbackOrphanIds] set while suppression is still active, it
-  /// flips this flag to indicate the suppression should be bypassed
-  /// for the next regroup attempt — orphan activity arriving during
-  /// the window is a signal the user wants recovery to keep
-  /// happening, not to be throttled.
-  final Map<String, int> _orphanSuppressedByNewSignature = {};
-
-  /// Per-session set of orphan signatures that have already fired
-  /// the persistent-orphan breadcrumb during the
-  /// [_orphanDwellSignatureWindowMs] dwell window.  Throttles the
-  /// breadcrumb to at most one per signature per 5 minutes so a
-  /// session stuck in a permanent orphan state does not flood
-  /// Sentry/Loki.  Keyed `$sessionId:$signature`.
-  final Map<String, int> _orphanPersistentBreadcrumbEmittedMs = {};
 
   /// Sessions that received `new-message` socket events while they were
   /// not visible. When the user navigates to one of these sessions,
