@@ -441,10 +441,11 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
         _showOverlay = filtered.isNotEmpty;
       });
     } catch (e) {
-      logger.warning('[FileAutocomplete] _fetchSuggestions failed: $e');
+      logger.info('[FileAutocomplete] _fetchSuggestions failed: $e');
       if (!mounted) return;
       setState(() {
         _suggestions = [];
+        _selectedIndex = -1;
         _showOverlay = false;
       });
     } finally {
