@@ -4,16 +4,28 @@ import 'package:happy_flutter/core/event_log/event_log_flag.dart';
 import 'package:happy_flutter/core/event_log/message_projection.dart';
 
 void main() {
+  final logs = <EventLog>[];
+
+  EventLog newLog() {
+    final log = EventLog(InMemoryEventLogStore());
+    logs.add(log);
+    return log;
+  }
+
   setUp(() {
     setUseEventLogForTest(true);
   });
-  tearDown(() {
+  tearDown(() async {
+    for (final log in logs) {
+      await log.dispose();
+    }
+    logs.clear();
     setUseEventLogForTest(false);
   });
 
   group('EventLog', () {
     test('lamport counter is monotonic and per-session', () async {
-      final log = EventLog(InMemoryEventLogStore());
+      final log = newLog();
       final a1 = await log.append(
         sessionId: 'A',
         kind: MessageEventKind.optimisticAppended,
@@ -72,7 +84,7 @@ void main() {
     }
 
     test('optimistic appended produces sending state', () async {
-      final log = EventLog(InMemoryEventLogStore());
+      final log = newLog();
       final events = await mk(log, 'S', [
         (
           MessageEventKind.optimisticAppended,
@@ -87,7 +99,7 @@ void main() {
     });
 
     test('server ack promotes optimistic to merged by localId', () async {
-      final log = EventLog(InMemoryEventLogStore());
+      final log = newLog();
       final events = await mk(log, 'S', [
         (
           MessageEventKind.optimisticAppended,
@@ -105,7 +117,7 @@ void main() {
     });
 
     test('two distinct localIds with identical text never collapse', () async {
-      final log = EventLog(InMemoryEventLogStore());
+      final log = newLog();
       final events = await mk(log, 'S', [
         (
           MessageEventKind.optimisticAppended,
@@ -131,7 +143,7 @@ void main() {
     });
 
     test('retry preserves localId; fail then ack still ends merged', () async {
-      final log = EventLog(InMemoryEventLogStore());
+      final log = newLog();
       final events = await mk(log, 'S', [
         (
           MessageEventKind.optimisticAppended,
@@ -152,7 +164,7 @@ void main() {
 
     test('out-of-order: socket observed before optimistic still merges',
         () async {
-      final log = EventLog(InMemoryEventLogStore());
+      final log = newLog();
       final events = await mk(log, 'S', [
         (
           MessageEventKind.socketObserved,
@@ -168,7 +180,7 @@ void main() {
     });
 
     test('events without a localId are ignored', () async {
-      final log = EventLog(InMemoryEventLogStore());
+      final log = newLog();
       await log.append(
         sessionId: 'S',
         kind: MessageEventKind.serverAcked,
@@ -179,7 +191,7 @@ void main() {
     });
 
     test('truncate empties the log for one session only', () async {
-      final log = EventLog(InMemoryEventLogStore());
+      final log = newLog();
       await log.append(
         sessionId: 'A',
         kind: MessageEventKind.optimisticAppended,
