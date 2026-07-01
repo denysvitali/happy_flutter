@@ -495,6 +495,10 @@ void main() {
       focusNode = FocusNode();
     });
 
+    tearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
 
     Widget buildAutocomplete({
       required Future<List<FileSuggestion>> Function(String) fetchSuggestions,
