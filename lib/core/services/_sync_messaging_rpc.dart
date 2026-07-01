@@ -74,15 +74,16 @@ extension SyncMessagingRpc on Sync {
               // Stable fingerprint so every FAILED ping (any machine,
               // any elapsedMs) collapses into a single Sentry issue
               // instead of one issue per call.
-              scope.fingerprint = ['machineRPC', 'failed', method];
-              scope.setTag('machineRPC_machine', machineId);
-              scope.setContexts('machineRPC', {
-                'machineId': machineId,
-                'method': method,
-                'requestId': requestId,
-                'elapsedMs': stopwatch.elapsedMilliseconds,
-                'error': error.toString(),
-              });
+              scope
+                ..fingerprint = ['machineRPC', 'failed', method]
+                ..setTag('machineRPC_machine', machineId)
+                ..setContexts('machineRPC', {
+                  'machineId': machineId,
+                  'method': method,
+                  'requestId': requestId,
+                  'elapsedMs': stopwatch.elapsedMilliseconds,
+                  'error': error.toString(),
+                });
             },
           ),
         );
@@ -135,15 +136,16 @@ extension SyncMessagingRpc on Sync {
               withScope: (scope) {
                 // Stable fingerprint so every SLOW ping collapses into
                 // one Sentry issue instead of one per elapsedMs value.
-                scope.fingerprint = ['machineRPC', 'slow', method];
-                scope.setTag('machineRPC_machine', machineId);
-                scope.setContexts('machineRPC', {
-                  'machineId': machineId,
-                  'method': method,
-                  'requestId': requestId,
-                  'elapsedMs': elapsedMs,
-                  'preSendMs': rpcElapsedBeforeSend,
-                });
+                scope
+                  ..fingerprint = ['machineRPC', 'slow', method]
+                  ..setTag('machineRPC_machine', machineId)
+                  ..setContexts('machineRPC', {
+                    'machineId': machineId,
+                    'method': method,
+                    'requestId': requestId,
+                    'elapsedMs': elapsedMs,
+                    'preSendMs': rpcElapsedBeforeSend,
+                  });
               },
             ),
           );
