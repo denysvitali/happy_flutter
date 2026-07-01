@@ -88,6 +88,7 @@ void main() {
     dynamic capturedSocketData;
     var responseStatus = 200;
     Map<String, dynamic>? responseData;
+    Map<String, dynamic>? successResponseData;
 
     setUp(() async {
       instance = Sync();
@@ -122,6 +123,7 @@ void main() {
       capturedSocketData = null;
       responseStatus = 200;
       responseData = null;
+      successResponseData = null;
       await ApiClient().initialize(serverUrl: 'http://localhost');
       ApiClient().testDio!.interceptors.add(
         InterceptorsWrapper(
@@ -147,16 +149,18 @@ void main() {
                 Response<dynamic>(
                   requestOptions: options,
                   statusCode: 200,
-                  data: <String, dynamic>{
-                    'messages': <Map<String, dynamic>>[
+                  data:
+                      successResponseData ??
                       <String, dynamic>{
-                        'id': 'srv-msg-1',
-                        'seq': 2,
-                        'localId': requestLocalId,
-                        'createdAt': 1700000005000,
+                        'messages': <Map<String, dynamic>>[
+                          <String, dynamic>{
+                            'id': 'srv-msg-1',
+                            'seq': 2,
+                            'localId': requestLocalId,
+                            'createdAt': 1700000005000,
+                          },
+                        ],
                       },
-                    ],
-                  },
                 ),
               );
               return;
@@ -370,6 +374,61 @@ void main() {
       expect(socketPayload['localId'], 'client-local-outbox');
       expect(socketPayload['message'], 'encrypted-content');
     });
+
+    test(
+      'outbox delivery with HTTP 200 but no localId ACK marks sent',
+      () async {
+        successResponseData = <String, dynamic>{
+          'messages': <Map<String, dynamic>>[],
+        };
+        instance
+          ..testSocketConnectedOverride = true
+          ..testSocketSendOverride = (event, data) {
+            capturedSocketEvent = event;
+            capturedSocketData = data;
+          };
+        final raw = <String, dynamic>{
+          'role': 'user',
+          'content': <String, dynamic>{'type': 'text', 'text': 'outbox'},
+        };
+        instance.testSetSessionMessages('sess-1', [
+          <String, dynamic>{
+            'id': 'client-local-outbox-no-ack',
+            'localId': 'client-local-outbox-no-ack',
+            'role': 'user',
+            'kind': 'text',
+            'content': 'outbox',
+            'raw': raw,
+            'sendStatus': 'pending',
+          },
+        ]);
+
+        final delivered = await instance.testDeliverOutboxEntry(
+          OutboxEntry(
+            localId: 'client-local-outbox-no-ack',
+            sessionId: 'sess-1',
+            text: 'outbox',
+            encryptedContent: 'encrypted-content',
+            rawRecord: raw,
+            queuedAt: 1700000000000,
+          ),
+        );
+
+        expect(delivered, isTrue);
+        final localMessages = instance.testSessionMessages('sess-1')!;
+        final matching = localMessages.where(
+          (m) => m['localId'] == 'client-local-outbox-no-ack',
+        );
+        expect(matching, hasLength(1));
+        expect(matching.single['sendStatus'], 'sent');
+
+        expect(capturedSocketEvent, 'message');
+        final socketPayload = capturedSocketData as Map<String, dynamic>;
+        expect(socketPayload['sid'], 'sess-1');
+        expect(socketPayload['localId'], 'client-local-outbox-no-ack');
+        expect(socketPayload['message'], 'encrypted-content');
+      },
+    );
 
     test('backgrounded send queues retry without touching REST', () async {
       InvalidateSync.isBackgrounded = true;

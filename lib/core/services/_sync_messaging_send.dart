@@ -421,9 +421,7 @@ extension SyncMessagingSend on Sync {
 
       if (apiClient.isSuccess(response)) {
         final data = WireParsers.asMap(response.data);
-        final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
-            .whereType<Map<String, dynamic>>()
-            .toList();
+        final serverMessages = _serverMessagesFromResponseData(data);
         logger.info(
           '[sendMessage] response contained '
           '${serverMessages.length} message(s) localId=$localId',
@@ -433,11 +431,12 @@ extension SyncMessagingSend on Sync {
 
         if (ackedServerMsg != null) {
           sent = true;
-          final serverSeq = _applyServerAckedUserMessage(
+          final serverSeq = _applyStoredUserMessageAck(
             sessionId: targetSessionId,
             localId: localId,
             text: text,
             rawRecord: rawRecord,
+            encryptedRawRecord: encryptedRawRecord,
             ackedServerMsg: ackedServerMsg,
             logPrefix: '[sendMessage]',
             notifyOnComplete: true,
@@ -445,13 +444,6 @@ extension SyncMessagingSend on Sync {
           if (serverSeq != null) {
             catchUpStopAfterSeq = serverSeq;
           }
-
-          _notifyDaemonOfStoredMessage(
-            sessionId: targetSessionId,
-            encryptedRawRecord: encryptedRawRecord,
-            localId: localId,
-            logPrefix: '[sendMessage]',
-          );
         } else {
           logger.warning(
             '[sendMessage] REST send had no localId ack; '
@@ -610,6 +602,62 @@ extension SyncMessagingSend on Sync {
     return null;
   }
 
+  List<Map<String, dynamic>> _serverMessagesFromResponseData(
+    Map<String, dynamic>? data,
+  ) {
+    return (data?['messages'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
+  int? _applyStoredUserMessageAck({
+    required String sessionId,
+    required String localId,
+    required String text,
+    required Map<String, dynamic> rawRecord,
+    required String encryptedRawRecord,
+    required Map<String, dynamic> ackedServerMsg,
+    required String logPrefix,
+    required bool notifyOnComplete,
+  }) {
+    final serverSeq = _applyServerAckedUserMessage(
+      sessionId: sessionId,
+      localId: localId,
+      text: text,
+      rawRecord: rawRecord,
+      ackedServerMsg: ackedServerMsg,
+      logPrefix: logPrefix,
+      notifyOnComplete: notifyOnComplete,
+    );
+    _notifyDaemonOfStoredMessage(
+      sessionId: sessionId,
+      encryptedRawRecord: encryptedRawRecord,
+      localId: localId,
+      logPrefix: logPrefix,
+    );
+    return serverSeq;
+  }
+
+  void _acceptStoredUserMessageWithoutAck({
+    required String sessionId,
+    required String localId,
+    required String encryptedRawRecord,
+    required String logPrefix,
+  }) {
+    logger.warning(
+      '$logPrefix no localId ack localId=$localId - '
+      'HTTP 200 accepted, treating as delivered',
+    );
+    _notifyDaemonOfStoredMessage(
+      sessionId: sessionId,
+      encryptedRawRecord: encryptedRawRecord,
+      localId: localId,
+      logPrefix: logPrefix,
+    );
+    _updateMessageSendStatus(sessionId, localId, 'sent');
+    _notifySessionMessagesChanged(sessionId);
+  }
+
   int? _applyServerAckedUserMessage({
     required String sessionId,
     required String localId,
@@ -736,27 +784,20 @@ extension SyncMessagingSend on Sync {
       }
 
       final data = WireParsers.asMap(response.data);
-      final serverMessages = (data?['messages'] as List<dynamic>? ?? [])
-          .whereType<Map<String, dynamic>>()
-          .toList();
+      final serverMessages = _serverMessagesFromResponseData(data);
 
       final ackedMsg = _findAckedServerMessage(serverMessages, entry.localId);
 
       if (ackedMsg != null) {
-        final serverSeq = _applyServerAckedUserMessage(
+        final serverSeq = _applyStoredUserMessageAck(
           sessionId: entry.sessionId,
           localId: entry.localId,
           text: entry.text,
           rawRecord: entry.rawRecord,
+          encryptedRawRecord: entry.encryptedContent,
           ackedServerMsg: ackedMsg,
           logPrefix: '[MessageOutbox]',
           notifyOnComplete: false,
-        );
-        _notifyDaemonOfStoredMessage(
-          sessionId: entry.sessionId,
-          encryptedRawRecord: entry.encryptedContent,
-          localId: entry.localId,
-          logPrefix: '[MessageOutbox]',
         );
         if (messagesSync.containsKey(entry.sessionId)) {
           _startPostSendCatchUp(entry.sessionId, sentUserSeq: serverSeq ?? 0);
@@ -770,10 +811,15 @@ extension SyncMessagingSend on Sync {
 
       // Server accepted but no localId ack. Trust the HTTP 200 since the
       // server uses idempotent storage (ON CONFLICT DO NOTHING).
-      logger.warning(
-        '[MessageOutbox] no localId ack '
-        'localId=${entry.localId} — HTTP 200 accepted, treating as delivered',
+      _acceptStoredUserMessageWithoutAck(
+        sessionId: entry.sessionId,
+        localId: entry.localId,
+        encryptedRawRecord: entry.encryptedContent,
+        logPrefix: '[MessageOutbox]',
       );
+      if (messagesSync.containsKey(entry.sessionId)) {
+        _startPostSendCatchUp(entry.sessionId, sentUserSeq: 0);
+      }
       return true;
     } catch (e, stack) {
       // Exceptions during local processing (after HTTP 200 was received)
