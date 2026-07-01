@@ -44,7 +44,7 @@ void main() {
       );
 
       final text = tester.widget<Text>(find.text('test.dart'));
-      expect(text.style?.fontFamily, contains('SourceCodePro'));
+      expect(text.style?.fontFamily, 'monospace');
     });
 
     testWidgets('renders long paths with ellipsis', (tester) async {

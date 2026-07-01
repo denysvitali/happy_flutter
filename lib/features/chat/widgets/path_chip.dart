@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// A chip widget that displays a file path with monospace font
@@ -29,14 +28,14 @@ class PathChip extends StatelessWidget {
           Icon(
             Icons.folder_outlined,
             size: 10,
-            color: colorScheme.onSurfaceVariant
-                .withValues(alpha: 0.7),
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
           const SizedBox(width: 3),
           Flexible(
             child: Text(
               path,
-              style: GoogleFonts.sourceCodePro(
+              style: TextStyle(
+                fontFamily: 'monospace',
                 fontSize: AppFontSize.xxs,
                 fontWeight: FontWeight.w500,
                 color: colorScheme.onSurfaceVariant,
