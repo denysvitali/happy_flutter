@@ -470,11 +470,11 @@ class MiniMaxUsageApi {
     required double? remainingPercent,
     required double? total,
     required double? used,
-    double? remaining,
     required int? resetsAtMs,
+    double? remaining,
   }) {
     double utilization;
-    double? remainingNum = remaining;
+    var remainingNum = remaining;
     double? limitNum;
     double? usedNum;
 

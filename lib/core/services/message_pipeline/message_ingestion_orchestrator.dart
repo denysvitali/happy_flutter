@@ -312,7 +312,7 @@ extension SyncMessagePipeline on Sync {
         );
       }
 
-      bool shouldNotify = false;
+      var shouldNotify = false;
       // Loop control events (loops-updated / loop-fired / loop-expired) ride
       // the session message stream as agent-events; route them into loop
       // state and strip them so they never render as chat rows.
