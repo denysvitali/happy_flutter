@@ -283,6 +283,44 @@ void main() {
       expect(matching.single['sendStatus'], 'pending');
     });
 
+    test('explicit retry requeues the same localId and one row', () async {
+      final raw = <String, dynamic>{
+        'role': 'user',
+        'content': <String, dynamic>{'type': 'text', 'text': 'retry me'},
+        'meta': <String, dynamic>{'sentFrom': 'test'},
+      };
+      instance.testSetSessionMessages('sess-1', [
+        <String, dynamic>{
+          'id': 'client-local-retry',
+          'localId': 'client-local-retry',
+          'role': 'user',
+          'kind': 'text',
+          'text': 'retry me',
+          'content': 'retry me',
+          'raw': raw,
+          'sendStatus': 'failed',
+        },
+      ]);
+
+      await instance.retryFailedMessage('sess-1', 'client-local-retry');
+
+      expect(messageOutbox.contains('client-local-retry'), isTrue);
+      final entry = messageOutbox.entries.single;
+      expect(entry.localId, 'client-local-retry');
+      expect(entry.sessionId, 'sess-1');
+      expect(entry.text, 'retry me');
+      expect(entry.encryptedContent, 'encrypted-content');
+      expect(entry.rawRecord, raw);
+      expect(entry.retryCount, 0);
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final matching = localMessages.where(
+        (m) => m['localId'] == 'client-local-retry',
+      );
+      expect(matching, hasLength(1));
+      expect(matching.single['sendStatus'], 'pending');
+    });
+
     test('backgrounded send queues retry without touching REST', () async {
       InvalidateSync.isBackgrounded = true;
 

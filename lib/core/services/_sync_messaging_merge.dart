@@ -692,8 +692,6 @@ extension SyncMessagingMerge on Sync {
     };
     // Build a reverse index from localId → assigned id, so incoming server
     // messages replace the matching optimistic placeholder.
-    // Build a reverse index from localId → assigned id, so incoming server
-    // messages replace the matching optimistic placeholder.
     // IMPORTANT: skip empty-string localIds — the Go server sends
     // derefStr(nil) = "" for agent messages, and matching on "" would cause
     // every new agent message to evict a previous one from the list.

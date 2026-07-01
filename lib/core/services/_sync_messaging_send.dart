@@ -294,15 +294,15 @@ extension SyncMessagingSend on Sync {
           '[sendMessage] app backgrounded before delivery; '
           'queueing outbox retry session=$targetSessionId localId=$localId',
         );
-        final entry = OutboxEntry(
-          localId: localId,
-          sessionId: targetSessionId,
-          text: text,
-          encryptedContent: encryptedRawRecord,
-          rawRecord: rawRecord,
-          queuedAt: DateTime.now().millisecondsSinceEpoch,
+        await messageOutbox.add(
+          _createOutboxEntry(
+            sessionId: targetSessionId,
+            localId: localId,
+            text: text,
+            encryptedRawRecord: encryptedRawRecord,
+            rawRecord: rawRecord,
+          ),
         );
-        await messageOutbox.add(entry);
         await transaction.finish(status: const SpanStatus.cancelled());
         return;
       }
@@ -387,15 +387,15 @@ extension SyncMessagingSend on Sync {
           '[sendMessage] app backgrounded before POST; '
           'queueing outbox retry session=$targetSessionId localId=$localId',
         );
-        final entry = OutboxEntry(
-          localId: localId,
-          sessionId: targetSessionId,
-          text: text,
-          encryptedContent: encryptedRawRecord,
-          rawRecord: rawRecord,
-          queuedAt: DateTime.now().millisecondsSinceEpoch,
+        await messageOutbox.add(
+          _createOutboxEntry(
+            sessionId: targetSessionId,
+            localId: localId,
+            text: text,
+            encryptedRawRecord: encryptedRawRecord,
+            rawRecord: rawRecord,
+          ),
         );
-        await messageOutbox.add(entry);
         unawaited(postSpan.finish(status: const SpanStatus.cancelled()));
         await transaction.finish(status: const SpanStatus.cancelled());
         return;
@@ -489,11 +489,7 @@ extension SyncMessagingSend on Sync {
               '[sendMessage] emitting socket message event '
               'session=$targetSessionId localId=$localId',
             );
-            _socketSend('message', {
-              'sid': targetSessionId,
-              'message': encryptedRawRecord,
-              'localId': localId,
-            });
+            _emitSocketMessage(targetSessionId, encryptedRawRecord, localId);
           } else {
             // Socket is reconnecting — the REST POST already succeeded so
             // the message is stored on the server.  Retry the daemon
@@ -518,22 +514,14 @@ extension SyncMessagingSend on Sync {
             'session=$targetSessionId localId=$localId',
           );
           if (socketConnected) {
-            _socketSend('message', {
-              'sid': targetSessionId,
-              'message': encryptedRawRecord,
-              'localId': localId,
-            });
+            _emitSocketMessage(targetSessionId, encryptedRawRecord, localId);
             sent = true;
             _updateMessageSendStatus(targetSessionId, localId, 'sent');
             _notifySessionMessagesChanged(targetSessionId);
           } else if (_isSocketConnected()) {
             // Re-check socket — may have reconnected since the earlier
             // snapshot was taken.
-            _socketSend('message', {
-              'sid': targetSessionId,
-              'message': encryptedRawRecord,
-              'localId': localId,
-            });
+            _emitSocketMessage(targetSessionId, encryptedRawRecord, localId);
             sent = true;
             _updateMessageSendStatus(targetSessionId, localId, 'sent');
             _notifySessionMessagesChanged(targetSessionId);
@@ -606,15 +594,17 @@ extension SyncMessagingSend on Sync {
         _notifySessionMessagesChanged(targetSessionId);
       } else if (!sent) {
         // Queue in the outbox for automatic retry with backoff.
-        final entry = OutboxEntry(
-          localId: localId,
-          sessionId: targetSessionId,
-          text: text,
-          encryptedContent: encryptedRawRecord,
-          rawRecord: rawRecord,
-          queuedAt: DateTime.now().millisecondsSinceEpoch,
+        unawaited(
+          messageOutbox.add(
+            _createOutboxEntry(
+              sessionId: targetSessionId,
+              localId: localId,
+              text: text,
+              encryptedRawRecord: encryptedRawRecord,
+              rawRecord: rawRecord,
+            ),
+          ),
         );
-        unawaited(messageOutbox.add(entry));
         // The outbox onStatusChanged callback sets 'pending' status.
       }
     }
@@ -628,6 +618,41 @@ extension SyncMessagingSend on Sync {
     // message mutations above use _notifySessionMessagesChanged and bump the
     // revision.
     _notifySessionMessagesChangedUiOnly(targetSessionId);
+  }
+
+  OutboxEntry _createOutboxEntry({
+    required String sessionId,
+    required String localId,
+    required String text,
+    required String encryptedRawRecord,
+    required Map<String, dynamic> rawRecord,
+    int retryCount = 0,
+  }) {
+    return OutboxEntry(
+      localId: localId,
+      sessionId: sessionId,
+      text: text,
+      encryptedContent: encryptedRawRecord,
+      rawRecord: rawRecord,
+      queuedAt: DateTime.now().millisecondsSinceEpoch,
+      retryCount: retryCount,
+    );
+  }
+
+  void _emitSocketMessage(
+    String sessionId,
+    String encryptedRawRecord,
+    String localId,
+  ) {
+    _socketSend('message', {
+      'sid': sessionId,
+      'message': encryptedRawRecord,
+      'localId': localId,
+    });
+  }
+
+  bool _matchesLocalId(Map<String, dynamic> message, String localId) {
+    return message['localId'] == localId || message['id'] == localId;
   }
 
   /// Returns true for errors that indicate the message will never succeed
@@ -731,11 +756,11 @@ extension SyncMessagingSend on Sync {
           );
         }
         if (_isSocketConnected()) {
-          _socketSend('message', {
-            'sid': entry.sessionId,
-            'message': entry.encryptedContent,
-            'localId': entry.localId,
-          });
+          _emitSocketMessage(
+            entry.sessionId,
+            entry.encryptedContent,
+            entry.localId,
+          );
         } else {
           _retryDaemonNotification(
             entry.sessionId,
@@ -792,7 +817,7 @@ extension SyncMessagingSend on Sync {
     var firstIdx = -1;
     for (var i = 0; i < msgs.length; i++) {
       final m = msgs[i];
-      if (m['localId'] == localId || m['id'] == localId) {
+      if (_matchesLocalId(m, localId)) {
         matchCount++;
         if (firstIdx == -1) firstIdx = i;
       }
@@ -842,7 +867,7 @@ extension SyncMessagingSend on Sync {
 
     Map<String, dynamic>? failedMessage;
     for (final m in msgs) {
-      if (m['localId'] == localId || m['id'] == localId) {
+      if (_matchesLocalId(m, localId)) {
         failedMessage = m;
         break;
       }
@@ -879,7 +904,7 @@ extension SyncMessagingSend on Sync {
     // original id so a retry-created duplicate is observable in production.
     var retryRowCount = 0;
     for (final m in msgs) {
-      if (m['localId'] == localId || m['id'] == localId) retryRowCount++;
+      if (_matchesLocalId(m, localId)) retryRowCount++;
     }
     messageInvariantMonitor.recordRetry(
       expected: localId,
@@ -911,14 +936,13 @@ extension SyncMessagingSend on Sync {
 
     final encryptedRawRecord = await sessionEncryption.encryptRawRecord(raw);
 
-    final entry = OutboxEntry(
-      localId: localId,
+    final entry = _createOutboxEntry(
       sessionId: sessionId,
+      localId: localId,
       text: text,
-      encryptedContent: encryptedRawRecord,
+      encryptedRawRecord: encryptedRawRecord,
       rawRecord: raw,
-      queuedAt: DateTime.now().millisecondsSinceEpoch,
-      retryCount: 0, // Reset retry count
+      retryCount: 0,
     );
 
     _updateMessageSendStatus(sessionId, localId, 'sending');
@@ -961,11 +985,7 @@ extension SyncMessagingSend on Sync {
               '[sendMessage] retrying daemon notification '
               'session=$sessionId localId=$localId',
             );
-            _socketSend('message', {
-              'sid': sessionId,
-              'message': encryptedRawRecord,
-              'localId': localId,
-            });
+            _emitSocketMessage(sessionId, encryptedRawRecord, localId);
           })
           .catchError((_) {
             // Silently swallow — the message is already stored on the server
