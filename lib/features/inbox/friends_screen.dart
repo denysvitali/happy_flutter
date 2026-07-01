@@ -16,9 +16,6 @@ class FriendsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
 
-    // TODO(friends): replace with real friends provider when available.
-    const hasFriends = false;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.friendsTitle),
@@ -30,9 +27,7 @@ class FriendsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: hasFriends
-          ? const _FriendsList()
-          : _buildEmptyState(context, l10n),
+      body: _buildEmptyState(context, l10n),
     );
   }
 
@@ -47,16 +42,5 @@ class FriendsScreen extends ConsumerWidget {
         label: Text(l10n.friendsFindFriends),
       ),
     );
-  }
-}
-
-/// Placeholder list widget rendered when friends exist.
-class _FriendsList extends StatelessWidget {
-  const _FriendsList();
-
-  @override
-  Widget build(BuildContext context) {
-    // TODO(friends): implement real friends list with tiles.
-    return const SizedBox.shrink();
   }
 }

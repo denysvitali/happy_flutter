@@ -116,7 +116,7 @@ extension SyncMessagePipeline on Sync {
     );
 
     final messages = batch.rawMessages
-        .where((m) => m is Map<String, dynamic>)
+        .whereType<Map<String, dynamic>>()
         .toList(growable: false);
 
     _logPipelineStage(
