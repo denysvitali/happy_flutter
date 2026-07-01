@@ -181,16 +181,17 @@ void _captureDroppedReasonWarning(
       '[message_processor] dropped unsupported message item(s)',
       level: SentryLevel.warning,
       withScope: (scope) {
-        scope.fingerprint = ['message-processor-dropped', topReason];
-        scope.setTag('message_drop_context', context);
-        scope.setTag('message_drop_reason', topReason);
-        scope.setContexts('message_drop', {
-          'context': context,
-          'total': _droppedReasonTotal(counts),
-          'topReason': topReason,
-          'reasons': Map<String, int>.from(counts),
-          'logLine': logLine,
-        });
+        scope
+          ..fingerprint = ['message-processor-dropped', topReason]
+          ..setTag('message_drop_context', context)
+          ..setTag('message_drop_reason', topReason)
+          ..setContexts('message_drop', {
+            'context': context,
+            'total': _droppedReasonTotal(counts),
+            'topReason': topReason,
+            'reasons': Map<String, int>.from(counts),
+            'logLine': logLine,
+          });
       },
     ),
   );
@@ -653,7 +654,8 @@ extension SyncMessaging on Sync {
           // breaking and waiting for the next InvalidateSync cycle.
           final isNetworkChanged =
               response.statusCode == null &&
-              response.statusMessage?.contains('ERR_NETWORK_CHANGED') == true;
+              (response.statusMessage?.contains('ERR_NETWORK_CHANGED') ??
+                  false);
           if (isNetworkChanged) {
             logger.info(
               '[fetchMessages] $sessionId page=$page: '
