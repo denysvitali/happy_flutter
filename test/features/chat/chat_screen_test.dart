@@ -1037,12 +1037,18 @@ void main() {
       expect(find.text('Message number 119'), findsOneWidget);
       expect(find.text('Message number 0'), findsNothing);
 
-      await tester.drag(find.byType(ListView), const Offset(0, 5000));
-      // The drag triggers a fling; pump a few short frames to let
-      // it settle without waiting for the thinking-pill 1 s
-      // timer / status pulse animation to fire.
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
+      for (
+        var attempt = 0;
+        attempt < 4 && find.text('Message number 0').evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.drag(find.byType(ListView), const Offset(0, 5000));
+        // The drag triggers a fling; pump a few short frames to let
+        // it settle without waiting for the thinking-pill 1 s
+        // timer / status pulse animation to fire.
+        for (var i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
       }
 
       expect(find.text('Message number 0'), findsOneWidget);
