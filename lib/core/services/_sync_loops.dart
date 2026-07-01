@@ -106,23 +106,12 @@ extension SyncLoops on Sync {
   /// poisoning the entire batch — see [Loop.tryFromJson] for the
   /// lenient parser.
   void _applyLoopsUpdate(String sessionId, List<dynamic> loopsJson) {
-    final loops = <Loop>[];
-    for (final entry in loopsJson) {
-      if (entry is Map) {
-        final loop = Loop.tryFromJson(Map<String, dynamic>.from(entry));
-        if (loop != null) {
-          loops.add(loop);
-        } else {
-          logger.warning(
-            '[loops] _applyLoopsUpdate($sessionId) skipping malformed '
-            'entry',
-          );
-        }
-      }
-    }
-    _loopsBySession[sessionId] = List<Loop>.unmodifiable(loops);
-    LoopStorage.instance.save(sessionId, loops);
-    _loopsChangeController.add(sessionId);
+    final loops = _parseLoopList(
+      sessionId: sessionId,
+      loopsJson: loopsJson,
+      source: '_applyLoopsUpdate',
+    );
+    _publishLoopsForSession(sessionId, loops);
   }
 
   /// Apply a `loop-fired` event. Telemetry-only — the user-visible message
@@ -144,9 +133,7 @@ extension SyncLoops on Sync {
       lastFiredAt: firedAt,
       fireCount: fireCount,
     );
-    _loopsBySession[sessionId] = List<Loop>.unmodifiable(updated);
-    LoopStorage.instance.save(sessionId, updated);
-    _loopsChangeController.add(sessionId);
+    _publishLoopsForSession(sessionId, updated);
   }
 
   /// Apply a `loop-expired` event. Removes the loop from the local list and
@@ -156,9 +143,7 @@ extension SyncLoops on Sync {
     if (loops == null) return;
     final filtered = loops.where((l) => l.id != loopId).toList();
     if (filtered.length == loops.length) return;
-    _loopsBySession[sessionId] = List<Loop>.unmodifiable(filtered);
-    LoopStorage.instance.save(sessionId, filtered);
-    _loopsChangeController.add(sessionId);
+    _publishLoopsForSession(sessionId, filtered);
   }
 
   /// Apply a locally confirmed delete. A later `loops-updated` event can
@@ -168,10 +153,42 @@ extension SyncLoops on Sync {
     if (loops == null) return;
     final filtered = loops.where((l) => l.id != loopId).toList();
     if (filtered.length == loops.length) return;
-    _loopsBySession[sessionId] = List<Loop>.unmodifiable(filtered);
-    LoopStorage.instance.save(sessionId, filtered);
+    _publishLoopsForSession(sessionId, filtered, notifyDataChanged: true);
+  }
+
+  List<Loop> _parseLoopList({
+    required String sessionId,
+    required List<dynamic> loopsJson,
+    required String source,
+  }) {
+    final loops = <Loop>[];
+    for (final entry in loopsJson) {
+      if (entry is Map) {
+        final loop = Loop.tryFromJson(Map<String, dynamic>.from(entry));
+        if (loop != null) {
+          loops.add(loop);
+        } else {
+          logger.warning(
+            '[loops] $source($sessionId) skipping malformed entry',
+          );
+        }
+      }
+    }
+    return loops;
+  }
+
+  void _publishLoopsForSession(
+    String sessionId,
+    List<Loop> loops, {
+    bool notifyDataChanged = false,
+  }) {
+    final next = List<Loop>.unmodifiable(loops);
+    _loopsBySession[sessionId] = next;
+    LoopStorage.instance.save(sessionId, next);
     _loopsChangeController.add(sessionId);
-    _notifyDataChanged({SyncDomain.loops});
+    if (notifyDataChanged) {
+      _notifyDataChanged({SyncDomain.loops});
+    }
   }
 
   // ── Hydration ──────────────────────────────────────────────────────────
@@ -418,6 +435,10 @@ extension SyncLoops on Sync {
         'loop-list returned unexpected type: ${raw.runtimeType}',
       );
     }
+    if (raw['ok'] == false) {
+      final err = raw['error']?.toString() ?? 'unknown error';
+      throw StateError('loop-list failed: $err');
+    }
     final loopsJson = raw['loops'];
     if (loopsJson is! List) {
       // Some daemons return an empty list under a different key — fall
@@ -433,37 +454,25 @@ extension SyncLoops on Sync {
         '[loops] listLoops($sessionId) returned non-list "loops" '
         'payload (${loopsJson.runtimeType}); treating as empty',
       );
-      final empty = const <Loop>[];
-      _loopsBySession[sessionId] = empty;
-      LoopStorage.instance.save(sessionId, empty);
-      _loopsChangeController.add(sessionId);
-      _notifyDataChanged({SyncDomain.loops});
-      return empty;
+      _publishLoopsForSession(
+        sessionId,
+        const <Loop>[],
+        notifyDataChanged: true,
+      );
+      return const <Loop>[];
     }
-    final loops = <Loop>[];
-    for (final entry in loopsJson) {
-      if (entry is Map) {
-        final loop = Loop.tryFromJson(Map<String, dynamic>.from(entry));
-        if (loop != null) {
-          loops.add(loop);
-        } else {
-          logger.warning(
-            '[loops] listLoops($sessionId) skipping malformed entry',
-          );
-        }
-      }
-    }
-    // Mirror into in-memory state so subscribers see the latest data
-    // immediately.
-    _loopsBySession[sessionId] = List<Loop>.unmodifiable(loops);
-    LoopStorage.instance.save(sessionId, loops);
-    // Bump the domain counter so LoopsNotifier.loadFromSync picks up
-    // the change. Without this, client-initiated listLoops would
-    // publish to onLoopsChanged but the notifier's _lastChangeCounter
-    // guard would short-circuit, leaving the screen's Riverpod state
-    // empty even though the data is right there in _loopsBySession.
-    _loopsChangeController.add(sessionId);
-    _notifyDataChanged({SyncDomain.loops});
+    final loops = _parseLoopList(
+      sessionId: sessionId,
+      loopsJson: loopsJson,
+      source: 'listLoops',
+    );
+    // Mirror into in-memory state and bump the domain counter so
+    // LoopsNotifier.loadFromSync picks up the change. Without the
+    // counter bump, client-initiated listLoops would publish to
+    // onLoopsChanged but the notifier's _lastChangeCounter guard
+    // would short-circuit, leaving the screen's Riverpod state empty
+    // even though the data is right there in _loopsBySession.
+    _publishLoopsForSession(sessionId, loops, notifyDataChanged: true);
     return loops;
   }
 

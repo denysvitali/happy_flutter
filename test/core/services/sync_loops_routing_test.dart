@@ -260,6 +260,41 @@ void main() {
       );
       await sub.cancel();
     });
+
+    test('daemon ok:false preserves local loops and rethrows', () async {
+      sync.testLoopsBySession['s1'] = [
+        _sample(id: 'aaaaaaaa'),
+        _sample(id: 'bbbbbbbb'),
+      ];
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        expect(method, 'loop-list');
+        return {'ok': false, 'error': 'scheduler unavailable'};
+      };
+
+      final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+
+      await expectLater(
+        sync.listLoops(sessionId: 's1'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'loop-list failed: scheduler unavailable',
+          ),
+        ),
+      );
+
+      expect(
+        sync.loopsForSession('s1').map((l) => l.id).toList(),
+        ['aaaaaaaa', 'bbbbbbbb'],
+        reason: 'daemon rejection must not clear the cached loop mirror',
+      );
+      expect(
+        sync.domainChangeCounter(SyncDomain.loops),
+        counterBefore,
+        reason: 'failed listLoops must not publish a loops domain change',
+      );
+    });
   });
 
   group('deleteLoop', () {
