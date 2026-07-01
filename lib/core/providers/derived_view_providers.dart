@@ -3,7 +3,6 @@ import 'package:riverpod/riverpod.dart';
 import '../models/artifact.dart';
 import '../models/machine.dart';
 import '../models/session.dart';
-import '../services/sync_service.dart';
 import 'artifacts_notifier.dart';
 import 'machines_notifier.dart';
 import 'session_ui_state_notifier.dart';
@@ -157,26 +156,4 @@ final optimisticallyArchivedIdsProvider = Provider<Set<String>>((ref) {
   return ref.watch(
     sessionUiStateNotifierProvider.select((s) => s.optimisticallyArchivedIds),
   );
-});
-
-/// Number of currently-loaded orphan sidechain messages in a session —
-/// messages whose `isSidechain` flag is set and whose parent Task is NOT
-/// in the loaded window. These can otherwise be hidden by the
-/// `_visibleCount = _pageSize` clamp when the chat is dominated by
-/// top-level entries. The chat screen watches this provider to drive
-/// the orphan-visibility banner.
-///
-/// Rebuilt whenever the messages domain counter ticks
-/// ([SyncDomain.messages]); the per-session scan is O(n) and bounded by
-/// the [_maxCachedMessages] (200) window.
-final orphanCountForSessionProvider =
-    Provider.family<int, String>((ref, sessionId) {
-  // Force recompute on every messages-domain change. We deliberately
-  // skip a structural-equals guard here: the scan is cheap and the
-  // banner needs every change to update its label, including the
-  // "just absorbed into a parent Task" transition from N→0.
-  ref.watch(sessionUiStateNotifierProvider
-      .select((s) => s.bySessionId[sessionId] ?? SessionUiEntry.empty));
-  if (!sync.isInitialized) return 0;
-  return sync.orphanCountForSession(sessionId);
 });

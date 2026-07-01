@@ -1006,16 +1006,12 @@ what you have, you must use the options mode.
   /// Returns the number of currently-loaded orphan sidechain messages for a
   /// session — messages whose `isSidechain` flag is set and whose parent
   /// Task is NOT in the loaded window. These render inline as their own
-  /// top-level subagent tiles and can otherwise be hidden by the
-  /// `_visibleCount = _pageSize` clamp when the chat is dominated by
-  /// top-level entries. The chat screen surfaces this count via a banner
-  /// so the user can opt into expanding the visible window.
+  /// top-level subagent tiles until the parent Task arrives and grouping
+  /// can attach them.
   ///
   /// O(n) over the loaded message list; results are NOT cached because
   /// the underlying list mutates frequently (upserts, regroup sweeps,
-  /// history fetches). The chat banner reads this on every build — the
-  /// scan is bounded by [_maxCachedMessages] = 200 and is dominated by
-  /// the existing per-frame `_computeMessageFingerprint` work.
+  /// history fetches). The scan is bounded by [_maxCachedMessages] = 200.
   int orphanCountForSession(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return 0;

@@ -645,7 +645,7 @@ extension _ChatScreenActions on _ChatScreenState {
       _autoScrollNotifier.value = true;
       setState(() {
         _isSending = true;
-        _visibleCount = _ChatScreenState._pageSize;
+        _visibleCount = _initialVisibleCount(_messages.length);
       });
       try {
         final sentSessionId = await ref
@@ -710,7 +710,7 @@ extension _ChatScreenActions on _ChatScreenState {
       _messages = [..._messages, optimisticMessage];
       _isSending = true;
       _controller.clear();
-      _visibleCount = (_visibleCount + 1).clamp(0, _messages.length);
+      _visibleCount = _messages.length;
       _invalidateNeighborCache();
     });
     _scrollToBottom();
@@ -984,7 +984,7 @@ extension _ChatScreenActions on _ChatScreenState {
       _messages = [..._messages, optimisticMessage];
       _isSending = true;
       _controller.clear();
-      _visibleCount = (_visibleCount + 1).clamp(0, _messages.length);
+      _visibleCount = _messages.length;
       _invalidateNeighborCache();
     });
     _scrollToBottom();
