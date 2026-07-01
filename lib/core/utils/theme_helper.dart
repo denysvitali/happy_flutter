@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -169,53 +168,53 @@ const _kSnackBarLight = Color(0xFF1E293B);
 TextTheme _buildTextTheme({required bool dark}) {
   final base = dark ? ThemeData.dark() : ThemeData.light();
   return GoogleFonts.interTextTheme(base.textTheme).copyWith(
-    // Titles — DM Sans
-    displayLarge: GoogleFonts.dmSans(
+    // Titles — Inter
+    displayLarge: GoogleFonts.inter(
       fontSize: 57,
       fontWeight: FontWeight.w300,
       letterSpacing: -0.5,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    displayMedium: GoogleFonts.dmSans(
+    displayMedium: GoogleFonts.inter(
       fontSize: 45,
       fontWeight: FontWeight.w300,
       letterSpacing: -0.25,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    displaySmall: GoogleFonts.dmSans(
+    displaySmall: GoogleFonts.inter(
       fontSize: 36,
       fontWeight: FontWeight.w400,
       letterSpacing: -0.15,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    headlineLarge: GoogleFonts.dmSans(
+    headlineLarge: GoogleFonts.inter(
       fontSize: 32,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    headlineMedium: GoogleFonts.dmSans(
+    headlineMedium: GoogleFonts.inter(
       fontSize: 28,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    headlineSmall: GoogleFonts.dmSans(
+    headlineSmall: GoogleFonts.inter(
       fontSize: 24,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    titleLarge: GoogleFonts.dmSans(
+    titleLarge: GoogleFonts.inter(
       fontSize: 22,
       fontWeight: FontWeight.w600,
       letterSpacing: 0,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    titleMedium: GoogleFonts.dmSans(
+    titleMedium: GoogleFonts.inter(
       fontSize: 16,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.15,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    titleSmall: GoogleFonts.dmSans(
+    titleSmall: GoogleFonts.inter(
       fontSize: 14,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.1,
@@ -268,7 +267,7 @@ AppBarTheme _buildAppBarTheme({required bool dark}) {
         dark ? _kDarkSurface.withAlpha(230) : _kLightSurface.withAlpha(230),
     foregroundColor: dark ? Colors.white : _kLightTextPrimary,
     centerTitle: false,
-    titleTextStyle: GoogleFonts.dmSans(
+    titleTextStyle: GoogleFonts.inter(
       fontSize: 20,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
@@ -606,7 +605,7 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.xl),
     ),
-    titleTextStyle: GoogleFonts.dmSans(
+    titleTextStyle: GoogleFonts.inter(
       fontSize: 20,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
