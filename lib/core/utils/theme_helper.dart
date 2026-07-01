@@ -171,13 +171,13 @@ TextTheme _buildTextTheme({required bool dark}) {
     // Titles — Inter
     displayLarge: GoogleFonts.inter(
       fontSize: 57,
-      fontWeight: FontWeight.w300,
+      fontWeight: FontWeight.w400,
       letterSpacing: -0.5,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
     displayMedium: GoogleFonts.inter(
       fontSize: 45,
-      fontWeight: FontWeight.w300,
+      fontWeight: FontWeight.w400,
       letterSpacing: -0.25,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
