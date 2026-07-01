@@ -129,13 +129,12 @@ abstract class EventLogStore {
   Future<void> clear();
 }
 
-class InMemoryEventLogStore implements EventLogStore {
+abstract class _MapEventLogStore implements EventLogStore {
   final Map<String, List<MessageEvent>> _bySession = {};
 
   @override
   Future<void> append(MessageEvent event) async {
-    final list = _bySession.putIfAbsent(event.sessionId, () => []);
-    list.add(event);
+    _bySession.putIfAbsent(event.sessionId, () => []).add(event);
   }
 
   @override
@@ -153,34 +152,14 @@ class InMemoryEventLogStore implements EventLogStore {
   }
 }
 
+class InMemoryEventLogStore extends _MapEventLogStore {}
+
 /// Newline-delimited JSON store. One file per session would be the
 /// natural mapping, but the contract is in-memory until a real disk
 /// backend lands. We keep the encoder usable so callers can ship an
 /// individual session log to support without a SQLite tool.
-class JsonlEventLogStore implements EventLogStore {
+class JsonlEventLogStore extends _MapEventLogStore {
   JsonlEventLogStore();
-
-  final Map<String, List<MessageEvent>> _bySession = {};
-
-  @override
-  Future<void> append(MessageEvent event) async {
-    final list = _bySession.putIfAbsent(event.sessionId, () => []);
-    list.add(event);
-  }
-
-  @override
-  Future<List<MessageEvent>> read(String sessionId) async =>
-      List.unmodifiable(_bySession[sessionId] ?? const []);
-
-  @override
-  Future<void> truncate(String sessionId) async {
-    _bySession.remove(sessionId);
-  }
-
-  @override
-  Future<void> clear() async {
-    _bySession.clear();
-  }
 
   /// Encodes [sessionId]'s log to a single JSONL string. Useful for
   /// support exports while we don't yet have a SQLite UI.
