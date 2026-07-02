@@ -9,8 +9,13 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/loops/all_loops_screen.dart';
 
 class _StubLoopsNotifier extends LoopsNotifier {
-  _StubLoopsNotifier(this._initial);
+  _StubLoopsNotifier(
+    this._initial, {
+    List<_LoopCall>? calls,
+  }) : _calls = calls;
+
   final Map<String, List<Loop>> _initial;
+  final List<_LoopCall>? _calls;
 
   @override
   Map<String, List<Loop>> build() => _initial;
@@ -34,19 +39,66 @@ class _StubLoopsNotifier extends LoopsNotifier {
   Future<void> deleteLoop({
     required String sessionId,
     required String loopId,
-  }) async {}
+  }) async {
+    _calls?.add(_LoopCall.delete(sessionId: sessionId, loopId: loopId));
+  }
 
   @override
   Future<void> pauseLoop({
     required String sessionId,
     required String loopId,
     required bool paused,
-  }) async {}
+  }) async {
+    _calls?.add(
+      _LoopCall.pause(
+        sessionId: sessionId,
+        loopId: loopId,
+        paused: paused,
+      ),
+    );
+  }
 }
+
+class _LoopCall {
+  const _LoopCall._({
+    required this.kind,
+    required this.sessionId,
+    required this.loopId,
+    this.paused,
+  });
+
+  const _LoopCall.pause({
+    required String sessionId,
+    required String loopId,
+    required bool paused,
+  }) : this._(
+          kind: _LoopCallKind.pause,
+          sessionId: sessionId,
+          loopId: loopId,
+          paused: paused,
+        );
+
+  const _LoopCall.delete({
+    required String sessionId,
+    required String loopId,
+  }) : this._(
+          kind: _LoopCallKind.delete,
+          sessionId: sessionId,
+          loopId: loopId,
+        );
+
+  final _LoopCallKind kind;
+  final String sessionId;
+  final String loopId;
+  final bool? paused;
+}
+
+enum _LoopCallKind { pause, delete }
 
 Widget _wrap({
   required Widget child,
   Map<String, List<Loop>>? loops,
+  List<_LoopCall>? calls,
 }) {
   final router = GoRouter(
     routes: [
@@ -65,7 +117,9 @@ Widget _wrap({
   );
   return ProviderScope(
     overrides: [
-      loopsNotifierProvider.overrideWith(() => _StubLoopsNotifier(loops ?? {})),
+      loopsNotifierProvider.overrideWith(
+        () => _StubLoopsNotifier(loops ?? {}, calls: calls),
+      ),
     ],
     child: MaterialApp.router(
       routerConfig: router,
@@ -196,27 +250,37 @@ void main() {
     testWidgets(
       'delete and pause handlers are wired through to LoopsNotifier',
       (tester) async {
-        final calls = <_Call>[];
+        final calls = <_LoopCall>[];
         await tester.pumpWidget(
           _wrap(
             child: const AllLoopsScreen(),
             loops: {
               's1': [_loop(id: 'aaa00001', sessionId: 's1')],
             },
+            calls: calls,
           ),
         );
         await tester.pumpAndSettle();
-        // We replace the notifier override post-mount to verify the
-        // button taps invoke the expected methods on the API surface.
-        // Instead, verify the LoopCard pause + delete buttons render and
-        // can be tapped without throwing. (Wiring assertions live in the
-        // dedicated loop_count_badge_test and loops_screen_test.)
+
+        await tester.tap(find.text('Pause'));
+        await tester.pumpAndSettle();
+        expect(calls, hasLength(1));
+        expect(calls.single.kind, _LoopCallKind.pause);
+        expect(calls.single.sessionId, 's1');
+        expect(calls.single.loopId, 'aaa00001');
+        expect(calls.single.paused, isTrue);
+
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Delete').last);
+        await tester.pumpAndSettle();
+
+        expect(calls, hasLength(2));
+        expect(calls[1].kind, _LoopCallKind.delete);
+        expect(calls[1].sessionId, 's1');
+        expect(calls[1].loopId, 'aaa00001');
         expect(find.text('Pause'), findsOneWidget);
         expect(find.text('Delete'), findsOneWidget);
-        // Avoid unused warnings on local `calls` list — kept here to
-        // document the assertion we don't currently make (no spy
-        // surface on the notifier's API).
-        calls.add(_Call.pause);
       },
     );
 
@@ -239,5 +303,3 @@ void main() {
     );
   });
 }
-
-enum _Call { pause }
