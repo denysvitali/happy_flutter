@@ -554,10 +554,12 @@ extension SyncLoops on Sync {
       return bb.compareTo(aa); // most-recent-first
     });
 
+    final deadline =
+        testRefreshAllLoopsDeadline ?? _refreshAllLoopsDeadline;
     final startedAt = DateTime.now();
     for (final sessionId in sessionIds) {
       final elapsed = DateTime.now().difference(startedAt);
-      if (elapsed >= _refreshAllLoopsDeadline) {
+      if (elapsed >= deadline) {
         // Out of time. Any remaining sessions will be refreshed by the
         // next `loops-updated` event or the next manual refresh. We
         // compare against the elapsed Duration rather than subtracting
@@ -571,7 +573,7 @@ extension SyncLoops on Sync {
         );
         break;
       }
-      final remaining = _refreshAllLoopsDeadline - elapsed;
+      final remaining = deadline - elapsed;
       try {
         // Per-call timeout shrinks to match the remaining budget so a
         // single wedged RPC cannot block the whole loop until its

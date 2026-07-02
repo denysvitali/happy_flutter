@@ -65,12 +65,14 @@ void main() {
     // their seeded sessions behind.
     sync.testSessions.clear();
     sync.testIsInitialized = true;
+    sync.testRefreshAllLoopsDeadline = null;
     LoopStorage.instance.setStorageForTesting(_FakeMMKVStorage());
   });
 
   tearDown(() {
     container.dispose();
     sync.testIsInitialized = false;
+    sync.testRefreshAllLoopsDeadline = null;
   });
 
   group('LoopsNotifier', () {
@@ -419,6 +421,7 @@ void main() {
       // call returns well before emitWithAck's per-call ACK timeout.
       sync.testSessions['s1'] = _session(id: 's1');
       sync.testSocketConnectedOverride = true;
+      sync.testRefreshAllLoopsDeadline = const Duration(milliseconds: 100);
       sync.testSessionRPCOverride = (sid, method, params) async {
         // Hang forever — simulates a wedged daemon.
         await Completer<void>().future;
@@ -430,11 +433,11 @@ void main() {
       await notifier.refreshFromSync();
       stopwatch.stop();
       // Must return well under the old 30 s per-call ACK timeout.
-      // Generous bound to avoid CI flakes — 15 s is plenty for the
-      // 10 s deadline plus bookkeeping.
+      // The production deadline is 10 s; the test-only override keeps
+      // CI fast while exercising the same timeout path.
       expect(
         stopwatch.elapsed,
-        lessThan(const Duration(seconds: 15)),
+        lessThan(const Duration(seconds: 2)),
         reason:
             'refreshFromSync should respect the hard deadline, '
             'not wait for emitWithAck to time out',
@@ -486,23 +489,22 @@ void main() {
       );
     });
 
-    test('refreshAllLoops deadline does not throw when previous iteration '
-        'overshot the budget', () async {
-      // Regression: the old code computed `remaining =
-      // deadline - elapsed` directly. If the previous iteration's
-      // listLoops took longer than the remaining budget (e.g. 12 s
-      // for a 10 s deadline), the subtraction returns a negative
-      // Duration and `Duration.operator-` throws. Fix: compare
-      // against elapsed first, only subtract when elapsed < deadline.
+    test('refreshAllLoops deadline bounds a slow successful response',
+        () async {
+      // Regression: refresh could wait for a slow loop-list response
+      // instead of respecting the total refresh deadline. The
+      // test-only deadline keeps this fast while exercising the same
+      // timeout path as the production 10 s budget.
       sync.testSessions['s1'] = _session(id: 's1');
       sync.testSessions['s2'] = _session(id: 's2');
       sync.testSocketConnectedOverride = true;
+      sync.testRefreshAllLoopsDeadline = const Duration(milliseconds: 100);
       sync.testSessionRPCOverride = (sid, method, params) async {
         if (sid == 's1') {
-          // Sleep 11s — exceeds the 10s deadline, simulating a
+          // Exceed the refresh deadline, simulating a
           // wedged RPC that the underlying emitWithAck timer
           // hasn't caught yet.
-          await Future<void>.delayed(const Duration(seconds: 11));
+          await Future<void>.delayed(const Duration(milliseconds: 150));
           return {'ok': true, 'result': null};
         }
         return {'ok': true, 'result': null};
@@ -515,17 +517,16 @@ void main() {
       final stopwatch = Stopwatch()..start();
       await notifier.refreshFromSync();
       stopwatch.stop();
-      // 11s first iteration + the 10s deadline check on the second
-      // iteration (immediate) — should land around 11s, definitely
-      // under 20s.
+      // The test-only deadline keeps this coverage out of the
+      // multi-second path while still proving the timeout is bounded.
       expect(
         stopwatch.elapsed,
-        lessThan(const Duration(seconds: 20)),
+        lessThan(const Duration(seconds: 2)),
         reason:
-            'refreshFromSync must not throw even when one '
-            'session overshoots the deadline',
+            'refreshFromSync must stop at the refresh deadline, '
+            'not wait for the slow response',
       );
-    }, timeout: const Timeout(Duration(seconds: 30)));
+    });
 
     test('hydrateAllFromCache hydrates all sessions present in _sessions '
         'and bumps the domain counter', () async {

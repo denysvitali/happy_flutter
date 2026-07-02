@@ -746,6 +746,8 @@ what you have, you must use the options mode.
   @visibleForTesting
   bool? testSocketConnectedOverride;
   @visibleForTesting
+  Duration? testRefreshAllLoopsDeadline;
+  @visibleForTesting
   void Function(String event, dynamic data)? testSocketSendOverride;
   @visibleForTesting
   Future<void>? lastCompleteSendFuture;
