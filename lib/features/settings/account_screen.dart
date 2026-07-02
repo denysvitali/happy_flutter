@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/safe_pop.dart';
@@ -13,7 +14,9 @@ import 'widgets/connected_accounts_section.dart';
 
 /// Account management screen
 class AccountScreen extends ConsumerWidget {
-  const AccountScreen({super.key});
+  const AccountScreen({super.key, this.loadConnectedServices});
+
+  final Future<List<ConnectedServiceInfo>> Function()? loadConnectedServices;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,10 +69,7 @@ class AccountScreen extends ConsumerWidget {
                   ),
                 )
               else
-                SettingsIconContainer(
-                  icon: Icons.person,
-                  color: cs.primary,
-                ),
+                SettingsIconContainer(icon: Icons.person, color: cs.primary),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -157,7 +157,7 @@ class AccountScreen extends ConsumerWidget {
   Widget buildServicesSection(BuildContext context) {
     return SettingsSection(
       title: context.l10n.accountConnectedServices,
-      children: [const ConnectedServicesLoader()],
+      children: [ConnectedServicesLoader(loadServices: loadConnectedServices)],
     );
   }
 }

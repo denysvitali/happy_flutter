@@ -10,21 +10,23 @@ import '../../../core/theme/app_tokens.dart';
 /// Loads connected services once in initState to avoid re-fetching on
 /// rebuild.
 class ConnectedServicesLoader extends StatefulWidget {
-  const ConnectedServicesLoader({super.key});
+  const ConnectedServicesLoader({super.key, this.loadServices});
+
+  final Future<List<ConnectedServiceInfo>> Function()? loadServices;
 
   @override
   State<ConnectedServicesLoader> createState() =>
       _ConnectedServicesLoaderState();
 }
 
-class _ConnectedServicesLoaderState
-    extends State<ConnectedServicesLoader> {
+class _ConnectedServicesLoaderState extends State<ConnectedServicesLoader> {
   late final Future<List<ConnectedServiceInfo>> _future;
 
   @override
   void initState() {
     super.initState();
-    _future = AuthService().getConnectedServices();
+    _future =
+        widget.loadServices?.call() ?? AuthService().getConnectedServices();
   }
 
   @override
@@ -37,10 +39,8 @@ class _ConnectedServicesLoaderState
           children: ConnectedService.values.map((service) {
             final info = services.firstWhere(
               (s) => s.service == service,
-              orElse: () => ConnectedServiceInfo(
-                service: service,
-                isConnected: false,
-              ),
+              orElse: () =>
+                  ConnectedServiceInfo(service: service, isConnected: false),
             );
             return ServiceTile(service: info);
           }).toList(),
@@ -63,25 +63,16 @@ class ServiceTile extends StatelessWidget {
       iconColor: _getServiceColor(cs),
       title: service.service.displayName,
       subtitle: service.isConnected
-          ? service.accountName ??
-              service.accountEmail ??
-              'Connected'
+          ? service.accountName ?? service.accountEmail ?? 'Connected'
           : context.l10n.accountNotConnected,
       trailing: service.isConnected
-          ? Icon(
-              Icons.check_circle,
-              color: cs.primary,
-              size: AppSpacing.xl,
-            )
+          ? Icon(Icons.check_circle, color: cs.primary, size: AppSpacing.xl)
           : Icon(
               Icons.circle_outlined,
               size: AppSpacing.xl,
-              color: cs.onSurface
-                  .withValues(alpha: AppOpacity.medium),
+              color: cs.onSurface.withValues(alpha: AppOpacity.medium),
             ),
-      onTap: service.isConnected
-          ? () => _showServiceInfo(context)
-          : null,
+      onTap: service.isConnected ? () => _showServiceInfo(context) : null,
     );
   }
 
@@ -132,9 +123,7 @@ class ServiceTile extends StatelessWidget {
             if (service.connectedAt != null)
               ListTile(
                 title: Text(context.l10n.accountName),
-                subtitle: Text(
-                  service.connectedAt!.toLocal().toString(),
-                ),
+                subtitle: Text(service.connectedAt!.toLocal().toString()),
               ),
           ],
         ),

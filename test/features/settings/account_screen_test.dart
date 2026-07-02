@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/profile.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/providers/profile_notifier.dart';
+import 'package:happy_flutter/core/widgets/network_avatar_image.dart';
 import 'package:happy_flutter/features/settings/account_screen.dart';
 
 class _StubProfileNotifier extends ProfileNotifier {
@@ -16,108 +17,73 @@ class _StubProfileNotifier extends ProfileNotifier {
   Profile? build() => _profile;
 }
 
+Future<List<ConnectedServiceInfo>> _emptyConnectedServices() async => [];
+
+Future<void> _pumpAccountScreen(WidgetTester tester, {Profile? profile}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        if (profile != null)
+          profileNotifierProvider.overrideWith(
+            () => _StubProfileNotifier(profile),
+          ),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Navigator(
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (_) =>
+                AccountScreen(loadConnectedServices: _emptyConnectedServices),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AccountScreen', () {
-    testWidgets('renders app bar with account settings title',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('renders app bar with account settings title', (tester) async {
+      await _pumpAccountScreen(tester);
 
       expect(find.text('Account Settings'), findsOneWidget);
       expect(find.byType(AppBar), findsOneWidget);
     });
 
     testWidgets('renders back button in app bar', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpAccountScreen(tester);
 
       expect(find.byIcon(Icons.arrow_back), findsOneWidget);
     });
 
-    testWidgets('renders profile section with default loading state',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('renders profile section with default loading state', (
+      tester,
+    ) async {
+      await _pumpAccountScreen(tester);
 
       expect(find.text('PROFILE'), findsOneWidget);
       expect(find.text('Loading...'), findsOneWidget);
     });
 
-    testWidgets('renders profile section with user display name',
-        (tester) async {
+    testWidgets('renders profile section with user display name', (
+      tester,
+    ) async {
       final profile = Profile(
         id: 'test-id',
         firstName: 'John',
         lastName: 'Doe',
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            profileNotifierProvider.overrideWith(
-              () => _StubProfileNotifier(profile),
-            ),
-          ],
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpAccountScreen(tester, profile: profile);
 
       expect(find.text('John Doe'), findsOneWidget);
     });
 
-    testWidgets('renders profile section with GitHub email',
-        (tester) async {
+    testWidgets('renders profile section with GitHub email', (tester) async {
       final profile = Profile(
         id: 'test-id',
         github: GitHubProfile(
@@ -129,67 +95,19 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            profileNotifierProvider.overrideWith(
-              () => _StubProfileNotifier(profile),
-            ),
-          ],
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpAccountScreen(tester, profile: profile);
 
       expect(find.text('john@example.com'), findsOneWidget);
     });
 
-    testWidgets('renders default avatar when no avatar URL',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('renders default avatar when no avatar URL', (tester) async {
+      await _pumpAccountScreen(tester);
 
       expect(find.byIcon(Icons.person), findsOneWidget);
     });
 
     testWidgets('renders backup key section', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpAccountScreen(tester);
 
       expect(find.text('BACKUP KEY'), findsOneWidget);
       expect(find.text('Show Backup Key'), findsOneWidget);
@@ -199,21 +117,7 @@ void main() {
     });
 
     testWidgets('renders restore section', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpAccountScreen(tester);
 
       expect(find.text('RESTORE'), findsOneWidget);
       expect(find.text('Restore Account'), findsOneWidget);
@@ -221,21 +125,7 @@ void main() {
     });
 
     testWidgets('renders devices section', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpAccountScreen(tester);
 
       expect(find.text('DEVICES'), findsOneWidget);
       expect(find.text('Linked Devices'), findsOneWidget);
@@ -244,92 +134,26 @@ void main() {
       expect(find.byIcon(Icons.add_link), findsOneWidget);
     });
 
-    testWidgets('renders show backup key row with subtitle',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('renders show backup key row with subtitle', (tester) async {
+      await _pumpAccountScreen(tester);
 
-      expect(
-        find.text('View your account recovery key'),
-        findsOneWidget,
-      );
+      expect(find.text('View your account recovery key'), findsOneWidget);
     });
 
-    testWidgets('renders copy backup key row with subtitle',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('renders copy backup key row with subtitle', (tester) async {
+      await _pumpAccountScreen(tester);
 
       expect(find.text('Copy to clipboard'), findsOneWidget);
     });
 
-    testWidgets('renders restore account row with subtitle',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('renders restore account row with subtitle', (tester) async {
+      await _pumpAccountScreen(tester);
 
-      expect(
-        find.text('Recover account from backup key'),
-        findsOneWidget,
-      );
+      expect(find.text('Recover account from backup key'), findsOneWidget);
     });
 
-    testWidgets('renders linked devices row with subtitle',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('renders linked devices row with subtitle', (tester) async {
+      await _pumpAccountScreen(tester);
 
       expect(
         find.text('Manage devices linked to your account'),
@@ -337,32 +161,15 @@ void main() {
       );
     });
 
-    testWidgets('renders link new device row with subtitle',
-        (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('renders link new device row with subtitle', (tester) async {
+      await _pumpAccountScreen(tester);
 
-      expect(
-        find.text('Generate QR code for another device'),
-        findsOneWidget,
-      );
+      expect(find.text('Generate QR code for another device'), findsOneWidget);
     });
 
-    testWidgets('profile with avatar URL shows CircleAvatar with image',
-        (tester) async {
+    testWidgets('profile with avatar URL shows NetworkAvatarImage', (
+      tester,
+    ) async {
       final profile = Profile(
         id: 'test-id',
         firstName: 'Jane',
@@ -376,29 +183,10 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            profileNotifierProvider.overrideWith(
-              () => _StubProfileNotifier(profile),
-            ),
-          ],
-          child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const AccountScreen(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+      await _pumpAccountScreen(tester, profile: profile);
 
       expect(find.text('Jane Smith'), findsOneWidget);
-      expect(find.byType(CircleAvatar), findsOneWidget);
+      expect(find.byType(NetworkAvatarImage), findsOneWidget);
     });
   });
 }
