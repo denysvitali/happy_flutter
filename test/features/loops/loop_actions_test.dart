@@ -1,53 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
-import 'package:happy_flutter/core/providers/loops_notifier.dart';
 import 'package:happy_flutter/features/loops/loop_actions.dart';
 
-class _StubLoopsNotifier extends LoopsNotifier {
-  _StubLoopsNotifier({this.deleteError, this.calls});
-
-  final Object? deleteError;
-  final List<String>? calls;
-
-  @override
-  Map<String, List<Loop>> build() => const {};
-
-  @override
-  void loadFromSync() {}
-
-  @override
-  Future<void> refreshFromSync() async {}
-
-  @override
-  Future<Loop> createLoop({
-    required String sessionId,
-    required String expression,
-    required String prompt,
-    required bool recurring,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> deleteLoop({
-    required String sessionId,
-    required String loopId,
-  }) async {
-    calls?.add('$sessionId:$loopId');
-    final error = deleteError;
-    if (error != null) throw error;
-  }
-
-  @override
-  Future<void> pauseLoop({
-    required String sessionId,
-    required String loopId,
-    required bool paused,
-  }) async {}
-}
+import 'loop_notifier_test_helpers.dart';
 
 Widget _wrap({
   required GlobalKey<ScaffoldMessengerState> messengerKey,
@@ -58,7 +15,7 @@ Widget _wrap({
   return ProviderScope(
     overrides: [
       loopsNotifierProvider.overrideWith(
-        () => _StubLoopsNotifier(deleteError: deleteError, calls: calls),
+        () => StubLoopsNotifier(deleteError: deleteError, deleteCalls: calls),
       ),
     ],
     child: MaterialApp(

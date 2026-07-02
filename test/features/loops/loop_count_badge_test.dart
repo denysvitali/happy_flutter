@@ -4,38 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/loop.dart';
-import 'package:happy_flutter/core/providers/loops_notifier.dart';
+import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/loops/loop_count_badge.dart';
 
-class _StubLoopsNotifier extends LoopsNotifier {
-  _StubLoopsNotifier(this._initial);
-  final Map<String, List<Loop>> _initial;
-  @override
-  Map<String, List<Loop>> build() => _initial;
-  @override
-  void loadFromSync() {}
-  @override
-  Future<void> refreshFromSync() async {}
-  @override
-  Future<Loop> createLoop({
-    required String sessionId,
-    required String expression,
-    required String prompt,
-    required bool recurring,
-  }) async =>
-      throw UnimplementedError();
-  @override
-  Future<void> deleteLoop({
-    required String sessionId,
-    required String loopId,
-  }) async {}
-  @override
-  Future<void> pauseLoop({
-    required String sessionId,
-    required String loopId,
-    required bool paused,
-  }) async {}
-}
+import 'loop_notifier_test_helpers.dart';
 
 Widget _wrap({required Widget child, required Map<String, List<Loop>> loops}) {
   final router = GoRouter(
@@ -55,7 +27,9 @@ Widget _wrap({required Widget child, required Map<String, List<Loop>> loops}) {
   );
   return ProviderScope(
     overrides: [
-      loopsNotifierProvider.overrideWith(() => _StubLoopsNotifier(loops)),
+      loopsNotifierProvider.overrideWith(
+        () => StubLoopsNotifier(initial: loops),
+      ),
     ],
     child: MaterialApp.router(
       routerConfig: router,

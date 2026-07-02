@@ -8,55 +8,7 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/loops/create_loop_sheet.dart';
 import 'package:happy_flutter/features/loops/loops_screen.dart';
 
-class _StubLoopsNotifier extends LoopsNotifier {
-  _StubLoopsNotifier(this._initial, {this.deleteError});
-  final Map<String, List<Loop>> _initial;
-  final Object? deleteError;
-
-  @override
-  Map<String, List<Loop>> build() => _initial;
-
-  @override
-  void loadFromSync() {}
-
-  @override
-  Future<void> refreshFromSync() async {}
-
-  @override
-  Future<Loop> createLoop({
-    required String sessionId,
-    required String expression,
-    required String prompt,
-    required bool recurring,
-  }) async {
-    return Loop(
-      id: 'newloop1',
-      sessionId: sessionId,
-      expression: expression,
-      prompt: prompt,
-      recurring: recurring,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      expiresAt:
-          DateTime.now().millisecondsSinceEpoch + 7 * 24 * 60 * 60 * 1000,
-    );
-  }
-
-  @override
-  Future<void> deleteLoop({
-    required String sessionId,
-    required String loopId,
-  }) async {
-    final error = deleteError;
-    if (error != null) throw error;
-  }
-
-  @override
-  Future<void> pauseLoop({
-    required String sessionId,
-    required String loopId,
-    required bool paused,
-  }) async {}
-}
+import 'loop_notifier_test_helpers.dart';
 
 Widget _wrap({
   required Widget child,
@@ -66,7 +18,7 @@ Widget _wrap({
   return ProviderScope(
     overrides: [
       loopsNotifierProvider.overrideWith(
-        () => _StubLoopsNotifier(loops ?? {}, deleteError: deleteError),
+        () => StubLoopsNotifier(initial: loops ?? {}, deleteError: deleteError),
       ),
     ],
     child: MaterialApp(
@@ -175,7 +127,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Couldn\'t load loops'), findsOneWidget);
+      expect(find.text("Couldn't load loops"), findsOneWidget);
       expect(find.byIcon(Icons.refresh), findsOneWidget);
     });
 
