@@ -41,6 +41,30 @@ extension SyncLoops on Sync {
         error.message.contains('no scheduler for session');
   }
 
+  bool _retainOptimisticLoopChange({
+    required Object error,
+    required String operation,
+    required String sessionId,
+    required String loopId,
+    required String retainedState,
+  }) {
+    String? reason;
+    if (error is StateError && _isDeadLoopSessionError(error)) {
+      reason = 'session dead';
+    } else if (error is SocketNotConnectedException) {
+      reason = 'socket disconnected';
+    } else if (error is SocketAckTimeoutException) {
+      reason = 'RPC timed out';
+    }
+    if (reason == null) return false;
+
+    logger.info(
+      '[loops] $operation($sessionId, $loopId) — $reason, '
+      '$retainedState retained',
+    );
+    return true;
+  }
+
   /// The daemon (`happy-cli-go`) has no server-modeled loop entity, so it
   /// broadcasts loop state changes as in-band session events via
   /// `SendSessionEvent` — they arrive decoded as `agent-event` messages with
@@ -304,41 +328,20 @@ extension SyncLoops on Sync {
 
     dynamic raw;
     try {
-      raw = await sessionRPC(
-        sessionId,
-        'loop-delete',
-        <String, dynamic>{'loopId': loopId},
-      );
-    } on StateError catch (e) {
-      if (_isDeadLoopSessionError(e)) {
-        // Session is dead — the optimistic removal is the best we can do.
-        // The daemon's disk-fallback handler (happy-cli-go) will clean up
-        // the on-disk file if it ever restarts this session.
-        logger.info(
-          '[loops] deleteLoop($sessionId, $loopId) — session dead, '
-          'optimistic removal retained',
-        );
+      raw = await sessionRPC(sessionId, 'loop-delete', <String, dynamic>{
+        'loopId': loopId,
+      });
+    } catch (e) {
+      if (_retainOptimisticLoopChange(
+        error: e,
+        operation: 'deleteLoop',
+        sessionId: sessionId,
+        loopId: loopId,
+        retainedState: 'optimistic removal',
+      )) {
         return;
       }
-      // Unexpected StateError — rethrow so the caller can show an error.
       rethrow;
-    } on SocketNotConnectedException {
-      // Socket down — keep the optimistic removal. A reconnect will
-      // refresh the full list via loops-updated.
-      logger.info(
-        '[loops] deleteLoop($sessionId, $loopId) — socket disconnected, '
-        'optimistic removal retained',
-      );
-      return;
-    } on SocketAckTimeoutException {
-      // Daemon may be wedged — keep the optimistic removal. The user
-      // can refresh later; a timeout here is not a reason to resurrect
-      // the loop in the UI.
-      logger.info(
-        '[loops] deleteLoop($sessionId, $loopId) — RPC timed out, '
-        'optimistic removal retained',
-      );
-      return;
     }
 
     if (raw is! Map) {
@@ -384,32 +387,21 @@ extension SyncLoops on Sync {
 
     dynamic raw;
     try {
-      raw = await sessionRPC(
-        sessionId,
-        'loop-pause',
-        <String, dynamic>{'loopId': loopId, 'paused': paused},
-      );
-    } on StateError catch (e) {
-      if (_isDeadLoopSessionError(e)) {
-        logger.info(
-          '[loops] pauseLoop($sessionId, $loopId) — session dead, '
-          'optimistic pause retained',
-        );
+      raw = await sessionRPC(sessionId, 'loop-pause', <String, dynamic>{
+        'loopId': loopId,
+        'paused': paused,
+      });
+    } catch (e) {
+      if (_retainOptimisticLoopChange(
+        error: e,
+        operation: 'pauseLoop',
+        sessionId: sessionId,
+        loopId: loopId,
+        retainedState: 'optimistic pause',
+      )) {
         return;
       }
       rethrow;
-    } on SocketNotConnectedException {
-      logger.info(
-        '[loops] pauseLoop($sessionId, $loopId) — socket disconnected, '
-        'optimistic pause retained',
-      );
-      return;
-    } on SocketAckTimeoutException {
-      logger.info(
-        '[loops] pauseLoop($sessionId, $loopId) — RPC timed out, '
-        'optimistic pause retained',
-      );
-      return;
     }
 
     if (raw is! Map) {
