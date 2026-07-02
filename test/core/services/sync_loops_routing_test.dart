@@ -538,6 +538,27 @@ void main() {
       );
     });
 
+    test('StateError "Session encryption not found" is swallowed, pause retained', () async {
+      sync.testLoopsBySession['s1'] = [
+        _sample(id: 'aaaaaaaa').copyWith(paused: false),
+      ];
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        throw StateError('Session encryption not found for s1');
+      };
+
+      await sync.pauseLoop(
+        sessionId: 's1',
+        loopId: 'aaaaaaaa',
+        paused: true,
+      );
+
+      expect(
+        sync.loopsForSession('s1').single.paused,
+        isTrue,
+        reason: 'optimistic pause must be retained when encryption is gone',
+      );
+    });
+
     test('SocketNotConnectedException is swallowed, pause retained', () async {
       sync.testLoopsBySession['s1'] = [
         _sample(id: 'aaaaaaaa').copyWith(paused: false),
@@ -556,6 +577,27 @@ void main() {
         sync.loopsForSession('s1').single.paused,
         isTrue,
         reason: 'optimistic pause must be retained when socket is disconnected',
+      );
+    });
+
+    test('SocketAckTimeoutException is swallowed, pause retained', () async {
+      sync.testLoopsBySession['s1'] = [
+        _sample(id: 'aaaaaaaa').copyWith(paused: false),
+      ];
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        throw SocketAckTimeoutException('ack timeout');
+      };
+
+      await sync.pauseLoop(
+        sessionId: 's1',
+        loopId: 'aaaaaaaa',
+        paused: true,
+      );
+
+      expect(
+        sync.loopsForSession('s1').single.paused,
+        isTrue,
+        reason: 'optimistic pause must be retained when RPC times out',
       );
     });
 

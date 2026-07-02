@@ -124,16 +124,14 @@ extension SyncLoops on Sync {
     int firedAt,
     int fireCount,
   ) {
-    final loops = _loopsBySession[sessionId];
-    if (loops == null) return;
-    final idx = loops.indexWhere((l) => l.id == loopId);
-    if (idx < 0) return;
-    final updated = List<Loop>.from(loops);
-    updated[idx] = loops[idx].copyWith(
-      lastFiredAt: firedAt,
-      fireCount: fireCount,
+    _replaceLoopInSession(
+      sessionId: sessionId,
+      loopId: loopId,
+      update: (loop) => loop.copyWith(
+        lastFiredAt: firedAt,
+        fireCount: fireCount,
+      ),
     );
-    _publishLoopsForSession(sessionId, updated);
   }
 
   /// Apply a `loop-expired` event. Removes the loop from the local list and
@@ -189,6 +187,25 @@ extension SyncLoops on Sync {
     if (notifyDataChanged) {
       _notifyDataChanged({SyncDomain.loops});
     }
+  }
+
+  void _replaceLoopInSession({
+    required String sessionId,
+    required String loopId,
+    required Loop Function(Loop loop) update,
+    bool notifyDataChanged = false,
+  }) {
+    final loops = _loopsBySession[sessionId];
+    if (loops == null) return;
+    final idx = loops.indexWhere((l) => l.id == loopId);
+    if (idx < 0) return;
+    final updated = List<Loop>.from(loops);
+    updated[idx] = update(loops[idx]);
+    _publishLoopsForSession(
+      sessionId,
+      updated,
+      notifyDataChanged: notifyDataChanged,
+    );
   }
 
   // ── Hydration ──────────────────────────────────────────────────────────
@@ -358,18 +375,12 @@ extension SyncLoops on Sync {
   }) async {
     // Optimistic: toggle the paused flag locally so the UI updates
     // immediately without waiting for the RPC round-trip.
-    final loops = _loopsBySession[sessionId];
-    if (loops != null) {
-      final idx = loops.indexWhere((l) => l.id == loopId);
-      if (idx >= 0) {
-        final updated = List<Loop>.from(loops);
-        updated[idx] = loops[idx].copyWith(paused: paused);
-        _loopsBySession[sessionId] = List<Loop>.unmodifiable(updated);
-        LoopStorage.instance.save(sessionId, updated);
-        _loopsChangeController.add(sessionId);
-        _notifyDataChanged({SyncDomain.loops});
-      }
-    }
+    _replaceLoopInSession(
+      sessionId: sessionId,
+      loopId: loopId,
+      update: (loop) => loop.copyWith(paused: paused),
+      notifyDataChanged: true,
+    );
 
     dynamic raw;
     try {
