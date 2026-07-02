@@ -95,7 +95,6 @@ dependencies:
   firebase_messaging: ^16.1.1
   flutter_local_notifications: ^22.0.0
   mobile_scanner: ^7.2.0
-  cached_network_image: ^3.4.1
 
 dependency_overrides:
   # Keep this explicit until the Flutter toolchain's transitive constraints
@@ -153,8 +152,7 @@ dependency_overrides:
   # release. Removed for this reason (re-add only after the project moves to
   # Flutter 3.44+):
   #   idb_shim (2.9.4), sembast (3.8.9), synchronized (3.4.1),
-  #   url_launcher_android (6.3.32), and the sqflite cluster (sqflite 2.4.3 /
-  #   sqflite_common 2.5.11 — transitive via flutter_cache_manager).
+  #   and url_launcher_android (6.3.32).
   test: 1.31.1
   test_api: 0.7.12
   test_core: 0.6.18

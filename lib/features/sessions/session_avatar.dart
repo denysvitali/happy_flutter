@@ -1,6 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../core/ui/avatars/avatar_bloom.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
 import '../../core/ui/avatars/avatar_constellation.dart';
@@ -9,9 +9,9 @@ import '../../core/ui/avatars/avatar_gradient.dart';
 import '../../core/ui/avatars/avatar_neon.dart';
 import '../../core/ui/avatars/avatar_pixelated.dart';
 import '../../core/ui/avatars/avatar_prism.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/ui/avatars/avatar_rings.dart';
 import '../../core/ui/avatars/avatar_wave.dart';
+import '../../core/widgets/network_avatar_image.dart';
 
 /// Avatar style options for session avatars.
 enum AvatarStyle {
@@ -93,25 +93,11 @@ class SessionAvatar extends StatelessWidget {
         ? (effectiveSize * 0.28).round()
         : (effectiveSize * 0.35).round();
 
-    final avatarWidget = ClipRRect(
-      clipBehavior: Clip.hardEdge,
-      borderRadius: square
-          ? BorderRadius.zero
-          : BorderRadius.circular(size / 2),
-      child: CachedNetworkImage(
-        imageUrl: imageUrl!,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        memCacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).toInt(),
-        memCacheHeight: (size * MediaQuery.devicePixelRatioOf(context)).toInt(),
-        placeholder: (context, url) => Container(
-          width: size,
-          height: size,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        ),
-        errorWidget: (context, url, error) => _buildFallbackAvatar(context),
-      ),
+    final avatarWidget = NetworkAvatarImage(
+      url: imageUrl!,
+      size: size,
+      square: square,
+      fallback: _buildFallbackAvatar(context),
     );
 
     if (showFlavorIcon && flavor != null) {

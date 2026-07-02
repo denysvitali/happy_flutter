@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/avatars/avatar_brutalist.dart' as canvas_brutalist;
@@ -7,6 +6,7 @@ import '../ui/avatars/avatar_geometric.dart';
 import '../ui/avatars/avatar_gradient.dart' as canvas_gradient;
 import '../ui/avatars/avatar_rings.dart';
 import '../ui/avatars/avatar_wave.dart';
+import '../widgets/network_avatar_image.dart';
 
 /// Avatar style options
 enum AvatarStyle {
@@ -276,32 +276,18 @@ class Avatar extends StatelessWidget {
   }
 
   Widget _buildImageAvatar(BuildContext context) {
-    final borderRadius = square ? 0.0 : size / 2;
-    final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).toInt();
-    return ClipRRect(
-      clipBehavior: Clip.hardEdge,
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: CachedNetworkImage(
-        imageUrl: imageUrl!,
+    return NetworkAvatarImage(
+      url: imageUrl!,
+      size: size,
+      square: square,
+      fallback: Container(
         width: size,
         height: size,
-        fit: BoxFit.cover,
-        memCacheWidth: cacheSize,
-        memCacheHeight: cacheSize,
-        placeholder: (context, url) => Container(
-          width: size,
-          height: size,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        ),
-        errorWidget: (context, url, error) => Container(
-          width: size,
-          height: size,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Icon(
-            Icons.person,
-            size: size * 0.6,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: Icon(
+          Icons.person,
+          size: size * 0.6,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );

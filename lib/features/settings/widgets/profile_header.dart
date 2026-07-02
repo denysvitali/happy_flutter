@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/models/profile.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/network_avatar_image.dart';
 
 /// Hero-area profile header with gradient backdrop, centered avatar,
 /// name in headlineSmall, and bio/subtitle in bodyMedium.
@@ -59,30 +59,16 @@ class ProfileHeader extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Builder(builder: (context) {
-            final dpr = MediaQuery.devicePixelRatioOf(context);
-            final cachePx = (80 * dpr).round().clamp(80, 256);
-            return CircleAvatar(
-              radius: 40,
-              backgroundColor: cs.primaryContainer,
-              backgroundImage: avatarUrl != null
-                  ? CachedNetworkImageProvider(
-                      avatarUrl,
-                      maxWidth: cachePx,
-                      maxHeight: cachePx,
-                    )
-                  : null,
-              child: avatarUrl == null
-                  ? Text(
-                      _initialForName(displayName),
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: cs.onPrimaryContainer,
-                      ),
-                    )
-                  : null,
-            );
-          }),
+          if (avatarUrl != null)
+            NetworkAvatarImage(
+              url: avatarUrl,
+              size: 80,
+              fallback: _ProfileInitialAvatar(
+                displayName: displayName,
+              ),
+            )
+          else
+            _ProfileInitialAvatar(displayName: displayName),
           const SizedBox(height: AppSpacing.md),
           Text(
             displayName,
@@ -100,6 +86,29 @@ class ProfileHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileInitialAvatar extends StatelessWidget {
+  const _ProfileInitialAvatar({required this.displayName});
+
+  final String displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return CircleAvatar(
+      radius: 40,
+      backgroundColor: cs.primaryContainer,
+      child: Text(
+        ProfileHeader._initialForName(displayName),
+        style: theme.textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: cs.onPrimaryContainer,
+        ),
       ),
     );
   }

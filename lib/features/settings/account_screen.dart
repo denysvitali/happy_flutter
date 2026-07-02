@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +7,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/safe_pop.dart';
+import '../../core/widgets/network_avatar_image.dart';
 import 'helpers/account_dialogs.dart';
 import 'widgets/connected_accounts_section.dart';
 
@@ -57,18 +57,14 @@ class AccountScreen extends ConsumerWidget {
           child: Row(
             children: [
               if (profile?.avatarUrl != null)
-                Builder(builder: (context) {
-                  final dpr = MediaQuery.devicePixelRatioOf(context);
-                  final cachePx = (36 * dpr).round().clamp(36, 144);
-                  return CircleAvatar(
-                    radius: 18,
-                    backgroundImage: CachedNetworkImageProvider(
-                      profile!.avatarUrl!,
-                      maxWidth: cachePx,
-                      maxHeight: cachePx,
-                    ),
-                  );
-                })
+                NetworkAvatarImage(
+                  url: profile!.avatarUrl!,
+                  size: 36,
+                  fallback: SettingsIconContainer(
+                    icon: Icons.person,
+                    color: cs.primary,
+                  ),
+                )
               else
                 SettingsIconContainer(
                   icon: Icons.person,
