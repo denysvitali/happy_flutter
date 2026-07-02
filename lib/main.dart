@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:sentry_flutter/sentry_flutter.dart' show Sentry, SpanStatus;
 
 import 'core/api/api_client.dart';
@@ -96,10 +95,6 @@ Future<void> _runApp() async {
     ..maximumSize =
         150 // max decoded images
     ..maximumSizeBytes = 30 * 1024 * 1024; // 30 MB
-
-  // All fonts are bundled in google_fonts/ — disable network fetching so
-  // the package never attempts HTTP requests for font files at runtime.
-  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Register background FCM handler before any Firebase calls.
   if (!kIsWeb) {

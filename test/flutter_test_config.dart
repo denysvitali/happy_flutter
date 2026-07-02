@@ -3,14 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
 import 'helpers/fake_mmkv_platform.dart';
 
-/// Global test configuration — ensures google_fonts uses the bundled
-/// TTF assets in `google_fonts/` instead of attempting runtime downloads,
-/// so golden screenshots render real text instead of "Ahem" blocks.
+/// Global test configuration — loads bundled TTF assets so golden screenshots
+/// render real text instead of "Ahem" blocks.
 ///
 /// Also loads Roboto Mono as `monospace` since widgets reference that
 /// generic family name directly via `fontFamily: 'monospace'`.
@@ -22,10 +20,16 @@ import 'helpers/fake_mmkv_platform.dart';
 /// (which is unavailable in the `flutter test` environment).
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
-  GoogleFonts.config.allowRuntimeFetching = false;
   MMKVPluginPlatform.instance = FakeMmkvPlatform();
+  await _loadInterFont();
   await _loadMonospaceFont();
   await testMain();
+}
+
+/// Loads the app's bundled Inter TTF files under the family name used by
+/// ThemeHelper. Production builds load these through pubspec font declarations.
+Future<void> _loadInterFont() async {
+  await _loadFontsFromDirectory(family: 'Inter', directoryPath: 'google_fonts');
 }
 
 /// Loads Roboto Mono TTF files from `test_fonts/` and registers them
@@ -35,20 +39,27 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
 /// on Android, SF Mono on iOS), so the TTFs live outside the asset
 /// bundle.
 Future<void> _loadMonospaceFont() async {
-  final fontsDir = Directory('test_fonts');
+  await _loadFontsFromDirectory(
+    family: 'monospace',
+    directoryPath: 'test_fonts',
+  );
+}
+
+Future<void> _loadFontsFromDirectory({
+  required String family,
+  required String directoryPath,
+}) async {
+  final fontsDir = Directory(directoryPath);
   if (!fontsDir.existsSync()) return;
 
-  final loader = FontLoader('monospace');
-  final files = fontsDir
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.ttf'));
+  final loader = FontLoader(family);
+  final files = fontsDir.listSync().whereType<File>().where(
+    (f) => f.path.endsWith('.ttf'),
+  );
 
   for (final file in files) {
     final bytes = file.readAsBytesSync();
-    loader.addFont(
-      Future.value(ByteData.view(bytes.buffer)),
-    );
+    loader.addFont(Future.value(ByteData.view(bytes.buffer)));
   }
 
   await loader.load();

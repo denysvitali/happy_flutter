@@ -66,7 +66,6 @@ dependencies:
 
   # UI and navigation
   go_router: ^17.0.1
-  google_fonts: ^8.0.2
   # webview_flutter removed — zero Dart imports, native plugin bloat
   flutter_tts: ^4.2.0
   # Offline TTS playback (sherpa_onnx generates Float32 PCM; we wrap
@@ -193,7 +192,18 @@ flutter:
   assets:
     - assets/
     - assets/images/
-    - google_fonts/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: google_fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: google_fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: google_fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: google_fonts/Inter-Bold.ttf
+          weight: 700
 
   generate: true
 

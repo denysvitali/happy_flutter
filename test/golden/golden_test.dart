@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-// google_fonts runtime fetching is disabled in flutter_test_config.dart;
-// bundled fonts from google_fonts/ are used instead.
+// App fonts are loaded in flutter_test_config.dart so golden text renders
+// with the bundled Inter files instead of Ahem.
 import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';

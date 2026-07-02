@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:happy_flutter/core/providers/settings_notifier.dart';
 import 'package:happy_flutter/core/theme/app_color_scheme.dart';
 import 'package:happy_flutter/core/theme/app_terminal_colors.dart';
@@ -164,97 +163,116 @@ const _kSnackBarLight = Color(0xFF1E293B);
 
 // ─── Text themes ─────────────────────────────────────────────────────────────
 
+const _kInterFontFamily = 'Inter';
+
+TextStyle _inter({
+  double? fontSize,
+  FontWeight? fontWeight,
+  double? letterSpacing,
+  Color? color,
+}) {
+  return TextStyle(
+    fontFamily: _kInterFontFamily,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    letterSpacing: letterSpacing,
+    color: color,
+  );
+}
+
 /// Body / UI text: Inter
 TextTheme _buildTextTheme({required bool dark}) {
   final base = dark ? ThemeData.dark() : ThemeData.light();
-  return GoogleFonts.interTextTheme(base.textTheme).copyWith(
-    // Titles — Inter
-    displayLarge: GoogleFonts.inter(
-      fontSize: 57,
-      fontWeight: FontWeight.w400,
-      letterSpacing: -0.5,
-      color: dark ? Colors.white : _kLightTextPrimary,
-    ),
-    displayMedium: GoogleFonts.inter(
-      fontSize: 45,
-      fontWeight: FontWeight.w400,
-      letterSpacing: -0.25,
-      color: dark ? Colors.white : _kLightTextPrimary,
-    ),
-    displaySmall: GoogleFonts.inter(
-      fontSize: 36,
-      fontWeight: FontWeight.w400,
-      letterSpacing: -0.15,
-      color: dark ? Colors.white : _kLightTextPrimary,
-    ),
-    headlineLarge: GoogleFonts.inter(
-      fontSize: 32,
-      fontWeight: FontWeight.w600,
-      color: dark ? Colors.white : _kLightTextPrimary,
-    ),
-    headlineMedium: GoogleFonts.inter(
-      fontSize: 28,
-      fontWeight: FontWeight.w600,
-      color: dark ? Colors.white : _kLightTextPrimary,
-    ),
-    headlineSmall: GoogleFonts.inter(
-      fontSize: 24,
-      fontWeight: FontWeight.w600,
-      color: dark ? Colors.white : _kLightTextPrimary,
-    ),
-    titleLarge: GoogleFonts.inter(
-      fontSize: 22,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0,
-      color: dark ? Colors.white : _kLightTextPrimary,
-    ),
-    titleMedium: GoogleFonts.inter(
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.15,
-      color: dark ? Colors.white : _kLightTextPrimary,
-    ),
-    titleSmall: GoogleFonts.inter(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.1,
-      color: dark ? _kDarkTextMuted : _kLightTextSecondary,
-    ),
-    // Body — Inter
-    bodyLarge: GoogleFonts.inter(
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.15,
-      color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
-    ),
-    bodyMedium: GoogleFonts.inter(
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.25,
-      color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
-    ),
-    bodySmall: GoogleFonts.inter(
-      fontSize: 12,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.4,
-      color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
-    ),
-    labelLarge: GoogleFonts.inter(
-      fontSize: 14,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.1,
-    ),
-    labelMedium: GoogleFonts.inter(
-      fontSize: 12,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.5,
-    ),
-    labelSmall: GoogleFonts.inter(
-      fontSize: 11,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.5,
-    ),
-  );
+  return base.textTheme
+      .apply(fontFamily: _kInterFontFamily)
+      .copyWith(
+        // Titles — Inter
+        displayLarge: _inter(
+          fontSize: 57,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -0.5,
+          color: dark ? Colors.white : _kLightTextPrimary,
+        ),
+        displayMedium: _inter(
+          fontSize: 45,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -0.25,
+          color: dark ? Colors.white : _kLightTextPrimary,
+        ),
+        displaySmall: _inter(
+          fontSize: 36,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -0.15,
+          color: dark ? Colors.white : _kLightTextPrimary,
+        ),
+        headlineLarge: _inter(
+          fontSize: 32,
+          fontWeight: FontWeight.w600,
+          color: dark ? Colors.white : _kLightTextPrimary,
+        ),
+        headlineMedium: _inter(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: dark ? Colors.white : _kLightTextPrimary,
+        ),
+        headlineSmall: _inter(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          color: dark ? Colors.white : _kLightTextPrimary,
+        ),
+        titleLarge: _inter(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0,
+          color: dark ? Colors.white : _kLightTextPrimary,
+        ),
+        titleMedium: _inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.15,
+          color: dark ? Colors.white : _kLightTextPrimary,
+        ),
+        titleSmall: _inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.1,
+          color: dark ? _kDarkTextMuted : _kLightTextSecondary,
+        ),
+        // Body — Inter
+        bodyLarge: _inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.15,
+          color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
+        ),
+        bodyMedium: _inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.25,
+          color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
+        ),
+        bodySmall: _inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.4,
+          color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
+        ),
+        labelLarge: _inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
+        labelMedium: _inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
+        labelSmall: _inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
+      );
 }
 
 // ─── Component themes ─────────────────────────────────────────────────────
@@ -267,7 +285,7 @@ AppBarTheme _buildAppBarTheme({required bool dark}) {
         dark ? _kDarkSurface.withAlpha(230) : _kLightSurface.withAlpha(230),
     foregroundColor: dark ? Colors.white : _kLightTextPrimary,
     centerTitle: false,
-    titleTextStyle: GoogleFonts.inter(
+    titleTextStyle: _inter(
       fontSize: 20,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
@@ -354,7 +372,7 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
         width: AppBorder.thick,
       ),
     ),
-    hintStyle: GoogleFonts.inter(
+    hintStyle: _inter(
       fontSize: 14,
       color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
     ),
@@ -379,7 +397,7 @@ ChipThemeData _buildChipTheme({required bool dark}) {
       vertical: AppSpacing.xs / 2, // 2 px vertical
     ),
     labelPadding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-    labelStyle: GoogleFonts.inter(
+    labelStyle: _inter(
       fontSize: 11,
       fontWeight: FontWeight.w500,
       letterSpacing: 0.2,
@@ -410,7 +428,7 @@ ElevatedButtonThemeData _buildElevatedButtonTheme() {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      textStyle: GoogleFonts.inter(
+      textStyle: _inter(
         fontSize: 15,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.1,
@@ -450,7 +468,7 @@ FilledButtonThemeData _buildFilledButtonTheme() {
         ),
       ),
       textStyle: WidgetStatePropertyAll(
-        GoogleFonts.inter(
+        _inter(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.1,
@@ -519,7 +537,7 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({
         ),
       ),
       textStyle: WidgetStatePropertyAll(
-        GoogleFonts.inter(
+        _inter(
           fontSize: 15,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.1,
@@ -538,12 +556,12 @@ ListTileThemeData _buildListTileTheme({required bool dark}) {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.md),
     ),
-    titleTextStyle: GoogleFonts.inter(
+    titleTextStyle: _inter(
       fontSize: 15,
       fontWeight: FontWeight.w500,
       color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
     ),
-    subtitleTextStyle: GoogleFonts.inter(
+    subtitleTextStyle: _inter(
       fontSize: 13,
       color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
     ),
@@ -561,7 +579,7 @@ NavigationBarThemeData _buildNavigationBarTheme({
     indicatorColor: _kSeedColor.withAlpha(30),
     labelTextStyle: WidgetStateProperty.resolveWith((states) {
       final selected = states.contains(WidgetState.selected);
-      return GoogleFonts.inter(
+      return _inter(
         fontSize: 12,
         fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
         color: selected
@@ -605,12 +623,12 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.xl),
     ),
-    titleTextStyle: GoogleFonts.inter(
+    titleTextStyle: _inter(
       fontSize: 20,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
-    contentTextStyle: GoogleFonts.inter(
+    contentTextStyle: _inter(
       fontSize: 14,
       color: dark ? _kDarkTextMuted : _kLightTextMuted,
     ),
@@ -620,7 +638,7 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
 SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
   return SnackBarThemeData(
     backgroundColor: dark ? _kSnackBarDark : _kSnackBarLight,
-    contentTextStyle: GoogleFonts.inter(
+    contentTextStyle: _inter(
       fontSize: 14,
       color: Colors.white,
     ),
@@ -636,8 +654,8 @@ SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
 
 /// Theme helper for building theme data based on mode
 class ThemeHelper {
-  // Cache built themes per seed color. Theme construction resolves Google
-  // Fonts text styles and builds ~12 component themes — expensive enough that
+  // Cache built themes per seed color. Theme construction builds text styles
+  // and ~12 component themes — expensive enough that
   // repeating it on every MaterialApp rebuild is wasteful when the seed has
   // not changed.
   static final Map<Color, ThemeData> _lightCache = <Color, ThemeData>{};
