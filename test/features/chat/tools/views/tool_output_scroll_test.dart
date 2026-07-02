@@ -245,8 +245,6 @@ $patchLines
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(_richTextContaining('long_file.dart'));
-    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Show all'));
     await tester.pumpAndSettle();
 
