@@ -13,6 +13,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
+import 'loop_actions.dart';
 import 'loop_card.dart';
 
 /// Global "all loops across all sessions" view.
@@ -114,18 +115,15 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen> {
     required String sessionId,
     required String loopId,
   }) async {
-    try {
-      await ref.read(loopsNotifierProvider.notifier).deleteLoop(
-            sessionId: sessionId,
-            loopId: loopId,
-          );
-    } catch (e, st) {
-      logger.warning('AllLoopsScreen delete failed: $e', e, st);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.l10n.loopsLoopCancelFailed}: $e')),
-      );
-    }
+    await deleteLoopWithFeedback(
+      ref: ref,
+      messenger: ScaffoldMessenger.of(context),
+      isMounted: () => mounted,
+      logSource: 'AllLoopsScreen',
+      failureLabel: context.l10n.loopsLoopCancelFailed,
+      sessionId: sessionId,
+      loopId: loopId,
+    );
   }
 
   @override

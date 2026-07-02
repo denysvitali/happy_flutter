@@ -12,6 +12,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'create_loop_sheet.dart';
+import 'loop_actions.dart';
 import 'loop_card.dart';
 
 /// Per-session list of scheduled prompts (loops).
@@ -103,18 +104,15 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen> {
   }
 
   Future<void> _deleteLoop(String loopId) async {
-    try {
-      await ref.read(loopsNotifierProvider.notifier).deleteLoop(
-            sessionId: widget.sessionId,
-            loopId: loopId,
-          );
-    } catch (e, st) {
-      logger.warning('LoopsScreen delete failed: $e', e, st);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.l10n.loopsLoopCancelFailed}: $e')),
-      );
-    }
+    await deleteLoopWithFeedback(
+      ref: ref,
+      messenger: ScaffoldMessenger.of(context),
+      isMounted: () => mounted,
+      logSource: 'LoopsScreen',
+      failureLabel: context.l10n.loopsLoopCancelFailed,
+      sessionId: widget.sessionId,
+      loopId: loopId,
+    );
   }
 
   @override
