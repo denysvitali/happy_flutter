@@ -9,17 +9,23 @@ Future<void> deleteLoopWithFeedback({
   required WidgetRef ref,
   required ScaffoldMessengerState messenger,
   required bool Function() isMounted,
-  required String logSource,
+  required String failureLogMessage,
   required String failureLabel,
   required String sessionId,
   required String loopId,
+  String? successLabel,
+  bool Function(Object error)? shouldHandleError,
 }) async {
   try {
     await ref
         .read(loopsNotifierProvider.notifier)
         .deleteLoop(sessionId: sessionId, loopId: loopId);
+    if (successLabel != null && isMounted()) {
+      messenger.showSnackBar(SnackBar(content: Text(successLabel)));
+    }
   } catch (e, st) {
-    logger.warning('$logSource delete failed: $e', e, st);
+    if (shouldHandleError != null && !shouldHandleError(e)) rethrow;
+    logger.warning('$failureLogMessage: $e', e, st);
     if (!isMounted()) return;
     messenger.showSnackBar(SnackBar(content: Text('$failureLabel: $e')));
   }

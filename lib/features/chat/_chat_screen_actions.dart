@@ -910,23 +910,17 @@ extension _ChatScreenActions on _ChatScreenState {
     if (cancelId != null) {
       unawaited(DraftStorage().removeDraft(sessionId));
       _controller.clear();
-      try {
-        await ref
-            .read(loopsNotifierProvider.notifier)
-            .deleteLoop(sessionId: sessionId, loopId: cancelId);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.loopsLoopCancelled(cancelId))),
-          );
-        }
-      } on StateError catch (e) {
-        logger.warning('[ChatScreen] /loop cancel failed: $e', e);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${l10n.loopsLoopCancelFailed}: $e')),
-          );
-        }
-      }
+      await deleteLoopWithFeedback(
+        ref: ref,
+        messenger: ScaffoldMessenger.of(context),
+        isMounted: () => mounted,
+        failureLogMessage: '[ChatScreen] /loop cancel failed',
+        failureLabel: l10n.loopsLoopCancelFailed,
+        successLabel: l10n.loopsLoopCancelled(cancelId),
+        shouldHandleError: (error) => error is StateError,
+        sessionId: sessionId,
+        loopId: cancelId,
+      );
       return;
     }
 

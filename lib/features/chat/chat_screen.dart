@@ -29,6 +29,7 @@ import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/wire_parsers.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../loops/create_loop_sheet.dart';
+import '../loops/loop_actions.dart';
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'agent_conversation_screen.dart';
 import 'chat_input.dart';

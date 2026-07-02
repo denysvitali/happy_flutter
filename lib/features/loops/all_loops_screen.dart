@@ -119,7 +119,7 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen> {
       ref: ref,
       messenger: ScaffoldMessenger.of(context),
       isMounted: () => mounted,
-      logSource: 'AllLoopsScreen',
+      failureLogMessage: 'AllLoopsScreen delete failed',
       failureLabel: context.l10n.loopsLoopCancelFailed,
       sessionId: sessionId,
       loopId: loopId,
