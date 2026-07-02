@@ -30,14 +30,26 @@ Loop _sample({String id = 'id1234ab', String sessionId = 's1'}) {
 }
 
 Map<String, dynamic> _agentEvent(Map<String, dynamic> event) => {
-      'id': 'm-${event['type']}',
-      'seq': 1,
-      'createdAt': 1700000000000,
-      'role': 'agent',
-      'kind': 'agent-event',
-      'event': event,
-      'content': '',
-    };
+  'id': 'm-${event['type']}',
+  'seq': 1,
+  'createdAt': 1700000000000,
+  'role': 'agent',
+  'kind': 'agent-event',
+  'event': event,
+  'content': '',
+};
+
+class _RetainedRpcFailure {
+  const _RetainedRpcFailure({
+    required this.name,
+    required this.createError,
+    required this.reason,
+  });
+
+  final String name;
+  final Object Function() createError;
+  final String reason;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -218,48 +230,54 @@ void main() {
   });
 
   group('listLoops non-List fallback', () {
-    test('non-List "loops" payload mirrors empty, persists, fires counter', () async {
-      // Regression: the previous code returned `const <Loop>[]` silently
-      // on a non-List payload — no breadcrumb, no _loopsChangeController
-      // fire, no _notifyDataChanged, no MMKV clear. A daemon that
-      // legitimately has no loops (or returned a non-List shape by
-      // mistake) would leave the user looking at a stale cached list
-      // forever. The fix mirrors the empty list through every
-      // notification path so subscribers and the notifier both wake up.
-      sync.testSessionRPCOverride = (sid, method, params) async => <String, dynamic>{
-            'ok': true,
-            // 'loops' is intentionally not a List — a buggy daemon
-            // could return a string, a map, or be missing entirely.
-            'loops': 'not-a-list',
-          };
+    test(
+      'non-List "loops" payload mirrors empty, persists, fires counter',
+      () async {
+        // Regression: the previous code returned `const <Loop>[]` silently
+        // on a non-List payload — no breadcrumb, no _loopsChangeController
+        // fire, no _notifyDataChanged, no MMKV clear. A daemon that
+        // legitimately has no loops (or returned a non-List shape by
+        // mistake) would leave the user looking at a stale cached list
+        // forever. The fix mirrors the empty list through every
+        // notification path so subscribers and the notifier both wake up.
+        sync.testSessionRPCOverride = (sid, method, params) async =>
+            <String, dynamic>{
+              'ok': true,
+              // 'loops' is intentionally not a List — a buggy daemon
+              // could return a string, a map, or be missing entirely.
+              'loops': 'not-a-list',
+            };
 
-      final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
-      final streamEventsBefore = <String>[];
-      final sub = sync.onLoopsChanged.listen(streamEventsBefore.add);
+        final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+        final streamEventsBefore = <String>[];
+        final sub = sync.onLoopsChanged.listen(streamEventsBefore.add);
 
-      final loops = await sync.listLoops(sessionId: 's1');
+        final loops = await sync.listLoops(sessionId: 's1');
 
-      // Empty list returned, but every notification path fired.
-      expect(loops, isEmpty);
-      expect(sync.loopsForSession('s1'), isEmpty);
-      expect(
-        sync.domainChangeCounter(SyncDomain.loops),
-        greaterThan(counterBefore),
-        reason: 'listLoops must bump the loops domain counter on the '
-            'non-List fallback, so the notifier wakes up and clears '
-            'any stale cached list',
-      );
+        // Empty list returned, but every notification path fired.
+        expect(loops, isEmpty);
+        expect(sync.loopsForSession('s1'), isEmpty);
+        expect(
+          sync.domainChangeCounter(SyncDomain.loops),
+          greaterThan(counterBefore),
+          reason:
+              'listLoops must bump the loops domain counter on the '
+              'non-List fallback, so the notifier wakes up and clears '
+              'any stale cached list',
+        );
 
-      // Allow the stream event to flush.
-      await Future<void>.delayed(Duration.zero);
-      expect(
-        streamEventsBefore,
-        contains('s1'),
-        reason: 'listLoops must fire onLoopsChanged even on the '
-            'non-List fallback so per-session subscribers rebuild',
-      );
-      await sub.cancel();
-    });
+        // Allow the stream event to flush.
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          streamEventsBefore,
+          contains('s1'),
+          reason:
+              'listLoops must fire onLoopsChanged even on the '
+              'non-List fallback so per-session subscribers rebuild',
+        );
+        await sub.cancel();
+      },
+    );
 
     test('daemon ok:false preserves local loops and rethrows', () async {
       sync.testLoopsBySession['s1'] = [
@@ -351,80 +369,51 @@ void main() {
 
       await future;
       // Still gone after RPC resolves.
-      expect(sync.loopsForSession('s1').map((l) => l.id).toList(), ['bbbbbbbb']);
+      expect(sync.loopsForSession('s1').map((l) => l.id).toList(), [
+        'bbbbbbbb',
+      ]);
     });
 
-    test('StateError "Session encryption not found" is swallowed, loop stays removed', () async {
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa'),
-        _sample(id: 'bbbbbbbb'),
-      ];
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        throw StateError('Session encryption not found for s1');
-      };
+    for (final failure in [
+      _RetainedRpcFailure(
+        name: 'StateError "Session encryption not found"',
+        createError: () => StateError('Session encryption not found for s1'),
+        reason: 'session is dead',
+      ),
+      _RetainedRpcFailure(
+        name: 'StateError "no scheduler for session"',
+        createError: () => StateError('no scheduler for session s1'),
+        reason: 'daemon has no scheduler',
+      ),
+      _RetainedRpcFailure(
+        name: 'SocketNotConnectedException',
+        createError: () => const SocketNotConnectedException('test'),
+        reason: 'socket is disconnected',
+      ),
+      _RetainedRpcFailure(
+        name: 'SocketAckTimeoutException',
+        createError: () => const SocketAckTimeoutException('ack timeout'),
+        reason: 'RPC times out',
+      ),
+    ]) {
+      test('${failure.name} is swallowed, loop stays removed', () async {
+        sync.testLoopsBySession['s1'] = [
+          _sample(id: 'aaaaaaaa'),
+          _sample(id: 'bbbbbbbb'),
+        ];
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          throw failure.createError();
+        };
 
-      await sync.deleteLoop(sessionId: 's1', loopId: 'aaaaaaaa');
+        await sync.deleteLoop(sessionId: 's1', loopId: 'aaaaaaaa');
 
-      expect(
-        sync.loopsForSession('s1').map((l) => l.id).toList(),
-        ['bbbbbbbb'],
-        reason: 'loop must stay removed when session is dead',
-      );
-    });
-
-    test('StateError "no scheduler for session" is swallowed, loop stays removed', () async {
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa'),
-        _sample(id: 'bbbbbbbb'),
-      ];
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        throw StateError('no scheduler for session s1');
-      };
-
-      await sync.deleteLoop(sessionId: 's1', loopId: 'aaaaaaaa');
-
-      expect(
-        sync.loopsForSession('s1').map((l) => l.id).toList(),
-        ['bbbbbbbb'],
-        reason: 'loop must stay removed when daemon has no scheduler',
-      );
-    });
-
-    test('SocketNotConnectedException is swallowed, loop stays removed', () async {
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa'),
-        _sample(id: 'bbbbbbbb'),
-      ];
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        throw SocketNotConnectedException('test');
-      };
-
-      await sync.deleteLoop(sessionId: 's1', loopId: 'aaaaaaaa');
-
-      expect(
-        sync.loopsForSession('s1').map((l) => l.id).toList(),
-        ['bbbbbbbb'],
-        reason: 'loop must stay removed when socket is disconnected',
-      );
-    });
-
-    test('SocketAckTimeoutException is swallowed, loop stays removed', () async {
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa'),
-        _sample(id: 'bbbbbbbb'),
-      ];
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        throw SocketAckTimeoutException('ack timeout');
-      };
-
-      await sync.deleteLoop(sessionId: 's1', loopId: 'aaaaaaaa');
-
-      expect(
-        sync.loopsForSession('s1').map((l) => l.id).toList(),
-        ['bbbbbbbb'],
-        reason: 'loop must stay removed when RPC times out',
-      );
-    });
+        expect(
+          sync.loopsForSession('s1').map((l) => l.id).toList(),
+          ['bbbbbbbb'],
+          reason: 'loop must stay removed when ${failure.reason}',
+        );
+      });
+    }
 
     test('unexpected StateError is rethrown and loop stays removed', () async {
       sync.testLoopsBySession['s1'] = [
@@ -437,14 +426,19 @@ void main() {
 
       await expectLater(
         sync.deleteLoop(sessionId: 's1', loopId: 'aaaaaaaa'),
-        throwsA(isA<StateError>().having((e) => e.message, 'message', 'something else went wrong')),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'something else went wrong',
+          ),
+        ),
       );
 
       // Optimistic removal happened before the throw.
-      expect(
-        sync.loopsForSession('s1').map((l) => l.id).toList(),
-        ['bbbbbbbb'],
-      );
+      expect(sync.loopsForSession('s1').map((l) => l.id).toList(), [
+        'bbbbbbbb',
+      ]);
     });
 
     test('daemon ok:false rolls back and rethrows', () async {
@@ -473,10 +467,20 @@ void main() {
 
       await expectLater(
         sync.deleteLoop(sessionId: 's1', loopId: 'aaaaaaaa'),
-        throwsA(isA<StateError>().having((e) => e.message, 'message', 'loop-delete failed: loop not found')),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'loop-delete failed: loop not found',
+          ),
+        ),
       );
 
-      expect(callCount, 2, reason: 'must call loop-delete then loop-list for rollback');
+      expect(
+        callCount,
+        2,
+        reason: 'must call loop-delete then loop-list for rollback',
+      );
       // After rollback, the loop should be back.
       expect(
         sync.loopsForSession('s1').map((l) => l.id).toList(),
@@ -507,7 +511,8 @@ void main() {
       expect(
         sync.loopsForSession('s1').firstWhere((l) => l.id == 'aaaaaaaa').paused,
         isTrue,
-        reason: 'paused flag must be toggled optimistically before RPC completes',
+        reason:
+            'paused flag must be toggled optimistically before RPC completes',
       );
 
       await future;
@@ -517,89 +522,45 @@ void main() {
       );
     });
 
-    test('StateError "no scheduler for session" is swallowed, pause retained', () async {
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa').copyWith(paused: false),
-      ];
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        throw StateError('no scheduler for session s1');
-      };
+    for (final failure in [
+      _RetainedRpcFailure(
+        name: 'StateError "no scheduler for session"',
+        createError: () => StateError('no scheduler for session s1'),
+        reason: 'session is dead',
+      ),
+      _RetainedRpcFailure(
+        name: 'StateError "Session encryption not found"',
+        createError: () => StateError('Session encryption not found for s1'),
+        reason: 'encryption is gone',
+      ),
+      _RetainedRpcFailure(
+        name: 'SocketNotConnectedException',
+        createError: () => const SocketNotConnectedException('test'),
+        reason: 'socket is disconnected',
+      ),
+      _RetainedRpcFailure(
+        name: 'SocketAckTimeoutException',
+        createError: () => const SocketAckTimeoutException('ack timeout'),
+        reason: 'RPC times out',
+      ),
+    ]) {
+      test('${failure.name} is swallowed, pause retained', () async {
+        sync.testLoopsBySession['s1'] = [
+          _sample(id: 'aaaaaaaa').copyWith(paused: false),
+        ];
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          throw failure.createError();
+        };
 
-      await sync.pauseLoop(
-        sessionId: 's1',
-        loopId: 'aaaaaaaa',
-        paused: true,
-      );
+        await sync.pauseLoop(sessionId: 's1', loopId: 'aaaaaaaa', paused: true);
 
-      expect(
-        sync.loopsForSession('s1').single.paused,
-        isTrue,
-        reason: 'optimistic pause must be retained when session is dead',
-      );
-    });
-
-    test('StateError "Session encryption not found" is swallowed, pause retained', () async {
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa').copyWith(paused: false),
-      ];
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        throw StateError('Session encryption not found for s1');
-      };
-
-      await sync.pauseLoop(
-        sessionId: 's1',
-        loopId: 'aaaaaaaa',
-        paused: true,
-      );
-
-      expect(
-        sync.loopsForSession('s1').single.paused,
-        isTrue,
-        reason: 'optimistic pause must be retained when encryption is gone',
-      );
-    });
-
-    test('SocketNotConnectedException is swallowed, pause retained', () async {
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa').copyWith(paused: false),
-      ];
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        throw SocketNotConnectedException('test');
-      };
-
-      await sync.pauseLoop(
-        sessionId: 's1',
-        loopId: 'aaaaaaaa',
-        paused: true,
-      );
-
-      expect(
-        sync.loopsForSession('s1').single.paused,
-        isTrue,
-        reason: 'optimistic pause must be retained when socket is disconnected',
-      );
-    });
-
-    test('SocketAckTimeoutException is swallowed, pause retained', () async {
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa').copyWith(paused: false),
-      ];
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        throw SocketAckTimeoutException('ack timeout');
-      };
-
-      await sync.pauseLoop(
-        sessionId: 's1',
-        loopId: 'aaaaaaaa',
-        paused: true,
-      );
-
-      expect(
-        sync.loopsForSession('s1').single.paused,
-        isTrue,
-        reason: 'optimistic pause must be retained when RPC times out',
-      );
-    });
+        expect(
+          sync.loopsForSession('s1').single.paused,
+          isTrue,
+          reason: 'optimistic pause must be retained when ${failure.reason}',
+        );
+      });
+    }
 
     test('daemon ok:false rolls back and rethrows', () async {
       sync.testLoopsBySession['s1'] = [
@@ -622,7 +583,13 @@ void main() {
 
       await expectLater(
         sync.pauseLoop(sessionId: 's1', loopId: 'aaaaaaaa', paused: true),
-        throwsA(isA<StateError>().having((e) => e.message, 'message', 'loop-pause failed: loop not found')),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'loop-pause failed: loop not found',
+          ),
+        ),
       );
 
       expect(callCount, 2);
