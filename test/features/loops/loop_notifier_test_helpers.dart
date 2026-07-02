@@ -4,12 +4,16 @@ import 'package:happy_flutter/core/providers/loops_notifier.dart';
 class StubLoopsNotifier extends LoopsNotifier {
   StubLoopsNotifier({
     Map<String, List<Loop>> initial = const {},
+    this.createError,
+    this.createdLoopId = 'createdid',
     this.deleteError,
     this.deleteCalls,
     this.actionCalls,
   }) : _initial = initial;
 
   final Map<String, List<Loop>> _initial;
+  final Object? createError;
+  final String createdLoopId;
   final Object? deleteError;
   final List<String>? deleteCalls;
   final List<String>? actionCalls;
@@ -30,7 +34,20 @@ class StubLoopsNotifier extends LoopsNotifier {
     required String prompt,
     required bool recurring,
   }) async {
-    throw UnimplementedError();
+    final error = createError;
+    if (error is Error) throw error;
+    if (error is Exception) throw error;
+    if (error != null) throw StateError(error.toString());
+
+    return Loop(
+      id: createdLoopId,
+      sessionId: sessionId,
+      expression: expression,
+      prompt: prompt,
+      recurring: recurring,
+      createdAt: 0,
+      expiresAt: 7 * 24 * 60 * 60 * 1000,
+    );
   }
 
   @override

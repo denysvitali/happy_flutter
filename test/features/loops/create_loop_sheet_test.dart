@@ -6,60 +6,12 @@ import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/providers/loops_notifier.dart';
 import 'package:happy_flutter/features/loops/create_loop_sheet.dart';
 
-class _StubLoopsNotifier extends LoopsNotifier {
-  _StubLoopsNotifier({this.failCreate = false});
+import 'loop_notifier_test_helpers.dart';
 
-  final bool failCreate;
-
-  @override
-  Map<String, List<Loop>> build() => {};
-
-  @override
-  void loadFromSync() {}
-
-  @override
-  Future<void> refreshFromSync() async {}
-
-  @override
-  Future<Loop> createLoop({
-    required String sessionId,
-    required String expression,
-    required String prompt,
-    required bool recurring,
-  }) async {
-    if (failCreate) {
-      throw StateError('daemon unavailable');
-    }
-    return Loop(
-      id: 'createdid',
-      sessionId: sessionId,
-      expression: expression,
-      prompt: prompt,
-      recurring: recurring,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      expiresAt:
-          DateTime.now().millisecondsSinceEpoch + 7 * 24 * 60 * 60 * 1000,
-    );
-  }
-
-  @override
-  Future<void> deleteLoop({
-    required String sessionId,
-    required String loopId,
-  }) async {}
-
-  @override
-  Future<void> pauseLoop({
-    required String sessionId,
-    required String loopId,
-    required bool paused,
-  }) async {}
-}
-
-Widget _wrap({_StubLoopsNotifier? notifier, CreateLoopSheet? sheet}) {
+Widget _wrap({StubLoopsNotifier? notifier, CreateLoopSheet? sheet}) {
   return ProviderScope(
     overrides: [
-      loopsNotifierProvider.overrideWith(() => notifier ?? _StubLoopsNotifier()),
+      loopsNotifierProvider.overrideWith(() => notifier ?? StubLoopsNotifier()),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -116,8 +68,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            loopsNotifierProvider
-                .overrideWith(() => _StubLoopsNotifier()),
+            loopsNotifierProvider.overrideWith(() => StubLoopsNotifier()),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -157,7 +108,9 @@ void main() {
     });
 
     testWidgets('shows snackbar on failure', (tester) async {
-      await tester.pumpWidget(_wrap(notifier: _StubLoopsNotifier(failCreate: true)));
+      await tester.pumpWidget(
+        _wrap(notifier: StubLoopsNotifier(createError: 'daemon unavailable')),
+      );
       await tester.pumpAndSettle();
       // Fill in valid values so the validator passes and the RPC fires.
       await tester.enterText(find.byType(TextField).first, '*/5 * * * *');
