@@ -6,11 +6,13 @@ class StubLoopsNotifier extends LoopsNotifier {
     Map<String, List<Loop>> initial = const {},
     this.deleteError,
     this.deleteCalls,
+    this.actionCalls,
   }) : _initial = initial;
 
   final Map<String, List<Loop>> _initial;
   final Object? deleteError;
   final List<String>? deleteCalls;
+  final List<String>? actionCalls;
 
   @override
   Map<String, List<Loop>> build() => _initial;
@@ -37,6 +39,7 @@ class StubLoopsNotifier extends LoopsNotifier {
     required String loopId,
   }) async {
     deleteCalls?.add('$sessionId:$loopId');
+    actionCalls?.add('delete:$sessionId:$loopId');
     final error = deleteError;
     if (error is Error) throw error;
     if (error is Exception) throw error;
@@ -48,5 +51,7 @@ class StubLoopsNotifier extends LoopsNotifier {
     required String sessionId,
     required String loopId,
     required bool paused,
-  }) async {}
+  }) async {
+    actionCalls?.add('pause:$sessionId:$loopId:$paused');
+  }
 }
