@@ -164,6 +164,19 @@ const _kSnackBarLight = Color(0xFF1E293B);
 // ─── Text themes ─────────────────────────────────────────────────────────────
 
 const _kInterFontFamily = 'Inter';
+const _kInterRegularFontFamily = 'Inter_regular';
+const _kInterMediumFontFamily = 'Inter_500';
+const _kInterSemiBoldFontFamily = 'Inter_600';
+const _kInterBoldFontFamily = 'Inter_700';
+
+String _interFamilyFor(FontWeight? fontWeight) {
+  return switch (fontWeight) {
+    FontWeight.w500 => _kInterMediumFontFamily,
+    FontWeight.w600 => _kInterSemiBoldFontFamily,
+    FontWeight.w700 => _kInterBoldFontFamily,
+    _ => _kInterRegularFontFamily,
+  };
+}
 
 TextStyle _inter({
   double? fontSize,
@@ -172,7 +185,8 @@ TextStyle _inter({
   Color? color,
 }) {
   return TextStyle(
-    fontFamily: _kInterFontFamily,
+    fontFamily: _interFamilyFor(fontWeight),
+    fontFamilyFallback: const [_kInterFontFamily],
     fontSize: fontSize,
     fontWeight: fontWeight,
     letterSpacing: letterSpacing,

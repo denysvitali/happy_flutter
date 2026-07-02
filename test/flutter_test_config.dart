@@ -7,8 +7,6 @@ import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
 import 'helpers/fake_mmkv_platform.dart';
 
-const _pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
-
 /// Global test configuration — loads bundled TTF assets so golden screenshots
 /// render real text instead of "Ahem" blocks.
 ///
@@ -23,33 +21,9 @@ const _pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   MMKVPluginPlatform.instance = FakeMmkvPlatform();
-  _installFakePathProvider();
   await _loadInterFont();
   await _loadMonospaceFont();
   await testMain();
-}
-
-void _installFakePathProvider() {
-  final root = Directory.systemTemp.createTempSync('happy_flutter_test_');
-  final support = Directory('${root.path}/support')..createSync();
-  final documents = Directory('${root.path}/documents')..createSync();
-  final cache = Directory('${root.path}/cache')..createSync();
-  final downloads = Directory('${root.path}/downloads')..createSync();
-
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(_pathProviderChannel, (call) async {
-    return switch (call.method) {
-      'getApplicationSupportDirectory' => support.path,
-      'getApplicationDocumentsDirectory' => documents.path,
-      'getTemporaryDirectory' => root.path,
-      'getApplicationCacheDirectory' => cache.path,
-      'getDownloadsDirectory' => downloads.path,
-      'getExternalStorageDirectory' => null,
-      'getExternalCacheDirectories' => <String>[],
-      'getExternalStorageDirectories' => <String>[],
-      _ => null,
-    };
-  });
 }
 
 /// Loads the app's bundled Inter TTF files under the family name used by

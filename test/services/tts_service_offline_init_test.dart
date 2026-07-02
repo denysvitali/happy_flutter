@@ -41,6 +41,13 @@ void main() {
 
   group('OfflineTtsService.initialize', () {
     test(
+      'refreshStatuses completes when path_provider is unavailable',
+      () async {
+        await expectLater(OfflineTtsService().refreshStatuses(), completes);
+      },
+    );
+
+    test(
       'completes even when the native sherpa-onnx library is missing',
       () async {
         // On the Linux test host the bundled .so almost certainly

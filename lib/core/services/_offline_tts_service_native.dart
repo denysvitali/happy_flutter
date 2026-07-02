@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -464,7 +465,15 @@ class OfflineTtsService {
   /// startup and after disk-affecting operations.
   Future<void> refreshStatuses() async {
     if (!isSupported) return;
-    final supportDir = await getApplicationSupportDirectory();
+    final Directory supportDir;
+    try {
+      supportDir = await getApplicationSupportDirectory();
+    } on MissingPluginException catch (e) {
+      logger.info(
+        '[OfflineTTS] refreshStatuses skipped: path_provider unavailable: $e',
+      );
+      return;
+    }
     final next = <String, OfflineTtsStatus>{};
     for (final voice in OfflineTtsCatalog.all) {
       // Preserve in-progress / failed states — disk presence alone
