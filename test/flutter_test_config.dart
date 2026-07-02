@@ -30,6 +30,22 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
 /// ThemeHelper. Production builds load these through pubspec font declarations.
 Future<void> _loadInterFont() async {
   await _loadFontsFromDirectory(family: 'Inter', directoryPath: 'google_fonts');
+  await _loadFontFile(
+    family: 'Inter_regular',
+    path: 'google_fonts/Inter-Regular.ttf',
+  );
+  await _loadFontFile(
+    family: 'Inter_500',
+    path: 'google_fonts/Inter-Medium.ttf',
+  );
+  await _loadFontFile(
+    family: 'Inter_600',
+    path: 'google_fonts/Inter-SemiBold.ttf',
+  );
+  await _loadFontFile(
+    family: 'Inter_700',
+    path: 'google_fonts/Inter-Bold.ttf',
+  );
 }
 
 /// Loads Roboto Mono TTF files from `test_fonts/` and registers them
@@ -62,5 +78,18 @@ Future<void> _loadFontsFromDirectory({
     loader.addFont(Future.value(ByteData.view(bytes.buffer)));
   }
 
+  await loader.load();
+}
+
+Future<void> _loadFontFile({
+  required String family,
+  required String path,
+}) async {
+  final file = File(path);
+  if (!file.existsSync()) return;
+
+  final loader = FontLoader(family);
+  final bytes = file.readAsBytesSync();
+  loader.addFont(Future.value(ByteData.view(bytes.buffer)));
   await loader.load();
 }
