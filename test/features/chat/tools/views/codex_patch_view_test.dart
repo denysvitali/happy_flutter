@@ -40,7 +40,6 @@ void main() {
         ),
       );
 
-      await tester.tap(_findRichTextContaining('main.dart'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 file changed'), findsOneWidget);
@@ -74,13 +73,48 @@ void main() {
         ),
       );
 
-      await tester.tap(_findRichTextContaining('app.dart'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 file changed'), findsOneWidget);
       expect(_findRichTextContaining('lib/app.dart'), findsAtLeastNWidgets(1));
       expect(_findRichTextContaining("-const name = 'old';"), findsOneWidget);
       expect(_findRichTextContaining("+const name = 'new';"), findsOneWidget);
+    });
+
+    testWidgets('falls back to raw Codex arguments when input is empty', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          CodexPatchView(
+            tool: {
+              'input': <String, dynamic>{},
+              'content': {
+                'arguments': {
+                  'body': '''
+*** Begin Patch
+*** Update File: lib/cached.dart
+@@
+-final cached = false;
++final cached = true;
+*** End Patch
+''',
+                },
+              },
+            },
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 file changed'), findsOneWidget);
+      expect(
+        _findRichTextContaining('lib/cached.dart'),
+        findsAtLeastNWidgets(1),
+      );
+      expect(_findRichTextContaining('-final cached = false;'), findsOneWidget);
+      expect(_findRichTextContaining('+final cached = true;'), findsOneWidget);
     });
 
     testWidgets('renders structured Map changes without raw JSON', (
@@ -105,7 +139,6 @@ void main() {
         ),
       );
 
-      await tester.tap(_findRichTextContaining('structured.dart'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 file changed'), findsOneWidget);
@@ -137,7 +170,6 @@ void main() {
         ),
       );
 
-      await tester.tap(_findRichTextContaining('nested.dart'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 file changed'), findsOneWidget);
@@ -164,7 +196,6 @@ void main() {
         ),
       );
 
-      await tester.tap(_findRichTextContaining('kind.dart'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 file changed'), findsOneWidget);
@@ -192,7 +223,6 @@ void main() {
         ),
       );
 
-      await tester.tap(_findRichTextContaining('list.dart'));
       await tester.pumpAndSettle();
 
       expect(find.text('1 file changed'), findsOneWidget);
@@ -285,6 +315,25 @@ void main() {
       expect(KnownTools.titleFor('grep', {}, null), 'Search Content');
       expect(KnownTools.titleFor('ls', {}, null), 'List Files');
       expect(KnownTools.titleFor('todo_list', {}, null), 'Todo List');
+    });
+
+    test('extracts patch subtitle from raw cached content', () {
+      final definition = KnownTools.get('functions.apply_patch');
+      final subtitle = definition?.extractSubtitle?.call({
+        'input': <String, dynamic>{},
+        'content': {
+          'arguments': '''
+*** Begin Patch
+*** Update File: lib/cached.dart
+@@
+-final cached = false;
++final cached = true;
+*** End Patch
+''',
+        },
+      }, null);
+
+      expect(subtitle, 'cached.dart');
     });
   });
 }

@@ -982,6 +982,42 @@ void main() {
         expect(result.messages.first['name'], 'bash');
       });
 
+      test('processes codex tool-call arguments as input', () {
+        const patch = '''
+*** Begin Patch
+*** Update File: lib/main.dart
+@@
+-const value = 1;
++const value = 2;
+*** End Patch
+''';
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'codex',
+                'data': {
+                  'type': 'tool-call',
+                  'name': 'functions.apply_patch',
+                  'arguments': patch,
+                  'callId': 'call_patch',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'tool-call');
+        expect(result.messages.first['name'], 'functions.apply_patch');
+        expect(result.messages.first['input'], patch);
+      });
+
       test('processes codex tool-call-result', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [

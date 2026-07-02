@@ -840,7 +840,11 @@ class KnownTools {
   }
 
   static String? _extractPatchSubtitle(Map<String, dynamic> tool) {
-    final patch = _extractPatchText(tool['input']);
+    final patch =
+        _extractPatchText(tool['input']) ??
+        _extractPatchText(tool['content']) ??
+        _extractPatchText(tool['raw']) ??
+        _extractPatchText(tool['result']);
     if (patch == null) return null;
 
     final files = <String>[];
@@ -874,7 +878,10 @@ class KnownTools {
   static String? _extractPatchText(dynamic input) {
     if (input is String && input.contains('*** Begin Patch')) return input;
     final inputMap = WireParsers.asMap(input);
-    if (inputMap == null) return null;
+    if (inputMap == null) {
+      final inputList = WireParsers.asList(input);
+      return inputList != null ? _findPatchText(inputList) : null;
+    }
     for (final key in const ['patch', 'input', 'content']) {
       final value = inputMap[key];
       if (value is String && value.contains('*** Begin Patch')) return value;

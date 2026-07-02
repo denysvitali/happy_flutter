@@ -70,8 +70,14 @@ class CodexPatchView extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final rawInput = tool['input'];
     final input = WireParsers.asMap(rawInput) ?? {};
-    final changes = input['changes'];
-    final patch = _extractPatchText(rawInput);
+    final sourceValues = <dynamic>[
+      rawInput,
+      tool['content'],
+      tool['raw'],
+      tool['result'],
+    ];
+    final changes = _extractChanges(sourceValues);
+    final patch = _extractPatchText(sourceValues);
     final autoApproved = input['auto_approved'] as bool?;
 
     final parsedChanges = _parseChanges(changes);
@@ -250,10 +256,49 @@ class CodexPatchView extends StatelessWidget {
     return null;
   }
 
+  dynamic _extractChanges(dynamic value) {
+    final map = WireParsers.asMap(value);
+    if (map != null) {
+      if (map.containsKey('changes')) return map['changes'];
+
+      for (final key in const [
+        'args',
+        'arguments',
+        'input',
+        'content',
+        'structuredContent',
+        'data',
+      ]) {
+        if (!map.containsKey(key)) continue;
+        final nested = _extractChanges(map[key]);
+        if (nested != null) return nested;
+      }
+
+      for (final entry in map.values) {
+        final nested = _extractChanges(entry);
+        if (nested != null) return nested;
+      }
+      return null;
+    }
+
+    final list = WireParsers.asList(value);
+    if (list != null) {
+      for (final item in list) {
+        final nested = _extractChanges(item);
+        if (nested != null) return nested;
+      }
+    }
+
+    return null;
+  }
+
   String? _extractPatchText(dynamic input) {
     if (input is String && input.contains('*** Begin Patch')) return input;
     final inputMap = WireParsers.asMap(input);
-    if (inputMap == null) return null;
+    if (inputMap == null) {
+      final inputList = WireParsers.asList(input);
+      return inputList != null ? _findPatchText(inputList) : null;
+    }
     for (final key in const ['patch', 'input', 'content']) {
       final value = inputMap[key];
       if (value is String && value.contains('*** Begin Patch')) return value;
@@ -401,7 +446,11 @@ class _PatchHeaderBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_outline, size: 11, color: AppColors.success),
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 11,
+                    color: AppColors.success,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'auto-approved',
@@ -434,7 +483,22 @@ class _PatchFileList extends StatefulWidget {
 }
 
 class _PatchFileListState extends State<_PatchFileList> {
-  final Set<int> _expanded = {};
+  late final Set<int> _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = {for (var i = 0; i < widget.changes.length; i++) i};
+  }
+
+  @override
+  void didUpdateWidget(_PatchFileList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _expanded.removeWhere((idx) => idx >= widget.changes.length);
+    for (var i = oldWidget.changes.length; i < widget.changes.length; i++) {
+      _expanded.add(i);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -64,9 +64,14 @@ void _processCodexContent({
   }
 
   if (dataType == 'tool-call') {
-    // Handle both old format (name/input) and new format (toolName/args) from happy-cli-go.
+    // Handle old (name/input), current (toolName/args), and Responses-style
+    // (name/arguments) tool calls from happy-cli-go/Codex.
     final toolName = data['toolName'] ?? data['name'] ?? 'unknown';
-    final toolInput = data['args'] ?? data['input'] ?? <String, dynamic>{};
+    final toolInput =
+        data['args'] ??
+        data['input'] ??
+        data['arguments'] ??
+        <String, dynamic>{};
     messages.add({
       'id': id,
       'localId': localId,
