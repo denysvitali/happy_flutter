@@ -9,8 +9,9 @@ import 'package:happy_flutter/features/loops/create_loop_sheet.dart';
 import 'package:happy_flutter/features/loops/loops_screen.dart';
 
 class _StubLoopsNotifier extends LoopsNotifier {
-  _StubLoopsNotifier(this._initial);
+  _StubLoopsNotifier(this._initial, {this.deleteError});
   final Map<String, List<Loop>> _initial;
+  final Object? deleteError;
 
   @override
   Map<String, List<Loop>> build() => _initial;
@@ -44,7 +45,10 @@ class _StubLoopsNotifier extends LoopsNotifier {
   Future<void> deleteLoop({
     required String sessionId,
     required String loopId,
-  }) async {}
+  }) async {
+    final error = deleteError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> pauseLoop({
@@ -57,10 +61,13 @@ class _StubLoopsNotifier extends LoopsNotifier {
 Widget _wrap({
   required Widget child,
   Map<String, List<Loop>>? loops,
+  Object? deleteError,
 }) {
   return ProviderScope(
     overrides: [
-      loopsNotifierProvider.overrideWith(() => _StubLoopsNotifier(loops ?? {})),
+      loopsNotifierProvider.overrideWith(
+        () => _StubLoopsNotifier(loops ?? {}, deleteError: deleteError),
+      ),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -170,6 +177,41 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Couldn\'t load loops'), findsOneWidget);
       expect(find.byIcon(Icons.refresh), findsOneWidget);
+    });
+
+    testWidgets('shows snackbar when delete fails', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const LoopsScreen(sessionId: 's1'),
+          loops: {
+            's1': [
+              Loop(
+                id: 'aabbccdd',
+                sessionId: 's1',
+                expression: '*/5 * * * *',
+                prompt: 'check the deploy',
+                recurring: true,
+                createdAt: DateTime.now().millisecondsSinceEpoch - 60000,
+                expiresAt:
+                    DateTime.now().millisecondsSinceEpoch +
+                    6 * 24 * 60 * 60 * 1000,
+              ),
+            ],
+          },
+          deleteError: StateError('delete failed'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete').last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Failed to cancel loop: Bad state: delete failed'),
+        findsOneWidget,
+      );
     });
   });
 }
