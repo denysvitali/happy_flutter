@@ -8,6 +8,7 @@ class StubLoopsNotifier extends LoopsNotifier {
     this.createdLoopId = 'createdid',
     this.deleteError,
     this.deleteCalls,
+    this.refreshError,
     this.actionCalls,
   }) : _initial = initial;
 
@@ -16,6 +17,7 @@ class StubLoopsNotifier extends LoopsNotifier {
   final String createdLoopId;
   final Object? deleteError;
   final List<String>? deleteCalls;
+  final Object? refreshError;
   final List<String>? actionCalls;
 
   @override
@@ -25,7 +27,12 @@ class StubLoopsNotifier extends LoopsNotifier {
   void loadFromSync() {}
 
   @override
-  Future<void> refreshFromSync() async {}
+  Future<void> refreshFromSync() async {
+    final error = refreshError;
+    if (error is Error) throw error;
+    if (error is Exception) throw error;
+    if (error != null) throw StateError(error.toString());
+  }
 
   @override
   Future<Loop> createLoop({

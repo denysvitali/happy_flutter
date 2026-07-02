@@ -14,11 +14,16 @@ Widget _wrap({
   required Widget child,
   Map<String, List<Loop>>? loops,
   Object? deleteError,
+  Object? refreshError,
 }) {
   return ProviderScope(
     overrides: [
       loopsNotifierProvider.overrideWith(
-        () => StubLoopsNotifier(initial: loops ?? {}, deleteError: deleteError),
+        () => StubLoopsNotifier(
+          initial: loops ?? {},
+          deleteError: deleteError,
+          refreshError: refreshError,
+        ),
       ),
     ],
     child: MaterialApp(
@@ -113,17 +118,10 @@ void main() {
     });
 
     testWidgets('shows error state on refresh failure', (tester) async {
-      final failingNotifier = _FailingRefreshLoopsNotifier();
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            loopsNotifierProvider.overrideWith(() => failingNotifier),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const LoopsScreen(sessionId: 's1'),
-          ),
+        _wrap(
+          child: const LoopsScreen(sessionId: 's1'),
+          refreshError: StateError('boom'),
         ),
       );
       await tester.pumpAndSettle();
@@ -166,17 +164,4 @@ void main() {
       );
     });
   });
-}
-
-class _FailingRefreshLoopsNotifier extends LoopsNotifier {
-  @override
-  Map<String, List<Loop>> build() => {};
-
-  @override
-  void loadFromSync() {}
-
-  @override
-  Future<void> refreshFromSync() async {
-    throw StateError('boom');
-  }
 }
