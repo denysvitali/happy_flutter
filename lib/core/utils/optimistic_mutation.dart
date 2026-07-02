@@ -49,8 +49,8 @@ class OptimisticMutation<T> {
   const OptimisticMutation({
     required StateReader<T> getState,
     required StateWriter<T> setState,
-  })  : _getState = getState,
-        _setState = setState;
+  }) : _getState = getState,
+       _setState = setState;
 
   final StateReader<T> _getState;
   final StateWriter<T> _setState;
@@ -65,10 +65,14 @@ class OptimisticMutation<T> {
   ///
   /// Returns `true` if the action succeeded, `false` if it failed and the
   /// state was rolled back.
+  ///
+  /// [rollbackWarning] overrides the default warning message while preserving
+  /// the failed action's error and stack trace in the log entry.
   Future<bool> run({
     required OptimisticUpdater<T> optimisticUpdate,
     required MutationAction action,
     ErrorHandler? onError,
+    String? rollbackWarning,
   }) async {
     final snapshot = _getState();
 
@@ -83,8 +87,11 @@ class OptimisticMutation<T> {
       _setState(snapshot);
 
       logger.warning(
-        'OptimisticMutation: action failed, rolling back. '
-        'Error: $error',
+        rollbackWarning ??
+            'OptimisticMutation: action failed, rolling back. '
+                'Error: $error',
+        error,
+        stackTrace,
       );
 
       onError?.call(error, stackTrace);

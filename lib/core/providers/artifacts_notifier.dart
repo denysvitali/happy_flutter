@@ -4,6 +4,7 @@ import '../models/artifact.dart';
 import '../repositories/artifacts_repository.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart' show SyncDomain, sync;
+import '../utils/optimistic_mutation.dart';
 
 class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
   int _lastDataChangeCounter = -1;
@@ -71,20 +72,19 @@ class ArtifactsNotifier extends Notifier<Map<String, DecryptedArtifact>> {
   /// Rolls back on failure and logs a warning. Returns whether the server
   /// accepted the deletion.
   Future<bool> optimisticRemove(String id) async {
-    final snapshot = state;
-    state = Map<String, DecryptedArtifact>.from(state)..remove(id);
-    try {
-      await _repository.deleteArtifact(id);
-      return true;
-    } catch (e, stack) {
-      state = snapshot;
-      logger.warning(
-        'OptimisticMutation: deleteArtifact($id) failed, rolled back',
-        e,
-        stack,
-      );
-      return false;
-    }
+    final mutation = OptimisticMutation<Map<String, DecryptedArtifact>>(
+      getState: () => state,
+      setState: (next) => state = next,
+    );
+    return mutation.run(
+      optimisticUpdate: (current) {
+        return Map<String, DecryptedArtifact>.from(current)..remove(id);
+      },
+      action: () => _repository.deleteArtifact(id),
+      rollbackWarning:
+          'OptimisticMutation: deleteArtifact($id) failed, '
+          'rolled back',
+    );
   }
 
   /// Creates a new artifact on the server and returns its ID.
