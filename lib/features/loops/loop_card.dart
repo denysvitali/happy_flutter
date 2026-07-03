@@ -205,7 +205,7 @@ class LoopCard extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) {
+    if (ok ?? false) {
       await onDelete();
     }
   }
