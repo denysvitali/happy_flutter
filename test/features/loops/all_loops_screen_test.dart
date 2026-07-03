@@ -52,29 +52,6 @@ Widget _wrap({
   );
 }
 
-Loop _loop({
-  required String id,
-  required String sessionId,
-  String expression = '*/5 * * * *',
-  String prompt = 'check the deploy',
-  int? createdAt,
-  int? expiresAt,
-  bool recurring = true,
-  bool paused = false,
-}) {
-  final now = DateTime.now().millisecondsSinceEpoch;
-  return Loop(
-    id: id,
-    sessionId: sessionId,
-    expression: expression,
-    prompt: prompt,
-    recurring: recurring,
-    createdAt: createdAt ?? now,
-    expiresAt: expiresAt ?? now + 7 * 24 * 60 * 60 * 1000,
-    paused: paused,
-  );
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -106,10 +83,10 @@ void main() {
         _wrap(
           child: const AllLoopsScreen(),
           loops: {
-            's1': [_loop(id: 'aaa00001', sessionId: 's1')],
+            's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
             's2': [
-              _loop(id: 'bbb00001', sessionId: 's2'),
-              _loop(id: 'bbb00002', sessionId: 's2'),
+              testLoop(id: 'bbb00001', sessionId: 's2'),
+              testLoop(id: 'bbb00002', sessionId: 's2'),
             ],
           },
         ),
@@ -130,10 +107,10 @@ void main() {
         _wrap(
           child: const AllLoopsScreen(),
           loops: {
-            's1': [_loop(id: 'aaa00001', sessionId: 's1')],
+            's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
             's2': [
-              _loop(id: 'bbb00001', sessionId: 's2'),
-              _loop(id: 'bbb00002', sessionId: 's2'),
+              testLoop(id: 'bbb00001', sessionId: 's2'),
+              testLoop(id: 'bbb00002', sessionId: 's2'),
             ],
           },
         ),
@@ -151,8 +128,8 @@ void main() {
         _wrap(
           child: const AllLoopsScreen(),
           cachedLoops: {
-            's1': [_loop(id: 'aaa00001', sessionId: 's1')],
-            's2': [_loop(id: 'bbb00001', sessionId: 's2')],
+            's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
+            's2': [testLoop(id: 'bbb00001', sessionId: 's2')],
           },
           refreshCalls: refreshCalls,
         ),
@@ -174,7 +151,7 @@ void main() {
         _wrap(
           child: const AllLoopsScreen(),
           loops: {
-            's1': [_loop(id: 'aaa00001', sessionId: 's1')],
+            's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
           },
         ),
       );
@@ -197,7 +174,7 @@ void main() {
           _wrap(
             child: const AllLoopsScreen(),
             loops: {
-              's1': [_loop(id: 'aaa00001', sessionId: 's1')],
+              's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
             },
             actionCalls: calls,
           ),
@@ -226,7 +203,7 @@ void main() {
         _wrap(
           child: const AllLoopsScreen(),
           loops: {
-            's1': [_loop(id: 'aaa00001', sessionId: 's1')],
+            's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
           },
         ),
       );

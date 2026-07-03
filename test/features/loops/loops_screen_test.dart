@@ -68,22 +68,17 @@ void main() {
     testWidgets('renders one card per loop', (tester) async {
       final loops = {
         's1': [
-          Loop(
+          testLoop(
             id: 'aabbccdd',
             sessionId: 's1',
-            expression: '*/5 * * * *',
-            prompt: 'check the deploy',
-            recurring: true,
-            createdAt: DateTime.now().millisecondsSinceEpoch - 60000,
             expiresAt:
                 DateTime.now().millisecondsSinceEpoch + 6 * 24 * 60 * 60 * 1000,
           ),
-          Loop(
+          testLoop(
             id: 'eeff0011',
             sessionId: 's1',
             expression: '0 9 * * *',
             prompt: 'daily standup',
-            recurring: true,
             createdAt: DateTime.now().millisecondsSinceEpoch - 100000,
             expiresAt:
                 DateTime.now().millisecondsSinceEpoch + 5 * 24 * 60 * 60 * 1000,
@@ -113,13 +108,9 @@ void main() {
           child: const LoopsScreen(sessionId: 's1'),
           cachedLoops: {
             's1': [
-              Loop(
+              testLoop(
                 id: 'aabbccdd',
                 sessionId: 's1',
-                expression: '*/5 * * * *',
-                prompt: 'check the deploy',
-                recurring: true,
-                createdAt: DateTime.now().millisecondsSinceEpoch - 60000,
                 expiresAt:
                     DateTime.now().millisecondsSinceEpoch +
                     6 * 24 * 60 * 60 * 1000,
@@ -172,13 +163,9 @@ void main() {
           child: const LoopsScreen(sessionId: 's1'),
           loops: {
             's1': [
-              Loop(
+              testLoop(
                 id: 'aabbccdd',
                 sessionId: 's1',
-                expression: '*/5 * * * *',
-                prompt: 'check the deploy',
-                recurring: true,
-                createdAt: DateTime.now().millisecondsSinceEpoch - 60000,
                 expiresAt:
                     DateTime.now().millisecondsSinceEpoch +
                     6 * 24 * 60 * 60 * 1000,

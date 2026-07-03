@@ -4,19 +4,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/features/loops/loop_card.dart';
 
-Loop _loop({bool paused = false, int? expiresAt}) {
-  final now = DateTime.now().millisecondsSinceEpoch;
-  return Loop(
-    id: 'abc12345',
-    sessionId: 's1',
-    expression: '*/5 * * * *',
-    prompt: 'check the deploy',
-    recurring: true,
-    createdAt: now - 60000,
-    expiresAt: expiresAt ?? now + 7 * 24 * 60 * 60 * 1000,
-    paused: paused,
-  );
-}
+import 'loop_notifier_test_helpers.dart';
 
 Widget _wrap({
   required Loop loop,
@@ -46,7 +34,7 @@ void main() {
       bool? requestedPaused;
       await tester.pumpWidget(
         _wrap(
-          loop: _loop(),
+          loop: testLoop(id: 'abc12345'),
           onPauseToggle: (paused) async => requestedPaused = paused,
           onDelete: () async {},
         ),
@@ -64,7 +52,7 @@ void main() {
       bool? requestedPaused;
       await tester.pumpWidget(
         _wrap(
-          loop: _loop(paused: true),
+          loop: testLoop(id: 'abc12345', paused: true),
           onPauseToggle: (paused) async => requestedPaused = paused,
           onDelete: () async {},
         ),
@@ -83,7 +71,7 @@ void main() {
       final now = DateTime.now().millisecondsSinceEpoch;
       await tester.pumpWidget(
         _wrap(
-          loop: _loop(expiresAt: now - 1),
+          loop: testLoop(id: 'abc12345', expiresAt: now - 1),
           onPauseToggle: (_) async => pauseCalled = true,
           onDelete: () async {},
         ),
@@ -103,7 +91,7 @@ void main() {
       var deleteCalls = 0;
       await tester.pumpWidget(
         _wrap(
-          loop: _loop(),
+          loop: testLoop(id: 'abc12345'),
           onPauseToggle: (_) async {},
           onDelete: () async => deleteCalls++,
         ),

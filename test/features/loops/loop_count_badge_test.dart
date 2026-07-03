@@ -19,9 +19,8 @@ Widget _wrap({required Widget child, required Map<String, List<Loop>> loops}) {
       GoRoute(
         path: '/chat/:sessionId/loops',
         name: 'chat-loops',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: Text('Loops screen')),
-        ),
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: Text('Loops screen'))),
       ),
     ],
   );
@@ -45,7 +44,10 @@ void main() {
   group('LoopCountBadge', () {
     testWidgets('hides itself when count is 0', (tester) async {
       await tester.pumpWidget(
-        _wrap(child: const LoopCountBadge(sessionId: 's1'), loops: {}),
+        _wrap(
+          child: const LoopCountBadge(sessionId: 's1'),
+          loops: {},
+        ),
       );
       expect(find.byType(LoopCountBadge), findsOneWidget);
       expect(find.byType(InkWell), findsNothing);
@@ -58,12 +60,10 @@ void main() {
           child: const LoopCountBadge(sessionId: 's1'),
           loops: {
             's1': [
-              Loop(
+              testLoop(
                 id: 'aabbccdd',
                 sessionId: 's1',
-                expression: '*/5 * * * *',
                 prompt: 'p',
-                recurring: true,
                 createdAt: 1,
                 expiresAt: 2,
               ),
@@ -75,37 +75,34 @@ void main() {
       expect(find.byIcon(Icons.schedule), findsOneWidget);
     });
 
-    testWidgets('shows "{count} loops" when multiple are present',
-        (tester) async {
+    testWidgets('shows "{count} loops" when multiple are present', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           child: const LoopCountBadge(sessionId: 's1'),
           loops: {
             's1': [
-              Loop(
+              testLoop(
                 id: 'aaaa0001',
                 sessionId: 's1',
-                expression: '*/5 * * * *',
                 prompt: 'a',
-                recurring: true,
                 createdAt: 1,
                 expiresAt: 2,
               ),
-              Loop(
+              testLoop(
                 id: 'bbbb0002',
                 sessionId: 's1',
                 expression: '0 9 * * *',
                 prompt: 'b',
-                recurring: true,
                 createdAt: 1,
                 expiresAt: 2,
               ),
-              Loop(
+              testLoop(
                 id: 'cccc0003',
                 sessionId: 's1',
                 expression: '*/30 * * * *',
                 prompt: 'c',
-                recurring: true,
                 createdAt: 1,
                 expiresAt: 2,
               ),
@@ -122,12 +119,10 @@ void main() {
           child: const LoopCountBadge(sessionId: 's1'),
           loops: {
             's1': [
-              Loop(
+              testLoop(
                 id: 'aaaa0001',
                 sessionId: 's1',
-                expression: '*/5 * * * *',
                 prompt: 'a',
-                recurring: true,
                 createdAt: 1,
                 expiresAt: 2,
               ),

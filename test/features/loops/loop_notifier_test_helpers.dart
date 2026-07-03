@@ -1,6 +1,29 @@
 import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/providers/loops_notifier.dart';
 
+Loop testLoop({
+  String id = 'aabbccdd',
+  String sessionId = 's1',
+  String expression = '*/5 * * * *',
+  String prompt = 'check the deploy',
+  bool recurring = true,
+  bool paused = false,
+  int? createdAt,
+  int? expiresAt,
+}) {
+  final now = DateTime.now().millisecondsSinceEpoch;
+  return Loop(
+    id: id,
+    sessionId: sessionId,
+    expression: expression,
+    prompt: prompt,
+    recurring: recurring,
+    createdAt: createdAt ?? now - 60000,
+    expiresAt: expiresAt ?? now + 7 * 24 * 60 * 60 * 1000,
+    paused: paused,
+  );
+}
+
 class StubLoopsNotifier extends LoopsNotifier {
   StubLoopsNotifier({
     Map<String, List<Loop>> initial = const {},
@@ -62,7 +85,7 @@ class StubLoopsNotifier extends LoopsNotifier {
     if (error is Exception) throw error;
     if (error != null) throw StateError(error.toString());
 
-    return Loop(
+    return testLoop(
       id: createdLoopId,
       sessionId: sessionId,
       expression: expression,
