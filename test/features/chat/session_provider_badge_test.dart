@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/models/session.dart';
-import 'package:happy_flutter/core/providers/loops_notifier.dart';
+import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_app_bar.dart';
 import 'package:happy_flutter/features/sessions/session_avatar.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_cards.dart';
+
+import '../loops/loop_notifier_test_helpers.dart';
 
 Session _session({required String flavor}) {
   return Session(
@@ -31,45 +32,10 @@ Session _session({required String flavor}) {
   );
 }
 
-/// Stub [LoopsNotifier] that returns no loops so the chat app bar's
-/// LoopCountBadge stays hidden during these ChatAppBar rendering tests.
-class _EmptyLoopsNotifier extends LoopsNotifier {
-  @override
-  Map<String, List<Loop>> build() => const {};
-
-  @override
-  void loadFromSync() {}
-
-  @override
-  Future<void> refreshFromSync() async {}
-
-  @override
-  Future<Loop> createLoop({
-    required String sessionId,
-    required String expression,
-    required String prompt,
-    required bool recurring,
-  }) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> deleteLoop({
-    required String sessionId,
-    required String loopId,
-  }) async {}
-
-  @override
-  Future<void> pauseLoop({
-    required String sessionId,
-    required String loopId,
-    required bool paused,
-  }) async {}
-}
-
 Widget _wrap(Widget child) {
   return ProviderScope(
     overrides: [
-      loopsNotifierProvider.overrideWith(_EmptyLoopsNotifier.new),
+      loopsNotifierProvider.overrideWith(StubLoopsNotifier.new),
     ],
     child: child,
   );
