@@ -58,6 +58,19 @@ void main() {
       expect(req.prompt, 'standup');
     });
 
+    test('returns null for one-shot time with invalid minute', () {
+      expect(LoopCommandParser.parse('/loop at 12:99 remind me'), isNull);
+      expect(LoopCommandParser.parse('/loop tomorrow at 9:60 standup'), isNull);
+    });
+
+    test('returns null for one-shot time with invalid 24h hour', () {
+      expect(LoopCommandParser.parse('/loop at 24:00 remind me'), isNull);
+      expect(
+        LoopCommandParser.parse('/loop tomorrow at 99:00 standup'),
+        isNull,
+      );
+    });
+
     test('returns null when text does not start with /loop', () {
       expect(LoopCommandParser.parse('hello world'), isNull);
       expect(LoopCommandParser.parse('/clear'), isNull);

@@ -71,37 +71,13 @@ class LoopCommandParser {
     // 2. "tomorrow at <time> <prompt>" → one-shot
     final tomorrowAt = _tomorrowAtToken.firstMatch(body);
     if (tomorrowAt != null) {
-      final prompt = (tomorrowAt.group(4) ?? '').trim();
-      if (prompt.isEmpty) return null;
-      final hour = _parseHour(
-        tomorrowAt.group(1)!,
-        tomorrowAt.group(2),
-        tomorrowAt.group(3),
-      );
-      if (hour == null) return null;
-      final minute = int.tryParse(tomorrowAt.group(2) ?? '0') ?? 0;
-      final cron = _tomorrowAtCron(hour, minute);
-      return LoopCreateRequest(
-        expression: cron,
-        prompt: prompt,
-        recurring: false,
-      );
+      return _parseOneShotAt(tomorrowAt);
     }
 
     // 3. "at <time> <prompt>" → one-shot
     final at = _atToken.firstMatch(body);
     if (at != null) {
-      final prompt = (at.group(4) ?? '').trim();
-      if (prompt.isEmpty) return null;
-      final hour = _parseHour(at.group(1)!, at.group(2), at.group(3));
-      if (hour == null) return null;
-      final minute = int.tryParse(at.group(2) ?? '0') ?? 0;
-      final cron = _tomorrowAtCron(hour, minute);
-      return LoopCreateRequest(
-        expression: cron,
-        prompt: prompt,
-        recurring: false,
-      );
+      return _parseOneShotAt(at);
     }
 
     // 4. "Nm | Nh | Nd <prompt>"
@@ -168,6 +144,20 @@ class LoopCommandParser {
 
   // ── Cron helpers ──────────────────────────────────────────────────────
 
+  static LoopCreateRequest? _parseOneShotAt(RegExpMatch match) {
+    final prompt = (match.group(4) ?? '').trim();
+    if (prompt.isEmpty) return null;
+    final minute = _parseMinute(match.group(2));
+    if (minute == null) return null;
+    final hour = _parseHour(match.group(1)!, minute, match.group(3));
+    if (hour == null) return null;
+    return LoopCreateRequest(
+      expression: _oneShotAtCron(hour, minute),
+      prompt: prompt,
+      recurring: false,
+    );
+  }
+
   static String? _everyUnitCron(int n, String unit) {
     if (n < 1) return null;
     switch (unit) {
@@ -188,27 +178,30 @@ class LoopCommandParser {
     return null;
   }
 
-  /// Returns a cron expression for [hour]:[minute] *tomorrow* in the
-  /// local timezone. One-shots fire once and self-delete.
+  /// Returns a cron expression for a one-shot [hour]:[minute] in the local
+  /// timezone. One-shots fire once and self-delete.
   ///
   /// Computing the actual `dd` day-of-month is non-trivial without a
   /// date library, so we defer to the daemon for the calendar math and
   /// emit a synthetic cron the daemon understands.
-  static String _tomorrowAtCron(int hour, int minute) {
+  static String _oneShotAtCron(int hour, int minute) {
     // `0 <minute> <hour> * *` fires every day at that time. Daemon
     // semantics for `recurring: false` make it a one-shot, so the
     // day-of-month doesn't matter.
     return '$minute $hour * * *';
   }
 
+  static int? _parseMinute(String? minuteStr) {
+    final minute = int.tryParse(minuteStr ?? '0');
+    if (minute == null || minute < 0 || minute > 59) return null;
+    return minute;
+  }
+
   /// Parses "3", "3pm", "15", "15:30", "3:30pm" into 24h hour. Returns
   /// null on invalid input.
-  static int? _parseHour(String hourStr, String? minuteStr, String? ampm) {
+  static int? _parseHour(String hourStr, int minute, String? ampm) {
     var h = int.tryParse(hourStr);
     if (h == null) return null;
-    final m = minuteStr == null ? null : int.tryParse(minuteStr);
-    if (minuteStr != null && m == null) return null;
-    if (m != null && (m < 0 || m > 59)) return null;
     if (ampm != null) {
       final a = ampm.toLowerCase();
       if (a == 'pm' && h >= 1 && h <= 11) h += 12;
@@ -217,6 +210,7 @@ class LoopCommandParser {
     } else {
       if (h < 0 || h > 23) return null;
     }
+    if (minute < 0 || minute > 59) return null;
     return h;
   }
 }
