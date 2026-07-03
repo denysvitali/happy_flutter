@@ -10,11 +10,11 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/loop.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'loop_actions.dart';
 import 'loop_card.dart';
+import 'loop_refresh_state.dart';
 
 /// Global "all loops across all sessions" view.
 ///
@@ -31,10 +31,9 @@ class AllLoopsScreen extends ConsumerStatefulWidget {
   ConsumerState<AllLoopsScreen> createState() => _AllLoopsScreenState();
 }
 
-class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen> {
+class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen>
+    with LoopRefreshState<AllLoopsScreen> {
   StreamSubscription<String>? _sub;
-  bool _initialLoading = true;
-  String? _error;
 
   /// Map of `sessionId -> collapsed` so the user's choice persists across
   /// rebuilds without needing persistent storage.
@@ -56,40 +55,7 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen> {
   }
 
   Future<void> _refresh() async {
-    // Phase 1: hydrate from MMKV so cached loops paint immediately
-    // (instead of a spinner that only clears once the server fetch
-    // resolves or hits a timeout). This is what stops the "page loads
-    // forever" symptom for users who already have cached state.
-    final hasCached = ref.read(loopsNotifierProvider.notifier)
-        .hydrateFromCache();
-    if (mounted) {
-      setState(() {
-        _initialLoading = !hasCached;
-        _error = null;
-      });
-    }
-    if (hasCached) {
-      // Phase 2: refresh in the background — we already have data to
-      // show. unawaited() so the spinner stays hidden and the user
-      // sees fresh data appear as it arrives via the onLoopsChanged
-      // stream.
-      unawaited(
-        ref.read(loopsNotifierProvider.notifier).refreshFromSync(),
-      );
-      return;
-    }
-    try {
-      await ref.read(loopsNotifierProvider.notifier).refreshFromSync();
-    } catch (e, st) {
-      logger.warning('AllLoopsScreen refresh failed: $e', e, st);
-      if (mounted) {
-        setState(() => _error = e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _initialLoading = false);
-      }
-    }
+    await refreshLoops(failureLogMessage: 'AllLoopsScreen refresh failed');
   }
 
   /// Earliest-fires-first within a session. Uses [Loop.createdAt] as the
@@ -166,13 +132,13 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.allLoopsTitle)),
-      body: _initialLoading
+      body: initialLoading
           ? const AppLoadingIndicator()
-          : _error != null
+          : refreshError != null
               ? _AllLoopsErrorState(
-                  error: _error!,
+                  error: refreshError!,
                   onRetry: () {
-                    setState(() => _error = null);
+                    clearLoopRefreshError();
                     _refresh();
                   },
                 )

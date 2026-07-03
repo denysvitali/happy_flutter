@@ -8,12 +8,12 @@ import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/loop.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'create_loop_sheet.dart';
 import 'loop_actions.dart';
 import 'loop_card.dart';
+import 'loop_refresh_state.dart';
 
 /// Per-session list of scheduled prompts (loops).
 ///
@@ -30,10 +30,9 @@ class LoopsScreen extends ConsumerStatefulWidget {
   ConsumerState<LoopsScreen> createState() => _LoopsScreenState();
 }
 
-class _LoopsScreenState extends ConsumerState<LoopsScreen> {
+class _LoopsScreenState extends ConsumerState<LoopsScreen>
+    with LoopRefreshState<LoopsScreen> {
   StreamSubscription<String>? _sub;
-  bool _initialLoading = true;
-  String? _error;
 
   @override
   void initState() {
@@ -53,40 +52,7 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen> {
   }
 
   Future<void> _refresh() async {
-    // Phase 1: hydrate from MMKV so cached loops paint immediately
-    // (instead of a spinner that only clears once the server fetch
-    // resolves or hits a timeout). This is what stops the "page loads
-    // forever" symptom for users who already have cached state.
-    final hasCached = ref.read(loopsNotifierProvider.notifier)
-        .hydrateFromCache();
-    if (mounted) {
-      setState(() {
-        _initialLoading = !hasCached;
-        _error = null;
-      });
-    }
-    if (hasCached) {
-      // Phase 2: refresh in the background — we already have data to
-      // show. unawaited() so the spinner stays hidden and the user
-      // sees fresh data appear as it arrives via the onLoopsChanged
-      // stream.
-      unawaited(
-        ref.read(loopsNotifierProvider.notifier).refreshFromSync(),
-      );
-      return;
-    }
-    try {
-      await ref.read(loopsNotifierProvider.notifier).refreshFromSync();
-    } catch (e, st) {
-      logger.warning('LoopsScreen refresh failed: $e', e, st);
-      if (mounted) {
-        setState(() => _error = e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _initialLoading = false);
-      }
-    }
+    await refreshLoops(failureLogMessage: 'LoopsScreen refresh failed');
   }
 
   Future<void> _openCreateSheet() async {
@@ -127,20 +93,20 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen> {
       appBar: AppBar(
         title: Text(l10n.loopsTitle),
       ),
-      floatingActionButton: _initialLoading || _error != null
+      floatingActionButton: initialLoading || refreshError != null
           ? null
           : FloatingActionButton.extended(
               onPressed: _openCreateSheet,
               icon: const Icon(Icons.add),
               label: Text(l10n.loopsAddLoop),
             ),
-      body: _initialLoading
+      body: initialLoading
           ? const AppLoadingIndicator()
-          : _error != null
+          : refreshError != null
               ? _LoopsErrorState(
-                  error: _error!,
+                  error: refreshError!,
                   onRetry: () {
-                    setState(() => _error = null);
+                    clearLoopRefreshError();
                     _refresh();
                   },
                 )
