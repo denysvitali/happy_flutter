@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:happy_flutter/core/components/app_loading_indicator.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -13,6 +14,8 @@ import 'loop_notifier_test_helpers.dart';
 Widget _wrap({
   required Widget child,
   Map<String, List<Loop>>? loops,
+  Map<String, List<Loop>>? cachedLoops,
+  List<String>? refreshCalls,
   List<String>? actionCalls,
 }) {
   final router = GoRouter(
@@ -33,7 +36,12 @@ Widget _wrap({
   return ProviderScope(
     overrides: [
       loopsNotifierProvider.overrideWith(
-        () => StubLoopsNotifier(initial: loops ?? {}, actionCalls: actionCalls),
+        () => StubLoopsNotifier(
+          initial: loops ?? {},
+          cached: cachedLoops,
+          refreshCalls: refreshCalls,
+          actionCalls: actionCalls,
+        ),
       ),
     ],
     child: MaterialApp.router(
@@ -82,48 +90,42 @@ void main() {
     });
 
     testWidgets('shows empty state when there are no loops', (tester) async {
-      await tester.pumpWidget(
-        _wrap(child: const AllLoopsScreen()),
-      );
+      await tester.pumpWidget(_wrap(child: const AllLoopsScreen()));
       await tester.pumpAndSettle();
       expect(find.text('No loops scheduled'), findsOneWidget);
       expect(
-        find.text(
-          'Type /loop in any session to schedule a recurring prompt.',
-        ),
+        find.text('Type /loop in any session to schedule a recurring prompt.'),
         findsOneWidget,
       );
     });
 
-    testWidgets(
-      'groups loops by session and renders a section per session',
-      (tester) async {
-        await tester.pumpWidget(
-          _wrap(
-            child: const AllLoopsScreen(),
-            loops: {
-              's1': [
-                _loop(id: 'aaa00001', sessionId: 's1'),
-              ],
-              's2': [
-                _loop(id: 'bbb00001', sessionId: 's2'),
-                _loop(id: 'bbb00002', sessionId: 's2'),
-              ],
-            },
-          ),
-        );
-        await tester.pumpAndSettle();
-        // No metadata on the stub sessions → fall back to the
-        // "Session <id>" prefix used elsewhere in the app.
-        expect(find.text('Session s1'), findsOneWidget);
-        expect(find.text('Session s2'), findsOneWidget);
-        // Both loop prompts are rendered.
-        expect(find.text('check the deploy'), findsNWidgets(3));
-      },
-    );
+    testWidgets('groups loops by session and renders a section per session', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const AllLoopsScreen(),
+          loops: {
+            's1': [_loop(id: 'aaa00001', sessionId: 's1')],
+            's2': [
+              _loop(id: 'bbb00001', sessionId: 's2'),
+              _loop(id: 'bbb00002', sessionId: 's2'),
+            ],
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      // No metadata on the stub sessions → fall back to the
+      // "Session <id>" prefix used elsewhere in the app.
+      expect(find.text('Session s1'), findsOneWidget);
+      expect(find.text('Session s2'), findsOneWidget);
+      // Both loop prompts are rendered.
+      expect(find.text('check the deploy'), findsNWidgets(3));
+    });
 
-    testWidgets('header shows total active count and session count',
-        (tester) async {
+    testWidgets('header shows total active count and session count', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           child: const AllLoopsScreen(),
@@ -141,8 +143,33 @@ void main() {
       expect(find.text('across 2 sessions'), findsOneWidget);
     });
 
-    testWidgets('tapping the section header collapses the group',
-        (tester) async {
+    testWidgets('hydrates cached groups before background refresh', (
+      tester,
+    ) async {
+      final refreshCalls = <String>[];
+      await tester.pumpWidget(
+        _wrap(
+          child: const AllLoopsScreen(),
+          cachedLoops: {
+            's1': [_loop(id: 'aaa00001', sessionId: 's1')],
+            's2': [_loop(id: 'bbb00001', sessionId: 's2')],
+          },
+          refreshCalls: refreshCalls,
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(AppLoadingIndicator), findsNothing);
+      expect(find.text('2 active loops'), findsOneWidget);
+      expect(find.text('across 2 sessions'), findsOneWidget);
+      expect(refreshCalls, ['refresh']);
+    });
+
+    testWidgets('tapping the section header collapses the group', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           child: const AllLoopsScreen(),
@@ -192,22 +219,21 @@ void main() {
       },
     );
 
-    testWidgets(
-      '"View per session" navigates to /chat/:sessionId/loops',
-      (tester) async {
-        await tester.pumpWidget(
-          _wrap(
-            child: const AllLoopsScreen(),
-            loops: {
-              's1': [_loop(id: 'aaa00001', sessionId: 's1')],
-            },
-          ),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('View per session'));
-        await tester.pumpAndSettle();
-        expect(find.text('Per-session loops screen'), findsOneWidget);
-      },
-    );
+    testWidgets('"View per session" navigates to /chat/:sessionId/loops', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const AllLoopsScreen(),
+          loops: {
+            's1': [_loop(id: 'aaa00001', sessionId: 's1')],
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('View per session'));
+      await tester.pumpAndSettle();
+      expect(find.text('Per-session loops screen'), findsOneWidget);
+    });
   });
 }

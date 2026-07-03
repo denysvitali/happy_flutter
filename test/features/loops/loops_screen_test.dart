@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/app_loading_indicator.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/providers/loops_notifier.dart';
@@ -13,16 +14,20 @@ import 'loop_notifier_test_helpers.dart';
 Widget _wrap({
   required Widget child,
   Map<String, List<Loop>>? loops,
+  Map<String, List<Loop>>? cachedLoops,
   Object? deleteError,
   Object? refreshError,
+  List<String>? refreshCalls,
 }) {
   return ProviderScope(
     overrides: [
       loopsNotifierProvider.overrideWith(
         () => StubLoopsNotifier(
           initial: loops ?? {},
+          cached: cachedLoops,
           deleteError: deleteError,
           refreshError: refreshError,
+          refreshCalls: refreshCalls,
         ),
       ),
     ],
@@ -49,9 +54,7 @@ void main() {
     });
 
     testWidgets('renders empty state when no loops', (tester) async {
-      await tester.pumpWidget(
-        _wrap(child: const LoopsScreen(sessionId: 's1')),
-      );
+      await tester.pumpWidget(_wrap(child: const LoopsScreen(sessionId: 's1')));
       // Pump until the Future.microtask-driven _refresh completes and
       // the loading state is gone.
       await tester.pumpAndSettle();
@@ -89,7 +92,10 @@ void main() {
         ],
       };
       await tester.pumpWidget(
-        _wrap(child: const LoopsScreen(sessionId: 's1'), loops: loops),
+        _wrap(
+          child: const LoopsScreen(sessionId: 's1'),
+          loops: loops,
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('check the deploy'), findsOneWidget);
@@ -98,19 +104,50 @@ void main() {
       expect(find.text('Daily at 9:00 AM'), findsOneWidget);
     });
 
-    testWidgets('shows FAB when not loading and not in error state',
-        (tester) async {
+    testWidgets('hydrates cached loops before background refresh', (
+      tester,
+    ) async {
+      final refreshCalls = <String>[];
       await tester.pumpWidget(
-        _wrap(child: const LoopsScreen(sessionId: 's1')),
+        _wrap(
+          child: const LoopsScreen(sessionId: 's1'),
+          cachedLoops: {
+            's1': [
+              Loop(
+                id: 'aabbccdd',
+                sessionId: 's1',
+                expression: '*/5 * * * *',
+                prompt: 'check the deploy',
+                recurring: true,
+                createdAt: DateTime.now().millisecondsSinceEpoch - 60000,
+                expiresAt:
+                    DateTime.now().millisecondsSinceEpoch +
+                    6 * 24 * 60 * 60 * 1000,
+              ),
+            ],
+          },
+          refreshCalls: refreshCalls,
+        ),
       );
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(AppLoadingIndicator), findsNothing);
+      expect(find.text('check the deploy'), findsOneWidget);
+      expect(refreshCalls, ['refresh']);
+    });
+
+    testWidgets('shows FAB when not loading and not in error state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(child: const LoopsScreen(sessionId: 's1')));
       await tester.pumpAndSettle();
       expect(find.byType(FloatingActionButton), findsOneWidget);
     });
 
     testWidgets('opens CreateLoopSheet when FAB tapped', (tester) async {
-      await tester.pumpWidget(
-        _wrap(child: const LoopsScreen(sessionId: 's1')),
-      );
+      await tester.pumpWidget(_wrap(child: const LoopsScreen(sessionId: 's1')));
       await tester.pumpAndSettle();
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();

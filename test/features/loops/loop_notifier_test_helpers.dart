@@ -4,22 +4,27 @@ import 'package:happy_flutter/core/providers/loops_notifier.dart';
 class StubLoopsNotifier extends LoopsNotifier {
   StubLoopsNotifier({
     Map<String, List<Loop>> initial = const {},
+    Map<String, List<Loop>>? cached,
     this.createError,
     this.createdLoopId = 'createdid',
     this.deleteError,
     this.deleteCalls,
     this.pauseError,
     this.refreshError,
+    this.refreshCalls,
     this.actionCalls,
-  }) : _initial = initial;
+  }) : _initial = initial,
+       _cached = cached;
 
   final Map<String, List<Loop>> _initial;
+  final Map<String, List<Loop>>? _cached;
   final Object? createError;
   final String createdLoopId;
   final Object? deleteError;
   final List<String>? deleteCalls;
   final Object? pauseError;
   final Object? refreshError;
+  final List<String>? refreshCalls;
   final List<String>? actionCalls;
 
   @override
@@ -29,7 +34,16 @@ class StubLoopsNotifier extends LoopsNotifier {
   void loadFromSync() {}
 
   @override
+  bool hydrateFromCache() {
+    final cached = _cached;
+    if (cached == null) return false;
+    state = cached;
+    return cached.values.any((loops) => loops.isNotEmpty);
+  }
+
+  @override
   Future<void> refreshFromSync() async {
+    refreshCalls?.add('refresh');
     final error = refreshError;
     if (error is Error) throw error;
     if (error is Exception) throw error;
