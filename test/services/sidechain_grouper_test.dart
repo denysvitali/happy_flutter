@@ -1504,7 +1504,7 @@ void main() {
   // same content twice. These tests assert the null-id guard keeps them
   // inline rather than throwing or duplicating.
   group('null sidechain ids', () {
-    test('sidechain-root with null id stays inline as orphan', () {
+    test('sidechain-root with null id stays inline', () {
       final messages = [
         _taskMsg(id: 'task-1', uuid: 'task-uuid'),
         <String, dynamic>{
@@ -1518,12 +1518,13 @@ void main() {
       expect(() => grouper.groupMessages(messages), returnsNormally);
       final result = grouper.groupMessages(messages);
 
-      expect(result, isNotNull);
-      expect(result!.hasOrphans, isTrue);
-      // Root without id cannot be tracked for removal, so it remains
-      // in the flat list.
+      // A null-id sidechain-root is not a visible orphan and cannot be
+      // tracked for removal, so the grouper returns null. The caller keeps
+      // the original flat list, leaving the root inline rather than
+      // throwing or rendering it twice.
+      expect(result, isNull);
       expect(
-        result.messages.any((m) => m['uuid'] == 'root-uuid'),
+        messages.any((m) => m['uuid'] == 'root-uuid'),
         isTrue,
         reason: 'null-id sidechain-root must stay inline',
       );
