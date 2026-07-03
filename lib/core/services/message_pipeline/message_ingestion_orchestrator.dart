@@ -63,7 +63,8 @@ extension SyncMessagePipeline on Sync {
   /// every path that can carry sidechain children (socket, HTTP fetch,
   /// mutation preview) triggers grouping and avoids double-rendering an
   /// already-grouped child that arrives in an overlapping fetch.
-  bool _hasSidechainMessage(List<Map<String, dynamic>> messages) =>
+  @visibleForTesting
+  bool hasSidechainMessage(List<Map<String, dynamic>> messages) =>
       messages.any(
         (message) =>
             message['isSidechain'] == true ||
@@ -318,7 +319,7 @@ extension SyncMessagePipeline on Sync {
           usageUpdates: processed.usageUpdates,
           maxSeq: processed.maxSeq,
           droppedReasons: processed.droppedReasons,
-          hasSidechain: _hasSidechainMessage(processed.messages),
+          hasSidechain: hasSidechainMessage(processed.messages),
           source: normalized.source,
           traceId: traceId,
         );
@@ -384,7 +385,7 @@ extension SyncMessagePipeline on Sync {
       // groupable content without isSidechain=true still triggers grouping —
       // otherwise an overlapping fetch copy of an already-grouped child can
       // land back in the flat list and render twice.
-      final hasSidechain = _hasSidechainMessage(processed.messages);
+      final hasSidechain = hasSidechainMessage(processed.messages);
       if (hasSidechain) {
         _groupSidechainMessages(
           sessionId,

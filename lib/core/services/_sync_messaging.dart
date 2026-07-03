@@ -903,10 +903,19 @@ extension SyncMessaging on Sync {
             '(existing=${_sessionMessages[sessionId]?.length ?? 0})',
           );
         }
+        // Match the orchestrator's broader eligibility (sidechain flag,
+        // bridge kinds, task events, parentToolUseId) — otherwise a
+        // page carrying only parentToolUseId-routed children skips
+        // incremental grouping here and the per-page regroup path runs
+        // against a flat list, letting an overlapping fetch copy of an
+        // already-grouped child render twice.
         final pageHasSidechain = pageMessages.any(
           (message) =>
               message['isSidechain'] == true ||
-              message['kind'] == 'sidechain-root',
+              message['kind'] == 'sidechain-root' ||
+              message['kind'] == 'sidechain-link' ||
+              message['taskEvent'] == true ||
+              ((message['parentToolUseId'] as String?)?.isNotEmpty ?? false),
         );
         if (pageMessages.isNotEmpty) {
           _upsertSessionMessages(sessionId, pageMessages);
