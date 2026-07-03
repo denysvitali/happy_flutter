@@ -367,10 +367,18 @@ extension SyncMessagePipeline on Sync {
       // their parent Task tile on return. Pass the just-appended ids as
       // `changedIds` so the grouper's fast-path can skip a full re-walk
       // when nothing sidechain-relevant arrived in this batch.
+      // Match the grouper's own eligibility conditions (sidechain flag,
+      // bridge kinds, task events, parentToolUseId) so a batch that carries
+      // groupable content without isSidechain=true still triggers grouping —
+      // otherwise an overlapping fetch copy of an already-grouped child can
+      // land back in the flat list and render twice.
       final hasSidechain = processed.messages.any(
         (message) =>
             message['isSidechain'] == true ||
-            message['kind'] == 'sidechain-root',
+            message['kind'] == 'sidechain-root' ||
+            message['kind'] == 'sidechain-link' ||
+            message['taskEvent'] == true ||
+            ((message['parentToolUseId'] as String?)?.isNotEmpty ?? false),
       );
       if (hasSidechain) {
         _groupSidechainMessages(

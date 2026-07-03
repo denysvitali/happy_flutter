@@ -332,7 +332,11 @@ class SidechainGrouper {
               }
             }
           }
-          sidechainMsgIds.add(msg['id'] as String);
+          // Guard: a null id can neither be tracked for removal from the
+          // flat list nor deduped in Pass 3 — leave the message inline
+          // rather than throwing (or rendering it twice).
+          final msgId = msg['id'] as String?;
+          if (msgId != null) sidechainMsgIds.add(msgId);
         }
       } else if (msg['isSidechain'] == true ||
           msg['kind'] == 'sidechain-link' ||
@@ -418,10 +422,16 @@ class SidechainGrouper {
           if (toolUseId != null && toolUseId.isNotEmpty) {
             uuidToSidechainId[toolUseId] = sidechainId;
           }
-          if (!isChainLink) {
-            sidechainChildren.putIfAbsent(sidechainId, () => []).add(msg);
+          // Guard: without an id the message cannot be removed from the
+          // flat list (removal is keyed by id), so adding it to the Task's
+          // children would render it twice. Keep it inline instead.
+          final msgId = msg['id'] as String?;
+          if (msgId != null) {
+            if (!isChainLink) {
+              sidechainChildren.putIfAbsent(sidechainId, () => []).add(msg);
+            }
+            sidechainMsgIds.add(msgId);
           }
-          sidechainMsgIds.add(msg['id'] as String);
         }
       }
     }
