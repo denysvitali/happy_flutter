@@ -909,14 +909,11 @@ extension SyncMessaging on Sync {
         // incremental grouping here and the per-page regroup path runs
         // against a flat list, letting an overlapping fetch copy of an
         // already-grouped child render twice.
-        final pageHasSidechain = pageMessages.any(
-          (message) =>
-              message['isSidechain'] == true ||
-              message['kind'] == 'sidechain-root' ||
-              message['kind'] == 'sidechain-link' ||
-              message['taskEvent'] == true ||
-              ((message['parentToolUseId'] as String?)?.isNotEmpty ?? false),
-        );
+        //
+        // Delegate to the orchestrator's canonical predicate so the two
+        // gates cannot drift — `hasSidechainMessage` already tolerates a
+        // non-String `parentToolUseId` (e.g. an `int`) without throwing.
+        final pageHasSidechain = hasSidechainMessage(pageMessages);
         if (pageMessages.isNotEmpty) {
           _upsertSessionMessages(sessionId, pageMessages);
           didMutateMessages = true;

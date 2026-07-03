@@ -58,21 +58,37 @@ extension SyncMessagePipeline on Sync {
   }
 
   /// Returns true when [messages] contains any groupable sidechain content.
-  ///
-  /// Keep this in sync with [SidechainGrouper]'s eligibility conditions so
-  /// every path that can carry sidechain children (socket, HTTP fetch,
-  /// mutation preview) triggers grouping and avoids double-rendering an
-  /// already-grouped child that arrives in an overlapping fetch.
-  @visibleForTesting
+///
+/// Keep this in sync with [SidechainGrouper]'s eligibility conditions so
+/// every path that can carry sidechain children (socket, HTTP fetch,
+/// mutation preview) triggers grouping and avoids double-rendering an
+/// already-grouped child that arrives in an overlapping fetch.
+///
+/// `parentToolUseId` is intentionally checked with an `is String` guard
+/// (instead of `as String?`) so a wrong runtime type — e.g. an `int` —
+/// is treated as "no anchor" rather than crashing the whole batch. A
+/// malformed wire shape must never blackhole sidechain grouping.
+///
+/// This is the canonical source of truth: `_sync_messaging.dart`'s
+/// `pageHasSidechain` must call this rather than re-inlining the
+/// predicate, otherwise the two gates can drift and an overlapping
+/// fetch can land back in the flat list.
   bool hasSidechainMessage(List<Map<String, dynamic>> messages) =>
-      messages.any(
-        (message) =>
-            message['isSidechain'] == true ||
-            message['kind'] == 'sidechain-root' ||
-            message['kind'] == 'sidechain-link' ||
-            message['taskEvent'] == true ||
-            ((message['parentToolUseId'] as String?)?.isNotEmpty ?? false),
-      );
+      messages.any(_hasSidechainSignal);
+
+  /// Single-message predicate backing [hasSidechainMessage] and shared with
+  /// the HTTP fetch mirror in `_sync_messaging.dart` (`pageHasSidechain`).
+  /// Centralised so both call sites agree on the trigger set — including
+  /// the defensive `is String` coercion for `parentToolUseId` — and a
+  /// future narrowing only has to land in one place.
+  bool _hasSidechainSignal(Map<String, dynamic> message) {
+    if (message['isSidechain'] == true) return true;
+    final kind = message['kind'];
+    if (kind == 'sidechain-root' || kind == 'sidechain-link') return true;
+    if (message['taskEvent'] == true) return true;
+    final parentToolUseId = message['parentToolUseId'];
+    return parentToolUseId is String && parentToolUseId.isNotEmpty;
+  }
 
   NormalizedMessageBatch normalizeSocketIngress(MessageIngressEvent event) {
     final traceId = event.traceId ?? _newTraceId(event.sessionId, 's');
