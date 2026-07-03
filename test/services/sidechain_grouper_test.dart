@@ -1495,4 +1495,92 @@ void main() {
       expect(result!.hasOrphans, isTrue);
     });
   });
+
+  // ── Null sidechain ids ───────────────────────────────────
+  //
+  // Messages that are sidechain-relevant but lack an `id` cannot be
+  // removed from the flat list (removal is keyed by id) and cannot be
+  // deduped in Pass 3. Attaching them as Task children would render the
+  // same content twice. These tests assert the null-id guard keeps them
+  // inline rather than throwing or duplicating.
+  group('null sidechain ids', () {
+    test('sidechain-root with null id stays inline as orphan', () {
+      final messages = [
+        _taskMsg(id: 'task-1', uuid: 'task-uuid'),
+        <String, dynamic>{
+          'id': null,
+          'kind': 'sidechain-root',
+          'uuid': 'root-uuid',
+          'parentUuid': 'task-uuid',
+        },
+      ];
+
+      expect(() => grouper.groupMessages(messages), returnsNormally);
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      expect(result!.hasOrphans, isTrue);
+      // Root without id cannot be tracked for removal, so it remains
+      // in the flat list.
+      expect(
+        result.messages.any((m) => m['uuid'] == 'root-uuid'),
+        isTrue,
+        reason: 'null-id sidechain-root must stay inline',
+      );
+    });
+
+    test('sidechain child with null id stays inline as orphan', () {
+      final messages = [
+        _taskMsg(id: 'task-1', uuid: 'task-uuid'),
+        _sidechainRoot(
+          id: 'root-1',
+          uuid: 'root-uuid',
+          parentUuid: 'task-uuid',
+        ),
+        <String, dynamic>{
+          'id': null,
+          'isSidechain': true,
+          'uuid': 'child-uuid',
+          'parentUuid': 'root-uuid',
+        },
+      ];
+
+      expect(() => grouper.groupMessages(messages), returnsNormally);
+      final result = grouper.groupMessages(messages);
+
+      expect(result, isNotNull);
+      // The root attached fine, but the null-id child could not be added
+      // to the Task's children (would render twice). It stays in the flat
+      // list and is therefore reported as an orphan.
+      expect(result!.hasOrphans, isTrue);
+      expect(
+        result.messages.any((m) => m['uuid'] == 'child-uuid'),
+        isTrue,
+        reason: 'null-id sidechain child must stay inline',
+      );
+      final task = result.messages.firstWhere((m) => m['id'] == 'task-1');
+      final children = task['children'] as List<dynamic>?;
+      expect(children, isNull);
+    });
+
+    test('sidechain-link bridge with null id stays inline and does not crash',
+        () {
+      final messages = [
+        _taskMsg(id: 'task-1', uuid: 'task-uuid'),
+        <String, dynamic>{
+          'id': null,
+          'kind': 'sidechain-link',
+          'uuid': 'link-uuid',
+          'parentUuid': 'task-uuid',
+        },
+      ];
+
+      expect(() => grouper.groupMessages(messages), returnsNormally);
+      final result = grouper.groupMessages(messages);
+
+      // A link without an id cannot be removed from the flat list, but
+      // it is also not a visible orphan, so grouping returns null.
+      expect(result, isNull);
+    });
+  });
 }

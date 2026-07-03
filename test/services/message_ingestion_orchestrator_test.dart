@@ -296,4 +296,121 @@ void main() {
       },
     );
   });
+
+  group('HTTP batch sidechain eligibility (applyMutations=false)', () {
+    late Sync instance;
+
+    setUp(() {
+      instance = Sync();
+      _stubAllSyncs(instance);
+      instance.testIsInitialized = true;
+      instance.encryption = _FakeEncryption(const _OkSessionEncryption());
+    });
+
+    test(
+      'taskEvent-only message sets hasSidechain=true on the returned bundle',
+      () async {
+        const sessionId = 'sess-http-task-event';
+        instance.testClearSessionMessageState(sessionId);
+
+        final processed = await instance.ingestFromHttp(
+          FetchResponseBatch(
+            sessionId: sessionId,
+            rawMessages: <Map<String, dynamic>>[
+              {
+                'id': 'task-1',
+                'kind': 'tool-call',
+                'name': 'Agent',
+                'uuid': 'task-uuid',
+              },
+              {
+                'id': 'event-1',
+                'kind': 'agent-event',
+                'taskEvent': true,
+                'parentUuid': 'task-uuid',
+              },
+            ],
+            traceId: 'trace-http-task-event',
+            isVisibleSession: true,
+          ),
+          applyMutations: false,
+          emitSessionNotification: false,
+        );
+
+        expect(processed.hasSidechain, isTrue);
+      },
+    );
+
+    test(
+      'parentToolUseId-only message sets hasSidechain=true on the returned '
+      'bundle',
+      () async {
+        const sessionId = 'sess-http-parent-tool-use-id';
+        instance.testClearSessionMessageState(sessionId);
+
+        final processed = await instance.ingestFromHttp(
+          FetchResponseBatch(
+            sessionId: sessionId,
+            rawMessages: <Map<String, dynamic>>[
+              {
+                'id': 'task-1',
+                'kind': 'tool-call',
+                'name': 'Agent',
+                'uuid': 'task-uuid',
+                'toolUseId': 'toolu_01Parent',
+              },
+              {
+                'id': 'child-1',
+                'kind': 'text',
+                'parentUuid': 'broken-chain',
+                'parentToolUseId': 'toolu_01Parent',
+              },
+            ],
+            traceId: 'trace-http-parent-tool-use-id',
+            isVisibleSession: true,
+          ),
+          applyMutations: false,
+          emitSessionNotification: false,
+        );
+
+        expect(processed.hasSidechain, isTrue);
+      },
+    );
+
+    test(
+      'sidechain-link bridge message sets hasSidechain=true on the returned '
+      'bundle',
+      () async {
+        const sessionId = 'sess-http-sidechain-link';
+        instance.testClearSessionMessageState(sessionId);
+
+        final processed = await instance.ingestFromHttp(
+          FetchResponseBatch(
+            sessionId: sessionId,
+            rawMessages: <Map<String, dynamic>>[
+              {
+                'id': 'task-1',
+                'kind': 'tool-call',
+                'name': 'Agent',
+                'uuid': 'task-uuid',
+              },
+              {
+                'id': 'link-1',
+                'kind': 'sidechain-link',
+                'uuid': 'link-uuid',
+                'parentUuid': 'task-uuid',
+              },
+            ],
+            traceId: 'trace-http-sidechain-link',
+            isVisibleSession: true,
+          ),
+          applyMutations: false,
+          emitSessionNotification: false,
+        );
+
+        expect(processed.hasSidechain, isTrue);
+      },
+    );
+  });
+
 }
