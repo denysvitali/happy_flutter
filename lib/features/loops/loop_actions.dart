@@ -16,10 +16,53 @@ Future<void> deleteLoopWithFeedback({
   String? successLabel,
   bool Function(Object error)? shouldHandleError,
 }) async {
-  try {
-    await ref
+  await runLoopActionWithFeedback(
+    action: () => ref
         .read(loopsNotifierProvider.notifier)
-        .deleteLoop(sessionId: sessionId, loopId: loopId);
+        .deleteLoop(sessionId: sessionId, loopId: loopId),
+    messenger: messenger,
+    isMounted: isMounted,
+    failureLogMessage: failureLogMessage,
+    failureLabel: failureLabel,
+    successLabel: successLabel,
+    shouldHandleError: shouldHandleError,
+  );
+}
+
+/// Pauses or resumes a loop and reports failures consistently.
+Future<void> pauseLoopWithFeedback({
+  required WidgetRef ref,
+  required ScaffoldMessengerState messenger,
+  required bool Function() isMounted,
+  required String failureLogMessage,
+  required String failureLabel,
+  required String sessionId,
+  required String loopId,
+  required bool paused,
+}) async {
+  await runLoopActionWithFeedback(
+    action: () => ref
+        .read(loopsNotifierProvider.notifier)
+        .pauseLoop(sessionId: sessionId, loopId: loopId, paused: paused),
+    messenger: messenger,
+    isMounted: isMounted,
+    failureLogMessage: failureLogMessage,
+    failureLabel: failureLabel,
+  );
+}
+
+/// Runs a loop mutation and reports failures consistently across loop screens.
+Future<void> runLoopActionWithFeedback({
+  required Future<void> Function() action,
+  required ScaffoldMessengerState messenger,
+  required bool Function() isMounted,
+  required String failureLogMessage,
+  required String failureLabel,
+  String? successLabel,
+  bool Function(Object error)? shouldHandleError,
+}) async {
+  try {
+    await action();
     if (successLabel != null && isMounted()) {
       messenger.showSnackBar(SnackBar(content: Text(successLabel)));
     }

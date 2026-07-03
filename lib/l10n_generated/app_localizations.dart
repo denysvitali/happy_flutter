@@ -9205,6 +9205,18 @@ abstract class AppLocalizations {
   /// **'Failed to cancel loop'**
   String get loopsLoopCancelFailed;
 
+  /// No description provided for @loopsLoopPauseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pause loop'**
+  String get loopsLoopPauseFailed;
+
+  /// No description provided for @loopsLoopResumeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to resume loop'**
+  String get loopsLoopResumeFailed;
+
   /// No description provided for @loopsValidationRequiredInterval.
   ///
   /// In en, this message translates to:

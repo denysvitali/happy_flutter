@@ -92,6 +92,25 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen>
     );
   }
 
+  Future<void> _pauseLoop({
+    required String sessionId,
+    required String loopId,
+    required bool paused,
+  }) async {
+    await pauseLoopWithFeedback(
+      ref: ref,
+      messenger: ScaffoldMessenger.of(context),
+      isMounted: () => mounted,
+      failureLogMessage: 'AllLoopsScreen pause failed',
+      failureLabel: paused
+          ? context.l10n.loopsLoopPauseFailed
+          : context.l10n.loopsLoopResumeFailed,
+      sessionId: sessionId,
+      loopId: loopId,
+      paused: paused,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -207,13 +226,11 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen>
                                     paused,
                                     loopId,
                                   ) async {
-                                    await ref
-                                        .read(loopsNotifierProvider.notifier)
-                                        .pauseLoop(
-                                          sessionId: group.sessionId,
-                                          loopId: loopId,
-                                          paused: paused,
-                                        );
+                                    await _pauseLoop(
+                                      sessionId: group.sessionId,
+                                      loopId: loopId,
+                                      paused: paused,
+                                    );
                                   },
                                   onLoopDelete: (loopId) async {
                                     await _deleteLoop(

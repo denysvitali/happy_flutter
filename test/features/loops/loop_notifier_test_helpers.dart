@@ -8,6 +8,7 @@ class StubLoopsNotifier extends LoopsNotifier {
     this.createdLoopId = 'createdid',
     this.deleteError,
     this.deleteCalls,
+    this.pauseError,
     this.refreshError,
     this.actionCalls,
   }) : _initial = initial;
@@ -17,6 +18,7 @@ class StubLoopsNotifier extends LoopsNotifier {
   final String createdLoopId;
   final Object? deleteError;
   final List<String>? deleteCalls;
+  final Object? pauseError;
   final Object? refreshError;
   final List<String>? actionCalls;
 
@@ -77,5 +79,9 @@ class StubLoopsNotifier extends LoopsNotifier {
     required bool paused,
   }) async {
     actionCalls?.add('pause:$sessionId:$loopId:$paused');
+    final error = pauseError;
+    if (error is Error) throw error;
+    if (error is Exception) throw error;
+    if (error != null) throw StateError(error.toString());
   }
 }

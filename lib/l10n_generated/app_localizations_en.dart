@@ -5100,6 +5100,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loopsLoopCancelFailed => 'Failed to cancel loop';
 
   @override
+  String get loopsLoopPauseFailed => 'Failed to pause loop';
+
+  @override
+  String get loopsLoopResumeFailed => 'Failed to resume loop';
+
+  @override
   String get loopsValidationRequiredInterval => 'Cron expression is required';
 
   @override

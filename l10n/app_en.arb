@@ -2126,6 +2126,8 @@
     }
   },
   "loopsLoopCancelFailed": "Failed to cancel loop",
+  "loopsLoopPauseFailed": "Failed to pause loop",
+  "loopsLoopResumeFailed": "Failed to resume loop",
   "loopsValidationRequiredInterval": "Cron expression is required",
   "loopsValidationRequiredPrompt": "Prompt is required",
   "loopsValidationInvalidCron": "Cron expression is invalid (expected 5 fields)"
