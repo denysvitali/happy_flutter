@@ -6,6 +6,7 @@
 library;
 
 import '../utils/wire_parsers.dart';
+import 'processors/data_type.dart';
 
 // Content-type handlers extracted from the main file.
 part 'processors/user_message_handler.dart';
@@ -126,7 +127,7 @@ String? _extractAgentFallbackText(dynamic nestedContent) {
 
 bool _isToolResultEnvelope(Map<String, dynamic> data) {
   final dataType = data['type'] ?? data['dataType'];
-  if (dataType == 'tool-result' || dataType == 'tool-call-result') {
+  if (dataType == DataType.toolResult || dataType == DataType.toolCallResult) {
     return true;
   }
 

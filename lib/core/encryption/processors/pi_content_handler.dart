@@ -45,9 +45,9 @@ void _processPiContent({
   final parentToolUseId = _extractParentToolUseId(data);
   final agentId = _extractAgentId(data);
 
-  if (dataType == 'message' ||
-      dataType == 'reasoning' ||
-      dataType == 'model-output') {
+  if (dataType == DataType.message ||
+      dataType == DataType.reasoning ||
+      dataType == DataType.modelOutput) {
     final content = data['fullText'] ?? data['message'];
     messages.add({
       'id': id,
@@ -67,7 +67,7 @@ void _processPiContent({
     return;
   }
 
-  if (dataType == 'tool-call') {
+  if (dataType == DataType.toolCall) {
     final toolName = data['toolName'] ?? data['name'] ?? 'unknown';
     final toolInput = data['args'] ?? data['input'] ?? <String, dynamic>{};
     messages.add({
@@ -104,7 +104,7 @@ void _processPiContent({
 
   // pi's anthropic-messages API emits 'assistant' with a message.content
   // list (text, thinking, tool_use blocks) — same shape as output/assistant.
-  if (dataType == 'assistant') {
+  if (dataType == DataType.assistant) {
     final effectiveUuid = (meta.uuid != null && meta.uuid!.isNotEmpty)
         ? meta.uuid!
         : id;
@@ -148,7 +148,7 @@ void _processPiContent({
       }
       final type = block['type'] as String?;
 
-      if (type == 'text') {
+      if (type == DataType.text) {
         final text = block['text']?.toString() ?? '';
         if (text.isEmpty) {
           i++;
@@ -169,7 +169,7 @@ void _processPiContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
-      } else if (type == 'thinking') {
+      } else if (type == DataType.thinkingBlock) {
         final thinking = block['thinking']?.toString() ?? '';
         if (thinking.isEmpty) {
           i++;
@@ -191,11 +191,11 @@ void _processPiContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
-      } else if (type == 'tool_use' ||
-          type == 'toolCall' ||
-          type == 'server_tool_use' ||
-          type == 'mcp_tool_use' ||
-          type == 'code_execution_tool_use') {
+      } else if (type == DataType.toolUse ||
+          type == DataType.toolCallBlock ||
+          type == DataType.serverToolUse ||
+          type == DataType.mcpToolUse ||
+          type == DataType.codeExecutionToolUse) {
         final toolUseId = block['id'] as String?;
         final rawName = block['name'] ?? block['server_name'];
         final toolName = rawName?.toString().trim() ?? '';
@@ -231,11 +231,11 @@ void _processPiContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
-      } else if (type == 'tool_result' ||
-          type == 'web_search_tool_result' ||
-          type == 'server_tool_result' ||
-          type == 'mcp_tool_result' ||
-          type == 'code_execution_tool_result') {
+      } else if (type == DataType.toolResultBlock ||
+          type == DataType.webSearchToolResult ||
+          type == DataType.serverToolResult ||
+          type == DataType.mcpToolResult ||
+          type == DataType.codeExecutionToolResult) {
         final toolUseId = block['tool_use_id'] as String?;
         if (toolUseId != null && toolUseId.isNotEmpty) {
           toolResults.add({
@@ -256,7 +256,7 @@ void _processPiContent({
     return;
   }
 
-  if (dataType == 'result') {
+  if (dataType == DataType.result) {
     var handled = false;
     final batchedResults = WireParsers.asList(data['toolResults']) ?? const [];
     for (final item in batchedResults) {

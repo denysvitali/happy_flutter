@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
 
 void main() {
@@ -156,6 +158,85 @@ void main() {
         goSpawnTests,
         contains('TestSpawnEnv_AnthropicBaseURLNotInheritedFromDaemonEnv'),
       );
+    });
+    test('canonical message fixtures round-trip through Flutter processor', () {
+      final cliRoot = _cliRoot();
+      if (cliRoot == null) {
+        markTestSkipped(_missingCliMessage);
+        return;
+      }
+
+      final fixturesDir = Directory(
+        '${cliRoot.path}/test/fixtures/messages',
+      );
+      if (!fixturesDir.existsSync()) {
+        markTestSkipped(
+          'Fixture directory not found: ${fixturesDir.path}. '
+          'Run UPDATE_FIXTURES=1 in happy-cli-go to generate.',
+        );
+        return;
+      }
+
+      final fixtures = fixturesDir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.json'))
+          .toList();
+      expect(fixtures, isNotEmpty, reason: 'expected at least one fixture');
+
+      for (final fixture in fixtures) {
+        final raw = jsonDecode(fixture.readAsStringSync())
+            as Map<String, dynamic>;
+        expect(
+          raw['v'],
+          1,
+          reason: '${fixture.path} must declare envelope version v:1',
+        );
+
+        final wireId = 'fixture-${fixture.uri.pathSegments.last}';
+        final processed = processDecryptedMessages(
+          decryptedJsonList: [raw],
+          wireMessages: [
+            {
+              'id': wireId,
+              'seq': 1,
+              'createdAt': DateTime.now().millisecondsSinceEpoch,
+            },
+          ],
+          sessionId: 'fixture-session',
+        );
+
+        // Some canonical events (ready, thinking, usage_report) are
+        // intentionally silent in the Flutter UI. Treat those drops as
+        // successful contract fulfillment, but fail on any other drop.
+        final allowedDrops = processed.droppedReasons
+            .where(
+              (r) =>
+                  !r.startsWith('event data type ') &&
+                  r != 'redacted thinking',
+            )
+            .toList();
+        expect(
+          allowedDrops,
+          isEmpty,
+          reason: '${fixture.path} should not be dropped '
+              'for an unknown reason',
+        );
+
+        // Every fixture must produce at least one display message or tool
+        // result, unless it is an intentionally silent event.
+        final isSilentEvent = processed.droppedReasons.any(
+          (r) => r.startsWith('event data type '),
+        );
+        expect(
+          processed.messages.isNotEmpty ||
+              processed.toolResults.isNotEmpty ||
+              isSilentEvent,
+          isTrue,
+          reason:
+              '${fixture.path} produced no messages, tool results, or known silent drop',
+        );
+      }
     });
   });
 }

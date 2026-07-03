@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/tool_result_parser.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
@@ -65,13 +66,13 @@ class _GeminiExecuteViewState extends State<GeminiExecuteView> {
     cwd ??= input['cwd'] as String?;
 
     final stdout = state == 'completed' && result != null
-        ? _getStdout(result)
+        ? parseStdout(result)
         : null;
     final stderr = state == 'completed' && result != null
-        ? _getStderr(result)
+        ? parseStderr(result)
         : null;
     final exitCode = state == 'completed' && result != null
-        ? _getExitCode(result)
+        ? parseExitCode(result)
         : null;
     final error = state == 'error' && result != null ? result.toString() : null;
 
@@ -119,30 +120,6 @@ class _GeminiExecuteViewState extends State<GeminiExecuteView> {
         ],
       ),
     );
-  }
-
-  String? _getStdout(dynamic result) {
-    if (result is String) return result;
-    if (result is Map<String, dynamic>) {
-      return result['stdout'] as String?;
-    }
-    return null;
-  }
-
-  String? _getStderr(dynamic result) {
-    if (result is Map<String, dynamic>) {
-      return result['stderr'] as String?;
-    }
-    return null;
-  }
-
-  int? _getExitCode(dynamic result) {
-    if (result is Map<String, dynamic>) {
-      final raw = result['exitCode'] ?? result['exit_code'];
-      if (raw is int) return raw;
-      if (raw is String) return int.tryParse(raw);
-    }
-    return null;
   }
 }
 

@@ -43,14 +43,14 @@ void _processSessionContent({
   final isSidechain = parentUuid != null && parentUuid.isNotEmpty;
   final uuid = (envelope['id'] ?? envelope['uuid']) as String? ?? id;
 
-  if (eventType == 'turn-start' ||
-      eventType == 'start' ||
-      eventType == 'stop') {
+  if (eventType == DataType.turnStart ||
+      eventType == DataType.start ||
+      eventType == DataType.stop) {
     droppedReasons?.add('session eventType $eventType');
     return;
   }
 
-  if (eventType == 'turn-end') {
+  if (eventType == DataType.turnEnd) {
     messages.add({
       'id': envelopeId,
       'localId': localId,
@@ -65,7 +65,7 @@ void _processSessionContent({
     return;
   }
 
-  if (eventType == 'service') {
+  if (eventType == DataType.service) {
     if (eventRole != 'agent') {
       droppedReasons?.add('session eventType role not agent');
       return;
@@ -87,7 +87,7 @@ void _processSessionContent({
     return;
   }
 
-  if (eventType == 'text') {
+  if (eventType == DataType.textEvent) {
     final text =
         (eventMap['text'] ?? eventMap['message'])?.toString() ?? '';
     if (eventRole == 'agent') {
@@ -126,7 +126,7 @@ void _processSessionContent({
     return;
   }
 
-  if (eventType == 'tool-call-start') {
+  if (eventType == DataType.toolCallStart) {
     if (eventRole != 'agent') {
       droppedReasons?.add('session eventType role not agent');
       return;
@@ -159,7 +159,7 @@ void _processSessionContent({
     return;
   }
 
-  if (eventType == 'tool-call-end') {
+  if (eventType == DataType.toolCallEnd) {
     final callId =
         (eventMap['call'] ??
                 eventMap['callId'] ??
@@ -182,7 +182,7 @@ void _processSessionContent({
     return;
   }
 
-  if (eventType == 'file') {
+  if (eventType == DataType.file) {
     if (eventRole != 'agent') return;
     final image = WireParsers.asMap(eventMap['image']);
     final imageMeta = image != null

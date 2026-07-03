@@ -17,10 +17,10 @@ void _processEventContent({
   // content path already extracts into usageUpdates — as a chat row it
   // has no renderable label and only inflates the list with empty,
   // padded items (one per agent turn).
-  if (dataType == 'ready' ||
-      dataType == 'thinking' ||
-      dataType == 'usage_report' ||
-      dataType == 'tool-execution-update') {
+  if (dataType == DataType.ready ||
+      dataType == DataType.thinking ||
+      dataType == DataType.usageReport ||
+      dataType == DataType.toolExecutionUpdate) {
     droppedReasons?.add('event data type $dataType');
     return;
   }

@@ -25,7 +25,7 @@ void _processAcpContent({
   final parentToolUseId = _extractParentToolUseId(data);
   final agentId = _extractAgentId(data);
 
-  if (dataType == 'message' || dataType == 'reasoning') {
+  if (dataType == DataType.message || dataType == DataType.reasoning) {
     messages.add({
       'id': id,
       'localId': localId,
@@ -44,7 +44,7 @@ void _processAcpContent({
     return;
   }
 
-  if (dataType == 'thinking') {
+  if (dataType == DataType.thinking) {
     messages.add({
       'id': id,
       'localId': localId,
@@ -64,7 +64,7 @@ void _processAcpContent({
     return;
   }
 
-  if (dataType == 'tool-call') {
+  if (dataType == DataType.toolCall) {
     messages.add({
       'id': id,
       'localId': localId,
@@ -97,7 +97,7 @@ void _processAcpContent({
     return;
   }
 
-  if (dataType == 'file-edit') {
+  if (dataType == DataType.fileEdit) {
     messages.add({
       'id': id,
       'localId': localId,
@@ -129,7 +129,7 @@ void _processAcpContent({
   // Task lifecycle events (task_started, task_progress, task_updated,
   // task_notification).
   // Mirrors the handling in output_content_handler.dart::_processMetaOutput.
-  if (dataType == 'system') {
+  if (dataType == DataType.system) {
     final subtype = data['subtype'] as String?;
     if (subtype == 'task_started' ||
         subtype == 'task_progress' ||

@@ -40,9 +40,9 @@ void _processCodexContent({
   final parentToolUseId = _extractParentToolUseId(data);
   final agentId = _extractAgentId(data);
 
-  if (dataType == 'message' ||
-      dataType == 'reasoning' ||
-      dataType == 'model-output') {
+  if (dataType == DataType.message ||
+      dataType == DataType.reasoning ||
+      dataType == DataType.modelOutput) {
     // Handle both old (message) and new (model-output) happy-cli-go formats.
     final content = data['fullText'] ?? data['message'];
     messages.add({
@@ -63,7 +63,7 @@ void _processCodexContent({
     return;
   }
 
-  if (dataType == 'tool-call') {
+  if (dataType == DataType.toolCall) {
     // Handle old (name/input), current (toolName/args), and Responses-style
     // (name/arguments) tool calls from happy-cli-go/Codex.
     final toolName = data['toolName'] ?? data['name'] ?? 'unknown';

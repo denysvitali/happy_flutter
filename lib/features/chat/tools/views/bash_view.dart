@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/tool_result_parser.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
@@ -31,13 +32,13 @@ class BashView extends StatelessWidget {
         input['description'] as String? ?? _descriptionFromCommand(command);
 
     final stdout = state == 'completed' && result != null
-        ? _getStdout(result)
+        ? parseStdout(result)
         : null;
     final stderr = state == 'completed' && result != null
-        ? _getStderr(result)
+        ? parseStderr(result)
         : null;
     final exitCode = state == 'completed' && result != null
-        ? _getExitCode(result)
+        ? parseExitCode(result)
         : null;
     final error = state == 'error' && result != null ? result.toString() : null;
 
@@ -79,30 +80,6 @@ class BashView extends StatelessWidget {
     if (knownCommands.contains(firstWord)) return '$firstWord command';
     return command.length > 20 ? '${command.substring(0, 20)}...' : command;
   }
-
-  String? _getStdout(dynamic result) {
-    if (result is String) return result;
-    if (result is Map<String, dynamic>) {
-      return result['stdout'] as String?;
-    }
-    return null;
-  }
-
-  String? _getStderr(dynamic result) {
-    if (result is Map<String, dynamic>) {
-      return result['stderr'] as String?;
-    }
-    return null;
-  }
-
-  int? _getExitCode(dynamic result) {
-    if (result is Map<String, dynamic>) {
-      final raw = result['exitCode'] ?? result['exit_code'];
-      if (raw is int) return raw;
-      if (raw is String) return int.tryParse(raw);
-    }
-    return null;
-  }
 }
 
 /// View for function-style command execution tools.
@@ -126,16 +103,16 @@ class ExecCommandView extends StatelessWidget {
     final cwd = input['workdir'] as String? ?? input['cwd'] as String?;
 
     final stdout = state == 'completed' && result != null
-        ? _getStdout(result)
+        ? parseStdout(result)
         : null;
     final stderr = state == 'completed' && result != null
-        ? _getStderr(result)
+        ? parseStderr(result)
         : null;
     final exitCode = state == 'completed' && result != null
-        ? _getExitCode(result)
+        ? parseExitCode(result)
         : null;
     final error = state == 'error' && result != null
-        ? (_getErrorText(result) ?? result.toString())
+        ? (parseErrorText(result) ?? result.toString())
         : null;
 
     return ToolSectionView(
@@ -149,42 +126,6 @@ class ExecCommandView extends StatelessWidget {
         rawResult: result,
       ),
     );
-  }
-
-  String? _getStdout(dynamic result) {
-    if (result is String) return result;
-    if (result is Map<String, dynamic>) {
-      return result['stdout'] as String? ?? result['output'] as String?;
-    }
-    return null;
-  }
-
-  String? _getStderr(dynamic result) {
-    if (result is Map<String, dynamic>) {
-      return result['stderr'] as String?;
-    }
-    return null;
-  }
-
-  String? _getErrorText(dynamic result) {
-    if (result is String) return result;
-    if (result is Map<String, dynamic>) {
-      return (result['stderr'] ??
-              result['stdout'] ??
-              result['output'] ??
-              result['error'])
-          as String?;
-    }
-    return null;
-  }
-
-  int? _getExitCode(dynamic result) {
-    if (result is Map<String, dynamic>) {
-      final raw = result['exitCode'] ?? result['exit_code'];
-      if (raw is int) return raw;
-      if (raw is String) return int.tryParse(raw);
-    }
-    return null;
   }
 }
 

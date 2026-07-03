@@ -82,7 +82,7 @@ void _processOutputContent({
   // messages were dropped by the unrecognized-dataType fallback at the
   // bottom, which accounts for the majority of "fetchMessages dropped
   // (output filter)" warnings.
-  if (dataType == 'message') {
+  if (dataType == DataType.message) {
     final text = (data['message'] ?? data['text']) as String?;
     if (text == null || text.isEmpty) {
       droppedReasons?.add('output message empty');
@@ -106,7 +106,7 @@ void _processOutputContent({
     return;
   }
 
-  if (dataType == 'assistant') {
+  if (dataType == DataType.assistant) {
     final effectiveUuid = (meta.uuid != null && meta.uuid!.isNotEmpty)
         ? meta.uuid!
         : id; // id is never null — always a wire id string
@@ -243,7 +243,7 @@ void _processOutputContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
-      } else if (type == 'thinking') {
+      } else if (type == DataType.thinkingBlock) {
         messages.add({
           'id': '${id}_k$i',
           'localId': localId,
@@ -261,11 +261,11 @@ void _processOutputContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
-      } else if (type == 'tool_use' ||
-          type == 'toolCall' ||
-          type == 'server_tool_use' ||
-          type == 'mcp_tool_use' ||
-          type == 'code_execution_tool_use') {
+      } else if (type == DataType.toolUse ||
+          type == DataType.toolCallBlock ||
+          type == DataType.serverToolUse ||
+          type == DataType.mcpToolUse ||
+          type == DataType.codeExecutionToolUse) {
         // Use the JSONL message uuid (effectiveUuid) — NOT the
         // tool_use block id (toolu_*).  Sibling content blocks (text,
         // thinking, other tool_uses) in the same assistant message
@@ -299,11 +299,11 @@ void _processOutputContent({
           'parentToolUseId': ?parentToolUseId,
           'agentId': ?agentId,
         });
-      } else if (type == 'tool_result' ||
-          type == 'web_search_tool_result' ||
-          type == 'server_tool_result' ||
-          type == 'mcp_tool_result' ||
-          type == 'code_execution_tool_result') {
+      } else if (type == DataType.toolResultBlock ||
+          type == DataType.webSearchToolResult ||
+          type == DataType.serverToolResult ||
+          type == DataType.mcpToolResult ||
+          type == DataType.codeExecutionToolResult) {
         final toolUseId = block['tool_use_id'] as String?;
         if (toolUseId != null && toolUseId.isNotEmpty) {
           toolResults.add({
@@ -318,7 +318,7 @@ void _processOutputContent({
             'agentId': ?agentId,
           });
         }
-      } else if (type == 'redacted_thinking') {
+      } else if (type == DataType.redactedThinking) {
         // Anthropic's encrypted thinking blob — deliberately invisible
         // to the user. Track as a known skip but do not render or warn.
         droppedReasons?.add('redacted thinking');
@@ -345,7 +345,7 @@ void _processOutputContent({
     return;
   }
 
-  if (dataType == 'web_search_call') {
+  if (dataType == DataType.webSearchCall) {
     final toolUseId = (data['id'] ?? data['call_id']) as String?;
     final effectiveUuid = (meta.uuid != null && meta.uuid!.isNotEmpty)
         ? meta.uuid!
@@ -376,7 +376,7 @@ void _processOutputContent({
   // pi/codex result envelope. Some backends send tool calls/results as
   // `data.output[]` entries with `role: toolCall/toolResult` instead of
   // `data.toolResults`.
-  if (dataType == 'result') {
+  if (dataType == DataType.result) {
     var handled = false;
 
     final batchedResults = WireParsers.asList(data['toolResults']) ?? const [];
@@ -457,7 +457,7 @@ void _processOutputContent({
     if (handled) return;
   }
 
-  if (dataType == 'user') {
+  if (dataType == DataType.user) {
     if (meta.isSidechain) {
       final userMessage = WireParsers.asMap(data['message']);
       final msgContent = userMessage?['content'];
@@ -510,7 +510,7 @@ void _processOutputContent({
           continue;
         }
         final type = c['type'] as String?;
-        if (type == 'text') {
+        if (type == DataType.text) {
           final text = c['text']?.toString() ?? '';
           if (text.isNotEmpty) {
             messages.add({
@@ -529,7 +529,7 @@ void _processOutputContent({
               'agentId': ?agentId,
             });
           }
-        } else if (type == 'tool_result') {
+        } else if (type == DataType.toolResultBlock) {
           toolResults.add({
             'toolUseId': c['tool_use_id'],
             'result': c['content'],
@@ -542,7 +542,7 @@ void _processOutputContent({
             'parentToolUseId': ?parentToolUseId,
             'agentId': ?agentId,
           });
-        } else if (type == 'tool-result') {
+        } else if (type == DataType.toolResult) {
           // Interrupted-tool variant emitted by the CLI when a user
           // aborts a tool call mid-run. Different field names from the
           // standard tool_result block, but the downstream consumer
@@ -562,7 +562,7 @@ void _processOutputContent({
               'agentId': ?agentId,
             });
           }
-        } else if (type == 'image') {
+        } else if (type == DataType.image) {
           // Render a placeholder so the message does not vanish; the
           // rich image pipeline is out of scope for this fix.
           messages.add({
@@ -723,7 +723,7 @@ void _processMetaOutput({
     addEvent('in', 'message', 'Available sub-agents: $visibleAgents$suffix');
   }
 
-  if (dataType == 'system' && subtype == 'init') {
+  if (dataType == DataType.system && subtype == DataType.init) {
     final agents = WireParsers.asList(data['agents']);
     if (agents != null) {
       addSubagentsCatalog(
@@ -733,11 +733,11 @@ void _processMetaOutput({
     return;
   }
 
-  if (dataType == 'system') {
-    if (subtype == 'task_started' ||
-        subtype == 'task_progress' ||
-        subtype == 'task_updated' ||
-        subtype == 'task_notification') {
+  if (dataType == DataType.system) {
+    if (subtype == DataType.taskStarted ||
+        subtype == DataType.taskProgress ||
+        subtype == DataType.taskUpdated ||
+        subtype == DataType.taskNotification) {
       final description = data['description'] as String?;
       final summary = data['summary'] as String?;
       final status = data['status'] as String?;
@@ -808,12 +808,12 @@ void _processMetaOutput({
       return;
     }
 
-    if (subtype == 'compact_boundary') {
+    if (subtype == DataType.compactBoundary) {
       addEvent('cb', 'message', 'Context compacted');
       return;
     }
 
-    if (subtype == 'api_retry') {
+    if (subtype == DataType.apiRetry) {
       final attempt = data['attempt'];
       final maxRetries = data['max_retries'];
       addEvent(
@@ -825,7 +825,7 @@ void _processMetaOutput({
     }
   }
 
-  if (dataType == 'tool_progress') {
+  if (dataType == DataType.toolProgress) {
     final toolName = data['tool_name'] as String? ?? 'tool';
     final elapsed = data['elapsed_time_seconds'];
     final elapsedStr = elapsed is num ? '${elapsed.toStringAsFixed(0)}s' : '';
