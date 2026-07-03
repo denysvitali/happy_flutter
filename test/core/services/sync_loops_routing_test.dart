@@ -490,6 +490,132 @@ void main() {
     });
   });
 
+  group('createLoop', () {
+    test('publishes the new loop into the in-memory mirror', () async {
+      final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+      final streamEvents = <String>[];
+      final sub = sync.onLoopsChanged.listen(streamEvents.add);
+
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        expect(method, 'loop-create');
+        expect(params['expression'], '*/5 * * * *');
+        expect(params['prompt'], 'check');
+        expect(params['recurring'], isTrue);
+        return {
+          'ok': true,
+          'loop': _sample(id: 'cccccccc', sessionId: 's1').toJson(),
+        };
+      };
+
+      final loop = await sync.createLoop(
+        sessionId: 's1',
+        expression: '*/5 * * * *',
+        prompt: 'check',
+        recurring: true,
+      );
+
+      expect(loop.id, 'cccccccc');
+      expect(
+        sync.loopsForSession('s1').map((l) => l.id).toList(),
+        ['cccccccc'],
+        reason: 'new loop must be visible in the local mirror immediately',
+      );
+      expect(
+        sync.domainChangeCounter(SyncDomain.loops),
+        greaterThan(counterBefore),
+        reason:
+            'createLoop must bump the loops domain counter so '
+            'LoopsNotifier.loadFromSync wakes up and reads the new loop',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        streamEvents,
+        contains('s1'),
+        reason: 'createLoop must fire onLoopsChanged so subscribers rebuild',
+      );
+      await sub.cancel();
+    });
+
+    test('appends to an existing session list', () async {
+      sync.testLoopsBySession['s1'] = [_sample(id: 'aaaaaaaa')];
+      sync.testSessionRPCOverride = (sid, method, params) async => {
+        'ok': true,
+        'loop': _sample(id: 'cccccccc', sessionId: 's1').toJson(),
+      };
+
+      await sync.createLoop(
+        sessionId: 's1',
+        expression: '*/5 * * * *',
+        prompt: 'check',
+        recurring: true,
+      );
+
+      expect(
+        sync.loopsForSession('s1').map((l) => l.id).toList(),
+        ['aaaaaaaa', 'cccccccc'],
+      );
+    });
+
+    test('does not duplicate when daemon loops-updated already landed',
+        () async {
+      // Simulate the race: a concurrent loops-updated event already
+      // pushed the new loop into the mirror before the create RPC ack
+      // arrived. createLoop must not append a second copy.
+      sync.testLoopsBySession['s1'] = [
+        _sample(id: 'aaaaaaaa'),
+        _sample(id: 'cccccccc'),
+      ];
+      final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+
+      sync.testSessionRPCOverride = (sid, method, params) async => {
+        'ok': true,
+        'loop': _sample(id: 'cccccccc', sessionId: 's1').toJson(),
+      };
+
+      await sync.createLoop(
+        sessionId: 's1',
+        expression: '*/5 * * * *',
+        prompt: 'check',
+        recurring: true,
+      );
+
+      expect(
+        sync.loopsForSession('s1').map((l) => l.id).toList(),
+        ['aaaaaaaa', 'cccccccc'],
+        reason: 'duplicate id must not be appended',
+      );
+      expect(
+        sync.domainChangeCounter(SyncDomain.loops),
+        counterBefore,
+        reason: 'no-op publish must not bump the domain counter',
+      );
+    });
+
+    test('does not publish when RPC throws', () async {
+      final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        throw StateError('boom');
+      };
+
+      await expectLater(
+        sync.createLoop(
+          sessionId: 's1',
+          expression: '*/5 * * * *',
+          prompt: 'check',
+          recurring: true,
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(sync.loopsForSession('s1'), isEmpty);
+      expect(
+        sync.domainChangeCounter(SyncDomain.loops),
+        counterBefore,
+        reason: 'failed createLoop must not publish to the loop domain',
+      );
+    });
+  });
+
   group('pauseLoop', () {
     test('optimistic pause toggles before RPC round-trip', () async {
       sync.testLoopsBySession['s1'] = [

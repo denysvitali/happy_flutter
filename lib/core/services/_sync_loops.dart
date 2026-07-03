@@ -178,6 +178,27 @@ extension SyncLoops on Sync {
     _publishLoopsForSession(sessionId, filtered, notifyDataChanged: true);
   }
 
+  /// Apply a locally confirmed create. Mirrors the optimistic-publish
+  /// pattern of [_applyLoopDeleted] / [_replaceLoopInSession] so the
+  /// LoopsScreen sees the new loop immediately, without waiting for
+  /// the daemon's `loops-updated` event — which can arrive later, be
+  /// reordered relative to the create RPC ack, or in pathological
+  /// cases never arrive at all.
+  ///
+  /// If a concurrent `loops-updated` already landed (same loop id), the
+  /// existing entry wins and this publish is a no-op so the loop is
+  /// never duplicated in the local mirror.
+  void _applyLoopCreated(String sessionId, Loop loop) {
+    final existing = _loopsBySession[sessionId] ?? const <Loop>[];
+    final duplicateIdx = existing.indexWhere((l) => l.id == loop.id);
+    if (duplicateIdx >= 0) return;
+    _publishLoopsForSession(
+      sessionId,
+      <Loop>[...existing, loop],
+      notifyDataChanged: true,
+    );
+  }
+
   List<Loop> _parseLoopList({
     required String sessionId,
     required List<dynamic> loopsJson,
@@ -275,6 +296,11 @@ extension SyncLoops on Sync {
   /// Returns the created [Loop]. Throws [StateError] when the daemon
   /// rejects the request (e.g. over the 50-cap, or
   /// `CLAUDE_CODE_DISABLE_CRON=1`).
+  ///
+  /// On success the new loop is published into the in-memory mirror
+  /// before returning so the LoopsScreen / AllLoopsScreen render it
+  /// immediately, without waiting for the daemon's `loops-updated`
+  /// event (see [_applyLoopCreated]).
   Future<Loop> createLoop({
     required String sessionId,
     required String expression,
@@ -304,7 +330,9 @@ extension SyncLoops on Sync {
     if (loopJson is! Map) {
       throw StateError('loop-create missing loop payload');
     }
-    return Loop.fromJson(Map<String, dynamic>.from(loopJson));
+    final loop = Loop.fromJson(Map<String, dynamic>.from(loopJson));
+    _applyLoopCreated(sessionId, loop);
+    return loop;
   }
 
   /// Delete a loop. The daemon is authoritative, but after it confirms the
