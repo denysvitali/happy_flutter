@@ -12,6 +12,7 @@ import '../../../core/services/logger_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../chat/widgets/model_mode.dart';
 
 enum NewSessionCreateBlocker {
   missingMachine,
@@ -418,7 +419,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       }
       // Fall back to the user's last explicit model selection so profile
       // switches don't regress the model choice.
-      modelMode ??= updatedSettings.lastUsedModelMode;
+      final lastUsedModelMode = updatedSettings.lastUsedModelMode;
+      if (lastUsedModelMode != null) {
+        modelMode ??= ChatModelMode.normalizeRawForFlavor(
+          lastUsedModelMode,
+          _selectedAgent,
+        );
+      }
       final String sessionPath;
       final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
       if (_sessionType == 'worktree') {

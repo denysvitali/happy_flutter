@@ -1582,10 +1582,20 @@ PY
     if (agent != 'claude' && _isClaudeModelAlias(modelMode)) {
       return 'default';
     }
+    if (agent == 'codex' && !_isKnownCodexModelMode(modelMode)) {
+      return 'default';
+    }
     if (agent == 'claude' && _isNonClaudeModelMode(modelMode)) {
       return 'default';
     }
     return modelMode;
+  }
+
+  bool _isKnownCodexModelMode(String modelMode) {
+    final slug = modelMode.contains(':')
+        ? modelMode.substring(0, modelMode.indexOf(':'))
+        : modelMode;
+    return slug.startsWith('gpt-') || RegExp(r'^o\d').hasMatch(slug);
   }
 
   bool _isClaudeModelAlias(String modelMode) {
@@ -1615,6 +1625,30 @@ PY
     return normalizedPath.isEmpty || normalizedPath == '/v1';
   }
 
+  bool _isCustomCodexProfile(AIBackendProfile? profile) {
+    if (profile == null) return false;
+    if (profile.azureOpenAIConfig != null) return true;
+    if (_profileEnvValue(profile, 'AZURE_OPENAI_ENDPOINT') != null ||
+        _profileEnvValue(profile, 'AZURE_OPENAI_DEPLOYMENT_NAME') != null) {
+      return true;
+    }
+    final baseUrl =
+        profile.openaiConfig?.baseUrl ??
+        _profileEnvValue(profile, 'OPENAI_BASE_URL');
+    return baseUrl != null && !_isOfficialOpenAIBaseUrl(baseUrl);
+  }
+
+  bool _isOfficialOpenAIBaseUrl(String raw) {
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null) return false;
+    if (uri.scheme.toLowerCase() != 'https') return false;
+    if (uri.host.toLowerCase() != 'api.openai.com') return false;
+    final normalizedPath = uri.path.endsWith('/')
+        ? uri.path.substring(0, uri.path.length - 1)
+        : uri.path;
+    return normalizedPath.isEmpty || normalizedPath == '/v1';
+  }
+
   String? _anthropicBaseUrlForProfile(AIBackendProfile profile) {
     final configBaseUrl = profile.anthropicConfig?.baseUrl;
     if (configBaseUrl != null && configBaseUrl.isNotEmpty) {
@@ -1629,7 +1663,7 @@ PY
   }
 
   String _extractDefaultEnvValue(String value) {
-    final match = RegExp(r'^\$\{[^:}]+:-(.*)\}\$').firstMatch(value);
+    final match = RegExp(r'^\$\{[^:}]+:-(.*)\}$').firstMatch(value);
     return match?.group(1) ?? value;
   }
 
@@ -1659,7 +1693,10 @@ PY
     String? modelMode,
   }) {
     final effectiveAgent = agent ?? _agentForProfile(profile);
-    final normalized = _normalizeModelModeForAgent(modelMode, effectiveAgent);
+    final normalized =
+        effectiveAgent == 'codex' && _isCustomCodexProfile(profile)
+        ? _nonDefaultModelMode(modelMode)
+        : _normalizeModelModeForAgent(modelMode, effectiveAgent);
     if (normalized != null && normalized != 'default') {
       return normalized;
     }

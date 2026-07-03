@@ -260,6 +260,14 @@ void main() {
   test('raw model normalization drops Claude effort modes for Codex', () {
     expect(ChatModelMode.normalizeRawForFlavor('opus:max', 'codex'), 'default');
     expect(
+      ChatModelMode.normalizeRawForFlavor('MiniMax-M3', 'codex'),
+      'default',
+    );
+    expect(
+      ChatModelMode.normalizeRawForFlavor('MiniMax-M3:high', 'codex'),
+      'default',
+    );
+    expect(
       ChatModelMode.normalizeRawForFlavor('claude-fable-5', 'codex'),
       'default',
     );
@@ -270,6 +278,18 @@ void main() {
     expect(
       ChatModelMode.normalizeRawForFlavor('sonnet:high', 'codex'),
       'default',
+    );
+  });
+
+  test('raw model normalization preserves known Codex models', () {
+    expect(
+      ChatModelMode.normalizeRawForFlavor('gpt-5.5:high', 'codex'),
+      'gpt-5.5:high',
+    );
+    expect(ChatModelMode.fromString('gpt-5-codex').isCodex, isTrue);
+    expect(
+      ChatModelMode.normalizeRawForFlavor('gpt-5-codex', 'codex'),
+      'gpt-5-codex',
     );
   });
 

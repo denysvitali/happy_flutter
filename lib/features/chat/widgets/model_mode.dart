@@ -147,7 +147,14 @@ class ChatModelMode {
       'opus' => opus,
       final raw? when raw.contains(':') => _fromColonSelection(raw),
       final raw? when raw.isNotEmpty && raw != 'default' =>
-        _isClaudeModelSlug(raw)
+        isKnownCodexModelString(raw)
+            ? ChatModelMode._(
+                label: _displayNameFromSlug(raw),
+                modeString: raw,
+                modelSlug: raw,
+                flavor: 'codex',
+              )
+            : _isClaudeModelSlug(raw)
             ? ChatModelMode.custom(slug: raw)
             : ChatModelMode._(label: raw, modeString: raw),
       _ => defaultModel,
@@ -220,7 +227,17 @@ class ChatModelMode {
 
   /// Normalize a stored raw model string for a session flavor while preserving
   /// provider-owned strings that the app cannot parse into picker options.
-  static String normalizeRawForFlavor(String value, String? flavor) {
+  static String normalizeRawForFlavor(
+    String value,
+    String? flavor, {
+    bool preserveProviderOwned = false,
+  }) {
+    final trimmed = value.trim();
+    if (flavor == 'codex' &&
+        !preserveProviderOwned &&
+        !isKnownCodexModelString(trimmed)) {
+      return defaultModel.modeString;
+    }
     final parsed = fromString(value);
     final normalized = normalizeForFlavor(parsed, flavor);
     final parsedFlavor = parsed.flavor;
@@ -228,6 +245,17 @@ class ChatModelMode {
       return normalized.modeString;
     }
     return value;
+  }
+
+  static bool isKnownCodexModelString(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed == defaultModel.modeString) {
+      return true;
+    }
+    final slug = trimmed.contains(':')
+        ? trimmed.substring(0, trimmed.indexOf(':'))
+        : trimmed;
+    return slug.startsWith('gpt-') || RegExp(r'^o\d').hasMatch(slug);
   }
 
   static ChatModelMode _fromColonSelection(String raw) {

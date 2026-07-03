@@ -119,6 +119,42 @@ void main() {
         'gpt-5.5:high',
       );
     });
+
+    test('drops provider-owned model names for Codex default sessions', () {
+      expect(
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'MiniMax-M3'),
+        isNull,
+      );
+      expect(
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'MiniMax-M3:high'),
+        isNull,
+      );
+    });
+
+    test('passes provider-owned model names for custom Codex profiles', () {
+      final profile = AIBackendProfile(
+        id: 'kimi-codex',
+        name: 'Kimi Codex',
+        openaiConfig: OpenAIConfig(
+          baseUrl: 'https://api.kimi.com/coding/v1',
+          model: 'kimi-k2.7-code',
+        ),
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+        ),
+      );
+
+      expect(
+        sync.testGetModelOverride(
+          agent: 'codex',
+          profile: profile,
+          modelMode: 'kimi-k2.7-code',
+        ),
+        'kimi-k2.7-code',
+      );
+    });
   });
 
   group('_normalizeModelModeForAgent', () {
@@ -158,6 +194,17 @@ void main() {
       expect(
         sync.testNormalizeModelModeForAgent('gpt-5.5:high', 'codex'),
         'gpt-5.5:high',
+      );
+    });
+
+    test('normalizes provider-owned names away from Codex defaults', () {
+      expect(
+        sync.testNormalizeModelModeForAgent('MiniMax-M3', 'codex'),
+        'default',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent('MiniMax-M3:high', 'codex'),
+        'default',
       );
     });
 

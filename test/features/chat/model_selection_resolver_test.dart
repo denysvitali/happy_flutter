@@ -119,6 +119,57 @@ void main() {
       expect(result.resolvedRawModelString, isNull);
     });
 
+    test('does not leak provider-owned last-used model into Codex default', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'codex',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: 'MiniMax-M3:high',
+      );
+
+      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+      expect(result.resolvedRawModelString, isNull);
+    });
+
+    test('does not leak provider-owned saved model into Codex default', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'MiniMax-M3',
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'codex',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+      expect(result.resolvedRawModelString, 'default');
+    });
+
+    test('does not show provider-owned saved Codex-style model after drop', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'MiniMax-M3:high',
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'codex',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+      expect(result.resolvedRawModelString, 'default');
+    });
+
     test('keeps Codex last-used model for Codex session', () {
       final result = resolveModelSelection(
         savedPermissionMode: null,

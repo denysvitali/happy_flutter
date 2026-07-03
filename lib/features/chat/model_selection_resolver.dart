@@ -103,6 +103,9 @@ ModelSelectionResolution resolveModelSelection({
 
   String? rawModelModeString;
   var modelMode = ChatModelMode.defaultModel;
+  final selectedProfileOwnsRawCodexModel = profileOwnsRawCodexModel(
+    selectedProfile,
+  );
 
   // Priority: saved draft > session model > profile default > settings
   // default.
@@ -110,27 +113,30 @@ ModelSelectionResolution resolveModelSelection({
     rawModelModeString = ChatModelMode.normalizeRawForFlavor(
       savedModelMode,
       flavor,
+      preserveProviderOwned: selectedProfileOwnsRawCodexModel,
     );
     modelMode = ChatModelMode.normalizeForFlavor(
-      ChatModelMode.fromString(savedModelMode),
+      ChatModelMode.fromString(rawModelModeString),
       flavor,
     );
   } else if (sessionModelMode != null) {
     rawModelModeString = ChatModelMode.normalizeRawForFlavor(
       sessionModelMode,
       flavor,
+      preserveProviderOwned: selectedProfileOwnsRawCodexModel,
     );
     modelMode = ChatModelMode.normalizeForFlavor(
-      ChatModelMode.fromString(sessionModelMode),
+      ChatModelMode.fromString(rawModelModeString),
       flavor,
     );
   } else if (selectedProfile?.defaultModelMode case final profileModelMode?) {
     rawModelModeString = ChatModelMode.normalizeRawForFlavor(
       profileModelMode,
       flavor,
+      preserveProviderOwned: selectedProfileOwnsRawCodexModel,
     );
     modelMode = ChatModelMode.normalizeForFlavor(
-      ChatModelMode.fromString(profileModelMode),
+      ChatModelMode.fromString(rawModelModeString),
       flavor,
     );
   } else if (lastUsedModelMode != null) {
@@ -140,11 +146,16 @@ ModelSelectionResolution resolveModelSelection({
     // with the current flavor. Otherwise a Codex selection (e.g.
     // `gpt-5.5:medium`) leaks into a Claude session and Claude CLI rejects
     // it on respawn.
-    final candidate = ChatModelMode.fromString(lastUsedModelMode);
+    final rawCandidate = ChatModelMode.normalizeRawForFlavor(
+      lastUsedModelMode,
+      flavor,
+    );
+    final candidate = ChatModelMode.fromString(rawCandidate);
     final available = ChatModelMode.availableForFlavor(flavor);
-    if (available.contains(candidate) ||
-        (flavor == 'codex' && candidate.isCodex)) {
-      rawModelModeString = lastUsedModelMode;
+    if (!candidate.isDefault &&
+        (available.contains(candidate) ||
+            (flavor == 'codex' && candidate.isCodex))) {
+      rawModelModeString = rawCandidate;
       modelMode = candidate;
     }
   }
@@ -158,4 +169,37 @@ ModelSelectionResolution resolveModelSelection({
     availableProfiles: availableProfiles,
     hadGhostProfileReference: hadGhostProfileReference,
   );
+}
+
+bool profileOwnsRawCodexModel(AIBackendProfile? profile) {
+  if (profile == null || !profile.compatibility.codex) return false;
+  if (profile.azureOpenAIConfig != null) return true;
+  if (_envValue(profile, 'AZURE_OPENAI_ENDPOINT') != null ||
+      _envValue(profile, 'AZURE_OPENAI_DEPLOYMENT_NAME') != null) {
+    return true;
+  }
+  final baseUrl =
+      profile.openaiConfig?.baseUrl ?? _envValue(profile, 'OPENAI_BASE_URL');
+  return baseUrl != null && !_isOfficialOpenAIBaseUrl(baseUrl);
+}
+
+String? _envValue(AIBackendProfile profile, String name) {
+  for (final env in profile.environmentVariables) {
+    if (env.name != name) continue;
+    final trimmed = env.value.trim();
+    if (trimmed.isEmpty || trimmed == 'default') return null;
+    return trimmed;
+  }
+  return null;
+}
+
+bool _isOfficialOpenAIBaseUrl(String raw) {
+  final uri = Uri.tryParse(raw.trim());
+  if (uri == null) return false;
+  if (uri.scheme.toLowerCase() != 'https') return false;
+  if (uri.host.toLowerCase() != 'api.openai.com') return false;
+  final normalizedPath = uri.path.endsWith('/')
+      ? uri.path.substring(0, uri.path.length - 1)
+      : uri.path;
+  return normalizedPath.isEmpty || normalizedPath == '/v1';
 }

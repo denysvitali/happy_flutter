@@ -465,18 +465,19 @@ extension _ChatScreenActions on _ChatScreenState {
     // Use the profile's default model mode when switching providers.
     // If no profile is selected, fall back to the server default mode.
     final profileDefaultModelMode = profile?.defaultModelMode;
-    final newModel = profileDefaultModelMode != null
-        ? ChatModelMode.normalizeForFlavor(
-            ChatModelMode.fromString(profileDefaultModelMode),
-            _session?.metadata?.flavor,
-          )
-        : ChatModelMode.defaultModel;
     final rawModelString = profileDefaultModelMode != null
         ? ChatModelMode.normalizeRawForFlavor(
             profileDefaultModelMode,
             _session?.metadata?.flavor,
+            preserveProviderOwned: profileOwnsRawCodexModel(profile),
           )
-        : newModel.modeString;
+        : ChatModelMode.defaultModel.modeString;
+    final newModel = profileDefaultModelMode != null
+        ? ChatModelMode.normalizeForFlavor(
+            ChatModelMode.fromString(rawModelString),
+            _session?.metadata?.flavor,
+          )
+        : ChatModelMode.defaultModel;
 
     // Apply the profile's default permission mode (consistent with
     // how NewSessionScreen applies it on session creation).
