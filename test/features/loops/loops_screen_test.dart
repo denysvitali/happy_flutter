@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +20,7 @@ Widget _wrap({
   Object? deleteError,
   Object? refreshError,
   List<String>? refreshCalls,
+  Future<void> Function()? refreshOverride,
 }) {
   return ProviderScope(
     overrides: [
@@ -28,6 +31,7 @@ Widget _wrap({
           deleteError: deleteError,
           refreshError: refreshError,
           refreshCalls: refreshCalls,
+          refreshOverride: refreshOverride,
         ),
       ),
     ],
@@ -127,6 +131,28 @@ void main() {
       expect(find.byType(AppLoadingIndicator), findsNothing);
       expect(find.text('check the deploy'), findsOneWidget);
       expect(refreshCalls, ['refresh']);
+    });
+
+    testWidgets('does not keep initial spinner up for a hanging refresh', (
+      tester,
+    ) async {
+      final refreshStarted = Completer<void>();
+      await tester.pumpWidget(
+        _wrap(
+          child: const LoopsScreen(sessionId: 's1'),
+          refreshOverride: () async {
+            refreshStarted.complete();
+            await Completer<void>().future;
+          },
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(refreshStarted.isCompleted, isTrue);
+      expect(find.byType(AppLoadingIndicator), findsNothing);
+      expect(find.text('No loops scheduled'), findsOneWidget);
     });
 
     testWidgets('shows FAB when not loading and not in error state', (

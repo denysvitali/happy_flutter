@@ -16,7 +16,7 @@ mixin LoopRefreshState<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         .hydrateFromCache();
     if (mounted) {
       setState(() {
-        initialLoading = !hasCached;
+        initialLoading = false;
         refreshError = null;
       });
     }

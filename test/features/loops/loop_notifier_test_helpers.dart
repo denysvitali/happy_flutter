@@ -35,6 +35,7 @@ class StubLoopsNotifier extends LoopsNotifier {
     this.pauseError,
     this.refreshError,
     this.refreshCalls,
+    this.refreshOverride,
     this.actionCalls,
   }) : _initial = initial,
        _cached = cached;
@@ -48,6 +49,7 @@ class StubLoopsNotifier extends LoopsNotifier {
   final Object? pauseError;
   final Object? refreshError;
   final List<String>? refreshCalls;
+  final Future<void> Function()? refreshOverride;
   final List<String>? actionCalls;
 
   @override
@@ -67,6 +69,11 @@ class StubLoopsNotifier extends LoopsNotifier {
   @override
   Future<void> refreshFromSync() async {
     refreshCalls?.add('refresh');
+    final override = refreshOverride;
+    if (override != null) {
+      await override();
+      return;
+    }
     final error = refreshError;
     if (error is Error) throw error;
     if (error is Exception) throw error;

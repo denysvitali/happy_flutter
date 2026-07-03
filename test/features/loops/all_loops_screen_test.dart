@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +19,7 @@ Widget _wrap({
   Map<String, List<Loop>>? cachedLoops,
   List<String>? refreshCalls,
   List<String>? actionCalls,
+  Future<void> Function()? refreshOverride,
 }) {
   final router = GoRouter(
     routes: [
@@ -41,6 +44,7 @@ Widget _wrap({
           cached: cachedLoops,
           refreshCalls: refreshCalls,
           actionCalls: actionCalls,
+          refreshOverride: refreshOverride,
         ),
       ),
     ],
@@ -142,6 +146,28 @@ void main() {
       expect(find.text('2 active loops'), findsOneWidget);
       expect(find.text('across 2 sessions'), findsOneWidget);
       expect(refreshCalls, ['refresh']);
+    });
+
+    testWidgets('does not keep initial spinner up for a hanging refresh', (
+      tester,
+    ) async {
+      final refreshStarted = Completer<void>();
+      await tester.pumpWidget(
+        _wrap(
+          child: const AllLoopsScreen(),
+          refreshOverride: () async {
+            refreshStarted.complete();
+            await Completer<void>().future;
+          },
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(refreshStarted.isCompleted, isTrue);
+      expect(find.byType(AppLoadingIndicator), findsNothing);
+      expect(find.text('No loops scheduled'), findsOneWidget);
     });
 
     testWidgets('tapping the section header collapses the group', (
