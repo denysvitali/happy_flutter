@@ -61,6 +61,49 @@ ClaudeUsageWindow? _windowOrNull(dynamic value) {
   return null;
 }
 
+/// A single entry from the API's `limits` array — the newer generic shape
+/// where a window can be scoped to a specific model (e.g. per-model weekly
+/// limits for Fable). Parsing this array generically means new models show
+/// up in the UI without code changes.
+@freezed
+abstract class ClaudeUsageLimit with _$ClaudeUsageLimit {
+  const factory ClaudeUsageLimit({
+    @Default('') String group,
+    @JsonKey(fromJson: _utilizationFromJson) @Default(0.0) double percent,
+    @JsonKey(name: 'resets_at') String? resetsAt,
+    @JsonKey(name: 'scope', fromJson: _scopeModelDisplayName)
+    String? modelDisplayName,
+  }) = _ClaudeUsageLimit;
+
+  const ClaudeUsageLimit._();
+
+  factory ClaudeUsageLimit.fromJson(Map<String, dynamic> json) =>
+      _$ClaudeUsageLimitFromJson(json);
+
+  /// This limit as a display window.
+  ClaudeUsageWindow get asWindow =>
+      ClaudeUsageWindow(utilization: percent, resetsAt: resetsAt);
+}
+
+String? _scopeModelDisplayName(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    final model = value['model'];
+    if (model is Map<String, dynamic>) {
+      final name = model['display_name'];
+      if (name is String && name.isNotEmpty) return name;
+    }
+  }
+  return null;
+}
+
+List<ClaudeUsageLimit> _limitsFromJson(dynamic value) {
+  if (value is! List) return const [];
+  return [
+    for (final entry in value)
+      if (entry is Map<String, dynamic>) ClaudeUsageLimit.fromJson(entry),
+  ];
+}
+
 ClaudeExtraUsage? _extraUsageFromJson(dynamic value) {
   if (value is Map<String, dynamic>) {
     return ClaudeExtraUsage.fromJson(value);
@@ -88,6 +131,9 @@ abstract class ClaudeUsageLimits with _$ClaudeUsageLimits {
     ClaudeUsageWindow? iguanaNecktie,
     @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson)
     ClaudeExtraUsage? extraUsage,
+    @JsonKey(fromJson: _limitsFromJson)
+    @Default(<ClaudeUsageLimit>[])
+    List<ClaudeUsageLimit> limits,
   }) = _ClaudeUsageLimits;
 
   const ClaudeUsageLimits._();
@@ -115,6 +161,32 @@ abstract class ClaudeUsageLimits with _$ClaudeUsageLimits {
     if (iguanaNecktie != null) {
       list.add(('Iguana Necktie', iguanaNecktie!));
     }
+    // Model-scoped entries from the generic `limits` array (Fable and any
+    // future model). Deduped by label so a model that also has a legacy
+    // top-level window (e.g. seven_day_opus) is not shown twice.
+    final seen = {for (final (label, _) in list) label.toLowerCase()};
+    for (final limit in limits) {
+      final model = limit.modelDisplayName;
+      if (model == null) continue;
+      final label = '${_limitGroupLabel(limit.group)} $model';
+      if (!seen.add(label.toLowerCase())) continue;
+      list.add((label, limit.asWindow));
+    }
     return list;
+  }
+
+  /// Maps a `limits` entry group to the label prefix used by the
+  /// equivalent legacy top-level window.
+  static String _limitGroupLabel(String group) {
+    switch (group) {
+      case 'session':
+        return '5-Hour';
+      case 'weekly':
+        return '7-Day';
+      default:
+        return group.isEmpty
+            ? group
+            : '${group[0].toUpperCase()}${group.substring(1)}';
+    }
   }
 }

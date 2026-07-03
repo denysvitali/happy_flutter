@@ -551,9 +551,281 @@ as double?,
 
 
 /// @nodoc
+mixin _$ClaudeUsageLimit {
+
+ String get group;@JsonKey(fromJson: _utilizationFromJson) double get percent;@JsonKey(name: 'resets_at') String? get resetsAt;@JsonKey(name: 'scope', fromJson: _scopeModelDisplayName) String? get modelDisplayName;
+/// Create a copy of ClaudeUsageLimit
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ClaudeUsageLimitCopyWith<ClaudeUsageLimit> get copyWith => _$ClaudeUsageLimitCopyWithImpl<ClaudeUsageLimit>(this as ClaudeUsageLimit, _$identity);
+
+  /// Serializes this ClaudeUsageLimit to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaudeUsageLimit&&(identical(other.group, group) || other.group == group)&&(identical(other.percent, percent) || other.percent == percent)&&(identical(other.resetsAt, resetsAt) || other.resetsAt == resetsAt)&&(identical(other.modelDisplayName, modelDisplayName) || other.modelDisplayName == modelDisplayName));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,group,percent,resetsAt,modelDisplayName);
+
+@override
+String toString() {
+  return 'ClaudeUsageLimit(group: $group, percent: $percent, resetsAt: $resetsAt, modelDisplayName: $modelDisplayName)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ClaudeUsageLimitCopyWith<$Res>  {
+  factory $ClaudeUsageLimitCopyWith(ClaudeUsageLimit value, $Res Function(ClaudeUsageLimit) _then) = _$ClaudeUsageLimitCopyWithImpl;
+@useResult
+$Res call({
+ String group,@JsonKey(fromJson: _utilizationFromJson) double percent,@JsonKey(name: 'resets_at') String? resetsAt,@JsonKey(name: 'scope', fromJson: _scopeModelDisplayName) String? modelDisplayName
+});
+
+
+
+
+}
+/// @nodoc
+class _$ClaudeUsageLimitCopyWithImpl<$Res>
+    implements $ClaudeUsageLimitCopyWith<$Res> {
+  _$ClaudeUsageLimitCopyWithImpl(this._self, this._then);
+
+  final ClaudeUsageLimit _self;
+  final $Res Function(ClaudeUsageLimit) _then;
+
+/// Create a copy of ClaudeUsageLimit
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? group = null,Object? percent = null,Object? resetsAt = freezed,Object? modelDisplayName = freezed,}) {
+  return _then(_self.copyWith(
+group: null == group ? _self.group : group // ignore: cast_nullable_to_non_nullable
+as String,percent: null == percent ? _self.percent : percent // ignore: cast_nullable_to_non_nullable
+as double,resetsAt: freezed == resetsAt ? _self.resetsAt : resetsAt // ignore: cast_nullable_to_non_nullable
+as String?,modelDisplayName: freezed == modelDisplayName ? _self.modelDisplayName : modelDisplayName // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [ClaudeUsageLimit].
+extension ClaudeUsageLimitPatterns on ClaudeUsageLimit {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _ClaudeUsageLimit value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _ClaudeUsageLimit() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _ClaudeUsageLimit value)  $default,){
+final _that = this;
+switch (_that) {
+case _ClaudeUsageLimit():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _ClaudeUsageLimit value)?  $default,){
+final _that = this;
+switch (_that) {
+case _ClaudeUsageLimit() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String group, @JsonKey(fromJson: _utilizationFromJson)  double percent, @JsonKey(name: 'resets_at')  String? resetsAt, @JsonKey(name: 'scope', fromJson: _scopeModelDisplayName)  String? modelDisplayName)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _ClaudeUsageLimit() when $default != null:
+return $default(_that.group,_that.percent,_that.resetsAt,_that.modelDisplayName);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String group, @JsonKey(fromJson: _utilizationFromJson)  double percent, @JsonKey(name: 'resets_at')  String? resetsAt, @JsonKey(name: 'scope', fromJson: _scopeModelDisplayName)  String? modelDisplayName)  $default,) {final _that = this;
+switch (_that) {
+case _ClaudeUsageLimit():
+return $default(_that.group,_that.percent,_that.resetsAt,_that.modelDisplayName);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String group, @JsonKey(fromJson: _utilizationFromJson)  double percent, @JsonKey(name: 'resets_at')  String? resetsAt, @JsonKey(name: 'scope', fromJson: _scopeModelDisplayName)  String? modelDisplayName)?  $default,) {final _that = this;
+switch (_that) {
+case _ClaudeUsageLimit() when $default != null:
+return $default(_that.group,_that.percent,_that.resetsAt,_that.modelDisplayName);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _ClaudeUsageLimit extends ClaudeUsageLimit {
+  const _ClaudeUsageLimit({this.group = '', @JsonKey(fromJson: _utilizationFromJson) this.percent = 0.0, @JsonKey(name: 'resets_at') this.resetsAt, @JsonKey(name: 'scope', fromJson: _scopeModelDisplayName) this.modelDisplayName}): super._();
+  factory _ClaudeUsageLimit.fromJson(Map<String, dynamic> json) => _$ClaudeUsageLimitFromJson(json);
+
+@override@JsonKey() final  String group;
+@override@JsonKey(fromJson: _utilizationFromJson) final  double percent;
+@override@JsonKey(name: 'resets_at') final  String? resetsAt;
+@override@JsonKey(name: 'scope', fromJson: _scopeModelDisplayName) final  String? modelDisplayName;
+
+/// Create a copy of ClaudeUsageLimit
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ClaudeUsageLimitCopyWith<_ClaudeUsageLimit> get copyWith => __$ClaudeUsageLimitCopyWithImpl<_ClaudeUsageLimit>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ClaudeUsageLimitToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ClaudeUsageLimit&&(identical(other.group, group) || other.group == group)&&(identical(other.percent, percent) || other.percent == percent)&&(identical(other.resetsAt, resetsAt) || other.resetsAt == resetsAt)&&(identical(other.modelDisplayName, modelDisplayName) || other.modelDisplayName == modelDisplayName));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,group,percent,resetsAt,modelDisplayName);
+
+@override
+String toString() {
+  return 'ClaudeUsageLimit(group: $group, percent: $percent, resetsAt: $resetsAt, modelDisplayName: $modelDisplayName)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ClaudeUsageLimitCopyWith<$Res> implements $ClaudeUsageLimitCopyWith<$Res> {
+  factory _$ClaudeUsageLimitCopyWith(_ClaudeUsageLimit value, $Res Function(_ClaudeUsageLimit) _then) = __$ClaudeUsageLimitCopyWithImpl;
+@override @useResult
+$Res call({
+ String group,@JsonKey(fromJson: _utilizationFromJson) double percent,@JsonKey(name: 'resets_at') String? resetsAt,@JsonKey(name: 'scope', fromJson: _scopeModelDisplayName) String? modelDisplayName
+});
+
+
+
+
+}
+/// @nodoc
+class __$ClaudeUsageLimitCopyWithImpl<$Res>
+    implements _$ClaudeUsageLimitCopyWith<$Res> {
+  __$ClaudeUsageLimitCopyWithImpl(this._self, this._then);
+
+  final _ClaudeUsageLimit _self;
+  final $Res Function(_ClaudeUsageLimit) _then;
+
+/// Create a copy of ClaudeUsageLimit
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? group = null,Object? percent = null,Object? resetsAt = freezed,Object? modelDisplayName = freezed,}) {
+  return _then(_ClaudeUsageLimit(
+group: null == group ? _self.group : group // ignore: cast_nullable_to_non_nullable
+as String,percent: null == percent ? _self.percent : percent // ignore: cast_nullable_to_non_nullable
+as double,resetsAt: freezed == resetsAt ? _self.resetsAt : resetsAt // ignore: cast_nullable_to_non_nullable
+as String?,modelDisplayName: freezed == modelDisplayName ? _self.modelDisplayName : modelDisplayName // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$ClaudeUsageLimits {
 
-@JsonKey(name: 'five_hour', fromJson: _windowOrNull) ClaudeUsageWindow? get fiveHour;@JsonKey(name: 'seven_day', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDay;@JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDaySonnet;@JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDayOpus;@JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDayOauthApps;@JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDayCowork;@JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) ClaudeUsageWindow? get iguanaNecktie;@JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) ClaudeExtraUsage? get extraUsage;
+@JsonKey(name: 'five_hour', fromJson: _windowOrNull) ClaudeUsageWindow? get fiveHour;@JsonKey(name: 'seven_day', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDay;@JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDaySonnet;@JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDayOpus;@JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDayOauthApps;@JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) ClaudeUsageWindow? get sevenDayCowork;@JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) ClaudeUsageWindow? get iguanaNecktie;@JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) ClaudeExtraUsage? get extraUsage;@JsonKey(fromJson: _limitsFromJson) List<ClaudeUsageLimit> get limits;
 /// Create a copy of ClaudeUsageLimits
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -566,16 +838,16 @@ $ClaudeUsageLimitsCopyWith<ClaudeUsageLimits> get copyWith => _$ClaudeUsageLimit
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaudeUsageLimits&&(identical(other.fiveHour, fiveHour) || other.fiveHour == fiveHour)&&(identical(other.sevenDay, sevenDay) || other.sevenDay == sevenDay)&&(identical(other.sevenDaySonnet, sevenDaySonnet) || other.sevenDaySonnet == sevenDaySonnet)&&(identical(other.sevenDayOpus, sevenDayOpus) || other.sevenDayOpus == sevenDayOpus)&&(identical(other.sevenDayOauthApps, sevenDayOauthApps) || other.sevenDayOauthApps == sevenDayOauthApps)&&(identical(other.sevenDayCowork, sevenDayCowork) || other.sevenDayCowork == sevenDayCowork)&&(identical(other.iguanaNecktie, iguanaNecktie) || other.iguanaNecktie == iguanaNecktie)&&(identical(other.extraUsage, extraUsage) || other.extraUsage == extraUsage));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClaudeUsageLimits&&(identical(other.fiveHour, fiveHour) || other.fiveHour == fiveHour)&&(identical(other.sevenDay, sevenDay) || other.sevenDay == sevenDay)&&(identical(other.sevenDaySonnet, sevenDaySonnet) || other.sevenDaySonnet == sevenDaySonnet)&&(identical(other.sevenDayOpus, sevenDayOpus) || other.sevenDayOpus == sevenDayOpus)&&(identical(other.sevenDayOauthApps, sevenDayOauthApps) || other.sevenDayOauthApps == sevenDayOauthApps)&&(identical(other.sevenDayCowork, sevenDayCowork) || other.sevenDayCowork == sevenDayCowork)&&(identical(other.iguanaNecktie, iguanaNecktie) || other.iguanaNecktie == iguanaNecktie)&&(identical(other.extraUsage, extraUsage) || other.extraUsage == extraUsage)&&const DeepCollectionEquality().equals(other.limits, limits));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,fiveHour,sevenDay,sevenDaySonnet,sevenDayOpus,sevenDayOauthApps,sevenDayCowork,iguanaNecktie,extraUsage);
+int get hashCode => Object.hash(runtimeType,fiveHour,sevenDay,sevenDaySonnet,sevenDayOpus,sevenDayOauthApps,sevenDayCowork,iguanaNecktie,extraUsage,const DeepCollectionEquality().hash(limits));
 
 @override
 String toString() {
-  return 'ClaudeUsageLimits(fiveHour: $fiveHour, sevenDay: $sevenDay, sevenDaySonnet: $sevenDaySonnet, sevenDayOpus: $sevenDayOpus, sevenDayOauthApps: $sevenDayOauthApps, sevenDayCowork: $sevenDayCowork, iguanaNecktie: $iguanaNecktie, extraUsage: $extraUsage)';
+  return 'ClaudeUsageLimits(fiveHour: $fiveHour, sevenDay: $sevenDay, sevenDaySonnet: $sevenDaySonnet, sevenDayOpus: $sevenDayOpus, sevenDayOauthApps: $sevenDayOauthApps, sevenDayCowork: $sevenDayCowork, iguanaNecktie: $iguanaNecktie, extraUsage: $extraUsage, limits: $limits)';
 }
 
 
@@ -586,7 +858,7 @@ abstract mixin class $ClaudeUsageLimitsCopyWith<$Res>  {
   factory $ClaudeUsageLimitsCopyWith(ClaudeUsageLimits value, $Res Function(ClaudeUsageLimits) _then) = _$ClaudeUsageLimitsCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'five_hour', fromJson: _windowOrNull) ClaudeUsageWindow? fiveHour,@JsonKey(name: 'seven_day', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDay,@JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDaySonnet,@JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayOpus,@JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayOauthApps,@JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayCowork,@JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) ClaudeUsageWindow? iguanaNecktie,@JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) ClaudeExtraUsage? extraUsage
+@JsonKey(name: 'five_hour', fromJson: _windowOrNull) ClaudeUsageWindow? fiveHour,@JsonKey(name: 'seven_day', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDay,@JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDaySonnet,@JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayOpus,@JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayOauthApps,@JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayCowork,@JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) ClaudeUsageWindow? iguanaNecktie,@JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) ClaudeExtraUsage? extraUsage,@JsonKey(fromJson: _limitsFromJson) List<ClaudeUsageLimit> limits
 });
 
 
@@ -603,7 +875,7 @@ class _$ClaudeUsageLimitsCopyWithImpl<$Res>
 
 /// Create a copy of ClaudeUsageLimits
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? fiveHour = freezed,Object? sevenDay = freezed,Object? sevenDaySonnet = freezed,Object? sevenDayOpus = freezed,Object? sevenDayOauthApps = freezed,Object? sevenDayCowork = freezed,Object? iguanaNecktie = freezed,Object? extraUsage = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? fiveHour = freezed,Object? sevenDay = freezed,Object? sevenDaySonnet = freezed,Object? sevenDayOpus = freezed,Object? sevenDayOauthApps = freezed,Object? sevenDayCowork = freezed,Object? iguanaNecktie = freezed,Object? extraUsage = freezed,Object? limits = null,}) {
   return _then(_self.copyWith(
 fiveHour: freezed == fiveHour ? _self.fiveHour : fiveHour // ignore: cast_nullable_to_non_nullable
 as ClaudeUsageWindow?,sevenDay: freezed == sevenDay ? _self.sevenDay : sevenDay // ignore: cast_nullable_to_non_nullable
@@ -613,7 +885,8 @@ as ClaudeUsageWindow?,sevenDayOauthApps: freezed == sevenDayOauthApps ? _self.se
 as ClaudeUsageWindow?,sevenDayCowork: freezed == sevenDayCowork ? _self.sevenDayCowork : sevenDayCowork // ignore: cast_nullable_to_non_nullable
 as ClaudeUsageWindow?,iguanaNecktie: freezed == iguanaNecktie ? _self.iguanaNecktie : iguanaNecktie // ignore: cast_nullable_to_non_nullable
 as ClaudeUsageWindow?,extraUsage: freezed == extraUsage ? _self.extraUsage : extraUsage // ignore: cast_nullable_to_non_nullable
-as ClaudeExtraUsage?,
+as ClaudeExtraUsage?,limits: null == limits ? _self.limits : limits // ignore: cast_nullable_to_non_nullable
+as List<ClaudeUsageLimit>,
   ));
 }
 /// Create a copy of ClaudeUsageLimits
@@ -794,10 +1067,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'five_hour', fromJson: _windowOrNull)  ClaudeUsageWindow? fiveHour, @JsonKey(name: 'seven_day', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDay, @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDaySonnet, @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOpus, @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOauthApps, @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayCowork, @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull)  ClaudeUsageWindow? iguanaNecktie, @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson)  ClaudeExtraUsage? extraUsage)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'five_hour', fromJson: _windowOrNull)  ClaudeUsageWindow? fiveHour, @JsonKey(name: 'seven_day', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDay, @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDaySonnet, @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOpus, @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOauthApps, @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayCowork, @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull)  ClaudeUsageWindow? iguanaNecktie, @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson)  ClaudeExtraUsage? extraUsage, @JsonKey(fromJson: _limitsFromJson)  List<ClaudeUsageLimit> limits)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ClaudeUsageLimits() when $default != null:
-return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDayOpus,_that.sevenDayOauthApps,_that.sevenDayCowork,_that.iguanaNecktie,_that.extraUsage);case _:
+return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDayOpus,_that.sevenDayOauthApps,_that.sevenDayCowork,_that.iguanaNecktie,_that.extraUsage,_that.limits);case _:
   return orElse();
 
 }
@@ -815,10 +1088,10 @@ return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDa
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'five_hour', fromJson: _windowOrNull)  ClaudeUsageWindow? fiveHour, @JsonKey(name: 'seven_day', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDay, @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDaySonnet, @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOpus, @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOauthApps, @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayCowork, @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull)  ClaudeUsageWindow? iguanaNecktie, @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson)  ClaudeExtraUsage? extraUsage)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'five_hour', fromJson: _windowOrNull)  ClaudeUsageWindow? fiveHour, @JsonKey(name: 'seven_day', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDay, @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDaySonnet, @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOpus, @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOauthApps, @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayCowork, @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull)  ClaudeUsageWindow? iguanaNecktie, @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson)  ClaudeExtraUsage? extraUsage, @JsonKey(fromJson: _limitsFromJson)  List<ClaudeUsageLimit> limits)  $default,) {final _that = this;
 switch (_that) {
 case _ClaudeUsageLimits():
-return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDayOpus,_that.sevenDayOauthApps,_that.sevenDayCowork,_that.iguanaNecktie,_that.extraUsage);case _:
+return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDayOpus,_that.sevenDayOauthApps,_that.sevenDayCowork,_that.iguanaNecktie,_that.extraUsage,_that.limits);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -835,10 +1108,10 @@ return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDa
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'five_hour', fromJson: _windowOrNull)  ClaudeUsageWindow? fiveHour, @JsonKey(name: 'seven_day', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDay, @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDaySonnet, @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOpus, @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOauthApps, @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayCowork, @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull)  ClaudeUsageWindow? iguanaNecktie, @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson)  ClaudeExtraUsage? extraUsage)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'five_hour', fromJson: _windowOrNull)  ClaudeUsageWindow? fiveHour, @JsonKey(name: 'seven_day', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDay, @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDaySonnet, @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOpus, @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayOauthApps, @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull)  ClaudeUsageWindow? sevenDayCowork, @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull)  ClaudeUsageWindow? iguanaNecktie, @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson)  ClaudeExtraUsage? extraUsage, @JsonKey(fromJson: _limitsFromJson)  List<ClaudeUsageLimit> limits)?  $default,) {final _that = this;
 switch (_that) {
 case _ClaudeUsageLimits() when $default != null:
-return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDayOpus,_that.sevenDayOauthApps,_that.sevenDayCowork,_that.iguanaNecktie,_that.extraUsage);case _:
+return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDayOpus,_that.sevenDayOauthApps,_that.sevenDayCowork,_that.iguanaNecktie,_that.extraUsage,_that.limits);case _:
   return null;
 
 }
@@ -850,7 +1123,7 @@ return $default(_that.fiveHour,_that.sevenDay,_that.sevenDaySonnet,_that.sevenDa
 @JsonSerializable()
 
 class _ClaudeUsageLimits extends ClaudeUsageLimits {
-  const _ClaudeUsageLimits({@JsonKey(name: 'five_hour', fromJson: _windowOrNull) this.fiveHour, @JsonKey(name: 'seven_day', fromJson: _windowOrNull) this.sevenDay, @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull) this.sevenDaySonnet, @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull) this.sevenDayOpus, @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull) this.sevenDayOauthApps, @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) this.sevenDayCowork, @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) this.iguanaNecktie, @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) this.extraUsage}): super._();
+  const _ClaudeUsageLimits({@JsonKey(name: 'five_hour', fromJson: _windowOrNull) this.fiveHour, @JsonKey(name: 'seven_day', fromJson: _windowOrNull) this.sevenDay, @JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull) this.sevenDaySonnet, @JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull) this.sevenDayOpus, @JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull) this.sevenDayOauthApps, @JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) this.sevenDayCowork, @JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) this.iguanaNecktie, @JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) this.extraUsage, @JsonKey(fromJson: _limitsFromJson) final  List<ClaudeUsageLimit> limits = const <ClaudeUsageLimit>[]}): _limits = limits,super._();
   factory _ClaudeUsageLimits.fromJson(Map<String, dynamic> json) => _$ClaudeUsageLimitsFromJson(json);
 
 @override@JsonKey(name: 'five_hour', fromJson: _windowOrNull) final  ClaudeUsageWindow? fiveHour;
@@ -861,6 +1134,13 @@ class _ClaudeUsageLimits extends ClaudeUsageLimits {
 @override@JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) final  ClaudeUsageWindow? sevenDayCowork;
 @override@JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) final  ClaudeUsageWindow? iguanaNecktie;
 @override@JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) final  ClaudeExtraUsage? extraUsage;
+ final  List<ClaudeUsageLimit> _limits;
+@override@JsonKey(fromJson: _limitsFromJson) List<ClaudeUsageLimit> get limits {
+  if (_limits is EqualUnmodifiableListView) return _limits;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_limits);
+}
+
 
 /// Create a copy of ClaudeUsageLimits
 /// with the given fields replaced by the non-null parameter values.
@@ -875,16 +1155,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ClaudeUsageLimits&&(identical(other.fiveHour, fiveHour) || other.fiveHour == fiveHour)&&(identical(other.sevenDay, sevenDay) || other.sevenDay == sevenDay)&&(identical(other.sevenDaySonnet, sevenDaySonnet) || other.sevenDaySonnet == sevenDaySonnet)&&(identical(other.sevenDayOpus, sevenDayOpus) || other.sevenDayOpus == sevenDayOpus)&&(identical(other.sevenDayOauthApps, sevenDayOauthApps) || other.sevenDayOauthApps == sevenDayOauthApps)&&(identical(other.sevenDayCowork, sevenDayCowork) || other.sevenDayCowork == sevenDayCowork)&&(identical(other.iguanaNecktie, iguanaNecktie) || other.iguanaNecktie == iguanaNecktie)&&(identical(other.extraUsage, extraUsage) || other.extraUsage == extraUsage));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ClaudeUsageLimits&&(identical(other.fiveHour, fiveHour) || other.fiveHour == fiveHour)&&(identical(other.sevenDay, sevenDay) || other.sevenDay == sevenDay)&&(identical(other.sevenDaySonnet, sevenDaySonnet) || other.sevenDaySonnet == sevenDaySonnet)&&(identical(other.sevenDayOpus, sevenDayOpus) || other.sevenDayOpus == sevenDayOpus)&&(identical(other.sevenDayOauthApps, sevenDayOauthApps) || other.sevenDayOauthApps == sevenDayOauthApps)&&(identical(other.sevenDayCowork, sevenDayCowork) || other.sevenDayCowork == sevenDayCowork)&&(identical(other.iguanaNecktie, iguanaNecktie) || other.iguanaNecktie == iguanaNecktie)&&(identical(other.extraUsage, extraUsage) || other.extraUsage == extraUsage)&&const DeepCollectionEquality().equals(other._limits, _limits));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,fiveHour,sevenDay,sevenDaySonnet,sevenDayOpus,sevenDayOauthApps,sevenDayCowork,iguanaNecktie,extraUsage);
+int get hashCode => Object.hash(runtimeType,fiveHour,sevenDay,sevenDaySonnet,sevenDayOpus,sevenDayOauthApps,sevenDayCowork,iguanaNecktie,extraUsage,const DeepCollectionEquality().hash(_limits));
 
 @override
 String toString() {
-  return 'ClaudeUsageLimits(fiveHour: $fiveHour, sevenDay: $sevenDay, sevenDaySonnet: $sevenDaySonnet, sevenDayOpus: $sevenDayOpus, sevenDayOauthApps: $sevenDayOauthApps, sevenDayCowork: $sevenDayCowork, iguanaNecktie: $iguanaNecktie, extraUsage: $extraUsage)';
+  return 'ClaudeUsageLimits(fiveHour: $fiveHour, sevenDay: $sevenDay, sevenDaySonnet: $sevenDaySonnet, sevenDayOpus: $sevenDayOpus, sevenDayOauthApps: $sevenDayOauthApps, sevenDayCowork: $sevenDayCowork, iguanaNecktie: $iguanaNecktie, extraUsage: $extraUsage, limits: $limits)';
 }
 
 
@@ -895,7 +1175,7 @@ abstract mixin class _$ClaudeUsageLimitsCopyWith<$Res> implements $ClaudeUsageLi
   factory _$ClaudeUsageLimitsCopyWith(_ClaudeUsageLimits value, $Res Function(_ClaudeUsageLimits) _then) = __$ClaudeUsageLimitsCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'five_hour', fromJson: _windowOrNull) ClaudeUsageWindow? fiveHour,@JsonKey(name: 'seven_day', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDay,@JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDaySonnet,@JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayOpus,@JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayOauthApps,@JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayCowork,@JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) ClaudeUsageWindow? iguanaNecktie,@JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) ClaudeExtraUsage? extraUsage
+@JsonKey(name: 'five_hour', fromJson: _windowOrNull) ClaudeUsageWindow? fiveHour,@JsonKey(name: 'seven_day', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDay,@JsonKey(name: 'seven_day_sonnet', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDaySonnet,@JsonKey(name: 'seven_day_opus', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayOpus,@JsonKey(name: 'seven_day_oauth_apps', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayOauthApps,@JsonKey(name: 'seven_day_cowork', fromJson: _windowOrNull) ClaudeUsageWindow? sevenDayCowork,@JsonKey(name: 'iguana_necktie', fromJson: _windowOrNull) ClaudeUsageWindow? iguanaNecktie,@JsonKey(name: 'extra_usage', fromJson: _extraUsageFromJson) ClaudeExtraUsage? extraUsage,@JsonKey(fromJson: _limitsFromJson) List<ClaudeUsageLimit> limits
 });
 
 
@@ -912,7 +1192,7 @@ class __$ClaudeUsageLimitsCopyWithImpl<$Res>
 
 /// Create a copy of ClaudeUsageLimits
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? fiveHour = freezed,Object? sevenDay = freezed,Object? sevenDaySonnet = freezed,Object? sevenDayOpus = freezed,Object? sevenDayOauthApps = freezed,Object? sevenDayCowork = freezed,Object? iguanaNecktie = freezed,Object? extraUsage = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? fiveHour = freezed,Object? sevenDay = freezed,Object? sevenDaySonnet = freezed,Object? sevenDayOpus = freezed,Object? sevenDayOauthApps = freezed,Object? sevenDayCowork = freezed,Object? iguanaNecktie = freezed,Object? extraUsage = freezed,Object? limits = null,}) {
   return _then(_ClaudeUsageLimits(
 fiveHour: freezed == fiveHour ? _self.fiveHour : fiveHour // ignore: cast_nullable_to_non_nullable
 as ClaudeUsageWindow?,sevenDay: freezed == sevenDay ? _self.sevenDay : sevenDay // ignore: cast_nullable_to_non_nullable
@@ -922,7 +1202,8 @@ as ClaudeUsageWindow?,sevenDayOauthApps: freezed == sevenDayOauthApps ? _self.se
 as ClaudeUsageWindow?,sevenDayCowork: freezed == sevenDayCowork ? _self.sevenDayCowork : sevenDayCowork // ignore: cast_nullable_to_non_nullable
 as ClaudeUsageWindow?,iguanaNecktie: freezed == iguanaNecktie ? _self.iguanaNecktie : iguanaNecktie // ignore: cast_nullable_to_non_nullable
 as ClaudeUsageWindow?,extraUsage: freezed == extraUsage ? _self.extraUsage : extraUsage // ignore: cast_nullable_to_non_nullable
-as ClaudeExtraUsage?,
+as ClaudeExtraUsage?,limits: null == limits ? _self._limits : limits // ignore: cast_nullable_to_non_nullable
+as List<ClaudeUsageLimit>,
   ));
 }
 
