@@ -5,9 +5,9 @@
 // `test/fsm/message_state_machine_contract_test.dart` and the
 // optimistic-replacement / retry-identity integration tests). This is the
 // runtime counterpart: the same assertions lifted into a non-crashing tap
-// that increments counters, emits one `logger.warning` breadcrumb, and
-// forwards a typed exception to Sentry — rate-limited per session so a
-// repeatedly-violating session does not spam the issue tracker.
+// that increments counters, emits one `logger.warning` breadcrumb, bumps an
+// OTel counter, and forwards a typed exception to Sentry — rate-limited per
+// session so a repeatedly-violating session does not spam the issue tracker.
 //
 // Unlike `CanaryAssert` (gated behind the build-time `kCanary` flag and
 // compiled to dead code in production), this monitor runs unconditionally.
@@ -21,6 +21,7 @@ import 'dart:async';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/logger_service.dart';
+import '../services/power_diagnostics_otel_reporter.dart';
 
 /// The four messaging invariants this monitor watches.
 enum MessageInvariant {
@@ -85,11 +86,17 @@ class MessageInvariantViolation implements Exception {
 /// `Sync` singleton. Pure observation — call the `record*` methods from the
 /// existing merge / ack / retry path without changing any send behavior.
 class MessageInvariantMonitor {
-  MessageInvariantMonitor({CaptureException? captureException})
-    : _captureException = captureException ?? _defaultCapture;
+  MessageInvariantMonitor({
+    CaptureException? captureException,
+    RecordInvariantCounter? recordCounter,
+  }) : _captureException = captureException ?? _defaultCapture,
+       _recordCounter = recordCounter ?? _defaultRecordCounter;
 
   /// Injectable Sentry capture for tests (avoids a live Sentry hub).
   final CaptureException _captureException;
+
+  /// Injectable OTel counter hook for tests.
+  final RecordInvariantCounter _recordCounter;
 
   static Future<void> _defaultCapture(
     Object error, {
@@ -112,6 +119,12 @@ class MessageInvariantMonitor {
           scope.setContexts('invariant_detail', detail);
         }
       },
+    );
+  }
+
+  static void _defaultRecordCounter(MessageInvariant invariant) {
+    PowerDiagnosticsOtelReporter.instance.recordAppError(
+      'app.messaging.invariant.${invariant.tag}',
     );
   }
 
@@ -240,6 +253,7 @@ class MessageInvariantMonitor {
     String? detail,
   }) {
     _counts[invariant] = (_counts[invariant] ?? 0) + 1;
+    _recordCounter(invariant);
 
     final message =
         '[invariant] VIOLATION ${invariant.tag} localId=$localId'
@@ -279,3 +293,6 @@ typedef CaptureException =
       String? localId,
       String? detail,
     });
+
+/// Signature for the injectable OTel counter hook.
+typedef RecordInvariantCounter = void Function(MessageInvariant invariant);

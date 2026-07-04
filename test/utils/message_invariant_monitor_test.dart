@@ -5,9 +5,11 @@ void main() {
   group('MessageInvariantMonitor', () {
     late MessageInvariantMonitor monitor;
     late List<MessageInvariantViolation> captured;
+    late List<MessageInvariant> counted;
 
     setUp(() {
       captured = <MessageInvariantViolation>[];
+      counted = <MessageInvariant>[];
       monitor = MessageInvariantMonitor(
         captureException:
             (
@@ -19,6 +21,7 @@ void main() {
             }) async {
               captured.add(error as MessageInvariantViolation);
             },
+        recordCounter: counted.add,
       );
     });
 
@@ -67,19 +70,17 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
       expect(monitor.totalViolations, 1);
+      expect(counted.single, MessageInvariant.unmatchedOptimistic);
       expect(captured.single.invariant, MessageInvariant.unmatchedOptimistic);
     });
 
     test('duplicate localId increments its counter', () async {
       monitor.recordOptimisticSent('dup');
-      monitor.recordAck(
-        localId: 'dup',
-        optimisticRowCount: 2,
-        sessionId: 's1',
-      );
+      monitor.recordAck(localId: 'dup', optimisticRowCount: 2, sessionId: 's1');
 
       await Future<void>.delayed(Duration.zero);
       expect(countFor(MessageInvariant.duplicateLocalId), 1);
+      expect(counted.single, MessageInvariant.duplicateLocalId);
       expect(captured.single.invariant, MessageInvariant.duplicateLocalId);
       expect(captured.single.detail, 'rowCount=2');
     });
@@ -94,6 +95,7 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
       expect(countFor(MessageInvariant.unknownAckedLocalId), 1);
+      expect(counted.single, MessageInvariant.unknownAckedLocalId);
       expect(captured.single.invariant, MessageInvariant.unknownAckedLocalId);
     });
 
@@ -107,6 +109,7 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
       expect(countFor(MessageInvariant.retryCreatedDuplicate), 1);
+      expect(counted.single, MessageInvariant.retryCreatedDuplicate);
       expect(captured.single.invariant, MessageInvariant.retryCreatedDuplicate);
       expect(captured.single.detail, 'observed=NEW-minted-id');
     });
@@ -121,6 +124,7 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
       expect(countFor(MessageInvariant.retryCreatedDuplicate), 1);
+      expect(counted.single, MessageInvariant.retryCreatedDuplicate);
       expect(captured.single.detail, 'rowCount=2');
     });
 
@@ -134,6 +138,10 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
       expect(countFor(MessageInvariant.duplicateLocalId), 2);
+      expect(counted, <MessageInvariant>[
+        MessageInvariant.duplicateLocalId,
+        MessageInvariant.duplicateLocalId,
+      ]);
       expect(captured, hasLength(1));
 
       // A different session captures again.
@@ -141,6 +149,11 @@ void main() {
       monitor.recordAck(localId: 'c', optimisticRowCount: 2, sessionId: 's2');
       await Future<void>.delayed(Duration.zero);
       expect(countFor(MessageInvariant.duplicateLocalId), 3);
+      expect(counted, <MessageInvariant>[
+        MessageInvariant.duplicateLocalId,
+        MessageInvariant.duplicateLocalId,
+        MessageInvariant.duplicateLocalId,
+      ]);
       expect(captured, hasLength(2));
     });
 

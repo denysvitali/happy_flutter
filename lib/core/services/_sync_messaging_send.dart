@@ -592,6 +592,16 @@ extension SyncMessagingSend on Sync {
     return message['localId'] == localId || message['id'] == localId;
   }
 
+  int _countLocalIdMatches(String sessionId, String localId) {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs == null) return 0;
+    var count = 0;
+    for (final msg in msgs) {
+      if (_matchesLocalId(msg, localId)) count++;
+    }
+    return count;
+  }
+
   Map<String, dynamic>? _findAckedServerMessage(
     List<Map<String, dynamic>> serverMessages,
     String localId,
@@ -679,6 +689,11 @@ extension SyncMessagingSend on Sync {
       'seq=${serverSeq ?? -1}',
     );
     if (serverId != null && serverSeq != null && serverCreatedAt != null) {
+      messageInvariantMonitor.recordAck(
+        localId: localId,
+        optimisticRowCount: _countLocalIdMatches(sessionId, localId),
+        sessionId: sessionId,
+      );
       _upsertSessionMessages(sessionId, [
         {
           'id': serverId,
