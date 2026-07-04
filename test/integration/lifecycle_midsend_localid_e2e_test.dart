@@ -183,7 +183,8 @@ void main() {
         expect(
           byLocalId.single['id'],
           'srv-msg-1',
-          reason: 'optimistic placeholder must be replaced by the '
+          reason:
+              'optimistic placeholder must be replaced by the '
               'server record via localId',
         );
         // No leftover placeholder.
@@ -195,191 +196,183 @@ void main() {
       },
     );
 
-    test(
-      'late REST ack after resume merges by localId — no duplicate '
-      'across overlapping fetch',
-      skip:
-          'TODO: post-resume overlapping fetch can leave the placeholder '
-          'id intact instead of adopting the server id. The canonical '
-          'localId is preserved (count assertion passes) but the id swap '
-          'needs investigation before this contract can be pinned.',
-      () async {
-        const sessionId = 'lifecycle-3';
-        const canonicalLocalId = 'local-mid-3';
+    test('late REST ack after resume merges by localId — no duplicate '
+        'across overlapping fetch', () async {
+      const sessionId = 'lifecycle-3';
+      const canonicalLocalId = 'local-mid-3';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': canonicalLocalId,
-            'localId': canonicalLocalId,
-            'seq': 0,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000000000,
-            'content': 'hello',
-            'sendStatus': 'sending',
-          },
-        ]);
-        sync.testSetSessionLastSeq(sessionId, 9);
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+      final authoritativeMessage = _makeEncryptedMessage(
+        'srv-msg-1',
+        seq: 10,
+        content: 'hello',
+        role: 'user',
+        localId: canonicalLocalId,
+      );
 
-        // After resume, a /messages fetch returns the authoritative
-        // record carrying the same localId — the merge layer must NOT
-        // create a second logical copy.
-        sync.testFetchMessagesOverride = (_, __, ___) async {
-          return _buildMessagesResponse([
-            _makeEncryptedMessage(
-              'srv-msg-1',
-              seq: 10,
-              content: 'hello',
-              role: 'user',
-              localId: canonicalLocalId,
-            ),
-          ]);
-        };
+      // Simulate a stale encrypted-content signature for the server row.
+      // This can happen when fetch state survives a lifecycle race, while
+      // the visible list still contains only the optimistic placeholder.
+      // The fetch pre-filter must still let the server row through so the
+      // placeholder can be replaced by localId.
+      sync.testUpsertSessionMessages(sessionId, [authoritativeMessage]);
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': canonicalLocalId,
+          'localId': canonicalLocalId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000000000,
+          'content': 'hello',
+          'sendStatus': 'sending',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 9);
 
-        sync.suspend();
-        sync.resume();
+      // After resume, a /messages fetch returns the authoritative
+      // record carrying the same localId — the merge layer must NOT
+      // create a second logical copy.
+      sync.testFetchMessagesOverride = (_, __, ___) async {
+        return _buildMessagesResponse([authoritativeMessage]);
+      };
 
-        await sync.fetchMessages(sessionId);
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+      sync.suspend();
+      sync.resume();
 
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(msgs, isNotNull);
+      await sync.fetchMessages(sessionId);
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        final byLocalId = msgs!
-            .where((m) => m['localId'] == canonicalLocalId)
-            .toList();
-        expect(
-          byLocalId,
-          hasLength(1),
-          reason:
-              'Fetch overlapping with the post-resume catch-up must '
-              'merge by localId — no duplicate logical message',
-        );
-        expect(byLocalId.single['id'], 'srv-msg-1');
-        expect(
-          msgs.where((m) => m['id'] == canonicalLocalId),
-          isEmpty,
-          reason: 'Placeholder must be replaced — not kept alongside',
-        );
-      },
-    );
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull);
 
-    test(
-      'outbox retry preserves the SAME localId — never mints a new one',
-      () {
-        // Mirrors `retryFailedMessage` in `_sync_messaging_send.dart`:
-        // the entry pushed to the outbox carries the same localId as
-        // the optimistic placeholder. The canary assertion
-        // `CanaryAssert.retryPreservesLocalId` in that path is the
-        // production guard; this test pins the construction contract
-        // so a future refactor cannot silently break it.
-        const canonicalLocalId = 'local-retry-1';
-        const sessionId = 'lifecycle-4';
+      final byLocalId = msgs!
+          .where((m) => m['localId'] == canonicalLocalId)
+          .toList();
+      expect(
+        byLocalId,
+        hasLength(1),
+        reason:
+            'Fetch overlapping with the post-resume catch-up must '
+            'merge by localId — no duplicate logical message',
+      );
+      expect(byLocalId.single['id'], 'srv-msg-1');
+      expect(
+        msgs.where((m) => m['id'] == canonicalLocalId),
+        isEmpty,
+        reason: 'Placeholder must be replaced — not kept alongside',
+      );
+    });
 
-        final entry = OutboxEntry(
-          localId: canonicalLocalId,
-          sessionId: sessionId,
-          text: 'hello',
-          encryptedContent: 'enc',
-          rawRecord: const <String, dynamic>{'role': 'user'},
-          queuedAt: 1700000000000,
-        );
+    test('outbox retry preserves the SAME localId — never mints a new one', () {
+      // Mirrors `retryFailedMessage` in `_sync_messaging_send.dart`:
+      // the entry pushed to the outbox carries the same localId as
+      // the optimistic placeholder. The canary assertion
+      // `CanaryAssert.retryPreservesLocalId` in that path is the
+      // production guard; this test pins the construction contract
+      // so a future refactor cannot silently break it.
+      const canonicalLocalId = 'local-retry-1';
+      const sessionId = 'lifecycle-4';
 
-        // The outbox entry MUST carry the exact original localId.
-        expect(
-          entry.localId,
-          canonicalLocalId,
-          reason:
-              'Retry must reuse the original LocalId — never mint a '
-              'new id for the same logical send',
-        );
+      final entry = OutboxEntry(
+        localId: canonicalLocalId,
+        sessionId: sessionId,
+        text: 'hello',
+        encryptedContent: 'enc',
+        rawRecord: const <String, dynamic>{'role': 'user'},
+        queuedAt: 1700000000000,
+      );
 
-        // copyWith on retry must NOT alter localId.
-        final retried = entry.copyWith(retryCount: 1);
-        expect(
-          retried.localId,
-          canonicalLocalId,
-          reason:
-              'copyWith for retry must preserve localId — retryCount '
-              'is the only field intended to change',
-        );
-        expect(retried.retryCount, 1);
+      // The outbox entry MUST carry the exact original localId.
+      expect(
+        entry.localId,
+        canonicalLocalId,
+        reason:
+            'Retry must reuse the original LocalId — never mint a '
+            'new id for the same logical send',
+      );
 
-        // JSON round-trip preserves localId (persisted across app
-        // restart / suspend).
-        final json = entry.toJson();
-        expect(json['localId'], canonicalLocalId);
-        final fromJson = OutboxEntry.fromJson(json);
-        expect(
-          fromJson.localId,
-          canonicalLocalId,
-          reason:
-              'OutboxEntry.toJson/fromJson must preserve localId so '
-              'MMKV-restored retries reuse the canonical id',
-        );
-      },
-    );
+      // copyWith on retry must NOT alter localId.
+      final retried = entry.copyWith(retryCount: 1);
+      expect(
+        retried.localId,
+        canonicalLocalId,
+        reason:
+            'copyWith for retry must preserve localId — retryCount '
+            'is the only field intended to change',
+      );
+      expect(retried.retryCount, 1);
 
-    test(
-      'suspend before any server response keeps the placeholder, '
-      'and a later REST-style ack merges it without duplication',
-      () {
-        // Composite scenario: tap → optimistic insert → suspend (still
-        // sending) → resume → server ack via direct REST-style upsert.
-        // Confirms the ROADMAP P0 invariant end-to-end through the
-        // merge layer.
-        const sessionId = 'lifecycle-5';
-        const canonicalLocalId = 'local-mid-5';
+      // JSON round-trip preserves localId (persisted across app
+      // restart / suspend).
+      final json = entry.toJson();
+      expect(json['localId'], canonicalLocalId);
+      final fromJson = OutboxEntry.fromJson(json);
+      expect(
+        fromJson.localId,
+        canonicalLocalId,
+        reason:
+            'OutboxEntry.toJson/fromJson must preserve localId so '
+            'MMKV-restored retries reuse the canonical id',
+      );
+    });
 
-        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': canonicalLocalId,
-            'localId': canonicalLocalId,
-            'seq': 0,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000000000,
-            'content': 'continue',
-            'sendStatus': 'sending',
-          },
-        ]);
-        sync.testSetSessionLastSeq(sessionId, 9);
+    test('suspend before any server response keeps the placeholder, '
+        'and a later REST-style ack merges it without duplication', () {
+      // Composite scenario: tap → optimistic insert → suspend (still
+      // sending) → resume → server ack via direct REST-style upsert.
+      // Confirms the ROADMAP P0 invariant end-to-end through the
+      // merge layer.
+      const sessionId = 'lifecycle-5';
+      const canonicalLocalId = 'local-mid-5';
 
-        sync.suspend();
-        sync.resume();
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': canonicalLocalId,
+          'localId': canonicalLocalId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000000000,
+          'content': 'continue',
+          'sendStatus': 'sending',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 9);
 
-        // REST-style ack (as the _completeSend success path would
-        // produce) — same localId, authoritative server id+seq.
-        sync.testUpsertSessionMessages(sessionId, [
-          {
-            'id': 'srv-final-1',
-            'localId': canonicalLocalId,
-            'seq': 10,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000010000,
-            'content': 'continue',
-            'sendStatus': 'sent',
-          },
-        ]);
+      sync.suspend();
+      sync.resume();
 
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(msgs, isNotNull);
-        expect(
-          msgs!,
-          hasLength(1),
-          reason:
-              'Exactly one logical message survives suspend → resume '
-              '→ ack — no duplicate row from the lifecycle race',
-        );
-        final only = msgs.single;
-        expect(only['id'], 'srv-final-1');
-        expect(only['localId'], canonicalLocalId);
-        expect(only['sendStatus'], 'sent');
-      },
-    );
+      // REST-style ack (as the _completeSend success path would
+      // produce) — same localId, authoritative server id+seq.
+      sync.testUpsertSessionMessages(sessionId, [
+        {
+          'id': 'srv-final-1',
+          'localId': canonicalLocalId,
+          'seq': 10,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000010000,
+          'content': 'continue',
+          'sendStatus': 'sent',
+        },
+      ]);
+
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull);
+      expect(
+        msgs!,
+        hasLength(1),
+        reason:
+            'Exactly one logical message survives suspend → resume '
+            '→ ack — no duplicate row from the lifecycle race',
+      );
+      final only = msgs.single;
+      expect(only['id'], 'srv-final-1');
+      expect(only['localId'], canonicalLocalId);
+      expect(only['sendStatus'], 'sent');
+    });
   });
 }
 
@@ -441,10 +434,7 @@ Map<String, dynamic> _makeEncryptedMessage(
       'role': 'agent',
       'content': {
         'type': 'output',
-        'data': {
-          'type': 'assistant',
-          'message': content,
-        },
+        'data': {'type': 'assistant', 'message': content},
       },
     };
   }
@@ -458,10 +448,7 @@ Map<String, dynamic> _makeEncryptedMessage(
     'id': id,
     'seq': seq,
     'role': role,
-    'content': {
-      't': 'encrypted',
-      'c': base64Encode(output),
-    },
+    'content': {'t': 'encrypted', 'c': base64Encode(output)},
     'createdAt': 1700000000000 + seq * 1000,
     if (localId != null) 'localId': localId,
   };
@@ -489,22 +476,20 @@ class _FakeEncryption implements Encryption {
       );
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

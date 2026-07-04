@@ -245,6 +245,31 @@ String _normalizeDroppedReason(String reason) {
 }
 
 extension SyncMessaging on Sync {
+  bool _shouldProcessFetchedMessageForLocalIdReplacement(
+    String sessionId,
+    Map<String, dynamic> message,
+  ) {
+    final localId = message['localId'] as String?;
+    final messageId = message['id'] as String?;
+    if (localId == null ||
+        localId.isEmpty ||
+        messageId == null ||
+        messageId.isEmpty ||
+        localId == messageId) {
+      return false;
+    }
+
+    final existing = _sessionMessages[sessionId];
+    if (existing == null || existing.isEmpty) return false;
+
+    for (final current in existing) {
+      if (current['id'] == localId && current['localId'] == localId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Fetch messages for a session.
   ///
   /// On first open (no entry in [_sessionLastSeq]) this uses the session's
@@ -761,7 +786,11 @@ extension SyncMessaging on Sync {
             ? messages
             : [
                 for (final m in messages)
-                  if (!existingSignatures.containsKey(m['id']) ||
+                  if (_shouldProcessFetchedMessageForLocalIdReplacement(
+                        sessionId,
+                        m,
+                      ) ||
+                      !existingSignatures.containsKey(m['id']) ||
                       _hasUpdatedContent(m, existingSignatures))
                     m,
               ];
