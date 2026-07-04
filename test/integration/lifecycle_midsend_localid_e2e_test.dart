@@ -201,7 +201,7 @@ void main() {
       const sessionId = 'lifecycle-3';
       const canonicalLocalId = 'local-mid-3';
 
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
       final authoritativeMessage = _makeEncryptedMessage(
         'srv-msg-1',
         seq: 10,
