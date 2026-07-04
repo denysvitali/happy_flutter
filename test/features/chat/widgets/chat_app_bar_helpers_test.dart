@@ -226,6 +226,142 @@ void main() {
       expect(chips[1].text, 'Approval needed');
     });
 
+    testWidgets(
+        'shows "Thinking" chip when thinking and visible tail is fresh',
+        (tester) async {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final inputs = await _runInHost(
+        tester,
+        (cs) => ChatStatusChipsInputs(
+          session: _onlineSession(thinking: true),
+          isReady: true,
+          hasRequests: false,
+          sendIssue: null,
+          latestUserMessage: null,
+          lastVisibleNonSidechainCreatedAt: nowMs,
+          debugMaxSeq: -1,
+          modelMode: ChatModelMode.defaultModel,
+        ),
+      );
+      final context = tester.element(find.byType(Text));
+      final chips = buildChatStatusChips(
+        context: context,
+        colorScheme: Theme.of(context).colorScheme,
+        inputs: inputs,
+      );
+      expect(chips.map((c) => c.text), contains('Thinking'));
+    });
+
+    testWidgets(
+        'shows "Working on sub-tasks" when thinking and visible tail is stale',
+        (tester) async {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final inputs = await _runInHost(
+        tester,
+        (cs) => ChatStatusChipsInputs(
+          session: _onlineSession(thinking: true),
+          isReady: true,
+          hasRequests: false,
+          sendIssue: null,
+          latestUserMessage: null,
+          lastVisibleNonSidechainCreatedAt: nowMs - 60000,
+          debugMaxSeq: -1,
+          modelMode: ChatModelMode.defaultModel,
+        ),
+      );
+      final context = tester.element(find.byType(Text));
+      final chips = buildChatStatusChips(
+        context: context,
+        colorScheme: Theme.of(context).colorScheme,
+        inputs: inputs,
+      );
+      expect(chips.map((c) => c.text), contains('Working on sub-tasks'));
+    });
+
+    // Regression: session c04ffa4d — during a long async sub-agent
+    // fan-out the thinking flag went stale (false) while sidechain
+    // children kept merging into collapsed Task rows. The chips must
+    // surface the hidden work from message-stream activity alone.
+    testWidgets(
+        'shows "Working on sub-tasks" without thinking flag when stream is '
+        'active but visible tail is stale', (tester) async {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final inputs = await _runInHost(
+        tester,
+        (cs) => ChatStatusChipsInputs(
+          session: _onlineSession(),
+          isReady: true,
+          hasRequests: false,
+          sendIssue: null,
+          latestUserMessage: null,
+          lastVisibleNonSidechainCreatedAt: nowMs - 60000,
+          debugMaxSeq: -1,
+          modelMode: ChatModelMode.defaultModel,
+          lastMessageStreamActivityAt: nowMs - 5000,
+        ),
+      );
+      final context = tester.element(find.byType(Text));
+      final chips = buildChatStatusChips(
+        context: context,
+        colorScheme: Theme.of(context).colorScheme,
+        inputs: inputs,
+      );
+      expect(chips.map((c) => c.text), contains('Working on sub-tasks'));
+    });
+
+    testWidgets(
+        'no sub-task chip when stream is active but visible tail is fresh',
+        (tester) async {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final inputs = await _runInHost(
+        tester,
+        (cs) => ChatStatusChipsInputs(
+          session: _onlineSession(),
+          isReady: true,
+          hasRequests: false,
+          sendIssue: null,
+          latestUserMessage: null,
+          lastVisibleNonSidechainCreatedAt: nowMs - 1000,
+          debugMaxSeq: -1,
+          modelMode: ChatModelMode.defaultModel,
+          lastMessageStreamActivityAt: nowMs - 5000,
+        ),
+      );
+      final context = tester.element(find.byType(Text));
+      final chips = buildChatStatusChips(
+        context: context,
+        colorScheme: Theme.of(context).colorScheme,
+        inputs: inputs,
+      );
+      expect(chips.map((c) => c.text), isNot(contains('Working on sub-tasks')));
+    });
+
+    testWidgets('no sub-task chip when stream activity itself is stale',
+        (tester) async {
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final inputs = await _runInHost(
+        tester,
+        (cs) => ChatStatusChipsInputs(
+          session: _onlineSession(),
+          isReady: true,
+          hasRequests: false,
+          sendIssue: null,
+          latestUserMessage: null,
+          lastVisibleNonSidechainCreatedAt: nowMs - 300000,
+          debugMaxSeq: -1,
+          modelMode: ChatModelMode.defaultModel,
+          lastMessageStreamActivityAt: nowMs - 120000,
+        ),
+      );
+      final context = tester.element(find.byType(Text));
+      final chips = buildChatStatusChips(
+        context: context,
+        colorScheme: Theme.of(context).colorScheme,
+        inputs: inputs,
+      );
+      expect(chips.map((c) => c.text), isNot(contains('Working on sub-tasks')));
+    });
+
     testWidgets('appends a model chip when modelMode is not default',
         (tester) async {
       final inputs = await _runInHost(

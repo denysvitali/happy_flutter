@@ -685,6 +685,7 @@ class ChatStatusChipsInputs {
     required this.lastVisibleNonSidechainCreatedAt,
     required this.debugMaxSeq,
     required this.modelMode,
+    this.lastMessageStreamActivityAt = 0,
   });
 
   final Session session;
@@ -707,6 +708,13 @@ class ChatStatusChipsInputs {
 
   /// Debug-only seq watermark. -1 hides the chip.
   final int debugMaxSeq;
+
+  /// Local timestamp (ms since epoch) of the last time this session's
+  /// message stream changed — including sidechain children merging into
+  /// collapsed Task rows, which produce no new visible message. Lets the
+  /// chips surface "Working on sub-tasks" even when the `thinking` flag
+  /// has gone stale during a long turn. 0 means no change observed yet.
+  final int lastMessageStreamActivityAt;
 
   /// Current model selection. `ChatModelMode.defaultModel` hides
   /// the chip.
@@ -805,7 +813,7 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
         icon: Icons.shield_outlined,
       ),
     );
-  } else if (session.thinking) {
+  } else {
     // When the agent has been "thinking" for a while with no new
     // visible (non-sidechain) message, surface that the work is
     // likely happening inside sub-tasks. Without this signal the
@@ -817,14 +825,37 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final stale = lastVisibleCreatedAt > 0 &&
         nowMs - lastVisibleCreatedAt > subTaskSwitchMs;
-    chips.add(
-      ChatAppBarStatusChip(
-        text: stale ? 'Working on sub-tasks' : 'Thinking',
-        color: colorScheme.primary,
-        showDot: !stale,
-        icon: Icons.account_tree_outlined,
-      ),
-    );
+    if (session.thinking) {
+      chips.add(
+        ChatAppBarStatusChip(
+          text: stale ? 'Working on sub-tasks' : 'Thinking',
+          color: colorScheme.primary,
+          showDot: !stale,
+          icon: Icons.account_tree_outlined,
+        ),
+      );
+    } else {
+      // The thinking flag is set once at turn start and can go stale
+      // during a long turn, while sub-agent traffic keeps merging into
+      // collapsed Task rows — no new visible message, chat looks dead
+      // even though the session is hard at work (session c04ffa4d…).
+      // Fall back to message-stream activity: fresh changes with a
+      // stale visible tail means hidden sub-task work.
+      const hiddenActivityWindowMs = 60000;
+      final lastStreamActivity = inputs.lastMessageStreamActivityAt;
+      final hiddenActivity = lastStreamActivity > 0 &&
+          nowMs - lastStreamActivity <= hiddenActivityWindowMs &&
+          stale;
+      if (hiddenActivity) {
+        chips.add(
+          ChatAppBarStatusChip(
+            text: 'Working on sub-tasks',
+            color: colorScheme.primary,
+            icon: Icons.account_tree_outlined,
+          ),
+        );
+      }
+    }
   }
 
   // Debug-only seq watermark — proves the session is alive when

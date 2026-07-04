@@ -177,6 +177,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Map<String, dynamic>? _latestUserStatusMessage;
   int _lastVisibleNonSidechainCreatedAt = 0;
   int _debugMaxSeq = -1;
+
+  // Local timestamp of the last onSessionMessagesChanged event for this
+  // session. Sidechain children merging into collapsed Task rows fire the
+  // stream without producing a new visible message; the status chips use
+  // this to show "Working on sub-tasks" when the thinking flag is stale.
+  int _lastMessageStreamActivityAt = 0;
   static const int _pageSize = 50;
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
@@ -368,6 +374,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where((id) => id == widget.sessionId)
         .listen((_) {
           if (!mounted) return;
+          _lastMessageStreamActivityAt =
+              DateTime.now().millisecondsSinceEpoch;
           ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
           _refreshFromSync();
         });
@@ -1035,6 +1043,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         lastVisibleNonSidechainCreatedAt: _lastVisibleNonSidechainCreatedAt,
         debugMaxSeq: _debugMaxSeq,
         modelMode: _modelMode,
+        lastMessageStreamActivityAt: _lastMessageStreamActivityAt,
       ),
     );
   }
