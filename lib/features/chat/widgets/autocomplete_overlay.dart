@@ -29,7 +29,7 @@ class AutocompleteOverlay extends StatefulWidget {
     required this.onSelect,
     super.key,
     this.selectedIndex = -1,
-    this.itemHeight = 48,
+    this.itemHeight = 56,
     this.maxHeight = 240,
     this.padding,
   });
@@ -140,7 +140,7 @@ class _SuggestionItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 48,
+          height: 56,
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
