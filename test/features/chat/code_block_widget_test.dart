@@ -16,6 +16,7 @@ void main() {
 
   Widget wrap(Widget child) {
     return MaterialApp(
+      locale: const Locale('en'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: child),
