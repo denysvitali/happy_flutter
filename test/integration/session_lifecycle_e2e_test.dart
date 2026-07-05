@@ -542,6 +542,48 @@ void main() {
       );
     });
 
+    test('codex permission auto-restore keeps agent and model mode', () async {
+      const sessionId = 'codex-goal-resume';
+      Map<String, dynamic>? capturedParams;
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        machineId: 'machine-1',
+        path: '/project',
+        lifecycleState: 'archived',
+        flavor: 'codex',
+        modelMode: 'gpt-5.5:medium',
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        expect(machineId, 'machine-1');
+        expect(method, 'spawn-happy-session');
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
+        };
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      await expectLater(
+        () => sync.sessionAllow(sessionId, 'perm-1'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('permission has expired'),
+          ),
+        ),
+      );
+
+      expect(capturedParams, isNotNull);
+      expect(capturedParams!['agent'], 'codex');
+      expect(capturedParams!['model'], 'gpt-5.5:medium');
+      expect(sync.testSessionSpawnedAgent[sessionId], 'codex');
+      expect(sync.testSessionSpawnedModel[sessionId], 'gpt-5.5:medium');
+    });
+
     test('errored session without restore target fails before send', () async {
       const sessionId = 'errored-no-restore-target';
       sync.testSessions[sessionId] = _makeSession(
@@ -583,8 +625,10 @@ Session _makeSession(
   String presence = 'offline',
   String? machineId,
   String? path,
+  String? flavor,
   String? lifecycleState,
   int? lifecycleStateSince,
+  String? modelMode,
 }) {
   final now = DateTime.now().millisecondsSinceEpoch;
   return Session(
@@ -602,9 +646,11 @@ Session _makeSession(
       host: '',
       machineId: machineId,
       path: path,
+      flavor: flavor,
       lifecycleState: lifecycleState,
       lifecycleStateSince: lifecycleStateSince,
     ),
+    modelMode: modelMode,
   );
 }
 

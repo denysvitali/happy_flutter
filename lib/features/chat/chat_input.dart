@@ -38,6 +38,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.modelMode,
     this.onModelModeChanged,
     this.availableModels = ChatModelMode.values,
+    this.availableSlashCommands = const [],
     this.fileSuggestions = const [],
     this.machineName,
     this.currentPath,
@@ -83,6 +84,9 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Model options available for the current session flavor.
   final List<ChatModelMode> availableModels;
+
+  /// Slash commands advertised by the current session's agent.
+  final List<String> availableSlashCommands;
 
   /// File path suggestions for `@`-autocomplete.
   final List<AutocompleteSuggestion> fileSuggestions;
@@ -297,7 +301,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     }
     final textBeforeCursor = text.substring(0, cursorPosition);
     final hasTrigger =
-        RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor) != null;
+        RegExp(r'[@/]([\w-]*)$').firstMatch(textBeforeCursor) != null;
     if (!hasTrigger) {
       // No active trigger: close immediately, no debounce.
       _autocompleteDebounce?.cancel();
@@ -319,7 +323,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     }
 
     final textBeforeCursor = text.substring(0, cursorPosition);
-    final lastWordMatch = RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
+    final lastWordMatch = RegExp(r'[@/]([\w-]*)$').firstMatch(textBeforeCursor);
 
     if (lastWordMatch == null) {
       _clearAutocomplete();
@@ -340,7 +344,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         setState(() => _showAutocomplete = suggestions.isNotEmpty);
       }
     } else if (trigger == '/') {
-      final suggestions = slashCommands
+      final suggestions = buildSlashCommands(widget.availableSlashCommands)
           .where((c) => c.command.toLowerCase().contains(queryLower))
           .map(
             (c) => AutocompleteSuggestion(
@@ -379,7 +383,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.base.offset;
     final textBeforeCursor = text.substring(0, cursorPosition);
-    final lastWordMatch = RegExp(r'[@/](\w*)$').firstMatch(textBeforeCursor);
+    final lastWordMatch = RegExp(r'[@/]([\w-]*)$').firstMatch(textBeforeCursor);
 
     if (lastWordMatch != null) {
       final startIndex = lastWordMatch.start;

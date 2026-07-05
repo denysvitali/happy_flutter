@@ -1565,6 +1565,7 @@ PY
         restoredSessionId,
         profileId: spawnResult.profile?.id ?? profileId,
         modelMode: modelMode,
+        agent: sessionAgent,
       );
       if (restoredSessionId != sessionId) {
         // Migrate conversation history from the old session to the new

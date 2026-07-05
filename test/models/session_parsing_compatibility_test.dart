@@ -25,6 +25,15 @@ void main() {
       expect(metadata.slashCommands, <String>['/help']);
     });
 
+    test('accepts snake_case slash_commands from agent init metadata', () {
+      final metadata = Metadata.fromJson(<String, dynamic>{
+        'host': 'devbox',
+        'slash_commands': <dynamic>['goal', '/review', 42],
+      });
+
+      expect(metadata.slashCommands, <String>['goal', '/review']);
+    });
+
     test('keeps valid summary fields', () {
       final metadata = Metadata.fromJson(<String, dynamic>{
         'host': 'devbox',

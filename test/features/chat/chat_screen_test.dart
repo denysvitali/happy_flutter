@@ -19,6 +19,7 @@ import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/features/chat/chat_input.dart';
 import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_loading_shimmer.dart';
 import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
@@ -350,6 +351,65 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'Test input');
       expect(find.text('Test input'), findsOneWidget);
+    });
+
+    testWidgets('input suggests /goal and inserts it without double slash', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+
+      await tester.pumpWidget(
+        _buildApp(
+          child: Scaffold(
+            body: ChatInput(
+              sessionId: 'session_1',
+              controller: controller,
+              onSend: () {},
+              availableSlashCommands: const ['/goal'],
+            ),
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), '/g');
+      await tester.pump(const Duration(milliseconds: 150));
+
+      expect(find.text('goal'), findsOneWidget);
+      expect(find.text('Set or update the current goal'), findsOneWidget);
+
+      await tester.tap(find.text('goal'));
+      await tester.pump();
+
+      expect(controller.text, '/goal ');
+    });
+
+    testWidgets('input suggests slash commands advertised by the session', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+
+      await tester.pumpWidget(
+        _buildApp(
+          child: Scaffold(
+            body: ChatInput(
+              sessionId: 'session_1',
+              controller: controller,
+              onSend: () {},
+              availableSlashCommands: const ['team-onboarding'],
+            ),
+          ),
+        ),
+      );
+
+      await tester.enterText(find.byType(TextField), '/team');
+      await tester.pump(const Duration(milliseconds: 150));
+
+      expect(find.text('team-onboarding'), findsOneWidget);
+
+      await tester.tap(find.text('team-onboarding'));
+      await tester.pump();
+
+      expect(controller.text, '/team-onboarding ');
     });
 
     testWidgets('shows simplified status text for online session', (
