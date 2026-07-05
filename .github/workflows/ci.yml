@@ -370,12 +370,6 @@ jobs:
     timeout-minutes: 30
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-    # Packaged Android releases are produced on demand or for version tags.
-    # Main pushes keep the fast CI path focused on analyze/tests/web deploy.
-    if: |
-      (github.event_name == 'workflow_dispatch' &&
-       (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
-      startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout repository
@@ -389,20 +383,16 @@ jobs:
           BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
 
-      - name: Check for keystore
-        id: check_keystore
+      - name: Validate signing keystore
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::warning::Keystore not configured, skipping release build"
-            echo "skip_release=true" >> $GITHUB_OUTPUT
-            exit 0
+            echo "::error::KEYSTORE_BASE64 is required for release APK generation"
+            exit 1
           fi
-          echo "skip_release=false" >> $GITHUB_OUTPUT
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Free disk space
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
@@ -416,21 +406,18 @@ jobs:
           df -h
 
       - name: Create keystore
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Setup mise
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: jdx/mise-action@v3
         with:
           install: true
           cache: true
 
       - name: Cache Android NDK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         id: ndk-cache
         uses: actions/cache@v5
         with:
@@ -438,19 +425,17 @@ jobs:
           key: ${{ runner.os }}-android-ndk-28.2.13676358
 
       - name: Accept Android SDK licenses
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses || true
 
       - name: Setup Android NDK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' && steps.ndk-cache.outputs.cache-hit != 'true' }}
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           "$SDKMANAGER" "ndk;28.2.13676358"
 
       - name: Cache Gradle
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/cache@v5
         with:
           path: |
@@ -461,7 +446,6 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Cache pub dependencies
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/cache@v5
         with:
           path: |
@@ -472,7 +456,6 @@ jobs:
             pub-${{ runner.os }}-
 
       - name: Get dependencies
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         run: mise exec -- flutter pub get
 
       - name: Determine flavor
@@ -485,7 +468,6 @@ jobs:
           echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
       - name: Build Release APK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         env:
           APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
@@ -516,7 +498,7 @@ jobs:
           fi
 
       - name: Upload debug symbols to Sentry
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' && env.SENTRY_AUTH_TOKEN != '' }}
+        if: env.SENTRY_AUTH_TOKEN != ''
         run: |
           mise exec -- flutter pub run sentry_dart_plugin
         env:
@@ -525,7 +507,6 @@ jobs:
           SENTRY_RELEASE: happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Upload Release APK
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: happy-flutter-release-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
@@ -533,7 +514,6 @@ jobs:
           retention-days: 14
 
       - name: Upload debug info artifact
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: debug-info-release-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
@@ -541,7 +521,6 @@ jobs:
           retention-days: 90
 
       - name: Determine release version
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
         id: release_version
         run: |
           SEMVER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1 | tr -d ' ')
@@ -550,7 +529,7 @@ jobs:
           echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        if: ${{ steps.check_keystore.outputs.skip_release != 'true' }}
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.release_version.outputs.RELEASE_TAG }}
