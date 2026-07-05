@@ -10,8 +10,14 @@ on:
   push:
     branches: [main, develop]
     tags: ['v*']
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
     inputs:
       build_type:
@@ -73,7 +79,7 @@ jobs:
         run: mise exec -- flutter pub get
 
       - name: Analyze code
-        run: mise exec -- flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: mise exec -- flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 
   test:
     name: Test (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
@@ -114,18 +120,21 @@ jobs:
           mapfile -t all_tests < <(find test -name '*_test.dart' \
             ! -path 'test/golden/*' | sort)
           total=${#all_tests[@]}
-          shard=$(( ${{ matrix.shard }} - 1 ))
+          shard=${{ matrix.shard }}
           num_shards=${{ matrix.total_shards }}
-          per_shard=$(( (total + num_shards - 1) / num_shards ))
-          start=$(( shard * per_shard ))
-          shard_tests=("${all_tests[@]:$start:$per_shard}")
+          shard_tests=()
+          for i in "${!all_tests[@]}"; do
+            if [ $(( i % num_shards )) -eq $(( shard - 1 )) ]; then
+              shard_tests+=("${all_tests[$i]}")
+            fi
+          done
           if [ ${#shard_tests[@]} -eq 0 ]; then
             echo "No tests in this shard, skipping."
             exit 0
           fi
           echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
           set +e
-          mise exec -- flutter test --coverage --concurrency=1 --reporter=expanded "${shard_tests[@]}" 2>&1 | tee test-output.log
+          mise exec -- flutter test --no-pub --coverage --concurrency=1 --reporter=expanded "${shard_tests[@]}" 2>&1 | tee test-output.log
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -182,8 +191,8 @@ jobs:
           echo "Total lines: $(wc -l < coverage/lcov.info)"
           echo "Source files: $(grep -c '^SF:' coverage/lcov.info)"
 
-      - name: Install curl
-        run: sudo apt-get update && sudo apt-get install -y curl
+      - name: Ensure curl is available
+        run: command -v curl >/dev/null || (sudo apt-get update && sudo apt-get install -y curl)
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
@@ -227,7 +236,7 @@ jobs:
       - name: Run golden tests
         # Runs both the phone suite (golden_test.dart) and the tablet suite
         # (tablet_golden_test.dart) in `test/golden/`.
-        run: mise exec -- flutter test test/golden/
+        run: mise exec -- flutter test --no-pub test/golden/
 
   build-debug:
     name: Build Debug APK
@@ -361,9 +370,9 @@ jobs:
     timeout-minutes: 30
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-    # Run on main pushes, workflow_dispatch (release/both), and version tags.
+    # Packaged Android releases are produced on demand or for version tags.
+    # Main pushes keep the fast CI path focused on analyze/tests/web deploy.
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
       startsWith(github.ref, 'refs/tags/v')
@@ -558,7 +567,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
       startsWith(github.ref, 'refs/tags/v')
@@ -601,7 +609,7 @@ jobs:
 
       - name: Build Linux x64 Release
         run: |
-          mise exec -- flutter build linux --release \
+          mise exec -- flutter build linux --release --no-pub \
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Bundle release archive
@@ -650,7 +658,7 @@ jobs:
 
       - name: Build Web
         run: |
-          mise exec -- flutter build web --release \
+          mise exec -- flutter build web --release --no-pub \
             --base-href '/' \
             --source-maps \
             --dart-define=COMMIT_SHA=${{ github.sha }} \
