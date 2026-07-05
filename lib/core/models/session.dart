@@ -78,6 +78,21 @@ Summary? _summaryFromJson(dynamic value) {
   }
 }
 
+CodexGoal? _codexGoalFromJson(dynamic value) {
+  Map<String, dynamic>? map;
+  if (value is Map<String, dynamic>) {
+    map = value;
+  } else if (value is Map) {
+    try {
+      map = Map<String, dynamic>.from(value);
+    } catch (_) {
+      return null;
+    }
+  }
+  if (map == null) return null;
+  return CodexGoal.fromJson(map);
+}
+
 bool? _sandboxEnabledFromJson(dynamic value) {
   if (value is Map<String, dynamic>) {
     return value['enabled'] == true;
@@ -191,9 +206,57 @@ abstract class Summary with _$Summary {
       _$SummaryFromJson(json);
 }
 
+/// Current Codex goal persisted by happy-cli-go in session agent state.
+class CodexGoal {
+  const CodexGoal({
+    required this.objective,
+    this.status = 'active',
+    this.updatedAt,
+  });
+
+  factory CodexGoal.fromJson(Map<String, dynamic> json) {
+    final objective =
+        _asApiStringNullable(json['objective']) ??
+        _asApiStringNullable(json['text']) ??
+        '';
+    return CodexGoal(
+      objective: objective.trim(),
+      status: _asApiStringNullable(json['status']) ?? 'active',
+      updatedAt: _asApiIntNullable(json['updatedAt']),
+    );
+  }
+
+  final String objective;
+  final String status;
+  final int? updatedAt;
+
+  bool get isVisible => objective.trim().isNotEmpty && status != 'cleared';
+
+  Map<String, dynamic> toJson() {
+    return {'objective': objective, 'status': status, 'updatedAt': updatedAt};
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CodexGoal &&
+          runtimeType == other.runtimeType &&
+          objective == other.objective &&
+          status == other.status &&
+          updatedAt == other.updatedAt;
+
+  @override
+  int get hashCode => Object.hash(objective, status, updatedAt);
+}
+
 /// Agent state for a session
 class AgentState {
-  AgentState({this.controlledByUser, this.requests, this.completedRequests});
+  AgentState({
+    this.controlledByUser,
+    this.requests,
+    this.completedRequests,
+    this.goal,
+  });
 
   factory AgentState.fromJson(Map<String, dynamic> json) {
     final requestsRaw = json['requests'];
@@ -258,12 +321,14 @@ class AgentState {
       controlledByUser: _asApiBoolNullable(json['controlledByUser']),
       requests: requests,
       completedRequests: completedRequests,
+      goal: _codexGoalFromJson(json['goal']),
     );
   }
 
   final bool? controlledByUser;
   final Map<String, RequestInfo>? requests;
   final Map<String, CompletedRequestInfo>? completedRequests;
+  final CodexGoal? goal;
 
   Map<String, dynamic> toJson() {
     return {
@@ -288,6 +353,7 @@ class AgentState {
           'decision': v.decision,
         }),
       ),
+      'goal': goal?.toJson(),
     };
   }
 
@@ -298,11 +364,12 @@ class AgentState {
           runtimeType == other.runtimeType &&
           controlledByUser == other.controlledByUser &&
           requests == other.requests &&
-          completedRequests == other.completedRequests;
+          completedRequests == other.completedRequests &&
+          goal == other.goal;
 
   @override
   int get hashCode =>
-      Object.hash(controlledByUser, requests, completedRequests);
+      Object.hash(controlledByUser, requests, completedRequests, goal);
 }
 
 @freezed

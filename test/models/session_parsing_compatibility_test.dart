@@ -66,6 +66,39 @@ void main() {
   });
 
   group('AgentState.fromJson compatibility', () {
+    test('parses Codex goal state without dropping permission requests', () {
+      final state = AgentState.fromJson(<String, dynamic>{
+        'controlledByUser': false,
+        'goal': <String, dynamic>{
+          'objective': 'Keep Codex aware of the current goal',
+          'status': 'active',
+          'updatedAt': 1700000000000,
+        },
+        'requests': <String, dynamic>{
+          'ok': <String, dynamic>{
+            'tool': 'bash',
+            'arguments': <String, dynamic>{'command': 'ls'},
+          },
+        },
+      });
+
+      expect(state.goal, isNotNull);
+      expect(state.goal?.objective, 'Keep Codex aware of the current goal');
+      expect(state.goal?.status, 'active');
+      expect(state.goal?.updatedAt, 1700000000000);
+      expect(state.requests?.containsKey('ok'), isTrue);
+      expect(state.toJson()['goal'], isA<Map<String, dynamic>>());
+    });
+
+    test('accepts legacy goal text field', () {
+      final state = AgentState.fromJson(<String, dynamic>{
+        'goal': <String, dynamic>{'text': 'Legacy goal text'},
+      });
+
+      expect(state.goal?.objective, 'Legacy goal text');
+      expect(state.goal?.isVisible, isTrue);
+    });
+
     test('drops malformed request entries instead of throwing', () {
       final state = AgentState.fromJson(<String, dynamic>{
         'controlledByUser': 'invalid-bool',

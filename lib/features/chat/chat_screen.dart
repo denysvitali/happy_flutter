@@ -49,6 +49,7 @@ import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
+import 'widgets/session_goal_banner.dart';
 import 'widgets/session_issue_banner.dart';
 import 'widgets/session_tasks_banner.dart';
 import 'widgets/sub_agent_status_banner.dart';
@@ -374,8 +375,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where((id) => id == widget.sessionId)
         .listen((_) {
           if (!mounted) return;
-          _lastMessageStreamActivityAt =
-              DateTime.now().millisecondsSinceEpoch;
+          _lastMessageStreamActivityAt = DateTime.now().millisecondsSinceEpoch;
           ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
           _refreshFromSync();
         });
@@ -1310,6 +1310,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               blocksSend: issue.blocksSend,
             ),
           ),
+        SessionGoalBanner(sessionId: widget.sessionId),
         SessionTasksBanner(sessionId: widget.sessionId),
         TtsPlaybackBar(
           onPrev: _ttsPrev,
@@ -1336,8 +1337,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           onPermissionModeChanged: _onPermissionModeChanged,
           modelMode: _modelMode,
           availableModels: availableModels,
-          availableSlashCommands:
-              _session?.metadata?.slashCommands ?? const [],
+          availableSlashCommands: _session?.metadata?.slashCommands ?? const [],
           onModelModeChanged: _onModelModeChanged,
           selectedProfile: _selectedProfile,
           availableProfiles: _availableProfiles,
