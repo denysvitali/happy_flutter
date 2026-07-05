@@ -143,6 +143,22 @@ void main() {
       );
     });
 
+    test('returns missingRepository for Kubernetes without a repo URL', () {
+      expect(
+        newSessionCreateBlocker(
+          machine: onlineMachine,
+          machineOnline: true,
+          path: '/repo',
+          isCreating: false,
+          connectionStatus: ConnectionStatus.connected,
+          syncInitialized: true,
+          repositoryRequired: true,
+          repositoryUrl: ' ',
+        ),
+        NewSessionCreateBlocker.missingRepository,
+      );
+    });
+
     test('offline blocker fires even when path is missing', () {
       expect(
         newSessionCreateBlocker(
@@ -296,6 +312,43 @@ void main() {
       expect(find.text('Spawn on'), findsOneWidget);
       expect(find.text('Local'), findsOneWidget);
       expect(find.text('Kubernetes'), findsOneWidget);
+    });
+
+    testWidgets('Kubernetes session requires repository URL', (tester) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final machine = _machine(
+        id: 'm-kube',
+        displayName: 'Kube Box',
+        active: true,
+        activeAtMs: now,
+        spawnBackends: const ['kubernetes'],
+        defaultSpawnBackend: 'kubernetes',
+      );
+      await pumpDialog(
+        tester,
+        buildHarness(machines: {'m-kube': machine}, initialMachineId: 'm-kube'),
+      );
+
+      expect(find.text('Repository URL'), findsOneWidget);
+      expect(
+        find.text('Repository URL required for Kubernetes'),
+        findsOneWidget,
+      );
+      var createButton = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Create'),
+      );
+      expect(createButton.onPressed, isNull);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Repository URL'),
+        'https://example.com/repo.git',
+      );
+      await tester.pump();
+
+      createButton = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Create'),
+      );
+      expect(createButton.onPressed, isNotNull);
     });
 
     testWidgets(

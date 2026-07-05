@@ -49,6 +49,9 @@ class MachinesRepository {
     String? profileId,
     String? modelMode,
     String? spawnBackend,
+    String? repoUrl,
+    String? repoRef,
+    String? repoCommit,
   }) =>
       _manager.createSession(
         machineId: machineId,
@@ -57,6 +60,9 @@ class MachinesRepository {
         profileId: profileId,
         modelMode: modelMode,
         spawnBackend: spawnBackend,
+        repoUrl: repoUrl,
+        repoRef: repoRef,
+        repoCommit: repoCommit,
       );
 
   /// Creates a git worktree on [machineId] under [basePath].

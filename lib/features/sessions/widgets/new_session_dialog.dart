@@ -6,6 +6,7 @@ import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/built_in_profiles.dart';
 import '../../../core/models/machine.dart';
+import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart';
@@ -18,6 +19,7 @@ enum NewSessionCreateBlocker {
   missingMachine,
   offlineMachine,
   missingPath,
+  missingRepository,
   creating,
   disconnected,
   syncNotReady,
@@ -32,10 +34,15 @@ NewSessionCreateBlocker? newSessionCreateBlocker({
   required bool isCreating,
   required ConnectionStatus connectionStatus,
   required bool syncInitialized,
+  bool repositoryRequired = false,
+  String repositoryUrl = '',
 }) {
   if (machine == null) return NewSessionCreateBlocker.missingMachine;
   if (!machineOnline) return NewSessionCreateBlocker.offlineMachine;
   if (path.trim().isEmpty) return NewSessionCreateBlocker.missingPath;
+  if (repositoryRequired && repositoryUrl.trim().isEmpty) {
+    return NewSessionCreateBlocker.missingRepository;
+  }
   if (isCreating) return NewSessionCreateBlocker.creating;
   if (connectionStatus != ConnectionStatus.connected) {
     return NewSessionCreateBlocker.disconnected;
@@ -59,6 +66,7 @@ class NewSessionDialog extends ConsumerStatefulWidget {
 
 class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedPath;
+  String? _selectedRepoUrl;
   String? _selectedMachine;
   bool _isCreating = false;
   String? _createError;
@@ -105,6 +113,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             _selectedSpawnBackend,
           )
         : _defaultSpawnBackendForMachine(selectedMachineObj);
+    final repositoryRequired = selectedSpawnBackend == 'kubernetes';
     final selectedMachineOffline =
         selectedMachineObj != null && !selectedMachineObj.isOnline;
     final createBlocker = newSessionCreateBlocker(
@@ -114,6 +123,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       isCreating: _isCreating,
       connectionStatus: connectionStatus,
       syncInitialized: sync.isInitialized,
+      repositoryRequired: repositoryRequired,
+      repositoryUrl: _selectedRepoUrl ?? '',
     );
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -214,6 +225,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 setState(() {
                   if (_selectedMachine != value) {
                     _selectedPath = null;
+                    _selectedRepoUrl = null;
                     _selectedSpawnBackend = _defaultSpawnBackendForMachine(
                       allMachines[value],
                     );
@@ -306,6 +318,25 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
             ),
             const SizedBox(height: AppSpacing.lg),
           ],
+          if (repositoryRequired) ...[
+            _RepositoryUrlField(
+              machineId: _selectedMachine,
+              selectedRepoUrl: _selectedRepoUrl,
+              onChanged: (value) {
+                setState(() {
+                  _selectedRepoUrl = value;
+                  _createError = null;
+                });
+              },
+              onSelected: (value) {
+                setState(() {
+                  _selectedRepoUrl = value;
+                  _createError = null;
+                });
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           _AgentPicker(
             selectedAgent: _selectedAgent,
             onSelected: (agent) => setState(() => _selectedAgent = agent),
@@ -381,6 +412,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           ? _selectedSpawnBackend
           : _defaultSpawnBackendForMachine(machine),
     );
+    final repoUrl = spawnBackend == 'kubernetes'
+        ? _selectedRepoUrl?.trim()
+        : null;
     final navigator = Navigator.of(context, rootNavigator: true);
 
     setState(() {
@@ -443,6 +477,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         profileId: profileId,
         modelMode: modelMode,
         spawnBackend: spawnBackend,
+        repoUrl: repoUrl,
       );
       // Persist the profile so auto-restore reads correct env vars.
       if (profileId != null) {
@@ -579,6 +614,75 @@ class _SpawnBackendPicker extends StatelessWidget {
       ],
     );
   }
+}
+
+class _RepositoryUrlField extends ConsumerWidget {
+  const _RepositoryUrlField({
+    required this.machineId,
+    required this.selectedRepoUrl,
+    required this.onChanged,
+    required this.onSelected,
+  });
+
+  final String? machineId;
+  final String? selectedRepoUrl;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessions = ref.watch(sessionsNotifierProvider);
+    final repoUrls = _repositoryUrlsForMachine(sessions, machineId);
+
+    return Autocomplete<String>(
+      key: ValueKey('repo-url-$machineId'),
+      optionsBuilder: (textEditingValue) {
+        if (repoUrls.isEmpty) return const <String>[];
+        final query = textEditingValue.text.toLowerCase();
+        if (query.isEmpty) return repoUrls;
+        return repoUrls.where((url) => url.toLowerCase().contains(query));
+      },
+      onSelected: onSelected,
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        final value = selectedRepoUrl;
+        if (value != null && value.isNotEmpty && controller.text.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (controller.text.isEmpty) {
+              controller.text = value;
+            }
+          });
+        }
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: const InputDecoration(
+            labelText: 'Repository URL',
+            hintText: 'https://github.com/org/repo.git',
+          ),
+          keyboardType: TextInputType.url,
+          textInputAction: TextInputAction.next,
+          onChanged: onChanged,
+        );
+      },
+    );
+  }
+}
+
+List<String> _repositoryUrlsForMachine(
+  Map<String, Session> sessions,
+  String? machineId,
+) {
+  final urls = <String>{};
+  for (final session in sessions.values) {
+    final metadata = session.metadata;
+    if (metadata == null) continue;
+    if (machineId != null && metadata.machineId != machineId) continue;
+    final url = metadata.repoUrl?.trim();
+    if (url != null && url.isNotEmpty) {
+      urls.add(url);
+    }
+  }
+  return urls.toList()..sort();
 }
 
 class _AgentPicker extends StatelessWidget {
@@ -797,6 +901,8 @@ String _dialogRequirementText(
       return l10n.machineOfflineUnableToSpawn;
     case NewSessionCreateBlocker.missingPath:
       return l10n.sessionNoPathSelected;
+    case NewSessionCreateBlocker.missingRepository:
+      return 'Repository URL required for Kubernetes';
     case NewSessionCreateBlocker.creating:
       return l10n.commonCreate;
     case NewSessionCreateBlocker.disconnected:

@@ -182,6 +182,9 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleStateError,
     @JsonKey(fromJson: _asApiIntNullable) int? lifecycleStateSince,
+    @JsonKey(fromJson: _asApiStringNullable) String? repoUrl,
+    @JsonKey(fromJson: _asApiStringNullable) String? repoRef,
+    @JsonKey(fromJson: _asApiStringNullable) String? repoCommit,
     // sandbox field is stored as {enabled: bool} but we keep bool? in model
     @JsonKey(
       name: 'sandbox',

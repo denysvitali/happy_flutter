@@ -761,6 +761,9 @@ class MachineManager {
     String? message,
     String? modelMode,
     String? spawnBackend,
+    String? repoUrl,
+    String? repoRef,
+    String? repoCommit,
   }) async {
     final createStopwatch = Stopwatch()..start();
     final requestedSessionId = sessionId ?? _createClientSessionId();
@@ -839,6 +842,9 @@ class MachineManager {
         modelMode: effectiveModelMode,
       ),
       spawnBackend: spawnBackend,
+      repoUrl: repoUrl,
+      repoRef: repoRef,
+      repoCommit: repoCommit,
       environmentVariables: envVars,
     );
 
@@ -846,7 +852,8 @@ class MachineManager {
       '[createSession] START machine=$machineId '
       'session=$requestedSessionId '
       'agent=$agent model=$effectiveModelMode '
-      'path=$resolvedPath hasInitialMessage=${message?.isNotEmpty ?? false}',
+      'path=$resolvedPath hasRepo=${repoUrl?.isNotEmpty ?? false} '
+      'hasInitialMessage=${message?.isNotEmpty ?? false}',
     );
 
     late final SpawnSessionResponse result;
@@ -905,6 +912,9 @@ class MachineManager {
         message: message,
         modelMode: modelMode,
         spawnBackend: spawnBackend,
+        repoUrl: repoUrl,
+        repoRef: repoRef,
+        repoCommit: repoCommit,
       );
     }
 

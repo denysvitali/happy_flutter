@@ -243,6 +243,9 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     String? profileId,
     String? modelMode,
     String? spawnBackend,
+    String? repoUrl,
+    String? repoRef,
+    String? repoCommit,
   }) async {
     if (!sync.isInitialized) {
       throw StateError('Sync is not initialized');
@@ -254,6 +257,9 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       profileId: profileId,
       modelMode: modelMode,
       spawnBackend: spawnBackend,
+      repoUrl: repoUrl,
+      repoRef: repoRef,
+      repoCommit: repoCommit,
     );
   }
 

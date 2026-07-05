@@ -501,6 +501,9 @@ extension SyncMessagingRpc on Sync {
         sessionId: sessionId,
         agent: sessionAgent,
         permissionMode: session.permissionMode,
+        repoUrl: session.metadata?.repoUrl,
+        repoRef: session.metadata?.repoRef,
+        repoCommit: session.metadata?.repoCommit,
         model: _getModelOverride(
           agent: sessionAgent,
           profile: spawnResult.profile,

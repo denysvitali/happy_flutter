@@ -43,6 +43,11 @@ extension SyncSessionOperations on Sync {
     /// Optional daemon spawn backend. When omitted, the daemon uses its
     /// configured default.
     String? spawnBackend,
+
+    /// Repository clone target for container-backed runtimes.
+    String? repoUrl,
+    String? repoRef,
+    String? repoCommit,
   }) async {
     final createStopwatch = Stopwatch()..start();
     if (!isInitialized) {
@@ -162,6 +167,9 @@ extension SyncSessionOperations on Sync {
         modelMode: effectiveModelMode,
       ),
       spawnBackend: spawnBackend,
+      repoUrl: repoUrl,
+      repoRef: repoRef,
+      repoCommit: repoCommit,
       environmentVariables: envVars,
     );
 
@@ -169,7 +177,8 @@ extension SyncSessionOperations on Sync {
       '[createSession] START machine=$machineId '
       'session=$requestedSessionId '
       'agent=$agent model=$effectiveModelMode '
-      'path=$resolvedPath hasInitialMessage=${message?.isNotEmpty ?? false}',
+      'path=$resolvedPath hasRepo=${repoUrl?.isNotEmpty ?? false} '
+      'hasInitialMessage=${message?.isNotEmpty ?? false}',
     );
 
     late final SpawnSessionResponse result;
@@ -292,6 +301,9 @@ extension SyncSessionOperations on Sync {
         message: message,
         modelMode: modelMode,
         spawnBackend: spawnBackend,
+        repoUrl: repoUrl,
+        repoRef: repoRef,
+        repoCommit: repoCommit,
       );
     }
 
@@ -1439,6 +1451,9 @@ PY
         sessionId: sessionId,
         agent: sessionAgent,
         permissionMode: effectivePermissionMode,
+        repoUrl: session.metadata?.repoUrl,
+        repoRef: session.metadata?.repoRef,
+        repoCommit: session.metadata?.repoCommit,
         model: _getModelOverride(
           agent: sessionAgent,
           profile: spawnResult.profile,

@@ -10,6 +10,8 @@ void main() {
         sessionId: 'c1af40f2f18914fb43a9d19b4',
         agent: 'claude',
         spawnBackend: 'kubernetes',
+        repoUrl: 'https://example.com/repo.git',
+        repoRef: 'main',
       );
 
       expect(
@@ -17,6 +19,11 @@ void main() {
         containsPair('sessionId', 'c1af40f2f18914fb43a9d19b4'),
       );
       expect(request.toJson(), containsPair('spawnBackend', 'kubernetes'));
+      expect(
+        request.toJson(),
+        containsPair('repoUrl', 'https://example.com/repo.git'),
+      );
+      expect(request.toJson(), containsPair('repoRef', 'main'));
     });
   });
 

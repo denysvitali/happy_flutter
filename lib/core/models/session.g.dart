@@ -26,6 +26,9 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   lifecycleState: _asApiStringNullable(json['lifecycleState']),
   lifecycleStateError: _asApiStringNullable(json['lifecycleStateError']),
   lifecycleStateSince: _asApiIntNullable(json['lifecycleStateSince']),
+  repoUrl: _asApiStringNullable(json['repoUrl']),
+  repoRef: _asApiStringNullable(json['repoRef']),
+  repoCommit: _asApiStringNullable(json['repoCommit']),
   sandboxEnabled: _sandboxEnabledFromJson(json['sandbox']),
 );
 
@@ -47,6 +50,9 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'lifecycleState': instance.lifecycleState,
   'lifecycleStateError': instance.lifecycleStateError,
   'lifecycleStateSince': instance.lifecycleStateSince,
+  'repoUrl': instance.repoUrl,
+  'repoRef': instance.repoRef,
+  'repoCommit': instance.repoCommit,
   'sandbox': _sandboxEnabledToJson(instance.sandboxEnabled),
 };
 

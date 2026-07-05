@@ -21,6 +21,9 @@ class SpawnSessionRequest {
     this.permissionMode,
     this.model,
     this.spawnBackend,
+    this.repoUrl,
+    this.repoRef,
+    this.repoCommit,
   });
   final String type;
   final String directory;
@@ -32,6 +35,9 @@ class SpawnSessionRequest {
   final String? permissionMode;
   final String? model;
   final String? spawnBackend;
+  final String? repoUrl;
+  final String? repoRef;
+  final String? repoCommit;
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -46,6 +52,9 @@ class SpawnSessionRequest {
     if (permissionMode != null) 'permissionMode': permissionMode,
     if (model != null) 'model': model,
     if (spawnBackend != null) 'spawnBackend': spawnBackend,
+    if (repoUrl != null && repoUrl!.isNotEmpty) 'repoUrl': repoUrl,
+    if (repoRef != null && repoRef!.isNotEmpty) 'repoRef': repoRef,
+    if (repoCommit != null && repoCommit!.isNotEmpty) 'repoCommit': repoCommit,
   };
 }
 
