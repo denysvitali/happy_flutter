@@ -49,6 +49,12 @@ void main() {
       expect(r.messages, hasLength(1));
       expect(r.messages.first['kind'], 'agent-event');
       expect(r.messages.first['event']['type'], 'message');
+      expect(r.messages.first['subagentsCatalog'], [
+        'Explore',
+        'general-purpose',
+        'Plan',
+        'statusline-setup',
+      ]);
       expect(
         r.messages.first['event']['message'],
         contains(

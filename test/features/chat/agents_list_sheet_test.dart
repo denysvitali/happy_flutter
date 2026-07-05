@@ -131,6 +131,33 @@ void main() {
         expect(AgentsListSheet.countActiveAgents('test-session'), 1);
       });
 
+      test('available sub-agent catalog appears when no tasks spawned', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'init',
+            'kind': 'agent-event',
+            'event': <String, dynamic>{
+              'type': 'message',
+              'message': 'Available sub-agents: Explore, Plan (+1 more)',
+            },
+            'subagentsCatalog': ['Explore', 'Plan', 'general-purpose'],
+            'seq': 1,
+          },
+        ]);
+
+        final p = AgentsListSheet.computeTaskProgress('test-session');
+        expect(p.total, 0);
+        expect(AgentsListSheet.countActiveAgents('test-session'), 0);
+
+        final agents = AgentsListSheet.extractAgents('test-session');
+        expect(agents, hasLength(3));
+        expect(agents.map((agent) => agent['input']['subagent_type']), [
+          'Explore',
+          'Plan',
+          'general-purpose',
+        ]);
+      });
+
       test(
         '10 parallel agents with interleaved sidechain children: count=10',
         () {

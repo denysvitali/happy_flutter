@@ -720,7 +720,12 @@ void _processMetaOutput({
     final extraCount = agents.length - visibleCount;
     final suffix = extraCount > 0 ? ' (+$extraCount more)' : '';
 
-    addEvent('in', 'message', 'Available sub-agents: $visibleAgents$suffix');
+    addEvent(
+      'in',
+      'message',
+      'Available sub-agents: $visibleAgents$suffix',
+      extras: {'subagentsCatalog': agents},
+    );
   }
 
   if (dataType == DataType.system && subtype == DataType.init) {
@@ -750,14 +755,14 @@ void _processMetaOutput({
       // individual tool_use blocks from inside the sub-agent never cross
       // the wire.  Only meaningful for in-flight subtasks; on completion
       // it is intentionally ignored.
-      final lastToolName = (data['last_tool_name'] ??
-              data['lastToolName']) as String?;
+      final lastToolName =
+          (data['last_tool_name'] ?? data['lastToolName']) as String?;
       // `task_notification` for local_workflow completion carries
       // `transcriptDir` + `runId` pointing at the on-disk transcript.
       // Stamping them on the chip lets the UI deep-link to the actual
       // sub-agent tool calls, which the wire stream never exposes.
-      final transcriptDir = (data['transcript_dir'] ??
-              data['transcriptDir']) as String?;
+      final transcriptDir =
+          (data['transcript_dir'] ?? data['transcriptDir']) as String?;
       final runId = (data['run_id'] ?? data['runId']) as String?;
       final taskExtras = <String, dynamic>{
         'taskStatus': ?status,
@@ -793,7 +798,8 @@ void _processMetaOutput({
       // For in-flight subtasks, surface the current tool in the chip
       // label so the user can see what the sub-agent is doing right now.
       final baseLabel = description ?? summary ?? 'Task $subtype';
-      final label = (subtype == 'task_progress' &&
+      final label =
+          (subtype == 'task_progress' &&
               lastToolName != null &&
               lastToolName.isNotEmpty &&
               !baseLabel.startsWith(lastToolName))

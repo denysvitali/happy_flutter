@@ -101,6 +101,51 @@ class AgentsListSheet extends StatelessWidget {
   static bool _isAgentToolName(String? name) =>
       name == 'Task' || name == 'Agent' || name == 'Workflow';
 
+  static List<String> _collectSubagentsCatalog(List<dynamic> messages) {
+    final seen = <String>{};
+    final agents = <String>[];
+
+    void collect(List<dynamic> msgs) {
+      for (final msg in msgs) {
+        if (msg is! Map<String, dynamic>) continue;
+
+        final catalog = WireParsers.asList(msg['subagentsCatalog']);
+        if (catalog != null) {
+          for (final entry in catalog) {
+            if (entry is String && entry.isNotEmpty && seen.add(entry)) {
+              agents.add(entry);
+            }
+          }
+        }
+
+        final children = msg['children'] as List<dynamic>?;
+        if (children != null && children.isNotEmpty) {
+          collect(children);
+        }
+      }
+    }
+
+    collect(messages);
+    return agents;
+  }
+
+  static List<Map<String, dynamic>> _catalogToAgentMaps(List<String> catalog) {
+    return [
+      for (final agent in catalog)
+        <String, dynamic>{
+          'id': 'subagent-catalog-$agent',
+          'kind': 'tool-call',
+          'name': 'Agent',
+          'state': 'pending',
+          '_subagentsCatalogSynthetic': true,
+          'input': <String, dynamic>{
+            'description': agent,
+            'subagent_type': agent,
+          },
+        },
+    ];
+  }
+
   static Map<String, _TaskEventAgent> _collectTaskEventAgents(
     List<dynamic> messages,
   ) {
@@ -289,7 +334,9 @@ class AgentsListSheet extends StatelessWidget {
     }
 
     collect(messages);
-    return agents;
+    if (agents.isNotEmpty) return agents;
+
+    return _catalogToAgentMaps(_collectSubagentsCatalog(messages));
   }
 
   /// Public alias for [_extractAgents]. The SubAgentStatusBanner uses
@@ -462,7 +509,9 @@ class _AgentTile extends StatelessWidget {
     final childCount = children?.length ?? 0;
     final msgId = agent['id'] as String?;
     final canOpenConversation =
-        msgId != null && agent['_taskEventSynthetic'] != true;
+        msgId != null &&
+        agent['_taskEventSynthetic'] != true &&
+        agent['_subagentsCatalogSynthetic'] != true;
 
     final Color borderColor;
     switch (toolState) {
