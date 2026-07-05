@@ -9,7 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Check CI status** after pushing using GitHub Actions MCP tools — aim for green CI
 - **Never run tests locally** — the full test suite consumes large amounts of RAM and can crash the device. Always rely on CI for test execution.
 - **Always use `rg` (ripgrep)** when searching for code, symbols, or strings
-- **Never create documentation files** (*.md, README updates) unless explicitly requested
+- **Do not create new documentation files** (`*.md`, `README` updates) unless explicitly requested.
+- **Update existing documentation when code changes**: keep `README.md`, affected docs, `AGENTS.md`, and `CLAUDE.md` up to date.
 - **Treat chat send reliability as a P0 surface** — preserve one canonical `localId` across optimistic UI, REST send, retry, socket forwarding, and merge
 - **When touching core messaging code, add or update contract tests first** — repeated identical sends, optimistic replacement, retry identity, and out-of-order delivery are mandatory coverage
 - **This app wraps Claude Code** — happy_flutter is a Flutter mobile client for Claude Code sessions. When the user references "Read", "Write", "Bash", "tool output", "ReadFile", agent tool names, or anything that sounds like the Claude Code agent or CLI itself, they mean the **happy_flutter app's rendering / interaction with that tool**, not the Claude Code harness. Debug Flutter widgets, screens, models, providers, and Sync code — never reach for Claude Code internals.
@@ -344,8 +345,9 @@ Golden screenshots in `test/golden/goldens/` are **showcase images** used in the
 |-----|---------|
 | @docs/SYNC_PATTERNS.md | Sync subscription templates and InvalidateSync usage |
 | @ROADMAP.md | Production bugs, sprint priorities, feature status |
+| @docs/AGENTS.md | Repository-local agent instructions for docs-specific overrides |
 | @docs/ARCHITECTURE.md | Architecture review (Sync god object, known issues) |
-| `docs/` | 15+ internal docs on security, protocol, UI/UX, etc. |
+| `docs/` | 27 internal docs on security, protocol, UI/UX, sync, and operations |
 
 ## Logs & Metrics — Observability
 

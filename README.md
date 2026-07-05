@@ -225,6 +225,8 @@ test/
 
 ## Documentation
 
+- **Agent and workflow guidelines**: `AGENTS.md`, `CLAUDE.md` (mandatory guidance for code+docs updates)
+- **Docs index**: `docs/AGENTS.md` (pointer to canonical docs and book chapters)
 - **Feature Parity**: See `ROADMAP.md` for detailed tracking against React Native implementation
 - **Architecture**: See `docs/ARCHITECTURE.md` for system design and data flow diagrams
 - **Protocol**: See `docs/PROTOCOL.md` for authentication and encryption protocols
