@@ -1157,6 +1157,8 @@ extension SyncMessagingRpc on Sync {
   /// `session-alive` keep-alives — typically within 2 seconds),
   /// or when `lifecycleState` becomes `'running'` (set by the agent
   /// after connecting to Socket.IO — confirms push delivery).
+  /// Returns `false` immediately when the backend has already marked the
+  /// session lifecycle as terminally errored.
   ///
   /// Note: `agentStateVersion` is intentionally NOT checked here
   /// because it persists across daemon restarts and would cause
@@ -1168,6 +1170,14 @@ extension SyncMessagingRpc on Sync {
     // Fast path: already online or lifecycle running
     final session = _sessions[sessionId];
     if (session != null && _isSessionReady(session)) return true;
+    final initialFailure = _sessionLifecycleFailure(session);
+    if (initialFailure != null) {
+      logger.warning(
+        '[sendMessage] waitForAgentReady terminal lifecycle error '
+        'session=$sessionId error=$initialFailure',
+      );
+      return false;
+    }
 
     logger.info(
       '[sendMessage] waitForAgentReady waiting '
@@ -1190,16 +1200,21 @@ extension SyncMessagingRpc on Sync {
       sub?.cancel();
     });
 
-    sub = onDomainChanged
-        .where((d) => d == SyncDomain.sessions)
-        .listen((_) {
-          final s = _sessions[sessionId];
-          if (s != null && _isSessionReady(s) && !completer.isCompleted) {
-            completer.complete(true);
-            timer?.cancel();
-            sub?.cancel();
-          }
-        });
+    sub = onDomainChanged.where((d) => d == SyncDomain.sessions).listen((_) {
+      final s = _sessions[sessionId];
+      final failure = _sessionLifecycleFailure(s);
+      if (failure != null && !completer.isCompleted) {
+        completer.complete(false);
+        timer?.cancel();
+        sub?.cancel();
+        return;
+      }
+      if (s != null && _isSessionReady(s) && !completer.isCompleted) {
+        completer.complete(true);
+        timer?.cancel();
+        sub?.cancel();
+      }
+    });
 
     final ready = await completer.future;
     logger.info(
@@ -1207,5 +1222,12 @@ extension SyncMessagingRpc on Sync {
       'session=$sessionId ready=$ready',
     );
     return ready;
+  }
+
+  String? _sessionLifecycleFailure(Session? session) {
+    if (session == null || !session.hasLifecycleError) return null;
+    final detail = session.metadata?.lifecycleStateError?.trim();
+    if (detail != null && detail.isNotEmpty) return detail;
+    return 'session lifecycle state is ${session.effectiveLifecycleState}';
   }
 }

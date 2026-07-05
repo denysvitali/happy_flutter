@@ -109,6 +109,26 @@ void main() {
       final ready = await sync.waitForAgentReady('s-offline', 100);
       expect(ready, isFalse);
     });
+
+    test(
+      'errored session fails readiness without waiting for timeout',
+      () async {
+        sync.testSessions['s-errored'] = _makeSession(
+          's-errored',
+          lifecycleState: 'errored',
+          lifecycleStateError:
+              'required executable codex is missing from '
+              'Kubernetes session image',
+        );
+
+        final stopwatch = Stopwatch()..start();
+        final ready = await sync.waitForAgentReady('s-errored', 5000);
+        stopwatch.stop();
+
+        expect(ready, isFalse);
+        expect(stopwatch.elapsedMilliseconds, lessThan(1000));
+      },
+    );
   });
 
   // ── Group 2: readiness via _sessionSpawnedAt ─────────────────────────────
@@ -628,6 +648,7 @@ Session _makeSession(
   String? flavor,
   String? lifecycleState,
   int? lifecycleStateSince,
+  String? lifecycleStateError,
   String? modelMode,
 }) {
   final now = DateTime.now().millisecondsSinceEpoch;
@@ -648,6 +669,7 @@ Session _makeSession(
       path: path,
       flavor: flavor,
       lifecycleState: lifecycleState,
+      lifecycleStateError: lifecycleStateError,
       lifecycleStateSince: lifecycleStateSince,
     ),
     modelMode: modelMode,

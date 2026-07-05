@@ -891,17 +891,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final canRestore = session.canAttemptLifecycleRestore;
     final detailText = detail == null ? '' : ' $detail';
     final message = canRestore
-        ? 'The local agent process is gone for this session.$detailText '
+        ? 'The agent process failed or stopped for this session.$detailText '
               'Sending a message will try to restart it before delivery.'
-        : 'The local agent process is gone for this session.$detailText '
+        : 'The agent process failed or stopped for this session.$detailText '
               'No restore target is available, so new messages cannot '
               'be delivered.';
     return _SessionSendIssue(
-      title: 'Session process stopped',
+      title: 'Session agent failed',
       message: message,
       snackBarText:
-          'This session cannot respond because its local '
-          'agent process stopped and no restore target is available. '
+          'This session cannot respond because its '
+          'agent process failed or stopped and no restore target is available. '
           'Start a new session to continue.',
       blocksSend: !canRestore,
     );
