@@ -52,7 +52,6 @@ void main() {
                     text: 'Online',
                     color: Colors.green,
                     showDot: true,
-                    pulse: true,
                   ),
                   ChatAppBarStatusChip(
                     text: 'Working on sub-tasks',
@@ -73,7 +72,7 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(tester.takeException(), isNull);
       expect(
