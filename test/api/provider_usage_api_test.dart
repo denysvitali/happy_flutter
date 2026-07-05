@@ -210,6 +210,62 @@ void main() {
         ),
       );
     });
+
+    test('attaches raw payload when includeDebugPayload is true', () async {
+      final api = KimiUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'usage': <String, dynamic>{'limit': '100', 'used': '30'},
+          }, 200),
+        ),
+      );
+
+      final production = await api.getUsage(
+        apiKey: 'test-key',
+        accountId: 'a1',
+      );
+      expect(production.extra, isEmpty);
+
+      final debug = await api.getUsage(
+        apiKey: 'test-key',
+        accountId: 'a1',
+        includeDebugPayload: true,
+      );
+      expect(debug.extra['endpoint'], '/usages');
+      expect(debug.extra['status'], 200);
+      expect(debug.extra['window_count'], 1);
+      expect(debug.extra['raw_payload'], isA<String>());
+      expect(debug.extra['raw_payload_compact'], contains('"limit"'));
+      expect(
+        debug.extra['request_url'],
+        'https://api.kimi.com/coding/v1/usages',
+      );
+    });
+
+    test('reflects fallback endpoint in debug payload when /usages fails',
+        () async {
+      final api = KimiUsageApi(
+        dio: _dioWith((o) {
+          if (o.uri.path.endsWith('/usages')) {
+            return _json(<String, dynamic>{'error': 'nope'}, 404);
+          }
+          return _json(<String, dynamic>{
+            'usage': <String, dynamic>{'limit': '50', 'used': '10'},
+          }, 200);
+        }),
+      );
+
+      final usage = await api.getUsage(
+        apiKey: 'test-key',
+        accountId: 'a1',
+        includeDebugPayload: true,
+      );
+
+      expect(usage.extra['endpoint'], '/usage');
+      expect(usage.extra['status'], 200);
+      expect(usage.extra['request_url'], endsWith('/usage'));
+      expect(usage.extra['raw_payload'], isA<String>());
+    });
   });
 
   group('MiniMaxUsageApi', () {

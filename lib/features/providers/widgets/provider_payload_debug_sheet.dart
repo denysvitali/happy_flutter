@@ -6,9 +6,10 @@ import '../../../core/models/provider_usage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
+import '../../chat/syntax_highlighter.dart';
 
-/// Modal bottom sheet that renders the raw MiniMax `token_plan/remains`
-/// payload captured by [MiniMaxUsageApi].
+/// Modal bottom sheet that renders the raw provider response payload captured
+/// by the usage API clients ([KimiUsageApi], [MiniMaxUsageApi], [ZaiUsageApi]).
 ///
 /// The raw payload is delivered through [ProviderUsage.extra] under the keys
 /// `raw_payload` (pretty) and `raw_payload_compact` (single-line). We prefer
@@ -67,7 +68,7 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      'MiniMax raw response',
+                      '${_providerDisplayName(usage.type)} raw response',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -227,21 +228,32 @@ class _SelectableJson extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final brightness = Theme.of(context).brightness;
     return Scrollbar(
-      child: SingleChildScrollView(
-        child: SelectableText(
-          text,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontFamily: 'monospace',
+      child: SelectionArea(
+        child: SingleChildScrollView(
+          child: SyntaxHighlighter(
+            code: text,
+            language: 'json',
+            isDarkMode: brightness == Brightness.dark,
             fontSize: AppFontSize.sm,
-            color: colorScheme.onSurface,
+            lineHeight: AppLineHeight.relaxed,
           ),
         ),
       ),
     );
   }
+}
+
+/// Returns the human-readable vendor name for [type].
+String _providerDisplayName(ProviderUsageType type) {
+  return switch (type) {
+    ProviderUsageType.kimi => 'Kimi',
+    ProviderUsageType.minimax => 'MiniMax',
+    ProviderUsageType.zai => 'Z.AI',
+    ProviderUsageType.claudeCode => 'Claude Code',
+    ProviderUsageType.codex => 'Codex',
+  };
 }
 
 /// Copies [text] using the system clipboard. Wrapped here so the bottom sheet

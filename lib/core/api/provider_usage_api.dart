@@ -45,25 +45,40 @@ class KimiUsageApi {
   final Dio _dio;
 
   /// Fetches usage for the account identified by [apiKey].
+  ///
+  /// When [includeDebugPayload] is true (developer / debug mode), the raw
+  /// response body is surfaced via [ProviderUsage.extra] under
+  /// `'raw_payload'` / `'raw_payload_compact'` so the in-app debug viewer can
+  /// inspect it without re-issuing a request.
   Future<ProviderUsage> getUsage({
     required String apiKey,
     required String accountId,
     String? accountName,
     String baseUrl = kimiDefaultBaseUrl,
+    bool includeDebugPayload = false,
   }) async {
-    final payload = await _fetchUsage(apiKey, baseUrl);
+    final fetch = await _fetchUsageRaw(apiKey, baseUrl);
+    final payload = fetch.body;
+    final windows = _parseWindows(payload);
     return ProviderUsage(
       accountId: accountId,
       type: ProviderUsageType.kimi,
       accountName: accountName,
-      windows: _parseWindows(payload),
+      windows: windows,
+      extra: includeDebugPayload
+          ? _buildExtra(fetch, windows)
+          : const <String, dynamic>{},
     );
   }
 
   /// GETs `{base}/usages`, falling back to `{base}/usage` on a non-200 — some
   /// gateways expose the singular path. Throws with the server's error detail
   /// if both fail.
-  Future<Map<String, dynamic>> _fetchUsage(
+  ///
+  /// Returns the decoded body together with the raw pretty/compact JSON strings
+  /// so the debug surface can display the original response without
+  /// re-encoding.
+  Future<_KimiFetch> _fetchUsageRaw(
     String apiKey,
     String baseUrl,
   ) async {
@@ -75,16 +90,51 @@ class KimiUsageApi {
       '$root/usages',
       options: _authOptions(apiKey),
     );
-    if (primary.statusCode == 200) return _asMap(primary.data, 'Kimi');
+    if (primary.statusCode == 200) {
+      return _KimiFetch(
+        response: primary,
+        statusCode: primary.statusCode ?? 0,
+        body: _asMap(primary.data, 'Kimi'),
+        prettyBody: _safeStringify(primary.data),
+        compactBody: _compactStringify(primary.data),
+        endpoint: '/usages',
+      );
+    }
 
     final fallback = await _dio.get<dynamic>(
       '$root/usage',
       options: _authOptions(apiKey),
     );
-    if (fallback.statusCode == 200) return _asMap(fallback.data, 'Kimi');
+    if (fallback.statusCode == 200) {
+      return _KimiFetch(
+        response: fallback,
+        statusCode: fallback.statusCode ?? 0,
+        body: _asMap(fallback.data, 'Kimi'),
+        prettyBody: _safeStringify(fallback.data),
+        compactBody: _compactStringify(fallback.data),
+        endpoint: '/usage',
+      );
+    }
 
     // Surface the primary failure — it carries the canonical error body.
     _throwHttpError('Kimi', 'usage', primary);
+  }
+
+  /// Builds the debug `extra` map carried on [ProviderUsage] — only populated
+  /// when a 2xx response arrived so we never leak credential error bodies.
+  Map<String, dynamic> _buildExtra(
+    _KimiFetch fetch,
+    List<ProviderUsageWindow> windows,
+  ) {
+    if (fetch.statusCode != 200) return const <String, dynamic>{};
+    return <String, dynamic>{
+      'endpoint': fetch.endpoint,
+      'status': fetch.statusCode,
+      'request_url': fetch.response.requestOptions.uri.toString(),
+      'window_count': windows.length,
+      'raw_payload': fetch.prettyBody,
+      'raw_payload_compact': fetch.compactBody,
+    };
   }
 
   Options _authOptions(String apiKey) => Options(
@@ -779,6 +829,26 @@ class ZaiUsageApi {
     }
     return null;
   }
+}
+
+/// Encapsulates one Kimi HTTP exchange so the parser and the debug surface
+/// can share the same body without re-decoding.
+class _KimiFetch {
+  const _KimiFetch({
+    required this.response,
+    required this.statusCode,
+    required this.body,
+    required this.prettyBody,
+    required this.compactBody,
+    required this.endpoint,
+  });
+
+  final Response<dynamic> response;
+  final int statusCode;
+  final Map<String, dynamic> body;
+  final String prettyBody;
+  final String compactBody;
+  final String endpoint;
 }
 
 /// Encapsulates one Z.AI HTTP exchange so the parser and the debug surface

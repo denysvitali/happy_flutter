@@ -72,7 +72,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   }
 
   Future<ProviderUsage> _fetchAccountUsage(ProviderAccount account) async {
-    // Only attach the raw MiniMax payload when the user has opted into
+    // Only attach the raw provider payload when the user has opted into
     // developer mode — otherwise `extra` stays empty so production users never
     // see the debug section in the card.
     final includeDebug = ref.read(
@@ -88,6 +88,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
           baseUrl: c.baseUrl,
           accountId: account.id,
           accountName: account.name,
+          includeDebugPayload: includeDebug,
         ),
         miniMax: (c) => _miniMaxApi.getUsage(
           apiKey: c.apiKey.isNotEmpty ? c.apiKey : c.cookie,
