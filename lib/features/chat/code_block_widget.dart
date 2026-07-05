@@ -165,46 +165,53 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   }
 
   /// Builds the horizontally (and optionally vertically) scrollable code area.
+  ///
+  /// Line numbers are pinned to the left: they scroll vertically with the code
+  /// via the shared [_vController], but they are *not* inside the horizontal
+  /// scroll view, so they stay visible while long lines scroll sideways.
   Widget _buildScrollableCode(bool isDark, CodeViewerTheme codeViewer) {
-    final verticalScroll = SingleChildScrollView(
-      controller: _vController,
-      primary: false,
-      physics: const ClampingScrollPhysics(),
-      scrollDirection: Axis.vertical,
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: _buildCodeRow(isDark, codeViewer),
-    );
-
-    return SingleChildScrollView(
-      controller: _hController,
-      primary: false,
-      scrollDirection: Axis.horizontal,
-      child: verticalScroll,
-    );
-  }
-
-  Widget _buildCodeRow(bool isDark, CodeViewerTheme codeViewer) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.showLineNumbers)
-          _LineNumbers(
-            lineCount: _lineCount,
-            fontSize: widget.fontSize,
-            lineHeight: _lineHeight,
-            codeViewer: codeViewer,
+          SingleChildScrollView(
+            controller: _vController,
+            primary: false,
+            physics: const ClampingScrollPhysics(),
+            scrollDirection: Axis.vertical,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: _LineNumbers(
+              lineCount: _lineCount,
+              fontSize: widget.fontSize,
+              lineHeight: _lineHeight,
+              codeViewer: codeViewer,
+            ),
           ),
-        Padding(
-          padding: EdgeInsets.only(
-            left: widget.showLineNumbers ? AppSpacing.md : AppSpacing.lg,
-            right: AppSpacing.lg,
-          ),
-          child: SyntaxHighlighter(
-            code: _displayCode,
-            language: widget.language,
-            isDarkMode: isDark,
-            fontSize: widget.fontSize,
-            lineHeight: _lineHeight,
+        Expanded(
+          child: SingleChildScrollView(
+            controller: _hController,
+            primary: false,
+            scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              controller: _vController,
+              primary: false,
+              physics: const ClampingScrollPhysics(),
+              scrollDirection: Axis.vertical,
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: widget.showLineNumbers ? AppSpacing.md : AppSpacing.lg,
+                  right: AppSpacing.lg,
+                ),
+                child: SyntaxHighlighter(
+                  code: _displayCode,
+                  language: widget.language,
+                  isDarkMode: isDark,
+                  fontSize: widget.fontSize,
+                  lineHeight: _lineHeight,
+                ),
+              ),
+            ),
           ),
         ),
       ],

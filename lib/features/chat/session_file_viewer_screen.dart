@@ -66,7 +66,8 @@ class SessionFileViewerScreen extends ConsumerStatefulWidget {
       _SessionFileViewerScreenState();
 }
 
-class _SessionFileViewerScreenState extends ConsumerState<SessionFileViewerScreen> {
+class _SessionFileViewerScreenState
+    extends ConsumerState<SessionFileViewerScreen> {
   String? _content;
   int _lineCount = 0;
   String? _error;
@@ -76,15 +77,32 @@ class _SessionFileViewerScreenState extends ConsumerState<SessionFileViewerScree
   /// Current view mode (only meaningful for markdown files).
   _ViewMode _viewMode = _ViewMode.preview;
 
+  /// Vertical scroll controller shared between the line-number gutter and the
+  /// code pane so both stay vertically aligned.
+  late final ScrollController _vController;
+
+  /// Horizontal scroll controller for the code pane only (line numbers are
+  /// pinned and do not scroll horizontally).
+  late final ScrollController _hController;
+
   @override
   void initState() {
     super.initState();
+    _vController = ScrollController();
+    _hController = ScrollController();
     if (widget.content != null && widget.content!.isNotEmpty) {
       _content = widget.content;
       _lineCount = '\n'.allMatches(widget.content!).length + 1;
     } else {
       _fetchFile();
     }
+  }
+
+  @override
+  void dispose() {
+    _vController.dispose();
+    _hController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchFile() async {
@@ -285,40 +303,61 @@ class _SessionFileViewerScreenState extends ConsumerState<SessionFileViewerScree
       );
     }
 
-    // Syntax-highlighted code view
+    // Syntax-highlighted code view.
+    //
+    // Line numbers live in their own vertical scroll view on the left and share
+    // [_vController] with the code pane so they scroll vertically in sync. The
+    // code pane is wrapped in a horizontal scroll view, so long lines scroll
+    // sideways without carrying the gutter with them.
     final isDark = theme.brightness == Brightness.dark;
     const fontSize = AppFontSize.md;
     const lineHeight = fontSize * 1.5;
     return Scrollbar(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _LineNumbers(
-                lineCount: _lineCount,
-                fontSize: fontSize,
-                lineHeight: lineHeight,
-                isDark: isDark,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.md,
-                  right: AppSpacing.lg,
-                ),
-                child: SyntaxHighlighter(
-                  code: _content!,
-                  language: _language,
-                  isDarkMode: isDark,
-                  fontSize: fontSize,
-                  lineHeight: lineHeight,
-                ),
-              ),
-            ],
+      controller: _vController,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            controller: _vController,
+            primary: false,
+            physics: const ClampingScrollPhysics(),
+            scrollDirection: Axis.vertical,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: _LineNumbers(
+              lineCount: _lineCount,
+              fontSize: fontSize,
+              lineHeight: lineHeight,
+              isDark: isDark,
+            ),
           ),
-        ),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _hController,
+              primary: false,
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                controller: _vController,
+                primary: false,
+                physics: const ClampingScrollPhysics(),
+                scrollDirection: Axis.vertical,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.md,
+                    right: AppSpacing.lg,
+                  ),
+                  child: SyntaxHighlighter(
+                    code: _content!,
+                    language: _language,
+                    isDarkMode: isDark,
+                    fontSize: fontSize,
+                    lineHeight: lineHeight,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
