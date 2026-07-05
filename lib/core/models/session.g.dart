@@ -16,7 +16,9 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   machineId: _asApiStringNullable(json['machineId']),
   claudeSessionId: _asApiStringNullable(json['claudeSessionId']),
   tools: _asApiStringListNullable(json['tools']),
-  slashCommands: _asApiStringListNullable(json['slashCommands']),
+  slashCommands: _asApiStringListNullable(
+    _readSlashCommands(json, 'slashCommands'),
+  ),
   homeDir: _asApiStringNullable(json['homeDir']),
   happyHomeDir: _asApiStringNullable(json['happyHomeDir']),
   hostPid: _asApiIntNullable(json['hostPid']),

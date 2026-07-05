@@ -42,6 +42,11 @@ const List<SlashCommand> slashCommands = [
     icon: Icons.rate_review_outlined,
   ),
   SlashCommand(
+    command: 'goal',
+    description: 'Set or update the current goal',
+    icon: Icons.flag_outlined,
+  ),
+  SlashCommand(
     command: 'explain',
     description: 'Explain code',
     icon: Icons.info_outline,
@@ -62,3 +67,32 @@ const List<SlashCommand> slashCommands = [
     icon: Icons.repeat,
   ),
 ];
+
+/// Merges built-in slash commands with the commands advertised by the
+/// running agent in session metadata.
+List<SlashCommand> buildSlashCommands(Iterable<String> availableCommands) {
+  final merged = <String, SlashCommand>{};
+  for (final command in slashCommands) {
+    merged[command.command] = command;
+  }
+  for (final raw in availableCommands) {
+    final command = normalizeSlashCommand(raw);
+    if (command == null || merged.containsKey(command)) continue;
+    merged[command] = SlashCommand(
+      command: command,
+      description: 'Agent slash command',
+      icon: Icons.terminal_outlined,
+    );
+  }
+  return merged.values.toList(growable: false);
+}
+
+/// Converts `/goal` and `goal` to the same stored command name.
+String? normalizeSlashCommand(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  final withoutSlash = trimmed.startsWith('/')
+      ? trimmed.substring(1).trim()
+      : trimmed;
+  return withoutSlash.isEmpty ? null : withoutSlash;
+}

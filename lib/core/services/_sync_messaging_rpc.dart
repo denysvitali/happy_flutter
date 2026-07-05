@@ -491,13 +491,21 @@ extension SyncMessagingRpc on Sync {
           session.metadata?.flavor ??
           _sessionSpawnedAgent[sessionId] ??
           'claude';
+      final modelMode = _normalizeModelModeForAgent(
+        session.modelMode,
+        sessionAgent,
+      );
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
         agent: sessionAgent,
         permissionMode: session.permissionMode,
-        model: _getModelOverride(profile: spawnResult.profile),
+        model: _getModelOverride(
+          agent: sessionAgent,
+          profile: spawnResult.profile,
+          modelMode: modelMode,
+        ),
         environmentVariables: spawnResult.envVars,
       );
       final result = await _typedMachineRPC(
@@ -508,6 +516,12 @@ extension SyncMessagingRpc on Sync {
         timeout: const Duration(seconds: 60),
       );
       if (result.type == 'success') {
+        _registerSpawn(
+          result.sessionId ?? sessionId,
+          profileId: spawnResult.profile?.id,
+          modelMode: modelMode,
+          agent: sessionAgent,
+        );
         logger.info(
           '[permission] auto-restore succeeded '
           'session=$sessionId',

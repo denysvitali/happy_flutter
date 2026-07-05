@@ -46,6 +46,10 @@ List<String>? _asApiStringListNullable(dynamic value) {
   return strings;
 }
 
+Object? _readSlashCommands(Map<dynamic, dynamic> json, String key) {
+  return json[key] ?? json['slash_commands'];
+}
+
 Summary? _summaryFromJson(dynamic value) {
   if (value is String) {
     if (value.isEmpty) return null;
@@ -154,7 +158,8 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiStringNullable) String? machineId,
     @JsonKey(fromJson: _asApiStringNullable) String? claudeSessionId,
     @JsonKey(fromJson: _asApiStringListNullable) List<String>? tools,
-    @JsonKey(fromJson: _asApiStringListNullable) List<String>? slashCommands,
+    @JsonKey(readValue: _readSlashCommands, fromJson: _asApiStringListNullable)
+    List<String>? slashCommands,
     @JsonKey(fromJson: _asApiStringNullable) String? homeDir,
     @JsonKey(fromJson: _asApiStringNullable) String? happyHomeDir,
     @JsonKey(fromJson: _asApiIntNullable) int? hostPid,
