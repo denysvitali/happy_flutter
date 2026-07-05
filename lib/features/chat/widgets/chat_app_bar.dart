@@ -378,6 +378,11 @@ class _StatusRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final chipKey = ValueKey(
+      statusChips
+          .map((chip) => '${chip.text}:${chip.icon.codePoint}')
+          .join('|'),
+    );
     return AnimatedSwitcher(
       duration: AppDuration.normal,
       switchInCurve: Curves.easeOut,
@@ -395,30 +400,41 @@ class _StatusRow extends StatelessWidget {
         );
       },
       child: statusChips.isEmpty
-          ? const SizedBox.shrink()
-          : Wrap(
-              key: ValueKey(
-                statusChips
-                    .map((chip) => '${chip.text}:${chip.icon.codePoint}')
-                    .join('|'),
+          ? const SizedBox.shrink(key: ValueKey('empty-status-row'))
+          : SizedBox(
+              key: chipKey,
+              height: 22,
+              child: ClipRect(
+                child: Row(
+                  children: [
+                    for (final (index, chip) in statusChips.indexed) ...[
+                      if (index > 0) const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        fit: FlexFit.loose,
+                        flex: chip.text.length > 18 ? 2 : 1,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: 1,
+                          child: SessionHeaderChip(
+                            text: chip.text,
+                            tooltip: chip.text,
+                            leading: chip.showDot
+                                ? AppStatusDot(
+                                    color: chip.color,
+                                    pulse: chip.pulse,
+                                    size: 6,
+                                  )
+                                : Icon(chip.icon, size: 11, color: chip.color),
+                            textColor: chip.color,
+                            backgroundColor: chip.color.withValues(alpha: 0.08),
+                            borderColor: chip.color.withValues(alpha: 0.16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xxs,
-              children: statusChips.map((chip) {
-                return SessionHeaderChip(
-                  text: chip.text,
-                  leading: chip.showDot
-                      ? AppStatusDot(
-                          color: chip.color,
-                          pulse: chip.pulse,
-                          size: 6,
-                        )
-                      : Icon(chip.icon, size: 11, color: chip.color),
-                  textColor: chip.color,
-                  backgroundColor: chip.color.withValues(alpha: 0.08),
-                  borderColor: chip.color.withValues(alpha: 0.16),
-                );
-              }).toList(),
             ),
     );
   }
@@ -481,10 +497,7 @@ class _AppBarAction extends StatelessWidget {
 /// - Green check circle             → all tasks finished successfully
 /// - No badge                       → no tasks in this session
 class _AgentsListButton extends StatelessWidget {
-  const _AgentsListButton({
-    required this.progress,
-    required this.sessionId,
-  });
+  const _AgentsListButton({required this.progress, required this.sessionId});
 
   final TaskProgress progress;
   final String sessionId;
@@ -534,10 +547,7 @@ class _AgentsListButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: running > 0 ? cs.error : AppColors.success,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: cs.surface,
-                  width: 1.5,
-                ),
+                border: Border.all(color: cs.surface, width: 1.5),
               ),
               alignment: Alignment.center,
               child: running > 0
@@ -754,9 +764,11 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
   final sendIssue = inputs.sendIssue;
   final lifecycleState = session.effectiveLifecycleState;
   final lifecycleSince = session.metadata?.lifecycleStateSince;
-  final lifecycleIsRecent = lifecycleSince != null &&
+  final lifecycleIsRecent =
+      lifecycleSince != null &&
       DateTime.now().millisecondsSinceEpoch - lifecycleSince < 120000;
-  final isConnecting = !inputs.isReady &&
+  final isConnecting =
+      !inputs.isReady &&
       lifecycleIsRecent &&
       (lifecycleState == 'starting' || lifecycleState == 'running');
 
@@ -823,7 +835,8 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
     const subTaskSwitchMs = 30000;
     final lastVisibleCreatedAt = inputs.lastVisibleNonSidechainCreatedAt;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final stale = lastVisibleCreatedAt > 0 &&
+    final stale =
+        lastVisibleCreatedAt > 0 &&
         nowMs - lastVisibleCreatedAt > subTaskSwitchMs;
     if (session.thinking) {
       chips.add(
@@ -843,7 +856,8 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
       // stale visible tail means hidden sub-task work.
       const hiddenActivityWindowMs = 60000;
       final lastStreamActivity = inputs.lastMessageStreamActivityAt;
-      final hiddenActivity = lastStreamActivity > 0 &&
+      final hiddenActivity =
+          lastStreamActivity > 0 &&
           nowMs - lastStreamActivity <= hiddenActivityWindowMs &&
           stale;
       if (hiddenActivity) {

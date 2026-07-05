@@ -1,14 +1,94 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_app_bar.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 
+Session _session({int activeAt = 0, bool thinking = false}) =>
+    Session.fromJson(<String, dynamic>{
+      'id': 's1',
+      'seq': 1,
+      'createdAt': 1,
+      'updatedAt': 1,
+      'active': true,
+      'activeAt': activeAt,
+      'metadataVersion': 1,
+      'agentStateVersion': 1,
+      'thinking': thinking,
+      'archived': false,
+      'metadata': <String, dynamic>{
+        'machineId': null,
+        'lifecycleState': 'running',
+        'lifecycleStateSince': null,
+      },
+      'agentState': null,
+      'presence': 'online',
+    });
+
 void main() {
+  group('ChatAppBar layout', () {
+    testWidgets('keeps long status chips on one constrained line', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 160);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              appBar: ChatAppBar(
+                session: _session(),
+                sessionTitle: 'Session with a very long generated title',
+                sessionId: 's1',
+                statusChips: const [
+                  ChatAppBarStatusChip(
+                    text: 'Online',
+                    color: Colors.green,
+                    showDot: true,
+                    pulse: true,
+                  ),
+                  ChatAppBarStatusChip(
+                    text: 'Working on sub-tasks',
+                    color: Colors.blue,
+                    icon: Icons.account_tree_outlined,
+                  ),
+                  ChatAppBarStatusChip(
+                    text: 'GPT 5.5 Codex Experimental Ultra Long Reasoning Max',
+                    color: Colors.grey,
+                    icon: Icons.tune_rounded,
+                  ),
+                ],
+                onMenuTap: () {},
+                onInfoTap: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('GPT 5.5 Codex Experimental Ultra Long Reasoning Max'),
+        findsOneWidget,
+      );
+    });
+  });
+
   group('buildChatMachineVitals', () {
     test('returns null when machineId is null', () {
-      expect(buildChatMachineVitals(machineId: null, daemonState: null), isNull);
+      expect(
+        buildChatMachineVitals(machineId: null, daemonState: null),
+        isNull,
+      );
     });
 
     test('returns null when machineId is empty', () {
@@ -57,8 +137,9 @@ void main() {
       );
     }
 
-    testWidgets('returns "just now" for active timestamps under 1 minute old',
-        (tester) async {
+    testWidgets('returns "just now" for active timestamps under 1 minute old', (
+      tester,
+    ) async {
       final now = DateTime.now();
       await tester.pumpWidget(_wrap(now.millisecondsSinceEpoch));
       // The l10n string for chatLastSeenJustNow is non-empty in the
@@ -117,32 +198,34 @@ void main() {
           'presence': 'online',
         });
 
-    testWidgets('returns "Online" chip when session is ready and not thinking',
-        (tester) async {
-      final inputs = await _runInHost(
-        tester,
-        (cs) => ChatStatusChipsInputs(
-          session: _onlineSession(),
-          isReady: true,
-          hasRequests: false,
-          sendIssue: null,
-          latestUserMessage: null,
-          lastVisibleNonSidechainCreatedAt: 0,
-          debugMaxSeq: -1,
-          modelMode: ChatModelMode.defaultModel,
-        ),
-      );
-      final context = tester.element(find.byType(Text));
-      final chips = buildChatStatusChips(
-        context: context,
-        colorScheme: Theme.of(context).colorScheme,
-        inputs: inputs,
-      );
-      expect(chips, hasLength(1));
-      expect(chips.first.text, 'Online');
-      expect(chips.first.showDot, isTrue);
-      expect(chips.first.pulse, isTrue);
-    });
+    testWidgets(
+      'returns "Online" chip when session is ready and not thinking',
+      (tester) async {
+        final inputs = await _runInHost(
+          tester,
+          (cs) => ChatStatusChipsInputs(
+            session: _onlineSession(),
+            isReady: true,
+            hasRequests: false,
+            sendIssue: null,
+            latestUserMessage: null,
+            lastVisibleNonSidechainCreatedAt: 0,
+            debugMaxSeq: -1,
+            modelMode: ChatModelMode.defaultModel,
+          ),
+        );
+        final context = tester.element(find.byType(Text));
+        final chips = buildChatStatusChips(
+          context: context,
+          colorScheme: Theme.of(context).colorScheme,
+          inputs: inputs,
+        );
+        expect(chips, hasLength(1));
+        expect(chips.first.text, 'Online');
+        expect(chips.first.showDot, isTrue);
+        expect(chips.first.pulse, isTrue);
+      },
+    );
 
     testWidgets(
       'returns "Offline" + last-seen chips when not ready and not connecting',
@@ -200,8 +283,9 @@ void main() {
       expect(chips.first.text, 'Agent failed');
     });
 
-    testWidgets('appends "Approval needed" chip when hasRequests is true',
-        (tester) async {
+    testWidgets('appends "Approval needed" chip when hasRequests is true', (
+      tester,
+    ) async {
       final inputs = await _runInHost(
         tester,
         (cs) => ChatStatusChipsInputs(
@@ -227,117 +311,126 @@ void main() {
     });
 
     testWidgets(
-        'shows "Thinking" chip when thinking and visible tail is fresh',
-        (tester) async {
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final inputs = await _runInHost(
-        tester,
-        (cs) => ChatStatusChipsInputs(
-          session: _onlineSession(thinking: true),
-          isReady: true,
-          hasRequests: false,
-          sendIssue: null,
-          latestUserMessage: null,
-          lastVisibleNonSidechainCreatedAt: nowMs,
-          debugMaxSeq: -1,
-          modelMode: ChatModelMode.defaultModel,
-        ),
-      );
-      final context = tester.element(find.byType(Text));
-      final chips = buildChatStatusChips(
-        context: context,
-        colorScheme: Theme.of(context).colorScheme,
-        inputs: inputs,
-      );
-      expect(chips.map((c) => c.text), contains('Thinking'));
-    });
+      'shows "Thinking" chip when thinking and visible tail is fresh',
+      (tester) async {
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final inputs = await _runInHost(
+          tester,
+          (cs) => ChatStatusChipsInputs(
+            session: _onlineSession(thinking: true),
+            isReady: true,
+            hasRequests: false,
+            sendIssue: null,
+            latestUserMessage: null,
+            lastVisibleNonSidechainCreatedAt: nowMs,
+            debugMaxSeq: -1,
+            modelMode: ChatModelMode.defaultModel,
+          ),
+        );
+        final context = tester.element(find.byType(Text));
+        final chips = buildChatStatusChips(
+          context: context,
+          colorScheme: Theme.of(context).colorScheme,
+          inputs: inputs,
+        );
+        expect(chips.map((c) => c.text), contains('Thinking'));
+      },
+    );
 
     testWidgets(
-        'shows "Working on sub-tasks" when thinking and visible tail is stale',
-        (tester) async {
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final inputs = await _runInHost(
-        tester,
-        (cs) => ChatStatusChipsInputs(
-          session: _onlineSession(thinking: true),
-          isReady: true,
-          hasRequests: false,
-          sendIssue: null,
-          latestUserMessage: null,
-          lastVisibleNonSidechainCreatedAt: nowMs - 60000,
-          debugMaxSeq: -1,
-          modelMode: ChatModelMode.defaultModel,
-        ),
-      );
-      final context = tester.element(find.byType(Text));
-      final chips = buildChatStatusChips(
-        context: context,
-        colorScheme: Theme.of(context).colorScheme,
-        inputs: inputs,
-      );
-      expect(chips.map((c) => c.text), contains('Working on sub-tasks'));
-    });
+      'shows "Working on sub-tasks" when thinking and visible tail is stale',
+      (tester) async {
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final inputs = await _runInHost(
+          tester,
+          (cs) => ChatStatusChipsInputs(
+            session: _onlineSession(thinking: true),
+            isReady: true,
+            hasRequests: false,
+            sendIssue: null,
+            latestUserMessage: null,
+            lastVisibleNonSidechainCreatedAt: nowMs - 60000,
+            debugMaxSeq: -1,
+            modelMode: ChatModelMode.defaultModel,
+          ),
+        );
+        final context = tester.element(find.byType(Text));
+        final chips = buildChatStatusChips(
+          context: context,
+          colorScheme: Theme.of(context).colorScheme,
+          inputs: inputs,
+        );
+        expect(chips.map((c) => c.text), contains('Working on sub-tasks'));
+      },
+    );
 
     // Regression: session c04ffa4d — during a long async sub-agent
     // fan-out the thinking flag went stale (false) while sidechain
     // children kept merging into collapsed Task rows. The chips must
     // surface the hidden work from message-stream activity alone.
     testWidgets(
-        'shows "Working on sub-tasks" without thinking flag when stream is '
-        'active but visible tail is stale', (tester) async {
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final inputs = await _runInHost(
-        tester,
-        (cs) => ChatStatusChipsInputs(
-          session: _onlineSession(),
-          isReady: true,
-          hasRequests: false,
-          sendIssue: null,
-          latestUserMessage: null,
-          lastVisibleNonSidechainCreatedAt: nowMs - 60000,
-          debugMaxSeq: -1,
-          modelMode: ChatModelMode.defaultModel,
-          lastMessageStreamActivityAt: nowMs - 5000,
-        ),
-      );
-      final context = tester.element(find.byType(Text));
-      final chips = buildChatStatusChips(
-        context: context,
-        colorScheme: Theme.of(context).colorScheme,
-        inputs: inputs,
-      );
-      expect(chips.map((c) => c.text), contains('Working on sub-tasks'));
-    });
+      'shows "Working on sub-tasks" without thinking flag when stream is '
+      'active but visible tail is stale',
+      (tester) async {
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final inputs = await _runInHost(
+          tester,
+          (cs) => ChatStatusChipsInputs(
+            session: _onlineSession(),
+            isReady: true,
+            hasRequests: false,
+            sendIssue: null,
+            latestUserMessage: null,
+            lastVisibleNonSidechainCreatedAt: nowMs - 60000,
+            debugMaxSeq: -1,
+            modelMode: ChatModelMode.defaultModel,
+            lastMessageStreamActivityAt: nowMs - 5000,
+          ),
+        );
+        final context = tester.element(find.byType(Text));
+        final chips = buildChatStatusChips(
+          context: context,
+          colorScheme: Theme.of(context).colorScheme,
+          inputs: inputs,
+        );
+        expect(chips.map((c) => c.text), contains('Working on sub-tasks'));
+      },
+    );
 
     testWidgets(
-        'no sub-task chip when stream is active but visible tail is fresh',
-        (tester) async {
-      final nowMs = DateTime.now().millisecondsSinceEpoch;
-      final inputs = await _runInHost(
-        tester,
-        (cs) => ChatStatusChipsInputs(
-          session: _onlineSession(),
-          isReady: true,
-          hasRequests: false,
-          sendIssue: null,
-          latestUserMessage: null,
-          lastVisibleNonSidechainCreatedAt: nowMs - 1000,
-          debugMaxSeq: -1,
-          modelMode: ChatModelMode.defaultModel,
-          lastMessageStreamActivityAt: nowMs - 5000,
-        ),
-      );
-      final context = tester.element(find.byType(Text));
-      final chips = buildChatStatusChips(
-        context: context,
-        colorScheme: Theme.of(context).colorScheme,
-        inputs: inputs,
-      );
-      expect(chips.map((c) => c.text), isNot(contains('Working on sub-tasks')));
-    });
+      'no sub-task chip when stream is active but visible tail is fresh',
+      (tester) async {
+        final nowMs = DateTime.now().millisecondsSinceEpoch;
+        final inputs = await _runInHost(
+          tester,
+          (cs) => ChatStatusChipsInputs(
+            session: _onlineSession(),
+            isReady: true,
+            hasRequests: false,
+            sendIssue: null,
+            latestUserMessage: null,
+            lastVisibleNonSidechainCreatedAt: nowMs - 1000,
+            debugMaxSeq: -1,
+            modelMode: ChatModelMode.defaultModel,
+            lastMessageStreamActivityAt: nowMs - 5000,
+          ),
+        );
+        final context = tester.element(find.byType(Text));
+        final chips = buildChatStatusChips(
+          context: context,
+          colorScheme: Theme.of(context).colorScheme,
+          inputs: inputs,
+        );
+        expect(
+          chips.map((c) => c.text),
+          isNot(contains('Working on sub-tasks')),
+        );
+      },
+    );
 
-    testWidgets('no sub-task chip when stream activity itself is stale',
-        (tester) async {
+    testWidgets('no sub-task chip when stream activity itself is stale', (
+      tester,
+    ) async {
       final nowMs = DateTime.now().millisecondsSinceEpoch;
       final inputs = await _runInHost(
         tester,
@@ -362,8 +455,9 @@ void main() {
       expect(chips.map((c) => c.text), isNot(contains('Working on sub-tasks')));
     });
 
-    testWidgets('appends a model chip when modelMode is not default',
-        (tester) async {
+    testWidgets('appends a model chip when modelMode is not default', (
+      tester,
+    ) async {
       final inputs = await _runInHost(
         tester,
         (cs) => ChatStatusChipsInputs(
