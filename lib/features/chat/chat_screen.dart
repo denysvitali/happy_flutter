@@ -1042,7 +1042,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         latestUserMessage: _latestUserStatusMessage,
         lastVisibleNonSidechainCreatedAt: _lastVisibleNonSidechainCreatedAt,
         debugMaxSeq: _debugMaxSeq,
-        modelMode: _modelMode,
+        modelMode: resolveSessionDisplayModel(session.modelMode),
         lastMessageStreamActivityAt: _lastMessageStreamActivityAt,
       ),
     );

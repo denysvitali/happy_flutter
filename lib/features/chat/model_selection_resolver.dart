@@ -183,6 +183,18 @@ bool profileOwnsRawCodexModel(AIBackendProfile? profile) {
   return baseUrl != null && !_isOfficialOpenAIBaseUrl(baseUrl);
 }
 
+/// Resolves the model label shown as current session status.
+///
+/// This intentionally does not normalize by session flavor. The picker uses
+/// normalization to reject invalid future selections, but the header is an
+/// audit of the model already recorded on the session and should show raw
+/// provider-owned/custom model strings when present.
+ChatModelMode resolveSessionDisplayModel(String? sessionModelMode) {
+  final raw = sessionModelMode?.trim();
+  if (raw == null || raw.isEmpty) return ChatModelMode.defaultModel;
+  return ChatModelMode.fromString(raw);
+}
+
 String? _envValue(AIBackendProfile profile, String name) {
   for (final env in profile.environmentVariables) {
     if (env.name != name) continue;

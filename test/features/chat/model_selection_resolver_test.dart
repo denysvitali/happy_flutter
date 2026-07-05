@@ -5,6 +5,32 @@ import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
 
 void main() {
+  group('resolveSessionDisplayModel', () {
+    test('hides absent or default session model', () {
+      expect(resolveSessionDisplayModel(null), ChatModelMode.defaultModel);
+      expect(resolveSessionDisplayModel(''), ChatModelMode.defaultModel);
+      expect(
+        resolveSessionDisplayModel(' default '),
+        ChatModelMode.defaultModel,
+      );
+    });
+
+    test('parses the model recorded on the session', () {
+      expect(resolveSessionDisplayModel('sonnet'), ChatModelMode.sonnet);
+
+      final codex = resolveSessionDisplayModel('gpt-5.5:medium');
+      expect(codex.modeString, 'gpt-5.5:medium');
+      expect(codex.label, 'GPT 5.5 Medium');
+    });
+
+    test('preserves raw provider-owned session models', () {
+      final model = resolveSessionDisplayModel('GLM-5');
+
+      expect(model.modeString, 'GLM-5');
+      expect(model.label, 'GLM-5');
+    });
+  });
+
   group('resolveModelSelection', () {
     test('uses saved draft values before session and settings defaults', () {
       final profile = _profile(
