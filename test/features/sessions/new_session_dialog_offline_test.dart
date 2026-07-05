@@ -174,6 +174,41 @@ void main() {
     });
   });
 
+  group('newSessionCreateErrorMessage', () {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+
+    test('shows daemon StateError messages directly', () {
+      const daemonError =
+          'directory /home/workspace/happy_flutter must be within '
+          '/workspace';
+
+      expect(
+        newSessionCreateErrorMessage(
+          l10n: l10n,
+          error: StateError(daemonError),
+        ),
+        daemonError,
+      );
+    });
+
+    test('keeps the localized machine unreachable message', () {
+      expect(
+        newSessionCreateErrorMessage(
+          l10n: l10n,
+          error: StateError('Machine is offline'),
+        ),
+        l10n.newSessionMachineUnreachable,
+      );
+    });
+
+    test('keeps generic non-StateError failures terse', () {
+      expect(
+        newSessionCreateErrorMessage(l10n: l10n, error: Exception('boom')),
+        l10n.newSessionCouldNotStartSession,
+      );
+    });
+  });
+
   group('NewSessionDialog offline guard', () {
     setUp(() {
       // The dialog checks `sync.isInitialized` to decide whether to block on
@@ -183,10 +218,7 @@ void main() {
       testSync.isInitialized = true;
     });
 
-    Future<void> pumpDialog(
-      WidgetTester tester,
-      Widget widget,
-    ) async {
+    Future<void> pumpDialog(WidgetTester tester, Widget widget) async {
       // The dialog's intrinsic height exceeds the default 600px test
       // viewport when the offline banner expands; give it room to lay
       // out so the test does not fail on a 4px RenderFlex overflow.
@@ -303,10 +335,7 @@ void main() {
       );
       await pumpDialog(
         tester,
-        buildHarness(
-          machines: {'m-kube': machine},
-          initialMachineId: 'm-kube',
-        ),
+        buildHarness(machines: {'m-kube': machine}, initialMachineId: 'm-kube'),
       );
 
       expect(find.text('Spawn on'), findsOneWidget);
@@ -351,80 +380,74 @@ void main() {
       expect(createButton.onPressed, isNotNull);
     });
 
-    testWidgets(
-      'switching from offline to online machine clears the warning '
-      'and enables Create',
-      (tester) async {
-        final now = DateTime.now().millisecondsSinceEpoch;
-        final staleMs = DateTime.now()
-            .subtract(const Duration(minutes: 10))
-            .millisecondsSinceEpoch;
-        final offlineMachine = _machine(
-          id: 'm-offline',
-          displayName: 'Offline Box',
-          active: false,
-          activeAtMs: staleMs,
-        );
-        final onlineMachine = _machine(
-          id: 'm-online',
-          displayName: 'Online Box',
-          active: true,
-          activeAtMs: now,
-        );
-        await pumpDialog(
-          tester,
-          buildHarness(
-            machines: {
-              'm-offline': offlineMachine,
-              'm-online': onlineMachine,
-            },
-            initialMachineId: 'm-offline',
-          ),
-        );
+    testWidgets('switching from offline to online machine clears the warning '
+        'and enables Create', (tester) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final staleMs = DateTime.now()
+          .subtract(const Duration(minutes: 10))
+          .millisecondsSinceEpoch;
+      final offlineMachine = _machine(
+        id: 'm-offline',
+        displayName: 'Offline Box',
+        active: false,
+        activeAtMs: staleMs,
+      );
+      final onlineMachine = _machine(
+        id: 'm-online',
+        displayName: 'Online Box',
+        active: true,
+        activeAtMs: now,
+      );
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {'m-offline': offlineMachine, 'm-online': onlineMachine},
+          initialMachineId: 'm-offline',
+        ),
+      );
 
-        // Offline machine selected: warning shown, Create disabled.
-        expect(
-          find.text('Launcher disabled while machine is offline'),
-          findsOneWidget,
-        );
-        var createButton = tester.widget<ElevatedButton>(
-          find.widgetWithText(ElevatedButton, 'Create'),
-        );
-        expect(
-          createButton.onPressed,
-          isNull,
-          reason: 'offline machine must disable Create',
-        );
+      // Offline machine selected: warning shown, Create disabled.
+      expect(
+        find.text('Launcher disabled while machine is offline'),
+        findsOneWidget,
+      );
+      var createButton = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Create'),
+      );
+      expect(
+        createButton.onPressed,
+        isNull,
+        reason: 'offline machine must disable Create',
+      );
 
-        // Open the machine dropdown and pick the online machine.
-        await tester.tap(find.byType(DropdownButtonFormField<String>));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Online Box').last);
-        await tester.pumpAndSettle();
+      // Open the machine dropdown and pick the online machine.
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Online Box').last);
+      await tester.pumpAndSettle();
 
-        // Warning must disappear once an online machine is selected.
-        expect(
-          find.text('Launcher disabled while machine is offline'),
-          findsNothing,
-        );
+      // Warning must disappear once an online machine is selected.
+      expect(
+        find.text('Launcher disabled while machine is offline'),
+        findsNothing,
+      );
 
-        // Switching machines clears the previously-selected path; type a
-        // path so the only remaining gate is the machine status.
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Path'),
-          '/repo',
-        );
-        await tester.pump();
+      // Switching machines clears the previously-selected path; type a
+      // path so the only remaining gate is the machine status.
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Path'),
+        '/repo',
+      );
+      await tester.pump();
 
-        createButton = tester.widget<ElevatedButton>(
-          find.widgetWithText(ElevatedButton, 'Create'),
-        );
-        expect(
-          createButton.onPressed,
-          isNotNull,
-          reason: 'online machine + path must enable Create',
-        );
-      },
-    );
+      createButton = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Create'),
+      );
+      expect(
+        createButton.onPressed,
+        isNotNull,
+        reason: 'online machine + path must enable Create',
+      );
+    });
   });
 }

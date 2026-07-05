@@ -50,6 +50,21 @@ NewSessionCreateBlocker? newSessionCreateBlocker({
   return syncInitialized ? null : NewSessionCreateBlocker.syncNotReady;
 }
 
+String newSessionCreateErrorMessage({
+  required AppLocalizations l10n,
+  required Object error,
+}) {
+  final errorText = error is StateError ? error.message : error.toString();
+  if (errorText.contains('Machine is unreachable') ||
+      errorText.contains('Machine is offline')) {
+    return l10n.newSessionMachineUnreachable;
+  }
+  if (error is StateError && error.message.trim().isNotEmpty) {
+    return error.message;
+  }
+  return l10n.newSessionCouldNotStartSession;
+}
+
 /// New session dialog.
 class NewSessionDialog extends ConsumerStatefulWidget {
   const NewSessionDialog({super.key, this.initialMachineId, this.initialPath});
@@ -504,14 +519,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     } catch (e, st) {
       logger.warning('[NewSessionDialog] createSession failed: $e', e, st);
       if (!mounted) return;
-      final errorText = e.toString();
-      String userMessage;
-      if (errorText.contains('Machine is unreachable') ||
-          errorText.contains('Machine is offline')) {
-        userMessage = l10n.newSessionMachineUnreachable;
-      } else {
-        userMessage = l10n.newSessionCouldNotStartSession;
-      }
+      final userMessage = newSessionCreateErrorMessage(l10n: l10n, error: e);
       setState(() {
         _isCreating = false;
         _createError = userMessage;
