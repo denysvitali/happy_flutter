@@ -511,7 +511,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
 
         expect(find.text('Agent failed'), findsOneWidget);
-        expect(find.text('Session process stopped'), findsOneWidget);
+        expect(find.text('Session agent failed'), findsOneWidget);
         expect(
           find.textContaining('No live local process is attached'),
           findsOneWidget,
@@ -555,7 +555,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Will restart'), findsOneWidget);
-      expect(find.text('Session process stopped'), findsOneWidget);
+      expect(find.text('Session agent failed'), findsOneWidget);
       expect(
         find.textContaining('Sending a message will try to restart'),
         findsOneWidget,
