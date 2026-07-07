@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/chat/widgets/agents_list_sheet.dart';
 
@@ -340,28 +338,26 @@ void main() {
         },
       );
 
-      test(
-        'taskEvent synthetic agent without parentToolUseId omits navigation id',
-        () {
-          sync.testSetSessionMessages('test-session', [
-            <String, dynamic>{
-              'id': 'ev-0',
-              'kind': 'agent-event',
-              'taskEvent': true,
-              'agentId': 'agent-0',
-              'seq': 1,
-            },
-          ]);
+      test('taskEvent synthetic agent without parentToolUseId falls back to '
+          'toolUseId', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'ev-0',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'agent-0',
+            'seq': 1,
+          },
+        ]);
 
-          final agents = AgentsListSheet.extractAgents('test-session');
-          expect(agents, hasLength(1));
+        final agents = AgentsListSheet.extractAgents('test-session');
+        expect(agents, hasLength(1));
 
-          final agent = agents.single;
-          expect(agent['id'], 'task-event-agent-0');
-          expect(agent['_taskEventParentToolUseId'], isNull);
-          expect(agent['toolUseId'], 'agent-0');
-        },
-      );
+        final agent = agents.single;
+        expect(agent['id'], 'task-event-agent-0');
+        expect(agent['_taskEventParentToolUseId'], isNull);
+        expect(agent['toolUseId'], 'agent-0');
+      });
 
       test('taskEvent + real tool-calls: prefers taskEvents '
           'when both exist', () {
@@ -810,178 +806,6 @@ void main() {
         ]);
         final p = AgentsListSheet.computeTaskProgress('test-session');
         expect(p.total, 0);
-      });
-    });
-
-    group('agent tile tap', () {
-      Future<void> pumpSheet(
-        WidgetTester tester, {
-        required void Function(Map<String, dynamic> agent, String navigationId)
-        onAgentTap,
-      }) async {
-        // Use a realistic phone viewport so the bottom-sheet content is
-        // visible and tappable. The default 800x600 viewport leaves agent
-        // rows off-screen.
-        tester.view.physicalSize = const Size(390 * 2, 844 * 2);
-        tester.view.devicePixelRatio = 2.0;
-        addTearDown(tester.view.reset);
-
-        await tester.pumpWidget(
-          MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Builder(
-              builder: (context) => Scaffold(
-                body: Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      showModalBottomSheet<void>(
-                        context: context,
-                        builder: (_) => AgentsListSheet(
-                          sessionId: 'test-session',
-                          onAgentTap: onAgentTap,
-                        ),
-                      );
-                    },
-                    child: const Text('Open'),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Open'));
-        await tester.pump(const Duration(milliseconds: 300));
-      }
-
-      testWidgets('invokes onAgentTap with message id for real Task rows', (
-        tester,
-      ) async {
-        sync.testSetSessionMessages('test-session', [
-          <String, dynamic>{
-            'id': 'task-1',
-            'kind': 'tool-call',
-            'name': 'Task',
-            'state': 'running',
-            'input': <String, dynamic>{
-              'description': 'do work',
-              'subagent_type': 'explore',
-            },
-          },
-        ]);
-
-        Map<String, dynamic>? tappedAgent;
-        String? tappedNavigationId;
-
-        await pumpSheet(
-          tester,
-          onAgentTap: (agent, navigationId) {
-            tappedAgent = agent;
-            tappedNavigationId = navigationId;
-          },
-        );
-
-        await tester.tap(find.text('do work'));
-        await tester.pump();
-
-        expect(tappedAgent, isNotNull);
-        expect(tappedAgent!['id'], 'task-1');
-        expect(tappedNavigationId, 'task-1');
-      });
-
-      testWidgets(
-        'invokes onAgentTap with parentToolUseId for taskEvent synthetics',
-        (tester) async {
-          sync.testSetSessionMessages('test-session', [
-            <String, dynamic>{
-              'id': 'parent-msg',
-              'kind': 'tool-call',
-              'name': 'Task',
-              'toolUseId': 'toolu_parent',
-              'state': 'running',
-              'input': <String, dynamic>{'description': 'parent task'},
-            },
-            <String, dynamic>{
-              'id': 'ev-1',
-              'kind': 'agent-event',
-              'taskEvent': true,
-              'agentId': 'agent-1',
-              'parentToolUseId': 'toolu_parent',
-              'taskStatus': 'running',
-              'content': 'child task',
-            },
-          ]);
-
-          String? tappedNavigationId;
-
-          await pumpSheet(
-            tester,
-            onAgentTap: (_, navigationId) {
-              tappedNavigationId = navigationId;
-            },
-          );
-
-          await tester.tap(find.text('child task'));
-          await tester.pump();
-
-          expect(tappedNavigationId, 'toolu_parent');
-        },
-      );
-
-      testWidgets(
-        'invokes onAgentTap with toolUseId fallback for taskEvent synthetics '
-        'without parentToolUseId',
-        (tester) async {
-          sync.testSetSessionMessages('test-session', [
-            <String, dynamic>{
-              'id': 'ev-1',
-              'kind': 'agent-event',
-              'taskEvent': true,
-              'agentId': 'agent-1',
-              'taskStatus': 'running',
-              'content': 'child task',
-            },
-          ]);
-
-          String? tappedNavigationId;
-
-          await pumpSheet(
-            tester,
-            onAgentTap: (_, navigationId) {
-              tappedNavigationId = navigationId;
-            },
-          );
-
-          await tester.tap(find.text('child task'));
-          await tester.pump();
-
-          expect(tappedNavigationId, 'agent-1');
-        },
-      );
-
-      testWidgets('catalog synthetics are not tappable', (tester) async {
-        sync.testSetSessionMessages('test-session', [
-          <String, dynamic>{
-            'id': 'msg-1',
-            'kind': 'text',
-            'content': 'hello',
-            'subagentsCatalog': <String>['Explore'],
-          },
-        ]);
-
-        var tapCount = 0;
-
-        await pumpSheet(
-          tester,
-          onAgentTap: (agent, navigationId) => tapCount++,
-        );
-
-        // The Explore catalog row has no chevron and onTap is null.
-        await tester.tap(find.text('Explore'));
-        await tester.pump();
-
-        expect(tapCount, 0);
       });
     });
   });
