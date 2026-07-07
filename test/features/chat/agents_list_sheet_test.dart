@@ -819,6 +819,13 @@ void main() {
         required void Function(Map<String, dynamic> agent, String navigationId)
         onAgentTap,
       }) async {
+        // Use a realistic phone viewport so the bottom-sheet content is
+        // visible and tappable. The default 800x600 viewport leaves agent
+        // rows off-screen.
+        tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+        tester.view.devicePixelRatio = 2.0;
+        addTearDown(tester.view.reset);
+
         await tester.pumpWidget(
           MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -845,9 +852,6 @@ void main() {
         );
         await tester.pumpAndSettle();
         await tester.tap(find.text('Open'));
-        // The bottom sheet + DraggableScrollableSheet keep scheduling frames,
-        // so pumpAndSettle times out. Pump a fixed duration to let the modal
-        // entrance animation complete.
         await tester.pump(const Duration(milliseconds: 300));
       }
 
@@ -905,7 +909,7 @@ void main() {
               'agentId': 'agent-1',
               'parentToolUseId': 'toolu_parent',
               'taskStatus': 'running',
-              'message': 'child task',
+              'content': 'child task',
             },
           ]);
 
@@ -936,7 +940,7 @@ void main() {
               'taskEvent': true,
               'agentId': 'agent-1',
               'taskStatus': 'running',
-              'message': 'child task',
+              'content': 'child task',
             },
           ]);
 
