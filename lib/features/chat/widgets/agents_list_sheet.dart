@@ -84,6 +84,8 @@ class _TaskEventAgent {
     'name': 'Agent',
     'state': state,
     '_taskEventSynthetic': true,
+    if (parentToolUseId != null)
+      '_taskEventParentToolUseId': parentToolUseId,
     'input': <String, dynamic>{
       'description': description ?? agentId,
       if (taskType != null) 'subagent_type': taskType,
@@ -508,10 +510,10 @@ class _AgentTile extends StatelessWidget {
     final children = WireParsers.asList(agent['children']);
     final childCount = children?.length ?? 0;
     final msgId = agent['id'] as String?;
+    final parentToolUseId = agent['_taskEventParentToolUseId'] as String?;
+    final navigationId = parentToolUseId ?? msgId;
     final canOpenConversation =
-        msgId != null &&
-        agent['_taskEventSynthetic'] != true &&
-        agent['_subagentsCatalogSynthetic'] != true;
+        navigationId != null && agent['_subagentsCatalogSynthetic'] != true;
 
     final Color borderColor;
     switch (toolState) {
@@ -529,7 +531,10 @@ class _AgentTile extends StatelessWidget {
       onTap: canOpenConversation
           ? () {
               Navigator.pop(context); // Close sheet
-              context.push('/chat/$sessionId/agent/$msgId', extra: agent);
+              context.push(
+                '/chat/$sessionId/agent/$navigationId',
+                extra: agent,
+              );
             }
           : null,
       child: Container(
