@@ -988,7 +988,7 @@ PY
     }
     if (!profile.compatibility.supportsAgent(agent ?? 'claude')) {
       logger.warning(
-        '[createSession] profile ${profile.id} is not compatible with '
+        '[spawn] profile ${profile.id} is not compatible with '
         'agent=$agent; spawning without profile env vars',
       );
       return (profile: null, modelMode: modelMode);
@@ -998,7 +998,7 @@ PY
         _isClaudeModelAlias(modelMode ?? '') &&
         _isThirdPartyAnthropicBaseUrl(baseUrl)) {
       logger.warning(
-        '[createSession] dropping incompatible Claude model override '
+        '[spawn] dropping incompatible Claude model override '
         'profile=${profile.id} modelMode=$modelMode baseUrl=$baseUrl',
       );
       return (profile: profile, modelMode: 'default');
@@ -1007,7 +1007,7 @@ PY
       final profileModelMode = _codexModelModeForProfile(profile);
       if (profileModelMode != null && profileModelMode != modelMode) {
         logger.info(
-          '[createSession] using Codex profile model '
+          '[spawn] using Codex profile model '
           'profile=${profile.id} modelMode=$profileModelMode '
           'instead of $modelMode',
         );
@@ -1445,6 +1445,19 @@ PY
           session.metadata?.flavor ??
           _sessionSpawnedAgent[sessionId] ??
           'claude';
+      // Drop incompatible model overrides (e.g. a Claude model alias paired
+      // with a third-party Anthropic-compatible base URL). The daemon rejects
+      // that combination with `provider_model_mismatch`, so mirror the
+      // createSession guard here to keep auto-restore from failing.
+      final spawnProfileResolution = _resolveEffectiveProfileForSpawn(
+        profile: spawnResult.profile,
+        modelMode: modelMode,
+        agent: sessionAgent,
+      );
+      final effectiveModelMode = spawnProfileResolution.modelMode;
+      final effectiveEnvVars = spawnProfileResolution.profile != null
+          ? spawnResult.envVars
+          : <String, String>{};
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
@@ -1456,10 +1469,10 @@ PY
         repoCommit: session.metadata?.repoCommit,
         model: _getModelOverride(
           agent: sessionAgent,
-          profile: spawnResult.profile,
-          modelMode: modelMode,
+          profile: spawnProfileResolution.profile,
+          modelMode: effectiveModelMode,
         ),
-        environmentVariables: spawnResult.envVars,
+        environmentVariables: effectiveEnvVars,
       );
       final result = await _typedMachineRPC(
         machineId,
@@ -1579,7 +1592,7 @@ PY
       _registerSpawn(
         restoredSessionId,
         profileId: spawnResult.profile?.id ?? profileId,
-        modelMode: modelMode,
+        modelMode: effectiveModelMode,
         agent: sessionAgent,
       );
       if (restoredSessionId != sessionId) {

@@ -491,10 +491,23 @@ extension SyncMessagingRpc on Sync {
           session.metadata?.flavor ??
           _sessionSpawnedAgent[sessionId] ??
           'claude';
-      final modelMode = _normalizeModelModeForAgent(
+      final normalizedModelMode = _normalizeModelModeForAgent(
         session.modelMode,
         sessionAgent,
       );
+      // Drop incompatible model overrides (e.g. a Claude model alias paired
+      // with a third-party Anthropic-compatible base URL). The daemon rejects
+      // that combination with `provider_model_mismatch`, so mirror the
+      // createSession guard here to keep auto-restore from failing.
+      final spawnProfileResolution = _resolveEffectiveProfileForSpawn(
+        profile: spawnResult.profile,
+        modelMode: normalizedModelMode,
+        agent: sessionAgent,
+      );
+      final effectiveModelMode = spawnProfileResolution.modelMode;
+      final effectiveEnvVars = spawnProfileResolution.profile != null
+          ? spawnResult.envVars
+          : <String, String>{};
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
@@ -506,10 +519,10 @@ extension SyncMessagingRpc on Sync {
         repoCommit: session.metadata?.repoCommit,
         model: _getModelOverride(
           agent: sessionAgent,
-          profile: spawnResult.profile,
-          modelMode: modelMode,
+          profile: spawnProfileResolution.profile,
+          modelMode: effectiveModelMode,
         ),
-        environmentVariables: spawnResult.envVars,
+        environmentVariables: effectiveEnvVars,
       );
       final result = await _typedMachineRPC(
         machineId,
@@ -522,7 +535,7 @@ extension SyncMessagingRpc on Sync {
         _registerSpawn(
           result.sessionId ?? sessionId,
           profileId: spawnResult.profile?.id,
-          modelMode: modelMode,
+          modelMode: effectiveModelMode,
           agent: sessionAgent,
         );
         logger.info(

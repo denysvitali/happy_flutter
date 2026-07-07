@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 
@@ -603,6 +604,73 @@ void main() {
       expect(sync.testSessionSpawnedAgent[sessionId], 'codex');
       expect(sync.testSessionSpawnedModel[sessionId], 'gpt-5.5:medium');
     });
+
+    test(
+      'permission auto-restore drops incompatible Claude model override '
+      'for third-party Anthropic base URL',
+      () async {
+        const sessionId = 'claude-permission-incompatible-model';
+        Map<String, dynamic>? capturedParams;
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          machineId: 'machine-1',
+          path: '/project',
+          lifecycleState: 'archived',
+          flavor: 'claude',
+          modelMode: 'opus:max',
+        );
+
+        final deepseek = getBuiltInProfile('deepseek')!;
+        sync.testGetSpawnEnvVarsOverride = (_) async => (
+          envVars: {
+            for (final v in deepseek.environmentVariables) v.name: v.value,
+          },
+          profile: deepseek,
+        );
+
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          capturedParams = params;
+          expect(machineId, 'machine-1');
+          expect(method, 'spawn-happy-session');
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        };
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        await expectLater(
+          () => sync.sessionAllow(sessionId, 'perm-1'),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              contains('permission has expired'),
+            ),
+          ),
+        );
+
+        expect(capturedParams, isNotNull);
+        expect(
+          capturedParams!.containsKey('model'),
+          isFalse,
+          reason:
+              'Claude model override must be dropped when profile sets a '
+              'third-party Anthropic-compatible base URL',
+        );
+        final envVars =
+            capturedParams!['environmentVariables']
+                as Map<String, dynamic>?;
+        expect(envVars, isNotNull);
+        expect(
+          envVars!['ANTHROPIC_BASE_URL'],
+          contains('deepseek'),
+          reason:
+              'Third-party Anthropic-compatible base URL must still be sent',
+        );
+      },
+    );
 
     test('errored session without restore target fails before send', () async {
       const sessionId = 'errored-no-restore-target';

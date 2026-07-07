@@ -12,6 +12,7 @@ import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/utils/invalidate_sync.dart';
@@ -935,6 +936,98 @@ void main() {
       // Restored session should be registered in _sessionSpawnedAt
       expect(sync.testSessionSpawnedAt.containsKey(restoredId), isTrue);
     });
+
+    test(
+      'auto-restore drops incompatible Claude model override for '
+      'third-party Anthropic base URL',
+      () async {
+        final sessionId = 'auto-restore-incompatible-model';
+        final now = DateTime.now().millisecondsSinceEpoch;
+        sync.testSessions[sessionId] = Session(
+          id: sessionId,
+          seq: 1,
+          createdAt: now - 200000,
+          updatedAt: now,
+          active: true,
+          activeAt: now,
+          metadataVersion: 1,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'offline',
+          modelMode: 'opus:max',
+          metadata: Metadata(
+            host: '',
+            machineId: 'machine-1',
+            path: '/project',
+            flavor: 'claude',
+            lifecycleState: 'stopped',
+          ),
+        );
+        sync.testMachines['machine-1'] = Machine(
+          id: 'machine-1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: now,
+          metadataVersion: 0,
+          daemonStateVersion: 0,
+        );
+        sync.testSetSessionSpawnedAt(sessionId, now - 200000);
+
+        final deepseek = getBuiltInProfile('deepseek')!;
+        sync.testGetSpawnEnvVarsOverride = (_) async => (
+          envVars: {
+            for (final v in deepseek.environmentVariables) v.name: v.value,
+          },
+          profile: deepseek,
+        );
+
+        Map<String, dynamic>? capturedSpawnParams;
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          if (method == 'spawn-happy-session') {
+            capturedSpawnParams = params;
+            return <String, dynamic>{
+              'type': 'success',
+              'sessionId': sessionId,
+              'dataEncryptionKey': null,
+            };
+          }
+          return <String, dynamic>{'type': 'error'};
+        };
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        try {
+          await sync.sendMessage(sessionId, 'hello');
+        } catch (_) {
+          // REST POST is not mocked in this contract test; the spawn RPC is
+          // the behavior we care about.
+        }
+
+        expect(
+          capturedSpawnParams,
+          isNotNull,
+          reason: 'Offline session must trigger auto-restore spawn RPC',
+        );
+        expect(
+          capturedSpawnParams!.containsKey('model'),
+          isFalse,
+          reason:
+              'Claude model override must be dropped when profile sets a '
+              'third-party Anthropic-compatible base URL',
+        );
+        final envVars =
+            capturedSpawnParams!['environmentVariables']
+                as Map<String, dynamic>?;
+        expect(envVars, isNotNull);
+        expect(
+          envVars!['ANTHROPIC_BASE_URL'],
+          contains('deepseek'),
+          reason:
+              'Third-party Anthropic-compatible base URL must still be sent',
+        );
+      },
+    );
 
     test(
       'auto-restore creates placeholder if restored session not in map',
