@@ -1,9 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart'
+    show ToolState;
 import 'package:happy_flutter/features/chat/tools/tool_view_widgets.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('ToolHeader', () {
+    testWidgets(
+      'title and status share a common alphabetic baseline '
+      '(regression: Workflow 1 steps misalignment)',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ToolHeader(
+                toolIcon: const Icon(Icons.rocket_launch),
+                toolTitle: 'Workflow',
+                status: '1 steps',
+                state: ToolState.completed,
+                hasContent: false,
+                showCheckFlash: false,
+                chevronAnim: const AlwaysStoppedAnimation<double>(0),
+                hasPermissionRequest: false,
+              ),
+            ),
+          ),
+        );
+
+        final rows = tester.widgetList<Row>(find.byType(Row)).toList();
+        final titleRow = rows.firstWhere(
+          (r) => r.crossAxisAlignment == CrossAxisAlignment.baseline,
+        );
+        expect(titleRow.textBaseline, TextBaseline.alphabetic);
+      },
+    );
+  });
 
   group('CollapsibleOutput', () {
     testWidgets('does not throw when disposed before measuring', (
