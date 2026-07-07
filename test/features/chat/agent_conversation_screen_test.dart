@@ -6,7 +6,6 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/features/chat/agent_conversation_screen.dart';
-import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 
 void main() {
@@ -96,5 +95,53 @@ void main() {
     expect(find.text('Subagent reply'), findsOneWidget);
     // ToolView is now used instead of compact rows
     expect(find.byType(ToolView), findsOneWidget);
+  });
+
+  testWidgets('finds parent message by toolUseId and renders children', (
+    tester,
+  ) async {
+    const sessionId = 'session_1';
+    const taskId = 'task_1';
+    const toolUseId = 'toolu_task_1';
+
+    final initialTask = <String, dynamic>{
+      'id': taskId,
+      'toolUseId': toolUseId,
+      'kind': 'tool-call',
+      'name': 'Task',
+      'state': 'completed',
+      'input': <String, dynamic>{
+        'description': 'Investigate issue',
+        'subagent_type': 'explore',
+      },
+      'children': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'child_text_1',
+          'kind': 'text',
+          'content': 'Found via toolUseId',
+        },
+      ],
+    };
+
+    sync.testSetSessionMessages(sessionId, [initialTask]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AgentConversationScreen(
+            sessionId: sessionId,
+            messageId: toolUseId,
+            taskData: initialTask,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('No messages yet'), findsNothing);
+    expect(find.text('Found via toolUseId'), findsOneWidget);
   });
 }

@@ -120,7 +120,12 @@ class _AgentConversationScreenState
   ) {
     for (final msg in messages) {
       if (!visited.add(msg)) continue;
-      if (msg['id'] == messageId) return msg;
+      final id = msg['id'] as String?;
+      final toolUseId = msg['toolUseId'] as String?;
+      final uuid = msg['uuid'] as String?;
+      if (id == messageId || toolUseId == messageId || uuid == messageId) {
+        return msg;
+      }
       final children = WireParsers.asList(msg['children']);
       if (children == null || children.isEmpty) continue;
       final nested = _findMessageByIdVisited(

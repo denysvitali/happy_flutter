@@ -511,7 +511,8 @@ class _AgentTile extends StatelessWidget {
     final childCount = children?.length ?? 0;
     final msgId = agent['id'] as String?;
     final parentToolUseId = agent['_taskEventParentToolUseId'] as String?;
-    final navigationId = parentToolUseId ?? msgId;
+    final isSyntheticTaskEvent = agent['_taskEventSynthetic'] == true;
+    final navigationId = isSyntheticTaskEvent ? parentToolUseId : msgId;
     final canOpenConversation =
         navigationId != null && agent['_subagentsCatalogSynthetic'] != true;
 

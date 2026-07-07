@@ -336,6 +336,29 @@ void main() {
         expect(agent['_taskEventParentToolUseId'], 'toolu_workflow');
       });
 
+      test(
+        'taskEvent synthetic agent without parentToolUseId omits navigation id',
+        () {
+          sync.testSetSessionMessages('test-session', [
+            <String, dynamic>{
+              'id': 'ev-0',
+              'kind': 'agent-event',
+              'taskEvent': true,
+              'agentId': 'agent-0',
+              'seq': 1,
+            },
+          ]);
+
+          final agents = AgentsListSheet.extractAgents('test-session');
+          expect(agents, hasLength(1));
+
+          final agent = agents.single;
+          expect(agent['id'], 'task-event-agent-0');
+          expect(agent['_taskEventParentToolUseId'], isNull);
+          expect(agent['toolUseId'], 'agent-0');
+        },
+      );
+
       test('taskEvent + real tool-calls: prefers taskEvents '
           'when both exist', () {
         // When taskEvents are present, computeTaskProgress uses them
