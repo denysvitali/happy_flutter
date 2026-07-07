@@ -845,7 +845,10 @@ void main() {
         );
         await tester.pumpAndSettle();
         await tester.tap(find.text('Open'));
-        await tester.pumpAndSettle();
+        // The bottom sheet + DraggableScrollableSheet keep scheduling frames,
+        // so pumpAndSettle times out. Pump a fixed duration to let the modal
+        // entrance animation complete.
+        await tester.pump(const Duration(milliseconds: 300));
       }
 
       testWidgets('invokes onAgentTap with message id for real Task rows', (
@@ -876,7 +879,7 @@ void main() {
         );
 
         await tester.tap(find.text('do work'));
-        await tester.pumpAndSettle();
+        await tester.pump();
 
         expect(tappedAgent, isNotNull);
         expect(tappedAgent!['id'], 'task-1');
@@ -916,7 +919,7 @@ void main() {
           );
 
           await tester.tap(find.text('child task'));
-          await tester.pumpAndSettle();
+          await tester.pump();
 
           expect(tappedNavigationId, 'toolu_parent');
         },
@@ -947,7 +950,7 @@ void main() {
           );
 
           await tester.tap(find.text('child task'));
-          await tester.pumpAndSettle();
+          await tester.pump();
 
           expect(tappedNavigationId, 'agent-1');
         },
@@ -972,7 +975,7 @@ void main() {
 
         // The Explore catalog row has no chevron and onTap is null.
         await tester.tap(find.text('Explore'));
-        await tester.pumpAndSettle();
+        await tester.pump();
 
         expect(tapCount, 0);
       });
