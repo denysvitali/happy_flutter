@@ -96,9 +96,22 @@ class _TaskEventAgent {
 
 /// Bottom sheet showing all active/running Task agents in the session.
 class AgentsListSheet extends StatelessWidget {
-  const AgentsListSheet({required this.sessionId, super.key});
+  const AgentsListSheet({
+    required this.sessionId,
+    this.onAgentTap,
+    super.key,
+  });
 
   final String sessionId;
+
+  /// Optional callback invoked when a navigable agent row is tapped.
+  ///
+  /// Receives the agent map and the resolved navigation id. Callers should
+  /// close the sheet and push [AgentConversationScreen] using a context
+  /// that outlives the bottom sheet, otherwise the navigation is silently
+  /// dropped when the modal is popped.
+  final void Function(Map<String, dynamic> agent, String navigationId)?
+      onAgentTap;
 
   static bool _isAgentToolName(String? name) =>
       name == 'Task' || name == 'Agent' || name == 'Workflow';
@@ -467,7 +480,11 @@ class AgentsListSheet extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final agent = agents[index];
                       return RepaintBoundary(
-                        child: _AgentTile(agent: agent, sessionId: sessionId),
+                        child: _AgentTile(
+                        agent: agent,
+                        sessionId: sessionId,
+                        onTap: onAgentTap,
+                      ),
                       );
                     },
                   ),
@@ -485,10 +502,15 @@ String _progressLabel(TaskProgress progress) {
 }
 
 class _AgentTile extends StatelessWidget {
-  const _AgentTile({required this.agent, required this.sessionId});
+  const _AgentTile({
+    required this.agent,
+    required this.sessionId,
+    this.onTap,
+  });
 
   final Map<String, dynamic> agent;
   final String sessionId;
+  final void Function(Map<String, dynamic> agent, String navigationId)? onTap;
 
   ToolState _parseToolState(String? state) => parseToolState(state);
 
@@ -531,11 +553,19 @@ class _AgentTile extends StatelessWidget {
     return InkWell(
       onTap: canOpenConversation
           ? () {
-              Navigator.pop(context); // Close sheet
-              context.push(
-                '/chat/$sessionId/agent/$navigationId',
-                extra: agent,
-              );
+              final tap = onTap;
+              if (tap != null) {
+                tap(agent, navigationId);
+              } else {
+                // Fallback for callers that do not supply a callback. This
+                // can drop the navigation when called from a modal bottom
+                // sheet because the sheet's context is detached by pop.
+                Navigator.pop(context);
+                context.push(
+                  '/chat/$sessionId/agent/$navigationId',
+                  extra: agent,
+                );
+              }
             }
           : null,
       child: Container(

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
@@ -531,7 +532,16 @@ class _AgentsListButton extends StatelessWidget {
                   top: Radius.circular(AppRadius.xl),
                 ),
               ),
-              builder: (context) => AgentsListSheet(sessionId: sessionId),
+              builder: (sheetContext) => AgentsListSheet(
+                sessionId: sessionId,
+                onAgentTap: (agent, navigationId) {
+                  Navigator.of(sheetContext).pop();
+                  context.push(
+                    '/chat/$sessionId/agent/$navigationId',
+                    extra: agent,
+                  );
+                },
+              ),
             );
           },
         ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     hide LogLevel, Logger;
+import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart' show Breadcrumb, Sentry;
 
 import '../../../core/i18n/app_localizations.dart';
@@ -376,8 +377,16 @@ class _BannerBody extends StatelessWidget {
           top: Radius.circular(AppRadius.xl),
         ),
       ),
-      builder: (sheetContext) =>
-          AgentsListSheet(sessionId: sessionId),
+      builder: (sheetContext) => AgentsListSheet(
+        sessionId: sessionId,
+        onAgentTap: (agent, navigationId) {
+          Navigator.of(sheetContext).pop();
+          context.push(
+            '/chat/$sessionId/agent/$navigationId',
+            extra: agent,
+          );
+        },
+      ),
     );
   }
 }
