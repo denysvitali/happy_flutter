@@ -161,8 +161,6 @@ class SyntaxHighlighter extends StatefulWidget {
     this.fontSize = 14,
     this.lineHeight = 20,
     this.keywordFontWeight = FontWeight.w600,
-    this.selectable = false,
-    this.softWrap = true,
   });
 
   /// Raw source code.
@@ -182,18 +180,6 @@ class SyntaxHighlighter extends StatefulWidget {
 
   /// Font weight applied to keywords and control-flow tokens.
   final FontWeight? keywordFontWeight;
-
-  /// Whether to use a [SelectableText.rich] widget so the text can be selected.
-  ///
-  /// When false (default) the widget uses [Text.rich], which is lighter and
-  /// composes cleanly inside an outer [SelectionArea].
-  final bool selectable;
-
-  /// Whether the text should break at soft line breaks.
-  ///
-  /// Defaults to true so long lines wrap inside scrollable containers rather
-  /// than overflowing the viewport.
-  final bool softWrap;
 
   @override
   State<SyntaxHighlighter> createState() => _SyntaxHighlighterState();
@@ -264,22 +250,15 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
 
   @override
   Widget build(BuildContext context) {
-    final span = TextSpan(
-      children: _textSpans,
-      style: TextStyle(
-        fontFamily: 'monospace',
-        fontSize: widget.fontSize,
-        height: widget.lineHeight / widget.fontSize,
-      ),
-    );
-    if (widget.selectable) {
-      return SelectableText.rich(
-        span,
-      );
-    }
     return Text.rich(
-      span,
-      softWrap: widget.softWrap,
+      TextSpan(
+        children: _textSpans,
+        style: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: widget.fontSize,
+          height: widget.lineHeight / widget.fontSize,
+        ),
+      ),
     );
   }
 }

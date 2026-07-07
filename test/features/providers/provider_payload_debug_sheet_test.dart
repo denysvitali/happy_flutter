@@ -44,7 +44,7 @@ void main() {
       }
     });
 
-    testWidgets('renders JSON payload with highlighting', (tester) async {
+    testWidgets('renders JSON payload as selectable text', (tester) async {
       await tester.pumpWidget(_pumpSheet(
         tester,
         ProviderUsage(
@@ -56,15 +56,8 @@ void main() {
         ),
       ));
 
-      // The SyntaxHighlighter renders the payload as rich selectable text so
-      // the presence of RichText/SelectableText proves rendering is active.
-      expect(find.byType(RichText), findsWidgets);
-      expect(
-        tester.widgetList<RichText>(find.byType(RichText)).any(
-          (w) => w.text.toPlainText().contains('"limit"'),
-        ),
-        isTrue,
-      );
+      expect(find.textContaining('"limit"'), findsOneWidget);
+      expect(find.byType(SelectableText), findsWidgets);
       expect(
         find.text('No payload captured for this account yet.'),
         findsNothing,
@@ -74,24 +67,26 @@ void main() {
     testWidgets(
       'preserves real line breaks in multi-line JSON',
       (tester) async {
-      const payload = '{\n  "limit": 100,\n  "used": 30\n}';
-      await tester.pumpWidget(_pumpSheet(
-        tester,
-        ProviderUsage(
-          accountId: 'a1',
-          type: ProviderUsageType.kimi,
-          extra: const <String, dynamic>{
-            'raw_payload': payload,
-          },
-        ),
-      ));
+        const payload = '{\n  "limit": 100,\n  "used": 30\n}';
+        await tester.pumpWidget(_pumpSheet(
+          tester,
+          ProviderUsage(
+            accountId: 'a1',
+            type: ProviderUsageType.kimi,
+            extra: const <String, dynamic>{
+              'raw_payload': payload,
+            },
+          ),
+        ));
 
-      final richTexts = tester.widgetList<RichText>(find.byType(RichText));
-      final rendered = richTexts.map((w) => w.text.toPlainText()).join();
-      expect(rendered, contains('\n'));
-      expect(rendered, isNot(contains(r'\n')));
-    },
-  );
+        final selectable = tester.widgetList<SelectableText>(
+          find.byType(SelectableText),
+        );
+        final rendered = selectable.map((w) => w.data ?? '').join();
+        expect(rendered, contains('\n'));
+        expect(rendered, isNot(contains(r'\n')));
+      },
+    );
 
     testWidgets('shows empty state when payload is missing', (tester) async {
       await tester.pumpWidget(_pumpSheet(
@@ -125,7 +120,7 @@ void main() {
         ),
       ));
 
-      expect(find.byType(RichText), findsWidgets);
+      expect(find.byType(SelectableText), findsWidgets);
       expect(
         find.text('No payload captured for this account yet.'),
         findsNothing,

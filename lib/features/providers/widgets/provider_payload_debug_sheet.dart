@@ -6,7 +6,6 @@ import '../../../core/models/provider_usage.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
-import '../../chat/syntax_highlighter.dart';
 
 /// Modal bottom sheet that renders the raw provider response payload captured
 /// by the usage API clients ([KimiUsageApi], [MiniMaxUsageApi], [ZaiUsageApi]).
@@ -228,17 +227,15 @@ class _SelectableJson extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
     return Scrollbar(
       child: SingleChildScrollView(
-        child: SyntaxHighlighter(
-          code: text,
-          language: 'json',
-          isDarkMode: brightness == Brightness.dark,
-          fontSize: AppFontSize.sm,
-          lineHeight: AppLineHeight.relaxed,
-          selectable: true,
-          softWrap: true,
+        child: SelectableText(
+          text,
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontSize: AppFontSize.sm,
+            height: AppLineHeight.relaxed / AppFontSize.sm,
+          ),
         ),
       ),
     );
