@@ -922,6 +922,37 @@ void main() {
         },
       );
 
+      testWidgets(
+        'invokes onAgentTap with toolUseId fallback for taskEvent synthetics '
+        'without parentToolUseId',
+        (tester) async {
+          sync.testSetSessionMessages('test-session', [
+            <String, dynamic>{
+              'id': 'ev-1',
+              'kind': 'agent-event',
+              'taskEvent': true,
+              'agentId': 'agent-1',
+              'taskStatus': 'running',
+              'message': 'child task',
+            },
+          ]);
+
+          String? tappedNavigationId;
+
+          await pumpSheet(
+            tester,
+            onAgentTap: (_, navigationId) {
+              tappedNavigationId = navigationId;
+            },
+          );
+
+          await tester.tap(find.text('child task'));
+          await tester.pumpAndSettle();
+
+          expect(tappedNavigationId, 'agent-1');
+        },
+      );
+
       testWidgets('catalog synthetics are not tappable', (tester) async {
         sync.testSetSessionMessages('test-session', [
           <String, dynamic>{
