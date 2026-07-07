@@ -54,6 +54,8 @@ import '../../features/sftp/screens/sftp_directory_manager_screen.dart';
 import '../../features/sftp/screens/sftp_log_viewer_screen.dart';
 import '../../features/terminal/terminal_connect_screen.dart';
 import '../../features/terminal/terminal_screen.dart';
+import '../../features/workflows/workflow_run_screen.dart';
+import '../../features/workflows/workflows_screen.dart';
 import '../../features/zen/zen_home.dart';
 import '../../sentry_widget.dart'
     if (dart.library.js_interop) '../../sentry_widget_stub.dart';
@@ -533,6 +535,45 @@ GoRouter createRouter() {
               child: AgentConversationScreen(
                 sessionId: sid,
                 messageId: mid,
+                taskData: extra,
+              ),
+            ),
+            state,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/chat/:sessionId/workflows',
+        name: 'chat-workflows',
+        pageBuilder: (context, state) {
+          final sid = _pathParameter(state, 'sessionId');
+          if (sid == null) {
+            return _missingPathParameterPage(state, 'sessionId');
+          }
+          return _slidePage(
+            AuthGate(child: WorkflowsScreen(sessionId: sid)),
+            state,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/chat/:sessionId/workflow/:workflowRunId',
+        name: 'chat-workflow-run',
+        pageBuilder: (context, state) {
+          final sid = _pathParameter(state, 'sessionId');
+          if (sid == null) {
+            return _missingPathParameterPage(state, 'sessionId');
+          }
+          final runId = _pathParameter(state, 'workflowRunId');
+          if (runId == null) {
+            return _missingPathParameterPage(state, 'workflowRunId');
+          }
+          final extra = state.extra as Map<String, dynamic>?;
+          return _slidePage(
+            AuthGate(
+              child: WorkflowRunScreen(
+                sessionId: sid,
+                runId: runId,
                 taskData: extra,
               ),
             ),

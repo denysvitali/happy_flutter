@@ -241,6 +241,10 @@ extension SyncSocket on Sync {
     // isInitialized = true and the first frame paint.
     Future<void>.microtask(hydrateAllFromCache);
 
+    // Cold-start workflows hydration: populate the in-memory workflows
+    // map from MMKV for every session that came back from the cache.
+    Future<void>.microtask(hydrateAllWorkflowsFromCache);
+
     // Setup socket connection
     final serverUrl = getServerUrl();
     socketIoClient.connect(

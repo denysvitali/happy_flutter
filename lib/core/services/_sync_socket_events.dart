@@ -592,6 +592,9 @@ extension SyncSocketEvents on Sync {
       // Clear any cached loops for the deleted session so we don't
       // resurrect them on next hydration.
       clearLoopsForSession(sessionId);
+      // Clear any cached workflow runs for the deleted session so we don't
+      // resurrect them on next hydration.
+      clearWorkflowsForSession(sessionId);
       // Clean up per-session collections that were missed
       _lastNoEmbedEventMs.remove(sessionId);
       _sidechainRegroupTimers.remove(sessionId)?.cancel();

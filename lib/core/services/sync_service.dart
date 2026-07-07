@@ -33,6 +33,7 @@ import '../models/profile.dart';
 import '../models/purchases.dart';
 import '../models/session.dart';
 import '../models/settings.dart';
+import '../models/workflow_run.dart';
 import '../rpc/rpc_types.dart';
 import '../sync/artifact_manager.dart';
 import '../sync/machine_manager.dart';
@@ -52,6 +53,7 @@ import '../services/power_diagnostics_otel_reporter.dart';
 import '../services/server_config.dart';
 import '../services/sessions_cache_storage.dart';
 import '../services/storage_service.dart';
+import '../services/workflow_storage.dart';
 // Compile-time identity types — see ROADMAP P0 "one canonical localId".
 // Imported once at the part-file root so every `_sync_messaging*` part can
 // reference [LocalId], [ServerMessageId], [SessionId], and the sealed
@@ -99,6 +101,7 @@ part '_sync_sessions.dart';
 part '_sync_socket.dart';
 part '_sync_socket_events.dart';
 part '_sync_loops.dart';
+part '_sync_workflows.dart';
 part 'message_pipeline/message_models.dart';
 part 'message_pipeline/message_ingestion_orchestrator.dart';
 part '_sync_test_helpers.dart';
@@ -918,6 +921,27 @@ what you have, you must use the options mode.
   /// affected view.
   final StreamController<String> _loopsChangeController =
       StreamController<String>.broadcast();
+
+  /// Mutable workflows-by-session map — use in tests that need to seed
+  /// workflow state.
+  @visibleForTesting
+  Map<String, List<WorkflowRun>> get testWorkflowsBySession =>
+      _workflowsBySession;
+
+  /// In-memory mirror of `Map<sessionId, List<WorkflowRun>>`. Populated by
+  /// RPC fetches; persisted to MMKV via [WorkflowStorage].
+  final Map<String, List<WorkflowRun>> _workflowsBySession =
+      <String, List<WorkflowRun>>{};
+
+  /// Broadcast stream that fires when the workflow runs for a session change.
+  /// Subscribers receive the sessionId so they can refresh only the affected
+  /// view.
+  final StreamController<String> _workflowsChangeController =
+      StreamController<String>.broadcast();
+
+  /// Test override for the [SyncWorkflows.refreshAllWorkflows] deadline.
+  @visibleForTesting
+  Duration? testRefreshAllWorkflowsDeadline;
 
   /// Convenience setter for spawn timestamp.
   @visibleForTesting

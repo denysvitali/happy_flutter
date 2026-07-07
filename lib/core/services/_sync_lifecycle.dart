@@ -871,6 +871,10 @@ extension SyncLifecycle on Sync {
     // belongs to the previous user; must not leak into the new
     // session IDs after login).
     _loopsBySession.clear();
+    // _workflowsBySession cleared in shutdown (workflow runs per session
+    // belong to the previous user; must not leak into the new session IDs
+    // after login).
+    _workflowsBySession.clear();
     // _dataChangeCounter reset in shutdown (monotonic counter must
     // restart at 0 so the next login's providers see a clean
     // baseline and do not compare against stale last-seen values).

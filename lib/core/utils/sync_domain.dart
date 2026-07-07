@@ -9,4 +9,5 @@ enum SyncDomain {
   gitStatus,
   friendRequests,
   loops,
+  workflows,
 }
