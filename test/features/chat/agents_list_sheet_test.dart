@@ -314,6 +314,28 @@ void main() {
         expect(AgentsListSheet.extractAgents('test-session'), hasLength(4));
       });
 
+      test('taskEvent with parentToolUseId synthesizes agent with parent id',
+          () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'workflow-event-0',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'workflow-agent-0',
+            'parentToolUseId': 'toolu_workflow',
+            'taskType': 'local_workflow',
+            'seq': 1,
+          },
+        ]);
+
+        final agents = AgentsListSheet.extractAgents('test-session');
+        expect(agents, hasLength(1));
+        final agent = agents.single;
+        expect(agent['id'], 'task-event-workflow-agent-0');
+        expect(agent['toolUseId'], 'toolu_workflow');
+        expect(agent['_taskEventParentToolUseId'], 'toolu_workflow');
+      });
+
       test('taskEvent + real tool-calls: prefers taskEvents '
           'when both exist', () {
         // When taskEvents are present, computeTaskProgress uses them
