@@ -523,9 +523,12 @@ class _AgentTile extends StatelessWidget {
     final children = WireParsers.asList(agent['children']);
     final childCount = children?.length ?? 0;
     final msgId = agent['id'] as String?;
+    final toolUseId = agent['toolUseId'] as String?;
     final parentToolUseId = agent['_taskEventParentToolUseId'] as String?;
     final isSyntheticTaskEvent = agent['_taskEventSynthetic'] == true;
-    final navigationId = isSyntheticTaskEvent ? parentToolUseId : msgId;
+    final navigationId = isSyntheticTaskEvent
+        ? (parentToolUseId ?? toolUseId)
+        : msgId;
     final canOpenConversation =
         navigationId != null && agent['_subagentsCatalogSynthetic'] != true;
 
