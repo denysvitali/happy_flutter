@@ -84,8 +84,7 @@ class _TaskEventAgent {
     'name': 'Agent',
     'state': state,
     '_taskEventSynthetic': true,
-    if (parentToolUseId != null)
-      '_taskEventParentToolUseId': parentToolUseId,
+    if (parentToolUseId != null) '_taskEventParentToolUseId': parentToolUseId,
     'input': <String, dynamic>{
       'description': description ?? agentId,
       if (taskType != null) 'subagent_type': taskType,
@@ -96,11 +95,7 @@ class _TaskEventAgent {
 
 /// Bottom sheet showing all active/running Task agents in the session.
 class AgentsListSheet extends StatelessWidget {
-  const AgentsListSheet({
-    required this.sessionId,
-    this.onAgentTap,
-    super.key,
-  });
+  const AgentsListSheet({required this.sessionId, this.onAgentTap, super.key});
 
   final String sessionId;
 
@@ -111,7 +106,7 @@ class AgentsListSheet extends StatelessWidget {
   /// that outlives the bottom sheet, otherwise the navigation is silently
   /// dropped when the modal is popped.
   final void Function(Map<String, dynamic> agent, String navigationId)?
-      onAgentTap;
+  onAgentTap;
 
   static bool _isAgentToolName(String? name) =>
       name == 'Task' || name == 'Agent' || name == 'Workflow';
@@ -481,10 +476,10 @@ class AgentsListSheet extends StatelessWidget {
                       final agent = agents[index];
                       return RepaintBoundary(
                         child: _AgentTile(
-                        agent: agent,
-                        sessionId: sessionId,
-                        onTap: onAgentTap,
-                      ),
+                          agent: agent,
+                          sessionId: sessionId,
+                          onTap: onAgentTap,
+                        ),
                       );
                     },
                   ),
@@ -502,11 +497,7 @@ String _progressLabel(TaskProgress progress) {
 }
 
 class _AgentTile extends StatelessWidget {
-  const _AgentTile({
-    required this.agent,
-    required this.sessionId,
-    this.onTap,
-  });
+  const _AgentTile({required this.agent, required this.sessionId, this.onTap});
 
   final Map<String, dynamic> agent;
   final String sessionId;

@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/chat/widgets/agents_list_sheet.dart';
 
@@ -314,27 +316,29 @@ void main() {
         expect(AgentsListSheet.extractAgents('test-session'), hasLength(4));
       });
 
-      test('taskEvent with parentToolUseId synthesizes agent with parent id',
-          () {
-        sync.testSetSessionMessages('test-session', [
-          <String, dynamic>{
-            'id': 'workflow-event-0',
-            'kind': 'agent-event',
-            'taskEvent': true,
-            'agentId': 'workflow-agent-0',
-            'parentToolUseId': 'toolu_workflow',
-            'taskType': 'local_workflow',
-            'seq': 1,
-          },
-        ]);
+      test(
+        'taskEvent with parentToolUseId synthesizes agent with parent id',
+        () {
+          sync.testSetSessionMessages('test-session', [
+            <String, dynamic>{
+              'id': 'workflow-event-0',
+              'kind': 'agent-event',
+              'taskEvent': true,
+              'agentId': 'workflow-agent-0',
+              'parentToolUseId': 'toolu_workflow',
+              'taskType': 'local_workflow',
+              'seq': 1,
+            },
+          ]);
 
-        final agents = AgentsListSheet.extractAgents('test-session');
-        expect(agents, hasLength(1));
-        final agent = agents.single;
-        expect(agent['id'], 'task-event-workflow-agent-0');
-        expect(agent['toolUseId'], 'toolu_workflow');
-        expect(agent['_taskEventParentToolUseId'], 'toolu_workflow');
-      });
+          final agents = AgentsListSheet.extractAgents('test-session');
+          expect(agents, hasLength(1));
+          final agent = agents.single;
+          expect(agent['id'], 'task-event-workflow-agent-0');
+          expect(agent['toolUseId'], 'toolu_workflow');
+          expect(agent['_taskEventParentToolUseId'], 'toolu_workflow');
+        },
+      );
 
       test(
         'taskEvent synthetic agent without parentToolUseId omits navigation id',
@@ -806,6 +810,133 @@ void main() {
         ]);
         final p = AgentsListSheet.computeTaskProgress('test-session');
         expect(p.total, 0);
+      });
+    });
+
+    group('agent tile tap', () {
+      testWidgets('invokes onAgentTap with message id for real Task rows', (
+        tester,
+      ) async {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'task-1',
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'running',
+            'input': <String, dynamic>{
+              'description': 'do work',
+              'subagent_type': 'explore',
+            },
+          },
+        ]);
+
+        Map<String, dynamic>? tappedAgent;
+        String? tappedNavigationId;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AgentsListSheet(
+                sessionId: 'test-session',
+                onAgentTap: (agent, navigationId) {
+                  tappedAgent = agent;
+                  tappedNavigationId = navigationId;
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('do work'));
+        await tester.pumpAndSettle();
+
+        expect(tappedAgent, isNotNull);
+        expect(tappedAgent!['id'], 'task-1');
+        expect(tappedNavigationId, 'task-1');
+      });
+
+      testWidgets(
+        'invokes onAgentTap with parentToolUseId for taskEvent synthetics',
+        (tester) async {
+          sync.testSetSessionMessages('test-session', [
+            <String, dynamic>{
+              'id': 'parent-msg',
+              'kind': 'tool-call',
+              'name': 'Task',
+              'toolUseId': 'toolu_parent',
+              'state': 'running',
+              'input': <String, dynamic>{'description': 'parent task'},
+            },
+            <String, dynamic>{
+              'id': 'ev-1',
+              'kind': 'agent-event',
+              'taskEvent': true,
+              'agentId': 'agent-1',
+              'parentToolUseId': 'toolu_parent',
+              'taskStatus': 'running',
+              'message': 'child task',
+            },
+          ]);
+
+          String? tappedNavigationId;
+
+          await tester.pumpWidget(
+            MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: AgentsListSheet(
+                  sessionId: 'test-session',
+                  onAgentTap: (_, navigationId) {
+                    tappedNavigationId = navigationId;
+                  },
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('child task'));
+          await tester.pumpAndSettle();
+
+          expect(tappedNavigationId, 'toolu_parent');
+        },
+      );
+
+      testWidgets('catalog synthetics are not tappable', (tester) async {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'msg-1',
+            'kind': 'text',
+            'content': 'hello',
+            'subagentsCatalog': <String>['Explore'],
+          },
+        ]);
+
+        var tapCount = 0;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AgentsListSheet(
+                sessionId: 'test-session',
+                onAgentTap: (agent, navigationId) => tapCount++,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // The Explore catalog row has no chevron and onTap is null.
+        await tester.tap(find.text('Explore'));
+        await tester.pumpAndSettle();
+
+        expect(tapCount, 0);
       });
     });
   });

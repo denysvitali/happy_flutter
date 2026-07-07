@@ -32,10 +32,7 @@ import 'agents_list_sheet.dart';
 /// must be visible at all times, regardless of how the user has
 /// configured tool-call display.
 class SubAgentStatusBanner extends StatelessWidget {
-  const SubAgentStatusBanner({
-    required this.sessionId,
-    super.key,
-  });
+  const SubAgentStatusBanner({required this.sessionId, super.key});
 
   final String sessionId;
 
@@ -146,11 +143,12 @@ class _SubAgentStatusBannerStatefulState
       }
       // New sub-agent — start a span.
       final input = agent['input'] as Map<String, dynamic>?;
-      final subagentType = input?['subagent_type'] as String? ??
+      final subagentType =
+          input?['subagent_type'] as String? ??
           agent['subagentType'] as String? ??
           'unknown';
-      final description = input?['description'] as String? ??
-          input?['prompt'] as String?;
+      final description =
+          input?['description'] as String? ?? input?['prompt'] as String?;
       final activeSpan = OpenTelemetryService().currentSpan;
       final span = activeSpan != null
           ? OpenTelemetryService().startChildSpan(
@@ -162,10 +160,9 @@ class _SubAgentStatusBannerStatefulState
                 'subagent.parent_tool_use_id': id,
                 'subagent.type': subagentType,
                 if (description != null)
-                  'subagent.description':
-                      description.length > 200
-                          ? '${description.substring(0, 197)}...'
-                          : description,
+                  'subagent.description': description.length > 200
+                      ? '${description.substring(0, 197)}...'
+                      : description,
               },
             )
           : OpenTelemetryService().startTrace(
@@ -176,10 +173,9 @@ class _SubAgentStatusBannerStatefulState
                 'subagent.parent_tool_use_id': id,
                 'subagent.type': subagentType,
                 if (description != null)
-                  'subagent.description':
-                      description.length > 200
-                          ? '${description.substring(0, 197)}...'
-                          : description,
+                  'subagent.description': description.length > 200
+                      ? '${description.substring(0, 197)}...'
+                      : description,
               },
             );
       if (span != null) {
@@ -203,6 +199,7 @@ class _SubAgentStatusBannerStatefulState
       span?.end(ok: true);
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final progress = SubAgentStatusBanner._progress(widget.sessionId);
@@ -247,9 +244,7 @@ class _SubAgentStatusBannerStatefulState
     try {
       Sentry.addBreadcrumb(crumb);
     } catch (e) {
-      logger.warning(
-        '[subagent-banner] failed to emit Sentry breadcrumb: $e',
-      );
+      logger.warning('[subagent-banner] failed to emit Sentry breadcrumb: $e');
     }
   }
 }
@@ -278,10 +273,7 @@ class _BannerBody extends StatelessWidget {
       backgroundColor = theme.colorScheme.errorContainer;
       foregroundColor = theme.colorScheme.onErrorContainer;
       icon = Icons.warning_amber_rounded;
-      label = l10n.subAgentBannerError(
-        progress.error,
-        progress.total,
-      );
+      label = l10n.subAgentBannerError(progress.error, progress.total);
     } else if (isComplete) {
       backgroundColor = AppColors.success.withValues(alpha: 0.16);
       foregroundColor = AppColors.success;
@@ -373,18 +365,13 @@ class _BannerBody extends StatelessWidget {
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       builder: (sheetContext) => AgentsListSheet(
         sessionId: sessionId,
         onAgentTap: (agent, navigationId) {
           Navigator.of(sheetContext).pop();
-          context.push(
-            '/chat/$sessionId/agent/$navigationId',
-            extra: agent,
-          );
+          context.push('/chat/$sessionId/agent/$navigationId', extra: agent);
         },
       ),
     );
