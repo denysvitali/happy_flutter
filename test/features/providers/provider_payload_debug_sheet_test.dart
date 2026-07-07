@@ -72,6 +72,28 @@ void main() {
       );
     });
 
+    testWidgets(
+      'preserves real line breaks in multi-line JSON',
+      (tester) async {
+      const payload = '{\n  "limit": 100,\n  "used": 30\n}';
+      await tester.pumpWidget(_pumpSheet(
+        tester,
+        ProviderUsage(
+          accountId: 'a1',
+          type: ProviderUsageType.kimi,
+          extra: const <String, dynamic>{
+            'raw_payload': payload,
+          },
+        ),
+      ));
+
+      final richTexts = tester.widgetList<RichText>(find.byType(RichText));
+      final rendered = richTexts.map((w) => w.text.toPlainText()).join();
+      expect(rendered, contains('\n'));
+      expect(rendered, isNot(contains(r'\n')));
+    },
+  );
+
     testWidgets('shows empty state when payload is missing', (tester) async {
       await tester.pumpWidget(_pumpSheet(
         tester,

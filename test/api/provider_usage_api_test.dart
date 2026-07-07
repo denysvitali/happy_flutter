@@ -32,9 +32,27 @@ ResponseBody _json(Object body, int status) => ResponseBody.fromString(
   },
 );
 
+ResponseBody _text(String body, int status) => ResponseBody.fromString(
+  body,
+  status,
+  headers: <String, List<String>>{
+    Headers.contentTypeHeader: <String>['text/plain'],
+  },
+);
+
 Dio _dioWith(ResponseBody Function(RequestOptions options) handler) {
   final dio = Dio(
     BaseOptions(validateStatus: (_) => true, responseType: ResponseType.json),
+  )..httpClientAdapter = _FakeAdapter(handler);
+  return dio;
+}
+
+/// Dio configured with [ResponseType.plain] so the adapter can force the raw
+/// response body to be delivered as a [String]. This mirrors proxies/gateways
+/// that return JSON as a plain-text payload.
+Dio _dioWithPlain(ResponseBody Function(RequestOptions options) handler) {
+  final dio = Dio(
+    BaseOptions(validateStatus: (_) => true, responseType: ResponseType.plain),
   )..httpClientAdapter = _FakeAdapter(handler);
   return dio;
 }
@@ -242,6 +260,36 @@ void main() {
       );
     });
 
+    test('pretty-prints JSON delivered as a plain-text string body', () async {
+      final api = KimiUsageApi(
+        dio: _dioWithPlain(
+          (o) => _text(
+            jsonEncode(<String, dynamic>{
+              'usage': <String, dynamic>{'limit': '100', 'used': '30'},
+            }),
+            200,
+          ),
+        ),
+      );
+
+      final usage = await api.getUsage(
+        apiKey: 'test-key',
+        accountId: 'a1',
+        includeDebugPayload: true,
+      );
+
+      final pretty = usage.extra['raw_payload'] as String;
+      // The key fix: a JSON string body must be decoded and pretty-printed
+      // with real line breaks, not emitted as one quoted string.
+      expect(pretty, contains('\n'));
+      expect(pretty, isNot(startsWith('"')));
+      expect(pretty, contains('"limit"'));
+
+      final compact = usage.extra['raw_payload_compact'] as String;
+      expect(compact, isNot(contains('\n')));
+      expect(compact, contains('"limit"'));
+    });
+
     test('reflects fallback endpoint in debug payload when /usages fails',
         () async {
       final api = KimiUsageApi(
@@ -341,6 +389,36 @@ void main() {
       expect(usage.extra['window_count'], 1);
       expect(usage.extra['raw_payload'], isA<String>());
       expect(usage.extra['raw_payload_compact'], contains('MiniMax-Text'));
+    });
+
+    test('pretty-prints a plain-text JSON string body', () async {
+      final api = MiniMaxUsageApi(
+        dio: _dioWithPlain(
+          (o) => _text(
+            jsonEncode(<String, dynamic>{
+              'model_remains': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'model_name': 'MiniMax-Text',
+                  'current_interval_remaining_percent': 25,
+                  'end_time': 1893456000000,
+                },
+              ],
+            }),
+            200,
+          ),
+        ),
+      );
+
+      final usage = await api.getUsage(
+        apiKey: 'test-key',
+        accountId: 'a1',
+        includeDebugPayload: true,
+      );
+
+      final pretty = usage.extra['raw_payload'] as String;
+      expect(pretty, contains('\n'));
+      expect(pretty, isNot(startsWith('"')));
+      expect(pretty, contains('"model_name"'));
     });
 
     test('handles the production shape (current_interval_remaining_percent)',
@@ -758,6 +836,39 @@ void main() {
       expect(usage.extra['window_count'], 1);
       expect(usage.extra['raw_payload'], isA<String>());
       expect(usage.extra['raw_payload_compact'], contains('TOKENS_LIMIT'));
+    });
+
+    test('pretty-prints a plain-text JSON string body', () async {
+      final api = ZaiUsageApi(
+        dio: _dioWithPlain(
+          (o) => _text(
+            jsonEncode(<String, dynamic>{
+              'data': <String, dynamic>{
+                'limits': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'type': 'TOKENS_LIMIT',
+                    'unit': 3,
+                    'number': 5,
+                    'percentage': 15,
+                  },
+                ],
+              },
+            }),
+            200,
+          ),
+        ),
+      );
+
+      final usage = await api.getUsage(
+        apiKey: 'test-key',
+        accountId: 'a1',
+        includeDebugPayload: true,
+      );
+
+      final pretty = usage.extra['raw_payload'] as String;
+      expect(pretty, contains('\n'));
+      expect(pretty, isNot(startsWith('"')));
+      expect(pretty, contains('"TOKENS_LIMIT"'));
     });
 
     test('honours a custom base URL', () async {

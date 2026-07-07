@@ -889,22 +889,49 @@ class _MiniMaxFetch {
 
 /// Pretty-prints a JSON-compatible value, falling back to `toString()` when
 /// the value can't be safely serialized (e.g. circular structures, raw bytes).
+///
+/// If [value] is a [String] that contains JSON, it is decoded first so the
+/// pretty output has real line breaks instead of a single quoted string with
+/// escaped `\n` characters.
 String _safeStringify(dynamic value) {
   try {
     const encoder = JsonEncoder.withIndent('  ');
-    return encoder.convert(value);
+    final decoded = _decodeIfJsonString(value);
+    return encoder.convert(decoded ?? value);
   } catch (_) {
     return value?.toString() ?? 'null';
   }
 }
 
 /// Compact (single-line) JSON encoding for log breadcrumbs.
+///
+/// Like [_safeStringify], JSON string bodies are decoded before re-encoding so
+/// the compact form is valid JSON rather than a quoted JSON string.
 String _compactStringify(dynamic value) {
   try {
-    return jsonEncode(value);
+    final decoded = _decodeIfJsonString(value);
+    return jsonEncode(decoded ?? value);
   } catch (_) {
     return value?.toString() ?? 'null';
   }
+}
+
+/// Decodes [value] when it is a non-empty JSON string, otherwise returns null.
+///
+/// Some gateways or proxies return the response body as a JSON string rather
+/// than a parsed object. Without this step, `JsonEncoder` would emit a quoted
+/// string with escaped newlines, making the debug sheet render the payload as
+/// one garbled line.
+dynamic _decodeIfJsonString(dynamic value) {
+  if (value is String && value.isNotEmpty) {
+    try {
+      return jsonDecode(value);
+    } catch (_) {
+      // Not a JSON string — fall through and let the caller encode the raw
+      // value (e.g. a plain text error body).
+    }
+  }
+  return null;
 }
 
 /// Builds a [ProviderUsageApiException] for a non-200 response, surfacing the
