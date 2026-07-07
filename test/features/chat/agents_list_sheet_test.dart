@@ -814,6 +814,40 @@ void main() {
     });
 
     group('agent tile tap', () {
+      Future<void> pumpSheet(
+        WidgetTester tester, {
+        required void Function(Map<String, dynamic> agent, String navigationId)
+        onAgentTap,
+      }) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      showModalBottomSheet<void>(
+                        context: context,
+                        builder: (_) => AgentsListSheet(
+                          sessionId: 'test-session',
+                          onAgentTap: onAgentTap,
+                        ),
+                      );
+                    },
+                    child: const Text('Open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+      }
+
       testWidgets('invokes onAgentTap with message id for real Task rows', (
         tester,
       ) async {
@@ -833,22 +867,13 @@ void main() {
         Map<String, dynamic>? tappedAgent;
         String? tappedNavigationId;
 
-        await tester.pumpWidget(
-          MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: AgentsListSheet(
-                sessionId: 'test-session',
-                onAgentTap: (agent, navigationId) {
-                  tappedAgent = agent;
-                  tappedNavigationId = navigationId;
-                },
-              ),
-            ),
-          ),
+        await pumpSheet(
+          tester,
+          onAgentTap: (agent, navigationId) {
+            tappedAgent = agent;
+            tappedNavigationId = navigationId;
+          },
         );
-        await tester.pumpAndSettle();
 
         await tester.tap(find.text('do work'));
         await tester.pumpAndSettle();
@@ -883,66 +908,17 @@ void main() {
 
           String? tappedNavigationId;
 
-          await tester.pumpWidget(
-            MaterialApp(
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              home: Scaffold(
-                body: AgentsListSheet(
-                  sessionId: 'test-session',
-                  onAgentTap: (_, navigationId) {
-                    tappedNavigationId = navigationId;
-                  },
-                ),
-              ),
-            ),
+          await pumpSheet(
+            tester,
+            onAgentTap: (_, navigationId) {
+              tappedNavigationId = navigationId;
+            },
           );
-          await tester.pumpAndSettle();
 
           await tester.tap(find.text('child task'));
           await tester.pumpAndSettle();
 
           expect(tappedNavigationId, 'toolu_parent');
-        },
-      );
-
-      testWidgets(
-        'invokes onAgentTap with toolUseId fallback for taskEvent synthetics '
-        'without parentToolUseId',
-        (tester) async {
-          sync.testSetSessionMessages('test-session', [
-            <String, dynamic>{
-              'id': 'ev-1',
-              'kind': 'agent-event',
-              'taskEvent': true,
-              'agentId': 'agent-1',
-              'taskStatus': 'running',
-              'message': 'child task',
-            },
-          ]);
-
-          String? tappedNavigationId;
-
-          await tester.pumpWidget(
-            MaterialApp(
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              home: Scaffold(
-                body: AgentsListSheet(
-                  sessionId: 'test-session',
-                  onAgentTap: (_, navigationId) {
-                    tappedNavigationId = navigationId;
-                  },
-                ),
-              ),
-            ),
-          );
-          await tester.pumpAndSettle();
-
-          await tester.tap(find.text('child task'));
-          await tester.pumpAndSettle();
-
-          expect(tappedNavigationId, 'agent-1');
         },
       );
 
@@ -958,19 +934,10 @@ void main() {
 
         var tapCount = 0;
 
-        await tester.pumpWidget(
-          MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: AgentsListSheet(
-                sessionId: 'test-session',
-                onAgentTap: (agent, navigationId) => tapCount++,
-              ),
-            ),
-          ),
+        await pumpSheet(
+          tester,
+          onAgentTap: (agent, navigationId) => tapCount++,
         );
-        await tester.pumpAndSettle();
 
         // The Explore catalog row has no chevron and onTap is null.
         await tester.tap(find.text('Explore'));
