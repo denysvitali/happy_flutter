@@ -230,15 +230,15 @@ class _SelectableJson extends StatelessWidget {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     return Scrollbar(
-      child: SelectionArea(
-        child: SingleChildScrollView(
-          child: SyntaxHighlighter(
-            code: text,
-            language: 'json',
-            isDarkMode: brightness == Brightness.dark,
-            fontSize: AppFontSize.sm,
-            lineHeight: AppLineHeight.relaxed,
-          ),
+      child: SingleChildScrollView(
+        child: SyntaxHighlighter(
+          code: text,
+          language: 'json',
+          isDarkMode: brightness == Brightness.dark,
+          fontSize: AppFontSize.sm,
+          lineHeight: AppLineHeight.relaxed,
+          selectable: true,
+          softWrap: true,
         ),
       ),
     );

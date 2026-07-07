@@ -56,9 +56,8 @@ void main() {
         ),
       ));
 
-      // The SyntaxHighlighter renders RichText spans rather than a single
-      // SelectableText widget, so presence of RichText proves highlighting
-      // is active.
+      // The SyntaxHighlighter renders the payload as rich selectable text so
+      // the presence of RichText/SelectableText proves rendering is active.
       expect(find.byType(RichText), findsWidgets);
       expect(
         tester.widgetList<RichText>(find.byType(RichText)).any(
