@@ -132,6 +132,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   bool _didStartInitialLoad = false;
   Timer? _loadingSafetyTimer;
+  /// Coalesces high-frequency [onSessionMessagesChanged] ticks during agent
+  /// streaming so we rebuild the message list at most ~once per frame budget
+  /// instead of once per socket event (was flooding Loki + main-isolate).
+  Timer? _messageRefreshDebounce;
+  static const Duration _messageRefreshDebounceWindow = Duration(
+    milliseconds: 50,
+  );
   int _lastDataChangeCounter = -1;
   int _prevMessagesLength = 0;
   int _prevSeenLength = 0;
@@ -358,6 +365,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _loadingSafetyTimer?.cancel();
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
+    _messageRefreshDebounce?.cancel();
     _paginationErrorSubscription?.cancel();
     _autoRestoreFailureSubscription?.cancel();
     _controller.dispose();
@@ -381,7 +389,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (!mounted) return;
           _lastMessageStreamActivityAt = DateTime.now().millisecondsSinceEpoch;
           ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
-          _refreshFromSync();
+          // Debounce: streaming agents emit many message-changed events per
+          // second. Immediate setState each time janks the UI; 50ms is under
+          // one frame at 60fps and still feels real-time.
+          _messageRefreshDebounce?.cancel();
+          _messageRefreshDebounce = Timer(_messageRefreshDebounceWindow, () {
+            if (!mounted) return;
+            _refreshFromSync();
+          });
         });
     _dataSyncSubscription = sync.onDomainChanged
         .where((domain) => domain == SyncDomain.sessions)

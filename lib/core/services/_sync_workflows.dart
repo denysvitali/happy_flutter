@@ -53,6 +53,17 @@ extension SyncWorkflows on Sync {
   /// are skipped with a warning rather than poisoning the entire batch.
   Future<void> refreshWorkflowsForSession(String sessionId) async {
     if (!isInitialized) return;
+    // Skip sessions that have no encryption keys yet. Calling sessionRPC
+    // would force invalidateAndAwait sessions (expensive) and then throw
+    // "Session encryption not found", flooding WARN logs on cold start
+    // when refreshAllWorkflows walks every known session.
+    if (encryption.getSessionEncryption(sessionId) == null) {
+      logger.debug(
+        '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
+        'encryption not ready',
+      );
+      return;
+    }
     dynamic raw;
     try {
       raw = await sessionRPC(
@@ -61,6 +72,21 @@ extension SyncWorkflows on Sync {
         const <String, dynamic>{},
       );
     } catch (e, st) {
+      if (e is StateError &&
+          e.message.contains('Session encryption not found')) {
+        logger.debug(
+          '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
+          'encryption not found',
+        );
+        return;
+      }
+      if (e is SocketNotConnectedException) {
+        logger.debug(
+          '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
+          'socket not connected',
+        );
+        return;
+      }
       logger.warning(
         '[workflows] refreshWorkflowsForSession($sessionId) failed: $e',
         e,

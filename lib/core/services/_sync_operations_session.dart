@@ -195,6 +195,32 @@ extension SyncSessionOperations on Sync {
         '[createSession] RPC END type=${result.type} '
         'elapsedMs=${rpcStopwatch.elapsedMilliseconds}',
       );
+    } on SocketNotConnectedException catch (error, stack) {
+      // Socket can drop between the pre-check wait and the long spawn RPC
+      // (esp. after worktree creation). Wait once more then retry.
+      logger.warning(
+        '[createSession] socket dropped before spawn RPC; '
+        'reconnecting and retrying once: $error',
+        error,
+        stack,
+      );
+      final reconnected = await socketIoClient.waitForConnection(
+        timeout: const Duration(seconds: 8),
+      );
+      if (!reconnected) {
+        throw StateError('Not connected to server');
+      }
+      result = await _typedMachineRPC(
+        machineId,
+        'spawn-happy-session',
+        req.toJson(),
+        SpawnSessionResponse.fromJson,
+        timeout: const Duration(seconds: 60),
+      );
+      logger.info(
+        '[createSession] RPC END (retry) type=${result.type} '
+        'elapsedMs=${rpcStopwatch.elapsedMilliseconds}',
+      );
     } catch (error, stack) {
       logger.warning(
         '[createSession] RPC FAILED '
