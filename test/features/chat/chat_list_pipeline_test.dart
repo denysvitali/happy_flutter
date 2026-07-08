@@ -14,7 +14,7 @@ void main() {
         shouldHideToolCall: (_, {required hideToolCalls}) => false,
       );
       expect(items.length, 1);
-      expect(items.single['id'], 'm1');
+      expect(items.single?['id'], 'm1');
     });
 
     test('collapses consecutive hidden tool calls into summary', () {

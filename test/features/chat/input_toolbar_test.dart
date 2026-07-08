@@ -104,7 +104,7 @@ void main() {
     );
   });
 
-  testWidgets('toolbar chips expose semantics and compact height', (
+  testWidgets('toolbar chips expose semantics and min hit targets', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -130,8 +130,11 @@ void main() {
     final modelSize = tester.getSize(find.byType(ModelChip));
     final profileSize = tester.getSize(find.byType(ProfileChip));
 
-    expect(modelSize.height, lessThanOrEqualTo(30));
-    expect(profileSize.height, lessThanOrEqualTo(30));
+    // Visual chip is dense (~30) but hit target pads to AppTouchTarget.min.
+    expect(modelSize.height, greaterThanOrEqualTo(44));
+    expect(profileSize.height, greaterThanOrEqualTo(44));
+    expect(modelSize.width, greaterThanOrEqualTo(44));
+    expect(profileSize.width, greaterThanOrEqualTo(44));
   });
 
   testWidgets(
