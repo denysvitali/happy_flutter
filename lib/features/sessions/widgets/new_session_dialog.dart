@@ -59,6 +59,13 @@ String newSessionCreateErrorMessage({
       errorText.contains('Machine is offline')) {
     return l10n.newSessionMachineUnreachable;
   }
+  if (errorText.contains('deadline exceeded') ||
+      errorText.contains('context deadline')) {
+    // Daemon-side timeouts (e.g. spawn-happy-session RPC context deadline)
+    // are transient and already logged; show a generic user-facing message
+    // instead of the raw technical error string.
+    return l10n.newSessionCouldNotStartSession;
+  }
   if (error is StateError && error.message.trim().isNotEmpty) {
     return error.message;
   }

@@ -207,6 +207,25 @@ void main() {
         l10n.newSessionCouldNotStartSession,
       );
     });
+
+    test('maps daemon deadline-exceeded errors to generic message', () {
+      expect(
+        newSessionCreateErrorMessage(
+          l10n: l10n,
+          error: StateError(
+            'failed to resolve session: context deadline exceeded',
+          ),
+        ),
+        l10n.newSessionCouldNotStartSession,
+      );
+      expect(
+        newSessionCreateErrorMessage(
+          l10n: l10n,
+          error: StateError('rpc spawn-happy-session: deadline exceeded'),
+        ),
+        l10n.newSessionCouldNotStartSession,
+      );
+    });
   });
 
   group('NewSessionDialog offline guard', () {
