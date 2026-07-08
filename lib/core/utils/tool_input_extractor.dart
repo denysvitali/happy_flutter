@@ -67,8 +67,10 @@ List<dynamic>? extractCommandList(Map<String, dynamic> input) {
 /// Tries these field names in order:
 /// 1. `file_path` (Claude Read/Write)
 /// 2. `filePath` (Edit tool)
-/// 3. `path` (LS, Gemini edit)
-/// 4. `locations[0].path` (Gemini Read format)
+/// 3. `target_file` (Grok Build read_file)
+/// 4. `path` (LS, Gemini edit)
+/// 5. `target_directory` / `directory` (Grok list_dir)
+/// 6. `locations[0].path` (Gemini Read format)
 ///
 /// Returns `null` if no path is found.
 String? extractFilePath(Map<String, dynamic> input) {
@@ -78,8 +80,17 @@ String? extractFilePath(Map<String, dynamic> input) {
   final camel = input['filePath'] as String?;
   if (camel != null && camel.isNotEmpty) return camel;
 
+  final grokTarget = input['target_file'] as String?;
+  if (grokTarget != null && grokTarget.isNotEmpty) return grokTarget;
+
   final path = input['path'] as String?;
   if (path != null && path.isNotEmpty) return path;
+
+  final targetDir = input['target_directory'] as String?;
+  if (targetDir != null && targetDir.isNotEmpty) return targetDir;
+
+  final directory = input['directory'] as String?;
+  if (directory != null && directory.isNotEmpty) return directory;
 
   final locations = WireParsers.asList(input['locations']);
   if (locations != null && locations.isNotEmpty) {

@@ -5,6 +5,7 @@
 /// dependencies — only plain Dart map/list manipulation.
 library;
 
+import '../utils/grok_acp_normalize.dart';
 import '../utils/wire_parsers.dart';
 import 'processors/data_type.dart';
 

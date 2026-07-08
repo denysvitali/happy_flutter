@@ -3,6 +3,7 @@ import 'package:happy_flutter/core/components/app_badge.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/file_type_colors.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 
@@ -92,7 +93,7 @@ class _LSViewState extends State<LSView> {
     final result = widget.tool['result'];
     final state = widget.tool['state'] as String? ?? '';
 
-    final path = input['path'] as String? ?? '/';
+    final path = extractFilePath(input) ?? input['path'] as String? ?? '/';
     final resolvedPath = resolvePath(path, widget.metadata);
     final entries = _parseEntries(result);
 
@@ -213,6 +214,9 @@ class _LSViewState extends State<LSView> {
 
   List<LSEntry> _parseEntries(dynamic result) {
     if (result == null) return [];
+    // Grok ListDir may normalize to a plain tree string when entries
+    // cannot be parsed; surface nothing rather than crashing.
+    if (result is String) return [];
     if (result is List) {
       return result
           .map((item) {

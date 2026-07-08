@@ -40,7 +40,17 @@ int? parseExitCode(dynamic result) {
 String? parseStdout(dynamic result) {
   if (result is String) return result;
   if (result is Map<String, dynamic>) {
-    return result['stdout'] as String? ?? result['output'] as String?;
+    final direct = result['stdout'] as String? ??
+        result['output'] as String? ??
+        result['output_for_prompt'] as String?;
+    if (direct != null && direct.isNotEmpty) return direct;
+    // Grok ListDir / nested Content maps occasionally land here before
+    // normalizeGrokToolResult runs.
+    final content = result['Content'] ?? result['content'];
+    if (content is Map && content['content'] is String) {
+      return content['content'] as String;
+    }
+    if (content is String && content.isNotEmpty) return content;
   }
   return null;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 /// Tool definitions with icons, subtitles, descriptions, and metadata.
@@ -93,6 +94,13 @@ class KnownTools {
     'functions.apply_patch': 'CodexPatch',
     'apply_patch': 'CodexPatch',
     'exit_plan_mode': 'ExitPlanMode',
+    // Grok Build ACP built-ins (happy-cli-go materialises title=tool name).
+    'list_dir': 'LS',
+    'read_file': 'Read',
+    'run_terminal_command': 'Bash',
+    'run_terminal_cmd': 'Bash',
+    'search_replace': 'Edit',
+    'todo_write': 'TodoWrite',
   };
 
   /// Returns the canonical definition name for [name].
@@ -292,7 +300,8 @@ class KnownTools {
       title: 'List Files',
       minimal: true,
       extractDescription: (tool, metadata) {
-        final path = tool['input']?['path'] as String?;
+        final input = WireParsers.asMap(tool['input']) ?? const {};
+        final path = extractFilePath(input);
         if (path == null) return null;
         final resolvedPath = resolvePath(path, metadata);
         final basename = resolvedPath.split('/').lastOrNull ?? resolvedPath;
@@ -304,15 +313,10 @@ class KnownTools {
       title: 'Read File',
       minimal: false,
       extractSubtitle: (tool, metadata) {
-        final filePath = tool['input']?['file_path'] as String?;
+        final input = WireParsers.asMap(tool['input']) ?? const {};
+        final filePath = extractFilePath(input);
         if (filePath != null) {
           return resolvePath(filePath, metadata);
-        }
-        // Gemini format
-        final locations = tool['input']?['locations'] as List?;
-        if (locations != null && locations.isNotEmpty) {
-          final path = locations[0]['path'] as String?;
-          if (path != null) return resolvePath(path, metadata);
         }
         return null;
       },
@@ -322,11 +326,8 @@ class KnownTools {
       title: 'Apply Changes',
       isMutable: true,
       extractSubtitle: (tool, metadata) {
-        final input = WireParsers.asMap(tool['input']);
-        final filePath =
-            input?['filePath'] as String? ??
-            input?['file_path'] as String? ??
-            input?['path'] as String?;
+        final input = WireParsers.asMap(tool['input']) ?? const {};
+        final filePath = extractFilePath(input);
         if (filePath != null) {
           return resolvePath(filePath, metadata);
         }
@@ -382,7 +383,8 @@ class KnownTools {
       title: 'Apply Changes',
       isMutable: true,
       extractSubtitle: (tool, metadata) {
-        final filePath = tool['input']?['file_path'] as String?;
+        final input = WireParsers.asMap(tool['input']) ?? const {};
+        final filePath = extractFilePath(input);
         if (filePath != null) {
           return resolvePath(filePath, metadata);
         }

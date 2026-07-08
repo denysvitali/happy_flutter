@@ -1269,7 +1269,7 @@ void main() {
                 'type': 'grok',
                 'data': {
                   'type': 'tool-call',
-                  'name': 'run_terminal_cmd',
+                  'name': 'run_terminal_command',
                   'callId': 'tc_1',
                   'input': {'command': 'ls'},
                 },
@@ -1287,8 +1287,209 @@ void main() {
         expect(result.messages[0]['isThinking'], true);
         expect(result.messages[0]['content'], contains('planning'));
         expect(result.messages[1]['kind'], 'tool-call');
-        expect(result.messages[1]['name'], 'run_terminal_cmd');
+        // Grok built-in names are canonicalized for KnownTools / tool views.
+        expect(result.messages[1]['name'], 'Bash');
         expect(result.messages[1]['toolUseId'], 'tc_1');
+      });
+
+      test('normalizes Grok list_dir / read_file inputs and tool-results', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'tool-call',
+                  'name': 'list_dir',
+                  'callId': 'call-list',
+                  'rawInput': {'target_directory': '.'},
+                  'kind': 'list',
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'tool-result',
+                  'callId': 'call-list',
+                  'status': 'completed',
+                  'result': {
+                    'type': 'ListDir',
+                    'Content': {
+                      'content':
+                          '- /tmp/fixture/\n  - README.md\n  - probe.txt',
+                      'absolute_root_path': '/tmp/fixture/.',
+                    },
+                  },
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'tool-call',
+                  'title': 'read_file',
+                  'callId': 'call-read',
+                  'rawInput': {'target_file': 'README.md'},
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'tool-result',
+                  'callId': 'call-read',
+                  'status': 'completed',
+                  'content': [
+                    {
+                      'type': 'content',
+                      'content': {
+                        'type': 'text',
+                        'text': '# Grok ACP capture fixture\n',
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'tool-call',
+                  'name': 'run_terminal_command',
+                  'callId': 'call-sh',
+                  'input': {
+                    'command': 'echo capture-ok',
+                    'description': 'probe',
+                  },
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'tool-result',
+                  'callId': 'call-sh',
+                  'status': 'completed',
+                  'rawOutput': {
+                    'output': 'capture-ok\n',
+                    'exit_code': 0,
+                    'command': 'echo capture-ok',
+                  },
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'system',
+                  'subtype': 'task_progress',
+                  'description': 'background shell',
+                  'status': 'in_progress',
+                  'task_type': 'shell',
+                  'callId': 'call-bg',
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'system',
+                  'subtype': 'task_notification',
+                  'summary': 'Task completed',
+                  'status': 'completed',
+                  'task_type': 'shell',
+                  'callId': 'call-bg',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            for (var i = 1; i <= 8; i++)
+              {'id': 'm$i', 'seq': i, 'createdAt': 1000 + i},
+          ],
+          sessionId: 's1',
+        );
+
+        final toolCalls = result.messages
+            .where((m) => m['kind'] == 'tool-call')
+            .toList();
+        expect(toolCalls, hasLength(3));
+        expect(toolCalls[0]['name'], 'LS');
+        expect(toolCalls[0]['input']['path'], '.');
+        expect(toolCalls[0]['toolUseId'], 'call-list');
+        expect(toolCalls[1]['name'], 'Read');
+        expect(toolCalls[1]['input']['file_path'], 'README.md');
+        expect(toolCalls[2]['name'], 'Bash');
+
+        expect(result.toolResults, hasLength(3));
+        final listResult = result.toolResults
+            .firstWhere((r) => r['toolUseId'] == 'call-list');
+        expect(listResult['result'], isA<Map>());
+        expect(
+          (listResult['result'] as Map)['entries'],
+          isA<List>().having((l) => l.length, 'len', greaterThanOrEqualTo(2)),
+        );
+
+        final readResult = result.toolResults
+            .firstWhere((r) => r['toolUseId'] == 'call-read');
+        expect(readResult['result'], contains('Grok ACP capture fixture'));
+
+        final shResult = result.toolResults
+            .firstWhere((r) => r['toolUseId'] == 'call-sh');
+        expect(shResult['result'], isA<Map>());
+        expect((shResult['result'] as Map)['stdout'], 'capture-ok\n');
+        expect((shResult['result'] as Map)['exitCode'], 0);
+
+        // task_progress → agent-event; task_notification completed → text
+        final taskEvents =
+            result.messages.where((m) => m['taskEvent'] == true).toList();
+        expect(taskEvents, hasLength(2));
+        expect(taskEvents[0]['kind'], 'agent-event');
+        expect(taskEvents[1]['kind'], 'text');
+        expect(taskEvents[1]['content'], 'Task completed');
+      });
+
+      test('maps Grok failed tool-result to isError', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'tool-result',
+                  'callId': 'call-fail',
+                  'status': 'failed',
+                  'result': {'output': 'boom', 'exit_code': 1},
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.toolResults, hasLength(1));
+        expect(result.toolResults.first['isError'], true);
+        expect(result.toolResults.first['toolUseId'], 'call-fail');
       });
     });
 

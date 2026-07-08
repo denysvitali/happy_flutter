@@ -81,6 +81,24 @@ void _processAcpContent({
     final toolCall = data['toolCall'] is Map<String, dynamic>
         ? data['toolCall'] as Map<String, dynamic>
         : data;
+    final rawName = toolCall['name'] ??
+        toolCall['title'] ??
+        toolCall['kind'] ??
+        data['name'];
+    final name = canonicalizeGrokToolName(rawName);
+    final rawInput = WireParsers.asMap(toolCall['input']) ??
+        WireParsers.asMap(toolCall['rawInput']) ??
+        WireParsers.asMap(data['input']) ??
+        WireParsers.asMap(data['rawInput']) ??
+        <String, dynamic>{};
+    final input = normalizeGrokToolInput(rawInput);
+    final status = (toolCall['status'] ?? data['status'])?.toString();
+    final state = _toolCallStateFromStatus(status);
+    final toolUseId = toolCall['callId'] ??
+        toolCall['toolCallId'] ??
+        toolCall['tool_call_id'] ??
+        toolCall['id'] ??
+        data['callId'];
     messages.add({
       'id': id,
       'localId': localId,
@@ -88,11 +106,11 @@ void _processAcpContent({
       'createdAt': createdAt,
       'role': 'agent',
       'kind': 'tool-call',
-      'name': toolCall['name'] ?? toolCall['title'] ?? toolCall['kind'],
-      'input': toolCall['input'] ?? toolCall['rawInput'] ?? {},
-      'toolUseId':
-          toolCall['callId'] ?? toolCall['toolCallId'] ?? toolCall['id'],
-      'state': 'running',
+      'name': name,
+      'input': input,
+      'toolUseId': toolUseId,
+      'state': state,
+      'kindHint': toolCall['kind'] ?? data['kind'],
       'content': toolCall,
       'raw': outerContent,
       if (meta.isSidechain) 'isSidechain': true,
@@ -105,8 +123,22 @@ void _processAcpContent({
   }
 
   if (_isToolResultEnvelope(data)) {
+    final normalized = Map<String, dynamic>.from(data);
+    final rawResult = data['result'] ??
+        data['output'] ??
+        data['content'] ??
+        data['rawOutput'];
+    normalized['result'] = normalizeGrokToolResult(rawResult);
+    // Grok emits status: completed|failed; map onto isError when absent.
+    if (normalized['isError'] != true && normalized['is_error'] != true) {
+      final status =
+          (data['status'] ?? data['state'])?.toString().toLowerCase();
+      if (status == 'failed' || status == 'error') {
+        normalized['isError'] = true;
+      }
+    }
     _addToolResultEnvelope(
-      data: data,
+      data: normalized,
       createdAt: createdAt,
       toolResults: toolResults,
       meta: meta,
@@ -212,4 +244,25 @@ void _processAcpContent({
         ? 'unknown acp dataType: $dataType'
         : 'acp data missing dataType (keys=${data.keys.toList()})',
   );
+}
+
+/// Maps Grok/ACP tool status strings onto Happy tool-call UI states.
+String _toolCallStateFromStatus(String? status) {
+  switch (status?.toLowerCase().trim()) {
+    case 'completed':
+    case 'success':
+    case 'succeeded':
+      return 'completed';
+    case 'failed':
+    case 'error':
+      return 'error';
+    case 'in_progress':
+    case 'running':
+    case 'pending':
+    case null:
+    case '':
+      return 'running';
+    default:
+      return 'running';
+  }
 }

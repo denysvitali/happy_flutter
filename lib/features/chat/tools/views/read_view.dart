@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/file_type_colors.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
+import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 
@@ -37,15 +38,8 @@ class ReadView extends StatelessWidget {
     final result = tool['result'];
     final state = tool['state'] as String? ?? '';
 
-    // Handle both file_path and locations (Gemini format)
-    String? filePath;
-    if (input['file_path'] != null) {
-      filePath = input['file_path'] as String?;
-    } else if (input['locations'] != null &&
-        input['locations'] is List &&
-        (input['locations'] as List).isNotEmpty) {
-      filePath = input['locations'][0]['path'] as String?;
-    }
+    // Claude / Gemini / Grok path fields via extractFilePath.
+    final filePath = extractFilePath(input);
 
     final resolvedPath = filePath != null
         ? resolvePath(filePath, metadata)

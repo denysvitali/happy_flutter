@@ -315,6 +315,12 @@ void main() {
       expect(KnownTools.titleFor('grep', {}, null), 'Search Content');
       expect(KnownTools.titleFor('ls', {}, null), 'List Files');
       expect(KnownTools.titleFor('todo_list', {}, null), 'Todo List');
+      // Grok Build ACP built-in names
+      expect(KnownTools.titleFor('list_dir', {}, null), 'List Files');
+      expect(KnownTools.titleFor('read_file', {}, null), 'Read File');
+      expect(KnownTools.titleFor('run_terminal_command', {}, null), 'Terminal');
+      expect(KnownTools.titleFor('search_replace', {}, null), 'Apply Changes');
+      expect(KnownTools.titleFor('todo_write', {}, null), 'Todo List');
     });
 
     test('extracts patch subtitle from raw cached content', () {
