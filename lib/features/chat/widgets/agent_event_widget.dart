@@ -25,6 +25,11 @@ class AgentEventWidget extends StatelessWidget {
     'thinking',
     'tool-execution-update',
     'usage_report',
+    // Raw ACP stream envelopes from older CLI builds. Content is already
+    // materialised as durable message/thinking/tool-call rows; replaying the
+    // raw events only produces "Unsupported agent event" spam.
+    'grok-event',
+    'opencode-event',
   };
 
   /// Resolves the user-visible label for an agent event, or `null` when

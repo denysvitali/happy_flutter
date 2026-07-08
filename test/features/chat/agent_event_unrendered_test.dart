@@ -145,6 +145,18 @@ void main() {
         ),
         isFalse,
       );
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'grok-event'},
+        ),
+        isFalse,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'opencode-event'},
+        ),
+        isFalse,
+      );
     });
 
     test('shows unknown and unsupported agent events in chat', () {
