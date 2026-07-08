@@ -143,9 +143,9 @@ void main() {
         ),
       ));
 
-      final selectable = tester.widget<SelectableText>(
-        find.widgetWithText(SelectableText, '"limit"'),
-      );
+      final selectable = tester
+          .widgetList<SelectableText>(find.byType(SelectableText))
+          .firstWhere((w) => (w.data ?? '').contains('"limit"'));
       expect(selectable.style, isNotNull);
       expect(selectable.style!.height, AppLineHeight.relaxed);
     });
