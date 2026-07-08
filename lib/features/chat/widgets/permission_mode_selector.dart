@@ -271,8 +271,12 @@ class PermissionModeSelector extends ConsumerWidget {
             minHeight: AppTouchTarget.min,
             minWidth: AppTouchTarget.min,
           ),
+          // widthFactor/heightFactor keep Align intrinsic-sized so parent
+          // Wrap places chips on one row; bare Align expands to full width.
           child: Align(
             alignment: Alignment.center,
+            widthFactor: 1,
+            heightFactor: 1,
             child: Container(
               width: width,
               height: _selectorChipVisualHeight,

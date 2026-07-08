@@ -178,4 +178,49 @@ void main() {
       expect(find.byType(ProfileChip), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'permission, model, and profile chips share one row at phone width',
+    (tester) async {
+      // Regression: Align without widthFactor expanded each chip to full
+      // Wrap width, stacking them vertically (~half the screen).
+      tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        wrap(
+          SizedBox(
+            width: 390,
+            child: InputToolbar(
+              permissionMode: perm.PermissionMode.defaultMode,
+              onPermissionModeChanged: (_) {},
+              modelMode: ChatModelMode.sonnet,
+              availableModels: ChatModelMode.availableForFlavor('claude'),
+              onShowModelPicker: () {},
+              onShowProfilePicker: () {},
+            ),
+          ),
+        ),
+      );
+
+      final permCenter = tester.getCenter(
+        find.byType(perm.PermissionModeSelector),
+      );
+      final modelCenter = tester.getCenter(find.byType(ModelChip));
+      final profileCenter = tester.getCenter(find.byType(ProfileChip));
+
+      // Same baseline (allow 1px float noise).
+      expect((permCenter.dy - modelCenter.dy).abs(), lessThan(1));
+      expect((modelCenter.dy - profileCenter.dy).abs(), lessThan(1));
+
+      // Left-to-right order: permission → model → profile.
+      expect(permCenter.dx, lessThan(modelCenter.dx));
+      expect(modelCenter.dx, lessThan(profileCenter.dx));
+
+      // Toolbar itself must stay a single chip-height strip, not 3 stacks.
+      final toolbarSize = tester.getSize(find.byType(InputToolbar));
+      expect(toolbarSize.height, lessThan(60));
+    },
+  );
 }
