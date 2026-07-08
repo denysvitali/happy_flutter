@@ -144,7 +144,7 @@ void main() {
       ));
 
       final selectable = tester.widget<SelectableText>(
-        find.byType(SelectableText).first,
+        find.widgetWithText(SelectableText, '"limit"'),
       );
       expect(selectable.style, isNotNull);
       expect(selectable.style!.height, AppLineHeight.relaxed);
