@@ -89,6 +89,7 @@ void main() {
     var responseStatus = 200;
     Map<String, dynamic>? responseData;
     Map<String, dynamic>? successResponseData;
+    Object? requestException;
 
     setUp(() async {
       instance = Sync();
@@ -124,11 +125,23 @@ void main() {
       responseStatus = 200;
       responseData = null;
       successResponseData = null;
+      requestException = null;
       await ApiClient().initialize(serverUrl: 'http://localhost');
       ApiClient().testDio!.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {
             if (options.path == '/v3/sessions/sess-1/messages') {
+              final exception = requestException;
+              if (exception != null) {
+                handler.reject(
+                  DioException(
+                    requestOptions: options,
+                    error: exception,
+                    type: DioExceptionType.connectionError,
+                  ),
+                );
+                return;
+              }
               capturedRequestData = options.data;
               final request = options.data as Map<String, dynamic>;
               final requestMessages = request['messages'] as List<dynamic>;
@@ -429,6 +442,88 @@ void main() {
         expect(socketPayload['message'], 'encrypted-content');
       },
     );
+
+    test(
+      'outbox delivery returns false when the request never reaches the server',
+      () async {
+        requestException = 'ERR_NAME_NOT_RESOLVED';
+        instance.testSocketConnectedOverride = true;
+        final raw = <String, dynamic>{
+          'role': 'user',
+          'content': <String, dynamic>{'type': 'text', 'text': 'outbox'},
+        };
+        instance.testSetSessionMessages('sess-1', [
+          <String, dynamic>{
+            'id': 'client-local-outbox-dns',
+            'localId': 'client-local-outbox-dns',
+            'role': 'user',
+            'kind': 'text',
+            'content': 'outbox',
+            'raw': raw,
+            'sendStatus': 'pending',
+          },
+        ]);
+
+        final delivered = await instance.testDeliverOutboxEntry(
+          OutboxEntry(
+            localId: 'client-local-outbox-dns',
+            sessionId: 'sess-1',
+            text: 'outbox',
+            encryptedContent: 'encrypted-content',
+            rawRecord: raw,
+            queuedAt: 1700000000000,
+          ),
+        );
+
+        expect(delivered, isFalse);
+        final localMessages = instance.testSessionMessages('sess-1')!;
+        final matching = localMessages.where(
+          (m) => m['localId'] == 'client-local-outbox-dns',
+        );
+        expect(matching, hasLength(1));
+        expect(matching.single['sendStatus'], 'pending');
+      },
+    );
+
+    test('outbox delivery returns false on non-2xx server response', () async {
+      responseStatus = 503;
+      responseData = <String, dynamic>{'error': 'server overload'};
+      instance.testSocketConnectedOverride = true;
+      final raw = <String, dynamic>{
+        'role': 'user',
+        'content': <String, dynamic>{'type': 'text', 'text': 'outbox'},
+      };
+      instance.testSetSessionMessages('sess-1', [
+        <String, dynamic>{
+          'id': 'client-local-outbox-503',
+          'localId': 'client-local-outbox-503',
+          'role': 'user',
+          'kind': 'text',
+          'content': 'outbox',
+          'raw': raw,
+          'sendStatus': 'pending',
+        },
+      ]);
+
+      final delivered = await instance.testDeliverOutboxEntry(
+        OutboxEntry(
+          localId: 'client-local-outbox-503',
+          sessionId: 'sess-1',
+          text: 'outbox',
+          encryptedContent: 'encrypted-content',
+          rawRecord: raw,
+          queuedAt: 1700000000000,
+        ),
+      );
+
+      expect(delivered, isFalse);
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final matching = localMessages.where(
+        (m) => m['localId'] == 'client-local-outbox-503',
+      );
+      expect(matching, hasLength(1));
+      expect(matching.single['sendStatus'], 'pending');
+    });
 
     test('backgrounded send queues retry without touching REST', () async {
       InvalidateSync.isBackgrounded = true;

@@ -779,8 +779,9 @@ extension SyncMessagingSend on Sync {
     if (!isInitialized) return false;
 
     final apiClient = ApiClient();
+    final Response<dynamic> response;
     try {
-      final response = await apiClient.post(
+      response = await apiClient.post(
         '/v3/sessions/${entry.sessionId}/messages',
         data: {
           'messages': [
@@ -788,16 +789,54 @@ extension SyncMessagingSend on Sync {
           ],
         },
       );
-
-      if (!apiClient.isSuccess(response)) {
+    } on DioException catch (e, stack) {
+      final serverResponse = e.response;
+      if (serverResponse == null) {
+        // No HTTP response means the request never reached the server
+        // (DNS failure, connection abort, timeout before headers, etc.).
+        // Let the outbox retry; the server does not have the message yet.
         logger.warning(
-          '[MessageOutbox] re-send failed '
-          'status=${response.statusCode} '
+          '[MessageOutbox] delivery failed without server response '
+          'localId=${entry.localId} — will retry',
+          e,
+          stack,
+        );
+        return false;
+      }
+
+      if (!apiClient.isSuccess(serverResponse)) {
+        logger.warning(
+          '[MessageOutbox] delivery failed '
+          'status=${serverResponse.statusCode} '
           'localId=${entry.localId}',
         );
         return false;
       }
 
+      // A 2xx response was received but the request still threw (defensive:
+      // this should not happen with Dio's default validateStatus). Trust the
+      // idempotent server storage and treat the message as delivered.
+      logger.error(
+        '[MessageOutbox] local processing threw after HTTP 200 '
+        'localId=${entry.localId} — '
+        'server has message, treating as delivered',
+        e,
+        stack,
+      );
+      _notifySessionMessagesChanged(entry.sessionId);
+      return true;
+    }
+
+    if (!apiClient.isSuccess(response)) {
+      logger.warning(
+        '[MessageOutbox] re-send failed '
+        'status=${response.statusCode} '
+        'localId=${entry.localId}',
+      );
+      return false;
+    }
+
+    try {
       final data = WireParsers.asMap(response.data);
       final serverMessages = _serverMessagesFromResponseData(data);
 
@@ -839,10 +878,9 @@ extension SyncMessagingSend on Sync {
     } catch (e, stack) {
       // Exceptions during local processing (after HTTP 200 was received)
       // do NOT count as delivery failures — the server has already stored
-      // the message. Only non-2xx responses count as real failures.
-      // Counting exceptions as failures risks permanently losing a message
-      // that the server already has (e.g., after 3 retries the client marks
-      // it as failed even though the server stored it).
+      // the message. Counting exceptions as failures risks permanently
+      // losing a message that the server already has (e.g., after 3 retries
+      // the client marks it as failed even though the server stored it).
       // Still notify the UI so the message isn't stuck in "pending" state.
       logger.error(
         '[MessageOutbox] local processing threw after HTTP 200 '
