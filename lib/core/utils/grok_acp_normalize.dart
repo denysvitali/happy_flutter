@@ -26,11 +26,84 @@ const Map<String, String> grokToolNameAliases = {
   // match the raw tool name prefix; otherwise left as-is for default icon.
 };
 
+/// Grok/Cursor meta-tools that wrap a real MCP invocation.
+///
+/// Keep in sync with happy-cli-go `grokMCPDispatchers` in
+/// `internal/remote/grok/acp.go`.
+const Set<String> grokMcpDispatchers = {
+  'use_tool',
+  'CallMcpTool',
+  'call_mcp_tool',
+  'callMcpTool',
+};
+
+/// Result of unwrapping a Grok MCP meta-dispatch tool call.
+class GrokToolDispatch {
+  const GrokToolDispatch({required this.name, required this.input});
+
+  final String name;
+  final Map<String, dynamic> input;
+}
+
+/// Unwraps `use_tool` / `CallMcpTool` into the real MCP tool + args.
+///
+/// Grok does not expose every MCP tool as a first-class model tool. It routes
+/// through a dispatcher whose input is:
+/// `{tool_name: "server__tool", tool_input: {...}}`.
+/// Happy should show the inner tool like Claude's `mcp__server__tool`.
+GrokToolDispatch unwrapGrokMcpDispatch(
+  Object? rawName,
+  Map<String, dynamic>? input,
+) {
+  final name = rawName?.toString().trim() ?? '';
+  final rawInput = input == null
+      ? <String, dynamic>{}
+      : Map<String, dynamic>.from(input);
+  if (!grokMcpDispatchers.contains(name)) {
+    return GrokToolDispatch(name: name.isEmpty ? 'tool' : name, input: rawInput);
+  }
+  final innerName = _firstNonEmptyString(rawInput, const [
+    'tool_name',
+    'toolName',
+    'name',
+    'serverTool',
+    'qualified_name',
+  ]);
+  if (innerName == null || innerName.isEmpty) {
+    return GrokToolDispatch(name: name, input: rawInput);
+  }
+  final innerInput =
+      WireParsers.asMap(rawInput['tool_input']) ??
+      WireParsers.asMap(rawInput['toolInput']) ??
+      WireParsers.asMap(rawInput['arguments']) ??
+      WireParsers.asMap(rawInput['input']) ??
+      WireParsers.asMap(rawInput['args']) ??
+      WireParsers.asMap(rawInput['parameters']) ??
+      <String, dynamic>{};
+  return GrokToolDispatch(
+    name: formatGrokMcpToolName(innerName),
+    input: Map<String, dynamic>.from(innerInput),
+  );
+}
+
+/// Formats a Grok qualified MCP name as Claude-style `mcp__server__tool`.
+String formatGrokMcpToolName(String name) {
+  final trimmed = name.trim();
+  if (trimmed.isEmpty) return trimmed;
+  if (trimmed.startsWith('mcp__')) return trimmed;
+  if (trimmed.contains('__')) return 'mcp__$trimmed';
+  return trimmed;
+}
+
 /// Canonical display/tool-view name for a Grok (or already-canonical) tool.
+///
+/// Also prefixes bare `server__tool` MCP names with `mcp__` so MCP title
+/// formatting applies even when the CLI did not rewrite the name.
 String canonicalizeGrokToolName(Object? raw) {
   final name = raw?.toString().trim() ?? '';
   if (name.isEmpty) return 'tool';
-  return grokToolNameAliases[name] ?? name;
+  final aliased = grokToolNameAliases[name] ?? name;
+  return formatGrokMcpToolName(aliased);
 }
 
 /// Rewrites Grok `rawInput` field names to Claude-compatible keys used by
@@ -69,6 +142,18 @@ Map<String, dynamic> normalizeGrokToolInput(Map<String, dynamic>? input) {
   // Strip internal variant discriminators from the display input copy only
   // when they would confuse subtitle extractors (keep if alone).
   return out;
+}
+
+/// Full normalize pipeline: unwrap MCP dispatch, alias name, rewrite input keys.
+GrokToolDispatch normalizeGrokToolCall(
+  Object? rawName,
+  Map<String, dynamic>? rawInput,
+) {
+  final unwrapped = unwrapGrokMcpDispatch(rawName, rawInput);
+  return GrokToolDispatch(
+    name: canonicalizeGrokToolName(unwrapped.name),
+    input: normalizeGrokToolInput(unwrapped.input),
+  );
 }
 
 /// Normalizes a Grok tool-result payload into shapes tool views parse.

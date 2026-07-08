@@ -85,13 +85,16 @@ void _processAcpContent({
         toolCall['title'] ??
         toolCall['kind'] ??
         data['name'];
-    final name = canonicalizeGrokToolName(rawName);
     final rawInput = WireParsers.asMap(toolCall['input']) ??
         WireParsers.asMap(toolCall['rawInput']) ??
         WireParsers.asMap(data['input']) ??
         WireParsers.asMap(data['rawInput']) ??
         <String, dynamic>{};
-    final input = normalizeGrokToolInput(rawInput);
+    // Unwrap Grok use_tool / CallMcpTool meta-dispatch so UI shows real MCP
+    // tool (mcp__server__tool) instead of the dispatcher wrapper.
+    final normalized = normalizeGrokToolCall(rawName, rawInput);
+    final name = normalized.name;
+    final input = normalized.input;
     final status = (toolCall['status'] ?? data['status'])?.toString();
     final state = _toolCallStateFromStatus(status);
     final toolUseId = toolCall['callId'] ??

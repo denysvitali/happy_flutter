@@ -12,6 +12,80 @@ void main() {
       expect(canonicalizeGrokToolName('todo_write'), 'TodoWrite');
       expect(canonicalizeGrokToolName('unknown_tool'), 'unknown_tool');
     });
+
+    test('prefixes bare server__tool MCP names with mcp__', () {
+      expect(
+        canonicalizeGrokToolName('gh-actions__list_runs'),
+        'mcp__gh-actions__list_runs',
+      );
+      expect(
+        canonicalizeGrokToolName('mcp__fly__fly-apps-list'),
+        'mcp__fly__fly-apps-list',
+      );
+    });
+  });
+
+  group('unwrapGrokMcpDispatch', () {
+    test('unwraps use_tool into mcp__server__tool + tool_input', () {
+      final got = unwrapGrokMcpDispatch('use_tool', {
+        'tool_name': 'gh-actions__wait_for_commit_checks',
+        'tool_input': {
+          'owner': 'denysvitali',
+          'repo': 'happy_flutter',
+          'ref': '5883082643fba88493afa8b34f7b69496d078af3',
+          'timeout_minutes': 45,
+        },
+      });
+      expect(got.name, 'mcp__gh-actions__wait_for_commit_checks');
+      expect(got.input['owner'], 'denysvitali');
+      expect(got.input['repo'], 'happy_flutter');
+      expect(got.input['timeout_minutes'], 45);
+      expect(got.input.containsKey('tool_name'), isFalse);
+    });
+
+    test('unwraps CallMcpTool camelCase fields without double mcp__', () {
+      final got = unwrapGrokMcpDispatch('CallMcpTool', {
+        'toolName': 'mcp__linear__save_issue',
+        'toolInput': {'title': 'x'},
+      });
+      expect(got.name, 'mcp__linear__save_issue');
+      expect(got.input['title'], 'x');
+    });
+
+    test('leaves non-dispatcher tools alone', () {
+      final got = unwrapGrokMcpDispatch('read_file', {
+        'target_file': 'a.go',
+      });
+      expect(got.name, 'read_file');
+      expect(got.input['target_file'], 'a.go');
+    });
+
+    test('keeps use_tool when tool_name missing', () {
+      final got = unwrapGrokMcpDispatch('use_tool', {
+        'tool_input': {'x': 1},
+      });
+      expect(got.name, 'use_tool');
+      expect(got.input['tool_input'], isA<Map>());
+    });
+  });
+
+  group('normalizeGrokToolCall', () {
+    test('full pipeline: unwrap + alias + input keys', () {
+      final got = normalizeGrokToolCall('use_tool', {
+        'tool_name': 'gh-actions__list_runs',
+        'tool_input': {'owner': 'denysvitali', 'repo': 'happy-cli-go'},
+      });
+      expect(got.name, 'mcp__gh-actions__list_runs');
+      expect(got.input['owner'], 'denysvitali');
+    });
+
+    test('aliases built-ins after non-dispatch path', () {
+      final got = normalizeGrokToolCall('list_dir', {
+        'target_directory': '/tmp',
+      });
+      expect(got.name, 'LS');
+      expect(got.input['path'], '/tmp');
+    });
   });
 
   group('normalizeGrokToolInput', () {

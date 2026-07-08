@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/utils/grok_acp_normalize.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'elapsed_time.dart';
 import 'known_tools.dart';
 import 'tool_status_indicator.dart';
@@ -20,10 +22,38 @@ class ToolViewMinimal extends StatelessWidget {
   /// Optional metadata (e.g., working directory).
   final Map<String, dynamic>? metadata;
 
+  /// Format MCP tool name for display.
+  ///
+  /// Example: `mcp__linear__create_issue` -> `Linear: Create Issue`
+  static String _formatMCPTitle(String toolName) {
+    final withoutPrefix = toolName.replaceFirst('mcp__', '');
+    final parts = withoutPrefix.split('__');
+    if (parts.length >= 2) {
+      final serverName = _snakeToPascal(parts[0]);
+      final toolPart = _snakeToPascal(parts.skip(1).join('_'));
+      return '$serverName: $toolPart';
+    }
+    return 'MCP: ${_snakeToPascal(withoutPrefix)}';
+  }
+
+  static String _snakeToPascal(String str) {
+    return str
+        .split('_')
+        .map((word) {
+          if (word.isEmpty) return '';
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final toolName = tool['name'] as String? ?? 'Unknown';
+    final display = normalizeGrokToolCall(
+      tool['name'] as String? ?? 'Unknown',
+      WireParsers.asMap(tool['input']),
+    );
+    final toolName = display.name;
     final state = tool['state'] as String? ?? 'pending';
     final createdAt = tool['createdAt'] as int?;
 
@@ -32,7 +62,12 @@ class ToolViewMinimal extends StatelessWidget {
       18,
       theme.colorScheme.onSurfaceVariant,
     );
-    final title = KnownTools.titleFor(toolName, tool, metadata);
+    final String title;
+    if (toolName.startsWith('mcp__') || toolName.contains('__')) {
+      title = _formatMCPTitle(toolName);
+    } else {
+      title = KnownTools.titleFor(toolName, tool, metadata);
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(
