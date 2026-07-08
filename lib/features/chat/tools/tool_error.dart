@@ -44,6 +44,7 @@ class ToolError extends StatelessWidget {
               maxHeight: 260,
               child: SelectableText(
                 displayText,
+                scrollPhysics: const NeverScrollableScrollPhysics(),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: textColor,
                   fontSize: AppFontSize.sm,
@@ -96,6 +97,7 @@ class ToolResultError extends StatelessWidget {
               maxHeight: 220,
               child: SelectableText(
                 displayText,
+                scrollPhysics: const NeverScrollableScrollPhysics(),
                 style: TextStyle(
                   fontSize: AppFontSize.sm,
                   color: errorColor,
