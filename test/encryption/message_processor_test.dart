@@ -1224,6 +1224,72 @@ void main() {
         expect(result.messages.first['kind'], 'tool-call');
         expect(result.messages.first['name'], 'file-edit');
       });
+
+      test('processes grok content type with ACP message shape', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'message',
+                  'message': 'Hello from Grok Build',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['content'], 'Hello from Grok Build');
+        expect(result.messages.first['kind'], 'text');
+      });
+
+      test('processes grok tool-call and thinking shapes', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'thinking',
+                  'text': 'planning',
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'grok',
+                'data': {
+                  'type': 'tool-call',
+                  'name': 'run_terminal_cmd',
+                  'callId': 'tc_1',
+                  'input': {'command': 'ls'},
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+            {'id': 'm2', 'seq': 2, 'createdAt': 1001},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(2));
+        expect(result.messages[0]['isThinking'], true);
+        expect(result.messages[0]['content'], contains('planning'));
+        expect(result.messages[1]['kind'], 'tool-call');
+        expect(result.messages[1]['name'], 'run_terminal_cmd');
+        expect(result.messages[1]['toolUseId'], 'tc_1');
+      });
     });
 
     group('session content', () {

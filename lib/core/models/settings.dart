@@ -399,6 +399,8 @@ String normalizeAgentKey(String? agent) {
     'codex' => 'codex',
     'gemini' => 'gemini',
     'pi' => 'pi',
+    'opencode' => 'opencode',
+    'grok' || 'grok-build' => 'grok',
     _ => 'claude',
   };
 }
@@ -881,6 +883,14 @@ class ProfileCompatibility {
         return gemini;
       case 'pi':
         return pi;
+      // OpenCode and Grok Build use machine-local auth / default profiles;
+      // treat them as always-supported unless a profile explicitly gates
+      // other agents. Unknown agents stay permissive so new CLI flavors
+      // remain usable before the app ships a matching profile flag.
+      case 'opencode':
+      case 'grok':
+      case 'grok-build':
+        return true;
       default:
         return true;
     }

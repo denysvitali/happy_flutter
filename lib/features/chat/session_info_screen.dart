@@ -200,6 +200,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (flavor == 'gemini') return 'Gemini';
     if (flavor == 'pi') return 'pi';
     if (flavor == 'opencode') return 'OpenCode';
+    if (flavor == 'grok' || flavor == 'grok-build') return l10n.sessionsGrok;
     return flavor;
   }
 

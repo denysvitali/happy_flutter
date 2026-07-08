@@ -224,6 +224,8 @@ class SessionAvatar extends StatelessWidget {
       'gemini' => 'assets/images/icon-gemini.png',
       'pi' => 'assets/images/icon-pi.png',
       'opencode' => 'assets/images/icon-gpt.png',
+      // No dedicated Grok asset yet; reuse the GPT icon as a neutral stand-in.
+      'grok' || 'grok-build' => 'assets/images/icon-gpt.png',
       _ => 'assets/images/icon-claude.png',
     };
   }
@@ -235,6 +237,7 @@ class SessionAvatar extends StatelessWidget {
       'gemini' => Icons.auto_awesome,
       'pi' => Icons.psychology_alt_outlined,
       'opencode' => Icons.smart_toy_outlined,
+      'grok' || 'grok-build' => Icons.rocket_launch_outlined,
       _ => Icons.auto_awesome,
     };
   }

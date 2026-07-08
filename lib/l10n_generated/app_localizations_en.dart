@@ -2312,6 +2312,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsOpencode => 'OpenCode';
 
   @override
+  String get sessionsGrok => 'Grok';
+
+  @override
   String get sessionsType => 'Type';
 
   @override

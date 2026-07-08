@@ -4213,6 +4213,12 @@ abstract class AppLocalizations {
   /// **'OpenCode'**
   String get sessionsOpencode;
 
+  /// No description provided for @sessionsGrok.
+  ///
+  /// In en, this message translates to:
+  /// **'Grok'**
+  String get sessionsGrok;
+
   /// No description provided for @sessionsType.
   ///
   /// In en, this message translates to:

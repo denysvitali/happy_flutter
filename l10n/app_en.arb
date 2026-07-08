@@ -875,6 +875,7 @@
   "sessionsGemini": "Gemini",
   "sessionsPi": "pi",
   "sessionsOpencode": "OpenCode",
+  "sessionsGrok": "Grok",
   "sessionsType": "Type",
   "sessionsAgent": "Agent",
   "sessionsSelectAll": "Select All",

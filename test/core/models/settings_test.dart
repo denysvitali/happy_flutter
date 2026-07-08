@@ -185,6 +185,9 @@ void main() {
       expect(normalizeAgentKey('claude'), 'claude');
       expect(normalizeAgentKey('codex'), 'codex');
       expect(normalizeAgentKey('gemini'), 'gemini');
+      expect(normalizeAgentKey('opencode'), 'opencode');
+      expect(normalizeAgentKey('grok'), 'grok');
+      expect(normalizeAgentKey('grok-build'), 'grok');
       expect(normalizeAgentKey(null), 'claude');
     });
 

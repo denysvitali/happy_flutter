@@ -346,7 +346,9 @@ ProcessedMessages processDecryptedMessages({
           usageUpdates: usageUpdates,
           droppedReasons: droppedReasons,
         );
-      } else if (contentType == 'acp' || contentType == 'opencode') {
+      } else if (contentType == 'acp' ||
+          contentType == 'opencode' ||
+          contentType == 'grok') {
         _processAcpContent(
           id: id,
           localId: localId,

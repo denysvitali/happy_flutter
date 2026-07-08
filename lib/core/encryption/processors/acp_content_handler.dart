@@ -25,7 +25,14 @@ void _processAcpContent({
   final parentToolUseId = _extractParentToolUseId(data);
   final agentId = _extractAgentId(data);
 
-  if (dataType == DataType.message || dataType == DataType.reasoning) {
+  if (dataType == DataType.message ||
+      dataType == DataType.reasoning ||
+      // Grok Build (and other ACP clients) may emit the sessionUpdate name
+      // as the data type when streaming is coalesced into a single payload.
+      dataType == 'agent_message_chunk') {
+    final messageText = data['message']?.toString() ??
+        data['text']?.toString() ??
+        '';
     messages.add({
       'id': id,
       'localId': localId,
@@ -33,7 +40,7 @@ void _processAcpContent({
       'createdAt': createdAt,
       'role': 'agent',
       'kind': 'text',
-      'content': data['message']?.toString() ?? '',
+      'content': messageText,
       'raw': outerContent,
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
@@ -44,7 +51,10 @@ void _processAcpContent({
     return;
   }
 
-  if (dataType == DataType.thinking) {
+  if (dataType == DataType.thinking || dataType == 'agent_thought_chunk') {
+    final thoughtText = data['text']?.toString() ??
+        data['message']?.toString() ??
+        '';
     messages.add({
       'id': id,
       'localId': localId,
@@ -53,7 +63,7 @@ void _processAcpContent({
       'role': 'agent',
       'kind': 'text',
       'isThinking': true,
-      'content': '*Thinking...*\n\n*${data['text']}*',
+      'content': '*Thinking...*\n\n*$thoughtText*',
       'raw': outerContent,
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
@@ -64,7 +74,13 @@ void _processAcpContent({
     return;
   }
 
-  if (dataType == DataType.toolCall) {
+  if (dataType == DataType.toolCall ||
+      dataType == 'tool_call' ||
+      dataType == 'toolCall') {
+    // Grok may nest the tool call under `toolCall`; flatten when present.
+    final toolCall = data['toolCall'] is Map<String, dynamic>
+        ? data['toolCall'] as Map<String, dynamic>
+        : data;
     messages.add({
       'id': id,
       'localId': localId,
@@ -72,11 +88,12 @@ void _processAcpContent({
       'createdAt': createdAt,
       'role': 'agent',
       'kind': 'tool-call',
-      'name': data['name'],
-      'input': data['input'],
-      'toolUseId': data['callId'],
+      'name': toolCall['name'] ?? toolCall['title'] ?? toolCall['kind'],
+      'input': toolCall['input'] ?? toolCall['rawInput'] ?? {},
+      'toolUseId':
+          toolCall['callId'] ?? toolCall['toolCallId'] ?? toolCall['id'],
       'state': 'running',
-      'content': data,
+      'content': toolCall,
       'raw': outerContent,
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
