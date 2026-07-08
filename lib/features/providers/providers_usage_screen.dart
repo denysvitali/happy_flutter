@@ -315,6 +315,12 @@ class _ProviderUsageDestinations extends StatelessWidget {
           subtitle: l10n.codexUsageSubtitle,
           onTap: () => context.pushNamed('codex-usage'),
         ),
+        SettingsNavRow(
+          icon: Icons.auto_awesome,
+          title: l10n.grokUsageTitle,
+          subtitle: l10n.grokUsageSubtitle,
+          onTap: () => context.pushNamed('grok-usage'),
+        ),
       ],
     );
   }

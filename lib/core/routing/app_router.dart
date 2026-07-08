@@ -32,6 +32,7 @@ import '../../features/settings/claude_limits_screen.dart';
 import '../../features/settings/codex_usage_screen.dart';
 import '../../features/settings/developer_screen.dart';
 import '../../features/settings/features_settings_screen.dart';
+import '../../features/settings/grok_usage_screen.dart';
 import '../../features/settings/link_device_screen.dart';
 import '../../features/settings/linked_devices_screen.dart';
 import '../../features/settings/machines_screen.dart';
@@ -369,6 +370,12 @@ GoRouter createRouter() {
         name: 'codex-usage',
         pageBuilder: (context, state) =>
             _slidePage(const AuthGate(child: CodexUsageScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/grok-usage',
+        name: 'grok-usage',
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: GrokUsageScreen()), state),
       ),
       GoRoute(
         path: '/settings/developer',

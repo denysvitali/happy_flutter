@@ -2723,6 +2723,51 @@ class AppLocalizationsEn extends AppLocalizations {
       'Rate limits and credits for Codex on your machines';
 
   @override
+  String get grokUsageTitle => 'Grok Usage';
+
+  @override
+  String get grokUsageSubtitle =>
+      'Monthly billing allowance for Grok Build on your machines';
+
+  @override
+  String get grokUsageAccount => 'Account';
+
+  @override
+  String get grokUsageEmail => 'Email';
+
+  @override
+  String get grokUsageBillingPeriod => 'Billing period';
+
+  @override
+  String get grokUsageMonthlyAllowance => 'Monthly allowance';
+
+  @override
+  String get grokUsageMonthlyLimit => 'Included credits';
+
+  @override
+  String get grokUsageOnDemandCap => 'Pay-as-you-go cap';
+
+  @override
+  String get grokUsageOnDemandDisabled => 'Disabled';
+
+  @override
+  String get grokUsageNoMachines => 'No machines available';
+
+  @override
+  String get grokUsageSelectMachine => 'Machine';
+
+  @override
+  String get grokUsageNoMachinesSubtitle =>
+      'Connect a machine to inspect local Grok Build usage';
+
+  @override
+  String get grokUsageNotAvailable => 'Grok usage not available';
+
+  @override
+  String get grokUsageNotAvailableSubtitle =>
+      'Make sure Grok Build is signed in on the selected machine';
+
+  @override
   String get codexUsageAccount => 'Account';
 
   @override

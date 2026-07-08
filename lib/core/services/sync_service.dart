@@ -26,6 +26,7 @@ import '../models/artifact.dart';
 import '../models/auth.dart';
 import '../models/built_in_profiles.dart';
 import '../models/codex_usage_summary.dart';
+import '../models/grok_usage_summary.dart';
 import '../models/loop.dart';
 import '../models/machine.dart';
 import '../models/message.dart';

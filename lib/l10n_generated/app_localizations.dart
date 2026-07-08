@@ -4987,6 +4987,90 @@ abstract class AppLocalizations {
   /// **'Rate limits and credits for Codex on your machines'**
   String get codexUsageSubtitle;
 
+  /// No description provided for @grokUsageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Grok Usage'**
+  String get grokUsageTitle;
+
+  /// No description provided for @grokUsageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly billing allowance for Grok Build on your machines'**
+  String get grokUsageSubtitle;
+
+  /// No description provided for @grokUsageAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get grokUsageAccount;
+
+  /// No description provided for @grokUsageEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get grokUsageEmail;
+
+  /// No description provided for @grokUsageBillingPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Billing period'**
+  String get grokUsageBillingPeriod;
+
+  /// No description provided for @grokUsageMonthlyAllowance.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly allowance'**
+  String get grokUsageMonthlyAllowance;
+
+  /// No description provided for @grokUsageMonthlyLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Included credits'**
+  String get grokUsageMonthlyLimit;
+
+  /// No description provided for @grokUsageOnDemandCap.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay-as-you-go cap'**
+  String get grokUsageOnDemandCap;
+
+  /// No description provided for @grokUsageOnDemandDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get grokUsageOnDemandDisabled;
+
+  /// No description provided for @grokUsageNoMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'No machines available'**
+  String get grokUsageNoMachines;
+
+  /// No description provided for @grokUsageSelectMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Machine'**
+  String get grokUsageSelectMachine;
+
+  /// No description provided for @grokUsageNoMachinesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect a machine to inspect local Grok Build usage'**
+  String get grokUsageNoMachinesSubtitle;
+
+  /// No description provided for @grokUsageNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Grok usage not available'**
+  String get grokUsageNotAvailable;
+
+  /// No description provided for @grokUsageNotAvailableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make sure Grok Build is signed in on the selected machine'**
+  String get grokUsageNotAvailableSubtitle;
+
   /// No description provided for @codexUsageAccount.
   ///
   /// In en, this message translates to:

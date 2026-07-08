@@ -807,6 +807,223 @@ PY
     return fetchFromBash();
   }
 
+  /// Fetch Grok Build billing usage from a machine via encrypted RPC.
+  ///
+  /// The machine daemon reads `~/.grok/auth.json` (or `XAI_API_KEY`) and
+  /// calls `cli-chat-proxy.grok.com/v1/billing`. Falls back to a remote
+  /// bash script when the daemon is too old to expose `get-grok-usage`.
+  Future<GrokUsageSummaryResponse> machineGetGrokUsage({
+    required String machineId,
+  }) async {
+    final machine = _machines[machineId];
+    final cwd = machine?.metadata?.homeDir ?? '/';
+    const grokUsageBashScript = r"""
+python3 <<'PY'
+import json
+import os
+import urllib.error
+import urllib.request
+
+
+def fail(message):
+    print(json.dumps({'success': False, 'error': message}))
+    raise SystemExit(0)
+
+
+def cents_val(value):
+    if isinstance(value, dict):
+        return cents_val(value.get('val'))
+    if isinstance(value, bool) or value is None:
+        return 0
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            return 0
+    return 0
+
+
+def find_token():
+    env_key = os.environ.get('XAI_API_KEY', '').strip()
+    if env_key:
+        return env_key, ''
+    search = [os.path.expanduser('~/.grok/auth.json')]
+    grok_home = os.environ.get('GROK_HOME')
+    if grok_home:
+        search.insert(0, os.path.join(grok_home, 'auth.json'))
+    last_err = None
+    for path in search:
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                auth = json.load(f)
+        except Exception as exc:
+            last_err = exc
+            continue
+        if not isinstance(auth, dict):
+            continue
+        for entry in auth.values():
+            if not isinstance(entry, dict):
+                continue
+            key = entry.get('key') or entry.get('accessToken') or entry.get('access_token')
+            if isinstance(key, str) and key.strip():
+                email = entry.get('email') if isinstance(entry.get('email'), str) else ''
+                return key.strip(), email
+    if last_err is not None:
+        fail(f'Failed to read Grok auth.json: {last_err}')
+    fail('No Grok credentials found')
+
+
+token, email = find_token()
+base = os.environ.get('GROK_CLI_CHAT_PROXY_BASE_URL', 'https://cli-chat-proxy.grok.com/v1').rstrip('/')
+
+
+def get_json(url):
+    request = urllib.request.Request(
+        url,
+        headers={
+            'Authorization': f'Bearer {token}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'happy-flutter',
+        },
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return json.loads(response.read().decode('utf-8'))
+
+
+try:
+    billing = get_json(f'{base}/billing')
+except urllib.error.HTTPError as exc:
+    body = exc.read().decode('utf-8', errors='replace')
+    fail(f'Grok billing request failed ({exc.code}): {body}')
+except Exception as exc:
+    fail(f'Failed to fetch Grok usage: {exc}')
+
+if not email:
+    try:
+        user = get_json(f'{base}/user')
+        if isinstance(user, dict) and isinstance(user.get('email'), str):
+            email = user['email']
+    except Exception:
+        pass
+
+config = billing.get('config') if isinstance(billing, dict) else None
+if not isinstance(config, dict):
+    config = billing if isinstance(billing, dict) else {}
+
+payload = {
+    'email': email or None,
+    'monthlyLimitCents': cents_val(config.get('monthlyLimit')),
+    'usedCents': cents_val(config.get('used')),
+    'onDemandCapCents': cents_val(config.get('onDemandCap')),
+    'billingPeriodStart': config.get('billingPeriodStart'),
+    'billingPeriodEnd': config.get('billingPeriodEnd'),
+}
+print(json.dumps({'success': True, 'data': payload}))
+PY
+""";
+
+    GrokUsageSummaryResponse parseRpcResponse(Map<String, dynamic> raw) {
+      final data = raw.containsKey('data') ? raw['data'] : raw;
+      final summary = data is Map<String, dynamic>
+          ? GrokUsageSummary.fromJson(data)
+          : data is Map
+          ? GrokUsageSummary.fromJson(Map<String, dynamic>.from(data))
+          : null;
+      final hasSummary = summary?.hasUsageData ?? false;
+      return GrokUsageSummaryResponse(
+        success: raw['success'] == true || hasSummary,
+        data: hasSummary ? summary : null,
+        error: raw['error'] as String?,
+      );
+    }
+
+    Future<GrokUsageSummaryResponse> fetchFromBash() async {
+      final response = await machineBash(
+        machineId: machineId,
+        command: grokUsageBashScript,
+        cwd: cwd,
+      );
+
+      if (!response.success) {
+        return GrokUsageSummaryResponse(
+          success: false,
+          error: response.stderr.isNotEmpty ? response.stderr : response.error,
+        );
+      }
+
+      try {
+        final raw = jsonDecode(response.stdout) as Map<String, dynamic>;
+        final success = raw['success'] == true;
+        final data = raw['data'] ?? raw;
+        final summary = data is Map<String, dynamic>
+            ? GrokUsageSummary.fromJson(data)
+            : data is Map
+            ? GrokUsageSummary.fromJson(Map<String, dynamic>.from(data))
+            : null;
+        final hasSummary = summary?.hasUsageData ?? false;
+        if (!success) {
+          return GrokUsageSummaryResponse(
+            success: false,
+            error: raw['error'] as String?,
+          );
+        }
+        return GrokUsageSummaryResponse(
+          success: true,
+          data: hasSummary ? summary : null,
+          error: raw['error'] as String?,
+        );
+      } catch (error, stackTrace) {
+        logger.error('machineGetGrokUsage parse error', error, stackTrace);
+        return const GrokUsageSummaryResponse(
+          success: false,
+          error: 'Failed to parse Grok usage response',
+        );
+      }
+    }
+
+    try {
+      final response = await _typedMachineRPC(
+        machineId,
+        'get-grok-usage',
+        <String, dynamic>{},
+        parseRpcResponse,
+        timeout: const Duration(seconds: 20),
+      );
+      if (!response.success) {
+        return response;
+      }
+      if (response.data == null) {
+        return const GrokUsageSummaryResponse(
+          success: false,
+          error: 'Grok usage data missing',
+        );
+      }
+      return response;
+    } catch (error, stackTrace) {
+      if (error is StateError && error.message.contains('not connected')) {
+        logger.info('machineGetGrokUsage: machine offline');
+        return const GrokUsageSummaryResponse(
+          success: false,
+          error: 'machine offline',
+        );
+      } else if (Sync._isRpcMethodNotAvailable(error)) {
+        logger.info(
+          'machineGetGrokUsage: RPC method not available '
+          '(daemon too old); falling back to machineBash',
+        );
+      } else if (Sync._isTransientRpcError(error)) {
+        logger.info('machineGetGrokUsage: transient RPC failure — $error');
+      } else {
+        logger.error('machineGetGrokUsage RPC error', error, stackTrace);
+      }
+    }
+
+    return fetchFromBash();
+  }
+
   /// Create a git worktree on a machine under `.dev/worktree/<name>`
   /// relative to [basePath] and return the absolute path to the new
   /// worktree.  Mirrors React Native's `createWorktree` utility.
