@@ -102,6 +102,25 @@ String formatDuration(Duration duration) {
   return '${duration.inSeconds}s';
 }
 
+/// Format a byte count for display (B / KB / MB / GB).
+///
+/// Shared by machine detail, SFTP, HTTP logger, etc. so size strings
+/// do not drift across features.
+String formatBytes(int bytes, {int decimals = 1}) {
+  if (bytes < 0) return '0 B';
+  if (bytes < 1024) return '$bytes B';
+  final kb = bytes / 1024;
+  if (kb < 1024) {
+    return '${kb.toStringAsFixed(decimals)} KB';
+  }
+  final mb = kb / 1024;
+  if (mb < 1024) {
+    return '${mb.toStringAsFixed(decimals)} MB';
+  }
+  final gb = mb / 1024;
+  return '${gb.toStringAsFixed(decimals)} GB';
+}
+
 /// Sanitize string for display
 String sanitizeForDisplay(String input) {
   return input.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), '');

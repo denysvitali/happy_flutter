@@ -5,7 +5,8 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
-const double _selectorChipHeight = 30;
+/// Visual chip height (dense). Hit target expanded to [AppTouchTarget.min].
+const double _selectorChipVisualHeight = 30;
 
 /// Permission mode options for Claude/Gemini agents
 enum PermissionMode {
@@ -265,42 +266,52 @@ class PermissionModeSelector extends ConsumerWidget {
       child: InkWell(
         onTap: enabled ? () => _showModeSheet(context) : null,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Container(
-          width: width,
-          height: _selectorChipHeight,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: isDefault
-                ? cs.onSurface.withValues(alpha: 0.05)
-                : currentMode.color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppTouchTarget.min,
+            minWidth: AppTouchTarget.min,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                currentMode.icon,
-                size: 11,
-                color: isDefault ? cs.onSurfaceVariant : currentMode.color,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                currentMode.localizedDisplayName(l10n),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontSize: AppFontSize.xxs,
-                  fontWeight: FontWeight.w500,
-                  color: isDefault ? cs.onSurfaceVariant : currentMode.color,
-                ),
-              ),
-              const SizedBox(width: 1),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 12,
+          child: Align(
+            alignment: Alignment.center,
+            child: Container(
+              width: width,
+              height: _selectorChipVisualHeight,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              decoration: BoxDecoration(
                 color: isDefault
-                    ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-                    : currentMode.color.withValues(alpha: 0.6),
+                    ? cs.onSurface.withValues(alpha: 0.05)
+                    : currentMode.color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
-            ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    currentMode.icon,
+                    size: 11,
+                    color: isDefault ? cs.onSurfaceVariant : currentMode.color,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    currentMode.localizedDisplayName(l10n),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontSize: AppFontSize.xxs,
+                      fontWeight: FontWeight.w500,
+                      color:
+                          isDefault ? cs.onSurfaceVariant : currentMode.color,
+                    ),
+                  ),
+                  const SizedBox(width: 1),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 12,
+                    color: isDefault
+                        ? cs.onSurfaceVariant.withValues(alpha: 0.5)
+                        : currentMode.color.withValues(alpha: 0.6),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

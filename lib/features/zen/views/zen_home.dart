@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/components/app_empty_state.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/providers/app_providers.dart';
@@ -413,38 +414,11 @@ class _TodoRow extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxxl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.checklist_rounded,
-              size: 56,
-              color: theme.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.35),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'No active tasks',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Tasks from your sessions will appear here,\ngrouped by priority.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant
-                    .withValues(alpha: 0.65),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return const AppEmptyState(
+      icon: Icons.checklist_rounded,
+      title: 'No active tasks',
+      subtitle:
+          'Tasks from your sessions will appear here, grouped by priority.',
     );
   }
 }

@@ -25,6 +25,7 @@ class ThinkingPill extends StatefulWidget {
     this.thinkingAt,
     this.subAgentToolName,
     this.subAgentStartedAt,
+    this.onStop,
   });
 
   /// Whether the agent is currently in the thinking state.
@@ -52,6 +53,10 @@ class ThinkingPill extends StatefulWidget {
   /// Unix-ms timestamp of when the current sub-agent activity started.
   /// Drives the elapsed counter when the pill is showing sub-agent work.
   final int? subAgentStartedAt;
+
+  /// Optional stop/abort action shown on the pill so the user does
+  /// not have to open the session menu mid-run.
+  final VoidCallback? onStop;
 
   @override
   State<ThinkingPill> createState() => _ThinkingPillState();
@@ -247,6 +252,30 @@ class _ThinkingPillState extends State<ThinkingPill>
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: cs.onSurfaceVariant.withValues(alpha: 0.55),
                     fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+              if (widget.onStop != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Semantics(
+                  button: true,
+                  label: 'Stop agent',
+                  child: InkWell(
+                    onTap: widget.onStop,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minWidth: AppTouchTarget.min,
+                        minHeight: AppTouchTarget.min,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.stop_rounded,
+                          size: 16,
+                          color: cs.error,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -41,66 +41,14 @@ extension _ChatScreenBuilders on _ChatScreenState {
         _cachedListItems == null ||
         _cachedKeyToListIndex == null ||
         _cachedListItemsHideToolCalls != hideToolCalls) {
-      final items = <Map<String, dynamic>?>[];
-      var hiddenToolCalls = <Map<String, dynamic>>[];
-
-      void flushHiddenToolCalls() {
-        if (hiddenToolCalls.isEmpty) return;
-        final first =
-            hiddenToolCalls.first['id'] as String? ??
-            hiddenToolCalls.first['toolUseId'] as String? ??
-            'hidden-tool-${items.length}';
-        items.add({
-          'kind': 'hidden-tool-summary',
-          'id': 'hidden-tool-summary-$first',
-          'role': 'agent',
-          'tools': hiddenToolCalls,
-        });
-        hiddenToolCalls = <Map<String, dynamic>>[];
-      }
-
-      for (final msg in visibleMessages) {
-        try {
-          // Sidechain (subagent) messages whose parent Task is in the
-          // loaded window are attached to that Task's `children` array
-          // by the grouper and are NOT in the top-level list here, so
-          // they only appear inside the AgentConversationScreen for
-          // their parent.
-          //
-          // Sidechain messages that landed in the top-level list are
-          // orphans — their parent Task is not in the loaded window
-          // (or never arrived).  We render them inline in the main
-          // chat rather than absorbing them into a synthetic
-          // "Subagent output (recovered)" tile, so the user can see
-          // the actual content (text, tool-calls) and never loses
-          // subagent output.  See _absorbOrphansIntoSyntheticTasks
-          // removal in _sync_messaging_merge.
-          //
-          // Defense-in-depth: if a legacy cache still has a synthetic
-          // `_orphanRecovery: true` placeholder, drop it — the chat
-          // already has the real children rendered inline now, and
-          // the synthetic would render as an empty duplicate.
-          if (msg['_orphanRecovery'] == true) continue;
-          // Agent events that are telemetry-only are intentionally not
-          // rendered in the main chat timeline. Unknown events now
-          // get a safe fallback label so they stay visible.
-          if (msg['kind'] == 'agent-event' &&
-              !AgentEventWidget.shouldRenderInChat(msg['event'])) {
-            continue;
-          }
-          if (_shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
-            hiddenToolCalls.add(msg);
-            continue;
-          }
-          flushHiddenToolCalls();
-          items.add(msg);
-          final role = msg['role'] as String?;
-          final content = msg['content'] ?? msg['text'];
-          final text = content is String ? content : content?.toString() ?? '';
-          if (role == 'user' && text.trim() == '/clear') {
-            items.add(null);
-          }
-        } catch (e, st) {
+      // Pure pipeline: hide-tools / orphan / agent-event / /clear dividers.
+      // Sidechain orphans render inline (see _sync_messaging_merge notes).
+      final items = buildChatListItems(
+        visibleMessages: visibleMessages,
+        hideToolCalls: hideToolCalls,
+        shouldRenderAgentEvent: AgentEventWidget.shouldRenderInChat,
+        shouldHideToolCall: _shouldHideToolCall,
+        onMessageError: (msg, e, st) {
           // Never let a single malformed message abort the whole list —
           // otherwise rendering halts at the offending item and every
           // message after it disappears from the UI.
@@ -110,9 +58,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
             e,
             st,
           );
-        }
-      }
-      flushHiddenToolCalls();
+        },
+      );
 
       final keyToListIndex = <String, int>{};
       for (var i = 0; i < items.length; i++) {

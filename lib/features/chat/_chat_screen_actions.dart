@@ -640,7 +640,7 @@ extension _ChatScreenActions on _ChatScreenState {
 
     unawaited(TtsService().stop());
 
-    if (text == '/clear') {
+    if (isClearCommand(text)) {
       _controller.clear();
       unawaited(DraftStorage().removeDraft(widget.sessionId));
       _autoScrollNotifier.value = true;
@@ -689,24 +689,27 @@ extension _ChatScreenActions on _ChatScreenState {
       return;
     }
 
-    if (text.toLowerCase().startsWith('/loop ')) {
+    if (isLoopCommand(text)) {
       unawaited(_handleLoopCommand(text));
       return;
     }
 
+    await _sendOptimisticUserText(text, localId: localId);
+  }
+
+  /// Shared optimistic send path for typed messages and loop fall-through.
+  ///
+  /// [localId] is the canonical client identity — never re-minted here.
+  Future<void> _sendOptimisticUserText(
+    String text, {
+    required String localId,
+  }) async {
     _autoScrollNotifier.value = true;
 
-    // ── Optimistic UI: Show message immediately ──
-    final optimisticMessage = <String, dynamic>{
-      'id': localId,
-      'localId': localId,
-      'role': 'user',
-      'content': text,
-      'text': text,
-      'createdAt': DateTime.now().millisecondsSinceEpoch,
-      'seq': -1, // Will be replaced by server
-      'sendStatus': 'sending', // Track for potential rollback
-    };
+    final optimisticMessage = buildOptimisticUserMessage(
+      localId: localId,
+      text: text,
+    );
     setState(() {
       _messages = [..._messages, optimisticMessage];
       _isSending = true;
@@ -746,22 +749,15 @@ extension _ChatScreenActions on _ChatScreenState {
         // Mark optimistic message as failed instead of removing it,
         // so the user can see it and retry.
         setState(() {
-          final idx = _messages.indexWhere(
-            (m) => m['localId'] == localId || m['id'] == localId,
-          );
-          if (idx != -1) {
-            _messages = [
-              ..._messages.sublist(0, idx),
-              {..._messages[idx], 'sendStatus': 'failed'},
-              ..._messages.sublist(idx + 1),
-            ];
-          } else {
+          final next = markOptimisticMessageFailed(_messages, localId);
+          if (identical(next, _messages)) {
             final msg =
                 'chat_send: optimistic message not found for '
                 'localId=$localId (session=${widget.sessionId})';
             logger.warning(msg);
             unawaited(Sentry.captureMessage(msg, level: SentryLevel.warning));
           }
+          _messages = next;
           _controller.text = text;
           _isSending = false;
           _invalidateNeighborCache();
@@ -954,71 +950,15 @@ extension _ChatScreenActions on _ChatScreenState {
     }
   }
 
-  /// Send [text] to the chat as a regular user message.
+  /// Send [text] as a regular user message (loop fall-through).
   ///
-  /// Mirrors the optimistic-UI path used by the standard `_sendMessage`
-  /// flow, but without the `/loop` interception so this branch truly
-  /// passes through to Claude unchanged.
+  /// Uses the same optimistic path and `localId` rules as [_sendMessage].
   Future<void> _sendRawLoopText(String text) async {
     final localId = ref
         .read(chatActionNotifierProvider.notifier)
         .createLocalMessageId();
     unawaited(TtsService().stop());
-    _autoScrollNotifier.value = true;
-    final optimisticMessage = <String, dynamic>{
-      'id': localId,
-      'localId': localId,
-      'role': 'user',
-      'content': text,
-      'text': text,
-      'createdAt': DateTime.now().millisecondsSinceEpoch,
-      'seq': -1,
-      'sendStatus': 'sending',
-    };
-    setState(() {
-      _messages = [..._messages, optimisticMessage];
-      _isSending = true;
-      _controller.clear();
-      _visibleCount = _messages.length;
-      _invalidateNeighborCache();
-    });
-    _scrollToBottom();
-    unawaited(DraftStorage().removeDraft(widget.sessionId));
-    try {
-      final sentSessionId = await ref
-          .read(chatActionNotifierProvider.notifier)
-          .sendMessage(
-            widget.sessionId,
-            text,
-            clientLocalId: localId,
-            displayText: text,
-            permissionMode: _permissionMode.toModeString(),
-            modelMode: _effectiveModelModeString ?? _modelMode.modeString,
-            profileId: _selectedProfile?.id,
-          );
-      if (_followRedirectedSession(sentSessionId)) {
-        return;
-      }
-      _refreshFromSync();
-    } catch (e, st) {
-      logger.warning('[ChatScreen] _sendRawLoopText failed: $e', e, st);
-      if (mounted) {
-        setState(() {
-          _messages = _messages
-              .map(
-                (m) => m['localId'] == localId
-                    ? {...m, 'sendStatus': 'failed'}
-                    : m,
-              )
-              .toList();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
-        );
-      }
-    } finally {
-      if (mounted && _isSending) setState(() => _isSending = false);
-    }
+    await _sendOptimisticUserText(text, localId: localId);
   }
 
   /// Handle an [AutoRestoreFailure] emitted by the sync layer when

@@ -6,7 +6,9 @@ import '../../../core/theme/app_tokens.dart';
 import 'model_mode.dart';
 import 'permission_mode_selector.dart' as perm;
 
-const double _toolbarChipHeight = 30;
+/// Visual chip height (dense). Hit target is expanded to
+/// [AppTouchTarget.min] via outer padding so fat-finger misses drop.
+const double _toolbarChipVisualHeight = 30;
 
 /// Inline chip for model selection — subtle, tappable.
 class ModelChip extends StatelessWidget {
@@ -38,49 +40,61 @@ class ModelChip extends StatelessWidget {
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Container(
-          height: _toolbarChipHeight,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: isDefault
-                ? cs.onSurface.withValues(alpha: 0.05)
-                : cs.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppTouchTarget.min,
+            minWidth: AppTouchTarget.min,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                model.isCodex
-                    ? Icons.psychology_alt_outlined
-                    : model.modelSlug == 'opus'
-                    ? Icons.diamond_outlined
-                    : model.modelSlug == 'sonnet'
-                    ? Icons.auto_awesome_outlined
-                    : model.modelSlug == 'fable'
-                    ? Icons.auto_stories_outlined
-                    : Icons.smart_toy_outlined,
-                size: 11,
-                color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
+          child: Align(
+            alignment: Alignment.center,
+            child: Container(
+              height: _toolbarChipVisualHeight,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: isDefault
+                    ? cs.onSurface.withValues(alpha: 0.05)
+                    : cs.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                model.label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: AppFontSize.xxs,
-                  color: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    model.isCodex
+                        ? Icons.psychology_alt_outlined
+                        : model.modelSlug == 'opus'
+                        ? Icons.diamond_outlined
+                        : model.modelSlug == 'sonnet'
+                        ? Icons.auto_awesome_outlined
+                        : model.modelSlug == 'fable'
+                        ? Icons.auto_stories_outlined
+                        : Icons.smart_toy_outlined,
+                    size: 11,
+                    color:
+                        enabled ? iconColor : iconColor.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    model.label,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: AppFontSize.xxs,
+                      color: enabled
+                          ? iconColor
+                          : iconColor.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (enabled) ...[
+                    const SizedBox(width: 1),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 12,
+                      color: chevronColor,
+                    ),
+                  ],
+                ],
               ),
-              if (enabled) ...[
-                const SizedBox(width: 1),
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 12,
-                  color: chevronColor,
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
@@ -110,46 +124,55 @@ class ProfileChip extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Container(
-          height: _toolbarChipHeight,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: isDefault
-                ? cs.onSurface.withValues(alpha: 0.05)
-                : cs.tertiary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: AppTouchTarget.min,
+            minWidth: AppTouchTarget.min,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.swap_horiz_rounded,
-                size: 11,
-                color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 68),
-                child: Text(
-                  label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: AppFontSize.xxs,
-                    color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 1),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 12,
+          child: Align(
+            alignment: Alignment.center,
+            child: Container(
+              height: _toolbarChipVisualHeight,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              decoration: BoxDecoration(
                 color: isDefault
-                    ? cs.onSurfaceVariant.withValues(alpha: 0.65)
-                    : cs.tertiary.withValues(alpha: 0.65),
+                    ? cs.onSurface.withValues(alpha: 0.05)
+                    : cs.tertiary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
-            ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.swap_horiz_rounded,
+                    size: 11,
+                    color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 68),
+                    child: Text(
+                      label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: AppFontSize.xxs,
+                        color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 1),
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 12,
+                    color: isDefault
+                        ? cs.onSurfaceVariant.withValues(alpha: 0.65)
+                        : cs.tertiary.withValues(alpha: 0.65),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

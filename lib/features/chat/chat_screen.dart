@@ -27,12 +27,14 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/wire_parsers.dart';
+import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../loops/create_loop_sheet.dart';
 import '../loops/loop_actions.dart';
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
+import 'chat_list_pipeline.dart';
 import 'chat_tts_gate.dart';
 import 'helpers/chat_dialogs.dart';
 import 'loop_command_parser.dart';
@@ -40,6 +42,7 @@ import 'message_detail_screen.dart';
 import 'message_render_signature.dart';
 import 'message_widget.dart';
 import 'model_selection_resolver.dart';
+import 'send/chat_send_coordinator.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
@@ -47,6 +50,7 @@ import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_messages_body.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
+import 'widgets/pending_permission_bar.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
 import 'widgets/session_goal_banner.dart';
@@ -1252,8 +1256,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     required List<ChatModelMode> availableModels,
   }) {
     final sessionUiEntry = ref.watch(sessionUiEntryProvider(widget.sessionId));
+    // Banner priority (top → bottom, limited stack):
+    // offline → sub-agent → issue → (goal/tasks only if no issue) →
+    // permission sticky → TTS → thinking+stop → input
+    final hasSendIssue = _sessionSendIssue != null;
+    final pendingRequests = _session?.agentState?.requests;
+    final hasPendingPermission =
+        pendingRequests != null && pendingRequests.isNotEmpty;
+
     return Column(
       children: [
+        const OfflineBanner(),
         // Sticky sub-agent status banner. Re-renders on every
         // sync.onDataChanged tick via its own StatefulWidget so the
         // running/total counts stay current without invalidating the
@@ -1310,8 +1323,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               blocksSend: issue.blocksSend,
             ),
           ),
-        SessionGoalBanner(sessionId: widget.sessionId),
-        SessionTasksBanner(sessionId: widget.sessionId),
+        // Collapse secondary chrome when a send issue already owns the strip.
+        if (!hasSendIssue) ...[
+          SessionGoalBanner(sessionId: widget.sessionId),
+          SessionTasksBanner(sessionId: widget.sessionId),
+        ],
+        if (hasPendingPermission)
+          PendingPermissionBar(
+            sessionId: widget.sessionId,
+            requests: pendingRequests,
+            isSessionOnline: _session?.isPresenceOnline ?? false,
+          ),
         TtsPlaybackBar(
           onPrev: _ttsPrev,
           onStop: _ttsStop,
@@ -1327,6 +1349,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           thinkingAt: _session?.thinkingAt,
           subAgentToolName: _lastSubAgentToolName().toolName,
           subAgentStartedAt: _lastSubAgentToolName().startedAt,
+          onStop: (_session?.thinking ?? false) ||
+                  (_lastSubAgentToolName().toolName?.isNotEmpty ?? false)
+              ? _abortSession
+              : null,
         ),
         ChatInput(
           sessionId: widget.sessionId,

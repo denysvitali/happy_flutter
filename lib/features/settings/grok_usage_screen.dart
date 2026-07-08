@@ -11,6 +11,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'widgets/machine_picker.dart';
 
 /// Grok Build monthly billing usage for a selected machine.
 class GrokUsageScreen extends ConsumerStatefulWidget {
@@ -150,10 +151,11 @@ class _GrokUsageBody extends StatelessWidget {
     return ListView(
       padding: AppScreenPadding.settings,
       children: [
-        _GrokMachinePicker(
+        MachinePicker(
           machines: machines,
           selectedMachineId: selectedMachineId,
           onChanged: onMachineChanged,
+          sectionTitle: l10n.grokUsageSelectMachine,
         ),
         const SizedBox(height: AppSpacing.lg),
         SettingsSection(
@@ -245,10 +247,11 @@ class _GrokUsageEmptyBody extends StatelessWidget {
       children: [
         Padding(
           padding: AppScreenPadding.settings,
-          child: _GrokMachinePicker(
+          child: MachinePicker(
             machines: machines,
             selectedMachineId: selectedMachineId,
             onChanged: onMachineChanged,
+            sectionTitle: l10n.grokUsageSelectMachine,
           ),
         ),
         const Spacer(),
@@ -285,10 +288,11 @@ class _GrokUsageErrorBody extends StatelessWidget {
       children: [
         Padding(
           padding: AppScreenPadding.settings,
-          child: _GrokMachinePicker(
+          child: MachinePicker(
             machines: machines,
             selectedMachineId: selectedMachineId,
             onChanged: onMachineChanged,
+            sectionTitle: l10n.grokUsageSelectMachine,
           ),
         ),
         const Spacer(),
@@ -308,98 +312,7 @@ class _GrokUsageErrorBody extends StatelessWidget {
   }
 }
 
-class _GrokMachinePicker extends StatelessWidget {
-  const _GrokMachinePicker({
-    required this.machines,
-    required this.selectedMachineId,
-    required this.onChanged,
-  });
 
-  final Map<String, Machine> machines;
-  final String? selectedMachineId;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
-    final machineList = machines.values.toList()
-      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
-
-    return SettingsSection(
-      title: l10n.grokUsageSelectMachine,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: DropdownButtonFormField<String>(
-            initialValue: selectedMachineId,
-            selectedItemBuilder: (context) => machineList
-                .map(
-                  (machine) => Text(
-                    machine.displayLabel,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                )
-                .toList(),
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
-              isDense: true,
-            ),
-            items: machineList.map((machine) {
-              final online = machine.isOnline;
-              return DropdownMenuItem<String>(
-                value: machine.id,
-                enabled: online,
-                child: Row(
-                  children: [
-                    Icon(
-                      online ? Icons.circle : Icons.circle_outlined,
-                      size: 10,
-                      color: online ? AppColors.success : cs.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Flexible(
-                      child: Text(
-                        machine.displayLabel,
-                        overflow: TextOverflow.ellipsis,
-                        style: online
-                            ? null
-                            : theme.textTheme.bodyMedium?.copyWith(
-                                color: cs.onSurfaceVariant,
-                              ),
-                      ),
-                    ),
-                    if (!online) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        l10n.machineOffline,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }).toList(),
-            onChanged: (id) {
-              if (id != null && !(machines[id]?.isOnline ?? false)) return;
-              onChanged(id);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _GrokUsageStatRow extends StatelessWidget {
   const _GrokUsageStatRow({

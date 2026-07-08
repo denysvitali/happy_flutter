@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/utils/grok_acp_normalize.dart';
 import '../../../core/utils/tool_error_parser.dart';
 import '../../../core/utils/wire_parsers.dart';
 import '../message_render_signature.dart';
@@ -17,26 +18,10 @@ import 'tool_error.dart';
 import 'tool_section_view.dart';
 import 'tool_status_indicator.dart' show ToolState;
 import 'tool_view_helpers.dart';
+import 'tool_view_registry.dart';
 import 'tool_view_widgets.dart';
 import 'views/ask_user_question_view.dart';
-import 'views/bash_view.dart';
-import 'views/codex_bash_view.dart';
-import 'views/codex_diff_view.dart';
-import 'views/codex_patch_view.dart';
-import 'views/edit_view.dart';
-import 'views/exit_plan_tool_view.dart';
-import 'views/gemini_edit_view.dart';
-import 'views/gemini_execute_view.dart';
-import 'views/glob_view.dart';
-import 'views/grep_view.dart';
-import 'views/ls_view.dart';
-import 'views/multi_edit_view.dart';
-import 'views/read_view.dart';
 import 'views/task_tool_view.dart';
-import 'views/task_view.dart';
-import 'views/todo_view.dart';
-import 'views/web_fetch_view.dart';
-import 'views/write_view.dart';
 
 // Re-export public helpers so existing imports continue to work.
 export 'tool_view_helpers.dart'
@@ -444,15 +429,21 @@ class _ToolViewState extends ConsumerState<ToolView>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final toolName = widget.tool['name'] as String? ?? 'Unknown';
+    // Defense-in-depth: unwrap Grok use_tool for historical messages that
+    // were stored before happy-cli-go / ACP normalize rewrote the name.
+    final displayDispatch = normalizeGrokToolCall(
+      widget.tool['name'] as String? ?? 'Unknown',
+      WireParsers.asMap(widget.tool['input']),
+    );
+    final toolName = displayDispatch.name;
     final toolState = widget.tool['state'] as String? ?? 'pending';
-    final toolInput = WireParsers.asMap(widget.tool['input']);
+    final toolInput = displayDispatch.input;
     final toolResult = widget.tool['result'];
     final permission = WireParsers.asMap(widget.tool['permission']);
     final createdAt = widget.tool['createdAt'] as int?;
 
     final knownTool = KnownTools.get(toolName);
-    final isMCP = toolName.startsWith('mcp__');
+    final isMCP = toolName.startsWith('mcp__') || toolName.contains('__');
 
     // Determine tool title
     var toolTitle = toolName;
@@ -831,124 +822,25 @@ class _ToolViewState extends ConsumerState<ToolView>
     return const _OpenDetailsHint();
   }
 
-  // Static set of known tool names — used to skip the per-call map allocation
-  // when the tool name is not in the set.
-  static const Set<String> _knownToolNames = {
-    'Glob',
-    'Grep',
-    'grep',
-    'LS',
-    'ls',
-    'Read',
-    'read',
-    'Edit',
-    'file-edit',
-    'MultiEdit',
-    'Write',
-    'write',
-    'edit',
-    'Bash',
-    'bash',
-    'exec_command',
-    'functions.exec_command',
-    'CodexBash',
-    'execute',
-    'CodexPatch',
-    'apply_patch',
-    'functions.apply_patch',
-    'CodexDiff',
-    'Task',
-    'Agent',
-    'Workflow',
-    'TaskCreate',
-    'TaskUpdate',
-    'TaskList',
-    'TaskGet',
-    'TodoWrite',
-    'todo_list',
-    'WebFetch',
-    'ExitPlanMode',
-    'exit_plan_mode',
-    'AskUserQuestion',
-    'NotebookRead',
-    'NotebookEdit',
-  };
-
   /// Returns a view builder for the named tool, or null for default fallback.
   ///
-  /// The lambda map is only allocated when [toolName] is a known tool, and
-  /// immediately discarded after the single lookup — avoiding repeated large
-  /// allocations at 60 fps when a tool is running.
+  /// Delegates to [ToolViewRegistry] so aliases + builders live in one place.
   ToolViewBuilder? _getToolViewComponent(String toolName) {
-    // Fast path: avoid allocating the map for unknown tool names.
-    if (!_knownToolNames.contains(toolName)) return null;
-    final canonicalName = KnownTools.canonicalName(toolName);
-
-    final views = <String, ToolViewBuilder>{
-      'Glob': (t, m, s) => GlobView(tool: t, metadata: m),
-      'Grep': (t, m, s) => GrepView(tool: t, metadata: m),
-      'LS': (t, m, s) => LSView(tool: t, metadata: m),
-      'Read': (t, m, s) => ReadView(tool: t, metadata: m, sessionId: s),
-      'read': (t, m, s) => ReadView(tool: t, metadata: m, sessionId: s),
-      'Edit': (t, m, s) => EditView(tool: t, metadata: m, sessionId: s),
-      'file-edit': (t, m, s) => EditView(tool: t, metadata: m, sessionId: s),
-      'MultiEdit': (t, m, s) => MultiEditView(tool: t, metadata: m),
-      'Write': (t, m, s) => WriteView(tool: t, metadata: m),
-      'edit': (t, m, s) => GeminiEditView(tool: t, metadata: m),
-      'Bash': (t, m, s) => BashView(tool: t, metadata: m),
-      'exec_command': (t, m, s) => ExecCommandView(tool: t),
-      'functions.exec_command': (t, m, s) => ExecCommandView(tool: t),
-      'CodexBash': (t, m, s) => CodexBashView(tool: t, metadata: m),
-      'execute': (t, m, s) => GeminiExecuteView(tool: t, metadata: m),
-      'CodexPatch': (t, m, s) => CodexPatchView(tool: t, metadata: m),
-      'apply_patch': (t, m, s) => CodexPatchView(tool: t, metadata: m),
-      'functions.apply_patch': (t, m, s) =>
-          CodexPatchView(tool: t, metadata: m),
-      'CodexDiff': (t, m, s) => CodexDiffView(tool: t, metadata: m),
-      'Task': (t, m, s) => TaskView(
-        tool: t,
-        metadata: m,
-        onNavigate: () => widget.onPress?.call(),
-      ),
-      'Agent': (t, m, s) => TaskView(
-        tool: t,
-        metadata: m,
-        onNavigate: () => widget.onPress?.call(),
-      ),
-      'Workflow': (t, m, s) => TaskView(
-        tool: t,
-        metadata: m,
-        onNavigate: () => widget.onPress?.call(),
-      ),
-      'TaskCreate': (t, m, s) =>
-          TaskToolView(tool: t, metadata: m, sessionId: s),
-      'TaskUpdate': (t, m, s) =>
-          TaskToolView(tool: t, metadata: m, sessionId: s),
-      'TaskList': (t, m, s) => TaskToolView(tool: t, metadata: m, sessionId: s),
-      'TaskGet': (t, m, s) => TaskToolView(tool: t, metadata: m, sessionId: s),
-      'TodoWrite': (t, m, s) => TodoView(tool: t, metadata: m, sessionId: s),
-      'todo_list': (t, m, s) => TodoView(tool: t, metadata: m, sessionId: s),
-      'WebFetch': (t, m, s) => WebFetchView(tool: t, metadata: m),
-      'ExitPlanMode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
-      'exit_plan_mode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
-      'AskUserQuestion': _buildAskUserQuestionView,
-      'NotebookRead': (t, m, s) => ReadView(tool: t, metadata: m, sessionId: s),
-      'NotebookEdit': (t, m, s) => EditView(tool: t, metadata: m, sessionId: s),
-    };
-    return views[canonicalName] ?? views[toolName];
-  }
-
-  Widget _buildAskUserQuestionView(
-    Map<String, dynamic> tool,
-    Map<String, dynamic>? metadata,
-    String? sessionId,
-  ) {
-    final toolUseId = tool['toolUseId'] as String? ?? tool['id'] as String?;
-    return AskUserQuestionView(
-      key: toolUseId != null ? ValueKey('ask-$toolUseId') : null,
-      tool: tool,
-      metadata: metadata,
-      sessionId: widget.sessionId,
+    if (!ToolViewRegistry.has(toolName)) return null;
+    return ToolViewRegistry.resolve(
+      toolName,
+      onNavigate: () {
+        widget.onPress?.call();
+      },
+      askUserBuilder: (t, m, s) {
+        final toolUseId = t['toolUseId'] as String? ?? t['id'] as String?;
+        return AskUserQuestionView(
+          key: toolUseId != null ? ValueKey('ask-$toolUseId') : null,
+          tool: t,
+          metadata: m,
+          sessionId: widget.sessionId ?? s,
+        );
+      },
     );
   }
 

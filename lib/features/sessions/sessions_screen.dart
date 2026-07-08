@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/tablet/resizable_pane_divider.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
@@ -15,8 +16,8 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
-import '../../core/components/tablet/resizable_pane_divider.dart';
 import '../chat/chat_screen.dart';
 import '../loops/all_loops_screen.dart';
 import '../providers/providers_usage_screen.dart';
@@ -260,12 +261,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       },
       child: Scaffold(
         appBar: appBar,
-        body: SafeArea(
-          top: appBar == null,
-          bottom: false,
-          child: isSessionsTabOnTablet
-              ? _buildCurrentTabContent()
-              : SyncProgressOverlay(child: _buildCurrentTabContent()),
+        body: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(
+              child: SafeArea(
+                top: appBar == null,
+                bottom: false,
+                child: isSessionsTabOnTablet
+                    ? _buildCurrentTabContent()
+                    : SyncProgressOverlay(child: _buildCurrentTabContent()),
+              ),
+            ),
+          ],
         ),
         bottomNavigationBar: isTabletDetail
             ? null

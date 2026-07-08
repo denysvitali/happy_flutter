@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/components/app_empty_state.dart';
 import '../../core/models/todo.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
@@ -171,41 +172,13 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.checklist_rounded,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'No tasks yet',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Agent task lists from chat will appear here. '
-              'Open a session and ask the agent to plan a task '
-              'to see TodoWrite items surface on this screen.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant
-                    .withValues(alpha: 0.7),
-                height: AppLineHeight.relaxed,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return const AppEmptyState(
+      icon: Icons.checklist_rounded,
+      title: 'No tasks yet',
+      subtitle:
+          'Agent task lists from chat will appear here. '
+          'Open a session and ask the agent to plan a task '
+          'to see TodoWrite items surface on this screen.',
     );
   }
 }
