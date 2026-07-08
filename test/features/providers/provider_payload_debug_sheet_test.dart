@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/provider_usage.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/providers/widgets/provider_payload_debug_sheet.dart';
 
 Widget _pumpSheet(WidgetTester tester, ProviderUsage usage) => MaterialApp(
@@ -125,6 +126,28 @@ void main() {
         find.text('No payload captured for this account yet.'),
         findsNothing,
       );
+    });
+
+    testWidgets('uses a readable line height for the JSON payload', (
+      tester,
+    ) async {
+      const payload = '{\n  "limit": 100,\n  "used": 30\n}';
+      await tester.pumpWidget(_pumpSheet(
+        tester,
+        ProviderUsage(
+          accountId: 'a1',
+          type: ProviderUsageType.kimi,
+          extra: const <String, dynamic>{
+            'raw_payload': payload,
+          },
+        ),
+      ));
+
+      final selectable = tester.widget<SelectableText>(
+        find.byType(SelectableText).first,
+      );
+      expect(selectable.style, isNotNull);
+      expect(selectable.style!.height, AppLineHeight.relaxed);
     });
   });
 }

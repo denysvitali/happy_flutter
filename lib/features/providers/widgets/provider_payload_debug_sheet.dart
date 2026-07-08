@@ -234,7 +234,7 @@ class _SelectableJson extends StatelessWidget {
           style: const TextStyle(
             fontFamily: 'monospace',
             fontSize: AppFontSize.sm,
-            height: AppLineHeight.relaxed / AppFontSize.sm,
+            height: AppLineHeight.relaxed,
           ),
         ),
       ),
