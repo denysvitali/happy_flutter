@@ -8,6 +8,8 @@
 /// Must stay free of Flutter imports — [message_processor] runs in isolates.
 library;
 
+import 'dart:convert';
+
 import 'wire_parsers.dart';
 
 /// Maps Grok Build built-in tool names onto Happy/Claude display names.
@@ -159,10 +161,14 @@ GrokToolDispatch normalizeGrokToolCall(
 /// Normalizes a Grok tool-result payload into shapes tool views parse.
 ///
 /// Handles:
+/// - MCP `{type:MCP, output:{OkayOutput|Error: "..."}}` → real tool payload
 /// - ACP content block lists `[{type:content, content:{type:text,text}}]`
 /// - Shell rawOutput with `output` / `exit_code`
 /// - ListDir `Content.content` tree strings
 /// - FileContent / nested text maps
+///
+/// Keep in sync with happy-cli-go `normalizeGrokToolResult` in
+/// `internal/remote/grok/acp.go`.
 dynamic normalizeGrokToolResult(dynamic result) {
   if (result == null) return null;
 
@@ -176,6 +182,12 @@ dynamic normalizeGrokToolResult(dynamic result) {
   if (result is! Map) return result;
   final map = WireParsers.asMap(result);
   if (map == null) return result;
+
+  // MCP first: must not be treated as shell just because it has `output`.
+  // Grok wire: {type: MCP, tool_name, server_name, output: {OkayOutput: "..."}}
+  if (_isGrokMcpRawOutput(map)) {
+    return _extractGrokMcpPayload(map);
+  }
 
   // Prefer nested ACP content array when present alongside rawOutput-like maps.
   final nestedContent = map['content'];
@@ -215,13 +227,24 @@ dynamic normalizeGrokToolResult(dynamic result) {
   }
 
   // FileContent or generic nested text.
-  if (listType == 'FileContent' || map.containsKey('FileContent')) {
+  if (listType == 'FileContent' ||
+      listType == 'ReadFile' ||
+      map.containsKey('FileContent')) {
     final fileBody = WireParsers.asMap(map['FileContent']) ??
         WireParsers.asMap(map['Content']);
     final text = fileBody?['content']?.toString() ??
+        fileBody?['raw_output']?.toString() ??
         fileBody?['text']?.toString() ??
         map['text']?.toString();
     if (text != null && text.isNotEmpty) return text;
+  }
+
+  // SearchTool / Text wrappers.
+  if (listType == 'SearchTool' || listType == 'Text') {
+    final text = map['content']?.toString() ?? map['text']?.toString();
+    if (text != null && text.isNotEmpty) {
+      return _coerceToolPayloadString(text);
+    }
   }
 
   final directText = map['text']?.toString() ?? map['body']?.toString();
@@ -232,7 +255,59 @@ dynamic normalizeGrokToolResult(dynamic result) {
   return map;
 }
 
+bool _isGrokMcpRawOutput(Map<String, dynamic> map) {
+  final type = map['type']?.toString();
+  if (type != null && type.toLowerCase() == 'mcp') return true;
+  final out = WireParsers.asMap(map['output']);
+  if (out == null) return false;
+  return out.containsKey('OkayOutput') ||
+      out.containsKey('Error') ||
+      out.containsKey('ErrorOutput');
+}
+
+/// Unwraps Grok MCP `output.{OkayOutput|Error}` to the real tool payload.
+dynamic _extractGrokMcpPayload(Map<String, dynamic> map) {
+  final out = map['output'];
+  final outMap = WireParsers.asMap(out);
+  if (outMap != null) {
+    for (final key in const ['OkayOutput', 'Error', 'ErrorOutput']) {
+      if (outMap.containsKey(key)) {
+        return _coerceToolPayload(outMap[key]);
+      }
+    }
+    return outMap;
+  }
+  if (out is String) {
+    return _coerceToolPayloadString(out);
+  }
+  if (out != null) return out;
+  return map;
+}
+
+dynamic _coerceToolPayload(dynamic value) {
+  if (value is String) {
+    return _coerceToolPayloadString(value);
+  }
+  return value;
+}
+
+/// Parses JSON object/array strings; otherwise returns the trimmed string.
+dynamic _coerceToolPayloadString(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return s;
+  if (s.startsWith('{') || s.startsWith('[')) {
+    try {
+      return jsonDecode(s);
+    } catch (_) {
+      return s;
+    }
+  }
+  return s;
+}
+
 bool _looksLikeShellResult(Map<String, dynamic> map) {
+  // MCP also has `output` — never treat it as shell stdout.
+  if (_isGrokMcpRawOutput(map)) return false;
   return map.containsKey('exit_code') ||
       map.containsKey('exitCode') ||
       map.containsKey('output') ||

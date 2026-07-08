@@ -137,5 +137,50 @@ void main() {
       final names = entries.map((e) => (e as Map)['name']).toSet();
       expect(names, containsAll(['README.md', 'probe.txt']));
     });
+
+    test('unwraps MCP OkayOutput JSON (not shell/stdout wrapper)', () {
+      final result = normalizeGrokToolResult({
+        'type': 'MCP',
+        'tool_name': 'prometheus_query',
+        'server_name': 'prometheus',
+        'output': {
+          'OkayOutput': '''
+{
+  "data": {
+    "result": [
+      {
+        "metric": {"job": "happy/happy-postgres"},
+        "value": [1783546938.579, "456"]
+      }
+    ],
+    "resultType": "vector"
+  }
+}''',
+        },
+      });
+      expect(result, isA<Map>());
+      final map = result as Map;
+      expect(map.containsKey('stdout'), isFalse);
+      expect(map.containsKey('OkayOutput'), isFalse);
+      expect(map['data'], isA<Map>());
+      expect((map['data'] as Map)['resultType'], 'vector');
+    });
+
+    test('unwraps MCP Error string', () {
+      final result = normalizeGrokToolResult({
+        'type': 'MCP',
+        'tool_name': 'get_run',
+        'output': {'Error': 'section matching pattern not found'},
+      });
+      expect(result, 'section matching pattern not found');
+    });
+
+    test('unwraps MCP plain-text OkayOutput', () {
+      final result = normalizeGrokToolResult({
+        'type': 'MCP',
+        'output': {'OkayOutput': 'alloy\nalertmanager\nargocd'},
+      });
+      expect(result, 'alloy\nalertmanager\nargocd');
+    });
   });
 }
