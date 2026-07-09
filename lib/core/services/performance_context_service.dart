@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show ValueListenable, ValueNotifier, visibleForTesting;
 import 'package:flutter/widgets.dart';
 
 /// Tracks lightweight runtime context for performance telemetry.
@@ -12,16 +14,23 @@ class PerformanceContextService {
       PerformanceContextService._();
 
   String? _currentRoute;
+  final ValueNotifier<String?> _routeListenable =
+      ValueNotifier<String?>(null);
 
   String? get currentRoute => _currentRoute;
+  ValueListenable<String?> get routeListenable => _routeListenable;
 
   void setCurrentRoute(String? routeName) {
-    _currentRoute = _normalizeRouteName(routeName);
+    final nextRoute = _normalizeRouteName(routeName);
+    if (_currentRoute == nextRoute) return;
+    _currentRoute = nextRoute;
+    _routeListenable.value = nextRoute;
   }
 
   @visibleForTesting
   void resetForTesting() {
     _currentRoute = null;
+    _routeListenable.value = null;
   }
 
   static String? _normalizeRouteName(String? routeName) {

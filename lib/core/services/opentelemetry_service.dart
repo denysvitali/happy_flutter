@@ -432,7 +432,14 @@ class _HappyOtelLifecycleObserver with WidgetsBindingObserver {
         )
         .end();
 
-    FlutterOTel.forceFlush();
+    // Android reports several lifecycle states for a single app switch
+    // (inactive, hidden, paused, then the reverse on return). Flushing the
+    // exporter for each one repeatedly wakes the radio. The paused state is
+    // the last reliable opportunity before background execution stops, so
+    // flush once there and let the exporter batch all other transitions.
+    if (state == AppLifecycleState.paused) {
+      FlutterOTel.forceFlush();
+    }
     FlutterOTel.currentAppLifecycleId = newStateId;
     _currentLifecycleId = newStateId;
     _currentLifecycleState = newState;
