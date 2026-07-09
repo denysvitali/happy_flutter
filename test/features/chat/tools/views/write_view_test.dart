@@ -35,8 +35,7 @@ void main() {
       expect(
         find.byWidgetPredicate(
           (w) =>
-              w is RichText &&
-              w.text.toPlainText().contains('new_file.dart'),
+              w is RichText && w.text.toPlainText().contains('new_file.dart'),
         ),
         findsOneWidget,
       );
@@ -47,10 +46,7 @@ void main() {
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/test.txt',
-                'content': 'hello',
-              },
+              'input': {'path': '/test.txt', 'content': 'hello'},
             },
           ),
         ),
@@ -66,10 +62,7 @@ void main() {
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/test.txt',
-                'content': 'line1\nline2\nline3',
-              },
+              'input': {'path': '/test.txt', 'content': 'line1\nline2\nline3'},
             },
           ),
         ),
@@ -85,10 +78,7 @@ void main() {
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/test.txt',
-                'content': 'Hello',
-              },
+              'input': {'path': '/test.txt', 'content': 'Hello'},
             },
           ),
         ),
@@ -103,10 +93,7 @@ void main() {
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/test.txt',
-                'content': 'test content',
-              },
+              'input': {'path': '/test.txt', 'content': 'test content'},
             },
           ),
         ),
@@ -122,10 +109,7 @@ void main() {
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/app.dart',
-                'content': 'code',
-              },
+              'input': {'path': '/app.dart', 'content': 'code'},
             },
           ),
         ),
@@ -135,18 +119,13 @@ void main() {
       expect(find.text('Dart'), findsOneWidget);
     });
 
-    testWidgets('shows "Show full content" for long files',
-        (tester) async {
-      final longContent =
-          List.generate(20, (i) => 'line $i').join('\n');
+    testWidgets('shows "Show full content" for long files', (tester) async {
+      final longContent = List.generate(20, (i) => 'line $i').join('\n');
       await tester.pumpWidget(
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/long.txt',
-                'content': longContent,
-              },
+              'input': {'path': '/long.txt', 'content': longContent},
             },
           ),
         ),
@@ -156,16 +135,12 @@ void main() {
       expect(find.textContaining('Show full content'), findsOneWidget);
     });
 
-    testWidgets('does not show toggle for short content',
-        (tester) async {
+    testWidgets('does not show toggle for short content', (tester) async {
       await tester.pumpWidget(
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/short.txt',
-                'content': 'short',
-              },
+              'input': {'path': '/short.txt', 'content': 'short'},
             },
           ),
         ),
@@ -180,10 +155,7 @@ void main() {
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/test.txt',
-                'content': 'first\nsecond',
-              },
+              'input': {'path': '/test.txt', 'content': 'first\nsecond'},
             },
           ),
         ),
@@ -194,16 +166,12 @@ void main() {
       expect(find.text('2'), findsOneWidget);
     });
 
-    testWidgets('uses path key as fallback for file_path',
-        (tester) async {
+    testWidgets('uses path key as fallback for file_path', (tester) async {
       await tester.pumpWidget(
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/via/path.txt',
-                'content': 'test',
-              },
+              'input': {'path': '/via/path.txt', 'content': 'test'},
             },
           ),
         ),
@@ -224,10 +192,7 @@ void main() {
         _wrap(
           WriteView(
             tool: {
-              'input': {
-                'path': '/app.py',
-                'content': 'x = 1',
-              },
+              'input': {'path': '/app.py', 'content': 'x = 1'},
             },
           ),
         ),
@@ -237,51 +202,50 @@ void main() {
       expect(find.text('Python'), findsOneWidget);
     });
 
-    // Regression guard: Write tool result used to render code at
-    // AppFontSize.sm (12) while Edit/MultiEdit Apply Changes render at
-    // AppFontSize.md (13) via the canonical DiffView. The mismatch was
-    // visually jarring because both surfaces are titled "Apply Changes".
-    // Pin the body code to the canonical "code blocks, tool output" size
-    // (AppFontSize.md) so a future refactor can't silently shrink it back.
-    testWidgets(
-      'renders code body at AppFontSize.md to match Edit/MultiEdit',
-      (tester) async {
-        await tester.pumpWidget(
-          _wrap(
-            WriteView(
-              tool: {
-                'input': {
-                  'path': '/font.dart',
-                  'content': 'void main() {}\n',
-                },
-              },
-            ),
+    // Regression guard: Write + Edit/MultiEdit "Apply Changes" surfaces
+    // share a dense monospace size (AppFontSize.sm). Keep them matched
+    // so a future refactor can't silently diverge them.
+    testWidgets('renders code body at AppFontSize.sm to match Edit/MultiEdit', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          WriteView(
+            tool: {
+              'input': {'path': '/font.dart', 'content': 'void main() {}\n'},
+            },
           ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // The code body uses monospace Text widgets. Filter to the ones
+      // whose data matches the source line text (line numbers are also
+      // monospace, but their text is just digits).
+      final bodyTexts = tester
+          .widgetList<Text>(find.byType(Text))
+          .where(
+            (t) =>
+                t.style?.fontFamily == 'monospace' &&
+                t.data == 'void main() {}',
+          )
+          .toList();
+      expect(
+        bodyTexts,
+        isNotEmpty,
+        reason: 'expected the source line to be rendered as monospace',
+      );
+      for (final t in bodyTexts) {
+        expect(
+          t.style?.fontSize,
+          equals(AppFontSize.sm),
+          reason:
+              'Write code body regressed to ${t.style?.fontSize}; '
+              'expected AppFontSize.sm (${AppFontSize.sm}) to match '
+              'Edit/MultiEdit Apply Changes (UnifiedDiffView default)',
         );
-
-        await tester.pumpAndSettle();
-
-        // The code body uses monospace Text widgets. Filter to the ones
-        // whose data matches the source line text (line numbers are also
-        // monospace, but their text is just digits).
-        final bodyTexts = tester
-            .widgetList<Text>(find.byType(Text))
-            .where(
-              (t) =>
-                  t.style?.fontFamily == 'monospace' &&
-                  t.data == 'void main() {}',
-            )
-            .toList();
-        expect(bodyTexts, isNotEmpty,
-            reason: 'expected the source line to be rendered as monospace');
-        for (final t in bodyTexts) {
-          expect(t.style?.fontSize, equals(AppFontSize.md),
-              reason: 'Write code body regressed to ${t.style?.fontSize}; '
-                  'expected AppFontSize.md (${AppFontSize.md}) to match '
-                  'Edit/MultiEdit Apply Changes and the canonical '
-                  'CodeBlockWidget default');
-        }
-      },
-    );
+      }
+    });
   });
 }

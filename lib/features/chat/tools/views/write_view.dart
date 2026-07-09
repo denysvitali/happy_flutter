@@ -12,8 +12,8 @@ import '_section_label.dart';
 /// preview of the first 10 lines with a "Show full content" toggle
 /// for longer files.
 class WriteView extends StatefulWidget {
-
   const WriteView({required this.tool, super.key, this.metadata});
+
   /// The tool call data.
   final Map<String, dynamic> tool;
 
@@ -34,17 +34,16 @@ class _WriteViewState extends State<WriteView> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
-    final filePath = input['path'] as String? ??
-        input['file_path'] as String? ??
-        '';
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
+    final filePath =
+        input['path'] as String? ?? input['file_path'] as String? ?? '';
     final content = input['content'] as String? ?? '';
 
     final allLines = content.split('\n');
     final isLong = allLines.length > _previewLineCount;
-    final visibleLines =
-        _showFull ? allLines : allLines.take(_previewLineCount).toList();
+    final visibleLines = _showFull
+        ? allLines
+        : allLines.take(_previewLineCount).toList();
 
     return ToolSectionView(
       child: Column(
@@ -56,10 +55,7 @@ class _WriteViewState extends State<WriteView> {
           const SizedBox(height: AppSpacing.xs),
 
           // ── File info chip: lines + size ───────────────────
-          _WriteInfoChip(
-            lineCount: allLines.length,
-            byteCount: content.length,
-          ),
+          _WriteInfoChip(lineCount: allLines.length, byteCount: content.length),
           const SizedBox(height: AppSpacing.sm),
 
           // ── Content section label + preview ───────────────
@@ -90,11 +86,7 @@ class _WriteViewState extends State<WriteView> {
                   color: cs.surfaceContainerHighest,
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.code,
-                        size: 13,
-                        color: cs.onSurfaceVariant,
-                      ),
+                      Icon(Icons.code, size: 13, color: cs.onSurfaceVariant),
                       const SizedBox(width: AppSpacing.xsm),
                       Text(
                         _languageHint(filePath),
@@ -129,8 +121,7 @@ class _WriteViewState extends State<WriteView> {
                 // Show full / collapse toggle
                 if (isLong)
                   InkWell(
-                    onTap: () =>
-                        setState(() => _showFull = !_showFull),
+                    onTap: () => setState(() => _showFull = !_showFull),
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -150,9 +141,7 @@ class _WriteViewState extends State<WriteView> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            _showFull
-                                ? Icons.expand_less
-                                : Icons.expand_more,
+                            _showFull ? Icons.expand_less : Icons.expand_more,
                             size: 16,
                             color: cs.primary,
                           ),
@@ -161,10 +150,9 @@ class _WriteViewState extends State<WriteView> {
                             _showFull
                                 ? 'Show less'
                                 : 'Show full content'
-                                    ' (${allLines.length - _previewLineCount}'
-                                    ' more lines)',
-                            style:
-                                theme.textTheme.labelSmall?.copyWith(
+                                      ' (${allLines.length - _previewLineCount}'
+                                      ' more lines)',
+                            style: theme.textTheme.labelSmall?.copyWith(
                               color: cs.primary,
                               fontWeight: FontWeight.w500,
                             ),
@@ -208,10 +196,7 @@ class _WriteViewState extends State<WriteView> {
 
 /// Small muted chip showing line count and approximate file size.
 class _WriteInfoChip extends StatelessWidget {
-  const _WriteInfoChip({
-    required this.lineCount,
-    required this.byteCount,
-  });
+  const _WriteInfoChip({required this.lineCount, required this.byteCount});
 
   final int lineCount;
   final int byteCount;
@@ -297,7 +282,6 @@ class _InfoPill extends StatelessWidget {
 
 /// File path header with a green "Created" badge.
 class _WritePathHeader extends StatelessWidget {
-
   const _WritePathHeader({required this.filePath});
   final String filePath;
 
@@ -307,8 +291,7 @@ class _WritePathHeader extends StatelessWidget {
     final cs = theme.colorScheme;
 
     final lastSlash = filePath.lastIndexOf('/');
-    final dir =
-        lastSlash >= 0 ? filePath.substring(0, lastSlash + 1) : '';
+    final dir = lastSlash >= 0 ? filePath.substring(0, lastSlash + 1) : '';
     final filename = lastSlash >= 0
         ? filePath.substring(lastSlash + 1)
         : filePath;
@@ -330,8 +313,7 @@ class _WritePathHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: cs.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(AppRadius.xsm),
-              border:
-                  Border.all(color: cs.outlineVariant, width: 0.5),
+              border: Border.all(color: cs.outlineVariant, width: 0.5),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -350,8 +332,7 @@ class _WritePathHeader extends StatelessWidget {
                         if (dir.isNotEmpty)
                           TextSpan(
                             text: dir,
-                            style:
-                                theme.textTheme.bodySmall?.copyWith(
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
                               fontFamily: 'monospace',
                               fontSize: AppFontSize.sm,
@@ -359,8 +340,7 @@ class _WritePathHeader extends StatelessWidget {
                           ),
                         TextSpan(
                           text: filename,
-                          style:
-                              theme.textTheme.bodySmall?.copyWith(
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: cs.onSurface,
                             fontFamily: 'monospace',
                             fontSize: AppFontSize.sm,
@@ -400,10 +380,7 @@ class _CreatedBadgeState extends State<_CreatedBadge>
       vsync: this,
       duration: AppDuration.normal,
     );
-    _scale = CurvedAnimation(
-      parent: _controller,
-      curve: AppCurve.spring,
-    );
+    _scale = CurvedAnimation(parent: _controller, curve: AppCurve.spring);
     _controller.forward();
   }
 
@@ -457,7 +434,6 @@ class _CreatedBadgeState extends State<_CreatedBadge>
 
 /// Renders code lines with line numbers.
 class _LineNumberedCode extends StatelessWidget {
-
   const _LineNumberedCode({
     required this.lines,
     required this.startLine,
@@ -485,8 +461,8 @@ class _LineNumberedCode extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                   fontFamily: 'monospace',
-                  fontSize: AppFontSize.md,
-                  height: AppLineHeight.relaxed,
+                  fontSize: AppFontSize.sm,
+                  height: AppLineHeight.normal,
                 ),
               ),
             );
@@ -501,8 +477,8 @@ class _LineNumberedCode extends StatelessWidget {
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurface,
                 fontFamily: 'monospace',
-                fontSize: AppFontSize.md,
-                height: AppLineHeight.relaxed,
+                fontSize: AppFontSize.sm,
+                height: AppLineHeight.normal,
               ),
             );
           }).toList(),
