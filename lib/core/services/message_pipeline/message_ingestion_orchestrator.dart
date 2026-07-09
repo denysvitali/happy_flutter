@@ -18,6 +18,19 @@ extension SyncMessagePipeline on Sync {
     Map<String, dynamic> data, {
     LogLevel level = LogLevel.debug,
   }) {
+    // Streaming messages cross several successful pipeline stages. Keeping
+    // every intermediate debug log turns a single token update into five or
+    // more OTel log records, which is expensive on mobile. Preserve terminal
+    // success and all non-success diagnostics; Jaeger spans retain timing for
+    // the omitted intermediate stages.
+    final isSuccessfulIntermediate =
+        outcome == 'ok' ||
+        (stage == MessagePipelineStage.raw && outcome == 'accepted');
+    if (level == LogLevel.debug &&
+        isSuccessfulIntermediate &&
+        stage != MessagePipelineStage.notified) {
+      return;
+    }
     final message = '[pipeline] $traceId session=$sessionId '
         'stage=${stage.name} outcome=$outcome payload=$data';
     switch (level) {

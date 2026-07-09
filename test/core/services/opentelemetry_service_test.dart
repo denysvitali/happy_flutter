@@ -57,5 +57,20 @@ void main() {
 
       expect(service.currentRoute, 'settings');
     });
+
+    test('route listenable only notifies for a real route change', () {
+      final service = PerformanceContextService()..resetForTesting();
+      var notifications = 0;
+      void listener() => notifications++;
+      service.routeListenable.addListener(listener);
+      addTearDown(() => service.routeListenable.removeListener(listener));
+
+      service.setCurrentRoute('chat');
+      service.setCurrentRoute('chat');
+      service.setCurrentRoute('message-detail');
+
+      expect(notifications, 2);
+      expect(service.routeListenable.value, 'message-detail');
+    });
   });
 }

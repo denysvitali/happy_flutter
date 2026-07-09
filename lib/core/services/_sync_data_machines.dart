@@ -2,6 +2,11 @@ part of 'sync_service.dart';
 
 extension SyncDataMachines on Sync {
   void handleEphemeralUpdate(dynamic data) {
+    // The socket is deliberately kept alive for a short grace period after
+    // backgrounding. Do not let heartbeats during that window wake the UI or
+    // reset presence timers; resume performs the authoritative catch-up.
+    if (InvalidateSync.isBackgrounded) return;
+
     final payload = _normalizeSocketPayload(
       data,
       handlerName: 'handleEphemeralUpdate',
@@ -27,12 +32,21 @@ extension SyncDataMachines on Sync {
         _lastEphemeralAt[sid] = now;
         final activeAt = s['activeAt'] as int?;
         final thinking = s['thinking'] as bool? ?? false;
-        _sessions[sid] = session.copyWith(
-          thinking: thinking,
-          thinkingAt: thinking ? (activeAt ?? now) : null,
-          presence: 'online',
-        );
-        anyChanged = true;
+        final nextThinkingAt = thinking
+            ? (activeAt ?? (session.thinking ? session.thinkingAt : null) ?? now)
+            : null;
+        final changed =
+            session.presence != 'online' ||
+            session.thinking != thinking ||
+            session.thinkingAt != nextThinkingAt;
+        if (changed) {
+          _sessions[sid] = session.copyWith(
+            thinking: thinking,
+            thinkingAt: nextThinkingAt,
+            presence: 'online',
+          );
+          anyChanged = true;
+        }
 
         _presenceTimers[sid]?.cancel();
         _presenceTimers[sid] = Timer(const Duration(seconds: 60), () {
@@ -76,12 +90,18 @@ extension SyncDataMachines on Sync {
                 ? (activeAt ?? DateTime.now().millisecondsSinceEpoch)
                 : null);
 
-      _sessions[sessionId] = session.copyWith(
-        thinking: nextThinking,
-        thinkingAt: nextThinkingAt,
-        presence: 'online',
-      );
-      _notifyDataChanged({SyncDomain.sessions});
+      final changed =
+          session.presence != 'online' ||
+          session.thinking != nextThinking ||
+          session.thinkingAt != nextThinkingAt;
+      if (changed) {
+        _sessions[sessionId] = session.copyWith(
+          thinking: nextThinking,
+          thinkingAt: nextThinkingAt,
+          presence: 'online',
+        );
+        _notifyDataChanged({SyncDomain.sessions});
+      }
 
       _presenceTimers[sessionId]?.cancel();
       _presenceTimers[sessionId] = Timer(const Duration(seconds: 60), () {
@@ -207,10 +227,11 @@ extension SyncDataMachines on Sync {
         return;
       }
       if (activeAt != null || active != null) {
-        _machines[machineId] = machine.copyWith(
+        final updatedMachine = machine.copyWith(
           active: active ?? machine.active,
           activeAt: activeAt ?? machine.activeAt,
         );
+        _machines[machineId] = updatedMachine;
         // Re-emit ageMs at info so a "stuck offline" report can
         // confirm the patch landed even when the network log filter
         // hides the debug stream. Single line, low frequency
@@ -222,7 +243,9 @@ extension SyncDataMachines on Sync {
             '(server cached activeAt; UI will recover on next fetch)',
           );
         }
-        _notifyDataChanged({SyncDomain.machines});
+        if (updatedMachine.active != machine.active) {
+          _notifyDataChanged({SyncDomain.machines});
+        }
       }
       return;
     }

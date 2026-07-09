@@ -454,6 +454,64 @@ void main() {
       expect(session.thinkingAt, 1234);
     });
 
+    test('unchanged ephemeral heartbeats do not notify session listeners',
+        () async {
+      instance.testSessions['s1'] = Session(
+        id: 's1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'online',
+      );
+
+      var notifications = 0;
+      final subscription = instance.onDomainChanged
+          .where((domain) => domain == SyncDomain.sessions)
+          .listen((_) => notifications++);
+
+      instance.handleEphemeralUpdate({
+        'type': 'activity',
+        'id': 's1',
+        'thinking': false,
+        'active': true,
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
+      expect(notifications, 0);
+      expect(instance.testLastEphemeralAt['s1'], isNotNull);
+      await subscription.cancel();
+    });
+
+    test('ignores ephemeral heartbeats while backgrounded', () {
+      instance.testSessions['s1'] = Session(
+        id: 's1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: 0,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+      );
+      InvalidateSync.isBackgrounded = true;
+      addTearDown(() => InvalidateSync.isBackgrounded = false);
+
+      instance.handleEphemeralUpdate({
+        'type': 'activity',
+        'id': 's1',
+        'active': true,
+      });
+
+      expect(instance.testSessions['s1']?.presence, 'offline');
+    });
+
     test('machine-activity without activeAt synthesises activeAt=now '
         'so createSession 120s check stays fresh', () {
       final instance = Sync();

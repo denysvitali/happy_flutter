@@ -20,6 +20,7 @@ import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show LogLevel, logger;
 import '../../core/services/message_cache_service.dart';
 import '../../core/services/opentelemetry_service.dart';
+import '../../core/services/performance_context_service.dart';
 import '../../core/services/session_activity_coordinator.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
@@ -136,6 +137,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// streaming so we rebuild the message list at most ~once per frame budget
   /// instead of once per socket event (was flooding Loki + main-isolate).
   Timer? _messageRefreshDebounce;
+  late final VoidCallback _routeListener;
   static const Duration _messageRefreshDebounceWindow = Duration(
     milliseconds: 50,
   );
@@ -290,6 +292,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _routeListener = _handleRouteChanged;
+    PerformanceContextService().routeListenable.addListener(_routeListener);
     _scrollController.addListener(_onScroll);
     _loadInitialSettings();
 
@@ -362,6 +366,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    PerformanceContextService().routeListenable.removeListener(_routeListener);
     _loadingSafetyTimer?.cancel();
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
@@ -387,6 +392,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where((id) => id == widget.sessionId)
         .listen((_) {
           if (!mounted) return;
+          if (!_isChatRouteActive) return;
           _lastMessageStreamActivityAt = DateTime.now().millisecondsSinceEpoch;
           ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
           // Debounce: streaming agents emit many message-changed events per
@@ -402,6 +408,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where((domain) => domain == SyncDomain.sessions)
         .listen((_) {
           if (!mounted) return;
+          if (!_isChatRouteActive) return;
           final counter = sync.domainChangeCounter(SyncDomain.sessions);
           if (counter == _lastDataChangeCounter) return;
           _lastDataChangeCounter = counter;
@@ -448,6 +455,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
 
     await _doInitialLoad();
+  }
+
+  bool get _isChatRouteActive {
+    final route = PerformanceContextService().currentRoute;
+    return route == null || route == 'chat';
+  }
+
+  void _handleRouteChanged() {
+    if (!mounted || !_isChatRouteActive) return;
+    ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+    _refreshFromSync();
   }
 
   void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) {
@@ -671,7 +689,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   int _initialVisibleCount(int messageCount) =>
-      messageCount == 0 ? _pageSize : messageCount;
+      messageCount == 0 ? _pageSize : messageCount.clamp(1, _pageSize).toInt();
 
   int _clampVisibleCount(int messageCount) {
     if (messageCount == 0) return _pageSize;
