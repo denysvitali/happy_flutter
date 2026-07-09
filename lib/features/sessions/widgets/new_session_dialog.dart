@@ -505,6 +505,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       if (profileId != null) {
         await DraftStorage().saveProfileId(sessionId, profileId);
       }
+      // Keep the model selected for this session separate from the global
+      // last-used model. Without this, reopening a session after choosing a
+      // model for another session could make the picker select that newer
+      // global choice and unnecessarily restart the original session.
+      await DraftStorage().saveModelMode(
+        sessionId,
+        modelMode ?? ChatModelMode.defaultModel.modeString,
+      );
       // createSession() already called refreshSessions() internally
       // and added the session to sync._sessions (optimistic fallback).
       // Just read the in-memory state — no redundant server fetch.
