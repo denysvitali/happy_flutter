@@ -569,6 +569,33 @@ void main() {
       expect(machine.activeAt, serverActiveAt);
     });
 
+    test('machine heartbeat notifies listeners when only activeAt changes', () {
+      final instance = Sync();
+      final staleAt = DateTime.now().millisecondsSinceEpoch - 200000;
+      instance.testMachines['m1'] = Machine(
+        id: 'm1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: staleAt,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
+      final before = instance.domainChangeCounter(SyncDomain.machines);
+
+      instance.handleEphemeralUpdate({
+        'type': 'machine-activity',
+        'id': 'm1',
+        'active': true,
+      });
+
+      expect(
+        instance.domainChangeCounter(SyncDomain.machines),
+        greaterThan(before),
+      );
+    });
+
     test('machine-activity with active=false does not synthesise activeAt', () {
       final instance = Sync();
       final originalActiveAt = DateTime.now().millisecondsSinceEpoch - 5000;

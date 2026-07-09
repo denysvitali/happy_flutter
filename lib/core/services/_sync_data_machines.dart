@@ -245,7 +245,12 @@ extension SyncDataMachines on Sync {
             '(server cached activeAt; UI will recover on next fetch)',
           );
         }
-        if (updatedMachine.active != machine.active) {
+        // Heartbeats normally keep `active` true, so checking only the
+        // boolean misses the refreshed activeAt. Without a machines-domain
+        // notification, Riverpod keeps the old timestamp and eventually
+        // renders the still-running machine as offline.
+        if (updatedMachine.active != machine.active ||
+            updatedMachine.activeAt != machine.activeAt) {
           _notifyDataChanged({SyncDomain.machines});
         }
       }
