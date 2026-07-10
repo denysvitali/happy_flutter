@@ -47,7 +47,9 @@ void main() {
       expect(find.textContaining('@@'), findsOneWidget);
       expect(_findRichTextContaining('old'), findsOneWidget);
       expect(_findRichTextContaining('new'), findsOneWidget);
-      expect(_findRichTextContaining('same'), findsNWidgets(2));
+      // Exactly once: the trailing context line must not be duplicated
+      // when two changes share the end-of-file context window.
+      expect(_findRichTextContaining('same'), findsOneWidget);
     });
 
     testWidgets('shows line numbers when enabled', (tester) async {
