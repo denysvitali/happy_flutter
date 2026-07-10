@@ -262,10 +262,11 @@ jobs:
 
       - name: Upload generated golden screenshots
         if: >-
-          (github.event_name == 'workflow_dispatch' &&
+          always() &&
+          ((github.event_name == 'workflow_dispatch' &&
           inputs.update_goldens == true) ||
           (github.event_name == 'push' &&
-          contains(github.event.head_commit.message, '[update-goldens]'))
+          contains(github.event.head_commit.message, '[update-goldens]')))
         uses: actions/upload-artifact@v7
         with:
           name: updated-goldens-${{ github.sha }}
