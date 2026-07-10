@@ -19,7 +19,8 @@ coverage/
 pubspec.lock
 *.jks
 
-.claude
+.claude/*
+!.claude/skills/
 .dart_tool
 /build
 .flutter-plugins-dependencies

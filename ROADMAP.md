@@ -159,15 +159,15 @@ For core chat flows, no layer may invent a second message identity when a canoni
 | UI Components | Done | Shimmer loading, command palette, diff view, tab bar, avatars, status bar theming |
 | Dev Tools | Done | Dev logs, encryption debug, network inspector, notification test, session debug |
 | i18n | Partial | Framework in place (`flutter: generate: true`), 10 locale ARB files (en, es, fr, de, ca, it, ja, pl, pt, ru, zh, zh_Hans), 4 generated. More languages may need translation coverage. |
-| CI/CD | Done | 7-job pipeline (analyze, test + coverage, golden, build-debug, build-release, build-web, deploy-web), caching, `v*` tag releases with obfuscation, Codecov |
+| CI/CD | Done | 7-job pipeline (analyze, test + coverage, golden, build-debug, build-release, build-web, deploy-web), caching, automatic per-commit releases to GitHub with obfuscation, Codecov |
 | Native | Partial | TTS, video call stubs, push stubs — WebRTC/biometric/audio not started |
 
 ---
 
 ## Next Steps
 
-1. **Immediate**: Cut a production release after v1.0.0-154901 to ship the May 2026 GlitchTip-driven fixes (TTS probe short-circuit, sync resume timeout demotion, sidechain orphan gating, ref-in-dispose hoist)
-2. **This sprint**: Ship back-button PopScope/safePop fixes (ec102e5, 2bca2c8, bd011fd) in the next release; verify GlitchTip `StandardComponentType.backButton` error rate stays at 0% post-release
+1. **Note**: Releases are now automatic — every commit to `main` publishes a GitHub Release with the production APK, so "needs release" items above ship with the next commit; no manual tagging.
+2. **This sprint**: Verify GlitchTip `StandardComponentType.backButton` error rate stays at 0% now that the PopScope/safePop fixes (ec102e5, 2bca2c8, bd011fd) have shipped
 3. **This sprint**: Guard session creation against offline machines (UX warning/disable)
 4. **This sprint**: Investigate `CryptoSecretBox.decrypt failed` warnings (27 events)
 5. **Next sprint**: Optimistic mutation layer for instant UI feedback
@@ -180,6 +180,5 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Effort | Impact |
 |------|--------|--------|
-| Ship next production release | Very Low | Tag a release — propagates 5 May 2026 fixes to users (TTS noise, sidechain noise, resume timeouts, ref-in-dispose) |
 | Guard offline machine in NewSessionDialog | Low | Disable create button or show warning when machine offline — eliminates 33 warnings/day |
 | Streaming cursor in assistant bubble | Low | Makes AI response feel continuous vs discrete jumps |
