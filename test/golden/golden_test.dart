@@ -600,6 +600,80 @@ void main() {
       );
     });
 
+    // Sample edit exercising the unified diff renderer: indented lines,
+    // small in-line word changes, and an added line — the paths covered
+    // by the inline word-diff and tab-expansion logic.
+    const _editInput = {
+      'file_path': '/home/user/project/lib/auth.dart',
+      'old_string':
+          'Future<User> login(String email, String password) async {\n'
+              '  final response = await client.post(\n'
+              "    Uri.parse('\$baseUrl/login'),\n"
+              "    body: {'email': email, 'password': password},\n"
+              '  );\n'
+              '  return User.fromJson(response.body);\n'
+              '}',
+      'new_string':
+          'Future<User> login(String email, String password) async {\n'
+              '  final response = await client.post(\n'
+              "    Uri.parse('\$baseUrl/v2/login'),\n"
+              "    body: {'email': email, 'password': password},\n"
+              '  );\n'
+              '  _checkStatus(response);\n'
+              '  return User.fromJson(response.body);\n'
+              '}',
+    };
+
+    testWidgets('edit diff - light', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 700 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _toolApp({
+          'name': 'Edit',
+          'input': _editInput,
+          'state': 'completed',
+        }),
+      );
+      await tester.pump();
+      // Tap header to expand (completed tools start collapsed).
+      await tester.tap(find.byType(ToolView));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tool_edit_diff_light.png'),
+      );
+    });
+
+    testWidgets('edit diff - dark', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 700 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _toolApp(
+          {
+            'name': 'Edit',
+            'input': _editInput,
+            'state': 'completed',
+          },
+          dark: true,
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byType(ToolView));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tool_edit_diff_dark.png'),
+      );
+    });
+
     testWidgets('read file - light', (tester) async {
       // Taller than the other tool-view goldens: the expanded Read view
       // now renders the file content in a bounded 400dp scrollable pane
