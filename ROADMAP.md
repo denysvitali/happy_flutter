@@ -2,7 +2,20 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-05-22
+**Last Updated**: 2026-07-10
+
+### July 2026 performance and design pass
+
+- Scoped background workflow refresh to visible/recent online sessions with
+  deduplication, unsupported-capability caching, and exponential backoff.
+- Added aggregate frame, startup, message-fetch, optimistic-row, and chat-list
+  OpenTelemetry metrics.
+- Isolated chat header/activity, message-pane, and composer rebuild regions.
+- Added actionable stuck-agent notifications with Nudge, Abort, and Reply.
+- Added explicit reconnect/stopping UX, clearer composer configuration labels,
+  quieter session-card hierarchy, full-screen code reading, and tablet
+  auto-selection.
+- Added injectable message and workflow repository boundaries.
 
 ## P0: Core Messaging & Session Reliability
 

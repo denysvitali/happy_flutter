@@ -137,6 +137,7 @@ lib/
 │   ├── i18n/              # Internationalization helpers
 │   ├── models/            # freezed/json_serializable + a few manual models
 │   ├── providers/         # Riverpod NotifierProvider state (app_providers.dart barrel)
+│   ├── repositories/      # Injectable domain boundaries; Sync-backed during migration
 │   ├── routing/           # GoRouter setup (createRouter())
 │   ├── rpc/               # RPC layer
 │   ├── services/          # Auth, Sync, storage, logging, push, TTS, etc.
@@ -238,6 +239,13 @@ For non-URL data (e.g., `message-detail`), pass `Map<String, dynamic>` via `stat
 | `LoggerService` | 5000-entry circular buffer, ANSI color debug output, Sentry forwarding |
 | `MessageCacheService` | Last 200 messages per session in MMKV, 500ms debounced writes |
 | `MessageOutbox` | Failed sends in MMKV, exponential backoff 1s→30s, max 3 retries |
+| `FrameMetricsService` | Aggregated build/raster/total frame metrics and frozen-frame reporting |
+| `StuckAgentSentinel` | Actionable alert for off-screen thinking sessions with no progress |
+
+**Repository migration:** Sessions, machines, settings, artifacts, messages,
+and workflows expose Riverpod-injectable repositories. Some concrete
+implementations still delegate to `Sync`; preserve the facade while moving new
+provider/action code behind repository interfaces.
 
 Some domains have both `XxxService` (production) and `XxxApi` (injectable for tests). `XxxApi` classes accept optional `ApiClient? client` for test injection.
 

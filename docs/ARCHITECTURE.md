@@ -3,6 +3,19 @@
 **Date:** 2026-04-30 (refresh of 2026-03-13 review)
 **Agent:** A1 — Architect & Tech Lead
 
+## July 2026 implementation update
+
+- Repository boundaries now exist for sessions, machines, settings, artifacts,
+  messages, and workflows. Message and workflow actions depend on injectable
+  interfaces; `Sync` remains their compatibility implementation during the
+  incremental migration.
+- Workflow refresh policy is scoped and stateful rather than walking every
+  known session on each refresh.
+- Chat message, activity/header, and composer invalidation are independently
+  revisioned. Session replacement still takes the conservative full rebuild.
+- `StuckAgentSentinel` observes off-screen thinking sessions and raises a
+  one-shot actionable notification after a no-progress threshold.
+
 ---
 
 ## Current Architecture
@@ -93,9 +106,11 @@ Screens still contain operations that belong in notifiers or use cases:
 - `new_session_screen.dart`: session creation + worktree workflow
 - `artifact_detail_screen.dart`: artifact deletion
 
-### 4. Missing Repository Pattern (HIGH, unchanged)
+### 4. Repository Migration (MEDIUM, in progress)
 
-No abstraction layer between notifiers/Sync and API clients. APIs are instantiated directly inside `sync_service.dart`.
+Injectable repository interfaces now cover the main domains. Some repository
+implementations still delegate to `Sync`, and API clients are still constructed
+inside the sync/managers layer, so the runtime decomposition remains incomplete.
 
 ### 5. Manual Stream Subscriptions — Mostly Fixed (RESOLVED for non-chat)
 
@@ -148,9 +163,11 @@ Data Layer
    - Stream subscriptions: ✅ centralized via `SyncSubscriptionMixin` for non-chat screens. `subscribeToDomains` provides scoped invalidation.
    - Direct `sync.method()` calls: 🟡 reduced significantly across most features, but `chat_screen.dart` (~14) and `new_session_screen.dart` (~6) still call Sync directly. Move remaining `sync.sendMessage` / abort / delete / `createSession` / `createWorktree` calls behind `chatActionNotifierProvider` and `SessionsNotifier`.
 
-2. **Phase 2 — Create repository interfaces** (P1, **not started**)
-   - `SessionsRepository`, `MessagesRepository`, `ArtifactsRepository`
-   - Inject via Riverpod provider overrides for testing
+2. **Phase 2 — Create repository interfaces** (P1, **substantially complete**)
+   - `SessionsRepository`, `MachinesRepository`, `SettingsRepository`,
+     `ArtifactsRepository`, `MessagesRepository`, and `WorkflowsRepository`
+   - Providers are Riverpod-overridable; remaining work is removing legacy
+     direct calls and moving concrete implementations fully out of `Sync`.
 
 3. **Phase 3 — Break Sync into focused managers** (P2, **part-file decomposition only**)
    - Sync has been split into ~20 part files (textual decomposition); runtime is still one class.

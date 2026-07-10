@@ -31,6 +31,7 @@ lib/
 │   ├── i18n/                    # Localization helpers
 │   ├── models/                  # Pure Dart models with manual fromJson/toJson/copyWith
 │   ├── providers/               # Riverpod NotifierProviders (one file per notifier; app_providers.dart is the barrel)
+│   ├── repositories/            # Injectable domain boundaries for providers and actions
 │   ├── routing/                 # GoRouter setup (createRouter()) and ~64 route definitions
 │   ├── rpc/                     # RPC layer
 │   ├── services/                # Auth, Sync (split across ~20 _sync_*.dart part files), storage, push, TTS, etc.
@@ -61,6 +62,7 @@ lib/
 - **State Management**: Riverpod v3 with manual `NotifierProvider` (no code generation)
 - **Sync Singleton**: Central in-memory data hub (`Sync` class) — main file ~1,000 lines, split across ~20 `_sync_*.dart` part files. `InvalidateSync` provides debounced server fetches with exponential backoff.
 - **Provider Bridge**: Notifiers expose `loadFromSync()` (in-memory read) and `refreshFromSync()` (server fetch + read). Screens use `SyncSubscriptionMixin` (in `lib/core/utils/`) which wraps `sync.onDataChanged` / `onDomainChanged` with deduplication.
+- **Repository Boundaries**: Session, machine, settings, artifact, message, and workflow operations are exposed through Riverpod-injectable repositories while `Sync` remains the compatibility facade.
 - **Service/API Duality**: Some domains expose both a singleton `XxxService` (production) and an injectable `XxxApi` class (tests).
 - **Platform-Specific Code**: Conditional exports — `platform_io.dart`/`platform_stub.dart`, `mmkv_storage_native.dart`/`mmkv_storage_web.dart`, `sodium_loader_native.dart`/`sodium_loader_web.dart`, `sentry_*.dart`
 

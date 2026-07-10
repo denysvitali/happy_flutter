@@ -3,6 +3,23 @@
 **Date:** 2026-03-13
 **Agent:** A4 — Performance Optimizer
 
+## July 2026 implementation update
+
+- Chat and session collections use lazy builders and bounded visible windows.
+- Message updates now invalidate the header/activity chrome, message pane, and
+  composer independently instead of rebuilding the full chat scaffold.
+- Background workflow refresh is limited to the visible session plus the three
+  most-recent online sessions, with in-flight deduplication, capability caching,
+  and transient-error backoff.
+- OpenTelemetry histograms now cover first frame, essential startup readiness,
+  deferred initialization, message fetch, optimistic-row latency, slow chat-list
+  builds, and aggregate build/raster/total frame duration.
+- Frame reporting distinguishes slow frames (over the 60 Hz budget) from frozen
+  frames (100ms+); only frozen frames create Sentry transactions.
+
+The findings below are the March 2026 baseline. Several have since been
+completed and should not be treated as the current backlog.
+
 ---
 
 ## Summary

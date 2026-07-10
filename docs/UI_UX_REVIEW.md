@@ -3,6 +3,23 @@
 **Date:** 2026-03-13
 **Agent:** A2 — UI/UX Designer
 
+## July 2026 implementation update
+
+- Code and JSON rendering use theme extensions rather than fixed palettes.
+- Code blocks have pinned line numbers, horizontal-scroll affordance, copy
+  feedback, truncation protection, and a full-screen reader.
+- Chat configuration chips use distinct `Permissions`, `Model`, and `Profile`
+  labels instead of several visually identical `Default` labels.
+- Session cards prioritize recent message content over repeating the repository
+  path, suppress long non-actionable archive countdowns, and expose a concise
+  screen-reader summary.
+- Tablet sessions automatically open the most-recent session while preserving
+  an explicit user dismissal, and desktop chat retains its resizable inspector.
+- Stop requests have an explicit `Stopping` state, prevent repeated actions,
+  and offer recovery after an acknowledgement failure.
+
+The original findings below are retained as historical audit evidence.
+
 ---
 
 ## Summary
