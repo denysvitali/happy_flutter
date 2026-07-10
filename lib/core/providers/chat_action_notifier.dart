@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 
 import 'package:riverpod/riverpod.dart';
 
+import '../repositories/messages_repository.dart';
 import '../rpc/rpc_types.dart' show CodexModelsResponse;
 import '../services/draft_storage.dart';
 import '../services/sync_service.dart';
@@ -12,6 +13,8 @@ import 'settings_notifier.dart';
 class ChatActionNotifier extends Notifier<void> {
   @override
   void build() {}
+
+  MessagesRepository get _messages => ref.read(messagesRepositoryProvider);
 
   /// Send a message to a session. Returns the actual session ID
   /// (may differ if redirected).
@@ -24,10 +27,10 @@ class ChatActionNotifier extends Notifier<void> {
     String? modelMode,
     String? profileId,
   }) async {
-    if (!sync.isInitialized) {
+    if (!_messages.isReady) {
       throw StateError('Sync is not initialized');
     }
-    return sync.sendMessage(
+    return _messages.sendMessage(
       sessionId,
       text,
       clientLocalId: clientLocalId,
@@ -40,26 +43,26 @@ class ChatActionNotifier extends Notifier<void> {
 
   /// Abort a running session.
   Future<void> abortSession(String sessionId, {String reason = ''}) async {
-    if (!sync.isInitialized) {
+    if (!_messages.isReady) {
       throw StateError('Sync is not initialized');
     }
-    await sync.abortSession(sessionId, reason: reason);
+    await _messages.abortSession(sessionId, reason: reason);
   }
 
   /// Mint a new canonical local message ID for optimistic UI.
   String createLocalMessageId() {
-    if (!sync.isInitialized) {
+    if (!_messages.isReady) {
       throw StateError('Sync is not initialized');
     }
-    return sync.createLocalMessageId();
+    return _messages.createLocalMessageId();
   }
 
   /// Retry a failed message, preserving its original localId.
   Future<void> retryFailedMessage(String sessionId, String localId) async {
-    if (!sync.isInitialized) {
+    if (!_messages.isReady) {
       throw StateError('Sync is not initialized');
     }
-    await sync.retryFailedMessage(sessionId, localId);
+    await _messages.retryFailedMessage(sessionId, localId);
   }
 
   /// Load available Codex models for a machine.

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:riverpod/riverpod.dart';
 
 import '../models/workflow_run.dart';
+import '../repositories/workflows_repository.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
 
@@ -14,6 +15,8 @@ import '../services/sync_service.dart';
 class WorkflowsNotifier extends Notifier<Map<String, List<WorkflowRun>>> {
   StreamSubscription<String>? _sub;
   int _lastChangeCounter = -1;
+
+  WorkflowsRepository get _repository => ref.read(workflowsRepositoryProvider);
 
   @override
   Map<String, List<WorkflowRun>> build() {
@@ -35,14 +38,11 @@ class WorkflowsNotifier extends Notifier<Map<String, List<WorkflowRun>>> {
     final counter = sync.domainChangeCounter(SyncDomain.workflows);
     if (counter == _lastChangeCounter) return;
     _lastChangeCounter = counter;
-    final next = sync.workflowsBySession;
+    final next = _repository.workflows;
     if (_mapsIdentical(state, next)) return;
     state = Map<String, List<WorkflowRun>>.from(
       next.map(
-        (key, value) => MapEntry(
-          key,
-          List<WorkflowRun>.unmodifiable(value),
-        ),
+        (key, value) => MapEntry(key, List<WorkflowRun>.unmodifiable(value)),
       ),
     );
   }
@@ -52,14 +52,14 @@ class WorkflowsNotifier extends Notifier<Map<String, List<WorkflowRun>>> {
     if (!sync.isInitialized) return false;
     sync.hydrateAllWorkflowsFromCache();
     loadFromSync();
-    return sync.workflowsBySession.values.any((w) => w.isNotEmpty);
+    return _repository.workflows.values.any((w) => w.isNotEmpty);
   }
 
   /// Server-fetch + read. Best-effort — failures are logged and ignored.
   Future<void> refreshFromSync() async {
     if (!sync.isInitialized) return;
     try {
-      await sync.refreshAllWorkflows();
+      await _repository.refreshRelevantSessions();
     } catch (e, st) {
       logger.warning('WorkflowsNotifier.refreshFromSync failed: $e', e, st);
     }
@@ -77,11 +77,8 @@ class WorkflowsNotifier extends Notifier<Map<String, List<WorkflowRun>>> {
   }
 
   /// Fetch a single workflow snapshot by [runId].
-  Future<WorkflowRun?> fetchWorkflowSnapshot(
-    String sessionId,
-    String runId,
-  ) {
-    return sync.fetchWorkflowSnapshot(sessionId, runId);
+  Future<WorkflowRun?> fetchWorkflowSnapshot(String sessionId, String runId) {
+    return _repository.fetchSnapshot(sessionId, runId);
   }
 
   /// Per-session map identity check that ignores outer wrapper
@@ -106,5 +103,5 @@ class WorkflowsNotifier extends Notifier<Map<String, List<WorkflowRun>>> {
 
 final workflowsNotifierProvider =
     NotifierProvider<WorkflowsNotifier, Map<String, List<WorkflowRun>>>(
-  WorkflowsNotifier.new,
-);
+      WorkflowsNotifier.new,
+    );
