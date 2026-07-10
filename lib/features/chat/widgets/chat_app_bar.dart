@@ -853,7 +853,7 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
         icon: Icons.shield_outlined,
       ),
     );
-  } else {
+  } else if (!inputs.isStopping) {
     // When the agent has been "thinking" for a while with no new
     // visible (non-sidechain) message, surface that the work is
     // likely happening inside sub-tasks. Without this signal the
