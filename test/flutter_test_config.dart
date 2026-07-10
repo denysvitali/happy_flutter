@@ -23,7 +23,22 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   MMKVPluginPlatform.instance = FakeMmkvPlatform();
   await _loadInterFont();
   await _loadMonospaceFont();
+  await _loadMaterialIconsFont();
   await testMain();
+}
+
+/// Loads the Material icon font from the Flutter SDK cache so `Icon()`
+/// glyphs render in golden screenshots instead of tofu boxes. The test
+/// harness only auto-loads Ahem; `FLUTTER_ROOT` is set by `flutter test`.
+Future<void> _loadMaterialIconsFont() async {
+  final flutterRoot = Platform.environment['FLUTTER_ROOT'];
+  if (flutterRoot == null) return;
+  await _loadFontFile(
+    family: 'MaterialIcons',
+    path:
+        '$flutterRoot/bin/cache/artifacts/material_fonts/'
+        'MaterialIcons-Regular.otf',
+  );
 }
 
 /// Loads the app's bundled Inter TTF files under the family name used by
