@@ -4,6 +4,10 @@ part of 'sync_service.dart';
 /// session. The Flutter client mirrors the daemon's workflow snapshots via
 /// session-scoped RPC calls and persists them per session in MMKV.
 extension SyncWorkflows on Sync {
+  static const int _maxBackgroundWorkflowSessions = 3;
+  static const int _initialWorkflowBackoffMs = 5000;
+  static const int _maxWorkflowBackoffMs = 5 * 60 * 1000;
+
   // ── State ──────────────────────────────────────────────────────────────
 
   /// Fires when the workflow runs for a session change (create / update /
@@ -16,10 +20,9 @@ extension SyncWorkflows on Sync {
       Map.unmodifiable(_workflowsBySession);
 
   /// Returns the workflow runs for [sessionId] (empty list if none).
-  List<WorkflowRun> workflowsForSession(String sessionId) =>
-      List.unmodifiable(
-        _workflowsBySession[sessionId] ?? const <WorkflowRun>[],
-      );
+  List<WorkflowRun> workflowsForSession(String sessionId) => List.unmodifiable(
+    _workflowsBySession[sessionId] ?? const <WorkflowRun>[],
+  );
 
   // ── Hydration ──────────────────────────────────────────────────────────
 
@@ -51,8 +54,25 @@ extension SyncWorkflows on Sync {
   ///
   /// Updates the in-memory mirror and persists the result. Malformed entries
   /// are skipped with a warning rather than poisoning the entire batch.
-  Future<void> refreshWorkflowsForSession(String sessionId) async {
-    if (!isInitialized) return;
+  Future<void> refreshWorkflowsForSession(String sessionId) {
+    if (!isInitialized) return Future<void>.value();
+    if (_isWorkflowCapabilityBlocked(sessionId) ||
+        _isWorkflowRefreshBackedOff(sessionId)) {
+      return Future<void>.value();
+    }
+    final existing = _workflowRefreshesInFlight[sessionId];
+    if (existing != null) return existing;
+
+    final refresh = _runWorkflowRefresh(sessionId);
+    _workflowRefreshesInFlight[sessionId] = refresh;
+    return refresh.whenComplete(() {
+      if (identical(_workflowRefreshesInFlight[sessionId], refresh)) {
+        _workflowRefreshesInFlight.remove(sessionId);
+      }
+    });
+  }
+
+  Future<void> _runWorkflowRefresh(String sessionId) async {
     // Skip sessions that have no encryption keys yet. Calling sessionRPC
     // would force invalidateAndAwait sessions (expensive) and then throw
     // "Session encryption not found", flooding WARN logs on cold start
@@ -80,10 +100,24 @@ extension SyncWorkflows on Sync {
         );
         return;
       }
-      if (e is SocketNotConnectedException) {
+      if (_isWorkflowListUnsupported(e)) {
+        _workflowListUnsupportedCapabilities.add(
+          _workflowCapabilityKey(sessionId),
+        );
         logger.debug(
           '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
-          'socket not connected',
+          'workflow-list unsupported',
+        );
+        return;
+      }
+      if (e is SocketNotConnectedException ||
+          Sync._isTransientConnectionError(e) ||
+          Sync._isTransientRpcError(e) ||
+          Sync._isRpcMethodNotAvailable(e)) {
+        _recordWorkflowRefreshFailure(sessionId);
+        logger.debug(
+          '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
+          'transient connection failure: $e',
         );
         return;
       }
@@ -105,6 +139,7 @@ extension SyncWorkflows on Sync {
       final err = raw['error']?.toString() ?? 'unknown error';
       throw StateError('workflow-list failed: $err');
     }
+    _clearWorkflowRefreshFailure(sessionId);
     final workflowsJson = raw['workflows'] ?? raw['runs'];
     if (workflowsJson is! List) {
       logger.warning(
@@ -139,11 +174,9 @@ extension SyncWorkflows on Sync {
     if (!isInitialized) return null;
     dynamic raw;
     try {
-      raw = await sessionRPC(
-        sessionId,
-        'workflow-read',
-        <String, dynamic>{'runId': runId},
-      );
+      raw = await sessionRPC(sessionId, 'workflow-read', <String, dynamic>{
+        'runId': runId,
+      });
     } catch (e, st) {
       logger.warning(
         '[workflows] fetchWorkflowSnapshot($sessionId, $runId) failed: $e',
@@ -168,11 +201,7 @@ extension SyncWorkflows on Sync {
       try {
         snapshotJson = jsonDecode(snapshotJson);
       } catch (e, st) {
-        logger.warning(
-          '[workflows] snapshot JSON decode failed: $e',
-          e,
-          st,
-        );
+        logger.warning('[workflows] snapshot JSON decode failed: $e', e, st);
         return null;
       }
     }
@@ -197,12 +226,12 @@ extension SyncWorkflows on Sync {
     return run;
   }
 
-  /// Refresh workflows for every known session.
+  /// Refresh workflows for the visible session and a bounded number of the
+  /// most-recent online sessions.
   ///
   /// Best-effort — sessions whose `sessionRPC` call fails are logged and
   /// skipped. Used by [WorkflowsNotifier.refreshFromSync].
-  static const Duration _refreshAllWorkflowsDeadline =
-      Duration(seconds: 10);
+  static const Duration _refreshAllWorkflowsDeadline = Duration(seconds: 10);
 
   Future<void> refreshAllWorkflows() async {
     if (!isInitialized) return;
@@ -212,17 +241,11 @@ extension SyncWorkflows on Sync {
       );
       return;
     }
-    final sessionIds = _sessions.keys.toList(growable: false);
+    final sessionIds = _workflowRefreshCandidates();
     if (sessionIds.isEmpty) return;
 
-    sessionIds.sort((a, b) {
-      final aa = _sessions[a]?.activeAt ?? 0;
-      final bb = _sessions[b]?.activeAt ?? 0;
-      return bb.compareTo(aa); // most-recent-first
-    });
-
-    final deadline = testRefreshAllWorkflowsDeadline ??
-        _refreshAllWorkflowsDeadline;
+    final deadline =
+        testRefreshAllWorkflowsDeadline ?? _refreshAllWorkflowsDeadline;
     final startedAt = DateTime.now();
     for (final sessionId in sessionIds) {
       final elapsed = DateTime.now().difference(startedAt);
@@ -286,6 +309,73 @@ extension SyncWorkflows on Sync {
     }
   }
 
+  List<String> _workflowRefreshCandidates() {
+    final candidates = <String>[];
+    final visible = _visibleSessionId;
+    if (visible != null && _sessions.containsKey(visible)) {
+      candidates.add(visible);
+    }
+
+    final online =
+        _sessions.values
+            .where((session) => session.presence == 'online')
+            .where((session) => session.id != visible)
+            .toList(growable: false)
+          ..sort((a, b) => b.activeAt.compareTo(a.activeAt));
+    candidates.addAll(
+      online.take(_maxBackgroundWorkflowSessions).map((session) => session.id),
+    );
+    return candidates;
+  }
+
+  String _workflowCapabilityKey(String sessionId) {
+    final machineId = _sessions[sessionId]?.metadata?.machineId;
+    return machineId == null || machineId.isEmpty
+        ? 'session:$sessionId'
+        : 'machine:$machineId';
+  }
+
+  bool _isWorkflowListUnsupported(Object error) {
+    if (error is! StateError) return false;
+    final message = error.message.toLowerCase();
+    return message.contains('workflow-list not available') ||
+        message.contains('workflow-list method not found') ||
+        message.contains('rpc method workflow-list not available') ||
+        message.contains('unknown method workflow-list');
+  }
+
+  bool _isWorkflowCapabilityBlocked(String sessionId) =>
+      _workflowListUnsupportedCapabilities.contains(
+        _workflowCapabilityKey(sessionId),
+      );
+
+  bool _isWorkflowRefreshBackedOff(String sessionId) {
+    final until = _workflowRefreshBackoffUntil[sessionId];
+    if (until == null) return false;
+    if (DateTime.now().millisecondsSinceEpoch >= until) {
+      _workflowRefreshBackoffUntil.remove(sessionId);
+      return false;
+    }
+    return true;
+  }
+
+  void _recordWorkflowRefreshFailure(String sessionId) {
+    final failures = (_workflowRefreshFailureCount[sessionId] ?? 0) + 1;
+    _workflowRefreshFailureCount[sessionId] = failures;
+    final exponent = (failures - 1).clamp(0, 6).toInt();
+    final multiplier = 1 << exponent;
+    final delayMs = (_initialWorkflowBackoffMs * multiplier)
+        .clamp(_initialWorkflowBackoffMs, _maxWorkflowBackoffMs)
+        .toInt();
+    _workflowRefreshBackoffUntil[sessionId] =
+        DateTime.now().millisecondsSinceEpoch + delayMs;
+  }
+
+  void _clearWorkflowRefreshFailure(String sessionId) {
+    _workflowRefreshFailureCount.remove(sessionId);
+    _workflowRefreshBackoffUntil.remove(sessionId);
+  }
+
   // ── State mutations ─────────────────────────────────────────────────────
 
   void _applyWorkflowSnapshot(String sessionId, WorkflowRun run) {
@@ -305,9 +395,7 @@ extension SyncWorkflows on Sync {
     final workflows = <WorkflowRun>[];
     for (final entry in workflowsJson) {
       if (entry is Map) {
-        final run = WorkflowRun.tryFromJson(
-          Map<String, dynamic>.from(entry),
-        );
+        final run = WorkflowRun.tryFromJson(Map<String, dynamic>.from(entry));
         if (run != null) {
           workflows.add(run);
         } else {
@@ -352,5 +440,20 @@ extension SyncWorkflows on Sync {
   @visibleForTesting
   void testClearAllWorkflows() {
     _workflowsBySession.clear();
+  }
+
+  @visibleForTesting
+  List<String> testWorkflowRefreshCandidates() => _workflowRefreshCandidates();
+
+  @visibleForTesting
+  bool testIsWorkflowRefreshCapabilityBlocked(String sessionId) =>
+      _isWorkflowCapabilityBlocked(sessionId);
+
+  @visibleForTesting
+  void testResetWorkflowRefreshPolicy() {
+    _workflowRefreshesInFlight.clear();
+    _workflowListUnsupportedCapabilities.clear();
+    _workflowRefreshBackoffUntil.clear();
+    _workflowRefreshFailureCount.clear();
   }
 }

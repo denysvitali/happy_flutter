@@ -42,4 +42,29 @@ void main() {
       expect(service.debugHasFlushTimer, isFalse);
     });
   });
+
+  group('FrameMetricsService classification', () {
+    test('tracks smooth, slow, and frozen frames separately', () {
+      final service = FrameMetricsService.instance;
+      service.testRecordFrame(
+        build: const Duration(milliseconds: 4),
+        raster: const Duration(milliseconds: 4),
+        total: const Duration(milliseconds: 8),
+      );
+      service.testRecordFrame(
+        build: const Duration(milliseconds: 12),
+        raster: const Duration(milliseconds: 9),
+        total: const Duration(milliseconds: 21),
+      );
+      service.testRecordFrame(
+        build: const Duration(milliseconds: 70),
+        raster: const Duration(milliseconds: 40),
+        total: const Duration(milliseconds: 110),
+      );
+
+      expect(service.debugFrameCount, 3);
+      expect(service.debugSlowFrameCount, 2);
+      expect(service.debugFrozenFrameCount, 1);
+    });
+  });
 }

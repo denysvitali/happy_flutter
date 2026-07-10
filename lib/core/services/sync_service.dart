@@ -84,6 +84,7 @@ import 'notification_service.dart';
 import '_sync_session_restore_split.dart';
 import 'session_activity_coordinator.dart';
 import 'sidechain_grouper.dart';
+import 'stuck_agent_sentinel.dart';
 import 'tool_result_processor.dart';
 
 part '_sync_data.dart';
@@ -940,6 +941,21 @@ what you have, you must use the options mode.
   final StreamController<String> _workflowsChangeController =
       StreamController<String>.broadcast();
 
+  /// One in-flight list request per session. Workflow surfaces can mount at
+  /// the same time (for example the sessions shell and a detail screen), so
+  /// sharing the request prevents duplicate session RPCs.
+  final Map<String, Future<void>> _workflowRefreshesInFlight =
+      <String, Future<void>>{};
+
+  /// Capability keys for daemons that do not implement `workflow-list`.
+  /// Keys prefer machine id so one unsupported response suppresses retries
+  /// for every session owned by the same daemon.
+  final Set<String> _workflowListUnsupportedCapabilities = <String>{};
+
+  /// Short per-session retry suppression after transient failures.
+  final Map<String, int> _workflowRefreshBackoffUntil = <String, int>{};
+  final Map<String, int> _workflowRefreshFailureCount = <String, int>{};
+
   /// Test override for the [SyncWorkflows.refreshAllWorkflows] deadline.
   @visibleForTesting
   Duration? testRefreshAllWorkflowsDeadline;
@@ -1593,6 +1609,7 @@ Future<void> syncCreate(AuthCredentials credentials) async {
   final encryption = await Encryption.create(secretKey);
   await sync.create(credentials, encryption);
   sessionActivityCoordinator.attach(sync);
+  stuckAgentSentinel.attach(sync);
 }
 
 /// Restore sync engine from disk
@@ -1612,6 +1629,7 @@ Future<void> syncRestore(AuthCredentials credentials) async {
   final encryption = await Encryption.create(secretKey);
   await sync.restore(credentials, encryption);
   sessionActivityCoordinator.attach(sync);
+  stuckAgentSentinel.attach(sync);
 }
 
 /// Shutdown sync engine and clear in-memory state.
@@ -1620,5 +1638,6 @@ Future<void> syncShutdown() async {
     return;
   }
   await sessionActivityCoordinator.detach();
+  await stuckAgentSentinel.detach();
   await sync.shutdown();
 }

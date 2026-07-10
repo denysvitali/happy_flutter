@@ -12,9 +12,9 @@ import 'performance_context_service.dart';
 /// transactions so that UI lag is visible in the dashboard alongside
 /// sync and network transactions.
 ///
-/// A frame is considered janky when it exceeds 16ms (60 fps budget)
-/// *and* the user would notice — we use 100ms as the reporting
-/// threshold to avoid flooding Sentry with marginal slow frames.
+/// Every frame contributes to aggregate build/raster histograms. Frames over
+/// the 60 Hz budget are counted as slow; only 100ms+ frozen frames create a
+/// Sentry transaction so ordinary marginal jank does not flood issue tracking.
 class FrameMetricsService {
   FrameMetricsService._();
   static final FrameMetricsService instance = FrameMetricsService._();
@@ -25,12 +25,30 @@ class FrameMetricsService {
   /// Ring buffer of recent janky frame durations (ms).
   final _recentJank = <int>[];
   static const int _maxJankBuffer = 50;
+  static const int _slowFrameMicros = 16667;
+  static const int _frozenFrameMicros = 100000;
+
+  int _frameCount = 0;
+  int _slowFrameCount = 0;
+  int _frozenFrameCount = 0;
+  int _buildMicros = 0;
+  int _rasterMicros = 0;
+  int _totalMicros = 0;
 
   @visibleForTesting
   bool get debugIsAttached => _attached;
 
   @visibleForTesting
   bool get debugHasFlushTimer => _flushTimer?.isActive ?? false;
+
+  @visibleForTesting
+  int get debugFrameCount => _frameCount;
+
+  @visibleForTesting
+  int get debugSlowFrameCount => _slowFrameCount;
+
+  @visibleForTesting
+  int get debugFrozenFrameCount => _frozenFrameCount;
 
   /// Attach to [SchedulerBinding] frame timing callbacks.
   void attach() {
@@ -50,23 +68,88 @@ class FrameMetricsService {
 
   void _onTimings(List<FrameTiming> timings) {
     for (final t in timings) {
-      final totalMs = t.totalSpan.inMilliseconds;
-      // Only record frames exceeding 100ms — these are the ones users
-      // actually perceive as lag.
-      if (totalMs >= 100) {
-        _recentJank.add(totalMs);
-        if (_recentJank.length > _maxJankBuffer) {
-          _recentJank.removeAt(0);
-        }
+      _recordFrame(
+        buildMicros: t.buildDuration.inMicroseconds,
+        rasterMicros: t.rasterDuration.inMicroseconds,
+        totalMicros: t.totalSpan.inMicroseconds,
+      );
+    }
+  }
+
+  void _recordFrame({
+    required int buildMicros,
+    required int rasterMicros,
+    required int totalMicros,
+  }) {
+    _frameCount++;
+    _buildMicros += buildMicros;
+    _rasterMicros += rasterMicros;
+    _totalMicros += totalMicros;
+    if (totalMicros >= _slowFrameMicros) _slowFrameCount++;
+    if (totalMicros >= _frozenFrameMicros) {
+      _frozenFrameCount++;
+      _recentJank.add((totalMicros / 1000).round());
+      if (_recentJank.length > _maxJankBuffer) {
+        _recentJank.removeAt(0);
       }
     }
   }
 
+  @visibleForTesting
+  void testRecordFrame({
+    required Duration build,
+    required Duration raster,
+    required Duration total,
+  }) {
+    _recordFrame(
+      buildMicros: build.inMicroseconds,
+      rasterMicros: raster.inMicroseconds,
+      totalMicros: total.inMicroseconds,
+    );
+  }
+
   void _flush() {
-    if (_recentJank.isEmpty) return;
+    if (_frameCount == 0) return;
 
     final snapshot = List<int>.from(_recentJank);
     _recentJank.clear();
+    final frameCount = _frameCount;
+    final slowFrameCount = _slowFrameCount;
+    final frozenFrameCount = _frozenFrameCount;
+    final avgBuild = Duration(microseconds: _buildMicros ~/ frameCount);
+    final avgRaster = Duration(microseconds: _rasterMicros ~/ frameCount);
+    final avgTotal = Duration(microseconds: _totalMicros ~/ frameCount);
+    _frameCount = 0;
+    _slowFrameCount = 0;
+    _frozenFrameCount = 0;
+    _buildMicros = 0;
+    _rasterMicros = 0;
+    _totalMicros = 0;
+
+    final route = PerformanceContextService().currentRoute ?? 'unknown';
+    final otel = OpenTelemetryService();
+    final attributes = <String, Object?>{'current_route': route};
+    otel
+      ..recordDuration('app.ui.frame_build', avgBuild, attributes: attributes)
+      ..recordDuration('app.ui.frame_raster', avgRaster, attributes: attributes)
+      ..recordDuration('app.ui.frame_total', avgTotal, attributes: attributes)
+      ..recordCount(
+        'app.ui.frames',
+        value: frameCount,
+        attributes: {...attributes, 'classification': 'total'},
+      )
+      ..recordCount(
+        'app.ui.frames',
+        value: slowFrameCount,
+        attributes: {...attributes, 'classification': 'slow'},
+      )
+      ..recordCount(
+        'app.ui.frames',
+        value: frozenFrameCount,
+        attributes: {...attributes, 'classification': 'frozen'},
+      );
+
+    if (snapshot.isEmpty) return;
 
     final avgMs = snapshot.reduce((a, b) => a + b) / snapshot.length;
     final maxMs = snapshot.reduce((a, b) => a > b ? a : b);
@@ -90,8 +173,7 @@ class FrameMetricsService {
             'frame.count': snapshot.length,
             'frame.avg_ms': avgMs.round(),
             'frame.max_ms': maxMs,
-            'current_route':
-                PerformanceContextService().currentRoute ?? 'unknown',
+            'current_route': route,
           },
         )
         ?.end();

@@ -279,6 +279,7 @@ extension SyncMessaging on Sync {
   Future<void> fetchMessages(String sessionId) async {
     logger.debug('Fetching messages for session: $sessionId');
     final fetchStopwatch = Stopwatch()..start();
+    var fetchOutcome = 'ok';
 
     // Start a low-cardinality transaction if there is no parent span so
     // GlitchTip can aggregate fetches across sessions.
@@ -296,6 +297,7 @@ extension SyncMessaging on Sync {
           ..setData('sessionId', sessionId)
           ..setData('hasParentSpan', parentSpan != null);
 
+    try {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
       final encSpan = fetchSpan.startChild(
@@ -352,6 +354,7 @@ extension SyncMessaging on Sync {
         // Notify UI so the loading spinner clears.
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+        fetchOutcome = 'precondition_failed';
         return;
       }
     }
@@ -1184,6 +1187,7 @@ extension SyncMessaging on Sync {
         }
         await finalizeSpan.finish();
       }
+      fetchOutcome = hitBudget ? 'budget_deferred' : 'ok';
       // Finish the fetch span successfully
       _logDroppedReasonSummary(
         '[fetchMessages] $sessionId',
@@ -1232,6 +1236,7 @@ extension SyncMessaging on Sync {
       // local state instead of retrying (which would produce 2 more
       // wasted 404 requests via InvalidateSync).
       if (e.response?.statusCode == 404) {
+        fetchOutcome = 'not_found';
         logger.info(
           '[fetchMessages] $sessionId returned 404 — '
           'cleaning up deleted session',
@@ -1241,6 +1246,7 @@ extension SyncMessaging on Sync {
         return;
       }
       if (_isNetworkChangedError(e)) {
+        fetchOutcome = 'network_changed';
         logger.info(
           '[fetchMessages] $sessionId network changed during fetch, '
           'preserving cached messages and surfacing retry',
@@ -1297,8 +1303,10 @@ extension SyncMessaging on Sync {
       // screen's timeout will handle it.
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+      fetchOutcome = 'network_error';
       rethrow;
     } on TypeError catch (typeError, stack) {
+      fetchOutcome = 'decode_error';
       // Defensive net for the 3EV/3EU cluster: a freshly-spawned
       // session's first fetch can hand a parser a Map whose values
       // are typed wrappers (e.g. `_pca<String>`) instead of the
@@ -1349,6 +1357,7 @@ extension SyncMessaging on Sync {
       _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
     } catch (error, stack) {
       if (Sync._isTransientConnectionError(error)) {
+        fetchOutcome = 'transient_connection_error';
         fetchSpan
           ..setData('status', 'transientConnectionError')
           ..setData('error', error.toString())
@@ -1383,6 +1392,21 @@ extension SyncMessaging on Sync {
       // remaining in a stale loading state.
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
+      fetchOutcome = 'unexpected_error';
+    }
+    } finally {
+      fetchStopwatch.stop();
+      OpenTelemetryService().recordDuration(
+        'app.fetch_messages',
+        fetchStopwatch.elapsed,
+        attributes: {
+          'outcome': fetchOutcome,
+          'visibility': sessionId == _visibleSessionId
+              ? 'visible'
+              : 'background',
+        },
+        description: 'End-to-end session message fetch duration',
+      );
     }
   }
 

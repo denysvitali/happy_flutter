@@ -45,6 +45,9 @@ import 'user_certs_io.dart' if (dart.library.js_interop) 'user_certs_stub.dart';
 
 // Deep link handler for receiving happy:// URLs
 const _deepLinkChannel = MethodChannel('com.example.happy_flutter/deep_links');
+final Stopwatch _coldStartStopwatch = Stopwatch()..start();
+Duration? _firstFrameDuration;
+Duration? _essentialStartupDuration;
 
 /// Converts a DER-encoded certificate to PEM format.
 Uint8List _derToPem(Uint8List der) {
@@ -131,6 +134,7 @@ Future<void> _runApp() async {
   // needed to render the first frame, and each adds ~50–400ms to the
   // critical path on cold start.
   WidgetsBinding.instance.addPostFrameCallback((_) {
+    _firstFrameDuration ??= _coldStartStopwatch.elapsed;
     unawaited(_deferredInit());
     // Start tracking janky frames for Sentry/GlitchTip visibility.
     if (sentryEnableFrameMetrics && sentryTracesSampleRate > 0) {
@@ -185,7 +189,9 @@ Future<void> _runApp() async {
         PerformanceContextService().currentRoute ?? 'unknown',
       );
     await startupTransaction.finish();
-  }();
+  }().whenComplete(() {
+    _essentialStartupDuration = _coldStartStopwatch.elapsed;
+  });
 
   // Do NOT block the first frame on storage + API init or the
   // initial deep-link platform channel.  Both futures already run
@@ -211,6 +217,7 @@ Future<void> _runApp() async {
 /// Deferred initialization that runs after first frame. Keeps heavy,
 /// non-essential work (Firebase, Android certs) off the critical path.
 Future<void> _deferredInit() async {
+  final deferredStopwatch = Stopwatch()..start();
   final transaction = Sentry.startTransaction(
     'app.deferredInit',
     'app.load.deferred',
@@ -299,6 +306,29 @@ Future<void> _deferredInit() async {
   }());
 
   await Future.wait(futures);
+  deferredStopwatch.stop();
+  final otel = OpenTelemetryService();
+  final firstFrameDuration = _firstFrameDuration;
+  final essentialStartupDuration = _essentialStartupDuration;
+  if (firstFrameDuration != null) {
+    otel.recordDuration(
+      'app.cold_start.first_frame',
+      firstFrameDuration,
+      description: 'Process start to first rendered Flutter frame',
+    );
+  }
+  if (essentialStartupDuration != null) {
+    otel.recordDuration(
+      'app.cold_start.essential_ready',
+      essentialStartupDuration,
+      description: 'Process start to storage and API readiness',
+    );
+  }
+  otel.recordDuration(
+    'app.deferred_init',
+    deferredStopwatch.elapsed,
+    description: 'Post-frame deferred initialization duration',
+  );
   await transaction.finish();
 }
 

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
+    show Counter, Histogram;
 import 'package:flutter/widgets.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     hide Logger, LogLevel;
@@ -23,12 +25,33 @@ class OpenTelemetryService {
   static const bool autoLogEventsEnabled = false;
   static const String traceExporterProtocol = 'otlp_http_protobuf';
 
+  /// Default duration histogram buckets (seconds) covering mobile RTT
+  /// (tens of ms) through multi-second stalls.
+  static const List<double> _durationBucketsSeconds = <double>[
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    1,
+    2.5,
+    5,
+    10,
+    30,
+  ];
+
   final NavigatorObserver _routeObserver;
 
   bool _initialized = false;
   Future<void>? _initializeFuture;
   Future<void>? _trustedCertsFuture;
   _HappyOtelLifecycleObserver? _lifecycleObserver;
+
+  /// Lazy duration histograms keyed by metric name (e.g. app.fetch_messages).
+  final Map<String, Histogram<double>> _durationHistograms =
+      <String, Histogram<double>>{};
+  final Map<String, Counter<int>> _counters = <String, Counter<int>>{};
 
   bool get isInitialized => _initialized;
 
@@ -47,9 +70,8 @@ class OpenTelemetryService {
 
   /// Returns the currently-active OTel span, or null when no span is
   /// active on this isolate.
-  OTelSpan? get currentSpan => _currentSpanStack.isEmpty
-      ? null
-      : _currentSpanStack.last;
+  OTelSpan? get currentSpan =>
+      _currentSpanStack.isEmpty ? null : _currentSpanStack.last;
 
   /// Push [span] onto the active span stack. The previously-active
   /// span (if any) is restored when [popCurrentSpan] is called.
@@ -238,6 +260,71 @@ class OpenTelemetryService {
     } catch (e, stack) {
       logger.warning('[OpenTelemetry] failed to start span $name', e, stack);
       return null;
+    }
+  }
+
+  /// Record a duration histogram sample under [name] (seconds unit).
+  ///
+  /// Names should be stable, low-cardinality identifiers such as
+  /// `app.fetch_messages`, `app.chat.sync_await`, `app.cold_start`.
+  /// Attributes must also be low-cardinality (e.g. `outcome`, `mode`).
+  /// Best-effort: never throws.
+  void recordDuration(
+    String name,
+    Duration duration, {
+    Map<String, Object?> attributes = const {},
+    String? description,
+  }) {
+    if (!_initialized || !metricsEnabled) return;
+    if (duration.isNegative) return;
+    try {
+      final histogram = _durationHistograms.putIfAbsent(name, () {
+        final meter = FlutterOTel.meter(name: 'happy_flutter');
+        return meter.createHistogram<double>(
+          name: name,
+          description: description ?? 'Duration of $name',
+          unit: 's',
+          boundaries: _durationBucketsSeconds,
+        );
+      });
+      final seconds = duration.inMicroseconds / 1e6;
+      final safe = _safeAttributes(attributes);
+      if (safe.isEmpty) {
+        histogram.record(seconds);
+      } else {
+        histogram.recordWithMap(seconds, safe);
+      }
+    } catch (_) {
+      // Metrics must never break the host flow.
+    }
+  }
+
+  /// Increment a low-cardinality counter. Best-effort and safe before OTel
+  /// initialization, matching [recordDuration].
+  void recordCount(
+    String name, {
+    int value = 1,
+    Map<String, Object?> attributes = const {},
+    String? description,
+  }) {
+    if (!_initialized || !metricsEnabled || value <= 0) return;
+    try {
+      final counter = _counters.putIfAbsent(name, () {
+        final meter = FlutterOTel.meter(name: 'happy_flutter');
+        return meter.createCounter<int>(
+          name: name,
+          description: description ?? 'Count of $name',
+          unit: '{event}',
+        );
+      });
+      final safe = _safeAttributes(attributes);
+      if (safe.isEmpty) {
+        counter.add(value);
+      } else {
+        counter.addWithMap(value, safe);
+      }
+    } catch (_) {
+      // Metrics must never break the host flow.
     }
   }
 

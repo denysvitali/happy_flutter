@@ -23,6 +23,12 @@ const _kActionDeny = 'permission_deny';
 /// "agent thinking" activity notification.
 const _kActionReply = 'inline_reply';
 
+/// Notification action ID for nudging a stuck agent with "continue".
+const _kActionStuckNudge = 'stuck_nudge';
+
+/// Notification action ID for aborting a stuck agent's current turn.
+const _kActionStuckAbort = 'stuck_abort';
+
 /// Android notification channel for permission requests.
 const _kPermissionChannelId = 'happy_permissions';
 const _kPermissionChannelName = 'Permission Requests';
@@ -36,21 +42,32 @@ const _kActivityChannelName = 'Session Activity';
 const _kActivityChannelDesc =
     'Ongoing notification while a Claude session is running';
 
+/// Android notification channel for stuck-agent alerts — high
+/// importance so the user notices a wedged session promptly.
+const _kStuckChannelId = 'happy_stuck_agent';
+const _kStuckChannelName = 'Stuck Agent Alerts';
+const _kStuckChannelDesc =
+    'Alerts when a running Claude session stops making progress';
+
 /// iOS notification category for permission requests.
 const _kPermissionCategory = 'permission_request';
 
 /// iOS notification category for inline-reply on session activity.
 const _kActivityCategory = 'session_activity';
 
+/// iOS notification category for stuck-agent alerts.
+const _kStuckCategory = 'stuck_agent';
+
 /// Reserved Android notification ID base for activity notifications.
 /// Each session occupies a slot derived from `sessionId.hashCode`.
 const int _kActivityIdBase = 0x5A50_0000;
 
+/// Reserved Android notification ID base for stuck-agent alerts.
+const int _kStuckIdBase = 0x5A51_0000;
+
 /// Top-level background message handler — must be a top-level function.
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(
-  RemoteMessage message,
-) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Background messages are handled by the system notification tray.
   // No additional processing needed.
 }
@@ -103,6 +120,23 @@ InlineReplyData? parseReplyAction({
   }
 }
 
+/// Parses a stuck-agent notification payload into the target session
+/// id, returning `null` when the payload is missing or malformed.
+///
+/// Pure so the payload contract can be unit-tested without the plugin.
+String? parseStuckAction({required String? payload}) {
+  if (payload == null) return null;
+  try {
+    final data = json.decode(payload) as Map<String, dynamic>;
+    if (data['type'] != 'stuck') return null;
+    final sessionId = data['sessionId'] as String?;
+    if (sessionId == null || sessionId.isEmpty) return null;
+    return sessionId;
+  } catch (_) {
+    return null;
+  }
+}
+
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -123,8 +157,9 @@ class NotificationService {
 
     try {
       // Initialize local notifications for foreground display
-      const androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
 
       final darwinSettings = DarwinInitializationSettings(
         notificationCategories: <DarwinNotificationCategory>[
@@ -156,6 +191,28 @@ class NotificationService {
           DarwinNotificationCategory(
             _kActivityCategory,
             actions: <DarwinNotificationAction>[
+              DarwinNotificationAction.text(
+                _kActionReply,
+                'Reply',
+                buttonTitle: 'Send',
+                placeholder: 'Reply to agent…',
+              ),
+            ],
+          ),
+          DarwinNotificationCategory(
+            _kStuckCategory,
+            actions: <DarwinNotificationAction>[
+              DarwinNotificationAction.plain(
+                _kActionStuckNudge,
+                'Nudge (continue)',
+              ),
+              DarwinNotificationAction.plain(
+                _kActionStuckAbort,
+                'Abort',
+                options: <DarwinNotificationActionOption>{
+                  DarwinNotificationActionOption.destructive,
+                },
+              ),
               DarwinNotificationAction.text(
                 _kActionReply,
                 'Reply',
@@ -205,20 +262,33 @@ class NotificationService {
 
       final androidPlugin = _localNotifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      // Stuck-agent alerts — high importance: a wedged unattended
+      // session is exactly what the user wants to be interrupted for.
+      const stuckChannel = AndroidNotificationChannel(
+        _kStuckChannelId,
+        _kStuckChannelName,
+        description: _kStuckChannelDesc,
+        importance: Importance.high,
+      );
+
       await androidPlugin?.createNotificationChannel(defaultChannel);
       await androidPlugin?.createNotificationChannel(permissionChannel);
       await androidPlugin?.createNotificationChannel(activityChannel);
+      await androidPlugin?.createNotificationChannel(stuckChannel);
 
       // Set up FCM message handlers
-      _foregroundSub =
-          FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-      _openedAppSub = FirebaseMessaging.onMessageOpenedApp
-          .listen(_handleMessageOpenedApp);
+      _foregroundSub = FirebaseMessaging.onMessage.listen(
+        _handleForegroundMessage,
+      );
+      _openedAppSub = FirebaseMessaging.onMessageOpenedApp.listen(
+        _handleMessageOpenedApp,
+      );
 
       // Check if app was opened from a terminated state via notification
-      final initialMessage =
-          await FirebaseMessaging.instance.getInitialMessage();
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
       if (initialMessage != null) {
         _handleMessageOpenedApp(initialMessage);
       }
@@ -228,9 +298,7 @@ class NotificationService {
     } catch (e) {
       // Firebase may not be available (e.g. missing google-services.json).
       // Gracefully degrade — push notifications simply won't work.
-      logger.warning(
-        'NotificationService.initialize() failed: $e',
-      );
+      logger.warning('NotificationService.initialize() failed: $e');
     }
   }
 
@@ -295,9 +363,7 @@ class NotificationService {
         showsUserInterface: false,
         cancelNotification: true,
         inputs: <AndroidNotificationActionInput>[
-          AndroidNotificationActionInput(
-            label: 'Reply to agent…',
-          ),
+          AndroidNotificationActionInput(label: 'Reply to agent…'),
         ],
       ),
     ];
@@ -332,9 +398,7 @@ class NotificationService {
   }
 
   /// Cancel a permission notification when the request is resolved.
-  Future<void> cancelPermissionNotification(
-    String permissionId,
-  ) async {
+  Future<void> cancelPermissionNotification(String permissionId) async {
     await _localNotifications.cancel(id: permissionId.hashCode);
   }
 
@@ -382,9 +446,7 @@ class NotificationService {
         showsUserInterface: false,
         cancelNotification: false,
         inputs: <AndroidNotificationActionInput>[
-          AndroidNotificationActionInput(
-            label: 'Reply to agent…',
-          ),
+          AndroidNotificationActionInput(label: 'Reply to agent…'),
         ],
       ),
     ];
@@ -433,6 +495,85 @@ class NotificationService {
   Future<void> cancelSessionActivityNotification(String sessionId) async {
     if (!_initialized) return;
     await _localNotifications.cancel(id: _activityIdFor(sessionId));
+  }
+
+  // -----------------------------------------------------------
+  // Stuck-agent notifications
+  // -----------------------------------------------------------
+
+  int _stuckIdFor(String sessionId) =>
+      _kStuckIdBase ^ (sessionId.hashCode & 0xFFFF);
+
+  /// Raise a one-shot alert for a thinking session with no recent progress.
+  Future<void> showStuckAgentNotification({
+    required String sessionId,
+    required String toolName,
+    required Duration stalledFor,
+    String? sessionName,
+  }) async {
+    if (!_initialized) return;
+    final title = sessionName == null
+        ? 'Agent may be stuck'
+        : 'Agent may be stuck — $sessionName';
+    final body = '$toolName • no progress for ${_formatElapsed(stalledFor)}';
+    final payload = json.encode(<String, String>{
+      'type': 'stuck',
+      'sessionId': sessionId,
+    });
+
+    const androidDetails = AndroidNotificationDetails(
+      _kStuckChannelId,
+      _kStuckChannelName,
+      channelDescription: _kStuckChannelDesc,
+      importance: Importance.max,
+      priority: Priority.max,
+      category: AndroidNotificationCategory.alarm,
+      actions: <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          _kActionStuckNudge,
+          'Nudge',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          _kActionStuckAbort,
+          'Abort',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          _kActionReply,
+          'Reply',
+          showsUserInterface: false,
+          cancelNotification: true,
+          inputs: <AndroidNotificationActionInput>[
+            AndroidNotificationActionInput(label: 'Reply to agent…'),
+          ],
+        ),
+      ],
+    );
+    const darwinDetails = DarwinNotificationDetails(
+      categoryIdentifier: _kStuckCategory,
+      interruptionLevel: InterruptionLevel.timeSensitive,
+    );
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: darwinDetails,
+      macOS: darwinDetails,
+    );
+
+    await _localNotifications.show(
+      id: _stuckIdFor(sessionId),
+      title: title,
+      body: body,
+      notificationDetails: details,
+      payload: payload,
+    );
+  }
+
+  Future<void> cancelStuckAgentNotification(String sessionId) async {
+    if (!_initialized) return;
+    await _localNotifications.cancel(id: _stuckIdFor(sessionId));
   }
 
   static String _formatElapsed(Duration d) {
@@ -489,6 +630,11 @@ class NotificationService {
       return;
     }
 
+    if (actionId == _kActionStuckNudge || actionId == _kActionStuckAbort) {
+      _handleStuckAction(actionId!, response.payload);
+      return;
+    }
+
     // Action button tapped (Allow / Deny).
     if (actionId != null && actionId.isNotEmpty) {
       _handlePermissionAction(actionId, response.payload);
@@ -498,16 +644,13 @@ class NotificationService {
     // Notification body tapped — navigate to the session.
     if (response.payload == null) return;
     try {
-      final data = json.decode(response.payload!)
-          as Map<String, dynamic>;
+      final data = json.decode(response.payload!) as Map<String, dynamic>;
 
-      // Permission notification body tap → navigate to chat.
-      if (data['type'] == 'permission') {
+      // Actionable notification body tap → navigate to chat.
+      if (data['type'] == 'permission' || data['type'] == 'stuck') {
         final sessionId = data['sessionId'] as String?;
         if (sessionId != null) {
-          _navigateFromData(<String, dynamic>{
-            'sessionId': sessionId,
-          });
+          _navigateFromData(<String, dynamic>{'sessionId': sessionId});
         }
         return;
       }
@@ -518,15 +661,11 @@ class NotificationService {
     }
   }
 
-  Future<void> _handlePermissionAction(
-    String actionId,
-    String? payload,
-  ) async {
+  Future<void> _handlePermissionAction(String actionId, String? payload) async {
     if (payload == null) return;
 
     try {
-      final data =
-          json.decode(payload) as Map<String, dynamic>;
+      final data = json.decode(payload) as Map<String, dynamic>;
       final sessionId = data['sessionId'] as String?;
       final permissionId = data['permissionId'] as String?;
       if (sessionId == null || permissionId == null) return;
@@ -546,13 +685,32 @@ class NotificationService {
       }
     } on StateError catch (e) {
       // Permission expired or session restarted — expected race.
-      logger.warning(
-        'Permission action from notification failed: $e',
-      );
+      logger.warning('Permission action from notification failed: $e');
     } catch (e) {
-      logger.warning(
-        'Permission action from notification failed: $e',
-      );
+      logger.warning('Permission action from notification failed: $e');
+    }
+  }
+
+  Future<void> _handleStuckAction(String actionId, String? payload) async {
+    final sessionId = parseStuckAction(payload: payload);
+    if (sessionId == null) return;
+    try {
+      if (actionId == _kActionStuckNudge) {
+        await Sync().sendMessage(
+          sessionId,
+          'continue',
+          displayText: 'continue',
+        );
+        logger.info('Stuck agent nudged via notification: $sessionId');
+      } else if (actionId == _kActionStuckAbort) {
+        await Sync().abortSession(
+          sessionId,
+          reason: 'Stopped from stuck-agent notification',
+        );
+        logger.info('Stuck agent aborted via notification: $sessionId');
+      }
+    } catch (e, st) {
+      logger.warning('Stuck-agent notification action failed: $e', e, st);
     }
   }
 
@@ -561,15 +719,10 @@ class NotificationService {
   /// The reply text is sent through [Sync.sendMessage] which produces
   /// exactly one canonical `localId` for the message — preserving the
   /// `one tap → one localId` invariant required by the chat send path.
-  Future<void> _handleReplyAction(
-    String? payload,
-    String? input,
-  ) async {
+  Future<void> _handleReplyAction(String? payload, String? input) async {
     final result = parseReplyAction(payload: payload, input: input);
     if (result == null) {
-      logger.warning(
-        'Inline reply received without a session/text payload',
-      );
+      logger.warning('Inline reply received without a session/text payload');
       return;
     }
     try {
@@ -596,15 +749,9 @@ class NotificationService {
         }
       }
     } on StateError catch (e) {
-      logger.warning(
-        'Inline reply send aborted (sync not initialized): $e',
-      );
+      logger.warning('Inline reply send aborted (sync not initialized): $e');
     } catch (e, st) {
-      logger.warning(
-        'Inline reply send failed: $e',
-        e,
-        st,
-      );
+      logger.warning('Inline reply send failed: $e', e, st);
     }
   }
 
@@ -613,10 +760,7 @@ class NotificationService {
 
     final sessionId = data['sessionId'] as String?;
     if (sessionId != null) {
-      _router!.goNamed(
-        'chat',
-        pathParameters: {'sessionId': sessionId},
-      );
+      _router!.goNamed('chat', pathParameters: {'sessionId': sessionId});
     }
   }
 }

@@ -81,6 +81,8 @@ void resetTestSync(Sync sync) {
   // Per-session shutdown clears — mirrors fields wiped by
   // Sync.shutdown() so per-test residue does not leak across cases.
   sync.testLoopsBySession.clear();
+  sync.testClearAllWorkflows();
+  sync.testResetWorkflowRefreshPolicy();
   sync.testLastEphemeralAt.clear();
   // Reset the monotonic data-change counters so the next test starts at 0.
   sync.testResetDataChangeCounters();
