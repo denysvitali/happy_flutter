@@ -600,6 +600,65 @@ void main() {
       );
     });
 
+    testWidgets('permission pending - light', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 230 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _toolApp({
+          'name': 'Bash',
+          'input': {'command': 'rm -rf build/ && flutter pub get'},
+          'state': 'pending',
+          'permission': {'id': 'perm-1', 'status': 'pending'},
+        }),
+      );
+      await tester.pump();
+      // Pending permission auto-expands; settle the footer animation.
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tool_permission_pending_light.png'),
+      );
+    });
+
+    testWidgets('multi edit - light', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 380 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _toolApp({
+          'name': 'MultiEdit',
+          'input': {
+            'file_path': '/home/user/project/lib/config.dart',
+            'edits': [
+              {
+                'old_string': "const apiUrl = 'https://api.dev.example.com';",
+                'new_string': "const apiUrl = 'https://api.example.com';",
+              },
+              {
+                'old_string': 'const retries = 1;',
+                'new_string': 'const retries = 3;\nconst timeoutSeconds = 30;',
+              },
+            ],
+          },
+          'state': 'completed',
+        }),
+      );
+      await tester.pump();
+      // Tap header to expand (completed tools start collapsed).
+      await tester.tap(find.byType(ToolView));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tool_multi_edit_light.png'),
+      );
+    });
+
     // Sample edit exercising the unified diff renderer: indented lines,
     // small in-line word changes, and an added line — the paths covered
     // by the inline word-diff and tab-expansion logic.
