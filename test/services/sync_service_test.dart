@@ -470,6 +470,10 @@ void main() {
         presence: 'online',
       );
 
+      // Let trailing debounced notifications (250ms window) leaked from
+      // earlier tests on the shared singleton flush before counting.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+
       var notifications = 0;
       final subscription = instance.onDomainChanged
           .where((domain) => domain == SyncDomain.sessions)

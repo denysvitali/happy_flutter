@@ -242,9 +242,11 @@ int _findBestMatchBackward(
 
 /// Calculate inline diff between two lines
 List<DiffToken> _calculateInlineDiff(String oldLine, String newLine) {
-  // Simple word-level diff
-  final oldWords = oldLine.split(RegExp(r'(\s+)'));
-  final newWords = newLine.split(RegExp(r'(\s+)'));
+  // Simple word-level diff. Whitespace runs must survive as their own
+  // tokens (Dart's split drops captured separators, unlike JS), otherwise
+  // indentation and inter-word spacing vanish from tokenized lines.
+  final oldWords = _splitKeepingWhitespace(oldLine);
+  final newWords = _splitKeepingWhitespace(newLine);
 
   final result = <DiffToken>[];
 
@@ -264,6 +266,10 @@ List<DiffToken> _calculateInlineDiff(String oldLine, String newLine) {
 
   return result;
 }
+
+/// Split a line into alternating word/whitespace tokens, keeping both.
+List<String> _splitKeepingWhitespace(String line) =>
+    RegExp(r'\s+|\S+').allMatches(line).map((m) => m[0]!).toList();
 
 /// Word-level diff (simplified)
 void _diffWords(
