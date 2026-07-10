@@ -282,6 +282,31 @@ void main() {
       expect(chips.first.text, 'Agent failed');
     });
 
+    testWidgets('stopping overrides online and thinking state', (tester) async {
+      final inputs = await _runInHost(
+        tester,
+        (cs) => ChatStatusChipsInputs(
+          session: _onlineSession(thinking: true),
+          isReady: true,
+          hasRequests: false,
+          sendIssue: null,
+          latestUserMessage: null,
+          lastVisibleNonSidechainCreatedAt: 0,
+          debugMaxSeq: -1,
+          modelMode: ChatModelMode.defaultModel,
+          isStopping: true,
+        ),
+      );
+      final context = tester.element(find.byType(Text));
+      final chips = buildChatStatusChips(
+        context: context,
+        colorScheme: Theme.of(context).colorScheme,
+        inputs: inputs,
+      );
+      expect(chips, hasLength(1));
+      expect(chips.single.text, 'Stopping');
+    });
+
     testWidgets('appends "Approval needed" chip when hasRequests is true', (
       tester,
     ) async {

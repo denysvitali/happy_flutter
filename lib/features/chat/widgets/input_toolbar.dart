@@ -28,6 +28,7 @@ class ModelChip extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final isDefault = model == ChatModelMode.defaultModel;
+    final displayLabel = isDefault ? 'Model' : model.label;
     final iconColor = isDefault ? cs.onSurfaceVariant : cs.primary;
     final chevronColor = isDefault
         ? cs.onSurfaceVariant.withValues(alpha: 0.65)
@@ -74,12 +75,13 @@ class ModelChip extends StatelessWidget {
                         ? Icons.auto_stories_outlined
                         : Icons.smart_toy_outlined,
                     size: 11,
-                    color:
-                        enabled ? iconColor : iconColor.withValues(alpha: 0.7),
+                    color: enabled
+                        ? iconColor
+                        : iconColor.withValues(alpha: 0.7),
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    model.label,
+                    displayLabel,
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontSize: AppFontSize.xxs,
                       color: enabled
@@ -121,6 +123,7 @@ class ProfileChip extends StatelessWidget {
     final isDefault = profile == null;
     final label =
         profile?.name ?? AppLocalizations.of(context).chatInputProfileDefault;
+    final displayLabel = isDefault ? 'Profile' : label;
 
     return Semantics(
       button: true,
@@ -160,7 +163,7 @@ class ProfileChip extends StatelessWidget {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 68),
                     child: Text(
-                      label,
+                      displayLabel,
                       style: theme.textTheme.labelSmall?.copyWith(
                         fontSize: AppFontSize.xxs,
                         color: isDefault ? cs.onSurfaceVariant : cs.tertiary,

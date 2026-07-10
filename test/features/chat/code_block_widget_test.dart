@@ -5,11 +5,11 @@ import 'package:happy_flutter/features/chat/code_block_widget.dart';
 
 /// Finds the line-number gutter [Text] widget.
 Finder _lineNumbers() => find.byWidgetPredicate(
-      (w) =>
-          w is Text &&
-          w.textAlign == TextAlign.end &&
-          w.style?.fontFamily == 'monospace',
-    );
+  (w) =>
+      w is Text &&
+      w.textAlign == TextAlign.end &&
+      w.style?.fontFamily == 'monospace',
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -45,11 +45,7 @@ void main() {
       final code = 'const x = "${"a" * 200}";\nline 2';
       await tester.pumpWidget(
         wrap(
-          CodeBlockWidget(
-            code: code,
-            language: 'dart',
-            showLineNumbers: true,
-          ),
+          CodeBlockWidget(code: code, language: 'dart', showLineNumbers: true),
         ),
       );
       await tester.pumpAndSettle();
@@ -57,12 +53,10 @@ void main() {
       expect(_lineNumbers(), findsOneWidget);
       final before = tester.getTopLeft(_lineNumbers());
 
-      final horizontalScroll = find.byWidgetPredicate(
-        (w) {
-          return w is SingleChildScrollView &&
-              w.scrollDirection == Axis.horizontal;
-        },
-      );
+      final horizontalScroll = find.byWidgetPredicate((w) {
+        return w is SingleChildScrollView &&
+            w.scrollDirection == Axis.horizontal;
+      });
       expect(horizontalScroll, findsOneWidget);
 
       await tester.drag(horizontalScroll, const Offset(-100, 0));
@@ -71,6 +65,18 @@ void main() {
       final after = tester.getTopLeft(_lineNumbers());
       // Line numbers should not have moved horizontally.
       expect(after.dx, equals(before.dx));
+    });
+
+    testWidgets('opens a full-screen code reader', (tester) async {
+      await tester.pumpWidget(
+        wrap(const CodeBlockWidget(code: 'print("hello");', language: 'dart')),
+      );
+
+      await tester.tap(find.byTooltip('Open full screen'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CodeBlockWidget), findsNWidgets(2));
+      expect(find.byTooltip('Close'), findsOneWidget);
     });
   });
 }

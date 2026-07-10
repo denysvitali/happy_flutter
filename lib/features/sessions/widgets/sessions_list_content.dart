@@ -132,13 +132,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     // the cards whose per-session entry actually changed. We still
     // need to nudge the notifier whenever sessions or messages change
     // so the derived state stays fresh.
-    subscribeToDomains(
-      const {SyncDomain.sessions, SyncDomain.messages},
-      () {
-        if (!mounted) return;
-        ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
-      },
-    );
+    subscribeToDomains(const {SyncDomain.sessions, SyncDomain.messages}, () {
+      if (!mounted) return;
+      ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+    });
   }
 
   @override
@@ -542,8 +539,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
                 _buildUnreadFocusListRow(
                   session,
                   entry:
-                      uiState.bySessionId[session.id] ??
-                      SessionUiEntry.empty,
+                      uiState.bySessionId[session.id] ?? SessionUiEntry.empty,
                   showFlavorIcons: showFlavorIcons,
                   avatarStyle: avatarStyle,
                 ),
@@ -554,10 +550,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     return ListView.builder(
       controller: widget.scrollController,
-      padding: const EdgeInsets.only(
-        top: AppSpacing.xs,
-        bottom: AppSpacing.lg,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
       addAutomaticKeepAlives: false,
       addRepaintBoundaries: false,
       itemCount: items.length,
@@ -859,8 +852,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       isSelected: sel.selectedIds.contains(session.id),
       selectionMode: sel.isActive,
       unreadCount: archived ? 0 : entry.unreadCount,
-      archiveCountdownLabel:
-          archived ? _archiveCountdownLabel(session, entry) : null,
+      archiveCountdownLabel: archived
+          ? _archiveCountdownLabel(session, entry)
+          : null,
       muted: archived,
     );
 
@@ -906,8 +900,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       // Invalidate the list-items cache when any per-session UI state
       // (last message timestamp) changes, otherwise the cached order
       // becomes stale.
-      for (final entry in tsLookup.entries)
-        Object.hash(entry.key, entry.value),
+      for (final entry in tsLookup.entries) Object.hash(entry.key, entry.value),
     ]);
 
     final cachedItems = _listItemsCache;
@@ -950,11 +943,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         );
         final activeCount = pathMap.values.fold(
           0,
-          (sum, list) => sum +
-              list.where((s) => s.presence == 'online').length,
+          (sum, list) => sum + list.where((s) => s.presence == 'online').length,
         );
-        final isProjectCollapsed =
-            _collapsedActiveProjects.contains(projectKey);
+        final isProjectCollapsed = _collapsedActiveProjects.contains(
+          projectKey,
+        );
 
         items.add(
           ListItem.projectHeader(
@@ -972,8 +965,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
           for (final pathEntry in sortedPaths) {
             final pathKey = pathEntry.key;
-            final isPathCollapsed =
-                _collapsedActivePaths.contains(pathKey);
+            final isPathCollapsed = _collapsedActivePaths.contains(pathKey);
             items.add(
               ListItem.pathHeader(
                 pathKey,
@@ -1097,8 +1089,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         return SectionHeader(title: item.title!);
 
       case ListItemType.projectHeader:
-        final isProjectCollapsed =
-            _collapsedActiveProjects.contains(item.projectKey!);
+        final isProjectCollapsed = _collapsedActiveProjects.contains(
+          item.projectKey!,
+        );
         return ProjectHeader(
           projectName: item.projectKey!,
           sessionCount: item.sessionCount ?? 0,
@@ -1245,17 +1238,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final now = DateTime.now().millisecondsSinceEpoch;
     final archiveAt = session.updatedAt + duration.inMilliseconds;
     final remaining = Duration(milliseconds: archiveAt - now);
-    if (remaining <= Duration.zero) return 'Archiving soon';
-    if (remaining.inMinutes < 1) return 'Archives <1m';
+    if (remaining <= Duration.zero) return 'Archive pending';
+    if (remaining.inMinutes < 1) return 'Archives in <1m';
     if (remaining.inHours < 1) {
-      return 'Archives ${remaining.inMinutes}m';
+      return 'Archives in ${remaining.inMinutes}m';
     }
-    if (remaining.inHours < 24) {
-      final minutes = remaining.inMinutes.remainder(60);
-      if (minutes == 0) return 'Archives ${remaining.inHours}h';
-      return 'Archives ${remaining.inHours}h ${minutes}m';
-    }
-    return 'Archives ${remaining.inDays}d';
+    // Long countdowns are background policy, not actionable card content.
+    return null;
   }
 
   List<ListItem> _buildDateGroupedItems(

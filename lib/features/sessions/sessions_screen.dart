@@ -70,6 +70,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   /// The currently selected session ID when running on a tablet-sized screen.
   /// On phone, navigation is handled via pushed routes (no in-place selection).
   String? _selectedSessionId;
+  bool _tabletSelectionDismissed = false;
 
   void _onScroll() {
     final scrolled = _scrollController.offset > 0;
@@ -94,9 +95,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     Future<void>.microtask(() {
       final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
       sessionsNotifier.loadFromSync();
-      unawaited(
-        sessionsNotifier.refreshFromSync(includeMachines: true),
-      );
+      unawaited(sessionsNotifier.refreshFromSync(includeMachines: true));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
@@ -105,13 +104,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         machinesNotifier.loadFromSync();
       });
     });
-    subscribeToDomains(
-      {SyncDomain.sessions, SyncDomain.machines},
-      () {
-        ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-        ref.read(machinesNotifierProvider.notifier).loadFromSync();
-      },
-    );
+    subscribeToDomains({SyncDomain.sessions, SyncDomain.machines}, () {
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+      ref.read(machinesNotifierProvider.notifier).loadFromSync();
+    });
   }
 
   void _onSelectionChanged() {
@@ -179,6 +175,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isTablet = screenWidth >= AppBreakpoint.tablet;
     final isSessionsTabOnTablet = isTablet && _activeTab == AppTab.sessions;
+    if (isSessionsTabOnTablet) {
+      _ensureTabletSelection();
+    }
     final isTabletDetail = isSessionsTabOnTablet && _selectedSessionId != null;
 
     // Active-loop count surfaced as a tab badge. Paused or expired loops
@@ -203,9 +202,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     // pane is `ChatScreen`, which has its own AppBar. The outer Scaffold
     // therefore has no AppBar — otherwise we'd render two stacked headers
     // and selection/folder mode would replace the detail pane's header.
-    final appBar = isSessionsTabOnTablet
-        ? null
-        : _buildAppBar(context, l10n);
+    final appBar = isSessionsTabOnTablet ? null : _buildAppBar(context, l10n);
 
     return PopScope(
       // Always block if a navigation action is already pending —
@@ -234,6 +231,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           _pendingNav = _NavigationAction.closeTabletChat;
           setState(() {
             _selectedSessionId = null;
+            _tabletSelectionDismissed = true;
             _pendingNav = null;
           });
         } else if (!didPop && currentTab == AppTab.sessions && folder != null) {
@@ -280,9 +278,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             : TabBar(
                 activeTab: _activeTab,
                 onTabPress: _setActiveTab,
-                badgeCounts: <AppTab, int>{
-                  AppTab.loops: totalActiveLoops,
-                },
+                badgeCounts: <AppTab, int>{AppTab.loops: totalActiveLoops},
               ),
       ),
     );
@@ -458,10 +454,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               child: Divider(
                 height: 1,
                 thickness: 1,
-                color: Theme.of(context)
-                    .colorScheme
-                    .outlineVariant
-                    .withValues(alpha: 0.5),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
             )
           : null,
@@ -567,7 +562,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
                   onClearSearch: _clearSearch,
                   scrollController: _scrollController,
                   onSessionTap: (sessionId) {
-                    setState(() => _selectedSessionId = sessionId);
+                    setState(() {
+                      _selectedSessionId = sessionId;
+                      _tabletSelectionDismissed = false;
+                    });
                   },
                 ),
               ),
@@ -595,8 +593,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
                     // chat stuck on a shimmer.
                     key: ValueKey<String>(_selectedSessionId!),
                     sessionId: _selectedSessionId!,
-                    onBack: () =>
-                        setState(() => _selectedSessionId = null),
+                    onBack: () => setState(() {
+                      _selectedSessionId = null;
+                      _tabletSelectionDismissed = true;
+                    }),
                   )
                 : _buildNoSessionSelected(),
           ),
@@ -610,10 +610,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         final slide = Tween<Offset>(
           begin: const Offset(0, 0.03),
           end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOut,
-        ));
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
         return FadeTransition(
           opacity: animation,
           child: SlideTransition(position: slide, child: child),
@@ -638,6 +635,30 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         ),
       ),
     );
+  }
+
+  void _ensureTabletSelection() {
+    final sessions = ref.watch(
+      sessionsNotifierProvider.select(
+        (state) =>
+            state.values
+                .where((session) => !session.archived)
+                .toList(growable: false)
+              ..sort((a, b) => b.activeAt.compareTo(a.activeAt)),
+      ),
+    );
+    if (sessions.isEmpty) return;
+    final current = _selectedSessionId;
+    final currentStillExists =
+        current != null && sessions.any((session) => session.id == current);
+    if (currentStillExists || (current == null && _tabletSelectionDismissed)) {
+      return;
+    }
+    final next = sessions.first.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _selectedSessionId == next) return;
+      setState(() => _selectedSessionId = next);
+    });
   }
 
   Widget _buildNoSessionSelected() {

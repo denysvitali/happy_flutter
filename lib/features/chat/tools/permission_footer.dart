@@ -182,11 +182,11 @@ class _PermissionFooterState extends State<PermissionFooter> {
     final isDark = theme.brightness == Brightness.dark;
     // Adaptive warning colours — amber tint in light mode, dimmed in dark.
     final warningBg = isDark
-        ? const Color(0xFF2D1F00)
-        : const Color(0xFFFFF8E1);
+        ? AppColors.permissionSurfaceDark
+        : AppColors.permissionSurfaceLight;
     final warningBorder = isDark
-        ? const Color(0xFF7A5C00)
-        : const Color(0xFFFFB300);
+        ? AppColors.permissionBorderDark
+        : AppColors.permissionBorderLight;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(0, AppSpacing.xs, 0, AppSpacing.xs),

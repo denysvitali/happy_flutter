@@ -41,6 +41,23 @@ abstract final class AppColors {
   /// Matches [colorForProfile]'s `'zai'` case so the brand color has one home.
   static const Color zai = Color(0xFF6366F1);
 
+  /// Permission mode: automatically accept edits.
+  static const Color permissionAutoEdit = Color(0xFF9C27B0);
+
+  /// Permission mode: read-only execution.
+  static const Color permissionReadOnly = Color(0xFF00897B);
+
+  /// Permission mode: bypass prompts (destructive emphasis).
+  static const Color permissionBypass = Color(0xFFE53935);
+
+  /// Permission mode: unrestricted execution.
+  static const Color permissionUnrestricted = Color(0xFFE64A19);
+
+  static const Color permissionSurfaceLight = Color(0xFFFFF8E1);
+  static const Color permissionSurfaceDark = Color(0xFF2D1F00);
+  static const Color permissionBorderLight = Color(0xFFFFB300);
+  static const Color permissionBorderDark = Color(0xFF7A5C00);
+
   // ─── Priority Colors (Zen / Todo) ────────────────────────────────────
 
   /// Priority: critical — iOS system red. Aliased to [error] so the two

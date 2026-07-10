@@ -19,6 +19,7 @@ class CodeBlockWidget extends StatefulWidget {
     this.isDarkMode,
     this.fontSize = 13,
     this.maxVisibleLines = 12,
+    this.allowExpand = true,
   });
 
   /// The source code to display.
@@ -41,6 +42,9 @@ class CodeBlockWidget extends StatefulWidget {
 
   /// Maximum number of visible lines before scrolling.
   final int maxVisibleLines;
+
+  /// Whether the header offers a full-screen reader.
+  final bool allowExpand;
 
   @override
   State<CodeBlockWidget> createState() => _CodeBlockWidgetState();
@@ -145,6 +149,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             codeViewer: codeViewer,
             copied: _copied,
             onCopy: _copyToClipboard,
+            onExpand: widget.allowExpand ? _showExpanded : null,
           ),
           if (_needsVerticalScroll)
             SizedBox(
@@ -188,27 +193,34 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             ),
           ),
         Expanded(
-          child: SingleChildScrollView(
+          child: Scrollbar(
             controller: _hController,
-            primary: false,
-            scrollDirection: Axis.horizontal,
+            notificationPredicate: (notification) =>
+                notification.metrics.axis == Axis.horizontal,
             child: SingleChildScrollView(
-              controller: _vController,
+              controller: _hController,
               primary: false,
-              physics: const ClampingScrollPhysics(),
-              scrollDirection: Axis.vertical,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: widget.showLineNumbers ? AppSpacing.md : AppSpacing.lg,
-                  right: AppSpacing.lg,
-                ),
-                child: SyntaxHighlighter(
-                  code: _displayCode,
-                  language: widget.language,
-                  isDarkMode: isDark,
-                  fontSize: widget.fontSize,
-                  lineHeight: _lineHeight,
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                controller: _vController,
+                primary: false,
+                physics: const ClampingScrollPhysics(),
+                scrollDirection: Axis.vertical,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: widget.showLineNumbers
+                        ? AppSpacing.md
+                        : AppSpacing.lg,
+                    right: AppSpacing.lg,
+                  ),
+                  child: SyntaxHighlighter(
+                    code: _displayCode,
+                    language: widget.language,
+                    isDarkMode: isDark,
+                    fontSize: widget.fontSize,
+                    lineHeight: _lineHeight,
+                  ),
                 ),
               ),
             ),
@@ -226,6 +238,38 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
       if (mounted) setState(() => _copied = false);
     });
   }
+
+  void _showExpanded() {
+    showDialog<void>(
+      context: context,
+      useSafeArea: false,
+      builder: (dialogContext) => Scaffold(
+        appBar: AppBar(
+          title: Text(widget.fileName ?? widget.language ?? 'Code'),
+          leading: IconButton(
+            icon: const Icon(Icons.close_rounded),
+            tooltip: MaterialLocalizations.of(dialogContext).closeButtonTooltip,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: CodeBlockWidget(
+              code: widget.code,
+              language: widget.language,
+              fileName: widget.fileName,
+              showLineNumbers: widget.showLineNumbers,
+              isDarkMode: widget.isDarkMode,
+              fontSize: widget.fontSize,
+              maxVisibleLines: 30,
+              allowExpand: false,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Header bar showing language name, optional filename, and copy button.
@@ -236,12 +280,14 @@ class _CodeHeader extends StatefulWidget {
     required this.codeViewer,
     required this.copied,
     required this.onCopy,
+    required this.onExpand,
   });
   final String? language;
   final String? fileName;
   final CodeViewerTheme codeViewer;
   final bool copied;
   final VoidCallback onCopy;
+  final VoidCallback? onExpand;
 
   @override
   State<_CodeHeader> createState() => _CodeHeaderState();
@@ -297,6 +343,14 @@ class _CodeHeaderState extends State<_CodeHeader> {
                 ),
               ),
             const Spacer(),
+            if (widget.onExpand != null)
+              IconButton(
+                onPressed: widget.onExpand,
+                icon: const Icon(Icons.open_in_full_rounded, size: 15),
+                tooltip: 'Open full screen',
+                color: labelColor,
+                visualDensity: VisualDensity.compact,
+              ),
             // Copy button – always visible, more discoverable on hover
             _CopyButton(
               copied: widget.copied,
@@ -339,9 +393,7 @@ class _CopyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = copied
-        ? codeViewer.successAccent
-        : codeViewer.idleAccent;
+    final iconColor = copied ? codeViewer.successAccent : codeViewer.idleAccent;
 
     final l10n = AppLocalizations.of(context);
     return Tooltip(
@@ -401,9 +453,7 @@ class _TruncatedNotice extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: codeViewer.headerBackground,
-        border: Border(
-          top: BorderSide(color: codeViewer.divider),
-        ),
+        border: Border(top: BorderSide(color: codeViewer.divider)),
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,

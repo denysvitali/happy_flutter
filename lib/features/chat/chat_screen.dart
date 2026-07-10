@@ -10,6 +10,7 @@ import 'package:sentry_flutter/sentry_flutter.dart'
     show Breadcrumb, Hint, Sentry, SentryLevel;
 
 import '../../core/components/tablet/master_detail_scaffold.dart';
+import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/loop.dart';
@@ -32,6 +33,7 @@ import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../loops/create_loop_sheet.dart';
 import '../loops/loop_actions.dart';
+import '../sessions/session_avatar.dart' show AvatarStyle;
 import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
@@ -133,6 +135,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   bool _didStartInitialLoad = false;
   Timer? _loadingSafetyTimer;
+
   /// Coalesces high-frequency [onSessionMessagesChanged] ticks during agent
   /// streaming so we rebuild the message list at most ~once per frame budget
   /// instead of once per socket event (was flooding Loki + main-isolate).
@@ -148,6 +151,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     true,
   );
   late final ValueNotifier<int> _messagePaneRevision = ValueNotifier<int>(0);
+  late final ValueNotifier<int> _chatChromeRevision = ValueNotifier<int>(0);
+  late final ValueNotifier<int> _composerRevision = ValueNotifier<int>(0);
   bool get _autoScroll => _autoScrollNotifier.value;
   set _autoScroll(bool value) => _autoScrollNotifier.value = value;
   static const double _autoScrollThreshold = 100;
@@ -377,6 +382,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollController.dispose();
     _autoScrollNotifier.dispose();
     _messagePaneRevision.dispose();
+    _chatChromeRevision.dispose();
+    _composerRevision.dispose();
     TtsService().stop();
     // Allow the session activity notification to surface again now
     // that the user has left the chat screen.
@@ -545,7 +552,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         latestSession?.agentState?.requests?.isNotEmpty ?? false;
     final newPermission = !hadRequests && hasRequests;
 
-    final needsScreenRebuild = sessionChanged || messagesChanged;
+    final previousDeliveryStatus =
+        _latestUserStatusMessage?['sendStatus'] as String?;
+    final needsScreenRebuild = sessionChanged;
     void applyUpdates() {
       if (sessionChanged) {
         _session = latestSession;
@@ -634,7 +643,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       setState(applyUpdates);
     } else {
       applyUpdates();
-      _bumpMessagePaneRevision();
+      if (messagesChanged || markLoaded || loadFailed) {
+        _bumpMessagePaneRevision();
+      }
+      if (messagesChanged) {
+        _chatChromeRevision.value++;
+        final nextDeliveryStatus =
+            _latestUserStatusMessage?['sendStatus'] as String?;
+        if (nextDeliveryStatus != previousDeliveryStatus) {
+          _composerRevision.value++;
+        }
+      }
     }
 
     final continueHistoryLoadAfterServerPage =
@@ -1060,6 +1079,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final colorScheme = Theme.of(context).colorScheme;
     final sessionUiEntry = ref.watch(sessionUiEntryProvider(session.id));
+    final connectionStatus = ref.watch(connectionNotifierProvider);
     final sendIssue = _sessionSendIssue;
 
     return buildChatStatusChips(
@@ -1081,6 +1101,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         debugMaxSeq: _debugMaxSeq,
         modelMode: resolveSessionDisplayModel(session.modelMode),
         lastMessageStreamActivityAt: _lastMessageStreamActivityAt,
+        isStopping: _isAborting,
+        isReconnecting: connectionStatus == ConnectionStatus.connecting,
       ),
     );
   }
@@ -1225,30 +1247,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             );
           },
           child: Scaffold(
-            appBar: ChatAppBar(
-              session: _session,
-              sessionTitle: _getSessionTitle(),
-              statusChips: _buildStatusChips(context),
-              machineVitals: _buildMachineVitals(),
-              sessionId: widget.sessionId,
-              avatarStyle: avatarStyle,
-              onInfoTap: () {
-                HapticFeedback.lightImpact();
-                if (isWide) {
-                  _showSessionInfoDetail();
-                  return;
-                }
-                context.pushNamed(
-                  'session-info',
-                  pathParameters: {'sessionId': widget.sessionId},
-                );
-              },
-              onMenuTap: () => showSessionMenu(
-                context,
-                sessionId: widget.sessionId,
-                onAbort: _abortSession,
+            appBar: PreferredSize(
+              preferredSize: _buildChatAppBar(
+                context: context,
+                isWide: isWide,
+                avatarStyle: avatarStyle,
+              ).preferredSize,
+              child: ValueListenableBuilder<int>(
+                valueListenable: _chatChromeRevision,
+                builder: (context, revision, child) => _buildChatAppBar(
+                  context: context,
+                  isWide: isWide,
+                  avatarStyle: avatarStyle,
+                ),
               ),
-              onBackTap: widget.onBack,
             ),
             body: _buildScaffoldBody(
               isWide: isWide,
@@ -1292,11 +1304,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Banner priority (top → bottom, limited stack):
     // offline → sub-agent → issue → (goal/tasks only if no issue) →
     // permission sticky → TTS → thinking+stop → input
-    final hasSendIssue = _sessionSendIssue != null;
-    final pendingRequests = _session?.agentState?.requests;
-    final hasPendingPermission =
-        pendingRequests != null && pendingRequests.isNotEmpty;
-
     return Column(
       children: [
         const OfflineBanner(),
@@ -1348,6 +1355,81 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             },
           ),
         ),
+        ValueListenableBuilder<int>(
+          valueListenable: _chatChromeRevision,
+          builder: (context, revision, child) => _buildActivityChrome(),
+        ),
+        ValueListenableBuilder<int>(
+          valueListenable: _composerRevision,
+          builder: (context, revision, child) => ChatInput(
+            sessionId: widget.sessionId,
+            controller: _controller,
+            onSend: _sendMessage,
+            isSending: _isSending,
+            permissionMode: _permissionMode,
+            onPermissionModeChanged: _onPermissionModeChanged,
+            modelMode: _modelMode,
+            availableModels: availableModels,
+            availableSlashCommands:
+                _session?.metadata?.slashCommands ?? const [],
+            onModelModeChanged: _onModelModeChanged,
+            selectedProfile: _selectedProfile,
+            availableProfiles: _availableProfiles,
+            onProfileChanged: _onProfileChanged,
+            machineName: _session?.metadata?.host,
+            currentPath: _session?.metadata?.path,
+            contextSize: sessionUiEntry.sessionUsage['contextSize'] as int?,
+            isSessionOnline: _session?.isPresenceOnline ?? false,
+            enterToSend: enterToSend,
+            lastDeliveryStatus:
+                _latestUserStatusMessage?['sendStatus'] as String?,
+          ),
+        ),
+      ],
+    );
+  }
+
+  ChatAppBar _buildChatAppBar({
+    required BuildContext context,
+    required bool isWide,
+    required AvatarStyle? avatarStyle,
+  }) {
+    return ChatAppBar(
+      session: _session,
+      sessionTitle: _getSessionTitle(),
+      statusChips: _buildStatusChips(context),
+      machineVitals: _buildMachineVitals(),
+      sessionId: widget.sessionId,
+      avatarStyle: avatarStyle,
+      onInfoTap: () {
+        HapticFeedback.lightImpact();
+        if (isWide) {
+          _showSessionInfoDetail();
+          return;
+        }
+        context.pushNamed(
+          'session-info',
+          pathParameters: {'sessionId': widget.sessionId},
+        );
+      },
+      onMenuTap: () => showSessionMenu(
+        context,
+        sessionId: widget.sessionId,
+        onAbort: _abortSession,
+      ),
+      onBackTap: widget.onBack,
+    );
+  }
+
+  Widget _buildActivityChrome() {
+    final hasSendIssue = _sessionSendIssue != null;
+    final pendingRequests = _session?.agentState?.requests;
+    final hasPendingPermission =
+        pendingRequests != null && pendingRequests.isNotEmpty;
+    final subAgent = _lastSubAgentToolName();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
         if (_sessionSendIssue case final issue?)
           SessionIssueBanner(
             issue: SendIssue(
@@ -1356,7 +1438,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               blocksSend: issue.blocksSend,
             ),
           ),
-        // Collapse secondary chrome when a send issue already owns the strip.
         if (!hasSendIssue) ...[
           SessionGoalBanner(sessionId: widget.sessionId),
           SessionTasksBanner(sessionId: widget.sessionId),
@@ -1380,34 +1461,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               (_session?.thinking ?? false) && _isNewestMessageAgentText(),
           lastToolName: _lastRunningToolName(),
           thinkingAt: _session?.thinkingAt,
-          subAgentToolName: _lastSubAgentToolName().toolName,
-          subAgentStartedAt: _lastSubAgentToolName().startedAt,
-          onStop: (_session?.thinking ?? false) ||
-                  (_lastSubAgentToolName().toolName?.isNotEmpty ?? false)
+          subAgentToolName: subAgent.toolName,
+          subAgentStartedAt: subAgent.startedAt,
+          isStopping: _isAborting,
+          onStop:
+              (_session?.thinking ?? false) ||
+                  (subAgent.toolName?.isNotEmpty ?? false)
               ? _abortSession
               : null,
-        ),
-        ChatInput(
-          sessionId: widget.sessionId,
-          controller: _controller,
-          onSend: _sendMessage,
-          isSending: _isSending,
-          permissionMode: _permissionMode,
-          onPermissionModeChanged: _onPermissionModeChanged,
-          modelMode: _modelMode,
-          availableModels: availableModels,
-          availableSlashCommands: _session?.metadata?.slashCommands ?? const [],
-          onModelModeChanged: _onModelModeChanged,
-          selectedProfile: _selectedProfile,
-          availableProfiles: _availableProfiles,
-          onProfileChanged: _onProfileChanged,
-          machineName: _session?.metadata?.host,
-          currentPath: _session?.metadata?.path,
-          contextSize: sessionUiEntry.sessionUsage['contextSize'] as int?,
-          isSessionOnline: _session?.isPresenceOnline ?? false,
-          enterToSend: enterToSend,
-          lastDeliveryStatus:
-              _latestUserStatusMessage?['sendStatus'] as String?,
         ),
       ],
     );

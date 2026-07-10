@@ -706,6 +706,8 @@ class ChatStatusChipsInputs {
     required this.debugMaxSeq,
     required this.modelMode,
     this.lastMessageStreamActivityAt = 0,
+    this.isStopping = false,
+    this.isReconnecting = false,
   });
 
   final Session session;
@@ -735,6 +737,13 @@ class ChatStatusChipsInputs {
   /// chips surface "Working on sub-tasks" even when the `thinking` flag
   /// has gone stale during a long turn. 0 means no change observed yet.
   final int lastMessageStreamActivityAt;
+
+  /// An abort request is in flight. This state takes visual precedence over
+  /// ordinary online/thinking state so repeated stop taps are discouraged.
+  final bool isStopping;
+
+  /// The shared socket is actively reconnecting.
+  final bool isReconnecting;
 
   /// Current model selection. `ChatModelMode.defaultModel` hides
   /// the chip.
@@ -778,11 +787,20 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
       lifecycleSince != null &&
       DateTime.now().millisecondsSinceEpoch - lifecycleSince < 120000;
   final isConnecting =
+      inputs.isReconnecting ||
       !inputs.isReady &&
-      lifecycleIsRecent &&
-      (lifecycleState == 'starting' || lifecycleState == 'running');
+          lifecycleIsRecent &&
+          (lifecycleState == 'starting' || lifecycleState == 'running');
 
-  if (sendIssue != null) {
+  if (inputs.isStopping) {
+    chips.add(
+      ChatAppBarStatusChip(
+        text: 'Stopping',
+        color: colorScheme.primary,
+        icon: Icons.stop_circle_outlined,
+      ),
+    );
+  } else if (sendIssue != null) {
     chips.add(
       ChatAppBarStatusChip(
         text: sendIssue.blocksSend ? 'Agent failed' : 'Will restart',
@@ -804,7 +822,7 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
   } else if (isConnecting) {
     chips.add(
       ChatAppBarStatusChip(
-        text: 'Connecting',
+        text: inputs.isReconnecting ? 'Reconnecting' : 'Connecting',
         color: colorScheme.primary,
         icon: Icons.sync_rounded,
       ),

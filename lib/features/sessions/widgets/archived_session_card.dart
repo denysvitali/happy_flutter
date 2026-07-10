@@ -119,6 +119,7 @@ class _SessionCardState extends State<SessionCard> {
     return PressableCard(
       onTap: widget.onTap,
       onLongPress: widget.onLongPress,
+      semanticLabel: '${_d.name}, ${_d.status.statusText}, ${_d.subtitle}',
       child: Card(
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
@@ -174,12 +175,14 @@ class _SessionCardState extends State<SessionCard> {
                               ),
                               dotColor: _d.status.isConnected
                                   ? null
-                                  : cs.outlineVariant,
-                            ),
-                            const SizedBox(height: AppSpacing.xxs),
-                            Text(
-                              _d.subtitle,
-                              style: theme.textTheme.bodySmall?.copyWith(
+                              : cs.outlineVariant,
+                        ),
+                        const SizedBox(height: AppSpacing.xxs),
+                        if (widget.lastMessagePreview == null ||
+                            widget.lastMessagePreview!.isEmpty)
+                          Text(
+                            _d.subtitle,
+                            style: theme.textTheme.bodySmall?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 fontFamily: 'monospace',
                                 fontSize: AppFontSize.xs,

@@ -28,8 +28,9 @@ void main() {
       expect(find.text('Bash tool…'), findsOneWidget);
     });
 
-    testWidgets(
-        'prefers sub-agent tool name over main-agent tool', (tester) async {
+    testWidgets('prefers sub-agent tool name over main-agent tool', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _app(
           const ThinkingPill(
@@ -49,23 +50,24 @@ void main() {
     });
 
     testWidgets(
-        'stays visible for sub-agent work when main agent stops thinking',
-        (tester) async {
-      await tester.pumpWidget(
-        _app(
-          const ThinkingPill(
-            isThinking: false,
-            isTextStreaming: false,
-            subAgentToolName: 'Bash',
-            subAgentStartedAt: 0,
+      'stays visible for sub-agent work when main agent stops thinking',
+      (tester) async {
+        await tester.pumpWidget(
+          _app(
+            const ThinkingPill(
+              isThinking: false,
+              isTextStreaming: false,
+              subAgentToolName: 'Bash',
+              subAgentStartedAt: 0,
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump(const Duration(seconds: 4));
+        await tester.pump(const Duration(seconds: 4));
 
-      expect(find.text('Bash…'), findsOneWidget);
-    });
+        expect(find.text('Bash…'), findsOneWidget);
+      },
+    );
 
     testWidgets('hides when text is streaming', (tester) async {
       await tester.pumpWidget(
@@ -85,12 +87,7 @@ void main() {
 
     testWidgets('shows Working label when no tool is given', (tester) async {
       await tester.pumpWidget(
-        _app(
-          const ThinkingPill(
-            isThinking: true,
-            isTextStreaming: false,
-          ),
-        ),
+        _app(const ThinkingPill(isThinking: true, isTextStreaming: false)),
       );
 
       await tester.pump(const Duration(seconds: 4));
@@ -125,6 +122,27 @@ void main() {
 
       await tester.pump();
       expect(find.text('Bash…'), findsNothing);
+    });
+
+    testWidgets('shows stopping progress and suppresses repeated stop', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          ThinkingPill(
+            isThinking: true,
+            isTextStreaming: false,
+            isStopping: true,
+            onStop: () {},
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(seconds: 4));
+
+      expect(find.text('Stopping…'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byIcon(Icons.stop_rounded), findsNothing);
     });
   });
 }

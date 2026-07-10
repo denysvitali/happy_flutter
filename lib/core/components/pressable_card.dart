@@ -13,6 +13,7 @@ class PressableCard extends StatefulWidget {
     this.pressedScale = 0.98,
     this.enableHaptics = true,
     this.duration = AppDuration.fast,
+    this.semanticLabel,
     super.key,
   });
 
@@ -34,6 +35,9 @@ class PressableCard extends StatefulWidget {
   /// Press animation duration.
   final Duration duration;
 
+  /// Optional concise screen-reader description for the whole card.
+  final String? semanticLabel;
+
   @override
   State<PressableCard> createState() => _PressableCardState();
 }
@@ -48,7 +52,7 @@ class _PressableCardState extends State<PressableCard> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final card = GestureDetector(
       onTap: widget.onTap == null
           ? null
           : () {
@@ -67,6 +71,15 @@ class _PressableCardState extends State<PressableCard> {
         curve: AppCurve.standard,
         child: widget.child,
       ),
+    );
+    final label = widget.semanticLabel;
+    if (label == null || label.isEmpty) return card;
+    return Semantics(
+      container: true,
+      button: widget.onTap != null,
+      enabled: widget.onTap != null,
+      label: label,
+      child: card,
     );
   }
 }

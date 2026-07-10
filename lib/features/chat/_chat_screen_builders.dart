@@ -124,15 +124,28 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // Messages dissolve under the app bar instead of hard-clipping.
     final fadedList = ScrollEdgeFade(topExtent: 28, child: listView);
     stopwatch.stop();
-    if (stopwatch.elapsedMilliseconds >= 8 &&
-        logger.shouldLog(LogLevel.debug)) {
-      logger.debug(
-        '[Perf] buildMessageList '
-        'session=${widget.sessionId} '
-        'visible=${items.length} '
-        'total=$totalCount '
-        'elapsedMs=${stopwatch.elapsedMilliseconds}',
+    if (stopwatch.elapsedMilliseconds >= 8) {
+      OpenTelemetryService().recordDuration(
+        'app.chat.message_list_build',
+        stopwatch.elapsed,
+        attributes: {
+          'visible_bucket': items.length < 25
+              ? 'small'
+              : items.length < 100
+              ? 'medium'
+              : 'large',
+        },
+        description: 'Slow chat message-list build duration',
       );
+      if (logger.shouldLog(LogLevel.debug)) {
+        logger.debug(
+          '[Perf] buildMessageList '
+          'session=${widget.sessionId} '
+          'visible=${items.length} '
+          'total=$totalCount '
+          'elapsedMs=${stopwatch.elapsedMilliseconds}',
+        );
+      }
     }
     return fadedList;
   }

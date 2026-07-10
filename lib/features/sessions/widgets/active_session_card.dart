@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/components/pressable_card.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_status.dart' show SessionState;
 import '../session_avatar.dart';
 import 'session_cards.dart';
 
@@ -75,6 +76,10 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
 
     return PressableCard(
       onTap: widget.onTap,
+      semanticLabel: _sessionSemanticLabel(
+        _d,
+        unreadCount: widget.unreadCount,
+      ),
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,
@@ -123,17 +128,18 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                               pulseDot: hasUnread,
                             ),
                             const SizedBox(height: AppSpacing.xxs),
-                            Text(
-                              _d.subtitle,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontFamily: 'monospace',
-                                fontSize: AppFontSize.xs,
-                                height: 1.2,
+                            if (!hasPreview)
+                              Text(
+                                _d.subtitle,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                  fontFamily: 'monospace',
+                                  fontSize: AppFontSize.xs,
+                                  height: 1.2,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
                             if (hasPreview) ...[
                               const SizedBox(height: AppSpacing.xxs),
                               buildPreviewText(
@@ -189,4 +195,18 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
         ),
       );
   }
+}
+
+String _sessionSemanticLabel(
+  SessionDerived session, {
+  required int unreadCount,
+}) {
+  final state = switch (session.status.state) {
+    SessionState.disconnected => session.status.statusText,
+    SessionState.thinking => 'Working',
+    SessionState.waiting => 'Ready',
+    SessionState.permissionRequired => 'Approval needed',
+  };
+  final unread = unreadCount > 0 ? ', $unreadCount unread' : '';
+  return '${session.name}, $state$unread, ${session.subtitle}';
 }

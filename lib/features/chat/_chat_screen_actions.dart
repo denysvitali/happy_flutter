@@ -548,11 +548,11 @@ extension _ChatScreenActions on _ChatScreenState {
           st,
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not abort — this feature may not be '
-              'available on the server',
+          SnackBar(
+            content: const Text(
+              'Stop request failed. The agent may still be running.',
             ),
+            action: SnackBarAction(label: 'Retry', onPressed: _abortSession),
           ),
         );
       }
@@ -704,6 +704,7 @@ extension _ChatScreenActions on _ChatScreenState {
     String text, {
     required String localId,
   }) async {
+    final optimisticStopwatch = Stopwatch()..start();
     _autoScrollNotifier.value = true;
 
     final optimisticMessage = buildOptimisticUserMessage(
@@ -717,6 +718,13 @@ extension _ChatScreenActions on _ChatScreenState {
       _visibleCount = _messages.length;
       _invalidateNeighborCache();
     });
+    optimisticStopwatch.stop();
+    OpenTelemetryService().recordDuration(
+      'app.chat.optimistic_row',
+      optimisticStopwatch.elapsed,
+      attributes: {'source': 'composer'},
+      description: 'Chat action to optimistic-row state update',
+    );
     _scrollToBottom();
 
     unawaited(DraftStorage().removeDraft(widget.sessionId));

@@ -109,17 +109,17 @@ extension PermissionModeExtension on PermissionMode {
       case PermissionMode.defaultMode:
         return AppColors.iosBlue;
       case PermissionMode.acceptEdits:
-        return const Color(0xFF9C27B0); // purple — no AppColors token
+        return AppColors.permissionAutoEdit;
       case PermissionMode.plan:
         return AppColors.warning;
       case PermissionMode.bypassPermissions:
-        return const Color(0xFFE53935); // red — semantic destructive
+        return AppColors.permissionBypass;
       case PermissionMode.readOnly:
-        return const Color(0xFF00897B); // teal
+        return AppColors.permissionReadOnly;
       case PermissionMode.safeYolo:
         return AppColors.info;
       case PermissionMode.yolo:
-        return const Color(0xFFE64A19); // deep orange
+        return AppColors.permissionUnrestricted;
     }
   }
 
@@ -258,6 +258,9 @@ class PermissionModeSelector extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final isDefault = currentMode == PermissionMode.defaultMode;
     final l10n = AppLocalizations.of(context);
+    final displayLabel = isDefault
+        ? 'Permissions'
+        : currentMode.localizedDisplayName(l10n);
 
     return Semantics(
       button: true,
@@ -297,12 +300,13 @@ class PermissionModeSelector extends ConsumerWidget {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    currentMode.localizedDisplayName(l10n),
+                    displayLabel,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       fontSize: AppFontSize.xxs,
                       fontWeight: FontWeight.w500,
-                      color:
-                          isDefault ? cs.onSurfaceVariant : currentMode.color,
+                      color: isDefault
+                          ? cs.onSurfaceVariant
+                          : currentMode.color,
                     ),
                   ),
                   const SizedBox(width: 1),

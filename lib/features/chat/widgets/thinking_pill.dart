@@ -26,6 +26,7 @@ class ThinkingPill extends StatefulWidget {
     this.subAgentToolName,
     this.subAgentStartedAt,
     this.onStop,
+    this.isStopping = false,
   });
 
   /// Whether the agent is currently in the thinking state.
@@ -58,6 +59,9 @@ class ThinkingPill extends StatefulWidget {
   /// not have to open the session menu mid-run.
   final VoidCallback? onStop;
 
+  /// Whether a stop request is currently awaiting acknowledgement.
+  final bool isStopping;
+
   @override
   State<ThinkingPill> createState() => _ThinkingPillState();
 }
@@ -81,9 +85,10 @@ class _ThinkingPillState extends State<ThinkingPill>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _dotPulse = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _dotCtrl, curve: Curves.easeInOut),
-    );
+    _dotPulse = Tween<double>(
+      begin: 0.3,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _dotCtrl, curve: Curves.easeInOut));
     _syncState();
   }
 
@@ -130,13 +135,12 @@ class _ThinkingPillState extends State<ThinkingPill>
   }
 
   int _currentElapsed() {
-    final at = widget.isThinking
-        ? widget.thinkingAt
-        : widget.subAgentStartedAt;
+    final at = widget.isThinking ? widget.thinkingAt : widget.subAgentStartedAt;
     if (at == null) return 0;
-    return ((DateTime.now().millisecondsSinceEpoch - at) / 1000)
-        .floor()
-        .clamp(0, 9999);
+    return ((DateTime.now().millisecondsSinceEpoch - at) / 1000).floor().clamp(
+      0,
+      9999,
+    );
   }
 
   String _formatElapsed(int s) {
@@ -145,14 +149,12 @@ class _ThinkingPillState extends State<ThinkingPill>
   }
 
   String _label() {
+    if (widget.isStopping) return 'Stopping…';
     final tool = widget.subAgentToolName ?? widget.lastToolName;
     if (tool == null || tool.isEmpty) return 'Working…';
     // CamelCase → spaced words, then capitalise first letter.
     final spaced = tool
-        .replaceAllMapped(
-          RegExp(r'(?<=[a-z])(?=[A-Z])'),
-          (_) => ' ',
-        )
+        .replaceAllMapped(RegExp(r'(?<=[a-z])(?=[A-Z])'), (_) => ' ')
         .replaceAll('_', ' ')
         .trim();
     if (spaced.isEmpty) return '$tool…';
@@ -199,9 +201,7 @@ class _ThinkingPillState extends State<ThinkingPill>
             vertical: AppSpacing.xsm,
           ),
           decoration: BoxDecoration(
-            color: isDark
-                ? cs.surfaceContainerHigh
-                : cs.surfaceContainerLow,
+            color: isDark ? cs.surfaceContainerHigh : cs.surfaceContainerLow,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
               color: cs.outlineVariant.withValues(alpha: 0.4),
@@ -212,27 +212,36 @@ class _ThinkingPillState extends State<ThinkingPill>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              AnimatedBuilder(
-                animation: _dotPulse,
-                builder: (context, child) => Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(
-                      alpha: _dotPulse.value,
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.success.withValues(
-                          alpha: _dotPulse.value * 0.45,
-                        ),
-                        blurRadius: 6,
+              if (widget.isStopping)
+                SizedBox.square(
+                  dimension: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: cs.primary,
+                  ),
+                )
+              else
+                AnimatedBuilder(
+                  animation: _dotPulse,
+                  builder: (context, child) => Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(
+                        alpha: _dotPulse.value,
                       ),
-                    ],
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.success.withValues(
+                            alpha: _dotPulse.value * 0.45,
+                          ),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(width: AppSpacing.xs),
               Flexible(
                 child: Text(
@@ -255,7 +264,7 @@ class _ThinkingPillState extends State<ThinkingPill>
                   ),
                 ),
               ],
-              if (widget.onStop != null) ...[
+              if (widget.onStop != null && !widget.isStopping) ...[
                 const SizedBox(width: AppSpacing.xs),
                 Semantics(
                   button: true,
