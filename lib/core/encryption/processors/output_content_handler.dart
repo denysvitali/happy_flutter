@@ -750,7 +750,7 @@ void _processMetaOutput({
       final workflowName = data['workflow_name'] as String?;
       // `last_tool_name` is the name of the tool the sub-agent is
       // CURRENTLY running. Forwarding it as `subAgentLastTool` lets the
-      // chat chip and ThinkingPill render "Bash: ..." / "Read: ..." so
+      // chat chip render "Bash: ..." / "Read: ..." so
       // the user has a live signal of sub-agent activity even though the
       // individual tool_use blocks from inside the sub-agent never cross
       // the wire.  Only meaningful for in-flight subtasks; on completion

@@ -217,8 +217,8 @@ void main() {
     test('task_notification running does NOT collapse to text — stays a chip',
         () {
       // Non-terminal task_updated/task_notification is still live; the
-      // parser must keep it as an agent-event so the chip + ThinkingPill
-      // see the in-flight tool.
+      // parser must keep it as an agent-event so the chip sees the
+      // in-flight tool.
       final result = processDecryptedMessages(
         decryptedJsonList: [
           metaSystem({

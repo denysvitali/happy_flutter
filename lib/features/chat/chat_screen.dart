@@ -60,7 +60,6 @@ import 'widgets/session_goal_banner.dart';
 import 'widgets/session_issue_banner.dart';
 import 'widgets/session_tasks_banner.dart';
 import 'widgets/sub_agent_status_banner.dart';
-import 'widgets/thinking_pill.dart';
 import 'widgets/tts_playback_bar.dart';
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
@@ -981,58 +980,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ).showSnackBar(SnackBar(content: Text(issue.snackBarText)));
   }
 
-  /// True when the newest visible agent message is a text bubble —
-  /// meaning text is already streaming (pill should hide).
-  bool _isNewestMessageAgentText() {
-    for (var i = _messages.length - 1; i >= 0; i--) {
-      final m = _messages[i];
-      if (m['isSidechain'] == true) continue;
-      if (m['role'] != 'agent') return false;
-      final kind = m['kind'] as String?;
-      return kind == null || kind == 'text';
-    }
-    return false;
-  }
-
-  /// Name of the most recent tool the main or sub-agent is running, if any.
-  ///
-  /// Prefers main-agent tool-call messages but, when the user dispatched a
-  /// dynamic workflow (the CLI only streams task_* meta events for the
-  /// sub-agent), falls back to the most recent in-flight `subAgentLastTool`
-  /// stamp on an agent-event chip so the ThinkingPill surfaces "Bash…"
-  /// / "Read…" rather than going silent while the workflow churns.
-  String? _lastRunningToolName() {
-    for (var i = _messages.length - 1; i >= 0; i--) {
-      final message = _messages[i];
-      final kind = message['kind'];
-      if (kind == 'tool-call') {
-        return message['name'] as String?;
-      }
-      if (kind == 'agent-event') {
-        final tool = message['subAgentLastTool'];
-        if (tool is String && tool.isNotEmpty) return tool;
-      }
-    }
-    return null;
-  }
-
-  /// Returns the most recent in-flight sub-agent tool and the message
-  /// timestamp it came in on. Distinct from [_lastRunningToolName]
-  /// because the ThinkingPill needs to keep showing after the main
-  /// agent stops "thinking" — once the main agent returns from
-  /// dispatching the workflow, only the sub-agent is still working.
-  ({String? toolName, int? startedAt}) _lastSubAgentToolName() {
-    for (var i = _messages.length - 1; i >= 0; i--) {
-      final message = _messages[i];
-      if (message['kind'] != 'agent-event') continue;
-      final tool = message['subAgentLastTool'];
-      if (tool is! String || tool.isEmpty) continue;
-      final ts = message['createdAt'];
-      return (toolName: tool, startedAt: ts is int ? ts : null);
-    }
-    return (toolName: null, startedAt: null);
-  }
-
   /// Recomputes the memoized backward scans over [_messages]:
   /// the latest user message carrying a sendStatus, the createdAt of the
   /// last visible (non-sidechain) message, and (debug only) the max seq.
@@ -1426,7 +1373,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final pendingRequests = _session?.agentState?.requests;
     final hasPendingPermission =
         pendingRequests != null && pendingRequests.isNotEmpty;
-    final subAgent = _lastSubAgentToolName();
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1454,21 +1400,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           onNext: _ttsNext,
           canGoPrev: _ttsCanGoPrev(),
           canGoNext: _ttsCanGoNext(),
-        ),
-        ThinkingPill(
-          isThinking: _session?.thinking ?? false,
-          isTextStreaming:
-              (_session?.thinking ?? false) && _isNewestMessageAgentText(),
-          lastToolName: _lastRunningToolName(),
-          thinkingAt: _session?.thinkingAt,
-          subAgentToolName: subAgent.toolName,
-          subAgentStartedAt: subAgent.startedAt,
-          isStopping: _isAborting,
-          onStop:
-              (_session?.thinking ?? false) ||
-                  (subAgent.toolName?.isNotEmpty ?? false)
-              ? _abortSession
-              : null,
         ),
       ],
     );
