@@ -456,6 +456,7 @@ void main() {
 
     test('unchanged ephemeral heartbeats do not notify session listeners',
         () async {
+      final instance = Sync();
       instance.testSessions['s1'] = Session(
         id: 's1',
         seq: 1,
@@ -488,6 +489,7 @@ void main() {
     });
 
     test('ignores ephemeral heartbeats while backgrounded', () {
+      final instance = Sync();
       instance.testSessions['s1'] = Session(
         id: 's1',
         seq: 1,
