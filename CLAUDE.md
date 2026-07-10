@@ -326,7 +326,9 @@ Golden screenshots in `test/golden/goldens/` are **showcase images** used in the
 **After any UI change that affects visual output**, update goldens via CI — do not run the golden update command locally (see the "Never run tests locally" workflow rule above). Commit the updated PNGs produced by the CI run. Do not leave stale goldens — they will cause false test failures for other contributors.
 
 Use the `Happy Flutter CI/CD` workflow's `update_goldens` manual-dispatch
-input to generate the PNG artifact when working directly on `main`.
+input to generate the PNG artifact when working directly on `main`. If the
+workflow cannot be dispatched, include `[update-goldens]` in the triggering
+commit message instead.
 
 **Git LFS:** Golden PNGs are tracked via Git LFS (see `.gitattributes`). Contributors must have `git-lfs` installed (`git lfs install`). The golden test file is `test/golden/golden_test.dart`.
 

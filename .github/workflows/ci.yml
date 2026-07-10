@@ -215,7 +215,9 @@ jobs:
       (github.event_name == 'pull_request' &&
       github.event.pull_request.draft == false) ||
       (github.event_name == 'workflow_dispatch' &&
-      inputs.update_goldens == true)
+      inputs.update_goldens == true) ||
+      (github.event_name == 'push' &&
+      contains(github.event.head_commit.message, '[update-goldens]'))
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -249,13 +251,21 @@ jobs:
         run: mise exec -- flutter test --no-pub test/golden/
 
       - name: Generate golden screenshots
-        if: github.event_name == 'workflow_dispatch' && inputs.update_goldens == true
+        if: >-
+          (github.event_name == 'workflow_dispatch' &&
+          inputs.update_goldens == true) ||
+          (github.event_name == 'push' &&
+          contains(github.event.head_commit.message, '[update-goldens]'))
         run: >-
           mise exec -- flutter test --no-pub test/golden/
           --update-goldens
 
       - name: Upload generated golden screenshots
-        if: github.event_name == 'workflow_dispatch' && inputs.update_goldens == true
+        if: >-
+          (github.event_name == 'workflow_dispatch' &&
+          inputs.update_goldens == true) ||
+          (github.event_name == 'push' &&
+          contains(github.event.head_commit.message, '[update-goldens]'))
         uses: actions/upload-artifact@v7
         with:
           name: updated-goldens-${{ github.sha }}
