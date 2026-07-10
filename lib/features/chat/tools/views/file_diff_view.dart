@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/ui/diff/calculate_diff.dart';
 import 'package:happy_flutter/core/ui/diff/unified_diff_view.dart';
 
 /// Shared chrome for diff-rendering tool views.
@@ -65,6 +66,11 @@ class _FileDiffViewState extends State<FileDiffView> {
         ? 0
         : widget.newText.split('\n').length;
     final totalLines = oldLines + newLines;
+    // Badges show changed-line counts (GitHub +/- convention), not the
+    // total size of the old/new texts.
+    final stats = calculateUnifiedDiff(widget.oldText, widget.newText).stats;
+    final removedCount = widget.oldText.isEmpty ? 0 : stats.deletions;
+    final addedCount = widget.newText.isEmpty ? 0 : stats.additions;
     final isShort = totalLines <= widget.collapseThreshold;
     final show = isShort || _expanded;
 
@@ -81,8 +87,8 @@ class _FileDiffViewState extends State<FileDiffView> {
         children: [
           _FileDiffHeader(
             filePath: widget.filePath,
-            oldCount: oldLines,
-            newCount: newLines,
+            oldCount: removedCount,
+            newCount: addedCount,
             icon: widget.icon,
             copyText: widget.rawCopyText,
             onPathTap: widget.onPathTap,

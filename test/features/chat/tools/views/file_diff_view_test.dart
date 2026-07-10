@@ -31,6 +31,28 @@ void main() {
       expect(find.text('+1'), findsOneWidget);
     });
 
+    testWidgets('badges count changed lines, not total text size', (
+      tester,
+    ) async {
+      // 4-line texts sharing 3 unchanged lines: exactly 1 removed and
+      // 2 added lines. Total-size counting would show -4 +5.
+      await tester.pumpWidget(
+        _wrap(
+          const FileDiffView(
+            oldText: 'a\nb\nc\nd',
+            newText: 'a\nb2\nc\nd\ne',
+            filePath: 'lib/greeter.dart',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('-1'), findsOneWidget);
+      expect(find.text('+2'), findsOneWidget);
+      expect(find.text('-4'), findsNothing);
+      expect(find.text('+5'), findsNothing);
+    });
+
     testWidgets('shows diff inline when below collapse threshold', (
       tester,
     ) async {
