@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../../../core/utils/tool_error_parser.dart';
@@ -9,6 +11,40 @@ class ToolError extends StatelessWidget {
 
   /// The error message to display.
   final String message;
+
+  /// Extracts the useful message from structured tool results.
+  ///
+  /// Codex returns some errors as `{ "message": "..." }`; displaying the
+  /// map's Dart `toString()` makes that otherwise clear message harder to read.
+  static String messageFromResult(dynamic result) {
+    if (result is String) {
+      final decoded = _decodeJsonObject(result);
+      return decoded == null ? result : messageFromResult(decoded);
+    }
+
+    if (result is Map) {
+      for (final key in const ['message', 'error', 'output']) {
+        final value = result[key];
+        if (value is String && value.trim().isNotEmpty) return value;
+      }
+
+      for (final key in const ['result', 'error']) {
+        final value = result[key];
+        if (value is Map) return messageFromResult(value);
+      }
+    }
+
+    return result?.toString() ?? '';
+  }
+
+  static Map<Object?, Object?>? _decodeJsonObject(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      return decoded is Map ? decoded : null;
+    } on FormatException {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

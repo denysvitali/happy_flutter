@@ -755,7 +755,7 @@ class _ToolViewState extends ConsumerState<ToolView>
                 isPermissionNotDeniedOrCanceled(permission) &&
                 !(knownTool?.hideDefaultError ?? false) &&
                 !(errorResult?.isToolUseError ?? false))
-              ToolError(message: toolResult.toString()),
+              ToolError(message: ToolError.messageFromResult(toolResult)),
           ],
         ),
       );
@@ -811,14 +811,26 @@ class _ToolViewState extends ConsumerState<ToolView>
                 toolResult != null &&
                 isPermissionNotDeniedOrCanceled(permission) &&
                 !(errorResult?.isToolUseError ?? false))
-              ToolError(message: toolResult.toString()),
+              ToolError(message: ToolError.messageFromResult(toolResult)),
           ],
         ),
       );
     }
 
-    // Non-debug, no specific view, no MCP text: nothing to show inline.
-    // The user can long-press to open the full details.
+    // Unknown tools normally keep their raw payload in the details view, but
+    // an error needs an inline explanation even when debug mode is off.
+    if (state == ToolState.error &&
+        toolResult != null &&
+        isPermissionNotDeniedOrCanceled(permission) &&
+        !(errorResult?.isToolUseError ?? false)) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
+        child: ToolError(message: ToolError.messageFromResult(toolResult)),
+      );
+    }
+
+    // Non-debug, no specific view, no MCP text: nothing to show inline. The
+    // user can long-press to open the full details.
     return const _OpenDetailsHint();
   }
 

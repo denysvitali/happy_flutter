@@ -208,6 +208,26 @@ void main() {
   });
 
   group('ToolError', () {
+    testWidgets('renders a structured result message without JSON framing',
+        (tester) async {
+      const message =
+          'This session was recorded with model `gpt-5.6-sol` but is '
+          'resuming with `gpt-5.6-terra`.';
+
+      await tester.pumpWidget(
+        _wrap(
+          ToolError(
+            message: ToolError.messageFromResult(<String, dynamic>{
+              'message': message,
+            }),
+          ),
+        ),
+      );
+
+      expect(find.text(message), findsOneWidget);
+      expect(find.textContaining('{message:'), findsNothing);
+    });
+
     testWidgets('renders error message', (tester) async {
       await tester.pumpWidget(
         _wrap(
