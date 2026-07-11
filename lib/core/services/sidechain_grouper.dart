@@ -27,6 +27,33 @@ bool _isAgentContainerTool(Map<String, dynamic> m) {
 /// 3. Remove sidechain messages from main list, attach as children
 /// 4. Recursively regroup nested Task children
 class SidechainGrouper {
+  /// Returns both the normalized message id and ids embedded in the raw
+  /// Claude payload. Delivery envelopes can have different outer ids while
+  /// representing the same inner message.
+  Set<String> _messageIdentityKeys(Map<String, dynamic> message) {
+    final keys = <String>{};
+    void addString(Object? value) {
+      if (value is String && value.isNotEmpty) keys.add(value);
+    }
+
+    addString(message['id']);
+    addString(message['toolUseId']);
+    final nested = message['message'];
+    if (nested is Map) {
+      addString(nested['id']);
+    }
+    final content = message['content'];
+    if (content is List) {
+      for (final block in content) {
+        if (block is Map) {
+          addString(block['id']);
+          addString(block['tool_use_id']);
+        }
+      }
+    }
+    return keys;
+  }
+
   /// Groups sidechain messages into their parent Task tool-call
   /// messages.
   ///
@@ -454,14 +481,14 @@ class SidechainGrouper {
         final existingIds = <String>{};
         for (final c in existing) {
           if (c is Map<String, dynamic>) {
-            final id = c['id'] as String?;
-            if (id != null) existingIds.add(id);
+            existingIds.addAll(_messageIdentityKeys(c));
           }
         }
         for (final newChild in newChildren) {
-          final newId = newChild['id'] as String?;
-          if (newId == null || !existingIds.contains(newId)) {
+          final newKeys = _messageIdentityKeys(newChild);
+          if (newKeys.isEmpty || existingIds.intersection(newKeys).isEmpty) {
             existing.add(newChild);
+            existingIds.addAll(newKeys);
           }
         }
       } else {
@@ -675,14 +702,15 @@ class SidechainGrouper {
             final existingIds = <String>{};
             for (final c in existing) {
               if (c is Map<String, dynamic>) {
-                final id = c['id'] as String?;
-                if (id != null) existingIds.add(id);
+                existingIds.addAll(_messageIdentityKeys(c));
               }
             }
             for (final newChild in entry.value) {
-              final newId = newChild['id'] as String?;
-              if (newId == null || !existingIds.contains(newId)) {
+              final newKeys = _messageIdentityKeys(newChild);
+              if (newKeys.isEmpty ||
+                  existingIds.intersection(newKeys).isEmpty) {
                 existing.add(newChild);
+                existingIds.addAll(newKeys);
               }
             }
             regroupNestedTasks(

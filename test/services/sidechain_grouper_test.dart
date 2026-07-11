@@ -68,6 +68,48 @@ void main() {
       expect(result, isNull);
     });
 
+    test('deduplicates children with matching inner tool id', () {
+      final task = _taskMsg(
+        id: 'task-1',
+        uuid: 'task-uuid',
+        children: <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'old-envelope-id',
+            'uuid': 'old-uuid',
+            'isSidechain': true,
+            'content': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'tool_result',
+                'tool_use_id': 'toolu_same',
+              },
+            ],
+          },
+        ],
+      );
+      final root = _sidechainRoot(
+        id: 'root-1',
+        uuid: 'root-uuid',
+        parentUuid: 'task-uuid',
+      );
+      final duplicate = <String, dynamic>{
+        'id': 'new-envelope-id',
+        'uuid': 'new-uuid',
+        'parentUuid': 'root-uuid',
+        'isSidechain': true,
+        'content': <Map<String, dynamic>>[
+          <String, dynamic>{'type': 'tool_result', 'tool_use_id': 'toolu_same'},
+        ],
+      };
+
+      final result = grouper.groupMessages([task, root, duplicate]);
+
+      expect(result, isNotNull);
+      final children = (result!.messages.single['children'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(children, hasLength(1));
+      expect(children.single['id'], 'old-envelope-id');
+    });
+
     test('returns null when no Task tool-calls exist', () {
       final messages = [_textMsg(id: 'm1'), _textMsg(id: 'm2')];
       final result = grouper.groupMessages(messages);
