@@ -362,9 +362,10 @@ class TtsService {
     final chunks = <String>[];
     var remaining = clean;
     while (remaining.length > maxChars) {
-      final sentenceBoundary =
-          remaining.lastIndexOf(RegExp(r'[.!?]\s'), maxChars);
-      var splitAt = sentenceBoundary >= 0
+      // Start offline playback after the next complete sentence instead of
+      // waiting to fill the whole character budget.
+      final sentenceBoundary = remaining.indexOf(RegExp(r'[.!?]\s'));
+      var splitAt = sentenceBoundary >= 0 && sentenceBoundary < maxChars
           ? sentenceBoundary + 1
           : remaining.lastIndexOf(RegExp(r'\s'), maxChars);
       if (splitAt <= 0) splitAt = maxChars;
