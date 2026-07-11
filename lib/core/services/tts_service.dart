@@ -362,12 +362,11 @@ class TtsService {
     final chunks = <String>[];
     var remaining = clean;
     while (remaining.length > maxChars) {
-      var splitAt = remaining.lastIndexOf(RegExp(r'[.!?]\s'), maxChars);
-      if (splitAt >= maxChars ~/ 2) {
-        splitAt += 1;
-      } else {
-        splitAt = remaining.lastIndexOf(RegExp(r'\s'), maxChars);
-      }
+      final sentenceBoundary =
+          remaining.lastIndexOf(RegExp(r'[.!?]\s'), maxChars);
+      var splitAt = sentenceBoundary >= 0
+          ? sentenceBoundary + 1
+          : remaining.lastIndexOf(RegExp(r'\s'), maxChars);
       if (splitAt <= 0) splitAt = maxChars;
       chunks.add(remaining.substring(0, splitAt).trim());
       remaining = remaining.substring(splitAt).trimLeft();
