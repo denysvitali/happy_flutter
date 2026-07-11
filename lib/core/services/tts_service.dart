@@ -361,18 +361,26 @@ class TtsService {
 
     final chunks = <String>[];
     var remaining = clean;
-    while (remaining.length > maxChars) {
+    while (remaining.isNotEmpty) {
       // Start offline playback after the next complete sentence instead of
       // waiting to fill the whole character budget.
       final sentenceBoundary = remaining.indexOf(RegExp(r'[.!?]\s'));
-      var splitAt = sentenceBoundary >= 0 && sentenceBoundary < maxChars
-          ? sentenceBoundary + 1
-          : remaining.lastIndexOf(RegExp(r'\s'), maxChars);
+      if (sentenceBoundary >= 0 && sentenceBoundary < maxChars) {
+        final splitAt = sentenceBoundary + 1;
+        chunks.add(remaining.substring(0, splitAt).trim());
+        remaining = remaining.substring(splitAt).trimLeft();
+        continue;
+      }
+      if (remaining.length <= maxChars) {
+        chunks.add(remaining);
+        break;
+      }
+
+      var splitAt = remaining.lastIndexOf(RegExp(r'\s'), maxChars);
       if (splitAt <= 0) splitAt = maxChars;
       chunks.add(remaining.substring(0, splitAt).trim());
       remaining = remaining.substring(splitAt).trimLeft();
     }
-    if (remaining.isNotEmpty) chunks.add(remaining);
     return chunks;
   }
 
