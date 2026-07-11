@@ -102,6 +102,10 @@ class TtsService {
       );
     } finally {
       _draining = false;
+      // Offline speech awaits playback completion before returning, so its
+      // token may already be clear by the time we leave this drain cycle.
+      // Schedule the next chunk/request explicitly in that case.
+      _maybeDrainQueue();
     }
   }
 
@@ -328,23 +332,48 @@ class TtsService {
     String? offlineVoiceId,
   }) async {
     _attachSelfListenerIfNeeded();
-    if (_currentToken.value == null && _queue.isEmpty) {
-      return _speakInternal(
-        markdown,
-        token: token,
-        useOffline: useOffline,
-        offlineVoiceId: offlineVoiceId,
-      );
-    }
-    _queue.add(
-      _QueuedSpeech(
-        markdown: markdown,
-        token: token,
-        useOffline: useOffline,
-        offlineVoiceId: offlineVoiceId,
+    final chunks = useOffline ? splitForSpeech(markdown) : <String>[markdown];
+    _queue.addAll(
+      chunks.map(
+        (chunk) => _QueuedSpeech(
+          markdown: chunk,
+          token: token,
+          useOffline: useOffline,
+          offlineVoiceId: offlineVoiceId,
+        ),
       ),
     );
-    logger.info('[TTS] enqueued speech (queue size=${_queue.length})');
+    logger.info(
+      '[TTS] enqueued ${chunks.length} speech chunk(s) '
+      '(queue size=${_queue.length})',
+    );
+    if (_currentToken.value == null) {
+      await _drainQueue();
+    }
+  }
+
+  /// Splits long text at natural boundaries so offline synthesis can begin
+  /// playing the first section without generating the entire response.
+  @visibleForTesting
+  static List<String> splitForSpeech(String text, {int maxChars = 700}) {
+    final clean = text.trim();
+    if (clean.isEmpty || clean.length <= maxChars) return <String>[clean];
+
+    final chunks = <String>[];
+    var remaining = clean;
+    while (remaining.length > maxChars) {
+      var splitAt = remaining.lastIndexOf(RegExp(r'[.!?]\s'), maxChars);
+      if (splitAt >= maxChars ~/ 2) {
+        splitAt += 1;
+      } else {
+        splitAt = remaining.lastIndexOf(RegExp(r'\s'), maxChars);
+      }
+      if (splitAt <= 0) splitAt = maxChars;
+      chunks.add(remaining.substring(0, splitAt).trim());
+      remaining = remaining.substring(splitAt).trimLeft();
+    }
+    if (remaining.isNotEmpty) chunks.add(remaining);
+    return chunks;
   }
 
   Future<void> _speakInternal(

@@ -22,6 +22,7 @@ import '../../core/services/logger_service.dart' show LogLevel, logger;
 import '../../core/services/message_cache_service.dart';
 import '../../core/services/opentelemetry_service.dart';
 import '../../core/services/performance_context_service.dart';
+import '../../core/services/screen_awake_service.dart';
 import '../../core/services/session_activity_coordinator.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
@@ -201,6 +202,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // stream without producing a new visible message; the status chips use
   // this to show "Working on sub-tasks" when the thinking flag is stale.
   int _lastMessageStreamActivityAt = 0;
+  Timer? _screenAwakeReleaseTimer;
   static const int _pageSize = 50;
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
@@ -300,6 +302,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     PerformanceContextService().routeListenable.addListener(_routeListener);
     _scrollController.addListener(_onScroll);
     _loadInitialSettings();
+    TtsService().currentToken.addListener(_updateScreenAwake);
 
     // ── Local-first: Load cached messages instantly (0ms delay) ──
     final cached = MessageCacheService().getMessages(widget.sessionId);
@@ -371,6 +374,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void dispose() {
     PerformanceContextService().routeListenable.removeListener(_routeListener);
+    TtsService().currentToken.removeListener(_updateScreenAwake);
+    _screenAwakeReleaseTimer?.cancel();
+    unawaited(ScreenAwakeService().setEnabled(false));
     _loadingSafetyTimer?.cancel();
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
@@ -400,6 +406,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (!mounted) return;
           if (!_isChatRouteActive) return;
           _lastMessageStreamActivityAt = DateTime.now().millisecondsSinceEpoch;
+          _updateScreenAwake();
           ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
           // Debounce: streaming agents emit many message-changed events per
           // second. Immediate setState each time janks the UI; 50ms is under
@@ -469,6 +476,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _handleRouteChanged() {
+    _updateScreenAwake();
     if (!mounted || !_isChatRouteActive) return;
     ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
     _refreshFromSync();
@@ -692,6 +700,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         );
       }
+    }
+    _updateScreenAwake();
+  }
+
+  void _updateScreenAwake() {
+    if (!mounted) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final recentlyReceiving =
+        _lastMessageStreamActivityAt > 0 &&
+        now - _lastMessageStreamActivityAt < 10000;
+    final sessionWorking =
+        (_session?.active ?? false) &&
+        ((_session?.thinking ?? false) || recentlyReceiving);
+    final shouldStayAwake =
+        _isChatRouteActive && (sessionWorking || TtsService().isSpeaking);
+    unawaited(ScreenAwakeService().setEnabled(shouldStayAwake));
+
+    _screenAwakeReleaseTimer?.cancel();
+    if (shouldStayAwake &&
+        recentlyReceiving &&
+        !(_session?.thinking ?? false) &&
+        !TtsService().isSpeaking) {
+      final remaining = 10000 - (now - _lastMessageStreamActivityAt);
+      _screenAwakeReleaseTimer = Timer(
+        Duration(milliseconds: remaining.clamp(1, 10000)),
+        _updateScreenAwake,
+      );
     }
   }
 

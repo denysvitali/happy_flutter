@@ -2,12 +2,14 @@ package com.example.happy_flutter
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.happy_flutter/deep_links"
+    private val screenAwakeChannel = "com.example.happy_flutter/screen_awake"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -24,6 +26,19 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, screenAwakeChannel)
+            .setMethodCallHandler { call, result ->
+                if (call.method != "setEnabled") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                if (call.arguments == true) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+                result.success(null)
+            }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

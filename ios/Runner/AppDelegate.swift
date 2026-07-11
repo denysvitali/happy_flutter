@@ -5,6 +5,7 @@ import UIKit
 @objc class AppDelegate: FlutterAppDelegate {
   private let channelName = "com.example.happy_flutter/deep_links"
   private var deepLinkChannel: FlutterMethodChannel?
+  private var screenAwakeChannel: FlutterMethodChannel?
   private var initialDeepLink: String?
 
   override func application(
@@ -23,6 +24,18 @@ import UIKit
       deepLinkChannel?.setMethodCallHandler { [weak self] call, result in
         if call.method == "getInitialDeepLink" {
           result(self?.initialDeepLink)
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
+      }
+      screenAwakeChannel = FlutterMethodChannel(
+        name: "com.example.happy_flutter/screen_awake",
+        binaryMessenger: controller.binaryMessenger
+      )
+      screenAwakeChannel?.setMethodCallHandler { call, result in
+        if call.method == "setEnabled", let enabled = call.arguments as? Bool {
+          UIApplication.shared.isIdleTimerDisabled = enabled
+          result(nil)
         } else {
           result(FlutterMethodNotImplemented)
         }
