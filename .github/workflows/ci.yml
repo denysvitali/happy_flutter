@@ -556,27 +556,6 @@ jobs:
           path: build/debug-info/
           retention-days: 90
 
-      - name: Determine release version
-        id: release_version
-        run: |
-          SEMVER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1 | tr -d ' ')
-          RELEASE_TAG="v${SEMVER}-${{ steps.build_meta.outputs.BUILD_NUMBER }}"
-          echo "SEMVER=$SEMVER" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.release_version.outputs.RELEASE_TAG }}
-          name: Happy Flutter ${{ steps.release_version.outputs.RELEASE_TAG }}
-          draft: false
-          prerelease: false
-          generate_release_notes: false
-          files: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-linux:
     name: Build Linux x64
     runs-on: ubuntu-latest
@@ -584,7 +563,8 @@ jobs:
     if: |
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
-      startsWith(github.ref, 'refs/tags/v')
+      startsWith(github.ref, 'refs/tags/v') ||
+      github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout repository
@@ -638,6 +618,60 @@ jobs:
           name: happy-flutter-linux-x64-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
           path: happy-flutter-linux-x64.tar.gz
           retention-days: 14
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-release, build-linux]
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Compute build metadata
+        id: build_meta
+        run: |
+          BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Determine release version
+        id: release_version
+        run: |
+          SEMVER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1 | tr -d ' ')
+          RELEASE_TAG="v${SEMVER}-${{ steps.build_meta.outputs.BUILD_NUMBER }}"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Download release APK
+        uses: actions/download-artifact@v8
+        with:
+          name: happy-flutter-release-${{ github.event.inputs.flavor || 'production' }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: release-assets
+
+      - name: Download Linux x64 bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: happy-flutter-linux-x64-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: release-assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.release_version.outputs.RELEASE_TAG }}
+          name: Happy Flutter ${{ steps.release_version.outputs.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          files: |
+            release-assets/app-${{ github.event.inputs.flavor || 'production' }}-release.apk
+            release-assets/happy-flutter-linux-x64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-web:
     name: Build Web
