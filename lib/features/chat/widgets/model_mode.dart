@@ -174,6 +174,7 @@ class ChatModelMode {
   static List<ChatModelMode> availableForProfile({
     required String? flavor,
     required bool claudeCompatible,
+    bool allowClaudeAliases = true,
     List<ChatModelMode>? codexModels,
   }) {
     if (flavor == 'codex') {
@@ -182,7 +183,7 @@ class ChatModelMode {
           : codexModels;
     }
     final baseModels = availableForFlavor(flavor);
-    if (claudeCompatible) return baseModels;
+    if (claudeCompatible && allowClaudeAliases) return baseModels;
     // Provider-owned model selection uses the selected backend profile.
     return const [defaultModel];
   }

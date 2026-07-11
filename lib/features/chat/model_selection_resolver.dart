@@ -183,6 +183,19 @@ bool profileOwnsRawCodexModel(AIBackendProfile? profile) {
   return baseUrl != null && !_isOfficialOpenAIBaseUrl(baseUrl);
 }
 
+bool profileUsesThirdPartyAnthropicBaseUrl(AIBackendProfile? profile) {
+  if (profile == null || !profile.compatibility.claude) return false;
+  final baseUrl =
+      profile.anthropicConfig?.baseUrl ??
+      _envValue(profile, 'ANTHROPIC_BASE_URL');
+  if (baseUrl == null) return false;
+  final host = Uri.tryParse(baseUrl)?.host.toLowerCase();
+  return host != null &&
+      host.isNotEmpty &&
+      host != 'api.anthropic.com' &&
+      !host.endsWith('.anthropic.com');
+}
+
 /// Resolves the model label shown as current session status.
 ///
 /// This intentionally does not normalize by session flavor. The picker uses

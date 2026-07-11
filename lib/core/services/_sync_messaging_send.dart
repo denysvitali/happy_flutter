@@ -398,6 +398,10 @@ extension SyncMessagingSend on Sync {
       }
       final response = await apiClient.post(
         '/v3/sessions/$targetSessionId/messages',
+        options: Options(
+          sendTimeout: Sync._messageSendTimeout,
+          receiveTimeout: Sync._messageSendTimeout,
+        ),
         data: {
           'messages': [
             {'content': encryptedRawRecord, 'localId': localId},
@@ -783,6 +787,10 @@ extension SyncMessagingSend on Sync {
     try {
       response = await apiClient.post(
         '/v3/sessions/${entry.sessionId}/messages',
+        options: Options(
+          sendTimeout: Sync._messageSendTimeout,
+          receiveTimeout: Sync._messageSendTimeout,
+        ),
         data: {
           'messages': [
             {'content': entry.encryptedContent, 'localId': entry.localId},

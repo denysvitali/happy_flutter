@@ -317,12 +317,41 @@ void main() {
       expect(result.resolvedRawModelString, 'opus:high');
     });
   });
+
+  group('third-party Anthropic profiles', () {
+    test('detects custom base URLs and hides Claude aliases', () {
+      final profile = _profile(
+        id: 'kimi',
+        anthropicConfig: AnthropicConfig(baseUrl: 'https://api.kimi.com'),
+      );
+
+      expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isTrue);
+      expect(
+        ChatModelMode.availableForProfile(
+          flavor: 'claude',
+          claudeCompatible: true,
+          allowClaudeAliases: !profileUsesThirdPartyAnthropicBaseUrl(profile),
+        ),
+        const [ChatModelMode.defaultModel],
+      );
+    });
+
+    test('keeps Claude aliases for the official endpoint', () {
+      final profile = _profile(
+        id: 'anthropic',
+        anthropicConfig: AnthropicConfig(baseUrl: 'https://api.anthropic.com'),
+      );
+
+      expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isFalse);
+    });
+  });
 }
 
 AIBackendProfile _profile({
   required String id,
   String? defaultModelMode,
   String? defaultPermissionMode,
+  AnthropicConfig? anthropicConfig,
   ProfileCompatibility compatibility = const ProfileCompatibility(),
 }) {
   return AIBackendProfile(
@@ -330,6 +359,7 @@ AIBackendProfile _profile({
     name: id,
     defaultModelMode: defaultModelMode,
     defaultPermissionMode: defaultPermissionMode,
+    anthropicConfig: anthropicConfig,
     compatibility: compatibility,
   );
 }

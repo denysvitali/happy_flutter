@@ -32,6 +32,10 @@ void main() {
       expect(messagesApi, contains(r'/v3/sessions/$sessionId/messages'));
       expect(messagesApi, contains("'localId': ?localId"));
       expect(messagesApi, contains("localId: serverMsg['localId'] as String?"));
+
+      final sendPath = _read('lib/core/services/_sync_messaging_send.dart');
+      expect(sendPath, contains('sendTimeout: Sync._messageSendTimeout'));
+      expect(sendPath, contains('receiveTimeout: Sync._messageSendTimeout'));
       expect(
         goSessionsProto,
         contains('post: "/v3/sessions/{session_id}/messages"'),

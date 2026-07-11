@@ -1187,6 +1187,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final availableModels = ChatModelMode.availableForProfile(
       flavor: _session?.metadata?.flavor,
       claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
+      allowClaudeAliases: !profileUsesThirdPartyAnthropicBaseUrl(
+        _selectedProfile,
+      ),
       codexModels: _codexModelModes,
     );
 

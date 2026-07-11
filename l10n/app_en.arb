@@ -125,6 +125,7 @@
   "newSessionNoMachinesFound": "No machines found. Start a Happy session on your computer first.",
   "newSessionAllMachinesOffline": "All machines appear offline",
   "newSessionMachineUnreachable": "Machine is unreachable. Make sure the Happy daemon is running and try again.",
+  "newSessionDaemonOutdated": "This machine's Happy daemon is outdated. Update Happy on the machine, restart the daemon, and try again.",
   "newSessionCouldNotStartSession": "Could not start session. Please try again.",
   "newSessionMachineDetails": "View machine details →",
   "newSessionDirectoryDoesNotExist": "Directory Not Found",

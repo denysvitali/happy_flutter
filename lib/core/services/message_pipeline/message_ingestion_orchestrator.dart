@@ -285,6 +285,13 @@ extension SyncMessagePipeline on Sync {
           // production Loki (debug logs are not forwarded outside dev mode).
           level: LogLevel.warning,
         );
+        // Refresh the session catalogue as well as messages. The catalogue
+        // response carries the encrypted DEK, so retrying only messages can
+        // loop forever with the same missing decryptor. Recovery is
+        // rate-limited per session to avoid hammering the server when key
+        // material is permanently unavailable.
+        await _recoverSessionEncryption(sessionId);
+        sessionsSync.invalidate();
         messagesSync[sessionId]?.invalidate();
         if (emitSessionNotification) {
           _notifySessionMessagesChanged(sessionId);

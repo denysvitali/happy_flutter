@@ -682,6 +682,12 @@ abstract class AppLocalizations {
   /// **'Machine is unreachable. Make sure the Happy daemon is running and try again.'**
   String get newSessionMachineUnreachable;
 
+  /// No description provided for @newSessionDaemonOutdated.
+  ///
+  /// In en, this message translates to:
+  /// **'This machine\'s Happy daemon is outdated. Update Happy on the machine, restart the daemon, and try again.'**
+  String get newSessionDaemonOutdated;
+
   /// No description provided for @newSessionCouldNotStartSession.
   ///
   /// In en, this message translates to:

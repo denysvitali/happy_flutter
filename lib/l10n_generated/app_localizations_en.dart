@@ -338,6 +338,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Machine is unreachable. Make sure the Happy daemon is running and try again.';
 
   @override
+  String get newSessionDaemonOutdated =>
+      'This machine\'s Happy daemon is outdated. Update Happy on the machine, restart the daemon, and try again.';
+
+  @override
   String get newSessionCouldNotStartSession =>
       'Could not start session. Please try again.';
 

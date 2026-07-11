@@ -181,6 +181,7 @@ class Sync {
   static const int _maxBackgroundSessionMessages = 200;
   static const Duration _messageFetchConnectTimeout = Duration(seconds: 8);
   static const Duration _messageFetchReceiveTimeout = Duration(seconds: 8);
+  static const Duration _messageSendTimeout = Duration(seconds: 8);
 
   /// Default throttle between consecutive orphan-recovery fetchOlder
   /// attempts. Reduced from 60s to 15s so users see recovery within

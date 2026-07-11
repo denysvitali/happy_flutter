@@ -226,6 +226,16 @@ void main() {
         l10n.newSessionCouldNotStartSession,
       );
     });
+
+    test('maps stale daemon agent errors to an update instruction', () {
+      expect(
+        newSessionCreateErrorMessage(
+          l10n: l10n,
+          error: StateError('unknown agent "grok"'),
+        ),
+        l10n.newSessionDaemonOutdated,
+      );
+    });
   });
 
   group('NewSessionDialog offline guard', () {

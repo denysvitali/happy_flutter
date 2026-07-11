@@ -66,6 +66,11 @@ String newSessionCreateErrorMessage({
     // instead of the raw technical error string.
     return l10n.newSessionCouldNotStartSession;
   }
+  if (errorText.contains('unknown agent') ||
+      errorText.contains('daemon too old') ||
+      errorText.contains('daemon outdated')) {
+    return l10n.newSessionDaemonOutdated;
+  }
   if (error is StateError && error.message.trim().isNotEmpty) {
     return error.message;
   }
