@@ -609,6 +609,9 @@ jobs:
 
       - name: Bundle release archive
         run: |
+          cp scripts/install-linux.sh assets/icon/app_icon.png \
+            build/linux/x64/release/bundle/
+          chmod +x build/linux/x64/release/bundle/install-linux.sh
           cd build/linux/x64/release/bundle
           tar -czf ../../../../../happy-flutter-linux-x64.tar.gz .
 

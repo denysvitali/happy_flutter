@@ -123,6 +123,19 @@ mise exec -- flutter build apk --release --flavor production
 mise exec -- flutter build ios --release
 ```
 
+### Install the Linux release
+
+Download and extract the `happy-flutter-linux-x64.tar.gz` asset from a GitHub
+Release, then run the included installer:
+
+```bash
+tar -xzf happy-flutter-linux-x64.tar.gz
+./install-linux.sh
+```
+
+This installs the app under `~/.local/share/happy_flutter`, provides
+`~/.local/bin/happy_flutter`, and adds it to desktop launchers.
+
 ## Project Structure
 
 ### Design Tokens
