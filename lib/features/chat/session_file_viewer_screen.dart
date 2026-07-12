@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,19 @@ import 'syntax_highlighter.dart';
 /// Whether [extension] (without dot) is a markdown file.
 bool _isMarkdown(String extension) =>
     extension == 'md' || extension == 'markdown' || extension == 'mdx';
+
+/// Raster formats Flutter can decode natively via [Image.memory].
+const Set<String> _imageExtensions = {
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'bmp',
+};
+
+/// Whether [extension] (without dot) is a renderable image file.
+bool _isImage(String extension) => _imageExtensions.contains(extension);
 
 /// Extracts the file extension (lowercase, without dot) from [path].
 String _extensionOf(String path) {
@@ -69,6 +83,7 @@ class SessionFileViewerScreen extends ConsumerStatefulWidget {
 class _SessionFileViewerScreenState
     extends ConsumerState<SessionFileViewerScreen> {
   String? _content;
+  Uint8List? _imageBytes;
   int _lineCount = 0;
   String? _error;
   bool _loading = false;
@@ -91,8 +106,13 @@ class _SessionFileViewerScreenState
     _vController = ScrollController();
     _hController = ScrollController();
     if (widget.content != null && widget.content!.isNotEmpty) {
-      _content = widget.content;
-      _lineCount = '\n'.allMatches(widget.content!).length + 1;
+      if (_isImageFile) {
+        _imageBytes = _tryBase64DecodeBytes(widget.content!);
+      }
+      if (_imageBytes == null) {
+        _content = widget.content;
+        _lineCount = '\n'.allMatches(widget.content!).length + 1;
+      }
     } else {
       _fetchFile();
     }
@@ -133,6 +153,16 @@ class _SessionFileViewerScreenState
 
       if (response.success) {
         // The daemon returns base64-encoded content.
+        if (_isImageFile) {
+          final bytes = _tryBase64DecodeBytes(response.content);
+          if (bytes != null) {
+            setState(() {
+              _imageBytes = bytes;
+              _loading = false;
+            });
+            return;
+          }
+        }
         final decoded = _tryBase64Decode(response.content);
         setState(() {
           _content = decoded;
@@ -157,6 +187,16 @@ class _SessionFileViewerScreenState
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  /// Attempts base64 decoding to raw bytes; returns null when [input] is
+  /// not valid base64 (so callers can fall back to the text path).
+  static Uint8List? _tryBase64DecodeBytes(String input) {
+    try {
+      return base64Decode(input.trim());
+    } catch (_) {
+      return null;
     }
   }
 
@@ -186,6 +226,8 @@ class _SessionFileViewerScreenState
   }
 
   bool get _isMd => _isMarkdown(_extensionOf(widget.path));
+
+  bool get _isImageFile => _isImage(_extensionOf(widget.path));
 
   Future<void> _copyToClipboard() async {
     if (_content == null) return;
@@ -285,6 +327,11 @@ class _SessionFileViewerScreenState
       );
     }
 
+    // Image files render as a zoomable picture instead of raw bytes.
+    if (_imageBytes != null) {
+      return _ImageView(bytes: _imageBytes!);
+    }
+
     if (_content == null || _content!.isEmpty) {
       return AppEmptyState(
         icon: Icons.description_outlined,
@@ -358,6 +405,37 @@ class _SessionFileViewerScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Zoomable image pane for image files (PNG, JPEG, GIF, WebP, BMP).
+class _ImageView extends StatelessWidget {
+  const _ImageView({required this.bytes});
+
+  final Uint8List bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      maxScale: 8,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+            errorBuilder: (context, error, stackTrace) {
+              return const AppEmptyState(
+                icon: Icons.broken_image_outlined,
+                title: 'Could not display image',
+                subtitle: 'The file is not a valid or supported image.',
+              );
+            },
+          ),
+        ),
       ),
     );
   }
