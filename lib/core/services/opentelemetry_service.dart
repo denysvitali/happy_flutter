@@ -57,46 +57,23 @@ class OpenTelemetryService {
 
   NavigatorObserver get routeObserver => _routeObserver;
 
-  // The OTel package does not ship a `currentContext` / `setActiveContext`
-  // helper, so we maintain a single-threaded "current span" pointer
-  // ourselves. The HTTP interceptor reads it to parent its outbound
-  // request span under the active trace (e.g. chat.send_message), and
-  // sub-agent / socket handlers do the same.
-  //
-  // Safe under Dart's event-loop model: callers must bracket any region
-  // where they want this set with [pushCurrentSpan] / [popCurrentSpan]
-  // (typically via [withActiveSpan]). Nested regions stack correctly.
-  final List<OTelSpan> _currentSpanStack = <OTelSpan>[];
+  static final Object _activeSpanZoneKey = Object();
 
-  /// Returns the currently-active OTel span, or null when no span is
-  /// active on this isolate.
-  OTelSpan? get currentSpan =>
-      _currentSpanStack.isEmpty ? null : _currentSpanStack.last;
-
-  /// Push [span] onto the active span stack. The previously-active
-  /// span (if any) is restored when [popCurrentSpan] is called.
-  void pushCurrentSpan(OTelSpan span) {
-    _currentSpanStack.add(span);
-  }
-
-  /// Pop the most recently pushed active span. Returns the span that
-  /// was popped so callers can end it before/after the pop.
-  OTelSpan? popCurrentSpan() {
-    if (_currentSpanStack.isEmpty) return null;
-    return _currentSpanStack.removeLast();
-  }
+  /// Returns the span active in the current asynchronous execution context.
+  ///
+  /// A Zone value is used instead of an isolate-global stack so concurrent
+  /// futures cannot accidentally parent each other's HTTP or socket spans.
+  OTelSpan? get currentSpan => Zone.current[_activeSpanZoneKey] as OTelSpan?;
 
   /// Run [body] with [span] set as the active span on this isolate.
   /// The previous active span (if any) is restored on return, even
   /// when [body] throws. The returned [Future] completes when [body]
   /// completes.
   Future<T> withActiveSpan<T>(OTelSpan span, Future<T> Function() body) async {
-    pushCurrentSpan(span);
-    try {
-      return await body();
-    } finally {
-      popCurrentSpan();
-    }
+    return runZoned(
+      body,
+      zoneValues: <Object, Object>{_activeSpanZoneKey: span},
+    );
   }
 
   @visibleForTesting

@@ -213,89 +213,86 @@ extension SyncSocketEvents on Sync {
               if (payload['id'] is String) 'entity.id': payload['id'] as String,
             },
           );
-    // Make the socket span the active span so downstream spans
-    // (sync.on_data_changed, subagent.spawn, ingestFromSocket's
-    // internal spans) chain as descendants. Pop in `finally`.
-    if (socketSpan != null) {
-      OpenTelemetryService().pushCurrentSpan(socketSpan);
-    }
+    Future<void> processUpdate() async {
+      ApiUpdate? update;
+      try {
+        update = ApiUpdate.fromJson(payload);
 
-    ApiUpdate? update;
-    try {
-      update = ApiUpdate.fromJson(payload);
-
-      // Skip Sentry breadcrumbs for high-frequency streaming events.
-      // new-message arrives at 10-50/sec during AI responses — recording
-      // each one floods Sentry's ring buffer and wastes allocations.
-      if (update.type != 'new-message') {
-        unawaited(
-          Sentry.addBreadcrumb(
-            Breadcrumb(
-              message: 'sync update: ${update.type}',
-              category: 'sync.update',
-              level: SentryLevel.info,
-              data: <String, dynamic>{
-                'type': update.type,
-                if (update.data['sid'] is String)
-                  'sessionId': update.data['sid'] as String,
-                if (update.data['id'] is String)
-                  'entityId': update.data['id'] as String,
-              },
+        // Skip Sentry breadcrumbs for high-frequency streaming events.
+        // new-message arrives at 10-50/sec during AI responses — recording
+        // each one floods Sentry's ring buffer and wastes allocations.
+        if (update.type != 'new-message') {
+          unawaited(
+            Sentry.addBreadcrumb(
+              Breadcrumb(
+                message: 'sync update: ${update.type}',
+                category: 'sync.update',
+                level: SentryLevel.info,
+                data: <String, dynamic>{
+                  'type': update.type,
+                  if (update.data['sid'] is String)
+                    'sessionId': update.data['sid'] as String,
+                  if (update.data['id'] is String)
+                    'entityId': update.data['id'] as String,
+                },
+              ),
             ),
-          ),
-        );
-      }
+          );
+        }
 
-      switch (update.type) {
-        case 'new-message':
-          _handleNewMessage(update.data);
-          break;
-        case 'new-session':
-          _handleNewSession(update.data);
-          break;
-        case 'delete-session':
-          _handleDeleteSession(update.data);
-          break;
-        case 'archive-session':
-          _handleArchiveSession(update.data);
-          break;
-        case 'update-session':
-          _handleUpdateSession(update.data);
-          break;
-        case 'update-account':
-          _handleUpdateAccount(update.data);
-          break;
-        case 'update-machine':
-          _handleUpdateMachine(update.data);
-          break;
-        case 'new-artifact':
-          _handleNewArtifact(update.data);
-          break;
-        case 'update-artifact':
-          _handleUpdateArtifact(update.data);
-          break;
-        case 'delete-artifact':
-          _handleDeleteArtifact(update.data);
-          break;
-        case 'loops-updated':
-          _handleLoopsUpdated(update.data);
-          break;
-        case 'loop-fired':
-          _handleLoopFired(update.data);
-          break;
-        case 'loop-expired':
-          _handleLoopExpired(update.data);
-          break;
+        switch (update.type) {
+          case 'new-message':
+            _handleNewMessage(update.data);
+            break;
+          case 'new-session':
+            _handleNewSession(update.data);
+            break;
+          case 'delete-session':
+            _handleDeleteSession(update.data);
+            break;
+          case 'archive-session':
+            _handleArchiveSession(update.data);
+            break;
+          case 'update-session':
+            _handleUpdateSession(update.data);
+            break;
+          case 'update-account':
+            _handleUpdateAccount(update.data);
+            break;
+          case 'update-machine':
+            _handleUpdateMachine(update.data);
+            break;
+          case 'new-artifact':
+            _handleNewArtifact(update.data);
+            break;
+          case 'update-artifact':
+            _handleUpdateArtifact(update.data);
+            break;
+          case 'delete-artifact':
+            _handleDeleteArtifact(update.data);
+            break;
+          case 'loops-updated':
+            _handleLoopsUpdated(update.data);
+            break;
+          case 'loop-fired':
+            _handleLoopFired(update.data);
+            break;
+          case 'loop-expired':
+            _handleLoopExpired(update.data);
+            break;
+        }
+      } catch (error, stack) {
+        logger.error('Failed to handle update', error, stack);
+        socketSpan?.recordError(error, stack);
       }
-    } catch (error, stack) {
-      logger.error('Failed to handle update', error, stack);
-      socketSpan?.recordError(error, stack);
-    } finally {
-      if (socketSpan != null) {
-        OpenTelemetryService().popCurrentSpan();
-      }
-      socketSpan?.end(ok: true);
     }
+
+    if (socketSpan == null) {
+      await processUpdate();
+    } else {
+      await OpenTelemetryService().withActiveSpan(socketSpan, processUpdate);
+    }
+    socketSpan?.end(ok: true);
   }
 
   /// Socket payloads can arrive as a single-element list depending on the

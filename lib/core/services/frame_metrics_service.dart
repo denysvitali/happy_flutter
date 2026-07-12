@@ -20,6 +20,7 @@ class FrameMetricsService {
   static final FrameMetricsService instance = FrameMetricsService._();
 
   bool _attached = false;
+  bool _enableSentryTransactions = false;
   Timer? _flushTimer;
 
   /// Ring buffer of recent janky frame durations (ms).
@@ -51,7 +52,8 @@ class FrameMetricsService {
   int get debugFrozenFrameCount => _frozenFrameCount;
 
   /// Attach to [SchedulerBinding] frame timing callbacks.
-  void attach() {
+  void attach({bool enableSentryTransactions = false}) {
+    _enableSentryTransactions = enableSentryTransactions;
     if (_attached) return;
     _attached = true;
 
@@ -154,17 +156,19 @@ class FrameMetricsService {
     final avgMs = snapshot.reduce((a, b) => a + b) / snapshot.length;
     final maxMs = snapshot.reduce((a, b) => a > b ? a : b);
 
-    final transaction =
-        Sentry.startTransaction('ui.jank', 'ui.frame', bindToScope: false)
-          ..setData('count', snapshot.length)
-          ..setData('avgMs', avgMs.round())
-          ..setData('maxMs', maxMs)
-          ..setData(
-            'currentRoute',
-            PerformanceContextService().currentRoute ?? 'unknown',
-          );
+    if (_enableSentryTransactions) {
+      final transaction =
+          Sentry.startTransaction('ui.jank', 'ui.frame', bindToScope: false)
+            ..setData('count', snapshot.length)
+            ..setData('avgMs', avgMs.round())
+            ..setData('maxMs', maxMs)
+            ..setData(
+              'currentRoute',
+              PerformanceContextService().currentRoute ?? 'unknown',
+            );
 
-    unawaited(transaction.finish());
+      unawaited(transaction.finish());
+    }
 
     OpenTelemetryService()
         .startTrace(

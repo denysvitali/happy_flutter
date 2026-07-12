@@ -136,10 +136,12 @@ Future<void> _runApp() async {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     _firstFrameDuration ??= _coldStartStopwatch.elapsed;
     unawaited(_deferredInit());
-    // Start tracking janky frames for Sentry/GlitchTip visibility.
-    if (sentryEnableFrameMetrics && sentryTracesSampleRate > 0) {
-      FrameMetricsService.instance.attach();
-    }
+    // Aggregate UI frame metrics for OTel. Frozen-frame Sentry transactions
+    // remain independently controlled by the Sentry sampling configuration.
+    FrameMetricsService.instance.attach(
+      enableSentryTransactions:
+          sentryEnableFrameMetrics && sentryTracesSampleRate > 0,
+    );
   });
 
   final startupServicesFuture = () async {
@@ -246,8 +248,9 @@ Future<void> _deferredInit() async {
   }();
   OpenTelemetryService().setTrustedCertificatesFuture(userCertificatesFuture);
 
-  // OpenTelemetry — OTLP/HTTP tracer init starts before first frame so
-  // auth and initial sync requests can join the same mobile/server trace.
+  // OpenTelemetry starts after first frame to keep SDK initialization off the
+  // startup critical path. Startup timings captured above are recorded once
+  // initialization completes.
   futures.add(() async {
     final otelSpan = transaction.startChild(
       'app.deferredInit.opentelemetry',
@@ -587,9 +590,10 @@ class _HappyAppState extends ConsumerState<HappyApp>
           onResume: () {
             _recordLifecycleEdge('resumed');
             // App is foregrounded — reconnect and catch up on missed events.
-            if (sentryEnableFrameMetrics && sentryTracesSampleRate > 0) {
-              FrameMetricsService.instance.attach();
-            }
+            FrameMetricsService.instance.attach(
+              enableSentryTransactions:
+                  sentryEnableFrameMetrics && sentryTracesSampleRate > 0,
+            );
             sync.resume();
             // Re-apply theme in case system dark/light mode changed.
             _applyThemeFromSettings();

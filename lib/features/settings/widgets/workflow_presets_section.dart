@@ -92,9 +92,7 @@ class WorkflowPresetsSection extends ConsumerWidget {
     _WorkflowPreset preset,
   ) async {
     final notifier = ref.read(settingsNotifierProvider.notifier);
-    for (final entry in preset.values.entries) {
-      await notifier.updateSetting<dynamic>(entry.key, entry.value);
-    }
+    await notifier.applySettings(Map<String, dynamic>.from(preset.values));
     if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,

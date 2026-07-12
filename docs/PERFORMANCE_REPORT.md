@@ -16,6 +16,11 @@
   builds, and aggregate build/raster/total frame duration.
 - Frame reporting distinguishes slow frames (over the 60 Hz budget) from frozen
   frames (100ms+); only frozen frames create Sentry transactions.
+- Active trace context is Zone-local, so concurrent sends, socket events, and
+  HTTP requests cannot parent each other's spans. Agent-readiness waits have a
+  dedicated child span instead of appearing as unexplained send latency.
+- Aggregate frame metrics run whenever app telemetry is enabled; Sentry jank
+  transactions remain independently gated by Sentry sampling settings.
 
 The findings below are the March 2026 baseline. Several have since been
 completed and should not be treated as the current backlog.

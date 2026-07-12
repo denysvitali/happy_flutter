@@ -201,10 +201,6 @@ extension SyncMessagingSend on Sync {
         'message.sent_from': sentFrom,
       },
     );
-    if (sendSpan != null) {
-      otelService.pushCurrentSpan(sendSpan);
-    }
-
     // Ensure catch-up polling is active for this session. Without this,
     // if sendMessage() is called before onSessionVisible() (e.g. from the
     // sessions list before the chat screen initialises), _startPostSendCatchUp
@@ -258,7 +254,7 @@ extension SyncMessagingSend on Sync {
     unawaited(encryptSpan.finish());
 
     // lastCompleteSendFuture is exposed for tests to synchronise on.
-    final completeSendFuture = _completeSend(
+    Future<void> completeSend() => _completeSend(
       targetSessionId: targetSessionId,
       localId: localId,
       text: text,
@@ -267,6 +263,9 @@ extension SyncMessagingSend on Sync {
       transaction: sendTransaction,
       otelSpan: sendSpan,
     );
+    final completeSendFuture = sendSpan == null
+        ? completeSend()
+        : otelService.withActiveSpan(sendSpan, completeSend);
     lastCompleteSendFuture = completeSendFuture;
     unawaited(completeSendFuture);
 
@@ -319,7 +318,30 @@ extension SyncMessagingSend on Sync {
       final waitBudget = recentlySpawned
           ? Sync.recentlySpawnedWaitMs
           : Sync.sessionReadyTimeoutMs;
-      final ready = await waitForAgentReady(targetSessionId, waitBudget);
+      final otelWaitSpan = otelSpan == null
+          ? null
+          : OpenTelemetryService().startChildSpan(
+              'chat.wait_for_agent',
+              parent: otelSpan,
+              kind: SpanKind.internal,
+              attributes: {
+                'session.id': targetSessionId,
+                'agent.recently_spawned': recentlySpawned,
+                'agent.wait_budget_ms': waitBudget,
+              },
+            );
+      late final bool ready;
+      try {
+        ready = await waitForAgentReady(targetSessionId, waitBudget);
+        otelWaitSpan
+          ?..setAttribute('agent.ready', ready)
+          ..end(ok: ready);
+      } catch (error, stack) {
+        otelWaitSpan
+          ?..recordError(error, stack)
+          ..end(ok: false);
+        rethrow;
+      }
       waitSpan
         ..setData('ready', ready)
         ..setData('recentlySpawned', recentlySpawned);
@@ -546,12 +568,6 @@ extension SyncMessagingSend on Sync {
         );
         // The outbox onStatusChanged callback sets 'pending' status.
       }
-    }
-    // Pop the active OTel span we pushed in sendMessage so the next
-    // sync tick (e.g. socket events, post-send catch-up) starts a fresh
-    // trace rather than nesting under chat.send_message forever.
-    if (otelSpan != null) {
-      OpenTelemetryService().popCurrentSpan();
     }
     // Wake any listener that is still waiting on the send attempt; real
     // message mutations above use _notifySessionMessagesChanged and bump the
