@@ -17,6 +17,43 @@ void main() {
     });
 
     group('isSidechain filter (regression: inflated agent count)', () {
+      test('task lifecycle counts local agents, not background shell jobs', () {
+        sync.testSetSessionMessages('test-session', [
+          <String, dynamic>{
+            'id': 'agent-start',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'agent-1',
+            'taskType': 'local_agent',
+            'subagentType': 'Explore',
+            'event': {'type': 'message', 'message': 'Inspect tracking'},
+          },
+          <String, dynamic>{
+            'id': 'bash-start',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'agentId': 'bash-1',
+            'taskType': 'local_bash',
+            'event': {'type': 'message', 'message': 'Build'},
+          },
+          <String, dynamic>{
+            'id': 'bash-done',
+            'kind': 'text',
+            'taskEvent': true,
+            'agentId': 'bash-1',
+            'taskStatus': 'completed',
+            'content': 'Build complete',
+          },
+        ]);
+
+        final progress = AgentsListSheet.computeTaskProgress('test-session');
+        expect(progress.total, 1);
+        expect(progress.running, 1);
+        final agents = AgentsListSheet.extractAgents('test-session');
+        expect(agents, hasLength(1));
+        expect(agents.single['input']['subagent_type'], 'Explore');
+      });
+
       test('countActiveAgents skips isSidechain messages', () {
         // Top-level Task (not sidechain) — counts.
         sync.testSetSessionMessages('test-session', [

@@ -58,6 +58,7 @@ void main() {
           metaSystem({
             'subtype': 'task_started',
             'task_type': 'general-purpose',
+            'subagent_type': 'Explore',
             'description': 'Reconcile devices on bench',
             'task_id': 'agent-42',
           }, uuid: 't-started-1'),
@@ -72,6 +73,7 @@ void main() {
       expect(msg['taskEvent'], true);
       expect(msg['agentId'], 'agent-42');
       expect(msg['taskType'], 'general-purpose');
+      expect(msg['subagentType'], 'Explore');
       final event = msg['event'] as Map<String, dynamic>;
       expect(event['type'], 'message');
       expect(event['message'], 'Reconcile devices on bench');

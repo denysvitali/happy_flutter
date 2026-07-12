@@ -747,6 +747,7 @@ void _processMetaOutput({
       final summary = data['summary'] as String?;
       final status = data['status'] as String?;
       final taskType = data['task_type'] as String?;
+      final subagentType = data['subagent_type'] as String?;
       final workflowName = data['workflow_name'] as String?;
       // `last_tool_name` is the name of the tool the sub-agent is
       // CURRENTLY running. Forwarding it as `subAgentLastTool` lets the
@@ -767,6 +768,7 @@ void _processMetaOutput({
       final taskExtras = <String, dynamic>{
         'taskStatus': ?status,
         'taskType': ?taskType,
+        'subagentType': ?subagentType,
         'workflowName': ?workflowName,
         if (lastToolName != null && lastToolName.isNotEmpty)
           'subAgentLastTool': lastToolName,

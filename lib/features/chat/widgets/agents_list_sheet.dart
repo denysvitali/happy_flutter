@@ -48,6 +48,7 @@ class _TaskEventAgent {
   String state = 'running';
   String? description;
   String? taskType;
+  String? subagentType;
   String? parentToolUseId;
 
   void merge(Map<String, dynamic> msg) {
@@ -70,6 +71,11 @@ class _TaskEventAgent {
       taskType = nextTaskType;
     }
 
+    final nextSubagentType = msg['subagentType'] as String?;
+    if (nextSubagentType != null && nextSubagentType.isNotEmpty) {
+      subagentType = nextSubagentType;
+    }
+
     final nextParentToolUseId = msg['parentToolUseId'] as String?;
     if (nextParentToolUseId != null && nextParentToolUseId.isNotEmpty) {
       parentToolUseId = nextParentToolUseId;
@@ -87,7 +93,7 @@ class _TaskEventAgent {
     if (parentToolUseId != null) '_taskEventParentToolUseId': parentToolUseId,
     'input': <String, dynamic>{
       'description': description ?? agentId,
-      if (taskType != null) 'subagent_type': taskType,
+      'subagent_type': ?(subagentType ?? taskType),
       'run_in_background': true,
     },
   };
@@ -160,6 +166,7 @@ class AgentsListSheet extends StatelessWidget {
     List<dynamic> messages,
   ) {
     final taskStates = <String, _TaskEventAgent>{};
+    final backgroundShellTaskIds = <String>{};
 
     void collect(List<dynamic> msgs) {
       for (final msg in msgs) {
@@ -169,6 +176,13 @@ class AgentsListSheet extends StatelessWidget {
         if (msg['taskEvent'] == true) {
           final agentId = msg['agentId'] as String?;
           if (agentId != null && agentId.isNotEmpty) {
+            final taskType = msg['taskType'] as String?;
+            if (taskType == 'local_bash') {
+              backgroundShellTaskIds.add(agentId);
+              taskStates.remove(agentId);
+              continue;
+            }
+            if (backgroundShellTaskIds.contains(agentId)) continue;
             taskStates
                 .putIfAbsent(agentId, () => _TaskEventAgent(agentId: agentId))
                 .merge(msg);
