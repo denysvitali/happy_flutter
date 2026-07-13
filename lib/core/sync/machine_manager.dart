@@ -1314,6 +1314,80 @@ PY
     return fetchFromBash();
   }
 
+  /// Lists Codex usage-limit reset credits without redeeming any of them.
+  Future<CodexRateLimitResetCredits?> machineGetCodexResetCredits({
+    required String machineId,
+  }) async {
+    final machine = _machines[machineId];
+    final cwd = machine?.metadata?.homeDir ?? '/';
+    const script = r"""
+python3 <<'PY'
+import json
+import os
+import urllib.request
+
+def find_token(value):
+    if isinstance(value, dict):
+        keys = ('accessToken', 'access_token', 'token', 'idToken', 'id_token')
+        for key in keys:
+            token = value.get(key)
+            if isinstance(token, str) and token:
+                return token
+        for nested in value.values():
+            token = find_token(nested)
+            if token:
+                return token
+    elif isinstance(value, list):
+        for nested in value:
+            token = find_token(nested)
+            if token:
+                return token
+    return None
+
+try:
+    with open(os.path.expanduser('~/.codex/auth.json'), encoding='utf-8') as f:
+        token = find_token(json.load(f))
+    if not token:
+        raise ValueError('No Codex access token found')
+    request = urllib.request.Request(
+        'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits',
+        headers={
+            'Authorization': f'Bearer {token}',
+            'Accept': 'application/json',
+            'User-Agent': 'codex-cli',
+        },
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        print(response.read().decode('utf-8'))
+except Exception as exc:
+    print(json.dumps({'error': str(exc)}))
+PY
+""";
+
+    try {
+      final response = await machineBash(
+        machineId: machineId,
+        command: script,
+        cwd: cwd,
+      );
+      if (!response.success) return null;
+      final raw = jsonDecode(response.stdout);
+      if (raw is! Map || raw['error'] != null) return null;
+      final map = Map<String, dynamic>.from(raw);
+      final data = map['data'] is Map
+          ? Map<String, dynamic>.from(map['data'] as Map)
+          : map;
+      return CodexRateLimitResetCredits.fromJson(data);
+    } catch (error, stackTrace) {
+      logger.warning(
+        'machineGetCodexResetCredits failed',
+        error,
+        stackTrace,
+      );
+      return null;
+    }
+  }
+
   // ── createWorktree ──────────────────────────────────────────────────────
 
   /// Create a git worktree on a machine under `.dev/worktree/<name>`

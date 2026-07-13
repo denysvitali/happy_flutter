@@ -96,6 +96,31 @@ void main() {
       expect(window.expiresAt, isNull);
     });
 
+    test('parses available rate-limit reset credits and expiry', () {
+      final summary = CodexUsageSummary.fromJson({
+        'rate_limit_reset_credits': {
+          'available_count': 2,
+          'credits': [
+            {
+              'id': 'reset-1',
+              'reset_type': 'codex_rate_limits',
+              'status': 'available',
+              'granted_at': '2026-07-01T12:00:00Z',
+              'expires_at': '2026-08-01T12:00:00Z',
+              'title': 'Full reset (Weekly + 5h)',
+            },
+          ],
+        },
+      });
+
+      expect(summary.resetCredits!.availableCount, 2);
+      expect(summary.resetCredits!.credits, hasLength(1));
+      final credit = summary.resetCredits!.credits.single;
+      expect(credit.isAvailable, isTrue);
+      expect(credit.resetType, 'codex_rate_limits');
+      expect(credit.expiresAt, DateTime.utc(2026, 8, 1, 12));
+    });
+
     test('parses Spark limits from dedicated key', () {
       final summary = CodexUsageSummary.fromJson({
         'email': 'spark@example.com',

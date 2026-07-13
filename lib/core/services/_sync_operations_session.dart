@@ -833,6 +833,14 @@ PY
     return fetchFromBash();
   }
 
+  /// Lists Codex usage-limit reset credits without redeeming any of them.
+  Future<CodexRateLimitResetCredits?> machineGetCodexResetCredits({
+    required String machineId,
+  }) {
+    return machineManager?.machineGetCodexResetCredits(machineId: machineId) ??
+        Future<CodexRateLimitResetCredits?>.value();
+  }
+
   /// Fetch Grok Build billing usage from a machine via encrypted RPC.
   ///
   /// The machine daemon reads `~/.grok/auth.json` (or `XAI_API_KEY`) and

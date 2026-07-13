@@ -5137,6 +5137,36 @@ abstract class AppLocalizations {
   /// **'Resets {time}'**
   String codexUsageResetsAt(String time);
 
+  /// No description provided for @codexUsageLimitResets.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage limit resets'**
+  String get codexUsageLimitResets;
+
+  /// No description provided for @codexUsageResetsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available resets'**
+  String get codexUsageResetsAvailable;
+
+  /// No description provided for @codexUsageLimitReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Full reset'**
+  String get codexUsageLimitReset;
+
+  /// No description provided for @codexUsageDoesNotExpire.
+  ///
+  /// In en, this message translates to:
+  /// **'Does not expire'**
+  String get codexUsageDoesNotExpire;
+
+  /// No description provided for @codexUsageExpiresAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {time}'**
+  String codexUsageExpiresAt(String time);
+
   /// No description provided for @codexUsageCredits.
   ///
   /// In en, this message translates to:

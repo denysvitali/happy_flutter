@@ -2804,6 +2804,23 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get codexUsageLimitResets => 'Usage limit resets';
+
+  @override
+  String get codexUsageResetsAvailable => 'Available resets';
+
+  @override
+  String get codexUsageLimitReset => 'Full reset';
+
+  @override
+  String get codexUsageDoesNotExpire => 'Does not expire';
+
+  @override
+  String codexUsageExpiresAt(String time) {
+    return 'Expires $time';
+  }
+
+  @override
   String get codexUsageCredits => 'Credits';
 
   @override

@@ -1062,6 +1062,16 @@
       "time": {"type": "String"}
     }
   },
+  "codexUsageLimitResets": "Usage limit resets",
+  "codexUsageResetsAvailable": "Available resets",
+  "codexUsageLimitReset": "Full reset",
+  "codexUsageDoesNotExpire": "Does not expire",
+  "codexUsageExpiresAt": "Expires {time}",
+  "@codexUsageExpiresAt": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
   "codexUsageCredits": "Credits",
   "codexUsageCreditsBalance": "Credits Balance",
   "codexUsageCreditsAvailable": "Credits Available",

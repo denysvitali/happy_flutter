@@ -53,6 +53,9 @@ class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
     });
 
     final response = await Sync().machineGetCodexUsage(machineId: machineId);
+    final resetCredits = response.success
+        ? await Sync().machineGetCodexResetCredits(machineId: machineId)
+        : null;
 
     if (!mounted) return;
 
@@ -65,7 +68,9 @@ class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
     }
 
     setState(() {
-      _report = response.data;
+      _report = resetCredits == null
+          ? response.data
+          : response.data!.withResetCredits(resetCredits);
       _isLoading = false;
     });
   }
@@ -227,6 +232,10 @@ class _CodexUsageBody extends StatelessWidget {
             ],
           ),
         ],
+        if (report.resetCredits != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _CodexResetCreditsSection(resetCredits: report.resetCredits!),
+        ],
         for (final additionalLimit in report.additionalRateLimits) ...[
           if (additionalLimit.rateLimit != null) ...[
             const SizedBox(height: AppSpacing.lg),
@@ -265,6 +274,50 @@ class _CodexUsageBody extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+class _CodexResetCreditsSection extends StatelessWidget {
+  const _CodexResetCreditsSection({required this.resetCredits});
+
+  final CodexRateLimitResetCredits resetCredits;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final available = resetCredits.credits
+        .where((credit) => credit.isAvailable)
+        .toList(growable: false);
+    return SettingsSection(
+      title: l10n.codexUsageLimitResets,
+      children: [
+        _CodexUsageStatRow(
+          icon: Icons.restart_alt,
+          title: l10n.codexUsageResetsAvailable,
+          value: resetCredits.availableCount.toString(),
+          iconColor: AppColors.info,
+        ),
+        for (final credit in available)
+          _CodexUsageStatRow(
+            icon: Icons.event_outlined,
+            title: (credit.title?.trim().isNotEmpty ?? false)
+                ? credit.title!
+                : l10n.codexUsageLimitReset,
+            value: _formatResetCreditExpiry(context, credit.expiresAt),
+            iconColor: AppColors.warning,
+          ),
+      ],
+    );
+  }
+
+  String _formatResetCreditExpiry(BuildContext context, DateTime? expiresAt) {
+    final l10n = AppLocalizations.of(context);
+    if (expiresAt == null) return l10n.codexUsageDoesNotExpire;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final formatted = DateFormat.yMMMd(
+      locale,
+    ).add_jm().format(expiresAt.toLocal());
+    return l10n.codexUsageExpiresAt(formatted);
   }
 }
 

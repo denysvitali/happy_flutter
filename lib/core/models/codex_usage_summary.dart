@@ -21,6 +21,17 @@ String? _asCodexUsageStringNullable(dynamic value) {
   return null;
 }
 
+DateTime? _asCodexUsageDateTime(dynamic value) {
+  if (value is String) return DateTime.tryParse(value)?.toUtc();
+  if (value is num && value > 0) {
+    return DateTime.fromMillisecondsSinceEpoch(
+      value.toInt() * Duration.millisecondsPerSecond,
+      isUtc: true,
+    );
+  }
+  return null;
+}
+
 CodexUsageWindow? _windowFromJson(dynamic value) {
   if (value is Map<String, dynamic>) {
     return CodexUsageWindow.fromJson(value);
@@ -275,6 +286,67 @@ class CodexUsageAdditionalRateLimit {
   }
 }
 
+class CodexRateLimitResetCredit {
+  const CodexRateLimitResetCredit({
+    required this.id,
+    required this.resetType,
+    required this.status,
+    required this.grantedAt,
+    required this.expiresAt,
+    required this.title,
+    required this.description,
+  });
+
+  factory CodexRateLimitResetCredit.fromJson(Map<String, dynamic> json) {
+    return CodexRateLimitResetCredit(
+      id: _asCodexUsageStringNullable(json['id']),
+      resetType: _asCodexUsageStringNullable(json['reset_type']),
+      status: _asCodexUsageStringNullable(json['status']),
+      grantedAt: _asCodexUsageDateTime(json['granted_at']),
+      expiresAt: _asCodexUsageDateTime(json['expires_at']),
+      title: _asCodexUsageStringNullable(json['title']),
+      description: _asCodexUsageStringNullable(json['description']),
+    );
+  }
+
+  final String? id;
+  final String? resetType;
+  final String? status;
+  final DateTime? grantedAt;
+  final DateTime? expiresAt;
+  final String? title;
+  final String? description;
+
+  bool get isAvailable => status == 'available';
+}
+
+class CodexRateLimitResetCredits {
+  const CodexRateLimitResetCredits({
+    required this.availableCount,
+    required this.credits,
+  });
+
+  factory CodexRateLimitResetCredits.fromJson(Map<String, dynamic> json) {
+    final rawCredits = json['credits'];
+    return CodexRateLimitResetCredits(
+      availableCount: _asCodexUsageInt(json['available_count']),
+      credits: rawCredits is List
+          ? rawCredits
+                .whereType<Map>()
+                .map(
+                  (credit) => CodexRateLimitResetCredit.fromJson(
+                    Map<String, dynamic>.from(credit),
+                  ),
+                )
+                .toList(growable: false)
+          : const [],
+    );
+  }
+
+  final int availableCount;
+  final List<CodexRateLimitResetCredit> credits;
+}
+
 class CodexUsageSummary {
   const CodexUsageSummary({
     required this.email,
@@ -283,6 +355,7 @@ class CodexUsageSummary {
     required this.codeReviewRateLimit,
     required this.credits,
     required this.additionalRateLimits,
+    this.resetCredits,
   });
 
   factory CodexUsageSummary.fromJson(Map<String, dynamic> json) {
@@ -290,6 +363,7 @@ class CodexUsageSummary {
     final additionalRateLimits = _additionalRateLimitsFromJson(
       normalizedJson['additional_rate_limits'],
     );
+    final resetCredits = _mapFrom(normalizedJson['rate_limit_reset_credits']);
     return CodexUsageSummary(
       email: _asCodexUsageStringNullable(normalizedJson['email']),
       planType: _asCodexUsageStringNullable(normalizedJson['plan_type']),
@@ -301,6 +375,9 @@ class CodexUsageSummary {
       additionalRateLimits: additionalRateLimits.isNotEmpty
           ? additionalRateLimits
           : _legacyAdditionalRateLimits(normalizedJson),
+      resetCredits: resetCredits == null
+          ? null
+          : CodexRateLimitResetCredits.fromJson(resetCredits),
     );
   }
 
@@ -310,6 +387,19 @@ class CodexUsageSummary {
   final CodexUsageSummaryRateLimit? codeReviewRateLimit;
   final CodexUsageSummaryCredits? credits;
   final List<CodexUsageAdditionalRateLimit> additionalRateLimits;
+  final CodexRateLimitResetCredits? resetCredits;
+
+  CodexUsageSummary withResetCredits(CodexRateLimitResetCredits value) {
+    return CodexUsageSummary(
+      email: email,
+      planType: planType,
+      rateLimit: rateLimit,
+      codeReviewRateLimit: codeReviewRateLimit,
+      credits: credits,
+      additionalRateLimits: additionalRateLimits,
+      resetCredits: value,
+    );
+  }
 
   bool get hasUsageData {
     return email != null ||
@@ -317,6 +407,7 @@ class CodexUsageSummary {
         rateLimit != null ||
         codeReviewRateLimit != null ||
         credits != null ||
+        resetCredits != null ||
         additionalRateLimits.isNotEmpty;
   }
 
