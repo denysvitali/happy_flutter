@@ -121,6 +121,14 @@ void main() {
       expect(credit.expiresAt, DateTime.utc(2026, 8, 1, 12));
     });
 
+    test('recognizes available reset credits regardless of status casing', () {
+      final credit = CodexRateLimitResetCredit.fromJson({
+        'status': ' AVAILABLE ',
+      });
+
+      expect(credit.isAvailable, isTrue);
+    });
+
     test('parses Spark limits from dedicated key', () {
       final summary = CodexUsageSummary.fromJson({
         'email': 'spark@example.com',

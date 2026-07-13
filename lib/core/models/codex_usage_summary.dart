@@ -317,7 +317,10 @@ class CodexRateLimitResetCredit {
   final String? title;
   final String? description;
 
-  bool get isAvailable => status == 'available';
+  /// The reset-credit endpoint has returned status values with differing
+  /// capitalization across clients. Normalize it before the UI decides
+  /// whether to render this credit and its expiry.
+  bool get isAvailable => status?.trim().toLowerCase() == 'available';
 }
 
 class CodexRateLimitResetCredits {
