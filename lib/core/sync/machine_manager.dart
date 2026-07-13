@@ -1346,16 +1346,27 @@ def find_token(value):
 
 try:
     with open(os.path.expanduser('~/.codex/auth.json'), encoding='utf-8') as f:
-        token = find_token(json.load(f))
+        auth = json.load(f)
+    token = find_token(auth)
     if not token:
         raise ValueError('No Codex access token found')
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Accept': 'application/json',
+        'User-Agent': 'codex-cli',
+    }
+    account_id = None
+    if isinstance(auth, dict):
+        account_id = (
+            auth.get('last_active_account_id')
+            or auth.get('account_id')
+            or (auth.get('account') or {}).get('id')
+        )
+    if isinstance(account_id, str) and account_id:
+        headers['ChatGPT-Account-Id'] = account_id
     request = urllib.request.Request(
         'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits',
-        headers={
-            'Authorization': f'Bearer {token}',
-            'Accept': 'application/json',
-            'User-Agent': 'codex-cli',
-        },
+        headers=headers,
     )
     with urllib.request.urlopen(request, timeout=20) as response:
         print(response.read().decode('utf-8'))
