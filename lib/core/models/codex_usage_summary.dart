@@ -9,6 +9,11 @@ int _asCodexUsageInt(dynamic value) {
   return 0;
 }
 
+int? _asCodexUsageIntNullable(dynamic value) {
+  if (value is num) return value.toInt();
+  return null;
+}
+
 bool _asCodexUsageBool(dynamic value) => value == true;
 
 String? _asCodexUsageStringNullable(dynamic value) {
@@ -177,15 +182,26 @@ class CodexUsageWindow {
     return CodexUsageWindow(
       usedPercent: _asCodexUsageInt(json['used_percent']),
       limitWindowSeconds: _asCodexUsageInt(json['limit_window_seconds']),
-      resetAfterSeconds: _asCodexUsageInt(json['reset_after_seconds']),
-      resetAt: _asCodexUsageInt(json['reset_at']),
+      resetAfterSeconds: _asCodexUsageIntNullable(json['reset_after_seconds']),
+      resetAt: _asCodexUsageIntNullable(json['reset_at']),
     );
   }
 
   final int usedPercent;
   final int limitWindowSeconds;
-  final int resetAfterSeconds;
-  final int resetAt;
+  final int? resetAfterSeconds;
+
+  /// Unix timestamp in seconds when this usage window expires and resets.
+  final int? resetAt;
+
+  DateTime? get expiresAt {
+    final timestamp = resetAt;
+    if (timestamp == null || timestamp <= 0) return null;
+    return DateTime.fromMillisecondsSinceEpoch(
+      timestamp * Duration.millisecondsPerSecond,
+      isUtc: true,
+    );
+  }
 }
 
 class CodexUsageSummaryRateLimit {

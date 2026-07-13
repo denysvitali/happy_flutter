@@ -2799,6 +2799,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get codexUsageSecondaryWindow => 'Secondary window';
 
   @override
+  String codexUsageResetsAt(String time) {
+    return 'Resets $time';
+  }
+
+  @override
   String get codexUsageCredits => 'Credits';
 
   @override

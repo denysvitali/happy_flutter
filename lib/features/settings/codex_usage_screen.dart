@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
@@ -493,7 +494,7 @@ class _CodexUsageWindowRow extends StatelessWidget {
     final cs = theme.colorScheme;
     final percent = window.usedPercent.clamp(0, 100);
     final fraction = percent / 100.0;
-    final resetsIn = _formatResetDuration(window.resetAfterSeconds);
+    final resetDescription = _formatResetDescription(context, window);
 
     final Color barColor;
     if (percent >= 90) {
@@ -543,10 +544,10 @@ class _CodexUsageWindowRow extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
-          if (resetsIn != null) ...[
+          if (resetDescription != null) ...[
             const SizedBox(height: AppSpacing.xxs),
             Text(
-              resetsIn,
+              resetDescription,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant,
               ),
@@ -557,7 +558,19 @@ class _CodexUsageWindowRow extends StatelessWidget {
     );
   }
 
-  String? _formatResetDuration(int seconds) {
+  String? _formatResetDescription(
+    BuildContext context,
+    CodexUsageWindow window,
+  ) {
+    final expiresAt = window.expiresAt?.toLocal();
+    if (expiresAt != null) {
+      final locale = Localizations.localeOf(context).toLanguageTag();
+      final formatted = DateFormat.yMMMd(locale).add_jm().format(expiresAt);
+      return AppLocalizations.of(context).codexUsageResetsAt(formatted);
+    }
+
+    final seconds = window.resetAfterSeconds;
+    if (seconds == null) return null;
     if (seconds <= 0) return null;
     final dur = Duration(seconds: seconds);
     if (dur.inHours >= 24) {

@@ -1056,6 +1056,12 @@
   "codexUsageWeeklyWindow": "Weekly window",
   "codexUsagePrimaryWindow": "Primary window",
   "codexUsageSecondaryWindow": "Secondary window",
+  "codexUsageResetsAt": "Resets {time}",
+  "@codexUsageResetsAt": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
   "codexUsageCredits": "Credits",
   "codexUsageCreditsBalance": "Credits Balance",
   "codexUsageCreditsAvailable": "Credits Available",

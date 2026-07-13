@@ -35,6 +35,10 @@ void main() {
       expect(summary.rateLimit!.primaryWindow!.limitWindowSeconds, 18000);
       expect(summary.rateLimit!.primaryWindow!.resetAfterSeconds, 60);
       expect(summary.rateLimit!.primaryWindow!.resetAt, 1700000000);
+      expect(
+        summary.rateLimit!.primaryWindow!.expiresAt,
+        DateTime.fromMillisecondsSinceEpoch(1700000000000, isUtc: true),
+      );
       expect(summary.codeReviewRateLimit, isNotNull);
       expect(summary.codeReviewRateLimit!.allowed, isFalse);
       expect(summary.codeReviewRateLimit!.limitReached, isTrue);
@@ -69,12 +73,27 @@ void main() {
       expect(summary.rateLimit!.primaryWindow, isNotNull);
       expect(summary.rateLimit!.primaryWindow!.usedPercent, 1);
       expect(summary.rateLimit!.primaryWindow!.limitWindowSeconds, 0);
-      expect(summary.rateLimit!.primaryWindow!.resetAfterSeconds, 0);
+      expect(summary.rateLimit!.primaryWindow!.resetAfterSeconds, isNull);
       expect(summary.rateLimit!.primaryWindow!.resetAt, 10);
       expect(summary.credits, isNotNull);
       expect(summary.credits!.hasCredits, isFalse);
       expect(summary.credits!.unlimited, isTrue);
       expect(summary.credits!.balance, isNull);
+    });
+
+    test('keeps missing reset metadata absent', () {
+      final summary = CodexUsageSummary.fromJson({
+        'rate_limit': {
+          'allowed': true,
+          'limit_reached': false,
+          'primary_window': {'used_percent': 10},
+        },
+      });
+
+      final window = summary.rateLimit!.primaryWindow!;
+      expect(window.resetAfterSeconds, isNull);
+      expect(window.resetAt, isNull);
+      expect(window.expiresAt, isNull);
     });
 
     test('parses Spark limits from dedicated key', () {

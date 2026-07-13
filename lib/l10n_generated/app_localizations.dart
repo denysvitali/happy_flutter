@@ -5131,6 +5131,12 @@ abstract class AppLocalizations {
   /// **'Secondary window'**
   String get codexUsageSecondaryWindow;
 
+  /// No description provided for @codexUsageResetsAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Resets {time}'**
+  String codexUsageResetsAt(String time);
+
   /// No description provided for @codexUsageCredits.
   ///
   /// In en, this message translates to:
