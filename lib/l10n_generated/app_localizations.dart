@@ -5167,6 +5167,12 @@ abstract class AppLocalizations {
   /// **'Expires {time}'**
   String codexUsageExpiresAt(String time);
 
+  /// No description provided for @codexUsageExpiresInDays.
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =0{Less than 1 day left · {date}} =1{1 day left · {date}} other{{days} days left · {date}}}'**
+  String codexUsageExpiresInDays(int days, String date);
+
   /// No description provided for @codexUsageCredits.
   ///
   /// In en, this message translates to:

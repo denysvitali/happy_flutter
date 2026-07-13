@@ -2821,6 +2821,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String codexUsageExpiresInDays(int days, String date) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days left · $date',
+      one: '1 day left · $date',
+      zero: 'Less than 1 day left · $date',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get codexUsageCredits => 'Credits';
 
   @override

@@ -1072,6 +1072,13 @@
       "time": {"type": "String"}
     }
   },
+  "codexUsageExpiresInDays": "{days, plural, =0{Less than 1 day left · {date}} =1{1 day left · {date}} other{{days} days left · {date}}}",
+  "@codexUsageExpiresInDays": {
+    "placeholders": {
+      "days": {"type": "int"},
+      "date": {"type": "String"}
+    }
+  },
   "codexUsageCredits": "Credits",
   "codexUsageCreditsBalance": "Credits Balance",
   "codexUsageCreditsAvailable": "Credits Available",

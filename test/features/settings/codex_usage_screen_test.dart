@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/providers/machines_notifier.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/settings/codex_usage_screen.dart';
+import 'package:intl/intl.dart';
 
 class _StubMachinesNotifier extends MachinesNotifier {
   _StubMachinesNotifier(this._initial);
@@ -96,6 +97,12 @@ void main() {
     testWidgets('renders the expiry of every available reset credit', (
       tester,
     ) async {
+      final firstExpiry = DateTime.now().toUtc().add(
+        const Duration(days: 18),
+      );
+      final secondExpiry = DateTime.now().toUtc().add(
+        const Duration(days: 31),
+      );
       final machines = {
         'm-codex': _onlineMachine(
           id: 'm-codex',
@@ -128,12 +135,12 @@ void main() {
                 {
                   'status': 'available',
                   'title': 'Full reset one',
-                  'expires_at': '2026-07-31T19:49:00Z',
+                  'expires_at': firstExpiry.toIso8601String(),
                 },
                 {
                   'status': 'available',
                   'title': 'Full reset two',
-                  'expires_at': '2026-08-12T17:26:00Z',
+                  'expires_at': secondExpiry.toIso8601String(),
                 },
               ],
             }),
@@ -167,8 +174,10 @@ void main() {
       expect(find.text('2'), findsOneWidget);
       expect(find.text('Full reset one'), findsOneWidget);
       expect(find.text('Full reset two'), findsOneWidget);
-      expect(find.textContaining('Jul 31, 2026'), findsOneWidget);
-      expect(find.textContaining('Aug 12, 2026'), findsOneWidget);
+      final firstDate = DateFormat.MMMd('en').format(firstExpiry.toLocal());
+      final secondDate = DateFormat.MMMd('en').format(secondExpiry.toLocal());
+      expect(find.text('18 days left · $firstDate'), findsOneWidget);
+      expect(find.text('31 days left · $secondDate'), findsOneWidget);
     });
   });
 }

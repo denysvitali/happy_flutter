@@ -313,11 +313,14 @@ class _CodexResetCreditsSection extends StatelessWidget {
   String _formatResetCreditExpiry(BuildContext context, DateTime? expiresAt) {
     final l10n = AppLocalizations.of(context);
     if (expiresAt == null) return l10n.codexUsageDoesNotExpire;
+    final localExpiry = expiresAt.toLocal();
+    final remaining = localExpiry.difference(DateTime.now());
     final locale = Localizations.localeOf(context).toLanguageTag();
-    final formatted = DateFormat.yMMMd(
-      locale,
-    ).add_jm().format(expiresAt.toLocal());
-    return l10n.codexUsageExpiresAt(formatted);
+    final shortDate = DateFormat.MMMd(locale).format(localExpiry);
+    final days = remaining.isNegative
+        ? 0
+        : (remaining.inMinutes / Duration.minutesPerDay).ceil();
+    return l10n.codexUsageExpiresInDays(days, shortDate);
   }
 }
 
