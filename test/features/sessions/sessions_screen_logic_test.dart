@@ -200,12 +200,21 @@ void main() {
           activeAt: 90,
           active: true,
         ),
+        buildSession(
+          'unique-session',
+          path: '/home/dev/other',
+          machineId: 'm1',
+          updatedAt: 80,
+          activeAt: 80,
+          active: true,
+        ),
       ];
 
       final names = getDisambiguatedSessionNames(sessions);
 
       expect(names['abcdef-first'], 'app · abcdef');
       expect(names['uvwxyz-second'], 'app · uvwxyz');
+      expect(names['unique-session'], 'other');
     });
 
     test('sorts folders by most recent activity across all sessions', () {
