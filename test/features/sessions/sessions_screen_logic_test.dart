@@ -138,7 +138,7 @@ void main() {
         machines,
         getLastMessageTimestamp: (sessionId) =>
             sessionId == 'active-1' ? 110 : 95,
-        getUnreadCount: (sessionId) => sessionId == 'active-1' ? 2 : 0,
+        getUnreadCount: (sessionId) => sessionId == 'active-1' ? 2 : 9,
       );
 
       expect(groups, hasLength(1));
@@ -150,6 +150,62 @@ void main() {
       expect(group.header.unreadCount, 2);
       expect(group.activeSessions.single.id, 'active-1');
       expect(group.inactiveSessions.single.id, 'archived-1');
+    });
+
+    test('counts unread messages from active sessions only', () {
+      final groups = groupAllSessionsByFolder(
+        [
+          buildSession(
+            'active-1',
+            path: '/home/dev/app',
+            machineId: 'm1',
+            updatedAt: 100,
+            activeAt: 100,
+            active: true,
+          ),
+        ],
+        [
+          buildSession(
+            'archived-1',
+            path: '/home/dev/app',
+            machineId: 'm1',
+            updatedAt: 90,
+            activeAt: 90,
+            active: false,
+          ),
+        ],
+        machines,
+        getUnreadCount: (sessionId) =>
+            sessionId == 'active-1' ? 4 : 47,
+      );
+
+      expect(groups.single.header.unreadCount, 4);
+    });
+
+    test('disambiguates duplicate visible session names with stable ids', () {
+      final sessions = [
+        buildSession(
+          'abcdef-first',
+          path: '/home/dev/app',
+          machineId: 'm1',
+          updatedAt: 100,
+          activeAt: 100,
+          active: true,
+        ),
+        buildSession(
+          'uvwxyz-second',
+          path: '/home/dev/app',
+          machineId: 'm1',
+          updatedAt: 90,
+          activeAt: 90,
+          active: true,
+        ),
+      ];
+
+      final names = getDisambiguatedSessionNames(sessions);
+
+      expect(names['abcdef-first'], 'app · abcdef');
+      expect(names['uvwxyz-second'], 'app · uvwxyz');
     });
 
     test('sorts folders by most recent activity across all sessions', () {

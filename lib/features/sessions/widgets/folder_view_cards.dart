@@ -8,6 +8,7 @@ import '../../../core/utils/session_utils.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
+import 'session_headers.dart';
 
 const double _folderStatusDotSlotSize = 17;
 
@@ -45,6 +46,7 @@ class FolderSessionRow extends StatelessWidget {
     required this.onLongPress,
     super.key,
     this.avatarStyle,
+    this.displayName,
     this.lastMessageTimestamp,
     this.lastMessagePreview,
     this.lastMessageRole,
@@ -60,6 +62,7 @@ class FolderSessionRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final AvatarStyle? avatarStyle;
+  final String? displayName;
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
   final String? lastMessageRole;
@@ -144,7 +147,7 @@ class FolderSessionRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          derived.name,
+                          displayName ?? derived.name,
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: titleColor,
@@ -283,7 +286,7 @@ class FolderOverviewCard extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
-                        _sessionCountLabel(header.sessionCount),
+                        folderBreakdownLabel(context, header),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
@@ -331,9 +334,5 @@ class FolderOverviewCard extends StatelessWidget {
     final parts = displayPath.split('/');
     final last = parts.isNotEmpty ? parts.last : displayPath;
     return last.isEmpty ? displayPath : last;
-  }
-
-  String _sessionCountLabel(int count) {
-    return count == 1 ? '1 session' : '$count sessions';
   }
 }

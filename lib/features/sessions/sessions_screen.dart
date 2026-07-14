@@ -24,6 +24,7 @@ import '../providers/providers_usage_screen.dart';
 import '../settings/settings_screen.dart';
 import 'widgets/connection_status_badge.dart';
 import 'widgets/new_session_dialog.dart';
+import 'widgets/session_headers.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
 
@@ -347,8 +348,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             overflow: TextOverflow.ellipsis,
           ),
           Text(
-            '${folder.machineName}'
-            ' \u2022 ${folder.sessionCount}',
+            '${folder.machineName} • '
+            '${folderBreakdownLabel(context, folder)}',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),

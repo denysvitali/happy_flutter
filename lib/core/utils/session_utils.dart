@@ -287,6 +287,35 @@ String getSessionName(Session session) {
   return 'Unknown';
 }
 
+/// Returns stable display names, suffixing only names that occur more than
+/// once in [sessions].
+///
+/// Folder-centric views commonly contain several sessions whose fallback name
+/// is the folder itself. A short session id keeps those rows distinguishable
+/// without changing unique summaries or names.
+Map<String, String> getDisambiguatedSessionNames(Iterable<Session> sessions) {
+  final sessionList = sessions.toList(growable: false);
+  final baseNames = <String, String>{
+    for (final session in sessionList) session.id: getSessionName(session),
+  };
+  final occurrences = <String, int>{};
+  for (final name in baseNames.values) {
+    occurrences[name] = (occurrences[name] ?? 0) + 1;
+  }
+
+  return {
+    for (final session in sessionList)
+      session.id: occurrences[baseNames[session.id]]! > 1
+          ? '${baseNames[session.id]} · ${_shortSessionId(session.id)}'
+          : baseNames[session.id]!,
+  };
+}
+
+String _shortSessionId(String id) {
+  const length = 6;
+  return id.length <= length ? id : id.substring(0, length);
+}
+
 /// Generates a deterministic avatar ID from the session ID.
 /// Each session gets its own unique avatar appearance.
 String getSessionAvatarId(Session session) {
@@ -707,7 +736,7 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
             : formatPathRelativeToHome(rawPath, homeDir: homeDir);
         final unread = getUnreadCount == null
             ? 0
-            : [...active, ...inactive]
+            : active
                   .map((session) => getUnreadCount(session.id))
                   .fold<int>(0, (sum, count) => sum + count);
 

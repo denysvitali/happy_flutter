@@ -7,6 +7,22 @@ import '../../../core/utils/session_utils.dart';
 /// How to group archived sessions.
 enum ArchivedGrouping { date, folder }
 
+/// Builds the localized active/archived breakdown shown for a session folder.
+String folderBreakdownLabel(
+  BuildContext context,
+  SessionFolderHeader header,
+) {
+  final l10n = AppLocalizations.of(context);
+  final parts = <String>[];
+  if (header.activeSessionCount > 0) {
+    parts.add(l10n.sessionsFolderActiveCount(header.activeSessionCount));
+  }
+  if (header.inactiveSessionCount > 0) {
+    parts.add(l10n.sessionsFolderArchivedCount(header.inactiveSessionCount));
+  }
+  return parts.join(' • ');
+}
+
 /// Section header for active / archived sessions.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({required this.title, super.key, this.trailing});
@@ -372,7 +388,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
                   ),
                   if (hasBreakdown)
                     Text(
-                      _folderBreakdownLabel(context, header),
+                      folderBreakdownLabel(context, header),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: cs.onSurfaceVariant.withValues(alpha: 0.72),
                         fontSize: AppFontSize.xxs,
@@ -423,21 +439,6 @@ class CollapsibleFolderHeader extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _folderBreakdownLabel(
-    BuildContext context,
-    SessionFolderHeader header,
-  ) {
-    final l10n = AppLocalizations.of(context);
-    final parts = <String>[];
-    if (header.activeSessionCount > 0) {
-      parts.add(l10n.sessionsFolderActiveCount(header.activeSessionCount));
-    }
-    if (header.inactiveSessionCount > 0) {
-      parts.add(l10n.sessionsFolderArchivedCount(header.inactiveSessionCount));
-    }
-    return parts.join(' • ');
   }
 }
 

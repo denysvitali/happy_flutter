@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/folder_view_cards.dart';
@@ -22,13 +23,15 @@ Session _session({String id = 's1', String path = '/repo/happy'}) {
 
 void main() {
   group('FolderOverviewCard', () {
-    testWidgets('renders folder name, session count, and unread badge', (
+    testWidgets('renders folder name, state breakdown, and unread badge', (
       tester,
     ) async {
       const header = SessionFolderHeader(
         displayPath: '~/projects/happy',
         machineName: 'Work Mac',
         sessionCount: 4,
+        activeSessionCount: 2,
+        inactiveSessionCount: 2,
         folderKey: 'm1:/projects/happy',
         latestActivityAt: 1,
         unreadCount: 3,
@@ -36,6 +39,8 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: FolderOverviewCard(header: header, onTap: () {}),
           ),
@@ -43,7 +48,8 @@ void main() {
       );
 
       expect(find.text('happy'), findsOneWidget);
-      expect(find.text('4 sessions'), findsOneWidget);
+      expect(find.text('2 active • 2 archived'), findsOneWidget);
+      expect(find.text('4 sessions'), findsNothing);
       expect(find.text('Work Mac • 4 sessions'), findsNothing);
       expect(find.text('3'), findsOneWidget);
     });
@@ -53,12 +59,15 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: FolderOverviewCard(
               header: const SessionFolderHeader(
                 displayPath: '~/projects/happy',
                 machineName: 'Work Mac',
                 sessionCount: 1,
+                activeSessionCount: 1,
                 folderKey: 'm1:/projects/happy',
               ),
               onTap: () => tapped = true,
@@ -69,6 +78,30 @@ void main() {
 
       await tester.tap(find.byType(FolderOverviewCard));
       expect(tapped, isTrue);
+    });
+
+    testWidgets('omits an empty side of the state breakdown', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: FolderOverviewCard(
+              header: const SessionFolderHeader(
+                displayPath: '~/projects/happy',
+                machineName: 'Work Mac',
+                sessionCount: 3,
+                activeSessionCount: 3,
+                folderKey: 'm1:/projects/happy',
+              ),
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('3 active'), findsOneWidget);
+      expect(find.textContaining('archived'), findsNothing);
     });
   });
 
@@ -116,6 +149,25 @@ void main() {
 
       await tester.tap(find.byType(FolderSessionRow));
       expect(tapped, isTrue);
+    });
+
+    testWidgets('uses a supplied disambiguated session name', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FolderSessionRow(
+              session: _session(),
+              displayName: 'happy · abc123',
+              showFlavorIcon: false,
+              onTap: () {},
+              onLongPress: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('happy · abc123'), findsOneWidget);
+      expect(find.text('happy'), findsNothing);
     });
   });
 }

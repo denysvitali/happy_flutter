@@ -704,6 +704,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final isOlderArchivedExpanded = _expandedOlderArchivedFolders.contains(
       folder.header.folderKey,
     );
+    final displayNames = getDisambiguatedSessionNames([
+      ...folder.activeSessions,
+      ...folder.inactiveSessions,
+    ]);
 
     return PopScope(
       canPop: false,
@@ -730,6 +734,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               uiState: uiState,
               showFlavorIcons: showFlavorIcons,
               avatarStyle: avatarStyle,
+              displayNames: displayNames,
             ),
           if (folder.inactiveSessions.isNotEmpty)
             Padding(
@@ -765,6 +770,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
                 uiState: uiState,
                 showFlavorIcons: showFlavorIcons,
                 avatarStyle: avatarStyle,
+                displayNames: displayNames,
                 archived: true,
               ),
             if (olderArchived.isNotEmpty)
@@ -793,6 +799,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
                 uiState: uiState,
                 showFlavorIcons: showFlavorIcons,
                 avatarStyle: avatarStyle,
+                displayNames: displayNames,
                 archived: true,
               ),
           ],
@@ -806,6 +813,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required SessionUiState uiState,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
+    required Map<String, String> displayNames,
     bool archived = false,
   }) {
     final rows = <Widget>[];
@@ -816,6 +824,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         entry: uiState.bySessionId[session.id] ?? SessionUiEntry.empty,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
+        displayName: displayNames[session.id],
         archived: archived,
       );
       rows.add(row);
@@ -828,6 +837,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required SessionUiEntry entry,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
+    required String? displayName,
     required bool archived,
   }) {
     final sel = _sel.value;
@@ -846,6 +856,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       onLongPress: () => _onSessionLongPress(session.id),
       showFlavorIcon: showFlavorIcons,
       avatarStyle: avatarStyle,
+      displayName: displayName,
       lastMessageTimestamp: entry.lastMessageTimestamp,
       lastMessagePreview: entry.lastMessagePreview,
       lastMessageRole: entry.lastMessageRole,
