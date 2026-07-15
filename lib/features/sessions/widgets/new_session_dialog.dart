@@ -7,12 +7,15 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/built_in_profiles.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
+import '../../../core/models/settings.dart' show AIBackendProfile;
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../chat/model_selection_resolver.dart'
+    show profileUsesThirdPartyAnthropicBaseUrl;
 import '../../chat/widgets/model_mode.dart';
 
 enum NewSessionCreateBlocker {
@@ -471,21 +474,32 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       });
       final updatedSettings = ref.read(settingsNotifierProvider);
       String? modelMode;
+      AIBackendProfile? selectedProfile;
       if (profileId != null) {
-        final profile = updatedSettings.profiles
+        selectedProfile = updatedSettings.profiles
             .where((p) => p.id == profileId)
             .firstOrNull;
-        modelMode ??= profile?.defaultModelMode;
-        modelMode ??= getBuiltInProfile(profileId)?.defaultModelMode;
+        selectedProfile ??= getBuiltInProfile(profileId);
+        modelMode ??= selectedProfile?.defaultModelMode;
       }
       // Fall back to the user's last explicit model selection so profile
-      // switches don't regress the model choice.
+      // switches don't regress the model choice — but never re-apply a
+      // Claude model onto a third-party Anthropic-compatible gateway
+      // (Grok proxy / MiniMax / etc.), which the daemon aborts as
+      // provider_model_mismatch.
       final lastUsedModelMode = updatedSettings.lastUsedModelMode;
       if (lastUsedModelMode != null) {
-        modelMode ??= ChatModelMode.normalizeRawForFlavor(
+        final candidate = ChatModelMode.normalizeRawForFlavor(
           lastUsedModelMode,
           _selectedAgent,
         );
+        final thirdParty =
+            _selectedAgent == 'claude' &&
+            profileUsesThirdPartyAnthropicBaseUrl(selectedProfile);
+        final claudeCandidate = _isClaudeModelAliasForDialog(candidate);
+        if (!(thirdParty && claudeCandidate)) {
+          modelMode ??= candidate;
+        }
       }
       final String sessionPath;
       final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
@@ -562,6 +576,20 @@ String _defaultSpawnBackendForMachine(Machine? machine) {
   return backends.contains(advertisedDefault)
       ? advertisedDefault!
       : backends.first;
+}
+
+/// Mirrors Sync._isClaudeModelAlias so the create dialog can reject
+/// lastUsedModelMode values that would trip the daemon's
+/// provider_model_mismatch guard.
+bool _isClaudeModelAliasForDialog(String modelMode) {
+  final separator = modelMode.lastIndexOf(':');
+  final slug = separator > 0 ? modelMode.substring(0, separator) : modelMode;
+  return slug == 'opus' ||
+      slug == 'sonnet' ||
+      slug == 'haiku' ||
+      slug == 'fable' ||
+      slug.startsWith('claude-') ||
+      slug.contains('/claude-');
 }
 
 String _selectedSpawnBackendForMachine(Machine? machine, String? selected) {

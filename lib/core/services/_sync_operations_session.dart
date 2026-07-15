@@ -1325,11 +1325,18 @@ PY
     if (agent == 'claude' &&
         _isClaudeModelAlias(modelMode ?? '') &&
         _isThirdPartyAnthropicBaseUrl(baseUrl)) {
+      // Third-party Anthropic-compatible gateways (Grok proxy, MiniMax, etc.)
+      // reject Claude model IDs. Drop the picker override AND any Claude model
+      // baked into the profile env (ANTHROPIC_MODEL) so the daemon does not
+      // re-assert provider_model_mismatch after we "fixed" modelMode alone.
       logger.warning(
         '[spawn] dropping incompatible Claude model override '
         'profile=${profile.id} modelMode=$modelMode baseUrl=$baseUrl',
       );
-      return (profile: profile, modelMode: 'default');
+      return (
+        profile: _stripClaudeModelFromProfile(profile),
+        modelMode: 'default',
+      );
     }
     if (agent == 'codex') {
       final profileModelMode = _codexModelModeForProfile(profile);
@@ -1468,6 +1475,61 @@ PY
       }
     }
     return null;
+  }
+
+  /// Drop Claude model IDs from a third-party Anthropic-compatible profile
+  /// so spawn env no longer carries `ANTHROPIC_MODEL=claude-*` alongside a
+  /// non-Anthropic base URL. Profile metadata (id/name) is preserved.
+  ///
+  /// Rebuilds rather than [AIBackendProfile.copyWith] because that helper
+  /// cannot clear nullable fields to null.
+  AIBackendProfile _stripClaudeModelFromProfile(AIBackendProfile profile) {
+    final filteredEnv = profile.environmentVariables
+        .where((env) {
+          if (env.name != 'ANTHROPIC_MODEL') return true;
+          return !_isClaudeModelAlias(env.value);
+        })
+        .toList(growable: false);
+    final anthropic = profile.anthropicConfig;
+    final filteredAnthropic =
+        anthropic != null &&
+            anthropic.model != null &&
+            _isClaudeModelAlias(anthropic.model!)
+        ? AnthropicConfig(
+            baseUrl: anthropic.baseUrl,
+            authToken: anthropic.authToken,
+          )
+        : anthropic;
+    final defaultMode = profile.defaultModelMode;
+    final filteredDefault =
+        defaultMode != null && _isClaudeModelAlias(defaultMode)
+        ? null
+        : defaultMode;
+    if (identical(filteredEnv, profile.environmentVariables) &&
+        identical(filteredAnthropic, anthropic) &&
+        filteredDefault == defaultMode) {
+      return profile;
+    }
+    return AIBackendProfile(
+      id: profile.id,
+      name: profile.name,
+      description: profile.description,
+      anthropicConfig: filteredAnthropic,
+      openaiConfig: profile.openaiConfig,
+      azureOpenAIConfig: profile.azureOpenAIConfig,
+      togetherAIConfig: profile.togetherAIConfig,
+      tmuxConfig: profile.tmuxConfig,
+      startupBashScript: profile.startupBashScript,
+      environmentVariables: filteredEnv,
+      defaultSessionType: profile.defaultSessionType,
+      defaultPermissionMode: profile.defaultPermissionMode,
+      defaultModelMode: filteredDefault,
+      compatibility: profile.compatibility,
+      isBuiltIn: profile.isBuiltIn,
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+      version: profile.version,
+    );
   }
 
   String _extractDefaultEnvValue(String value) {

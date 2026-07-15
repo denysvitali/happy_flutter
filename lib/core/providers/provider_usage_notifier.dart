@@ -20,12 +20,23 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   late final MiniMaxUsageApi _miniMaxApi;
   late final ZaiUsageApi _zaiApi;
 
+  /// Per-account failure tracking so a dead key/network blip does not spam
+  /// Loki with a full stack every refresh. Backoff starts at 30s and doubles
+  /// up to 15 minutes; a successful fetch clears the strike.
+  final Map<String, _UsageFetchFailure> _failures =
+      <String, _UsageFetchFailure>{};
+
+  static const int _maxWarningStacks = 2;
+  static const Duration _minBackoff = Duration(seconds: 30);
+  static const Duration _maxBackoff = Duration(minutes: 15);
+
   @override
   ProviderUsageSummary build() {
     _storage = ProviderUsageStorage();
     _kimiApi = KimiUsageApi();
     _miniMaxApi = MiniMaxUsageApi();
     _zaiApi = ZaiUsageApi();
+    ref.onDispose(_failures.clear);
     return const ProviderUsageSummary();
   }
 
@@ -72,6 +83,19 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   }
 
   Future<ProviderUsage> _fetchAccountUsage(ProviderAccount account) async {
+    final failure = _failures[account.id];
+    if (failure != null && !failure.canRetry(DateTime.now())) {
+      // Still within backoff — return the sticky error without hitting the
+      // network or emitting another WARN stack.
+      return ProviderUsage(
+        accountId: account.id,
+        type: account.type,
+        accountName: account.name,
+        windows: const <ProviderUsageWindow>[],
+        error: failure.lastError,
+      );
+    }
+
     // Only attach the raw provider payload when the user has opted into
     // developer mode — otherwise `extra` stays empty so production users never
     // see the debug section in the card.
@@ -82,7 +106,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
       // Await inside the try so async failures (e.g. a 401
       // ProviderUsageApiException) are caught here instead of escaping as an
       // unhandled async error to PlatformDispatcher.onError.
-      return await account.credentials.when(
+      final usage = await account.credentials.when(
         kimi: (c) => _kimiApi.getUsage(
           apiKey: c.apiKey,
           baseUrl: c.baseUrl,
@@ -104,12 +128,23 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
           includeDebugPayload: includeDebug,
         ),
       );
+      _failures.remove(account.id);
+      return usage;
     } catch (e, stack) {
-      logger.warning(
-        'Failed to fetch usage for ${account.type.name}/${account.id}',
-        e,
-        stack,
-      );
+      final next = (failure ?? _UsageFetchFailure.empty()).next(e.toString());
+      _failures[account.id] = next;
+      final label = '${account.type.name}/${account.id}';
+      if (next.consecutiveFailures <= _maxWarningStacks) {
+        logger.warning('Failed to fetch usage for $label', e, stack);
+      } else {
+        // Known-bad accounts poll every refresh; after two stacks demote to
+        // info so Loki stays readable. UI still surfaces [ProviderUsage.error].
+        logger.info(
+          'Failed to fetch usage for $label '
+          '(strike=${next.consecutiveFailures}, '
+          'backoff=${next.backoff.inSeconds}s): $e',
+        );
+      }
       return ProviderUsage(
         accountId: account.id,
         type: account.type,
@@ -191,11 +226,54 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     final deleted = await _storage.deleteAccount(accountId);
     if (!deleted) return false;
 
+    _failures.remove(accountId);
     await loadAccounts();
     state = state.copyWith(
       usages: state.usages.where((u) => u.accountId != accountId).toList(),
     );
     return true;
+  }
+}
+
+/// Tracks consecutive usage-fetch failures for a single provider account.
+class _UsageFetchFailure {
+  const _UsageFetchFailure({
+    required this.consecutiveFailures,
+    required this.lastError,
+    required this.nextRetryAt,
+    required this.backoff,
+  });
+
+  factory _UsageFetchFailure.empty() => _UsageFetchFailure(
+    consecutiveFailures: 0,
+    lastError: '',
+    nextRetryAt: DateTime.fromMillisecondsSinceEpoch(0),
+    backoff: ProviderUsageNotifier._minBackoff,
+  );
+
+  final int consecutiveFailures;
+  final String lastError;
+  final DateTime nextRetryAt;
+  final Duration backoff;
+
+  bool canRetry(DateTime now) => !now.isBefore(nextRetryAt);
+
+  _UsageFetchFailure next(String error) {
+    final nextBackoff = consecutiveFailures == 0
+        ? ProviderUsageNotifier._minBackoff
+        : Duration(
+            microseconds:
+                (backoff.inMicroseconds * 2).clamp(
+                  ProviderUsageNotifier._minBackoff.inMicroseconds,
+                  ProviderUsageNotifier._maxBackoff.inMicroseconds,
+                ),
+          );
+    return _UsageFetchFailure(
+      consecutiveFailures: consecutiveFailures + 1,
+      lastError: error,
+      nextRetryAt: DateTime.now().add(nextBackoff),
+      backoff: nextBackoff,
+    );
   }
 }
 
