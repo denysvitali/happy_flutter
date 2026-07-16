@@ -4969,6 +4969,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersZaiBaseUrlHint => 'https://api.z.ai';
 
   @override
+  String get providersGrokAccessTokenLabel => 'Access token';
+
+  @override
+  String get providersGrokAccessTokenHint =>
+      'Paste the access_token from ~/.grok/auth.json';
+
+  @override
+  String get providersGrokBaseUrlLabel => 'Base URL';
+
+  @override
+  String get providersGrokBaseUrlHint => 'https://cli-chat-proxy.grok.com/v1';
+
+  @override
   String get providersNotImplemented => 'This provider is not yet supported.';
 
   @override

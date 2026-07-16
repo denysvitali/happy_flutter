@@ -50,6 +50,20 @@ Map<String, dynamic> _$ZaiCredentialsToJson(_ZaiCredentials instance) =>
       'accountName': instance.accountName,
     };
 
+_GrokCredentials _$GrokCredentialsFromJson(Map<String, dynamic> json) =>
+    _GrokCredentials(
+      accessToken: json['accessToken'] as String,
+      baseUrl: json['baseUrl'] as String? ?? grokDefaultBaseUrl,
+      accountName: json['accountName'] as String?,
+    );
+
+Map<String, dynamic> _$GrokCredentialsToJson(_GrokCredentials instance) =>
+    <String, dynamic>{
+      'accessToken': instance.accessToken,
+      'baseUrl': instance.baseUrl,
+      'accountName': instance.accountName,
+    };
+
 _ProviderCredentialsKimi _$ProviderCredentialsKimiFromJson(
   Map<String, dynamic> json,
 ) => _ProviderCredentialsKimi(
@@ -92,6 +106,20 @@ Map<String, dynamic> _$ProviderCredentialsZaiToJson(
   'runtimeType': instance.$type,
 };
 
+_ProviderCredentialsGrok _$ProviderCredentialsGrokFromJson(
+  Map<String, dynamic> json,
+) => _ProviderCredentialsGrok(
+  GrokCredentials.fromJson(json['credentials'] as Map<String, dynamic>),
+  $type: json['runtimeType'] as String?,
+);
+
+Map<String, dynamic> _$ProviderCredentialsGrokToJson(
+  _ProviderCredentialsGrok instance,
+) => <String, dynamic>{
+  'credentials': instance.credentials.toJson(),
+  'runtimeType': instance.$type,
+};
+
 _ProviderAccount _$ProviderAccountFromJson(Map<String, dynamic> json) =>
     _ProviderAccount(
       id: json['id'] as String,
@@ -114,6 +142,7 @@ const _$ProviderUsageTypeEnumMap = {
   ProviderUsageType.kimi: 'kimi',
   ProviderUsageType.minimax: 'minimax',
   ProviderUsageType.zai: 'zai',
+  ProviderUsageType.grok: 'grok',
   ProviderUsageType.claudeCode: 'claudeCode',
   ProviderUsageType.codex: 'codex',
 };

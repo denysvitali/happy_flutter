@@ -41,6 +41,12 @@ abstract final class AppColors {
   /// Matches [colorForProfile]'s `'zai'` case so the brand color has one home.
   static const Color zai = Color(0xFF6366F1);
 
+  /// Grok (xAI) provider accent – mid slate that stays legible on light and
+  /// dark surfaces (the xAI brand itself is pure black/white).
+  /// Matches [colorForProfile]'s `'grok'` case so the brand color has one
+  /// home.
+  static const Color grok = Color(0xFF64748B);
+
   /// Permission mode: automatically accept edits.
   static const Color permissionAutoEdit = Color(0xFF9C27B0);
 
@@ -190,6 +196,8 @@ Color colorForProfile(String id) {
       return const Color(0xFF4A6CF7);
     case 'zai':
       return AppColors.zai;
+    case 'grok':
+      return AppColors.grok;
     case 'minimax':
       return const Color(0xFFFF6B35);
     case 'xiaomi-mimo':

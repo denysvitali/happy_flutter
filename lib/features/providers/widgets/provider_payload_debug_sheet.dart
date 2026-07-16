@@ -248,6 +248,7 @@ String _providerDisplayName(ProviderUsageType type) {
     ProviderUsageType.kimi => 'Kimi',
     ProviderUsageType.minimax => 'MiniMax',
     ProviderUsageType.zai => 'Z.AI',
+    ProviderUsageType.grok => 'Grok',
     ProviderUsageType.claudeCode => 'Claude Code',
     ProviderUsageType.codex => 'Codex',
   };

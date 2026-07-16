@@ -11,7 +11,7 @@ part 'provider_usage.freezed.dart';
 part 'provider_usage.g.dart';
 
 /// Identifier for a supported third-party usage provider.
-enum ProviderUsageType { kimi, minimax, zai, claudeCode, codex }
+enum ProviderUsageType { kimi, minimax, zai, grok, claudeCode, codex }
 
 /// Default base URL for the Kimi Coding Plan usage API.
 ///
@@ -28,6 +28,14 @@ const String kimiDefaultBaseUrl = 'https://api.kimi.com/coding/v1';
 /// zai-usage-tracker). A Bearer API key from the Z.AI console authenticates.
 /// Power users running a custom gateway can override it per account.
 const String zaiDefaultBaseUrl = 'https://api.z.ai';
+
+/// Default base URL for the Grok subscription (Grok Build) API.
+///
+/// This is the same `cli-chat-proxy.grok.com/v1` host the Grok CLI and
+/// grok-proxy use for `/user` and `/billing`. It is NOT a stable public API —
+/// its URL, headers, and behavior may change with Grok CLI releases. Power
+/// users running grok-proxy or another gateway can override it per account.
+const String grokDefaultBaseUrl = 'https://cli-chat-proxy.grok.com/v1';
 
 /// Credentials required to authenticate with Kimi.
 ///
@@ -80,6 +88,25 @@ abstract class ZaiCredentials with _$ZaiCredentials {
       _$ZaiCredentialsFromJson(json);
 }
 
+/// Credentials required to authenticate with Grok (xAI subscription).
+///
+/// Grok uses the OAuth access token from a Grok CLI / grok-proxy session
+/// (`~/.grok/auth.json` or `~/.config/grok-proxy/auth.json`, field
+/// `access_token`) against the account service on the subscription host.
+/// [baseUrl] defaults to [grokDefaultBaseUrl] and only needs overriding for
+/// custom gateways.
+@freezed
+abstract class GrokCredentials with _$GrokCredentials {
+  const factory GrokCredentials({
+    required String accessToken,
+    @Default(grokDefaultBaseUrl) String baseUrl,
+    String? accountName,
+  }) = _GrokCredentials;
+
+  factory GrokCredentials.fromJson(Map<String, dynamic> json) =>
+      _$GrokCredentialsFromJson(json);
+}
+
 /// Union of credentials for a configured provider account.
 @freezed
 abstract class ProviderCredentials with _$ProviderCredentials {
@@ -91,6 +118,9 @@ abstract class ProviderCredentials with _$ProviderCredentials {
 
   const factory ProviderCredentials.zai(ZaiCredentials credentials) =
       _ProviderCredentialsZai;
+
+  const factory ProviderCredentials.grok(GrokCredentials credentials) =
+      _ProviderCredentialsGrok;
 
   factory ProviderCredentials.fromJson(Map<String, dynamic> json) =>
       _$ProviderCredentialsFromJson(json);

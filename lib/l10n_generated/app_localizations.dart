@@ -9037,6 +9037,30 @@ abstract class AppLocalizations {
   /// **'https://api.z.ai'**
   String get providersZaiBaseUrlHint;
 
+  /// No description provided for @providersGrokAccessTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Access token'**
+  String get providersGrokAccessTokenLabel;
+
+  /// No description provided for @providersGrokAccessTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the access_token from ~/.grok/auth.json'**
+  String get providersGrokAccessTokenHint;
+
+  /// No description provided for @providersGrokBaseUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get providersGrokBaseUrlLabel;
+
+  /// No description provided for @providersGrokBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://cli-chat-proxy.grok.com/v1'**
+  String get providersGrokBaseUrlHint;
+
   /// No description provided for @providersNotImplemented.
   ///
   /// In en, this message translates to:

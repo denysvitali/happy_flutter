@@ -942,9 +942,203 @@ void main() {
         kimi: (_) => fail('expected zai, decoded as kimi'),
         miniMax: (_) => fail('expected zai, decoded as miniMax'),
         zai: (c) => zai = c,
+        grok: (_) => fail('expected zai, decoded as grok'),
       );
       expect(zai.apiKey, 'sk.test');
       expect(zai.baseUrl, zaiDefaultBaseUrl);
+    });
+  });
+
+  group('GrokUsageApi', () {
+    // Access token whose JWT payload carries {"userId":"jwt-user"} so the
+    // billing call can fall back to the claims when /user is unavailable.
+    final jwtToken =
+        'h.${base64Url.encode(utf8.encode('{"userId":"jwt-user"}')).replaceAll('=', '')}.s';
+
+    Map<String, dynamic> billingBody() => <String, dynamic>{
+      'data': <String, dynamic>{
+        'billing': <String, dynamic>{
+          'config': <String, dynamic>{
+            'creditUsagePercent': 42,
+            'monthlyLimit': <String, dynamic>{'val': 10000},
+            'used': <String, dynamic>{'val': 4200},
+            'onDemandCap': 5000,
+            'onDemandUsed': 100,
+            'billingPeriodStart': '2026-07-01T00:00:00Z',
+            'billingPeriodEnd': '2026-08-01T00:00:00Z',
+          },
+        },
+      },
+    };
+
+    Map<String, dynamic> userBody() => <String, dynamic>{
+      'data': <String, dynamic>{
+        'user': <String, dynamic>{
+          'userId': 'user-1',
+          'email': 'dev@example.com',
+          'subscriptionTier': 'grok-pro',
+        },
+      },
+    };
+
+    test('GETs /user then /billing with Grok CLI headers and x-userid',
+        () async {
+      final seen = <RequestOptions>[];
+      final api = GrokUsageApi(
+        dio: _dioWith((o) {
+          seen.add(o);
+          return o.uri.path.endsWith('/user')
+              ? _json(userBody(), 200)
+              : _json(billingBody(), 200);
+        }),
+      );
+
+      await api.getUsage(accessToken: 'tok', accountId: 'g1');
+
+      expect(seen, hasLength(2));
+      final user = seen[0];
+      expect(
+        user.uri.toString(),
+        'https://cli-chat-proxy.grok.com/v1/user?include=subscription',
+      );
+      expect(user.headers['Authorization'], 'Bearer tok');
+      expect(user.headers['X-XAI-Token-Auth'], 'xai-grok-cli');
+      expect(user.headers['x-grok-client-version'], isNotNull);
+
+      final billing = seen[1];
+      expect(
+        billing.uri.toString(),
+        'https://cli-chat-proxy.grok.com/v1/billing?format=credits',
+      );
+      expect(billing.headers['x-userid'], 'user-1');
+    });
+
+    test('parses monthly + on-demand credit windows (cents → dollars)',
+        () async {
+      final api = GrokUsageApi(
+        dio: _dioWith(
+          (o) => o.uri.path.endsWith('/user')
+              ? _json(userBody(), 200)
+              : _json(billingBody(), 200),
+        ),
+      );
+
+      final usage = await api.getUsage(accessToken: 'tok', accountId: 'g1');
+
+      expect(usage.type, ProviderUsageType.grok);
+      expect(usage.windows, hasLength(2));
+
+      final monthly = usage.windows[0];
+      expect(monthly.label, 'Monthly Credits');
+      expect(monthly.limit, 100.0);
+      expect(monthly.used, 42.0);
+      expect(monthly.remaining, 58.0);
+      expect(monthly.utilization, closeTo(42, 0.001));
+      expect(
+        monthly.resetsAtMs,
+        DateTime.parse('2026-08-01T00:00:00Z').millisecondsSinceEpoch,
+      );
+
+      final onDemand = usage.windows[1];
+      expect(onDemand.label, 'On-demand');
+      expect(onDemand.limit, 50.0);
+      expect(onDemand.used, 1.0);
+      expect(onDemand.utilization, closeTo(2, 0.001));
+
+      // Account identity from /user rides along in extra.
+      expect(usage.extra['email'], 'dev@example.com');
+      expect(usage.extra['subscription_tier'], 'grok-pro');
+      // Production default: no raw payload leaks into extra.
+      expect(usage.extra.containsKey('raw_payload'), isFalse);
+    });
+
+    test('falls back to JWT claims for x-userid when /user fails', () async {
+      RequestOptions? billing;
+      final api = GrokUsageApi(
+        dio: _dioWith((o) {
+          if (o.uri.path.endsWith('/user')) {
+            return _json(<String, dynamic>{'error': 'nope'}, 500);
+          }
+          billing = o;
+          return _json(billingBody(), 200);
+        }),
+      );
+
+      final usage = await api.getUsage(accessToken: jwtToken, accountId: 'g1');
+
+      expect(billing!.headers['x-userid'], 'jwt-user');
+      expect(usage.windows, isNotEmpty);
+    });
+
+    test('throws with auth detail on a 401 billing response', () async {
+      final api = GrokUsageApi(
+        dio: _dioWith(
+          (o) => o.uri.path.endsWith('/user')
+              ? _json(userBody(), 200)
+              : _json(<String, dynamic>{'error': 'unauthenticated'}, 401),
+        ),
+      );
+
+      await expectLater(
+        api.getUsage(accessToken: 'expired', accountId: 'g1'),
+        throwsA(
+          isA<ProviderUsageApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('authentication failed'),
+          ),
+        ),
+      );
+    });
+
+    test('omits the on-demand window when the cap is zero', () async {
+      final api = GrokUsageApi(
+        dio: _dioWith(
+          (o) => o.uri.path.endsWith('/user')
+              ? _json(userBody(), 200)
+              : _json(<String, dynamic>{
+                  'config': <String, dynamic>{
+                    'monthlyLimit': 10000,
+                    'used': 2500,
+                    'onDemandCap': 0,
+                  },
+                }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(accessToken: 'tok', accountId: 'g1');
+
+      expect(usage.windows, hasLength(1));
+      expect(usage.windows.single.label, 'Monthly Credits');
+      expect(usage.windows.single.utilization, closeTo(25, 0.001));
+    });
+
+    test('ProviderCredentials.grok round-trips through JSON storage', () {
+      final account = ProviderAccount(
+        id: 'g1',
+        name: 'My Grok',
+        type: ProviderUsageType.grok,
+        credentials: ProviderCredentials.grok(
+          GrokCredentials(accessToken: 'tok', baseUrl: grokDefaultBaseUrl),
+        ),
+      );
+
+      final decoded = ProviderAccount.fromJson(
+        Map<String, dynamic>.from(account.toJson()),
+      );
+
+      expect(decoded.id, 'g1');
+      expect(decoded.type, ProviderUsageType.grok);
+
+      late GrokCredentials grok;
+      decoded.credentials.when(
+        kimi: (_) => fail('expected grok, decoded as kimi'),
+        miniMax: (_) => fail('expected grok, decoded as miniMax'),
+        zai: (_) => fail('expected grok, decoded as zai'),
+        grok: (c) => grok = c,
+      );
+      expect(grok.accessToken, 'tok');
+      expect(grok.baseUrl, grokDefaultBaseUrl);
     });
   });
 }

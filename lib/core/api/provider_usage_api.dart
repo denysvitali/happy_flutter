@@ -831,6 +831,292 @@ class ZaiUsageApi {
   }
 }
 
+/// Grok (xAI subscription / Grok Build) usage API client.
+///
+/// Talks to the Grok CLI subscription host (default [grokDefaultBaseUrl]),
+/// mirroring grok-proxy's dashboard client:
+///   • `GET {base}/user?include=subscription` — account identity (userId,
+///     email, subscription tier). The `x-userid` header for billing comes from
+///     here, falling back to the JWT claims in the access token.
+///   • `GET {base}/billing?format=credits` — monthly credit allowance. Values
+///     are USD cents.
+///
+/// The endpoint is NOT a stable public API — headers mirror the Grok CLI
+/// (`X-XAI-Token-Auth`, `x-grok-client-version`) because the gateway rejects
+/// unidentified clients.
+class GrokUsageApi {
+  GrokUsageApi({Dio? dio}) : _dio = dio ?? _createDio();
+
+  final Dio _dio;
+
+  static const String _userPath = '/user?include=subscription';
+  static const String _billingPath = '/billing?format=credits';
+
+  /// Client version advertised to the account service; tracks the Grok CLI
+  /// release that grok-proxy mirrors.
+  static const String _clientVersion = '0.2.99';
+
+  /// Fetches usage for the account identified by [accessToken].
+  ///
+  /// When [includeDebugPayload] is true (developer / debug mode), the raw
+  /// billing response body is surfaced via [ProviderUsage.extra] under
+  /// `'raw_payload'` / `'raw_payload_compact'` so the in-app debug viewer can
+  /// inspect it without re-issuing a request.
+  Future<ProviderUsage> getUsage({
+    required String accessToken,
+    required String accountId,
+    String? accountName,
+    String baseUrl = grokDefaultBaseUrl,
+    bool includeDebugPayload = false,
+  }) async {
+    final root = _normalizeRoot(baseUrl);
+
+    // Billing requires an x-userid header. Prefer the /user endpoint (same
+    // enrichment call the CLI makes); fall back to the JWT claims so a
+    // temporarily failing /user does not take the whole card down.
+    var userId = _userIdFromJwt(accessToken);
+    var account = const <String, dynamic>{};
+    final userResponse = await _dio.get<dynamic>(
+      '$root$_userPath',
+      options: _authOptions(accessToken),
+    );
+    if (userResponse.statusCode == 200) {
+      account = _unwrap(_asMapLenient(userResponse.data));
+      final fetchedId = _stringOf(account, const ['userId', 'user_id', 'id']);
+      if (fetchedId != null && fetchedId.isNotEmpty) userId = fetchedId;
+    } else if (userId == null) {
+      // No identity at all — surface the auth failure from /user.
+      _throwHttpError('Grok', 'account', userResponse);
+    }
+
+    final billingResponse = await _dio.get<dynamic>(
+      '$root$_billingPath',
+      options: _authOptions(accessToken, userId: userId),
+    );
+    if (billingResponse.statusCode != 200) {
+      _throwHttpError('Grok', 'usage', billingResponse);
+    }
+
+    final body = _asMapLenient(billingResponse.data);
+    final windows = _parseWindows(body);
+
+    final extra = <String, dynamic>{};
+    final email = _stringOf(account, const [
+      'email',
+      'emailAddress',
+      'email_address',
+    ]);
+    final tier = _stringOf(account, const [
+      'subscriptionTier',
+      'subscription_tier',
+    ]);
+    if (email != null && email.isNotEmpty) extra['email'] = email;
+    if (tier != null && tier.isNotEmpty) extra['subscription_tier'] = tier;
+    if (includeDebugPayload) {
+      extra.addAll(<String, dynamic>{
+        'endpoint': _billingPath,
+        'status': billingResponse.statusCode,
+        'request_url': '$root$_billingPath',
+        'window_count': windows.length,
+        'raw_payload': _safeStringify(billingResponse.data),
+        'raw_payload_compact': _compactStringify(billingResponse.data),
+      });
+      logger.debug(
+        'Grok billing HTTP ${billingResponse.statusCode} '
+        'windows=${windows.length} '
+        'payload=${_compactStringify(billingResponse.data)}',
+      );
+    }
+
+    return ProviderUsage(
+      accountId: accountId,
+      type: ProviderUsageType.grok,
+      accountName: accountName,
+      windows: windows,
+      extra: extra,
+    );
+  }
+
+  Options _authOptions(String accessToken, {String? userId}) => Options(
+    headers: <String, dynamic>{
+      'Authorization': 'Bearer $accessToken',
+      'Accept': 'application/json',
+      'User-Agent': _userAgent,
+      'X-XAI-Token-Auth': 'xai-grok-cli',
+      'x-grok-client-version': _clientVersion,
+      'x-grok-client-mode': 'interactive',
+      if (userId != null && userId.isNotEmpty) 'x-userid': userId,
+    },
+  );
+
+  /// Parses the `format=credits` billing payload into usage windows. The
+  /// numbers live under `config` and are USD cents, sometimes wrapped as
+  /// `{"val": N}`:
+  ///   • `monthlyLimit` / `used` — the included monthly credit allowance.
+  ///   • `onDemandCap` / `onDemandUsed` — optional overage budget (cap > 0).
+  List<ProviderUsageWindow> _parseWindows(Map<String, dynamic> body) {
+    var data = _unwrap(body, const ['data', 'billing', 'credits']);
+    final config = data['config'];
+    if (config is Map<String, dynamic>) {
+      data = config;
+    } else if (config is Map) {
+      data = Map<String, dynamic>.from(config);
+    }
+
+    final windows = <ProviderUsageWindow>[];
+    final resetsAtMs = _parseResetMs(data);
+
+    final monthly = _creditsWindow(
+      label: 'Monthly Credits',
+      limitCents: _centsOf(data, const ['monthlyLimit', 'monthly_limit']),
+      usedCents: _centsOf(data, const ['used']),
+      resetsAtMs: resetsAtMs,
+    );
+    if (monthly != null) windows.add(monthly);
+
+    final capCents = _centsOf(data, const ['onDemandCap', 'on_demand_cap']);
+    if (capCents != null && capCents > 0) {
+      final onDemand = _creditsWindow(
+        label: 'On-demand',
+        limitCents: capCents,
+        usedCents: _centsOf(data, const ['onDemandUsed', 'on_demand_used']),
+        resetsAtMs: resetsAtMs,
+      );
+      if (onDemand != null) windows.add(onDemand);
+    }
+
+    return windows;
+  }
+
+  /// Builds one dollar-denominated window from cent amounts. Returns null when
+  /// the payload carries no limit, so we never render a misleading 0% bar.
+  ProviderUsageWindow? _creditsWindow({
+    required String label,
+    required double? limitCents,
+    required double? usedCents,
+    required int? resetsAtMs,
+  }) {
+    if (limitCents == null || limitCents <= 0) return null;
+    final limit = limitCents / 100.0;
+    final used = ((usedCents ?? 0) < 0 ? 0.0 : (usedCents ?? 0)) / 100.0;
+    return ProviderUsageWindow(
+      label: label,
+      utilization: ((used / limit) * 100).clamp(0.0, 100.0),
+      resetsAtMs: resetsAtMs,
+      limit: limit,
+      used: used,
+      remaining: (limit - used).clamp(0.0, limit),
+    );
+  }
+
+  /// Billing period end — ISO-8601 in `billingPeriodEnd` or
+  /// `currentPeriod.end`.
+  static int? _parseResetMs(Map<String, dynamic> data) {
+    final period = data['currentPeriod'] ?? data['current_period'];
+    final candidates = <dynamic>[
+      data['billingPeriodEnd'],
+      data['billing_period_end'],
+      if (period is Map) period['end'],
+    ];
+    for (final value in candidates) {
+      if (value is String && value.isNotEmpty) {
+        final dt = DateTime.tryParse(value);
+        if (dt != null) return dt.millisecondsSinceEpoch;
+      }
+    }
+    return null;
+  }
+
+  /// Reads a cent amount that may arrive as a number, numeric string, or the
+  /// `{"val": N}` wrapper used by the credits format.
+  static double? _centsOf(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = data[key];
+      if (value == null) continue;
+      if (value is num) return value.toDouble();
+      if (value is String) {
+        final parsed = double.tryParse(value);
+        if (parsed != null) return parsed;
+      }
+      if (value is Map) {
+        final inner = value['val'];
+        if (inner is num) return inner.toDouble();
+        if (inner is String) return double.tryParse(inner);
+      }
+    }
+    return null;
+  }
+
+  static String? _stringOf(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = data[key];
+      if (value is String && value.isNotEmpty) return value;
+      if (value is num) return value.toString();
+    }
+    return null;
+  }
+
+  /// Descends through the response envelope (`data` → `user`/`billing`/...)
+  /// until no wrapper key matches, mirroring grok-proxy's `unwrap`.
+  static Map<String, dynamic> _unwrap(
+    Map<String, dynamic> value, [
+    List<String> keys = const ['data', 'user'],
+  ]) {
+    var current = value;
+    var advanced = true;
+    while (advanced) {
+      advanced = false;
+      for (final key in keys) {
+        final child = current[key];
+        if (child is Map<String, dynamic>) {
+          current = child;
+          advanced = true;
+          break;
+        }
+        if (child is Map) {
+          current = Map<String, dynamic>.from(child);
+          advanced = true;
+          break;
+        }
+      }
+    }
+    return current;
+  }
+
+  /// Recovers the user id from the OAuth access token's JWT claims, the same
+  /// fallback the Grok CLI uses before its optional /user enrichment call.
+  static String? _userIdFromJwt(String accessToken) {
+    final parts = accessToken.split('.');
+    if (parts.length != 3) return null;
+    try {
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final claims = jsonDecode(payload);
+      if (claims is! Map<String, dynamic>) return null;
+      return _stringOf(claims, const ['userId', 'user_id', 'sub', 'id']);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Like [_asMap] but returns an empty map instead of throwing, so a
+  /// non-JSON body surfaces as "no windows" plus the HTTP error path.
+  static Map<String, dynamic> _asMapLenient(dynamic data) {
+    try {
+      return _asMap(data, 'Grok');
+    } catch (_) {
+      return const <String, dynamic>{};
+    }
+  }
+
+  static String _normalizeRoot(String baseUrl) {
+    final trimmed = baseUrl.trim();
+    final base = trimmed.isEmpty ? grokDefaultBaseUrl : trimmed;
+    return base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+  }
+}
+
 /// Encapsulates one Kimi HTTP exchange so the parser and the debug surface
 /// can share the same body without re-decoding.
 class _KimiFetch {
