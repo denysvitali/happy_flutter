@@ -442,6 +442,7 @@ void main() {
       );
       sync.testSetSessionMessages(sessionId, staleCache);
       sync.testSetSessionLastSeq(sessionId, 5);
+      sync.testVisibleSessionId = sessionId;
 
       // Return the complete delta after the cache cursor.
       sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
