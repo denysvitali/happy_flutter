@@ -524,7 +524,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     // Never silently drop a state where the Sync singleton has messages
     // but our local list is empty. This catches edge cases where the
-    // view cache was cleared (e.g. gapTooLarge tail refresh) and the
+    // view cache was cleared during recovery and the
     // UI got updated with an empty list before the HTTP fetch completed.
     if (!messagesChanged && latestMessages.isNotEmpty && _messages.isEmpty) {
       messagesChanged = true;

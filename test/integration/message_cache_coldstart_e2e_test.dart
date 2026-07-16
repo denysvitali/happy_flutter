@@ -399,11 +399,11 @@ void main() {
     });
 
     test(
-      'stale cache (cursor far behind server) triggers tail refresh',
+      'stale cache catches up contiguously from its cursor',
       () async {
         const sessionId = 'sess-stale-1';
-        // lastSeq=500, cursor=5 → gap=495 > initialLoad(200) → gapTooLarge.
-        // Expected afterSeq = 500 - 200 = 300.
+        // The gap exceeds initialLoad, but the cached prefix must remain
+        // contiguous with the fetched messages.
         sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
         // Cache has old messages (seq 1-5), cursor at 5.
         final staleCache = List.generate(
@@ -417,7 +417,7 @@ void main() {
         sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
           capturedAfterSeqs.add(afterSeq);
           return _buildResponse([
-            _makeEncryptedMessage('msg-301', seq: 301, content: 'New'),
+            _makeEncryptedMessage('msg-6', seq: 6, content: 'New'),
           ]);
         };
 
@@ -426,15 +426,13 @@ void main() {
         expect(capturedAfterSeqs, isNotEmpty);
         expect(
           capturedAfterSeqs.first,
-          300,
-          reason:
-              'Tail refresh should start at '
-              'lastSeq(500) - initialLoad(200) = 300',
+          5,
+          reason: 'Cached history must resume from its maximum sequence',
         );
       },
     );
 
-    test('stale cache messages are merged with tail refresh', () async {
+    test('stale cache catch-up leaves no missing middle', () async {
       const sessionId = 'sess-stale-2';
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
       // Old cache: seq 1-5, cursor at 5.
@@ -445,12 +443,17 @@ void main() {
       sync.testSetSessionMessages(sessionId, staleCache);
       sync.testSetSessionLastSeq(sessionId, 5);
 
-      // Server returns only tail messages (seq 301+).
+      // Return the complete delta after the cache cursor.
       sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        final endSeq = afterSeq + limit < 500 ? afterSeq + limit : 500;
         return _buildResponse([
-          _makeEncryptedMessage('new-msg-301', seq: 301, content: 'A'),
-          _makeEncryptedMessage('new-msg-302', seq: 302, content: 'B'),
-        ]);
+          for (var seq = afterSeq + 1; seq <= endSeq; seq++)
+            _makeEncryptedMessage(
+              'new-msg-$seq',
+              seq: seq,
+              content: 'Message $seq',
+            ),
+        ], hasMore: endSeq < 500);
       };
 
       await sync.fetchMessages(sessionId);
@@ -458,30 +461,11 @@ void main() {
       final result = sync.testSessionMessages(sessionId);
       expect(result, isNotNull);
 
-      // New tail messages should be present.
-      final ids = result!.map((m) => m['id'] as String).toSet();
+      final seqs = result!.map((message) => message['seq'] as int).toList();
       expect(
-        ids.contains('new-msg-301'),
-        isTrue,
-        reason: 'Tail-refresh message new-msg-301 should be present',
-      );
-      expect(
-        ids.contains('new-msg-302'),
-        isTrue,
-        reason: 'Tail-refresh message new-msg-302 should be present',
-      );
-
-      // Gap recovery now merges instead of clearing, so old
-      // messages are preserved alongside the new tail.  The
-      // 3000-message cap will eventually trim the oldest, but
-      // with only 7 total messages both old and new should be
-      // present.
-      expect(
-        ids.contains('old-msg-1'),
-        isTrue,
-        reason:
-            'Gap recovery merges — old messages preserved '
-            'alongside new tail',
+        seqs,
+        List<int>.generate(500, (index) => index + 1),
+        reason: 'Cache reconciliation must not leave an internal gap',
       );
     });
 

@@ -546,7 +546,7 @@ extension SyncSocket on Sync {
     _scheduleSaveSeq();
 
     // Keep session.lastSeq in sync so
-    // _tailAfterSeqForSession and gapTooLarge use the
+    // Tail-load cursor calculation uses the
     // authoritative cursor, not the stale value from the
     // last fetchSessions response.
     final session = _sessions[sessionId];

@@ -1039,7 +1039,7 @@ extension SyncMessagingRpc on Sync {
       // Check for gap: server is ahead of our cursor
       if (cursorSeq > 0 && serverLastSeq > cursorSeq) {
         // Server has messages we haven't seen. Let fetchMessages handle it
-        // via the normal incremental delta path (or gapTooLarge tail-load).
+        // via the normal incremental delta path.
         if (logger.shouldLog(LogLevel.debug)) {
           logger.debug(
             '[onSessionVisible] gap detected: '

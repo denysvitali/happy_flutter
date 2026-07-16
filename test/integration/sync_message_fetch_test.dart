@@ -15,7 +15,7 @@ import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 /// These tests use a mock HTTP layer and a fake session encryption
 /// to exercise the full message fetch pipeline including:
 /// - Skip logic (cursor >= serverLastSeq)
-/// - Gap detection (gapTooLarge)
+/// - Large cached-gap catch-up
 /// - Tail refresh (first load, force refresh)
 /// - Incremental delta fetch
 /// - Socket event cursor advancement
@@ -283,25 +283,31 @@ void main() {
       );
     });
 
-    test('gapTooLarge falls back to tail refresh', () async {
+    test('large cached gap continues from cursor without skipping', () async {
       final sessionId = 'sess-1';
 
       // Cursor at 10, server at 300 — gap of 290 (> initialLoad of 200)
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 300);
       sync.testSetSessionLastSeq(sessionId, 10); // far behind
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'msg-10', 'seq': 10, 'role': 'agent'},
+      ]);
 
       final capturedAfterSeq = <int>[];
       sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
         capturedAfterSeq.add(afterSeq);
         return _buildMessagesResponse([
-          _makeAgentMessage('msg-101', seq: 101, content: 'Recent'),
+          _makeAgentMessage('msg-11', seq: 11, content: 'Next'),
         ]);
       };
 
       await sync.fetchMessages(sessionId);
 
-      // Assert: tail refresh starts at lastSeq - initialLoad = 300 - 200 = 100
-      expect(capturedAfterSeq.first, 100);
+      expect(
+        capturedAfterSeq.first,
+        10,
+        reason: 'Cached history must resume at its cursor without a gap',
+      );
     });
 
     test(

@@ -372,11 +372,6 @@ extension SyncMessaging on Sync {
       final forceProbe = _sessionsNeedingFetchProbe.remove(sessionId);
       int afterSeq;
 
-      // Detect large gaps: when the cursor is far behind the session's
-      // current lastSeq, forward-crawling page by page is extremely slow
-      // (100 msgs/page × decrypt × O(n) grouping per page).  Fall back
-      // to a tail-load so we only fetch the most recent messages.
-      //
       // On reconnect, use the pre-reconnect cursor snapshot for the
       // visible session to avoid skipping the disconnect gap.  Inline
       // socket events arriving after reconnect can advance the cursor
@@ -405,7 +400,7 @@ extension SyncMessaging on Sync {
         _reconnectCursorSnapshot = null;
       }
       final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
-      final gapTooLarge =
+      final hasLargeDelta =
           !isFirstLoad &&
           !forceTailRefresh &&
           serverLastSeq > 0 &&
@@ -417,7 +412,7 @@ extension SyncMessaging on Sync {
         'isFirstLoad=$isFirstLoad '
         'forceTailRefresh=$forceTailRefresh '
         'forceProbe=$forceProbe '
-        'gapTooLarge=$gapTooLarge '
+        'hasLargeDelta=$hasLargeDelta '
         'cursorSeq=$cursorSeq '
         'serverLastSeq=$serverLastSeq',
       );
@@ -427,19 +422,13 @@ extension SyncMessaging on Sync {
       // events (new-message) update _sessionLastSeq via inline processing
       // for the visible session and can push cursor PAST the server's
       // lastSeq (since session.lastSeq lags behind socket events).
-      // We guard with !hasGap so we don't skip when cursor > serverLastSeq —
-      // that indicates socket events may have outpaced the server and we
-      // should fetch to ensure no messages were missed.
-      final hasGap =
-          serverLastSeq > 0 &&
-          cursorSeq <= serverLastSeq &&
-          (serverLastSeq - cursorSeq) > Sync.initialLoad;
+      // A cursor beyond serverLastSeq indicates socket events may have
+      // outpaced the server, so only exact equality is safe to skip.
       if (!isFirstLoad &&
           !forceProbe &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
-          cursorSeq == serverLastSeq &&
-          !hasGap) {
+          cursorSeq == serverLastSeq) {
         logger.debug(
           '[fetchMessages] $sessionId already caught up '
           '(cursor=$cursorSeq server=$serverLastSeq) '
@@ -499,50 +488,37 @@ extension SyncMessaging on Sync {
         return;
       }
 
-      // Track that we're doing a tail-load gap recovery. We'll clear
-      // stale messages AFTER the first page succeeds to avoid losing
-      // messages if the network request fails. Declared early so it's
-      // accessible in the while loop below.
-      // Note: gapTooLarge is computed with !forceTailRefresh to short-circuit,
-      // so we must use || here to ensure stale clearing happens for both
-      // explicit tail-refresh requests AND large-gap detections.
-      final isGapRecovery = gapTooLarge || forceTailRefresh;
-      if (isFirstLoad || forceTailRefresh || gapTooLarge) {
+      // A tail jump is safe only when there is no usable in-memory prefix.
+      // With cached messages, even an explicit refresh must continue from
+      // their cursor or merging the tail would create a missing middle.
+      final useTailLoad = isFirstLoad || (forceTailRefresh && cursorSeq <= 0);
+      final isGapRecovery = forceTailRefresh && useTailLoad;
+      if (useTailLoad) {
         // Lazy tail-load: start near the end of the session
         // history so we don't download thousands of messages
         // that the UI will never show.
         //
         // For first load and tail refresh, compute the
         // window from the known max seq, ignoring the cursor.
-        if (isFirstLoad || forceTailRefresh) {
-          final knownMax = max(cursorSeq, serverLastSeq);
-          afterSeq = knownMax <= Sync.initialLoad
-              ? 0
-              : knownMax - Sync.initialLoad;
-          // after_seq=N returns messages with seq > N, so small
-          // non-zero values (1-10) would skip the very first
-          // message(s) of the conversation.  Round down to 0 when
-          // the window barely exceeds Sync.initialLoad so the first
-          // message is always included in the initial fetch.
-          if (afterSeq > 0 && afterSeq <= 10) {
-            afterSeq = 0;
-          }
-        } else {
-          afterSeq = _tailAfterSeqForSession(sessionId);
+        final knownMax = max(cursorSeq, serverLastSeq);
+        afterSeq = knownMax <= Sync.initialLoad
+            ? 0
+            : knownMax - Sync.initialLoad;
+        // after_seq=N returns messages with seq > N, so small
+        // non-zero values (1-10) would skip the very first
+        // message(s) of the conversation.  Round down to 0 when
+        // the window barely exceeds Sync.initialLoad so the first
+        // message is always included in the initial fetch.
+        if (afterSeq > 0 && afterSeq <= 10) {
+          afterSeq = 0;
         }
-        if (gapTooLarge) {
-          logger.debug(
-            '[fetchMessages] $sessionId gap too large '
-            '(cursor=$cursorSeq server=$serverLastSeq) — '
-            'switching to tail-load afterSeq=$afterSeq',
-          );
-        } else if (forceTailRefresh && !isFirstLoad) {
+        if (forceTailRefresh && !isFirstLoad) {
           logger.debug(
             '[fetchMessages] $sessionId forcing tail refresh '
             'afterSeq=$afterSeq',
           );
         }
-        if (isFirstLoad || gapTooLarge) {
+        if (isFirstLoad) {
           if (afterSeq > 0) {
             // Record where we started so the UI can offer "load older" later.
             _sessionFirstLoadedSeq[sessionId] = afterSeq + 1;
@@ -559,6 +535,12 @@ extension SyncMessaging on Sync {
         afterSeq = _tailAfterSeqForSession(sessionId);
       } else {
         afterSeq = cursorSeq;
+        if (forceTailRefresh) {
+          logger.debug(
+            '[fetchMessages] $sessionId preserving cached continuity '
+            'during forced refresh afterSeq=$afterSeq',
+          );
+        }
       }
 
       var page = 0;
@@ -570,7 +552,7 @@ extension SyncMessaging on Sync {
         ..setData('isFirstLoad', isFirstLoad)
         ..setData('forceTailRefresh', forceTailRefresh)
         ..setData('forceProbe', forceProbe)
-        ..setData('gapTooLarge', gapTooLarge)
+        ..setData('hasLargeDelta', hasLargeDelta)
         ..setData('cursorSeq', cursorSeq)
         ..setData('serverLastSeq', serverLastSeq)
         ..setData('pageSize', Sync._messageFetchPageSize)
@@ -923,11 +905,7 @@ extension SyncMessaging on Sync {
         await Future<void>.delayed(Duration.zero);
 
         // ── Upsert messages ──
-        // Gap recovery: merge new tail-loaded messages into the existing
-        // list instead of clearing first.  The upsert deduplicates by ID
-        // and the 3000-message cap trims the oldest entries.  This
-        // preserves messages the user already sees while filling in the
-        // gap, avoiding permanent loss when pagination is interrupted.
+        // Explicit tail recovery merges new messages into the existing list.
         if (isGapRecovery && page == 0 && processed.messages.isNotEmpty) {
           logger.debug(
             '[fetchMessages] $sessionId gap recovery: '

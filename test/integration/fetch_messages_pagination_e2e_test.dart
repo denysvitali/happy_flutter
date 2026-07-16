@@ -15,7 +15,7 @@ import 'package:happy_flutter/core/utils/invalidate_sync.dart';
 /// Exercises the full pagination pipeline including:
 /// - Single page fetch (hasMore=false)
 /// - Multi-page pagination (hasMore=true → follow-up pages)
-/// - Large-gap tail refresh (offset calculation)
+/// - Large cached-gap contiguous catch-up
 /// - Edge cases (empty response, non-sequential seqs)
 void main() {
   // ---------------------------------------------------------------------------
@@ -430,11 +430,11 @@ void main() {
     });
 
     test(
-      'tail refresh with large gap fetches from correct offset',
+      'large cached gap fetches contiguously from the cursor',
       () async {
         // Session with lastSeq=500, cursor at 100.
-        // gap = 500 - 100 = 400 > initialLoad(200) → gapTooLarge.
-        // Expected afterSeq = lastSeq - initialLoad = 500 - 200 = 300.
+        // The gap is larger than initialLoad, but cached history means the
+        // fetch must continue at seq 100 rather than jumping to the tail.
         const sessionId = 'sess-gap-1';
         sync.testSessions[sessionId] = _makeSession(
           sessionId,
@@ -452,9 +452,9 @@ void main() {
           capturedAfterSeqs.add(afterSeq);
           return _buildMessagesResponse([
             _makeEncryptedMessage(
-              'msg-301',
-              seq: 301,
-              content: 'Recent',
+              'msg-101',
+              seq: 101,
+              content: 'Next',
             ),
           ]);
         };
@@ -468,10 +468,10 @@ void main() {
         );
         expect(
           capturedAfterSeqs.first,
-          300,
+          100,
           reason:
-              'Gap recovery should start at '
-              'lastSeq(500) - initialLoad(200) = 300',
+              'Existing history must catch up from its cursor without '
+              'skipping the middle',
         );
       },
     );
