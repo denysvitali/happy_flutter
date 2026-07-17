@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/code_viewer_theme.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/utils/wire_parsers.dart';
 import 'message_detail_sheet.dart';
@@ -77,6 +78,7 @@ class ErrorMessageWidget extends StatelessWidget {
   void _showErrorDetailSheet(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final code = context.codeViewerTheme;
     final l10n = context.l10n;
     final errorType = messageData['errorType'] as String? ?? 'unknown';
     final errorMessage =
@@ -195,7 +197,7 @@ class ErrorMessageWidget extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
+                      color: code.background,
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: SelectableText(
@@ -205,7 +207,7 @@ class ErrorMessageWidget extends StatelessWidget {
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontFamily: 'monospace',
                         fontSize: AppFontSize.sm,
-                        color: const Color(0xFF9CDCFE),
+                        color: code.foreground,
                         height: 1.4,
                       ),
                     ),
