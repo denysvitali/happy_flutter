@@ -199,7 +199,7 @@ class _UrlChip extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.xs),
             decoration: BoxDecoration(
-              color: stateColor.withAlpha(26),
+              color: stateColor.withValues(alpha: 26 / 255),
               borderRadius: BorderRadius.circular(AppRadius.xsm),
             ),
             child: Icon(
@@ -217,7 +217,7 @@ class _UrlChip extends StatelessWidget {
                 fontSize: AppFontSize.sm,
                 color: theme.colorScheme.primary,
                 decoration: TextDecoration.underline,
-                decorationColor: theme.colorScheme.primary.withAlpha(128),
+                decorationColor: theme.colorScheme.primary.withValues(alpha: 128 / 255),
                 overflow: TextOverflow.ellipsis,
               ),
               maxLines: 1,
@@ -228,7 +228,7 @@ class _UrlChip extends StatelessWidget {
           Icon(
             Icons.open_in_new,
             size: 12,
-            color: theme.colorScheme.onSurfaceVariant.withAlpha(153),
+            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 153 / 255),
           ),
         ],
       ),
@@ -250,7 +250,7 @@ class _PromptBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: theme.colorScheme.secondaryContainer.withAlpha(128),
+          color: theme.colorScheme.secondaryContainer.withValues(alpha: 128 / 255),
           borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.outlineVariant,
@@ -346,7 +346,7 @@ class _ResultSection extends StatelessWidget {
                 vertical: 6,
               ),
               decoration: BoxDecoration(
-                color: AppColors.success.withAlpha(20),
+                color: AppColors.success.withValues(alpha: 20 / 255),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(AppRadius.sm),
                 ),
@@ -364,7 +364,7 @@ class _ResultSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: AppFontSize.xs,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.success.withAlpha(204),
+                      color: AppColors.success.withValues(alpha: 204 / 255),
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -374,7 +374,7 @@ class _ResultSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: AppFontSize.xxs,
                       color: theme.colorScheme.onSurfaceVariant
-                          .withAlpha(153),
+                          .withValues(alpha: 153 / 255),
                     ),
                   ),
                 ],
@@ -435,10 +435,10 @@ class _ErrorBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.smd),
         decoration: BoxDecoration(
-          color: theme.colorScheme.errorContainer.withAlpha(128),
+          color: theme.colorScheme.errorContainer.withValues(alpha: 128 / 255),
           borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
-            color: theme.colorScheme.error.withAlpha(77),
+            color: theme.colorScheme.error.withValues(alpha: 77 / 255),
             width: 0.5,
           ),
         ),
