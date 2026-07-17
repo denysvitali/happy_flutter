@@ -405,13 +405,25 @@ class _ToolViewState extends ConsumerState<ToolView>
   /// Format MCP tool name for display.
   ///
   /// Example: `mcp__linear__create_issue` -> `Linear: Create Issue`
+  ///
+  /// A redundant server prefix in the tool part is dropped so
+  /// `mcp__codex__codex` renders as `Codex` (not `Codex: Codex`) and
+  /// `mcp__codex__codex-reply` as `Codex: Reply`.
   String _formatMCPTitle(String toolName) {
     final withoutPrefix = toolName.replaceFirst('mcp__', '');
     final parts = withoutPrefix.split('__');
     if (parts.length >= 2) {
-      final serverName = _snakeToPascal(parts[0]);
-      final toolPart = _snakeToPascal(parts.skip(1).join('_'));
-      return '$serverName: $toolPart';
+      final serverToken = parts[0];
+      final serverName = _snakeToPascal(serverToken);
+      var toolPart = parts.skip(1).join('_');
+      if (toolPart == serverToken) return serverName;
+      for (final prefix in ['${serverToken}_', '$serverToken-']) {
+        if (toolPart.startsWith(prefix)) {
+          toolPart = toolPart.substring(prefix.length);
+          break;
+        }
+      }
+      return '$serverName: ${_snakeToPascal(toolPart)}';
     }
     return 'MCP: ${_snakeToPascal(withoutPrefix)}';
   }
@@ -483,7 +495,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     final bool minimal;
     if (knownTool != null) {
       minimal = knownTool.minimal;
-    } else if (isMCP && _mcpTextResult(toolResult) != null) {
+    } else if (isMCP && mcpToolTextResult(toolResult) != null) {
       minimal = false;
     } else {
       // Unknown/MCP tools: always minimal — details via tap/long-press only.
@@ -731,7 +743,7 @@ class _ToolViewState extends ConsumerState<ToolView>
   ) {
     final toolName = widget.tool['name'] as String? ?? '';
     final mcpTextResult = toolName.startsWith('mcp__')
-        ? _mcpTextResult(toolResult)
+        ? mcpToolTextResult(toolResult)
         : null;
     final toolCallDebug = ref.watch(
       settingsNotifierProvider.select((s) => s.toolCallDebugEnabled),
@@ -854,37 +866,6 @@ class _ToolViewState extends ConsumerState<ToolView>
         );
       },
     );
-  }
-
-  static String? _mcpTextResult(dynamic result) {
-    final direct = _mcpTextFromContentBlocks(result);
-    if (direct != null) return direct;
-
-    final map = WireParsers.asMap(result);
-    if (map == null) return null;
-
-    final content = _mcpTextFromContentBlocks(map['content']);
-    if (content != null) return content;
-
-    final nestedResult = WireParsers.asMap(map['result']);
-    return _mcpTextFromContentBlocks(nestedResult?['content']);
-  }
-
-  static String? _mcpTextFromContentBlocks(dynamic value) {
-    final blocks = WireParsers.asList(value);
-    if (blocks == null || blocks.isEmpty) return null;
-
-    final texts = <String>[];
-    for (final block in blocks) {
-      final map = WireParsers.asMap(block);
-      if (map == null || map['type'] != 'text') return null;
-      final text = map['text'];
-      if (text is! String) return null;
-      texts.add(text);
-    }
-
-    if (texts.isEmpty) return null;
-    return texts.join('\n');
   }
 
   /// Returns a plain-text representation of [value] suitable for copying.

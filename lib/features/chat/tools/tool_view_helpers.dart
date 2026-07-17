@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
+import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import 'tool_status_indicator.dart' show ToolState;
 
 /// Parses a tool state string into [ToolState].
@@ -83,6 +84,7 @@ const Map<String, String> mcpServerEmojis = {
   'memory': '\u{1F9E0}',
   'everything': '\u{1F50D}',
   'sequential': '\u{1F4BB}',
+  'codex': '✨',
 };
 
 /// Resolves a representative emoji from an MCP server name token.
@@ -92,6 +94,42 @@ String mcpServerEmoji(String serverToken) {
     if (key.contains(entry.key)) return entry.value;
   }
   return '\u{1F527}'; // wrench fallback
+}
+
+/// Extracts plain text from an MCP tool result.
+///
+/// MCP results carry `content` blocks (`[{type: 'text', text: ...}]`), either
+/// at the top level or nested under a `result` key. Returns the joined block
+/// texts when every block is a text block, or null otherwise.
+String? mcpToolTextResult(dynamic result) {
+  final direct = _mcpTextFromContentBlocks(result);
+  if (direct != null) return direct;
+
+  final map = WireParsers.asMap(result);
+  if (map == null) return null;
+
+  final content = _mcpTextFromContentBlocks(map['content']);
+  if (content != null) return content;
+
+  final nestedResult = WireParsers.asMap(map['result']);
+  return _mcpTextFromContentBlocks(nestedResult?['content']);
+}
+
+String? _mcpTextFromContentBlocks(dynamic value) {
+  final blocks = WireParsers.asList(value);
+  if (blocks == null || blocks.isEmpty) return null;
+
+  final texts = <String>[];
+  for (final block in blocks) {
+    final map = WireParsers.asMap(block);
+    if (map == null || map['type'] != 'text') return null;
+    final text = map['text'];
+    if (text is! String) return null;
+    texts.add(text);
+  }
+
+  if (texts.isEmpty) return null;
+  return texts.join('\n');
 }
 
 /// Permission action kinds emitted from [ToolView].

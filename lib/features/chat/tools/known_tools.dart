@@ -738,6 +738,20 @@ class KnownTools {
         return null;
       },
     ),
+    // Codex MCP session tools (mcp__codex__*). Title/icon come from the
+    // generic MCP branch in ToolView — these entries only mark the tool
+    // non-minimal (the CodexMcpView body renders the full prompt + config)
+    // and surface the first prompt line as the collapsed-header subtitle.
+    'mcp__codex__codex': ToolDefinition(
+      icon: mcpIcon,
+      minimal: false,
+      extractSubtitle: _extractCodexPromptSubtitle,
+    ),
+    'mcp__codex__codex-reply': ToolDefinition(
+      icon: mcpIcon,
+      minimal: false,
+      extractSubtitle: _extractCodexPromptSubtitle,
+    ),
     // Gemini-specific tools
     'GeminiReasoning': ToolDefinition(
       icon: reasoningIcon,
@@ -839,6 +853,24 @@ class KnownTools {
     final definition = tools[canonicalName(name)];
     if (definition == null) return true; // Unknown tools are minimal by default
     return definition.minimal;
+  }
+
+  static String? _extractCodexPromptSubtitle(
+    Map<String, dynamic> tool,
+    Map<String, dynamic>? _,
+  ) {
+    final input = WireParsers.asMap(tool['input']);
+    final prompt = input?['prompt'] as String?;
+    if (prompt == null) return null;
+    final firstLine = prompt
+        .split('\n')
+        .map((line) => line.trim())
+        .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+    if (firstLine.isEmpty) return null;
+    const maxLen = 80;
+    return firstLine.length > maxLen
+        ? '${firstLine.substring(0, maxLen)}…'
+        : firstLine;
   }
 
   static String? _extractPatchSubtitle(Map<String, dynamic> tool) {
