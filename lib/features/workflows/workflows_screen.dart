@@ -8,6 +8,7 @@ import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/models/workflow_run.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/repositories/workflows_repository.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -90,6 +91,9 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
         (state) => state[widget.sessionId] ?? const <WorkflowRun>[],
       ),
     );
+    final isUnsupported = ref
+        .read(workflowsRepositoryProvider)
+        .isWorkflowListUnsupportedForSession(widget.sessionId);
 
     return Scaffold(
       appBar: AppBar(
@@ -100,7 +104,7 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
           : _error != null
               ? _ErrorState(error: _error!, onRetry: _refresh)
               : runs.isEmpty
-                  ? const _EmptyState()
+                  ? _EmptyState(isUnsupported: isUnsupported)
                   : RefreshIndicator(
                       onRefresh: _refresh,
                       child: ListView.separated(
@@ -148,10 +152,25 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({this.isUnsupported = false});
+
+  /// Whether the daemon reported that it does not support listing
+  /// workflow runs (older CLI). Shown as a distinct message so the user
+  /// knows workflows are unavailable rather than merely empty.
+  final bool isUnsupported;
 
   @override
   Widget build(BuildContext context) {
+    if (isUnsupported) {
+      return const Center(
+        child: AppEmptyState(
+          icon: Icons.update_disabled,
+          title: 'Workflows unavailable',
+          subtitle: 'This machine is running a CLI version that does not '
+              'support workflows. Update the Claude Code CLI to see them here.',
+        ),
+      );
+    }
     return const Center(
       child: AppEmptyState(
         icon: Icons.account_tree_outlined,

@@ -7,6 +7,7 @@ extension SyncWorkflows on Sync {
   static const int _maxBackgroundWorkflowSessions = 3;
   static const int _initialWorkflowBackoffMs = 5000;
   static const int _maxWorkflowBackoffMs = 5 * 60 * 1000;
+  static const int _workflowUnsupportedCapabilityTtlMs = 5 * 60 * 1000;
 
   // ── State ──────────────────────────────────────────────────────────────
 
@@ -90,13 +91,16 @@ extension SyncWorkflows on Sync {
         return;
       }
       if (_isWorkflowListUnsupported(e)) {
-        _workflowListUnsupportedCapabilities.add(
-          _workflowCapabilityKey(sessionId),
-        );
+        _workflowListUnsupportedCapabilities[
+          _workflowCapabilityKey(sessionId)
+        ] = DateTime.now().millisecondsSinceEpoch +
+            (testWorkflowUnsupportedCapabilityTtl?.inMilliseconds ??
+                _workflowUnsupportedCapabilityTtlMs);
         logger.debug(
           '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
           'workflow-list unsupported',
         );
+        _notifyWorkflowsChanged(sessionId);
         return;
       }
       if (e is SocketNotConnectedException ||
@@ -333,10 +337,22 @@ extension SyncWorkflows on Sync {
         message.contains('unknown method workflow-list');
   }
 
-  bool _isWorkflowCapabilityBlocked(String sessionId) =>
-      _workflowListUnsupportedCapabilities.contains(
-        _workflowCapabilityKey(sessionId),
-      );
+  bool _isWorkflowCapabilityBlocked(String sessionId) {
+    final key = _workflowCapabilityKey(sessionId);
+    final expiresAt = _workflowListUnsupportedCapabilities[key];
+    if (expiresAt == null) return false;
+    if (DateTime.now().millisecondsSinceEpoch >= expiresAt) {
+      _workflowListUnsupportedCapabilities.remove(key);
+      return false;
+    }
+    return true;
+  }
+
+  /// Whether the daemon for [sessionId] has told us it does not support
+  /// `workflow-list`. Used by the UI to show a "workflows unavailable"
+  /// indicator instead of a generic empty state.
+  bool isWorkflowListUnsupportedForSession(String sessionId) =>
+      _isWorkflowCapabilityBlocked(sessionId);
 
   bool _isWorkflowRefreshBackedOff(String sessionId) {
     final until = _workflowRefreshBackoffUntil[sessionId];

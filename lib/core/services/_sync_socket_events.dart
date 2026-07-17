@@ -54,6 +54,10 @@ extension SyncSocketEvents on Sync {
       // Cancel reconnect watchdog — connection succeeded.
       _reconnectWatchdogTimer?.cancel();
       _reconnectWatchdogTimer = null;
+      // A reconnect may be due to a daemon upgrade that now supports
+      // workflow-list. Clear the capability block so the next refresh
+      // re-probes instead of silently skipping.
+      _workflowListUnsupportedCapabilities.clear();
       // Snapshot the visible session's cursor BEFORE any new socket
       // events are processed.  Inline processing of post-reconnect
       // events can advance the cursor past the disconnect gap,

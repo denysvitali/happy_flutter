@@ -3591,6 +3591,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profilesEnvValueLabel => 'Value';
 
   @override
+  String get profilesEnvAddRow => 'Add variable';
+
+  @override
+  String get profilesEnvRemoveRow => 'Remove variable';
+
+  @override
+  String get profilesEnvShowValue => 'Show value';
+
+  @override
+  String get profilesEnvHideValue => 'Hide value';
+
+  @override
   String get profilesScriptTitle => 'Startup Shell Script';
 
   @override

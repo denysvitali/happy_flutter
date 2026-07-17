@@ -12,6 +12,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/env_secrets.dart';
 import '../../core/utils/shell_script_parser.dart';
 import 'profile_editor_screen.dart';
 
@@ -423,19 +424,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   }
 
   String _deriveProfileName(ShellScriptParseResult result) {
-    final modelVar = result.envVars.firstWhere(
-      (e) =>
-          e.name == 'ANTHROPIC_MODEL' ||
-          e.name == 'ANTHROPIC_DEFAULT_OPUS_MODEL' ||
-          e.name == 'OPENAI_MODEL',
-      orElse: () => result.envVars.first,
-    );
-    final modelValue = modelVar.value;
-    if (modelValue.isNotEmpty) {
-      final parts = modelValue.split('/');
-      return parts.length > 1 ? parts.last : modelValue;
-    }
-    return 'Imported Profile';
+    // Secret variables are skipped so a pasted credential can never
+    // become the (unmasked) profile name.
+    return suggestProfileName(result.envVars) ?? 'Imported Profile';
   }
 
   void _confirmDeleteProfile(

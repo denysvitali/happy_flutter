@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/env_secrets.dart';
 import '../profile_setup_catalog.dart';
 
 /// Quick-setup template chips for choosing a pre-configured
@@ -79,40 +80,49 @@ class TemplateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
       color: isSelected
-          ? color.withValues(alpha: 40 / 255)
+          ? color.withValues(
+              alpha: isDark ? AppOpacity.subtle : AppOpacity.faint,
+            )
           : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isSelected ? color : Colors.grey.shade300,
-              width: isSelected ? 2 : 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
             ),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppFontSize.sm,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? color : null,
-                ),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isSelected ? color : cs.outlineVariant,
+                width: isSelected ? AppBorder.thick : AppBorder.thin,
               ),
-            ],
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: AppIconSize.md, color: color),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: AppFontSize.sm,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isSelected ? color : cs.onSurface,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -121,6 +131,10 @@ class TemplateChip extends StatelessWidget {
 }
 
 /// Environment-variables section with add/remove/import controls.
+///
+/// Uses a single stacked row layout at every width: the key field and
+/// remove button sit on the first line, the value field spans the full
+/// width below. Value masking is secret-aware — see [ValueField].
 class EnvVarsSection extends StatelessWidget {
   const EnvVarsSection({
     required this.envRows,
@@ -148,50 +162,19 @@ class EnvVarsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final actions = Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              children: [
-                TextButton.icon(
-                  onPressed: onImport,
-                  icon: const Icon(Icons.paste, size: 18),
-                  label: Text(l10n.profilesImportLabelShort),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.profilesEnvVarsTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-                TextButton.icon(
-                  onPressed: onAdd,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: Text(l10n.commonCreate),
-                ),
-              ],
-            );
-            final title = Text(
-              l10n.profilesEnvVarsTitle,
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
               ),
-            );
-
-            if (constraints.maxWidth < 420) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  title,
-                  const SizedBox(height: AppSpacing.xs),
-                  actions,
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(child: title),
-                const SizedBox(width: AppSpacing.sm),
-                actions,
-              ],
-            );
-          },
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
@@ -200,86 +183,148 @@ class EnvVarsSection extends StatelessWidget {
             color: colorScheme.onSurfaceVariant,
           ),
         ),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            Tooltip(
+              message: l10n.profilesImportLabelShort,
+              child: OutlinedButton.icon(
+                onPressed: onImport,
+                icon: const Icon(Icons.paste, size: AppIconSize.md),
+                label: Text(l10n.profilesImportLabelShort),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, AppTouchTarget.comfortable),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+            Tooltip(
+              message: l10n.profilesEnvAddRow,
+              child: FilledButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add, size: AppIconSize.md),
+                label: Text(l10n.profilesEnvAddRow),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, AppTouchTarget.comfortable),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.sm),
         if (envRows.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Text(
-              l10n.profilesEnvVarsEmpty,
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(
+              child: Text(
+                l10n.profilesEnvVarsEmpty,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
           ),
         ...envRows.asMap().entries.map((entry) {
           final i = entry.key;
           final row = entry.value;
           return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final useStackedLayout = constraints.maxWidth < 420;
-                final keyField = TextFormField(
+            key: ObjectKey(row),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: EnvVarRow(
+              row: row,
+              l10n: l10n,
+              onChanged: onChanged,
+              onRemove: () => onRemove(i),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+/// A single environment-variable entry: key field with a remove
+/// button on top, value field spanning the full width below.
+class EnvVarRow extends StatelessWidget {
+  const EnvVarRow({
+    required this.row,
+    required this.l10n,
+    required this.onChanged,
+    required this.onRemove,
+    super.key,
+  });
+
+  final EnvRow row;
+  final AppLocalizations l10n;
+  final VoidCallback onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final rowCardBg = cs.surfaceContainerLow;
+    return Container(
+      decoration: BoxDecoration(
+        color: rowCardBg,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
                   controller: row.nameCtrl,
                   decoration: InputDecoration(
                     labelText: l10n.profilesEnvKeyLabel,
                     hintText: l10n.profilesEnvKeyHint,
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.smd,
-                    ),
+                    isDense: true,
                   ),
                   style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.md,
                   ),
-                  maxLines: 2,
-                  minLines: 1,
+                  maxLines: 1,
+                  autocorrect: false,
+                  enableSuggestions: false,
                   textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.next,
                   onChanged: (_) => onChanged(),
-                );
-                final removeButton = IconButton(
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Tooltip(
+                message: l10n.profilesEnvRemoveRow,
+                child: IconButton(
                   icon: Icon(
                     Icons.remove_circle_outline,
-                    color: colorScheme.error,
+                    size: AppIconSize.lg,
+                    color: cs.error,
                   ),
-                  onPressed: () => onRemove(i),
-                );
-
-                if (useStackedLayout) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: keyField),
-                          const SizedBox(width: AppSpacing.xs),
-                          removeButton,
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      ValueField(row: row),
-                    ],
-                  );
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 2, child: keyField),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(flex: 3, child: ValueField(row: row)),
-                    removeButton,
-                  ],
-                );
-              },
-            ),
-          );
-        }),
-      ],
+                  onPressed: onRemove,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          ValueField(row: row),
+        ],
+      ),
     );
   }
 }
@@ -362,6 +407,8 @@ class ScriptSection extends StatelessWidget {
               alignLabelWithHint: true,
             ),
             maxLines: 6,
+            autocorrect: false,
+            enableSuggestions: false,
             style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
           ),
         ],
@@ -385,7 +432,16 @@ class EnvRow {
   }
 }
 
-/// Value field with toggle to show/hide the value (sensitive data).
+/// Value field that masks only secrets.
+///
+/// Whether the value is obscured derives from the *key name* via
+/// [isSecretEnvName]: credentials (API keys, tokens, passwords) start
+/// masked with an eye toggle; plain configuration (URLs, model names,
+/// timeouts) stays visible with full text width and no toggle.
+///
+/// The field listens to the row's key-name controller and re-masks
+/// whenever the name changes — a manual reveal never survives a key
+/// edit (fail-closed).
 class ValueField extends StatefulWidget {
   const ValueField({required this.row, super.key});
   final EnvRow row;
@@ -395,29 +451,63 @@ class ValueField extends StatefulWidget {
 }
 
 class _ValueFieldState extends State<ValueField> {
-  bool _obscure = true;
+  bool _userRevealed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.row.nameCtrl.addListener(_onNameChanged);
+  }
+
+  @override
+  void didUpdateWidget(ValueField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.row.nameCtrl != widget.row.nameCtrl) {
+      oldWidget.row.nameCtrl.removeListener(_onNameChanged);
+      widget.row.nameCtrl.addListener(_onNameChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.row.nameCtrl.removeListener(_onNameChanged);
+    super.dispose();
+  }
+
+  void _onNameChanged() {
+    // Fail-closed: renaming the key re-masks the value even if the
+    // user had manually revealed it.
+    setState(() => _userRevealed = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final envName = widget.row.nameCtrl.text.trim();
+    final isSecret = envName.isNotEmpty && isSecretEnvName(envName);
+    final obscure = isSecret && !_userRevealed;
     return TextFormField(
       controller: widget.row.valueCtrl,
-      obscureText: _obscure,
-      maxLines: _obscure ? 1 : 3,
-      minLines: _obscure ? 1 : 2,
+      obscureText: obscure,
+      minLines: 1,
+      maxLines: obscure ? 1 : (isSecret ? 3 : 1),
+      autocorrect: false,
+      enableSuggestions: false,
       decoration: InputDecoration(
-        labelText: AppLocalizations.of(context).profilesEnvValueLabel,
-        border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.smd,
-        ),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscure ? Icons.visibility_off : Icons.visibility,
-            size: 18,
-          ),
-          onPressed: () => setState(() => _obscure = !_obscure),
-        ),
+        labelText: l10n.profilesEnvValueLabel,
+        suffixIcon: isSecret
+            ? IconButton(
+                icon: Icon(
+                  obscure ? Icons.visibility_off : Icons.visibility,
+                  size: AppIconSize.lg,
+                ),
+                tooltip: obscure
+                    ? l10n.profilesEnvShowValue
+                    : l10n.profilesEnvHideValue,
+                onPressed: () =>
+                    setState(() => _userRevealed = !_userRevealed),
+              )
+            : null,
       ),
       style: const TextStyle(fontFamily: 'monospace', fontSize: AppFontSize.md),
     );

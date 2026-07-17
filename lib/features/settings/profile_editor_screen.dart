@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/components/app_card.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/env_secrets.dart';
 import '../../core/utils/shell_script_parser.dart';
 import 'profile_setup_catalog.dart';
 import 'widgets/profile_editor_widgets.dart';
@@ -171,19 +173,12 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       return;
     }
 
-    // Auto-fill name if empty
+    // Auto-fill name if empty — secret variables are skipped so a
+    // pasted credential can never become the (unmasked) profile name.
     if (_nameCtrl.text.trim().isEmpty) {
-      final modelVar = result.envVars.firstWhere(
-        (e) =>
-            e.name == 'ANTHROPIC_MODEL' ||
-            e.name == 'ANTHROPIC_DEFAULT_OPUS_MODEL' ||
-            e.name == 'OPENAI_MODEL',
-        orElse: () => result.envVars.first,
-      );
-      final modelValue = modelVar.value;
-      if (modelValue.isNotEmpty) {
-        final parts = modelValue.split('/');
-        _nameCtrl.text = parts.length > 1 ? parts.last : modelValue;
+      final suggested = suggestProfileName(result.envVars);
+      if (suggested != null) {
+        _nameCtrl.text = suggested;
       }
     }
 
@@ -343,65 +338,73 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       child: ListView(
         padding: AppScreenPadding.settings,
         children: [
-          // Name
-          TextFormField(
-            controller: _nameCtrl,
-            decoration: InputDecoration(
-              labelText: l10n.profilesProfileName,
-              hintText: l10n.profilesNameHint,
-              border: const OutlineInputBorder(),
+          AppCard(
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: l10n.profilesProfileName,
+                    hintText: l10n.profilesNameHint,
+                    border: const OutlineInputBorder(),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? l10n.profilesNameRequired
+                      : null,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextFormField(
+                  controller: _descCtrl,
+                  decoration: InputDecoration(
+                    labelText: l10n.profilesDescriptionLabel,
+                    hintText: l10n.profilesDescriptionHint,
+                    border: const OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
             ),
-            textCapitalization: TextCapitalization.words,
-            validator: (v) => v == null || v.trim().isEmpty
-                ? l10n.profilesNameRequired
-                : null,
           ),
           const SizedBox(height: AppSpacing.md),
 
-          // Description
-          TextFormField(
-            controller: _descCtrl,
-            decoration: InputDecoration(
-              labelText: l10n.profilesDescriptionLabel,
-              hintText: l10n.profilesDescriptionHint,
-              border: const OutlineInputBorder(),
-            ),
-            maxLines: 2,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-
           // Template selector for new profiles
-          if (!isEditing) ...[
-            TemplateSelector(
-              selectedTemplate: _selectedTemplate,
-              onSelect: _applyTemplate,
-              colorScheme: cs,
-              textTheme: tt,
-              l10n: l10n,
+          if (!isEditing)
+            AppCard(
+              child: TemplateSelector(
+                selectedTemplate: _selectedTemplate,
+                onSelect: _applyTemplate,
+                colorScheme: cs,
+                textTheme: tt,
+                l10n: l10n,
+              ),
             ),
-            const SizedBox(height: AppSpacing.xl),
-          ],
+          const SizedBox(height: AppSpacing.md),
 
-          EnvVarsSection(
-            envRows: _envRows,
-            l10n: l10n,
-            textTheme: tt,
-            colorScheme: cs,
-            onImport: _showImportDialog,
-            onAdd: _addEnvRow,
-            onRemove: _removeEnvRow,
-            onChanged: () => setState(() {}),
+          AppCard(
+            child: EnvVarsSection(
+              envRows: _envRows,
+              l10n: l10n,
+              textTheme: tt,
+              colorScheme: cs,
+              onImport: _showImportDialog,
+              onAdd: _addEnvRow,
+              onRemove: _removeEnvRow,
+              onChanged: () => setState(() {}),
+            ),
           ),
 
           const SizedBox(height: AppSpacing.lg),
 
-          ScriptSection(
-            show: _showScript,
-            l10n: l10n,
-            textTheme: tt,
-            colorScheme: cs,
-            controller: _scriptCtrl,
-            onToggle: () => setState(() => _showScript = !_showScript),
+          AppCard(
+            child: ScriptSection(
+              show: _showScript,
+              l10n: l10n,
+              textTheme: tt,
+              colorScheme: cs,
+              controller: _scriptCtrl,
+              onToggle: () => setState(() => _showScript = !_showScript),
+            ),
           ),
 
           const SizedBox(height: AppSpacing.xxxl),

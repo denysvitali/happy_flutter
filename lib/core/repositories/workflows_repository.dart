@@ -11,6 +11,10 @@ abstract interface class WorkflowsRepository {
   Future<void> refreshSession(String sessionId);
 
   Future<WorkflowRun?> fetchSnapshot(String sessionId, String runId);
+
+  /// Whether the daemon for [sessionId] has reported it does not support
+  /// listing workflow runs.
+  bool isWorkflowListUnsupportedForSession(String sessionId);
 }
 
 class SyncWorkflowsRepository implements WorkflowsRepository {
@@ -31,6 +35,10 @@ class SyncWorkflowsRepository implements WorkflowsRepository {
   @override
   Future<WorkflowRun?> fetchSnapshot(String sessionId, String runId) =>
       _sync.fetchWorkflowSnapshot(sessionId, runId);
+
+  @override
+  bool isWorkflowListUnsupportedForSession(String sessionId) =>
+      _sync.isWorkflowListUnsupportedForSession(sessionId);
 }
 
 final workflowsRepositoryProvider = Provider<WorkflowsRepository>(

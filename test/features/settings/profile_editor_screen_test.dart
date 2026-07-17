@@ -63,6 +63,14 @@ void main() {
     );
   }
 
+  Iterable<EditableText> obscuredFields(WidgetTester tester) {
+    return tester.widgetList<EditableText>(
+      find.byWidgetPredicate(
+        (widget) => widget is EditableText && widget.obscureText,
+      ),
+    );
+  }
+
   group('ProfileEditorScreen', () {
     testWidgets('quick setup renders all built-in profile options', (
       tester,
@@ -84,7 +92,9 @@ void main() {
       }
     });
 
-    testWidgets('obscures environment values by default', (tester) async {
+    testWidgets('obscures secret environment values by default', (
+      tester,
+    ) async {
       final profile = AIBackendProfile(
         id: 'custom_env',
         name: 'Env test',
@@ -99,13 +109,112 @@ void main() {
       await tester.pumpWidget(buildSubject(existing: profile));
       await tester.pumpAndSettle();
 
-      final obscuredFields = tester.widgetList<EditableText>(
-        find.byWidgetPredicate(
-          (widget) => widget is EditableText && widget.obscureText,
-        ),
-      );
-      expect(obscuredFields, isNotEmpty);
+      expect(obscuredFields(tester), isNotEmpty);
       expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+    });
+
+    testWidgets('shows non-secret environment values without a toggle', (
+      tester,
+    ) async {
+      final profile = AIBackendProfile(
+        id: 'custom_env',
+        name: 'Env test',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value: 'https://api.anthropic.com',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_MODEL',
+            value: 'claude-opus-4-5',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(buildSubject(existing: profile));
+      await tester.pumpAndSettle();
+
+      expect(obscuredFields(tester), isEmpty);
+      expect(find.byIcon(Icons.visibility_off), findsNothing);
+      expect(find.byIcon(Icons.visibility), findsNothing);
+    });
+
+    testWidgets('masks the value live when the key becomes secret', (
+      tester,
+    ) async {
+      final profile = AIBackendProfile(
+        id: 'custom_env',
+        name: 'Env test',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'MY_BASE_URL',
+            value: 'https://example.com',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(buildSubject(existing: profile));
+      await tester.pumpAndSettle();
+      expect(obscuredFields(tester), isEmpty);
+      expect(find.byIcon(Icons.visibility_off), findsNothing);
+
+      // Field order: name, description, env key, env value.
+      await tester.enterText(
+        find.byType(TextFormField).at(2),
+        'MY_API_KEY',
+      );
+      await tester.pump();
+
+      expect(obscuredFields(tester), isNotEmpty);
+      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+    });
+
+    testWidgets('manual reveal resets when the key name changes', (
+      tester,
+    ) async {
+      final profile = AIBackendProfile(
+        id: 'custom_env',
+        name: 'Env test',
+        environmentVariables: [
+          EnvironmentVariable(name: 'FIRST_TOKEN', value: 'secret-token'),
+        ],
+      );
+
+      await tester.pumpWidget(buildSubject(existing: profile));
+      await tester.pumpAndSettle();
+      expect(obscuredFields(tester), isNotEmpty);
+
+      // Reveal the secret.
+      await tester.tap(find.byIcon(Icons.visibility_off));
+      await tester.pump();
+      expect(obscuredFields(tester), isEmpty);
+
+      // Renaming the key re-masks fail-closed, even to another
+      // secret name.
+      await tester.enterText(
+        find.byType(TextFormField).at(2),
+        'SECOND_TOKEN',
+      );
+      await tester.pump();
+      expect(obscuredFields(tester), isNotEmpty);
+      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+    });
+
+    testWidgets('env row actions expose tooltips', (tester) async {
+      final profile = AIBackendProfile(
+        id: 'custom_env',
+        name: 'Env test',
+        environmentVariables: [
+          EnvironmentVariable(name: 'FOO', value: 'bar'),
+        ],
+      );
+
+      await tester.pumpWidget(buildSubject(existing: profile));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Import from script'), findsOneWidget);
+      expect(find.byTooltip('Add variable'), findsOneWidget);
+      expect(find.byTooltip('Remove variable'), findsOneWidget);
     });
 
     testWidgets('stacks environment fields on narrow screens', (tester) async {

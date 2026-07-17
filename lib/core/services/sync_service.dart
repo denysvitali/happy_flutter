@@ -950,8 +950,10 @@ what you have, you must use the options mode.
 
   /// Capability keys for daemons that do not implement `workflow-list`.
   /// Keys prefer machine id so one unsupported response suppresses retries
-  /// for every session owned by the same daemon.
-  final Set<String> _workflowListUnsupportedCapabilities = <String>{};
+  /// for every session owned by the same daemon. Values are epoch-ms
+  /// expiration timestamps so a machine that upgrades to a capable daemon
+  /// is re-probed after the capability TTL or a socket reconnect.
+  final Map<String, int> _workflowListUnsupportedCapabilities = <String, int>{};
 
   /// Capability keys for daemons that do not implement `loop-list`.
   /// Keys prefer machine id so one unsupported response suppresses retries
@@ -965,6 +967,10 @@ what you have, you must use the options mode.
   /// Test override for the [SyncWorkflows.refreshAllWorkflows] deadline.
   @visibleForTesting
   Duration? testRefreshAllWorkflowsDeadline;
+
+  /// Test override for the workflow-list unsupported capability TTL.
+  @visibleForTesting
+  Duration? testWorkflowUnsupportedCapabilityTtl;
 
   /// Convenience setter for spawn timestamp.
   @visibleForTesting

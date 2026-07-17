@@ -6667,6 +6667,30 @@ abstract class AppLocalizations {
   /// **'Value'**
   String get profilesEnvValueLabel;
 
+  /// No description provided for @profilesEnvAddRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Add variable'**
+  String get profilesEnvAddRow;
+
+  /// No description provided for @profilesEnvRemoveRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove variable'**
+  String get profilesEnvRemoveRow;
+
+  /// No description provided for @profilesEnvShowValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Show value'**
+  String get profilesEnvShowValue;
+
+  /// No description provided for @profilesEnvHideValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide value'**
+  String get profilesEnvHideValue;
+
   /// No description provided for @profilesScriptTitle.
   ///
   /// In en, this message translates to:
