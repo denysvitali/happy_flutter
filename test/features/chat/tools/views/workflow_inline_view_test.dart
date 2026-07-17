@@ -125,5 +125,125 @@ void main() {
       expect(find.text('Finished phase Read'), findsOneWidget);
       expect(find.text('Starting phase Read'), findsNothing);
     });
+
+    testWidgets('renders nothing when children is null', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: WorkflowInlineView(children: null),
+          ),
+        ),
+      );
+      expect(find.byType(SizedBox), findsOneWidget);
+    });
+
+    testWidgets('skips malformed children and progress entries',
+        (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WorkflowInlineView(
+              children: [
+                'not-a-map',
+                {
+                  'kind': 'agent-event',
+                  'workflowProgress': 'not-a-list',
+                },
+                {
+                  'kind': 'agent-event',
+                  'workflowProgress': [
+                    {'type': 'workflow_phase', 'index': 1, 'title': 'Read'},
+                    'not-a-map',
+                  ],
+                },
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Read'), findsOneWidget);
+    });
+
+    testWidgets('accepts camelCase workflowProgress key', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WorkflowInlineView(
+              children: [
+                {
+                  'kind': 'agent-event',
+                  'workflowProgress': [
+                    {'type': 'workflow_phase', 'index': 1, 'title': 'Camel'},
+                  ],
+                },
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Camel'), findsOneWidget);
+    });
+
+    testWidgets('renders unknown agent state as pending', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WorkflowInlineView(
+              children: [
+                {
+                  'kind': 'agent-event',
+                  'workflowProgress': [
+                    {
+                      'type': 'workflow_agent',
+                      'agentId': 'a1',
+                      'label': 'mystery-agent',
+                      'phaseIndex': 1,
+                      'phaseTitle': 'Phase',
+                      'state': 'unknown_state',
+                    },
+                  ],
+                },
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Phase · mystery-agent'), findsOneWidget);
+    });
+
+    testWidgets('matches 0-based phaseIndex to phase index', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WorkflowInlineView(
+              children: [
+                {
+                  'kind': 'agent-event',
+                  'workflowProgress': [
+                    {'type': 'workflow_phase', 'index': 0, 'title': 'Plan'},
+                    {'type': 'workflow_phase', 'index': 1, 'title': 'Code'},
+                    {
+                      'type': 'workflow_agent',
+                      'agentId': 'a1',
+                      'label': 'coder',
+                      'phaseIndex': 1,
+                      'phaseTitle': 'Code',
+                      'state': 'running',
+                    },
+                  ],
+                },
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Plan'), findsOneWidget);
+      expect(find.text('Code'), findsOneWidget);
+      expect(find.text('Code · coder'), findsOneWidget);
+    });
   });
 }

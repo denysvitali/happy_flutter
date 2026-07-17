@@ -344,5 +344,41 @@ void main() {
       expect(progress, hasLength(1));
       expect(progress!.first['state'], 'done');
     });
+
+    test('task_notification failed preserves workflow_progress if present', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          metaSystem({
+            'subtype': 'task_notification',
+            'status': 'failed',
+            'summary': 'Read go.mod failed',
+            'task_type': 'local_workflow',
+            'task_id': 'wo9gouhnm',
+            'workflow_progress': [
+              {
+                'type': 'workflow_agent',
+                'agentId': 'a66369641305e6fab',
+                'label': 'read-go-mod',
+                'phaseIndex': 1,
+                'phaseTitle': 'Read',
+                'model': 'claude-sonnet-4-6',
+                'state': 'error',
+              },
+            ],
+          }),
+        ],
+        wireMessages: [wire(id: 'm1', seq: 1)],
+        sessionId: 's1',
+      );
+
+      final msg = result.messages.first;
+      expect(msg['kind'], 'text');
+      expect(msg['taskEvent'], true);
+      expect(msg['taskStatus'], 'failed');
+      final progress = msg['workflowProgress'] as List<dynamic>?;
+      expect(progress, isNotNull);
+      expect(progress, hasLength(1));
+      expect(progress!.first['state'], 'error');
+    });
   });
 }

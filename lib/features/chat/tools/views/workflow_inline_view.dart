@@ -99,16 +99,32 @@ class WorkflowInlineView extends StatelessWidget {
     List<Map<String, dynamic>> agents,
   ) {
     if (phases.isEmpty) return -1;
-    var index = -1;
+
+    // Prefer matching against each phase's explicit `index` field, so the
+    // result is correct whether the wire uses 0-based or 1-based indices.
+    var matchedPosition = -1;
     for (final agent in agents) {
-      final phaseIndex = WireParsers.parseInt(agent['phaseIndex']);
-      if (phaseIndex != null && phaseIndex > index) {
-        index = phaseIndex;
+      final agentPhaseIndex = WireParsers.parseInt(agent['phaseIndex']);
+      if (agentPhaseIndex == null) continue;
+      for (var i = 0; i < phases.length; i++) {
+        final phaseIndex = WireParsers.parseInt(phases[i]['index']);
+        if (phaseIndex != null && phaseIndex == agentPhaseIndex) {
+          if (i > matchedPosition) matchedPosition = i;
+        }
       }
     }
-    if (index < 0) return 0;
-    // Clamp to valid phase range; phaseIndex is 1-based in the wire shape.
-    return (index - 1).clamp(0, phases.length - 1);
+    if (matchedPosition >= 0) return matchedPosition;
+
+    // Fallback: assume phaseIndex maps directly to the phase list position.
+    var maxIndex = -1;
+    for (final agent in agents) {
+      final phaseIndex = WireParsers.parseInt(agent['phaseIndex']);
+      if (phaseIndex != null && phaseIndex > maxIndex) {
+        maxIndex = phaseIndex;
+      }
+    }
+    if (maxIndex < 0) return 0;
+    return maxIndex.clamp(0, phases.length - 1);
   }
 }
 
@@ -250,7 +266,8 @@ class _AgentStatusRow extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: AppSpacing.xxs),
-          Expanded(
+          Flexible(
+            flex: 3,
             child: Text(
               phaseTitle.isNotEmpty ? '$phaseTitle · $label' : label,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -261,10 +278,14 @@ class _AgentStatusRow extends StatelessWidget {
             ),
           ),
           if (model.isNotEmpty)
-            Text(
-              model,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
+            Flexible(
+              flex: 1,
+              child: Text(
+                model,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           if (toolCalls != null) ...[

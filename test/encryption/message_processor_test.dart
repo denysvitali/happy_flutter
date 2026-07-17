@@ -1225,6 +1225,59 @@ void main() {
         expect(result.messages.first['name'], 'file-edit');
       });
 
+      test('ACP task_progress forwards workflow_progress snapshot', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'acp',
+                'data': {
+                  'type': 'system',
+                  'subtype': 'task_progress',
+                  'status': 'running',
+                  'description': 'Read: read-go-mod',
+                  'task_id': 'wo9gouhnm',
+                  'task_type': 'local_workflow',
+                  'workflow_name': 'inspect-go-mod',
+                  'workflow_progress': [
+                    {
+                      'type': 'workflow_phase',
+                      'index': 1,
+                      'title': 'Read',
+                    },
+                    {
+                      'type': 'workflow_agent',
+                      'agentId': 'a66369641305e6fab',
+                      'label': 'read-go-mod',
+                      'phaseIndex': 1,
+                      'phaseTitle': 'Read',
+                      'model': 'claude-sonnet-4-6',
+                      'state': 'start',
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        final msg = result.messages.first;
+        expect(msg['kind'], 'agent-event');
+        expect(msg['taskEvent'], true);
+        expect(msg['workflowName'], 'inspect-go-mod');
+        final progress = msg['workflowProgress'] as List<dynamic>?;
+        expect(progress, isNotNull);
+        expect(progress, hasLength(2));
+        expect(progress!.first['type'], 'workflow_phase');
+        expect(progress.last['type'], 'workflow_agent');
+      });
+
       test('processes grok content type with ACP message shape', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
