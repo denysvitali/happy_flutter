@@ -51,7 +51,11 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     if (!sync.isInitialized) return;
     setState(() => _error = null);
     try {
-      await ref.read(workflowsNotifierProvider.notifier).refreshFromSync();
+      final notifier = ref.read(workflowsNotifierProvider.notifier);
+      await notifier.refreshSession(widget.sessionId);
+      // Also refresh other relevant sessions in the background so the
+      // global workflows map stays up to date.
+      unawaited(notifier.refreshFromSync());
     } catch (e, st) {
       logger.warning('WorkflowsScreen refresh failed: $e', e, st);
       if (mounted) setState(() => _error = e.toString());

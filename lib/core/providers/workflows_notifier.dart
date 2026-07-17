@@ -66,6 +66,21 @@ class WorkflowsNotifier extends Notifier<Map<String, List<WorkflowRun>>> {
     loadFromSync();
   }
 
+  /// Server-fetch for a single session and read. Best-effort.
+  Future<void> refreshSession(String sessionId) async {
+    if (!sync.isInitialized) return;
+    try {
+      await _repository.refreshSession(sessionId);
+    } catch (e, st) {
+      logger.warning(
+        'WorkflowsNotifier.refreshSession($sessionId) failed: $e',
+        e,
+        st,
+      );
+    }
+    loadFromSync();
+  }
+
   /// Returns the workflow runs for [sessionId] (empty list if none).
   List<WorkflowRun> workflowsForSession(String sessionId) =>
       state[sessionId] ?? const <WorkflowRun>[];
