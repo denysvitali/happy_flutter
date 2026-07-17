@@ -4,18 +4,16 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/code_viewer_theme.dart';
 import 'package:happy_flutter/features/chat/widgets/error_message_widget.dart';
 
-/// Finds the "Debug data" JSON box [Container] (monospace [SelectableText]
-/// child, [BoxDecoration] background).
-Finder _debugBox() => find.byWidgetPredicate(
-  (w) =>
-      w is Container &&
-      w.child is SelectableText &&
-      (w.child as SelectableText).style?.fontFamily == 'monospace',
+/// Finds the "Debug data" JSON [SelectableText] — anchored on the encoded
+/// JSON payload so it can't collide with the metadata [DetailRow]s, which
+/// also use monospace [SelectableText].
+Finder _debugText() => find.byWidgetPredicate(
+  (w) => w is SelectableText && (w.data ?? '').contains('"k": "v"'),
 );
 
-Finder _debugText() => find.byWidgetPredicate(
-  (w) => w is SelectableText && w.style?.fontFamily == 'monospace',
-);
+/// The [Container] wrapping the debug JSON box.
+Finder _debugBox() =>
+    find.ancestor(of: _debugText(), matching: find.byType(Container)).first;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
