@@ -73,17 +73,6 @@ extension SyncWorkflows on Sync {
   }
 
   Future<void> _runWorkflowRefresh(String sessionId) async {
-    // Skip sessions that have no encryption keys yet. Calling sessionRPC
-    // would force invalidateAndAwait sessions (expensive) and then throw
-    // "Session encryption not found", flooding WARN logs on cold start
-    // when refreshAllWorkflows walks every known session.
-    if (encryption.getSessionEncryption(sessionId) == null) {
-      logger.debug(
-        '[workflows] refreshWorkflowsForSession($sessionId) skipped — '
-        'encryption not ready',
-      );
-      return;
-    }
     dynamic raw;
     try {
       raw = await sessionRPC(

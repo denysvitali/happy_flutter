@@ -29,6 +29,7 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
   StreamSubscription<String>? _sub;
   bool _initialLoading = true;
   String? _error;
+  bool _hasRetriedOnEmptyEvent = false;
 
   @override
   void initState() {
@@ -37,7 +38,18 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     _sub = sync.onWorkflowsChanged
         .where((sid) => sid == widget.sessionId)
         .listen((_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {});
+      if (_hasRetriedOnEmptyEvent) return;
+      final runs = ref.read(
+        workflowsNotifierProvider.select(
+          (state) => state[widget.sessionId] ?? const <WorkflowRun>[],
+        ),
+      );
+      if (runs.isEmpty && !_initialLoading) {
+        _hasRetriedOnEmptyEvent = true;
+        _refresh();
+      }
     });
   }
 
