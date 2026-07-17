@@ -30,7 +30,16 @@ int renderValueSignature(Object? value, [int depth = 0]) {
     return Object.hash(value.runtimeType, value.hashCode);
   }
   if (value is String) {
-    return Object.hash(value.length, value.hashCode);
+    // Hashing huge tool-output strings on every build is a major hotspot.
+    // A bounded fingerprint is enough to detect almost all real changes.
+    if (value.length <= _signatureStringThreshold) {
+      return Object.hash(value.length, value.hashCode);
+    }
+    return Object.hash(
+      value.length,
+      value.substring(0, _signatureStringSample).hashCode,
+      value.substring(value.length - _signatureStringSample).hashCode,
+    );
   }
   if (value is num || value is bool) {
     return value.hashCode;
@@ -38,6 +47,11 @@ int renderValueSignature(Object? value, [int depth = 0]) {
   if (value is Map<dynamic, dynamic>) {
     final entries = value.entries.toList()
       ..sort((a, b) => a.key.toString().compareTo(b.key.toString()));
+    if (entries.length > _signatureCollectionThreshold) {
+      // Large maps are almost always tool outputs/permissions; their exact
+      // shape is captured by the sampled string fields above.
+      return Object.hash(entries.length, value.keys.join().hashCode);
+    }
     var hash = entries.length;
     for (final entry in entries) {
       hash = Object.hash(
@@ -49,6 +63,18 @@ int renderValueSignature(Object? value, [int depth = 0]) {
     return hash;
   }
   if (value is List<dynamic>) {
+    if (value.length > _signatureCollectionThreshold) {
+      var hash = value.length;
+      for (var i = 0; i < _signatureEdgeSample; i++) {
+        hash = Object.hash(hash, renderValueSignature(value[i], depth + 1));
+      }
+      for (var i = value.length - _signatureEdgeSample;
+          i < value.length;
+          i++) {
+        hash = Object.hash(hash, renderValueSignature(value[i], depth + 1));
+      }
+      return hash;
+    }
     var hash = value.length;
     for (final item in value) {
       hash = Object.hash(hash, renderValueSignature(item, depth + 1));
@@ -57,6 +83,11 @@ int renderValueSignature(Object? value, [int depth = 0]) {
   }
   return Object.hash(value.runtimeType, value.hashCode);
 }
+
+const int _signatureStringThreshold = 256;
+const int _signatureStringSample = 128;
+const int _signatureCollectionThreshold = 16;
+const int _signatureEdgeSample = 3;
 
 const _messageSignatureKeys = <String>[
   'id',
