@@ -6,6 +6,7 @@ import '../../../../core/utils/wire_parsers.dart';
 import '../known_tools.dart';
 import '../tool_status_indicator.dart';
 import '../tool_view.dart' show parseToolState;
+import 'workflow_inline_view.dart';
 
 /// Max number of child tool calls shown inline.
 const int _kMaxToolsShown = 3;
@@ -125,6 +126,11 @@ class TaskView extends StatelessWidget {
                 ),
               ],
             ),
+            // Dynamic workflow progress for Workflow tools.
+            if (tool['name'] == 'Workflow') ...[
+              const SizedBox(height: AppSpacing.xsm),
+              WorkflowInlineView(children: children),
+            ],
             // Inline tool call list
             if (shownTools.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xsm),

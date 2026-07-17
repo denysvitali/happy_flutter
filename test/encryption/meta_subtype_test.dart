@@ -128,6 +128,40 @@ void main() {
       expect(r.messages.first['agentId'], 'wf-agent-1');
     });
 
+    test('task_progress forwards workflow_progress snapshot', () {
+      final r = _run({
+        'isMeta': true,
+        'type': 'system',
+        'subtype': 'task_progress',
+        'status': 'running',
+        'description': 'Read: read-go-mod',
+        'task_id': 'wo9gouhnm',
+        'task_type': 'local_workflow',
+        'workflow_name': 'inspect-go-mod',
+        'workflow_progress': [
+          {'type': 'workflow_phase', 'index': 1, 'title': 'Read'},
+          {
+            'type': 'workflow_agent',
+            'agentId': 'a66369641305e6fab',
+            'label': 'read-go-mod',
+            'phaseIndex': 1,
+            'phaseTitle': 'Read',
+            'model': 'claude-sonnet-4-6',
+            'state': 'start',
+          },
+        ],
+      });
+      expect(r.messages, hasLength(1));
+      final msg = r.messages.first;
+      expect(msg['kind'], 'agent-event');
+      expect(msg['taskEvent'], true);
+      final progress = msg['workflowProgress'] as List<dynamic>?;
+      expect(progress, isNotNull);
+      expect(progress, hasLength(2));
+      expect(progress!.first['type'], 'workflow_phase');
+      expect(progress.last['type'], 'workflow_agent');
+    });
+
     test('api_retry shows attempt/max-retries label', () {
       final r = _run({
         'isMeta': true,

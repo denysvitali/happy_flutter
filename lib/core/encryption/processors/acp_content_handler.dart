@@ -192,10 +192,13 @@ void _processAcpContent({
       final status = data['status'] as String?;
       final taskType = data['task_type'] as String?;
       final workflowName = data['workflow_name'] as String?;
+      final workflowProgress = _extractWorkflowProgress(data);
       final taskExtras = <String, dynamic>{
         'taskStatus': ?status,
         'taskType': ?taskType,
         'workflowName': ?workflowName,
+        if (workflowProgress != null && workflowProgress.isNotEmpty)
+          'workflowProgress': workflowProgress,
       };
 
       if ((subtype == 'task_notification' || subtype == 'task_updated') &&

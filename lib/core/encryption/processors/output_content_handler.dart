@@ -765,6 +765,7 @@ void _processMetaOutput({
       final transcriptDir =
           (data['transcript_dir'] ?? data['transcriptDir']) as String?;
       final runId = (data['run_id'] ?? data['runId']) as String?;
+      final workflowProgress = _extractWorkflowProgress(data);
       final taskExtras = <String, dynamic>{
         'taskStatus': ?status,
         'taskType': ?taskType,
@@ -775,6 +776,8 @@ void _processMetaOutput({
         if (transcriptDir != null && transcriptDir.isNotEmpty)
           'transcriptDir': transcriptDir,
         if (runId != null && runId.isNotEmpty) 'workflowRunId': runId,
+        if (workflowProgress != null && workflowProgress.isNotEmpty)
+          'workflowProgress': workflowProgress,
       };
 
       if ((subtype == 'task_notification' || subtype == 'task_updated') &&
@@ -872,4 +875,24 @@ void _processMetaOutput({
       'agentId': ?agentId,
     });
   }
+}
+
+/// Extracts the `workflow_progress` array from task lifecycle events.
+///
+/// Returns a normalized list of progress maps (workflow_phase,
+/// workflow_agent, workflow_log) or `null` when the wire payload does
+/// not carry any. Both snake_case and camelCase keys are accepted to
+/// stay resilient to CLI field-name changes.
+List<Map<String, dynamic>>? _extractWorkflowProgress(
+  Map<String, dynamic> data,
+) {
+  final raw = data['workflow_progress'] ?? data['workflowProgress'];
+  final list = WireParsers.asList(raw);
+  if (list == null || list.isEmpty) return null;
+  final result = <Map<String, dynamic>>[];
+  for (final item in list) {
+    final map = WireParsers.asMap(item);
+    if (map != null) result.add(map);
+  }
+  return result.isEmpty ? null : result;
 }

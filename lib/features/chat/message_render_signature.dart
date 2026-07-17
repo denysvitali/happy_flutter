@@ -119,6 +119,7 @@ const _messageSignatureKeys = <String>[
   'workflowName',
   'transcriptDir',
   'workflowRunId',
+  'workflowProgress',
   'subAgentLastTool',
   'error',
   'summary',

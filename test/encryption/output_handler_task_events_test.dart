@@ -26,7 +26,7 @@ void main() {
         'id': id,
         'seq': seq,
         'createdAt': createdAt,
-        if (localId != null) 'localId': localId,
+        'localId': ?localId,
       };
 
   Map<String, dynamic> metaSystem(
@@ -44,8 +44,8 @@ void main() {
           'isMeta': true,
           ...data,
           if (isSidechain) 'isSidechain': true,
-          if (uuid != null) 'uuid': uuid,
-          if (parentUuid != null) 'parentUuid': parentUuid,
+          'uuid': ?uuid,
+          'parentUuid': ?parentUuid,
         },
       },
     };
@@ -266,6 +266,83 @@ void main() {
       // parentToolUseId falls back to tool_use_id when no explicit
       // parent_tool_use_id is supplied (see _extractParentToolUseId).
       expect(msg['parentToolUseId'], 'parent-tool-use-1');
+    });
+
+    test('task_progress with workflow_progress forwards the snapshot', () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          metaSystem({
+            'subtype': 'task_progress',
+            'description': 'Read: read-go-mod',
+            'task_id': 'wo9gouhnm',
+            'task_type': 'local_workflow',
+            'workflow_name': 'inspect-go-mod',
+            'workflow_progress': [
+              {'type': 'workflow_phase', 'index': 1, 'title': 'Read'},
+              {
+                'type': 'workflow_agent',
+                'agentId': 'a66369641305e6fab',
+                'label': 'read-go-mod',
+                'phaseIndex': 1,
+                'phaseTitle': 'Read',
+                'model': 'claude-sonnet-4-6',
+                'state': 'start',
+              },
+            ],
+          }),
+        ],
+        wireMessages: [wire(id: 'm1', seq: 1)],
+        sessionId: 's1',
+      );
+
+      expect(result.messages, hasLength(1));
+      final msg = result.messages.first;
+      expect(msg['kind'], 'agent-event');
+      expect(msg['taskEvent'], true);
+      expect(msg['workflowName'], 'inspect-go-mod');
+      final progress = msg['workflowProgress'] as List<dynamic>?;
+      expect(progress, isNotNull);
+      expect(progress, hasLength(2));
+      expect(progress!.first['type'], 'workflow_phase');
+      expect(progress.first['title'], 'Read');
+      expect(progress.last['type'], 'workflow_agent');
+      expect(progress.last['label'], 'read-go-mod');
+    });
+
+    test('task_notification completed preserves workflow_progress if present',
+        () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          metaSystem({
+            'subtype': 'task_notification',
+            'status': 'completed',
+            'summary': 'Read go.mod and report module path and Go version',
+            'task_type': 'local_workflow',
+            'task_id': 'wo9gouhnm',
+            'workflow_progress': [
+              {
+                'type': 'workflow_agent',
+                'agentId': 'a66369641305e6fab',
+                'label': 'read-go-mod',
+                'phaseIndex': 1,
+                'phaseTitle': 'Read',
+                'model': 'claude-sonnet-4-6',
+                'state': 'done',
+              },
+            ],
+          }),
+        ],
+        wireMessages: [wire(id: 'm1', seq: 1)],
+        sessionId: 's1',
+      );
+
+      final msg = result.messages.first;
+      expect(msg['kind'], 'text');
+      expect(msg['taskEvent'], true);
+      final progress = msg['workflowProgress'] as List<dynamic>?;
+      expect(progress, isNotNull);
+      expect(progress, hasLength(1));
+      expect(progress!.first['state'], 'done');
     });
   });
 }
