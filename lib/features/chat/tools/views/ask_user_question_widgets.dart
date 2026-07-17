@@ -220,7 +220,7 @@ class _OptionChipState extends State<OptionChip>
           curve: Curves.easeOut,
           decoration: BoxDecoration(
             color: isSelected
-                ? primary.withAlpha(28)
+                ? primary.withValues(alpha: 28 / 255.0)
                 : theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(
               hasDesc ? 12 : 20,
@@ -234,7 +234,7 @@ class _OptionChipState extends State<OptionChip>
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: primary.withAlpha(40),
+                      color: primary.withValues(alpha: 40 / 255.0),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -343,7 +343,7 @@ class _OptionChipState extends State<OptionChip>
     final borderColor = isSelected
         ? primary
         : theme.colorScheme.onSurfaceVariant
-            .withAlpha(120);
+            .withValues(alpha: 120 / 255.0);
 
     if (widget.isMultiSelect) {
       return AnimatedContainer(

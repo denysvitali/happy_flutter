@@ -57,11 +57,11 @@ class TaskView extends StatelessWidget {
     final Color borderColor;
     switch (parsedState) {
       case ToolState.running:
-        borderColor = theme.colorScheme.primary.withAlpha(100);
+        borderColor = theme.colorScheme.primary.withValues(alpha: 100 / 255.0);
       case ToolState.completed:
-        borderColor = AppColors.success.withAlpha(100);
+        borderColor = AppColors.success.withValues(alpha: 100 / 255.0);
       case ToolState.error:
-        borderColor = theme.colorScheme.error.withAlpha(100);
+        borderColor = theme.colorScheme.error.withValues(alpha: 100 / 255.0);
       case ToolState.pending:
         borderColor = theme.colorScheme.outlineVariant;
     }
