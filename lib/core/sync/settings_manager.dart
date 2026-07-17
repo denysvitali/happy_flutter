@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show TimeoutException, unawaited;
 
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -111,13 +111,15 @@ class SettingsManager {
         final mergedSettings = Settings.fromJson(mergedJson);
         final encryptedPending = await _encryption.encryptRaw(mergedJson);
 
-        final updateResponse = await apiClient.post(
-          '/v1/account/settings',
-          data: {
-            'settings': encryptedPending,
-            'expectedVersion': _settingsVersion,
-          },
-        );
+        final updateResponse = await apiClient
+            .post(
+              '/v1/account/settings',
+              data: {
+                'settings': encryptedPending,
+                'expectedVersion': _settingsVersion,
+              },
+            )
+            .timeout(const Duration(seconds: 10));
 
         final updateData = WireParsers.asMap(updateResponse.data);
         final updateSuccess = updateData?['success'] == true;
@@ -160,38 +162,48 @@ class SettingsManager {
 
       // Fetch latest settings — skip after a successful POST.
       if (!postedSuccessfully) {
-        final response = await apiClient.get('/v1/account/settings');
+        try {
+          final response = await apiClient
+              .get('/v1/account/settings')
+              .timeout(const Duration(seconds: 10));
 
-        if (apiClient.isSuccess(response)) {
-          final data = WireParsers.asMap(response.data);
-          final encryptedSettings = data?['settings'] as String?;
+          if (apiClient.isSuccess(response)) {
+            final data = WireParsers.asMap(response.data);
+            final encryptedSettings = data?['settings'] as String?;
 
-          if (encryptedSettings != null) {
-            final decrypted = WireParsers.asMap(
-              await _encryption.decryptRaw(encryptedSettings),
-            );
-            if (decrypted != null) {
-              _settingsSnapshot = Settings.fromJsonWithFallback(
-                decrypted,
-                _settingsSnapshot,
+            if (encryptedSettings != null) {
+              final decrypted = WireParsers.asMap(
+                await _encryption.decryptRaw(encryptedSettings),
               );
+              if (decrypted != null) {
+                _settingsSnapshot = Settings.fromJsonWithFallback(
+                  decrypted,
+                  _settingsSnapshot,
+                );
+                _settingsVersion =
+                    _asInt(data?['settingsVersion']) ?? _settingsVersion;
+                _onDataChanged({SyncDomain.settings});
+                unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
+              }
+            } else {
               _settingsVersion =
                   _asInt(data?['settingsVersion']) ?? _settingsVersion;
-              _onDataChanged({SyncDomain.settings});
-              unawaited(MMKVStorage().saveSettings(_settingsSnapshot));
+              logger.warning(
+                'Settings response did not include settings payload; '
+                'preserving existing settings snapshot',
+              );
             }
           } else {
-            _settingsVersion =
-                _asInt(data?['settingsVersion']) ?? _settingsVersion;
-            logger.warning(
-              'Settings response did not include settings payload; '
-              'preserving existing settings snapshot',
-            );
+            logger.warning('Failed to fetch settings: ${response.statusCode}');
           }
-        } else {
-          logger.warning('Failed to fetch settings: ${response.statusCode}');
+        } on TimeoutException {
+          logger.warning(
+            'Settings fetch timed out after 10s; using cached settings',
+          );
         }
       }
+    } on TimeoutException catch (e) {
+      logger.warning('Settings sync timed out: $e');
     } on DioException {
       rethrow;
     } catch (error, stack) {
