@@ -165,7 +165,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
           color: theme.colorScheme.outlineVariant
-              .withAlpha(80),
+              .withValues(alpha: 80 / 255),
         ),
       ),
       child: Column(
@@ -267,12 +267,12 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                 theme.colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: primary.withAlpha(borderAlpha),
+              color: primary.withValues(alpha: borderAlpha / 255),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: primary.withAlpha(glowAlpha),
+                color: primary.withValues(alpha: glowAlpha / 255),
                 blurRadius: 16,
                 spreadRadius: 2,
                 offset: const Offset(0, 2),
@@ -345,7 +345,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
         vertical: 12,
       ),
       decoration: BoxDecoration(
-        color: primary.withAlpha(18),
+        color: primary.withValues(alpha: 18 / 255),
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(15),
         ),
@@ -356,10 +356,10 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: primary.withAlpha(22),
+              color: primary.withValues(alpha: 22 / 255),
               borderRadius: BorderRadius.circular(AppRadius.sm),
               border: Border.all(
-                color: primary.withAlpha(60),
+                color: primary.withValues(alpha: 60 / 255),
                 width: 1,
               ),
             ),
@@ -390,7 +390,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                   style: theme.textTheme.labelSmall
                       ?.copyWith(
                     color:
-                        primary.withAlpha(180),
+                        primary.withValues(alpha: 180 / 255),
                   ),
                 ),
               ],
@@ -402,10 +402,10 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
               vertical: 4,
             ),
             decoration: BoxDecoration(
-              color: primary.withAlpha(25),
+              color: primary.withValues(alpha: 25 / 255),
               borderRadius: BorderRadius.circular(AppRadius.xl),
               border: Border.all(
-                color: primary.withAlpha(60),
+                color: primary.withValues(alpha: 60 / 255),
                 width: 1,
               ),
             ),
@@ -438,12 +438,12 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                 ? _handleSubmit
                 : null,
         icon: _isSubmitting
-            ? const SizedBox(
+            ? SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: theme.colorScheme.onPrimary,
                 ),
               )
             : const Icon(
