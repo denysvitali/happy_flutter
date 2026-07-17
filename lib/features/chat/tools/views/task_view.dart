@@ -457,6 +457,11 @@ class _InlineNestedTaskRow extends StatelessWidget {
               metadata: metadata,
             );
           }),
+          // Dynamic workflow progress for nested Workflow tools.
+          if (tool['name'] == 'Workflow') ...[
+            const SizedBox(height: AppSpacing.xsm),
+            WorkflowInlineView(children: children),
+          ],
           if (remainingCount > 0)
             Padding(
               padding: const EdgeInsets.only(left: 24),

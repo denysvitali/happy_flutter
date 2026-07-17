@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/workflow_run.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/wire_parsers.dart';
@@ -46,13 +47,13 @@ class WorkflowInlineView extends StatelessWidget {
           ...agents.map((agent) => _AgentStatusRow(agent: agent)),
         if (logs.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xsm),
-          _LogPreview(log: logs.last),
+          _LogPreview(log: logs.last.message),
         ],
       ],
     );
   }
 
-  List<Map<String, dynamic>> _latestProgress() {
+  List<WorkflowProgressEvent> _latestProgress() {
     final messages = WireParsers.asList(children);
     if (messages == null) return const [];
 
@@ -63,40 +64,36 @@ class WorkflowInlineView extends StatelessWidget {
       if (msg is! Map<String, dynamic>) continue;
       final raw = msg['workflowProgress'];
       final list = WireParsers.asList(raw);
-      if (list != null && list.isNotEmpty) {
-        return list.whereType<Map<String, dynamic>>().toList();
-      }
+      if (list == null || list.isEmpty) continue;
+      final parsed = list
+          .whereType<Map<String, dynamic>>()
+          .map(WorkflowProgressEvent.tryFromJson)
+          .whereType<WorkflowProgressEvent>()
+          .toList(growable: false);
+      if (parsed.isNotEmpty) return parsed;
     }
     return const [];
   }
 
-  List<Map<String, dynamic>> _extractPhases(
-    List<Map<String, dynamic>> progress,
+  List<WorkflowPhaseEvent> _extractPhases(
+    List<WorkflowProgressEvent> progress,
   ) {
-    return progress
-        .where((e) => e['type'] == 'workflow_phase')
-        .toList(growable: false);
+    return progress.whereType<WorkflowPhaseEvent>().toList(growable: false);
   }
 
-  List<Map<String, dynamic>> _extractAgents(
-    List<Map<String, dynamic>> progress,
+  List<WorkflowAgent> _extractAgents(
+    List<WorkflowProgressEvent> progress,
   ) {
-    return progress
-        .where((e) => e['type'] == 'workflow_agent')
-        .toList(growable: false);
+    return progress.whereType<WorkflowAgent>().toList(growable: false);
   }
 
-  List<String> _extractLogs(List<Map<String, dynamic>> progress) {
-    return progress
-        .where((e) => e['type'] == 'workflow_log')
-        .map((e) => (e['message'] as String?) ?? '')
-        .where((m) => m.isNotEmpty)
-        .toList(growable: false);
+  List<WorkflowLog> _extractLogs(List<WorkflowProgressEvent> progress) {
+    return progress.whereType<WorkflowLog>().toList(growable: false);
   }
 
   int _currentPhaseIndex(
-    List<Map<String, dynamic>> phases,
-    List<Map<String, dynamic>> agents,
+    List<WorkflowPhaseEvent> phases,
+    List<WorkflowAgent> agents,
   ) {
     if (phases.isEmpty) return -1;
 
@@ -104,11 +101,8 @@ class WorkflowInlineView extends StatelessWidget {
     // result is correct whether the wire uses 0-based or 1-based indices.
     var matchedPosition = -1;
     for (final agent in agents) {
-      final agentPhaseIndex = WireParsers.parseInt(agent['phaseIndex']);
-      if (agentPhaseIndex == null) continue;
       for (var i = 0; i < phases.length; i++) {
-        final phaseIndex = WireParsers.parseInt(phases[i]['index']);
-        if (phaseIndex != null && phaseIndex == agentPhaseIndex) {
+        if (phases[i].index == agent.phaseIndex) {
           if (i > matchedPosition) matchedPosition = i;
         }
       }
@@ -118,10 +112,7 @@ class WorkflowInlineView extends StatelessWidget {
     // Fallback: assume phaseIndex maps directly to the phase list position.
     var maxIndex = -1;
     for (final agent in agents) {
-      final phaseIndex = WireParsers.parseInt(agent['phaseIndex']);
-      if (phaseIndex != null && phaseIndex > maxIndex) {
-        maxIndex = phaseIndex;
-      }
+      if (agent.phaseIndex > maxIndex) maxIndex = agent.phaseIndex;
     }
     if (maxIndex < 0) return 0;
     return maxIndex.clamp(0, phases.length - 1);
@@ -138,7 +129,7 @@ class _PhaseStepper extends StatelessWidget {
     required this.currentIndex,
   });
 
-  final List<Map<String, dynamic>> phases;
+  final List<WorkflowPhaseEvent> phases;
   final int currentIndex;
 
   @override
@@ -176,7 +167,7 @@ class _PhaseDot extends StatelessWidget {
     required this.isCompleted,
   });
 
-  final Map<String, dynamic> phase;
+  final WorkflowPhaseEvent phase;
   final bool isCurrent;
   final bool isCompleted;
 
@@ -184,7 +175,6 @@ class _PhaseDot extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final title = (phase['title'] as String?) ?? 'Phase';
 
     final Color bg;
     final Color fg;
@@ -226,7 +216,7 @@ class _PhaseDot extends StatelessWidget {
             Icon(Icons.circle_outlined, size: 10, color: fg),
           const SizedBox(width: 4),
           Text(
-            title,
+            phase.title,
             style: theme.textTheme.labelSmall?.copyWith(
               color: fg,
               fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
@@ -245,20 +235,17 @@ class _PhaseDot extends StatelessWidget {
 class _AgentStatusRow extends StatelessWidget {
   const _AgentStatusRow({required this.agent});
 
-  final Map<String, dynamic> agent;
+  final WorkflowAgent agent;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final label = (agent['label'] as String?) ?? 'Agent';
-    final state = (agent['state'] as String?) ?? 'pending';
-    final phaseTitle = (agent['phaseTitle'] as String?) ?? '';
-    final model = (agent['model'] as String?) ?? '';
-    final toolCalls = WireParsers.parseInt(agent['toolCalls']);
-    final tokens = WireParsers.parseInt(agent['tokens']);
+    final label = agent.label;
+    final phaseTitle = agent.phaseTitle;
+    final model = agent.model;
 
-    final (icon, color) = _stateStyle(state, cs);
+    final (icon, color) = _stateStyle(agent.state, cs);
 
     return Padding(
       padding: const EdgeInsets.only(left: 24, bottom: AppSpacing.xxs),
@@ -288,13 +275,13 @@ class _AgentStatusRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-          if (toolCalls != null) ...[
+          if (agent.toolCalls != null) ...[
             const SizedBox(width: AppSpacing.xs),
-            _MiniStat(icon: Icons.build_outlined, value: '$toolCalls'),
+            _MiniStat(icon: Icons.build_outlined, value: '${agent.toolCalls}'),
           ],
-          if (tokens != null) ...[
+          if (agent.tokens != null) ...[
             const SizedBox(width: AppSpacing.xs),
-            _MiniStat(icon: Icons.token_outlined, value: '$tokens'),
+            _MiniStat(icon: Icons.token_outlined, value: '${agent.tokens}'),
           ],
         ],
       ),

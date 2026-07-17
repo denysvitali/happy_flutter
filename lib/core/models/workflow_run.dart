@@ -316,12 +316,11 @@ class WorkflowPhaseEvent implements WorkflowProgressEvent {
   static WorkflowPhaseEvent? tryFromJson(Map<String, dynamic> json) {
     final index = WireParsers.parseInt(json['index']);
     final title = WireParsers.parseString(json['title']);
-    final kind = WireParsers.parseString(json['kind']);
-    if (index == null || title == null || kind == null) return null;
+    if (index == null || title == null) return null;
     return WorkflowPhaseEvent(
       index: index,
       title: title,
-      kind: kind,
+      kind: WireParsers.parseString(json['kind']) ?? 'start',
     );
   }
 
