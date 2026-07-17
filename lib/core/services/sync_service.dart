@@ -953,6 +953,11 @@ what you have, you must use the options mode.
   /// for every session owned by the same daemon.
   final Set<String> _workflowListUnsupportedCapabilities = <String>{};
 
+  /// Capability keys for daemons that do not implement `loop-list`.
+  /// Keys prefer machine id so one unsupported response suppresses retries
+  /// for every session owned by the same daemon.
+  final Set<String> _loopListUnsupportedCapabilities = <String>{};
+
   /// Short per-session retry suppression after transient failures.
   final Map<String, int> _workflowRefreshBackoffUntil = <String, int>{};
   final Map<String, int> _workflowRefreshFailureCount = <String, int>{};

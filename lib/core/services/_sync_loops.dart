@@ -10,6 +10,7 @@ part of 'sync_service.dart';
 ///     `new-message` like any other turn)
 /// All loop mutations (create / delete / pause / list) ride the existing
 /// session-scoped RPC channel ([sessionRPC]).
+
 extension SyncLoops on Sync {
   // ── State ──────────────────────────────────────────────────────────────
 
@@ -25,6 +26,23 @@ extension SyncLoops on Sync {
   /// Returns the loops for [sessionId] (empty list if none).
   List<Loop> loopsForSession(String sessionId) =>
       List.unmodifiable(_loopsBySession[sessionId] ?? const <Loop>[]);
+
+  // Capability cache: daemons that do not implement `loop-list`.
+  String _loopListCapabilityKey(String sessionId) {
+    final machineId = _sessions[sessionId]?.metadata?.machineId;
+    return machineId == null || machineId.isEmpty
+        ? 'session:$sessionId'
+        : 'machine:$machineId';
+  }
+
+  bool _isLoopListCapabilityBlocked(String sessionId) =>
+      _loopListUnsupportedCapabilities.contains(
+        _loopListCapabilityKey(sessionId),
+      );
+
+  void _blockLoopListCapability(String sessionId) {
+    _loopListUnsupportedCapabilities.add(_loopListCapabilityKey(sessionId));
+  }
 
   // ── In-band control-event routing ──────────────────────────────────────
 
@@ -578,6 +596,14 @@ extension SyncLoops on Sync {
         testRefreshAllLoopsDeadline ?? _refreshAllLoopsDeadline;
     final startedAt = DateTime.now();
     for (final sessionId in sessionIds) {
+      if (_isLoopListCapabilityBlocked(sessionId)) {
+        logger.debug(
+          '[loops] listLoops($sessionId) skipped — daemon marked as '
+          'unsupported for loop-list',
+        );
+        continue;
+      }
+
       final elapsed = DateTime.now().difference(startedAt);
       if (elapsed >= deadline) {
         // Out of time. Any remaining sessions will be refreshed by the
@@ -621,11 +647,15 @@ extension SyncLoops on Sync {
           continue;
         }
         if (Sync._isRpcMethodNotAvailable(e)) {
-          // Daemon predates the loop-* methods — skip silently.
+          // Daemon predates the loop-* methods. Remember by machine id
+          // (falling back to session id) so we don't re-walk every
+          // session owned by the same daemon on the next refresh.
+          _blockLoopListCapability(sessionId);
           logger.debug(
-            '[loops] listLoops($sessionId) skipped — RPC unavailable',
+            '[loops] listLoops($sessionId) stopped — RPC unavailable; '
+            'capability blocked for ${_loopListCapabilityKey(sessionId)}',
           );
-          continue;
+          break;
         }
         if (Sync._isTransientRpcError(e)) {
           // Infra-side forwarding broke (Redis replica timeout, or

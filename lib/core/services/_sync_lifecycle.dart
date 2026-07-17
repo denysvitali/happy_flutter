@@ -877,6 +877,7 @@ extension SyncLifecycle on Sync {
     _workflowsBySession.clear();
     _workflowRefreshesInFlight.clear();
     _workflowListUnsupportedCapabilities.clear();
+    _loopListUnsupportedCapabilities.clear();
     _workflowRefreshBackoffUntil.clear();
     _workflowRefreshFailureCount.clear();
     // _dataChangeCounter reset in shutdown (monotonic counter must
