@@ -371,15 +371,39 @@ class MessageCacheService {
       final state = m['state'];
       final sendStatus = m['sendStatus'];
       final content = m['content'];
-      final contentHash = switch (content) {
-        final String text => text.length ^ text.hashCode,
-        final List<dynamic> list => list.length,
-        _ => content?.hashCode ?? 0,
-      };
+      final contentHash = _contentFingerprint(content);
       hash = Object.hash(hash, id, seq, state, sendStatus, contentHash);
     }
     return hash;
   }
+
+  /// Bounded fingerprint for message content.
+  ///
+  /// Tool outputs and large assistant responses can be megabytes; hashing
+  /// the full value on every save would dominate the CPU budget.
+  static int _contentFingerprint(Object? content) {
+    return switch (content) {
+      final String text => text.length <= _cacheContentThreshold
+          ? Object.hash(text.length, text.hashCode)
+          : Object.hash(
+              text.length,
+              text.substring(0, _cacheContentSample).hashCode,
+              text.substring(text.length - _cacheContentSample).hashCode,
+            ),
+      final List<dynamic> list => list.length > _cacheCollectionThreshold
+          ? Object.hash(
+              list.length,
+              _contentFingerprint(list.firstOrNull),
+              _contentFingerprint(list.lastOrNull),
+            )
+          : Object.hash(list.length, list.map(_contentFingerprint).join()),
+      _ => content?.hashCode ?? 0,
+    };
+  }
+
+  static const int _cacheContentThreshold = 256;
+  static const int _cacheContentSample = 128;
+  static const int _cacheCollectionThreshold = 16;
 
   /// Clear cached messages for a session.
   ///
