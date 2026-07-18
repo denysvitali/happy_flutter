@@ -510,6 +510,53 @@ void main() {
         expect(serverCopies.single['sendStatus'], 'sent');
       },
     );
+
+    test(
+      'server user record without localId replaces one matching optimistic '
+      'row without collapsing repeated text',
+      () {
+        const sessionId = 'optimistic-merge-without-localid';
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'local-1',
+            'localId': 'local-1',
+            'seq': -1,
+            'role': 'user',
+            'createdAt': 1700000000000,
+            'sendStatus': 'sending',
+            'content': 'continue',
+          },
+          {
+            'id': 'local-2',
+            'localId': 'local-2',
+            'seq': -1,
+            'role': 'user',
+            'createdAt': 1700000001000,
+            'sendStatus': 'sending',
+            'content': 'continue',
+          },
+        ]);
+
+        sync.testUpsertSessionMessages(sessionId, [
+          {
+            'id': 'server-msg-1',
+            'seq': 1,
+            'role': 'user',
+            'createdAt': 1700000000050,
+            'content': 'continue',
+          },
+        ]);
+
+        final msgs = sync.testSessionMessages(sessionId)!;
+        expect(msgs, hasLength(2));
+        expect(msgs.where((m) => m['id'] == 'local-1'), isEmpty);
+        expect(msgs.where((m) => m['id'] == 'local-2'), hasLength(1));
+        expect(
+          msgs.singleWhere((m) => m['id'] == 'server-msg-1')['localId'],
+          'local-1',
+        );
+      },
+    );
   });
 
   group('sidechain merge-path regression', () {
