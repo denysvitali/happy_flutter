@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 
 import 'package:riverpod/riverpod.dart';
 
+import '../models/outgoing_image.dart';
 import '../repositories/messages_repository.dart';
 import '../rpc/rpc_types.dart' show CodexModelsResponse;
 import '../services/draft_storage.dart';
@@ -18,6 +19,12 @@ class ChatActionNotifier extends Notifier<void> {
 
   /// Send a message to a session. Returns the actual session ID
   /// (may differ if redirected).
+  ///
+  /// [clientLocalId] is the canonical client identity. Always pass the
+  /// localId backing the optimistic row (mint via [createLocalMessageId])
+  /// so ack/merge/retry converge on it. Only sends with no optimistic row
+  /// (option taps, `/clear`) may omit it — the sync layer then mints one
+  /// internally (`_sync_messaging_send.dart`).
   Future<String> sendMessage(
     String sessionId,
     String text, {
@@ -26,6 +33,7 @@ class ChatActionNotifier extends Notifier<void> {
     String? permissionMode,
     String? modelMode,
     String? profileId,
+    List<OutgoingImage>? images,
   }) async {
     if (!_messages.isReady) {
       throw StateError('Sync is not initialized');
@@ -38,6 +46,7 @@ class ChatActionNotifier extends Notifier<void> {
       permissionMode: permissionMode,
       modelMode: modelMode,
       profileId: profileId,
+      images: images,
     );
   }
 

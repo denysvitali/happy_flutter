@@ -30,6 +30,7 @@ import '../models/grok_usage_summary.dart';
 import '../models/loop.dart';
 import '../models/machine.dart';
 import '../models/message.dart';
+import '../models/outgoing_image.dart';
 import '../models/profile.dart';
 import '../models/purchases.dart';
 import '../models/session.dart';
@@ -63,6 +64,7 @@ import '../services/workflow_storage.dart';
 import '../types/identity_types.dart';
 // ignore: unused_import
 import '../types/message_state.dart';
+import '../utils/image_content_blocks.dart';
 import '../utils/invalidate_sync.dart';
 import '../utils/message_invariant_monitor.dart';
 import '../utils/parse_token.dart';

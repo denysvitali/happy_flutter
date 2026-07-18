@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -6,12 +7,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/outgoing_image.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_tokens.dart';
+import 'send/chat_attachment_controller.dart';
+import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_input_buttons.dart';
 import 'widgets/file_autocomplete.dart';
@@ -32,6 +36,7 @@ class ChatInput extends ConsumerStatefulWidget {
     required this.controller,
     required this.onSend,
     super.key,
+    this.attachmentController,
     this.isSending = false,
     this.permissionMode,
     this.onPermissionModeChanged,
@@ -62,6 +67,9 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Controller for the message text field.
   final TextEditingController controller;
+
+  /// Staged image attachments. When null, the attach UI is hidden.
+  final ChatAttachmentController? attachmentController;
 
   /// Called when the user submits a message.
   final VoidCallback onSend;
@@ -820,36 +828,144 @@ class _ChatInputState extends ConsumerState<ChatInput>
           child: child,
         );
       },
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: _buildTextField(context),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xs),
-            child: _DictationButton(
-              isRecording: _isRecording,
-              isTranscribing: _isTranscribing,
-              onTap: _onDictationTap,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.xsm),
-            child: SendButton(
-              isSending: widget.isSending,
-              isSendDisabled: widget.isSendDisabled,
-              onTap: _onSendTap,
-              scaleAnimation: _sendScale,
-              lastDeliveryStatus:
-                  widget.lastDeliveryStatus,
-            ),
+          if (widget.attachmentController != null)
+            _buildAttachmentStrip(context),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (widget.attachmentController != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.xs),
+                  child: _AttachButton(onTap: _onAttachTap),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: _buildTextField(context),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.xs),
+                child: _DictationButton(
+                  isRecording: _isRecording,
+                  isTranscribing: _isTranscribing,
+                  onTap: _onDictationTap,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.xsm),
+                child: SendButton(
+                  isSending: widget.isSending,
+                  isSendDisabled: widget.isSendDisabled,
+                  onTap: _onSendTap,
+                  scaleAnimation: _sendScale,
+                  lastDeliveryStatus:
+                      widget.lastDeliveryStatus,
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  // -----------------------------------------------------------
+  // Image attachments
+  // -----------------------------------------------------------
+
+  final ImageAttachmentService _attachmentService = ImageAttachmentService();
+
+  Future<void> _onAttachTap() async {
+    final controller = widget.attachmentController;
+    // Ignore attach while a send is in flight — the controller may be
+    // cleared underneath us, which would silently re-stage the image
+    // onto the next message's composer.
+    if (controller == null || widget.isSending) return;
+    final l10n = AppLocalizations.of(context);
+
+    final source = await showModalBottomSheet<_AttachSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final sheetL10n = AppLocalizations.of(sheetContext);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(sheetL10n.chatAttachFromGallery),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_AttachSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: Text(sheetL10n.chatAttachFromCamera),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_AttachSource.camera),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (source == null || !mounted) return;
+
+    final image = source == _AttachSource.camera
+        ? await _attachmentService.pickFromCamera()
+        : await _attachmentService.pickFromGallery();
+    // Re-check after the async picker gap: a send that started while the
+    // picker was open must not have this image staged behind its back.
+    if (image == null || !mounted || widget.isSending) return;
+
+    if (!controller.add(image) && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.chatAttachmentLimit(ChatAttachmentController.maxAttachments),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildAttachmentStrip(BuildContext context) {
+    final controller = widget.attachmentController!;
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final images = controller.images;
+        if (images.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+            0,
+          ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < images.length; i++)
+                    _AttachmentThumb(
+                      image: images[i],
+                      onRemove: () => controller.remove(images[i]),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -923,6 +1039,97 @@ class _ChatInputState extends ConsumerState<ChatInput>
       widget.selectedProfile,
       widget.availableProfiles,
       (profile) => widget.onProfileChanged?.call(profile),
+    );
+  }
+}
+
+enum _AttachSource { gallery, camera }
+
+class _AttachButton extends StatelessWidget {
+  const _AttachButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final label = AppLocalizations.of(context).chatAttachImage;
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: InkResponse(
+          onTap: onTap,
+          radius: AppTouchTarget.min / 2,
+          child: SizedBox.square(
+            dimension: AppTouchTarget.min,
+            child: Center(
+              child: Icon(
+                Icons.add_photo_alternate_outlined,
+                color: cs.onSurfaceVariant,
+                size: 22,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AttachmentThumb extends StatelessWidget {
+  const _AttachmentThumb({required this.image, required this.onRemove});
+
+  final OutgoingImage image;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(right: AppSpacing.xs),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Image.memory(
+              base64Decode(image.base64Data),
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+            ),
+          ),
+          Positioned(
+            top: -6,
+            right: -6,
+            child: Semantics(
+              button: true,
+              label: l10n.chatRemoveAttachment,
+              child: InkResponse(
+                onTap: onRemove,
+                radius: 14,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: cs.inverseSurface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    size: 14,
+                    color: cs.onInverseSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

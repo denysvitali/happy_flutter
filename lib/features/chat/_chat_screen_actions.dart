@@ -628,7 +628,8 @@ extension _ChatScreenActions on _ChatScreenState {
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _isSending) return;
+    final attachments = _attachmentController.images;
+    if ((text.isEmpty && attachments.isEmpty) || _isSending) return;
     final sendIssue = _sessionSendIssue;
     if (sendIssue != null && sendIssue.blocksSend) {
       _showSendBlockedSnackBar(sendIssue);
@@ -640,7 +641,7 @@ extension _ChatScreenActions on _ChatScreenState {
 
     unawaited(TtsService().stop());
 
-    if (isClearCommand(text)) {
+    if (isClearCommand(text) && attachments.isEmpty) {
       _controller.clear();
       unawaited(DraftStorage().removeDraft(widget.sessionId));
       _autoScrollNotifier.value = true;
@@ -689,12 +690,12 @@ extension _ChatScreenActions on _ChatScreenState {
       return;
     }
 
-    if (isLoopCommand(text)) {
+    if (isLoopCommand(text) && attachments.isEmpty) {
       unawaited(_handleLoopCommand(text));
       return;
     }
 
-    await _sendOptimisticUserText(text, localId: localId);
+    await _sendOptimisticUserText(text, localId: localId, images: attachments);
   }
 
   /// Shared optimistic send path for typed messages and loop fall-through.
@@ -703,18 +704,24 @@ extension _ChatScreenActions on _ChatScreenState {
   Future<void> _sendOptimisticUserText(
     String text, {
     required String localId,
+    List<OutgoingImage>? images,
   }) async {
     final optimisticStopwatch = Stopwatch()..start();
     _autoScrollNotifier.value = true;
+    final hasImages = images != null && images.isNotEmpty;
 
     final optimisticMessage = buildOptimisticUserMessage(
       localId: localId,
       text: text,
+      imageBlocks: hasImages
+          ? images.map((image) => image.toContentBlock()).toList()
+          : null,
     );
     setState(() {
       _messages = [..._messages, optimisticMessage];
       _isSending = true;
       _controller.clear();
+      if (hasImages) _attachmentController.clear();
       _visibleCount = _messages.length;
       _invalidateNeighborCache();
     });
@@ -736,10 +743,11 @@ extension _ChatScreenActions on _ChatScreenState {
             widget.sessionId,
             text,
             clientLocalId: localId,
-            displayText: text,
+            displayText: text.isNotEmpty ? text : null,
             permissionMode: _permissionMode.toModeString(),
             modelMode: _effectiveModelModeString ?? _modelMode.modeString,
             profileId: _selectedProfile?.id,
+            images: hasImages ? images : null,
           );
       if (_followRedirectedSession(sentSessionId)) {
         return;
@@ -767,6 +775,13 @@ extension _ChatScreenActions on _ChatScreenState {
           }
           _messages = next;
           _controller.text = text;
+          if (hasImages) {
+            // Restore staged attachments alongside the text so a retry
+            // from the composer resends the same logical message.
+            for (final image in images) {
+              _attachmentController.add(image);
+            }
+          }
           _isSending = false;
           _invalidateNeighborCache();
         });

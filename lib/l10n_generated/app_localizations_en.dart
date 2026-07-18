@@ -5225,4 +5225,24 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get loopsValidationInvalidCron =>
       'Cron expression is invalid (expected 5 fields)';
+
+  @override
+  String get chatAttachImage => 'Attach image';
+
+  @override
+  String get chatAttachFromGallery => 'Photo library';
+
+  @override
+  String get chatAttachFromCamera => 'Camera';
+
+  @override
+  String get chatRemoveAttachment => 'Remove attachment';
+
+  @override
+  String chatAttachmentLimit(int max) {
+    return 'Up to $max images per message';
+  }
+
+  @override
+  String get chatImageNotCached => 'Image (not available offline)';
 }

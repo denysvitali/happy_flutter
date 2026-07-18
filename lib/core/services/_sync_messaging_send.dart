@@ -1,5 +1,12 @@
 part of 'sync_service.dart';
 
+/// Wire `content` for an outbound user message: either the legacy
+/// single-map text shape (`{'type': 'text', 'text': …}`) or a
+/// content-block array (text + image blocks). Dart has no union types,
+/// so this stays [Object] — every consumer narrows with `is Map` /
+/// `is List` before reading.
+typedef _UserOutboundContent = Object;
+
 extension SyncMessagingSend on Sync {
   /// Create a stable client-side message id that can be shared across
   /// optimistic UI, REST persistence, socket forwarding, and retries.
@@ -44,6 +51,7 @@ extension SyncMessagingSend on Sync {
     String? permissionMode,
     String? modelMode,
     String? profileId,
+    List<OutgoingImage>? images,
   }) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
@@ -153,10 +161,15 @@ extension SyncMessagingSend on Sync {
       _ => 'web',
     };
     final model = effectiveModelMode != 'default' ? effectiveModelMode : null;
+    final outboundContent = _buildOutboundUserContent(text, images: images);
+    final displayContent = _extractDisplayTextFromUserContent(
+      outboundContent,
+      text,
+    );
 
     final rawRecord = <String, dynamic>{
       'role': 'user',
-      'content': <String, dynamic>{'type': 'text', 'text': text},
+      'content': outboundContent,
       'meta': <String, dynamic>{
         'sentFrom': sentFrom,
         'permissionMode': wirePermissionMode,
@@ -172,7 +185,8 @@ extension SyncMessagingSend on Sync {
       'requestedSession=$sessionId '
       'mode=$wirePermissionMode '
       'model=${model ?? 'default'} '
-      'textLen=${text.length}',
+      'textLen=${text.length} '
+      'images=${images?.length ?? 0}',
     );
 
     final sendTransaction =
@@ -235,7 +249,7 @@ extension SyncMessagingSend on Sync {
         'createdAt': now,
         'role': 'user',
         'kind': 'text',
-        'content': text,
+        'content': displayContent,
         'raw': rawRecord,
         'sendStatus': 'sending',
       },
@@ -257,7 +271,7 @@ extension SyncMessagingSend on Sync {
     Future<void> completeSend() => _completeSend(
       targetSessionId: targetSessionId,
       localId: localId,
-      text: text,
+      text: displayContent,
       rawRecord: rawRecord,
       encryptedRawRecord: encryptedRawRecord,
       transaction: sendTransaction,
@@ -1002,6 +1016,18 @@ extension SyncMessagingSend on Sync {
       return;
     }
 
+    // A message whose image bytes were stripped by the offline cache
+    // cannot be retried — the raw record no longer carries the pixels,
+    // and sending a hollow base64 block would deliver a broken image to
+    // the agent. Leave the row in 'failed' state; the user must re-attach.
+    if (hasStrippedImageBlocks(raw)) {
+      logger.warning(
+        '[retryFailedMessage] image data stripped by cache, cannot retry: '
+        'sessionId=$sessionId localId=$localId',
+      );
+      return;
+    }
+
     // Canary invariant #3: retry MUST reuse the original LocalId.
     // The current code always passes the same `localId` argument
     // through, but this assert guards future refactors where the
@@ -1216,5 +1242,101 @@ extension SyncMessagingSend on Sync {
     return kind == 'tool-call' ||
         kind == 'task-event' ||
         message['isThinking'] == true;
+  }
+
+  static final RegExp _markdownImageRegExp = RegExp(
+    r'!\[[^\]]*\]\((.*?)\)',
+    dotAll: true,
+  );
+
+  /// Builds the wire `content` for a user message.
+  ///
+  /// Plain text sends keep the legacy single-map shape
+  /// (`{'type': 'text', 'text': …}`) — the daemon has special-case
+  /// handling for it (slash commands, loop commands). Anything with
+  /// images becomes a content-block array, which the daemon forwards
+  /// verbatim into Claude's stream-json stdin (base64 image blocks are
+  /// accepted there; URL sources are rejected by the API gateway).
+  _UserOutboundContent _buildOutboundUserContent(
+    String text, {
+    List<OutgoingImage>? images,
+  }) {
+    final matches = _markdownImageRegExp.allMatches(text);
+    final hasImages = images != null && images.isNotEmpty;
+    if (matches.isEmpty && !hasImages) {
+      return <String, dynamic>{'type': 'text', 'text': text};
+    }
+
+    final blocks = <Map<String, dynamic>>[];
+    if (matches.isEmpty) {
+      if (text.trim().isNotEmpty) {
+        blocks.add({'type': 'text', 'text': text});
+      }
+    } else {
+      var cursor = 0;
+      for (final match in matches) {
+        final before = text.substring(cursor, match.start);
+        if (before.trim().isNotEmpty) {
+          blocks.add({'type': 'text', 'text': before});
+        }
+
+        final imageUrl = match.group(1)?.trim() ?? '';
+        if (imageUrl.isNotEmpty) {
+          blocks.add({
+            'type': 'image',
+            'source': {'type': 'url', 'url': imageUrl},
+          });
+        }
+        cursor = match.end;
+      }
+
+      final after = text.substring(cursor);
+      if (after.trim().isNotEmpty) {
+        blocks.add({'type': 'text', 'text': after});
+      }
+    }
+
+    if (hasImages) {
+      for (final image in images) {
+        blocks.add(image.toContentBlock());
+      }
+    }
+
+    return blocks;
+  }
+
+  String _extractDisplayTextFromUserContent(
+    _UserOutboundContent content,
+    String fallback,
+  ) {
+    if (content is Map<String, dynamic>) {
+      final text = content['text'];
+      if (text is String) return text;
+    }
+
+    if (content is List) {
+      final blocks = content.whereType<Map<String, dynamic>>().toList();
+      final text = _extractTextFromContentBlocks(blocks);
+      if (text != null && text.isNotEmpty) return text;
+
+      final hasImage = blocks.any((block) => block['type'] == 'image');
+      if (hasImage) return '[image]';
+    }
+
+    return fallback;
+  }
+
+  String? _extractTextFromContentBlocks(List<Map<String, dynamic>> blocks) {
+    final buffer = StringBuffer();
+    for (final block in blocks) {
+      if (block['type'] == 'text') {
+        final text = block['text'];
+        if (text is String && text.isNotEmpty) {
+          if (buffer.isNotEmpty) buffer.write('\n');
+          buffer.write(text);
+        }
+      }
+    }
+    return buffer.isEmpty ? null : buffer.toString();
   }
 }

@@ -9420,6 +9420,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cron expression is invalid (expected 5 fields)'**
   String get loopsValidationInvalidCron;
+
+  /// Tooltip for the attach-image button in the chat composer
+  ///
+  /// In en, this message translates to:
+  /// **'Attach image'**
+  String get chatAttachImage;
+
+  /// Option to pick an image from the photo library
+  ///
+  /// In en, this message translates to:
+  /// **'Photo library'**
+  String get chatAttachFromGallery;
+
+  /// Option to take a photo with the camera
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get chatAttachFromCamera;
+
+  /// Accessibility label for removing a staged image attachment
+  ///
+  /// In en, this message translates to:
+  /// **'Remove attachment'**
+  String get chatRemoveAttachment;
+
+  /// No description provided for @chatAttachmentLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {max} images per message'**
+  String chatAttachmentLimit(int max);
+
+  /// Placeholder shown for an image whose data was stripped from the offline cache
+  ///
+  /// In en, this message translates to:
+  /// **'Image (not available offline)'**
+  String get chatImageNotCached;
 }
 
 class _AppLocalizationsDelegate

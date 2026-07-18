@@ -46,9 +46,13 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 
-	<!-- Camera permission for QR scanning -->
+	<!-- Camera permission for QR scanning and chat image attachments -->
 	<key>NSCameraUsageDescription</key>
-	<string>Camera access is required to scan QR codes for authentication.</string>
+	<string>Camera access is required to scan QR codes for authentication and to attach photos to chat messages.</string>
+
+	<!-- Photo library access for chat image attachments -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access is required to attach images to chat messages.</string>
 
 	<!-- Microphone permission for audio recording -->
 	<key>NSMicrophoneUsageDescription</key>

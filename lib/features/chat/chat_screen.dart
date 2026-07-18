@@ -14,6 +14,7 @@ import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/loop.dart';
+import '../../core/models/outgoing_image.dart';
 import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
@@ -46,6 +47,7 @@ import 'message_detail_screen.dart';
 import 'message_render_signature.dart';
 import 'message_widget.dart';
 import 'model_selection_resolver.dart';
+import 'send/chat_attachment_controller.dart';
 import 'send/chat_send_coordinator.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
@@ -123,6 +125,8 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
+  final ChatAttachmentController _attachmentController =
+      ChatAttachmentController();
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<void>? _dataSyncSubscription;
   StreamSubscription<String>? _messageSyncSubscription;
@@ -384,6 +388,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _paginationErrorSubscription?.cancel();
     _autoRestoreFailureSubscription?.cancel();
     _controller.dispose();
+    _attachmentController.dispose();
     _scrollController.dispose();
     _autoScrollNotifier.dispose();
     _messagePaneRevision.dispose();
@@ -1349,6 +1354,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           builder: (context, revision, child) => ChatInput(
             sessionId: widget.sessionId,
             controller: _controller,
+            attachmentController: _attachmentController,
             onSend: _sendMessage,
             isSending: _isSending,
             permissionMode: _permissionMode,

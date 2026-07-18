@@ -46,6 +46,9 @@ class ProcessedMessages {
   final List<String> droppedReasons;
 }
 
+typedef _UserContentBlock = Map<String, dynamic>;
+typedef _UserContentBlocks = List<_UserContentBlock>;
+
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
@@ -449,10 +452,10 @@ ProcessedMessages processDecryptedMessages({
 ///
 /// Handles `[{type: 'text', text: '...'}, ...]` by concatenating all
 /// text blocks.
-String? _extractTextFromContentBlocks(List<dynamic> blocks) {
+String? _extractTextFromContentBlocks(_UserContentBlocks blocks) {
   final buffer = StringBuffer();
   for (final block in blocks) {
-    if (block is Map<String, dynamic> && block['type'] == 'text') {
+    if (block['type'] == 'text') {
       final text = block['text'];
       if (text is String && text.isNotEmpty) {
         if (buffer.isNotEmpty) buffer.write('\n');
@@ -461,4 +464,12 @@ String? _extractTextFromContentBlocks(List<dynamic> blocks) {
     }
   }
   return buffer.isEmpty ? null : buffer.toString();
+}
+
+bool _containsImageContentBlock(Object? blocks) {
+  if (blocks is! List<dynamic>) return false;
+
+  return blocks.any(
+    (block) => block is Map<String, dynamic> && block['type'] == 'image',
+  );
 }

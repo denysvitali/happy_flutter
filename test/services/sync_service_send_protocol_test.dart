@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/outgoing_image.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
@@ -244,6 +245,148 @@ void main() {
       final message = messages.first as Map<String, dynamic>;
       expect(message['localId'], 'local-1');
       expect(message['content'], 'encrypted-content');
+    });
+
+    test('sends mixed user text and image payload', () async {
+      await instance.sendMessage(
+        'sess-1',
+        'Check this screenshot: ![demo](https://example.com/screen.png)',
+      );
+      await instance.lastCompleteSendFuture;
+
+      final raw = sessionEncryption.lastRawRecord;
+      expect(raw, isNotNull);
+      final content = raw!['content'] as List<dynamic>;
+      expect(content, hasLength(2));
+      expect(content[0], isA<Map<String, dynamic>>());
+      expect((content[0] as Map<String, dynamic>)['type'], 'text');
+      expect((content[0] as Map<String, dynamic>)['text'],
+          'Check this screenshot: ');
+      expect(content[1], isA<Map<String, dynamic>>());
+      expect((content[1] as Map<String, dynamic>)['type'], 'image');
+      expect(
+        (content[1] as Map<String, dynamic>)['source'],
+        {'type': 'url', 'url': 'https://example.com/screen.png'},
+      );
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      expect(localMessages.first['content'], 'Check this screenshot: ');
+    });
+
+    test('uses image placeholder text when message contains only images', () async {
+      await instance.sendMessage(
+        'sess-1',
+        '![only-image](https://example.com/screen.png)',
+      );
+      await instance.lastCompleteSendFuture;
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      expect(localMessages.first['content'], '[image]');
+    });
+
+    test('sends base64 image attachments as content blocks', () async {
+      await instance.sendMessage(
+        'sess-1',
+        'what is this?',
+        images: const [
+          OutgoingImage(
+            mediaType: 'image/jpeg',
+            base64Data: 'aGVsbG8=',
+            width: 100,
+            height: 50,
+          ),
+        ],
+      );
+      await instance.lastCompleteSendFuture;
+
+      final raw = sessionEncryption.lastRawRecord;
+      expect(raw, isNotNull);
+      final content = raw!['content'] as List<dynamic>;
+      expect(content, hasLength(2));
+      final textBlock = content[0] as Map<String, dynamic>;
+      expect(textBlock['type'], 'text');
+      expect(textBlock['text'], 'what is this?');
+      final imageBlock = content[1] as Map<String, dynamic>;
+      expect(imageBlock['type'], 'image');
+      expect(imageBlock['source'], {
+        'type': 'base64',
+        'media_type': 'image/jpeg',
+        'data': 'aGVsbG8=',
+      });
+
+      // The optimistic row keeps the blocks in `raw` so the bubble can
+      // render the attachment immediately, and the localId contract is
+      // unchanged for image sends.
+      final requestData = capturedRequestData as Map<String, dynamic>;
+      final messages = requestData['messages'] as List<dynamic>;
+      final message = messages.first as Map<String, dynamic>;
+      expect(message['localId'], 'local-1');
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final localRaw = localMessages.first['raw'] as Map<String, dynamic>;
+      expect(localRaw['content'], isA<List<dynamic>>());
+      expect(localMessages.first['content'], 'what is this?');
+    });
+
+    test('image-only send emits no text block and [image] display text', () async {
+      await instance.sendMessage(
+        'sess-1',
+        '',
+        clientLocalId: 'img-local-1',
+        images: const [
+          OutgoingImage(mediaType: 'image/png', base64Data: 'aW1n'),
+        ],
+      );
+      await instance.lastCompleteSendFuture;
+
+      final raw = sessionEncryption.lastRawRecord!;
+      final content = raw['content'] as List<dynamic>;
+      expect(content, hasLength(1));
+      expect((content.first as Map<String, dynamic>)['type'], 'image');
+
+      final requestData = capturedRequestData as Map<String, dynamic>;
+      final message =
+          (requestData['messages'] as List<dynamic>).first
+              as Map<String, dynamic>;
+      expect(message['localId'], 'img-local-1');
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      expect(localMessages.first['content'], '[image]');
+    });
+
+    test('retry refuses when image bytes were stripped by cache', () async {
+      // Seed a failed message whose raw carries a stripped (hollow)
+      // base64 image block, as the offline cache would persist it.
+      instance.testSetSessionMessages('sess-1', [
+        <String, dynamic>{
+          'id': 'strip-1',
+          'localId': 'strip-1',
+          'role': 'user',
+          'kind': 'text',
+          'content': '[image]',
+          'sendStatus': 'failed',
+          'raw': <String, dynamic>{
+            'role': 'user',
+            'content': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'image',
+                'source': <String, dynamic>{
+                  'type': 'base64',
+                  'media_type': 'image/jpeg',
+                  'data': '',
+                  'omitted': true,
+                },
+              },
+            ],
+          },
+        },
+      ]);
+
+      await instance.retryFailedMessage('sess-1', 'strip-1');
+
+      // No HTTP attempt, no outbox entry, and the row stays failed.
+      expect(capturedRequestData, isNull);
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      expect(localMessages.first['sendStatus'], 'failed');
     });
 
     test('uses caller supplied localId when provided', () async {

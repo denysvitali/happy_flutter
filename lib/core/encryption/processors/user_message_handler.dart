@@ -6,13 +6,24 @@ void _processUserMessage({
   required int seq,
   required int createdAt,
   required Map<String, dynamic> content,
-  required dynamic nestedContent,
+  required Object? nestedContent,
   required List<Map<String, dynamic>> messages,
 }) {
   final text = nestedContent is Map<String, dynamic> &&
           nestedContent['type'] == 'text'
       ? nestedContent['text']?.toString() ?? ''
-      : content.toString();
+      : nestedContent is List
+          ? _extractTextFromContentBlocks(
+              nestedContent.whereType<Map<String, dynamic>>().toList(),
+            )
+          : nestedContent?.toString() ?? '';
+
+  final textOrImagePlaceholder =
+      text?.isNotEmpty == true
+      ? text
+      : _containsImageContentBlock(nestedContent)
+      ? '[image]'
+      : '';
 
   messages.add({
     'id': id,
@@ -21,7 +32,7 @@ void _processUserMessage({
     'createdAt': createdAt,
     'role': 'user',
     'kind': 'text',
-    'content': text,
+    'content': textOrImagePlaceholder,
     'raw': content,
   });
 }

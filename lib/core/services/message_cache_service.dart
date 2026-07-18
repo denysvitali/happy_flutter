@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart'
     show compute, kIsWeb, visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../utils/image_content_blocks.dart';
 import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
 import 'opentelemetry_service.dart';
@@ -220,7 +221,13 @@ class MessageCacheService {
     required bool asyncWrite,
   }) async {
     final stopwatch = Stopwatch()..start();
-    final toSave = _trimToCacheWindow(messages);
+    final trimmed = _trimToCacheWindow(messages);
+    // Strip inline base64 image bytes before persisting: a chat with a
+    // few screenshots would otherwise put multi-MB strings into MMKV
+    // (and into the cache-window hash) for every save. Stripped blocks
+    // keep their shape so restored rows render a placeholder, and the
+    // retry path refuses to resend them (the pixels are gone).
+    final toSave = trimmed.map(stripInlineImageData).toList();
 
     // Skip write when the cache-window hash is unchanged — avoids repeated
     // MMKV serialization of the same message list (e.g. 1200-message

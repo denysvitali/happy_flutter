@@ -1059,7 +1059,9 @@
   "codexUsageResetsAt": "Resets {time}",
   "@codexUsageResetsAt": {
     "placeholders": {
-      "time": {"type": "String"}
+      "time": {
+        "type": "String"
+      }
     }
   },
   "codexUsageLimitResets": "Usage limit resets",
@@ -1069,14 +1071,20 @@
   "codexUsageExpiresAt": "Expires {time}",
   "@codexUsageExpiresAt": {
     "placeholders": {
-      "time": {"type": "String"}
+      "time": {
+        "type": "String"
+      }
     }
   },
   "codexUsageExpiresInDays": "{days, plural, =0{Less than 1 day left · {date}} =1{1 day left · {date}} other{{days} days left · {date}}}",
   "@codexUsageExpiresInDays": {
     "placeholders": {
-      "days": {"type": "int"},
-      "date": {"type": "String"}
+      "days": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
     }
   },
   "codexUsageCredits": "Credits",
@@ -1140,7 +1148,7 @@
   "permissionDefault": "Default",
   "permissionAcceptEdits": "Accept Edits",
   "permissionPlan": "Plan Mode",
-  "permissionYolo": "Yolo Mode",
+  "permissionYolo": "YOLO",
   "permissionReadOnly": "Read Only",
   "permissionSafeYolo": "Safe Yolo",
   "permissionRequired": "Permission required",
@@ -1148,7 +1156,6 @@
   "permissionDeniedLabel": "Denied",
   "permissionSessionOffline": "Session offline",
   "permissionAllEdits": "All edits",
-  "permissionYolo": "YOLO",
   "permissionForSession": "For session",
   "permissionActionFailed": "Permission action failed",
   "permissionModeTitle": "Permission Mode",
@@ -1559,21 +1566,31 @@
   "subAgentBannerRunning": "{running} of {total} sub-agents running",
   "@subAgentBannerRunning": {
     "placeholders": {
-      "running": {"type": "int"},
-      "total": {"type": "int"}
+      "running": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "subAgentBannerComplete": "{total} sub-agents finished",
   "@subAgentBannerComplete": {
     "placeholders": {
-      "total": {"type": "int"}
+      "total": {
+        "type": "int"
+      }
     }
   },
   "subAgentBannerError": "{error} of {total} sub-agents failed",
   "@subAgentBannerError": {
     "placeholders": {
-      "error": {"type": "int"},
-      "total": {"type": "int"}
+      "error": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "subAgentBannerTapToOpen": "Tap to view",
@@ -1926,11 +1943,19 @@
   "smartFeaturesDownloadModel": "Download model",
   "smartFeaturesDownloadModelDesc": "Downloads the Gemma model ({size}). Wi-Fi strongly recommended.",
   "@smartFeaturesDownloadModelDesc": {
-    "placeholders": { "size": { "type": "String" } }
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
   },
   "smartFeaturesDownloading": "Downloading… {percent}%",
   "@smartFeaturesDownloading": {
-    "placeholders": { "percent": { "type": "int" } }
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
   },
   "smartFeaturesDownloadFailed": "Download failed. Tap to retry.",
   "smartFeaturesLoadingModel": "Loading model…",
@@ -2177,5 +2202,33 @@
   "loopsLoopResumeFailed": "Failed to resume loop",
   "loopsValidationRequiredInterval": "Cron expression is required",
   "loopsValidationRequiredPrompt": "Prompt is required",
-  "loopsValidationInvalidCron": "Cron expression is invalid (expected 5 fields)"
+  "loopsValidationInvalidCron": "Cron expression is invalid (expected 5 fields)",
+  "chatAttachImage": "Attach image",
+  "@chatAttachImage": {
+    "description": "Tooltip for the attach-image button in the chat composer"
+  },
+  "chatAttachFromGallery": "Photo library",
+  "@chatAttachFromGallery": {
+    "description": "Option to pick an image from the photo library"
+  },
+  "chatAttachFromCamera": "Camera",
+  "@chatAttachFromCamera": {
+    "description": "Option to take a photo with the camera"
+  },
+  "chatRemoveAttachment": "Remove attachment",
+  "@chatRemoveAttachment": {
+    "description": "Accessibility label for removing a staged image attachment"
+  },
+  "chatAttachmentLimit": "Up to {max} images per message",
+  "@chatAttachmentLimit": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "chatImageNotCached": "Image (not available offline)",
+  "@chatImageNotCached": {
+    "description": "Placeholder shown for an image whose data was stripped from the offline cache"
+  }
 }

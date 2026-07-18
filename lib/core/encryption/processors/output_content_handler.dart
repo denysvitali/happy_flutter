@@ -464,7 +464,9 @@ void _processOutputContent({
       final promptText = msgContent is String
           ? msgContent
           : (msgContent is List
-                ? _extractTextFromContentBlocks(msgContent)
+                ? _extractTextFromContentBlocks(
+                    msgContent.whereType<Map<String, dynamic>>().toList(),
+                  )
                 : null);
       if (promptText != null && promptText.isNotEmpty) {
         messages.add({

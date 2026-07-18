@@ -94,6 +94,49 @@ void main() {
 
         expect(result.messages, hasLength(1));
         expect(result.messages.first['role'], 'user');
+        expect(result.messages.first['content'], 'Raw user content');
+      });
+
+      test('extracts text from user content blocks', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'user',
+              'content': [
+                {'type': 'text', 'text': 'Image prompt'},
+                {'type': 'image', 'url': 'file://tmp/x.png'},
+                {'type': 'text', 'text': 'more'},
+              ],
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['content'], 'Image prompt\nmore');
+      });
+
+      test('uses image placeholder when no user text exists', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'user',
+              'content': [
+                {'type': 'image', 'source': {'type': 'url', 'url': 'x'}},
+              ],
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['content'], '[image]');
       });
     });
 

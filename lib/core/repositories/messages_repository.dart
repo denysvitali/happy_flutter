@@ -1,5 +1,6 @@
 import 'package:riverpod/riverpod.dart';
 
+import '../models/outgoing_image.dart';
 import '../services/sync_service.dart';
 
 /// Domain boundary for user-initiated message operations.
@@ -18,6 +19,7 @@ abstract interface class MessagesRepository {
     String? permissionMode,
     String? modelMode,
     String? profileId,
+    List<OutgoingImage>? images,
   });
 
   Future<void> abortSession(String sessionId, {String reason = ''});
@@ -44,6 +46,7 @@ class SyncMessagesRepository implements MessagesRepository {
     String? permissionMode,
     String? modelMode,
     String? profileId,
+    List<OutgoingImage>? images,
   }) => _sync.sendMessage(
     sessionId,
     text,
@@ -52,6 +55,7 @@ class SyncMessagesRepository implements MessagesRepository {
     permissionMode: permissionMode,
     modelMode: modelMode,
     profileId: profileId,
+    images: images,
   );
 
   @override

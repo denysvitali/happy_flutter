@@ -12,17 +12,34 @@ library;
 ///
 /// [localId] must already be the canonical client identity that will
 /// also be passed as `clientLocalId` to [Sync.sendMessage].
+///
+/// [imageBlocks], when provided, are Anthropic image content blocks
+/// (from `OutgoingImage.toContentBlock()`). They land in a `raw` map so
+/// the bubble can render the staged images immediately, matching the
+/// shape Sync's own optimistic row and server-decoded rows carry.
 Map<String, dynamic> buildOptimisticUserMessage({
   required String localId,
   required String text,
   int? createdAtMs,
+  List<Map<String, dynamic>>? imageBlocks,
 }) {
+  final displayText = text.isNotEmpty
+      ? text
+      : (imageBlocks != null && imageBlocks.isNotEmpty ? '[image]' : text);
   return <String, dynamic>{
     'id': localId,
     'localId': localId,
     'role': 'user',
-    'content': text,
-    'text': text,
+    'content': displayText,
+    'text': displayText,
+    if (imageBlocks != null && imageBlocks.isNotEmpty)
+      'raw': <String, dynamic>{
+        'role': 'user',
+        'content': <Map<String, dynamic>>[
+          if (text.isNotEmpty) <String, dynamic>{'type': 'text', 'text': text},
+          ...imageBlocks,
+        ],
+      },
     'createdAt': createdAtMs ?? DateTime.now().millisecondsSinceEpoch,
     'seq': -1,
     'sendStatus': 'sending',
