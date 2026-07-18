@@ -99,9 +99,12 @@ String mcpServerEmoji(String serverToken) {
 /// Extracts plain text from an MCP tool result.
 ///
 /// MCP results carry `content` blocks (`[{type: 'text', text: ...}]`), either
-/// at the top level or nested under a `result` key. Returns the joined block
-/// texts when every block is a text block, or null otherwise.
+/// at the top level or nested under a `result` key; some servers answer with
+/// a bare string instead. Returns the joined block texts when every block is
+/// a text block (or the string itself), or null otherwise.
 String? mcpToolTextResult(dynamic result) {
+  if (result is String) return result.isEmpty ? null : result;
+
   final direct = _mcpTextFromContentBlocks(result);
   if (direct != null) return direct;
 

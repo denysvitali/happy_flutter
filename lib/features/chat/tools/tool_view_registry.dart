@@ -51,9 +51,10 @@ class ToolViewRegistry {
         'CodexPatch': (t, m, s) => CodexPatchView(tool: t, metadata: m),
         'CodexDiff': (t, m, s) => CodexDiffView(tool: t, metadata: m),
         // Codex MCP session tools — full prompt + config body.
-        'mcp__codex__codex': (t, m, s) => CodexMcpView(tool: t, metadata: m),
-        'mcp__codex__codex-reply': (t, m, s) =>
-            CodexMcpView(tool: t, metadata: m),
+        ...<String, ToolViewBuilder>{
+          for (final name in KnownTools.codexMcpToolNames)
+            name: (t, m, s) => CodexMcpView(tool: t, metadata: m),
+        },
         'TaskCreate': (t, m, s) =>
             TaskToolView(tool: t, metadata: m, sessionId: s),
         'TaskUpdate': (t, m, s) =>

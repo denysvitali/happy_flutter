@@ -178,6 +178,15 @@ class KnownTools {
   static Widget defaultIcon(double size, Color color) =>
       Icon(Icons.build, size: size, color: color);
 
+  /// Tool names of the Codex MCP session tools (`mcp__codex__*`).
+  ///
+  /// Single source of truth — the view registry, this registry, and the
+  /// message detail screen all key off this set.
+  static const Set<String> codexMcpToolNames = {
+    'mcp__codex__codex',
+    'mcp__codex__codex-reply',
+  };
+
   /// Registry of known tool definitions.
   static final Map<String, ToolDefinition> tools = {
     'Task': ToolDefinition(
@@ -742,16 +751,15 @@ class KnownTools {
     // generic MCP branch in ToolView — these entries only mark the tool
     // non-minimal (the CodexMcpView body renders the full prompt + config)
     // and surface the first prompt line as the collapsed-header subtitle.
-    'mcp__codex__codex': ToolDefinition(
-      icon: mcpIcon,
-      minimal: false,
-      extractSubtitle: _extractCodexPromptSubtitle,
-    ),
-    'mcp__codex__codex-reply': ToolDefinition(
-      icon: mcpIcon,
-      minimal: false,
-      extractSubtitle: _extractCodexPromptSubtitle,
-    ),
+    ...<String, ToolDefinition>{
+      for (final name in codexMcpToolNames)
+        name: ToolDefinition(
+          icon: mcpIcon,
+          title: name == 'mcp__codex__codex-reply' ? 'Codex Reply' : 'Codex',
+          minimal: false,
+          extractSubtitle: _extractCodexPromptSubtitle,
+        ),
+    },
     // Gemini-specific tools
     'GeminiReasoning': ToolDefinition(
       icon: reasoningIcon,

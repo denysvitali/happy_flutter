@@ -254,4 +254,80 @@ void main() {
       expect(pane.position.pixels, greaterThan(before));
     });
   });
+
+  group('MessageDetailScreen — Codex MCP', () {
+    const codexMessage = <String, dynamic>{
+      'kind': 'tool-call',
+      'name': 'mcp__codex__codex',
+      'state': 'completed',
+      'input': <String, dynamic>{
+        'approval-policy': 'never',
+        'cwd': '/repo/happy_flutter',
+        'model': 'gpt-5.3-codex-spark',
+        'sandbox': 'read-only',
+        'prompt': 'Review the core files.\n\nRETURN: numbered findings.',
+      },
+      'result': <String, dynamic>{
+        'content': <Map<String, dynamic>>[
+          <String, dynamic>{'type': 'text', 'text': 'Verdict: looks good.'},
+        ],
+      },
+    };
+
+    testWidgets('renders pretty prompt + response instead of raw JSON', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: codexMessage,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Header shows the friendly title.
+      expect(find.text('Codex'), findsOneWidget);
+
+      // Pretty body: config chips, cwd, full prompt, response.
+      expect(find.text('gpt-5.3-codex-spark'), findsOneWidget);
+      expect(find.text('read-only'), findsOneWidget);
+      expect(find.text('never'), findsOneWidget);
+      expect(find.text('/repo/happy_flutter'), findsOneWidget);
+      expect(find.text('PROMPT'), findsOneWidget);
+      expect(find.textContaining('Review the core files.'), findsOne);
+      expect(find.textContaining('RETURN: numbered findings.'), findsOne);
+      expect(find.text('RESPONSE'), findsOneWidget);
+      expect(find.text('Verdict: looks good.'), findsOneWidget);
+
+      // Raw JSON is collapsed: no JSON keys visible before expanding.
+      expect(_renderedText(tester), isNot(contains('"prompt"')));
+    });
+
+    testWidgets('raw JSON disclosure reveals the wire payload', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: codexMessage,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Raw JSON'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Raw JSON'));
+      await tester.pumpAndSettle();
+
+      final rendered = _renderedText(tester);
+      expect(rendered, contains('"prompt"'));
+      expect(rendered, contains('gpt-5.3-codex-spark'));
+    });
+  });
 }

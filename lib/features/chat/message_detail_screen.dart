@@ -14,6 +14,7 @@ import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart' show parseToolState;
+import 'tools/views/codex_mcp_view.dart';
 
 /// Screen showing full details of a tool-call message.
 ///
@@ -253,33 +254,49 @@ class _ToolDetailView extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
         ],
 
-        // Input
-        if (input != null) ...[
-          _ToolResultSection(
-            title: context.l10n.messageDetailInput,
-            icon: Icons.input,
-            json: inputText == null ? input : null,
-            text: inputText,
-          ),
+        // Codex MCP session tools get their pretty body (full prompt,
+        // config chips, cwd, response) instead of raw JSON cards; the
+        // wire payload stays reachable behind the collapsed disclosure.
+        if (KnownTools.codexMcpToolNames.contains(toolName)) ...[
+          CodexMcpView(tool: data),
+          if (input != null || result != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _RawPayloadDisclosure(input: input, result: result, state: state),
+          ],
           const SizedBox(height: AppSpacing.md),
-        ],
+        ] else ...[
+          // Input
+          if (input != null) ...[
+            _ToolResultSection(
+              title: context.l10n.messageDetailInput,
+              icon: Icons.input,
+              json: inputText == null ? input : null,
+              text: inputText,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
 
-        // Output/Result
-        if (result != null && state != ToolState.running) ...[
-          _ToolResultSection(
-            title: state == ToolState.error
-                ? context.l10n.commonError
-                : context.l10n.messageDetailOutput,
-            icon: state == ToolState.error ? Icons.error_outline : Icons.output,
-            json: resultText == null && (result is Map || result is List)
-                ? result
-                : null,
-            text:
-                resultText ??
-                (result is! Map && result is! List ? result.toString() : null),
-            isError: state == ToolState.error,
-          ),
-          const SizedBox(height: AppSpacing.md),
+          // Output/Result
+          if (result != null && state != ToolState.running) ...[
+            _ToolResultSection(
+              title: state == ToolState.error
+                  ? context.l10n.commonError
+                  : context.l10n.messageDetailOutput,
+              icon: state == ToolState.error
+                  ? Icons.error_outline
+                  : Icons.output,
+              json: resultText == null && (result is Map || result is List)
+                  ? result
+                  : null,
+              text:
+                  resultText ??
+                  (result is! Map && result is! List
+                      ? result.toString()
+                      : null),
+              isError: state == ToolState.error,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
         ],
 
         // Child tools for Task/sub-agent
@@ -522,6 +539,79 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
               _CodeBlock(content: widget.text ?? ''),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Raw payload disclosure ─────────────────────────────────────────────────
+
+/// Collapsed "Raw JSON" card holding the full wire input/output for tools
+/// whose detail body is a dedicated pretty view (e.g. Codex MCP). Keeps
+/// full fidelity one tap away without burying the readable content.
+class _RawPayloadDisclosure extends StatelessWidget {
+  const _RawPayloadDisclosure({
+    required this.input,
+    required this.result,
+    required this.state,
+  });
+
+  final Map<String, dynamic>? input;
+  final dynamic result;
+  final ToolState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Card(
+      elevation: 0,
+      color: cs.surfaceContainerHighest,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(color: cs.outlineVariant, width: AppBorder.hairline),
+      ),
+      child: ExpansionTile(
+        leading: Icon(Icons.data_object, size: 18, color: cs.primary),
+        // TODO(i18n): raw-payload label not yet localized
+        title: Text(
+          'Raw JSON',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        children: [
+          if (input != null) ...[
+            _ToolResultSection(
+              title: context.l10n.messageDetailInput,
+              icon: Icons.input,
+              json: input,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
+          if (result != null && state != ToolState.running)
+            _ToolResultSection(
+              title: state == ToolState.error
+                  ? context.l10n.commonError
+                  : context.l10n.messageDetailOutput,
+              icon: state == ToolState.error
+                  ? Icons.error_outline
+                  : Icons.output,
+              json: result is Map || result is List ? result : null,
+              text: result is! Map && result is! List
+                  ? result.toString()
+                  : null,
+              isError: state == ToolState.error,
+            ),
+        ],
       ),
     );
   }

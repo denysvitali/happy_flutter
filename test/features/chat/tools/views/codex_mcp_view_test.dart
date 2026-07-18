@@ -148,6 +148,24 @@ void main() {
       expect(find.text('PROMPT'), findsOneWidget);
       expect(find.text('RESPONSE'), findsNothing);
     });
+
+    testWidgets('plain string result renders as response', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          CodexMcpView(
+            tool: {
+              'name': 'mcp__codex__codex',
+              'state': 'completed',
+              'input': {'prompt': 'Hi'},
+              'result': 'All done.',
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('RESPONSE'), findsOneWidget);
+      expect(find.text('All done.'), findsOneWidget);
+    });
   });
 
   group('Codex MCP registration', () {
