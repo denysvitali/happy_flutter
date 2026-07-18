@@ -400,6 +400,10 @@ extension SyncMessaging on Sync {
         _reconnectCursorSnapshot = null;
       }
       final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+      final strippedImageAfterSeq = strippedImageRefreshAfterSeq(
+        _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[],
+      );
+      final hasStrippedImages = strippedImageAfterSeq != null;
       final hasLargeDelta =
           !isFirstLoad &&
           !forceTailRefresh &&
@@ -418,14 +422,17 @@ extension SyncMessaging on Sync {
       );
 
       // Skip the HTTP round-trip when the cursor is at or ahead of the
-      // server's known lastSeq — there is nothing to fetch.  Socket
-      // events (new-message) update _sessionLastSeq via inline processing
-      // for the visible session and can push cursor PAST the server's
+      // server's known lastSeq — there is nothing to fetch. Cached image
+      // rows are the exception: their base64 bytes were deliberately
+      // stripped, so they must be rehydrated even when the cursor matches.
+      // Socket events (new-message) update _sessionLastSeq via inline
+      // processing for the visible session and can push cursor PAST the
       // lastSeq (since session.lastSeq lags behind socket events).
       // A cursor beyond serverLastSeq indicates socket events may have
       // outpaced the server, so only exact equality is safe to skip.
       if (!isFirstLoad &&
           !forceProbe &&
+          !hasStrippedImages &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
           cursorSeq == serverLastSeq) {
@@ -491,8 +498,12 @@ extension SyncMessaging on Sync {
       // A tail jump is safe only when there is no usable in-memory prefix.
       // With cached messages, even an explicit refresh must continue from
       // their cursor or merging the tail would create a missing middle.
-      final useTailLoad = isFirstLoad || (forceTailRefresh && cursorSeq <= 0);
-      final isGapRecovery = forceTailRefresh && useTailLoad;
+      final useTailLoad =
+          isFirstLoad ||
+          hasStrippedImages ||
+          (forceTailRefresh && cursorSeq <= 0);
+      final isGapRecovery =
+          (forceTailRefresh || hasStrippedImages) && useTailLoad;
       if (useTailLoad) {
         // Lazy tail-load: start near the end of the session
         // history so we don't download thousands of messages
@@ -511,6 +522,13 @@ extension SyncMessaging on Sync {
         // message is always included in the initial fetch.
         if (afterSeq > 0 && afterSeq <= 10) {
           afterSeq = 0;
+        }
+        if (strippedImageAfterSeq != null) {
+          afterSeq = strippedImageAfterSeq;
+          logger.debug(
+            '[fetchMessages] $sessionId rehydrating cached image data '
+            'afterSeq=$afterSeq',
+          );
         }
         if (forceTailRefresh && !isFirstLoad) {
           logger.debug(
@@ -553,6 +571,7 @@ extension SyncMessaging on Sync {
         ..setData('forceTailRefresh', forceTailRefresh)
         ..setData('forceProbe', forceProbe)
         ..setData('hasLargeDelta', hasLargeDelta)
+        ..setData('hasStrippedImages', hasStrippedImages)
         ..setData('cursorSeq', cursorSeq)
         ..setData('serverLastSeq', serverLastSeq)
         ..setData('pageSize', Sync._messageFetchPageSize)

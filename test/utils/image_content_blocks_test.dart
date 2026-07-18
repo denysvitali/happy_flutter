@@ -175,4 +175,58 @@ void main() {
       );
     });
   });
+
+  group('strippedImageRefreshAfterSeq', () {
+    test('returns the sequence before the earliest stripped image', () {
+      final messages = <Map<String, dynamic>>[
+        <String, dynamic>{
+          'seq': 8,
+          'raw': <String, dynamic>{
+            'content': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'image',
+                'source': <String, dynamic>{
+                  'type': 'base64',
+                  'data': '',
+                  'omitted': true,
+                },
+              },
+            ],
+          },
+        },
+        <String, dynamic>{
+          'seq': 4,
+          'raw': <String, dynamic>{
+            'content': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'type': 'image',
+                'source': <String, dynamic>{'type': 'base64', 'data': ''},
+              },
+            ],
+          },
+        },
+      ];
+
+      expect(strippedImageRefreshAfterSeq(messages), 3);
+    });
+
+    test('returns null when all image data is intact', () {
+      expect(
+        strippedImageRefreshAfterSeq([
+          <String, dynamic>{
+            'seq': 4,
+            'raw': <String, dynamic>{
+              'content': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'image',
+                  'source': <String, dynamic>{'type': 'base64', 'data': 'aW1n'},
+                },
+              ],
+            },
+          },
+        ]),
+        isNull,
+      );
+    });
+  });
 }

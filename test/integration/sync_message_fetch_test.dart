@@ -133,6 +133,54 @@ void main() {
     });
 
     test(
+      'rehydrates stripped cached images when cursorSeq == serverLastSeq',
+      () async {
+        final sessionId = 'sess-cached-image';
+
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
+        sync.testSetSessionLastSeq(sessionId, 10);
+        sync.testSetSessionMessages(sessionId, [
+          <String, dynamic>{
+            'id': 'msg-image',
+            'seq': 4,
+            'role': 'user',
+            'content': '[image]',
+            'raw': <String, dynamic>{
+              'role': 'user',
+              'content': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'image',
+                  'source': <String, dynamic>{
+                    'type': 'base64',
+                    'media_type': 'image/jpeg',
+                    'data': '',
+                    'omitted': true,
+                  },
+                },
+              ],
+            },
+          },
+        ]);
+
+        final capturedAfterSeq = <int>[];
+        sync.testFetchMessagesOverride = (sessionId, afterSeq, limit) async {
+          capturedAfterSeq.add(afterSeq);
+          return _buildMessagesResponse([]);
+        };
+
+        await sync.fetchMessages(sessionId);
+
+        expect(
+          capturedAfterSeq,
+          [3],
+          reason:
+              'Stripped image data must bypass the caught-up skip and '
+              'fetch from before the affected message.',
+        );
+      },
+    );
+
+    test(
       'fetch probe bypasses caught-up skip when server seq may be stale',
       () async {
         final sessionId = 'sess-1';

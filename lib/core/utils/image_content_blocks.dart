@@ -28,6 +28,29 @@ bool hasStrippedImageBlocks(Map<String, dynamic> raw) {
   return false;
 }
 
+/// Returns the `after_seq` value needed to re-fetch cached messages whose
+/// inline image bytes were stripped, or `null` when no such messages exist.
+///
+/// The cache keeps the message shape but removes the potentially multi-MB
+/// base64 payload. A normal delta fetch can therefore incorrectly treat the
+/// hollow cached row as current when its cursor equals `lastSeq`.
+int? strippedImageRefreshAfterSeq(Iterable<Map<String, dynamic>> messages) {
+  int? refreshAfterSeq;
+  for (final message in messages) {
+    final raw = message['raw'];
+    if (raw is! Map<String, dynamic> || !hasStrippedImageBlocks(raw)) {
+      continue;
+    }
+
+    final seq = message['seq'];
+    final afterSeq = seq is int && seq > 0 ? seq - 1 : 0;
+    if (refreshAfterSeq == null || afterSeq < refreshAfterSeq) {
+      refreshAfterSeq = afterSeq;
+    }
+  }
+  return refreshAfterSeq;
+}
+
 /// Returns a copy of [message] where every inline base64 image block in
 /// `raw.content` has its `data` replaced by an empty string plus an
 /// `omitted` marker.
