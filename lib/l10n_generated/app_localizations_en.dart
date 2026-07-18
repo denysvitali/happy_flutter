@@ -5244,5 +5244,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get chatImageAddFailed =>
+      'Couldn\'t add that image. Please try a JPEG or PNG under 5 MB';
+
+  @override
+  String get chatImagePayloadTooLarge =>
+      'Those images are too large to send together. Remove one and try again';
+
+  @override
   String get chatImageNotCached => 'Image (not available offline)';
 }

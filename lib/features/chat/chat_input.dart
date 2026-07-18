@@ -917,12 +917,21 @@ class _ChatInputState extends ConsumerState<ChatInput>
     );
     if (source == null || !mounted) return;
 
-    final image = source == _AttachSource.camera
-        ? await _attachmentService.pickFromCamera()
-        : await _attachmentService.pickFromGallery();
+    final result = source == _AttachSource.camera
+        ? await _attachmentService.pickFromCameraResult()
+        : await _attachmentService.pickFromGalleryResult();
     // Re-check after the async picker gap: a send that started while the
     // picker was open must not have this image staged behind its back.
-    if (image == null || !mounted || widget.isSending) return;
+    final image = result.image;
+    if (!mounted || widget.isSending) return;
+    if (image == null) {
+      if (!result.cancelled) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.chatImageAddFailed)));
+      }
+      return;
+    }
 
     if (!controller.add(image) && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

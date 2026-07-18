@@ -1,11 +1,16 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/models/outgoing_image.dart';
 import 'package:happy_flutter/features/chat/send/image_attachment_service.dart';
 import 'package:image/image.dart' as img;
 
-Uint8List _png(int width, int height) => Uint8List.fromList(
-  img.encodePng(img.Image(width: width, height: height)),
+Uint8List _png(int width, int height) =>
+    Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
+
+OutgoingImage _imageWithBase64Length(int length) => OutgoingImage(
+  mediaType: 'image/jpeg',
+  base64Data: List.filled(length, 'a').join(),
 );
 
 void main() {
@@ -97,6 +102,27 @@ void main() {
         normalizeImageBytes(Uint8List.fromList(List.filled(64, 0x42))),
         isNull,
       );
+    });
+  });
+
+  group('fitsMessagePayload', () {
+    test('allows multiple images within the daemon JSON budget', () {
+      final images = [
+        _imageWithBase64Length(1800000),
+        _imageWithBase64Length(1800000),
+      ];
+
+      expect(ImageAttachmentService.fitsMessagePayload(images), isTrue);
+    });
+
+    test('rejects combined images above the daemon JSON budget', () {
+      final images = [
+        _imageWithBase64Length(1800000),
+        _imageWithBase64Length(1800000),
+        _imageWithBase64Length(1),
+      ];
+
+      expect(ImageAttachmentService.fitsMessagePayload(images), isFalse);
     });
   });
 }

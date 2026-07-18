@@ -49,6 +49,7 @@ import 'message_widget.dart';
 import 'model_selection_resolver.dart';
 import 'send/chat_attachment_controller.dart';
 import 'send/chat_send_coordinator.dart';
+import 'send/image_attachment_service.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';

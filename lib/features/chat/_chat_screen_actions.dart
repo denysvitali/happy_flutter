@@ -630,6 +630,12 @@ extension _ChatScreenActions on _ChatScreenState {
     final text = _controller.text.trim();
     final attachments = _attachmentController.images;
     if ((text.isEmpty && attachments.isEmpty) || _isSending) return;
+    if (!ImageAttachmentService.fitsMessagePayload(attachments)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.chatImagePayloadTooLarge)),
+      );
+      return;
+    }
     final sendIssue = _sessionSendIssue;
     if (sendIssue != null && sendIssue.blocksSend) {
       _showSendBlockedSnackBar(sendIssue);

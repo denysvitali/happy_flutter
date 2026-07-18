@@ -9451,6 +9451,18 @@ abstract class AppLocalizations {
   /// **'Up to {max} images per message'**
   String chatAttachmentLimit(int max);
 
+  /// Error shown when a selected image cannot be normalized for sending
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t add that image. Please try a JPEG or PNG under 5 MB'**
+  String get chatImageAddFailed;
+
+  /// Error shown when combined image attachments exceed the message size limit
+  ///
+  /// In en, this message translates to:
+  /// **'Those images are too large to send together. Remove one and try again'**
+  String get chatImagePayloadTooLarge;
+
   /// Placeholder shown for an image whose data was stripped from the offline cache
   ///
   /// In en, this message translates to:

@@ -2227,6 +2227,14 @@
       }
     }
   },
+  "chatImageAddFailed": "Couldn't add that image. Please try a JPEG or PNG under 5 MB",
+  "@chatImageAddFailed": {
+    "description": "Error shown when a selected image cannot be normalized for sending"
+  },
+  "chatImagePayloadTooLarge": "Those images are too large to send together. Remove one and try again",
+  "@chatImagePayloadTooLarge": {
+    "description": "Error shown when combined image attachments exceed the message size limit"
+  },
   "chatImageNotCached": "Image (not available offline)",
   "@chatImageNotCached": {
     "description": "Placeholder shown for an image whose data was stripped from the offline cache"

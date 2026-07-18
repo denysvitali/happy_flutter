@@ -68,6 +68,7 @@ NormalizedImage? normalizeImageBytes(
   Uint8List bytes, {
   int maxDimension = 1568,
   int jpegQuality = 88,
+  int? maxEncodedBytes,
 }) {
   final mediaType = detectImageMediaType(bytes);
   if (mediaType == null) return null;
@@ -93,23 +94,53 @@ NormalizedImage? normalizeImageBytes(
 
   // Already-acceptable formats pass through untouched when no resize was
   // needed — avoids a re-encode quality loss for JPEG screenshots/photos.
-  if (!needsResize && (mediaType == 'image/jpeg' || mediaType == 'image/png')) {
-    return (
-      bytes: bytes,
-      mediaType: mediaType,
-      width: decoded.width,
-      height: decoded.height,
-    );
+  var outputBytes =
+      !needsResize && (mediaType == 'image/jpeg' || mediaType == 'image/png')
+      ? bytes
+      : Uint8List.fromList(img.encodeJpg(resized, quality: jpegQuality));
+  var outputMediaType = !needsResize && mediaType == 'image/png'
+      ? 'image/png'
+      : 'image/jpeg';
+  var outputImage = resized;
+
+  // A valid picked image can still be too large after the platform picker
+  // has scaled it. Re-encode and, if necessary, downscale until it fits the
+  // daemon's decrypted JSON budget instead of silently dropping it.
+  if (maxEncodedBytes != null && outputBytes.length > maxEncodedBytes) {
+    var quality = jpegQuality;
+    var candidate = resized;
+    while (true) {
+      outputBytes = Uint8List.fromList(
+        img.encodeJpg(candidate, quality: quality),
+      );
+      outputMediaType = 'image/jpeg';
+      outputImage = candidate;
+      if (outputBytes.length <= maxEncodedBytes) break;
+
+      if (quality > 40) {
+        quality -= 8;
+        continue;
+      }
+
+      final longEdge = candidate.width > candidate.height
+          ? candidate.width
+          : candidate.height;
+      if (longEdge <= 512) return null;
+      final nextLongEdge = (longEdge * 0.8).round();
+      candidate = img.copyResize(
+        candidate,
+        width: candidate.width >= candidate.height ? nextLongEdge : null,
+        height: candidate.height > candidate.width ? nextLongEdge : null,
+      );
+      quality = jpegQuality;
+    }
   }
 
-  final encoded = Uint8List.fromList(
-    img.encodeJpg(resized, quality: jpegQuality),
-  );
   return (
-    bytes: encoded,
-    mediaType: 'image/jpeg',
-    width: resized.width,
-    height: resized.height,
+    bytes: outputBytes,
+    mediaType: outputMediaType,
+    width: outputImage.width,
+    height: outputImage.height,
   );
 }
 
@@ -118,16 +149,43 @@ NormalizedImage? normalizeImageBytes(
 /// boundary; `normalizeImageBytes` already swallows decode errors, so the
 /// catch-all here covers encode/resize failures (e.g. OOM on pathological
 /// input) and surfaces them as a plain null.
-NormalizedImage? _normalizeImageWorker((Uint8List, int, int) args) {
+NormalizedImage? _normalizeImageWorker((Uint8List, int, int, int) args) {
   try {
     return normalizeImageBytes(
       args.$1,
       maxDimension: args.$2,
       jpegQuality: args.$3,
+      maxEncodedBytes: args.$4,
     );
   } catch (_) {
     return null;
   }
+}
+
+/// Why an image could not be turned into an outbound attachment.
+enum ImageAttachmentFailure { picker, read, invalid, tooLarge }
+
+/// Result that distinguishes a cancelled picker from an image that failed.
+class ImageAttachmentResult {
+  const ImageAttachmentResult._({
+    this.image,
+    this.failure,
+    this.cancelled = false,
+  });
+
+  const ImageAttachmentResult.success(OutgoingImage image)
+    : this._(image: image);
+
+  const ImageAttachmentResult.cancelled() : this._(cancelled: true);
+
+  const ImageAttachmentResult.failure(ImageAttachmentFailure failure)
+    : this._(failure: failure);
+
+  final OutgoingImage? image;
+  final ImageAttachmentFailure? failure;
+  final bool cancelled;
+
+  bool get succeeded => image != null;
 }
 
 /// Picks images from the gallery or camera and normalizes them into
@@ -148,18 +206,39 @@ class ImageAttachmentService {
   static const int jpegQuality = 88;
 
   /// Hard cap on the base64 payload of a single image. The API rejects
-  /// images above 5MB (bytes); base64 inflates by 4/3, so 3.4M chars
-  /// keeps us comfortably below both the API limit and the 16MiB socket
-  /// frame cap even with several images per message.
+  /// images above 5MB (bytes); base64 inflates by 4/3. The smaller decoded
+  /// JSON limit in happy-cli-go is the binding limit for this client.
   static const int maxBase64Length = 3400000;
 
+  /// Leaves room for message metadata under happy-cli-go's 4 MiB decrypted
+  /// JSON limit when more than one image is attached.
+  static const int maxTotalBase64Length = 3600000;
+
+  /// Encoded bytes corresponding to [maxBase64Length] after base64 inflation.
+  static const int maxEncodedBytes = (maxBase64Length * 3) ~/ 4;
+
+  static bool fitsMessagePayload(Iterable<OutgoingImage> images) {
+    var total = 0;
+    for (final image in images) {
+      total += image.base64Data.length;
+      if (total > maxTotalBase64Length) return false;
+    }
+    return true;
+  }
+
   Future<OutgoingImage?> pickFromGallery() =>
-      _pickAndNormalize(ImageSource.gallery);
+      pickFromGalleryResult().then((result) => result.image);
 
   Future<OutgoingImage?> pickFromCamera() =>
+      pickFromCameraResult().then((result) => result.image);
+
+  Future<ImageAttachmentResult> pickFromGalleryResult() =>
+      _pickAndNormalize(ImageSource.gallery);
+
+  Future<ImageAttachmentResult> pickFromCameraResult() =>
       _pickAndNormalize(ImageSource.camera);
 
-  Future<OutgoingImage?> _pickAndNormalize(ImageSource source) async {
+  Future<ImageAttachmentResult> _pickAndNormalize(ImageSource source) async {
     final XFile? file;
     try {
       file = await _picker.pickImage(
@@ -170,24 +249,28 @@ class ImageAttachmentService {
       );
     } catch (e) {
       logger.warning('[ImageAttachment] pickImage($source) failed: $e');
-      return null;
+      return const ImageAttachmentResult.failure(ImageAttachmentFailure.picker);
     }
-    if (file == null) return null; // user cancelled
+    if (file == null) return const ImageAttachmentResult.cancelled();
 
     // Everything past the picker is one guarded unit: a read failure
-    // (file vanished), a codec crash, or a base64 blowup must surface as
-    // "no attachment", never as an uncaught async error from the tap.
+    // (file vanished), a codec crash, or a base64 blowup becomes a typed
+    // failure result, never an uncaught async error from the tap.
     try {
       final bytes = await file.readAsBytes();
-      final normalized = await compute(
-        _normalizeImageWorker,
-        (bytes, maxImageDimension, jpegQuality),
-      );
+      final normalized = await compute(_normalizeImageWorker, (
+        bytes,
+        maxImageDimension,
+        jpegQuality,
+        maxEncodedBytes,
+      ));
       if (normalized == null) {
         logger.warning(
           '[ImageAttachment] unsupported image bytes from ${file.path}',
         );
-        return null;
+        return const ImageAttachmentResult.failure(
+          ImageAttachmentFailure.invalid,
+        );
       }
 
       final base64Data = base64Encode(normalized.bytes);
@@ -196,20 +279,24 @@ class ImageAttachmentService {
           '[ImageAttachment] image too large after normalize: '
           '${base64Data.length} base64 chars — dropping',
         );
-        return null;
+        return const ImageAttachmentResult.failure(
+          ImageAttachmentFailure.tooLarge,
+        );
       }
 
-      return OutgoingImage(
-        mediaType: normalized.mediaType,
-        base64Data: base64Data,
-        width: normalized.width,
-        height: normalized.height,
+      return ImageAttachmentResult.success(
+        OutgoingImage(
+          mediaType: normalized.mediaType,
+          base64Data: base64Data,
+          width: normalized.width,
+          height: normalized.height,
+        ),
       );
     } catch (e) {
       logger.warning(
         '[ImageAttachment] failed to read/normalize ${file.path}: $e',
       );
-      return null;
+      return const ImageAttachmentResult.failure(ImageAttachmentFailure.read);
     }
   }
 }
