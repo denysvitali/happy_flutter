@@ -21,6 +21,7 @@ class ToolHeader extends StatelessWidget {
     this.subtitle,
     this.createdAt,
     this.statusIcon,
+    this.accentColor,
   });
 
   /// The leading icon widget for this tool type.
@@ -44,6 +45,9 @@ class ToolHeader extends StatelessWidget {
   /// Optional status icon override (error/denied/cancelled).
   final Widget? statusIcon;
 
+  /// Accent for the tool family, independent from execution state.
+  final Color? accentColor;
+
   /// Whether this tool card has expandable content.
   final bool hasContent;
 
@@ -59,6 +63,7 @@ class ToolHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final accent = accentColor ?? stateColor(state, theme.colorScheme);
     return Container(
       decoration: const BoxDecoration(
         borderRadius: BorderRadius.only(
@@ -72,10 +77,20 @@ class ToolHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: Align(alignment: Alignment.centerLeft, child: toolIcon),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(AppRadius.smd),
+              border: Border.all(
+                color: accent.withValues(alpha: 0.28),
+                width: 0.5,
+              ),
+            ),
+            child: SizedBox(
+              width: 32,
+              height: 32,
+              child: Center(child: toolIcon),
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(

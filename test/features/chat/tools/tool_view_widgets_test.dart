@@ -2,40 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart'
     show ToolState;
+import 'package:happy_flutter/features/chat/tools/tool_view_helpers.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view_widgets.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ToolHeader', () {
-    testWidgets(
-      'title and status share a common alphabetic baseline '
-      '(regression: Workflow 1 steps misalignment)',
-      (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: ToolHeader(
-                toolIcon: const Icon(Icons.rocket_launch),
-                toolTitle: 'Workflow',
-                status: '1 steps',
-                state: ToolState.completed,
-                hasContent: false,
-                showCheckFlash: false,
-                chevronAnim: const AlwaysStoppedAnimation<double>(0),
-                hasPermissionRequest: false,
-              ),
+    testWidgets('title and status share a common alphabetic baseline '
+        '(regression: Workflow 1 steps misalignment)', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ToolHeader(
+              toolIcon: const Icon(Icons.rocket_launch),
+              toolTitle: 'Workflow',
+              status: '1 steps',
+              state: ToolState.completed,
+              hasContent: false,
+              showCheckFlash: false,
+              chevronAnim: const AlwaysStoppedAnimation<double>(0),
+              hasPermissionRequest: false,
             ),
           ),
-        );
+        ),
+      );
 
-        final rows = tester.widgetList<Row>(find.byType(Row)).toList();
-        final titleRow = rows.firstWhere(
-          (r) => r.crossAxisAlignment == CrossAxisAlignment.baseline,
-        );
-        expect(titleRow.textBaseline, TextBaseline.alphabetic);
-      },
-    );
+      final rows = tester.widgetList<Row>(find.byType(Row)).toList();
+      final titleRow = rows.firstWhere(
+        (r) => r.crossAxisAlignment == CrossAxisAlignment.baseline,
+      );
+      expect(titleRow.textBaseline, TextBaseline.alphabetic);
+    });
 
     for (final entry in <ToolState, String>{
       ToolState.running: 'Running',
@@ -87,6 +85,54 @@ void main() {
 
       expect(find.byType(ToolStatusBadge), findsNothing);
       expect(find.text('Succeeded'), findsNothing);
+    });
+
+    testWidgets('renders the tool family accent in an icon tile', (
+      tester,
+    ) async {
+      const accent = Colors.deepPurple;
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: ToolHeader(
+              toolIcon: Icon(Icons.extension),
+              toolTitle: 'MCP: Search',
+              state: ToolState.completed,
+              accentColor: accent,
+              hasContent: false,
+              showCheckFlash: false,
+              chevronAnim: AlwaysStoppedAnimation<double>(0),
+              hasPermissionRequest: false,
+            ),
+          ),
+        ),
+      );
+
+      final iconTile = tester.widget<DecoratedBox>(
+        find.byType(DecoratedBox).first,
+      );
+      final decoration = iconTile.decoration as BoxDecoration;
+      expect(decoration.color, accent.withValues(alpha: 0.14));
+      expect(decoration.border, isNotNull);
+    });
+  });
+
+  group('toolAccentColor', () {
+    final colorScheme = ColorScheme.light();
+
+    test('keeps tool families visually distinct', () {
+      expect(
+        toolAccentColor('Bash', colorScheme),
+        isNot(toolAccentColor('Read', colorScheme)),
+      );
+      expect(
+        toolAccentColor('Read', colorScheme),
+        isNot(toolAccentColor('Edit', colorScheme)),
+      );
+      expect(
+        toolAccentColor('github.get_issue', colorScheme),
+        colorScheme.tertiary,
+      );
     });
   });
 
@@ -154,10 +200,7 @@ void main() {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: List<Widget>.generate(
             50,
-            (i) => SizedBox(
-              height: 40,
-              child: Text('content line $i'),
-            ),
+            (i) => SizedBox(height: 40, child: Text('content line $i')),
           ),
         );
 
@@ -174,10 +217,7 @@ void main() {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('OUTPUT'),
-                      tallChild,
-                    ],
+                    children: [const Text('OUTPUT'), tallChild],
                   ),
                 ),
               ),
@@ -188,12 +228,12 @@ void main() {
 
         // No layout overflow must be reported.
         expect(
-          overflowed
-              .where(
-                (e) => e.contains('RenderFlex') && e.contains('OVERFLOWING'),
-              ),
+          overflowed.where(
+            (e) => e.contains('RenderFlex') && e.contains('OVERFLOWING'),
+          ),
           isEmpty,
-          reason: 'CollapsibleOutput(scrollable:true) must not assert '
+          reason:
+              'CollapsibleOutput(scrollable:true) must not assert '
               'layout overflow',
         );
 
@@ -244,7 +284,8 @@ void main() {
       expect(
         _ProbeState.initCount,
         1,
-        reason: 'CollapsibleOutput must preserve child State across the '
+        reason:
+            'CollapsibleOutput must preserve child State across the '
             'collapse-threshold flip so inner scroll offset is not reset',
       );
       expect(find.text('Show more'), findsOneWidget);

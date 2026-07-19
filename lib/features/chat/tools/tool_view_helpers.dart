@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
+import 'known_tools.dart';
 import 'tool_status_indicator.dart' show ToolState;
 
 /// Parses a tool state string into [ToolState].
@@ -23,9 +24,7 @@ ToolState parseToolState(String? state) {
 bool isPermissionPending(Map<String, dynamic>? permission) {
   if (permission == null) return false;
   final status = permission['status'];
-  return status != 'approved' &&
-      status != 'denied' &&
-      status != 'canceled';
+  return status != 'approved' && status != 'denied' && status != 'canceled';
 }
 
 /// Whether a permission was not denied or canceled (still relevant to show).
@@ -47,6 +46,62 @@ Color stateColor(ToolState state, ColorScheme cs) {
     case ToolState.pending:
       return cs.onSurfaceVariant;
   }
+}
+
+/// Returns the visual accent for a tool family.
+///
+/// Tool state is rendered separately by [stateColor]. Keeping the family
+/// accent independent means a completed terminal call can still be told apart
+/// from a completed file edit at a glance.
+Color toolAccentColor(String toolName, ColorScheme cs) {
+  final normalized = toolName.toLowerCase();
+  final canonical = KnownTools.canonicalName(toolName).toLowerCase();
+
+  if (normalized.startsWith('mcp__') ||
+      normalized.startsWith('github.') ||
+      normalized.startsWith('slack.') ||
+      normalized.startsWith('linear.') ||
+      normalized.startsWith('notion.') ||
+      normalized.contains('__')) {
+    return cs.tertiary;
+  }
+
+  if ({'bash', 'exec_command', 'functions.exec_command'}.contains(canonical)) {
+    return cs.primary;
+  }
+
+  if ({
+    'glob',
+    'grep',
+    'ls',
+    'read',
+    'toolsearch',
+    'webfetch',
+    'websearch',
+    'web_search',
+    'web_search_preview',
+  }.contains(canonical)) {
+    return cs.secondary;
+  }
+
+  if ({
+    'edit',
+    'file-edit',
+    'multiedit',
+    'write',
+    'codexpatch',
+    'codexdiff',
+  }.contains(canonical)) {
+    return cs.tertiary;
+  }
+
+  if ({'task', 'agent', 'workflow', 'todowrite'}.contains(canonical)) {
+    return cs.primary;
+  }
+
+  // Unknown tools still get a deliberate accent instead of falling back to
+  // the same muted icon treatment as every other tool.
+  return cs.secondary;
 }
 
 /// Returns label text for the status badge.

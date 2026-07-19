@@ -504,11 +504,18 @@ class _ToolViewState extends ConsumerState<ToolView>
 
     final state = parseToolState(toolState);
 
-    // Permission pending overrides accent colour
+    final typeAccentColor = toolAccentColor(toolName, theme.colorScheme);
+
+    // Permission and active failure states override the leading accent, while
+    // the family accent remains visible in the icon tile and surface tint.
     final hasPermissionRequest = isPermissionPending(permission);
     final accentColor = hasPermissionRequest
         ? permissionColor
-        : stateColor(state, theme.colorScheme);
+        : switch (state) {
+            ToolState.running ||
+            ToolState.error => stateColor(state, theme.colorScheme),
+            _ => typeAccentColor,
+          };
 
     // Check for tool-use error
     final resultStr = toolResult?.toString() ?? '';
@@ -554,7 +561,7 @@ class _ToolViewState extends ConsumerState<ToolView>
       toolIcon = KnownTools.iconFor(
         toolName,
         24,
-        theme.colorScheme.onSurfaceVariant,
+        hasPermissionRequest ? permissionColor : typeAccentColor,
       );
     }
 
@@ -597,6 +604,9 @@ class _ToolViewState extends ConsumerState<ToolView>
             state: state,
             createdAt: createdAt,
             statusIcon: statusIcon,
+            accentColor: hasPermissionRequest
+                ? permissionColor
+                : typeAccentColor,
             hasContent: hasContent,
             showCheckFlash: _showCheckFlash,
             chevronAnim: _chevronAnim,
@@ -700,30 +710,40 @@ class _ToolViewState extends ConsumerState<ToolView>
           final accentBorder = BorderSide(
             color: emphasizeAccent
                 ? accentColor.withValues(alpha: borderOpacity)
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-            width: emphasizeAccent ? 3 : 1,
+                : typeAccentColor.withValues(alpha: 0.72),
+            width: emphasizeAccent ? AppBorder.accent : AppBorder.thick,
           );
           final sideBorder = BorderSide(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-            width: 1,
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.72),
+            width: AppBorder.hairline,
+          );
+          final surface = Color.alphaBlend(
+            typeAccentColor.withValues(alpha: emphasizeAccent ? 0.075 : 0.045),
+            state == ToolState.completed
+                ? theme.colorScheme.surfaceContainerLow
+                : theme.colorScheme.surfaceContainer,
           );
 
-          return ClipRRect(
-            clipBehavior: Clip.hardEdge,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Container(
-              decoration: BoxDecoration(
-                color: state == ToolState.completed
-                    ? theme.colorScheme.surfaceContainerLow
-                    : theme.colorScheme.surfaceContainer,
-                border: Border(
-                  left: accentBorder,
-                  top: sideBorder,
-                  right: sideBorder,
-                  bottom: sideBorder,
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              boxShadow: AppElevationShadow.card(theme.brightness),
+            ),
+            child: ClipRRect(
+              clipBehavior: Clip.hardEdge,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: surface,
+                  border: Border(
+                    left: accentBorder,
+                    top: sideBorder,
+                    right: sideBorder,
+                    bottom: sideBorder,
+                  ),
                 ),
+                child: child,
               ),
-              child: child,
             ),
           );
         },
