@@ -65,6 +65,20 @@ class AgentEventWidget extends StatelessWidget {
         ? theme.colorScheme.error
         : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
     final subAgentTool = _subAgentToolName;
+    // The leading chip already prints [subAgentTool]; the wire label for
+    // task_progress ticks is composed as "<tool> · <description>", which
+    // would repeat the tool name. Strip that prefix so the chip and the
+    // label don't say the same thing twice.
+    var displayLabel = label;
+    if (subAgentTool != null) {
+      const sep = ' · ';
+      if (displayLabel.startsWith('$subAgentTool$sep')) {
+        final n = subAgentTool.length + sep.length;
+        displayLabel = displayLabel.substring(n);
+      } else if (displayLabel == subAgentTool) {
+        displayLabel = '';
+      }
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -94,7 +108,7 @@ class AgentEventWidget extends StatelessWidget {
             ],
             Flexible(
               child: Text(
-                label,
+                displayLabel,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: color,
                   fontWeight: isUnrendered ? FontWeight.w600 : null,

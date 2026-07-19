@@ -283,7 +283,9 @@ class _AgentConversationScreenState
         promptRaw.isNotEmpty &&
         promptRaw != descriptionRaw;
 
-    final messagesView = children.isEmpty
+    final displayChildren = _buildDisplayChildren(children, isRunning);
+
+    final messagesView = displayChildren.isEmpty
         ? Center(
             child: isRunning
                 ? const CircularProgressIndicator()
@@ -302,10 +304,10 @@ class _AgentConversationScreenState
               AppSpacing.md,
               AppSpacing.xxl,
             ),
-            itemCount: children.length,
+            itemCount: displayChildren.length,
             itemBuilder: (context, i) => RepaintBoundary(
-              key: ValueKey(children[i]['id'] ?? i),
-              child: _buildChildMessage(theme, children[i]),
+              key: ValueKey(displayChildren[i]['id'] ?? i),
+              child: _buildChildMessage(theme, displayChildren[i]),
             ),
           );
 
@@ -560,6 +562,41 @@ class _AgentConversationScreenState
   }
 
   ToolState _parseToolState(String state) => parseToolState(state);
+
+  /// Collapses the sub-agent activity feed so transient `task_progress`
+  /// ticks don't drown the result. While the task is running, consecutive
+  /// identical progress chips collapse to one live 'currently doing' row.
+  /// Once finished, those transient chips are dropped entirely — the
+  /// completion summary text row carries the outcome, and the wire never
+  /// exposes the inner tool calls anyway.
+  List<Map<String, dynamic>> _buildDisplayChildren(
+    List<Map<String, dynamic>> children,
+    bool isRunning,
+  ) {
+    final out = <Map<String, dynamic>>[];
+    String? prevTool;
+    String? prevMsg;
+    var prevWasEvent = false;
+    for (final c in children) {
+      if (c['kind'] != 'agent-event') {
+        prevWasEvent = false;
+        out.add(c);
+        continue;
+      }
+      if (c['taskEvent'] == true && !isRunning) continue;
+      final ev = WireParsers.asMap(c['event']);
+      final tool = c['subAgentLastTool'] as String? ?? '';
+      final msg = ev?['message'] as String? ?? '';
+      if (prevWasEvent && prevTool == tool && prevMsg == msg) {
+        continue;
+      }
+      prevTool = tool;
+      prevMsg = msg;
+      prevWasEvent = true;
+      out.add(c);
+    }
+    return out;
+  }
 }
 
 // ----------------------------------------------------------
