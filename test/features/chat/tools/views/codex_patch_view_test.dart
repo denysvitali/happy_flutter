@@ -290,7 +290,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('Apply Changes'), findsOneWidget);
+      expect(_findRichTextContaining('Apply Changes'), findsOneWidget);
       expect(find.text('1 file changed'), findsOneWidget);
       expect(_findRichTextContaining('new_file.dart'), findsAtLeastNWidgets(1));
       expect(find.text('INPUT'), findsNothing);
@@ -324,7 +324,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('Apply Changes'), findsOneWidget);
+      expect(_findRichTextContaining('Apply Changes'), findsOneWidget);
       expect(find.text('1 file changed'), findsOneWidget);
       expect(
         _findRichTextContaining('changed_file.dart'),

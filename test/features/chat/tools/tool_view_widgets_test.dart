@@ -9,7 +9,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ToolHeader', () {
-    testWidgets('title and status share a common alphabetic baseline '
+    testWidgets('title and status render on one shared line '
         '(regression: Workflow 1 steps misalignment)', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -28,11 +28,86 @@ void main() {
         ),
       );
 
-      final rows = tester.widgetList<Row>(find.byType(Row)).toList();
-      final titleRow = rows.firstWhere(
-        (r) => r.crossAxisAlignment == CrossAxisAlignment.baseline,
+      // A single RichText carries title + status, so they share a baseline
+      // by construction and truncate together with one ellipsis.
+      final line = tester.widget<RichText>(
+        find.text('Workflow 1 steps', findRichText: true),
       );
-      expect(titleRow.textBaseline, TextBaseline.alphabetic);
+      expect(line.maxLines, 1);
+      expect(line.overflow, TextOverflow.ellipsis);
+    });
+
+    testWidgets('subtitle joins the same line, monospace when flagged', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ToolHeader(
+              toolIcon: const Icon(Icons.terminal),
+              toolTitle: 'Terminal',
+              subtitle: 'ls -la',
+              subtitleMonospace: true,
+              state: ToolState.completed,
+              hasContent: false,
+              showCheckFlash: false,
+              chevronAnim: const AlwaysStoppedAnimation<double>(0),
+              hasPermissionRequest: false,
+            ),
+          ),
+        ),
+      );
+
+      final line = tester.widget<RichText>(
+        find.text('Terminal  ls -la', findRichText: true),
+      );
+      final span = line.text as TextSpan;
+      final subtitleSpan = span.children!.last as TextSpan;
+      expect(subtitleSpan.style?.fontFamily, 'monospace');
+    });
+
+    testWidgets('running shows a quiet spinner and no pill label', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ToolHeader(
+              toolIcon: const Icon(Icons.terminal),
+              toolTitle: 'Terminal',
+              state: ToolState.running,
+              hasContent: false,
+              showCheckFlash: false,
+              chevronAnim: const AlwaysStoppedAnimation<double>(0),
+              hasPermissionRequest: false,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Running'), findsNothing);
+    });
+
+    testWidgets('error keeps an explicit Failed label', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ToolHeader(
+              toolIcon: const Icon(Icons.terminal),
+              toolTitle: 'Terminal',
+              state: ToolState.error,
+              hasContent: false,
+              showCheckFlash: false,
+              chevronAnim: const AlwaysStoppedAnimation<double>(0),
+              hasPermissionRequest: false,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Failed'), findsOneWidget);
     });
 
     for (final entry in <ToolState, String>{
@@ -104,6 +179,31 @@ void main() {
         toolAccentColor('github.get_issue', colorScheme),
         colorScheme.tertiary,
       );
+    });
+  });
+
+  group('humanizeToolName', () {
+    test('dotted namespace renders as "Brand: Title Case"', () {
+      expect(
+        humanizeToolName('github.fetch_workflow_run_jobs'),
+        'GitHub: Fetch Workflow Run Jobs',
+      );
+    });
+
+    test('unknown dotted namespace is title-cased', () {
+      expect(humanizeToolName('acme.deploy_service'), 'Acme: Deploy Service');
+    });
+
+    test('snake_case without namespace is title-cased', () {
+      expect(humanizeToolName('run_diagnostics'), 'Run Diagnostics');
+    });
+
+    test('kebab-case is title-cased', () {
+      expect(humanizeToolName('codex-reply'), 'Codex Reply');
+    });
+
+    test('display-ready names pass through unchanged', () {
+      expect(humanizeToolName('Terminal'), 'Terminal');
     });
   });
 

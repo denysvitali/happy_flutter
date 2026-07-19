@@ -85,6 +85,31 @@ const _kStaggerFadeWindow = 0.55;
 // Vertical offset (logical pixels) that children slide down while fading out.
 const _kStaggerSlideOffset = 6.0;
 
+/// Tools whose subtitle is a shell command or file path, rendered in
+/// monospace in the collapsed header.
+const Set<String> _monoSubtitleToolNames = {
+  'bash',
+  'exec_command',
+  'functions.exec_command',
+  'codexbash',
+  'geminibash',
+  'shell',
+  'read',
+  'edit',
+  'file-edit',
+  'write',
+  'multiedit',
+  'ls',
+  'glob',
+  'grep',
+  'notebookread',
+  'notebookedit',
+  'codexpatch',
+  'apply_patch',
+  'functions.apply_patch',
+  'codexdiff',
+};
+
 class _ToolViewState extends ConsumerState<ToolView>
     with TickerProviderStateMixin {
   // Collapsed by default — the header summary is the one-tap preview, and the
@@ -98,9 +123,6 @@ class _ToolViewState extends ConsumerState<ToolView>
   ToolState? _prevState;
   late int _toolSignature;
 
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseAnim;
-
   late final AnimationController _chevronController;
   late final Animation<double> _chevronAnim;
 
@@ -112,14 +134,6 @@ class _ToolViewState extends ConsumerState<ToolView>
 
     _toolSignature = messageRenderSignature(widget.tool);
     _maybePushTaskTool();
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    _pulseAnim = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
 
     _chevronController = AnimationController(
       vsync: this,
@@ -145,14 +159,11 @@ class _ToolViewState extends ConsumerState<ToolView>
     // Only a pending permission request auto-expands — the user needs the
     // Allow/Deny footer in view. Anything else (running, completed, error,
     // pending) starts collapsed and waits for an explicit tap. A running
-    // tool still pulses its left border even while collapsed so the user
-    // can see it's in flight.
+    // tool still shows its spinner + tinted row even while collapsed so the
+    // user can see it's in flight.
     if (hasPermissionRequest) {
       _expanded = true;
       _chevronController.forward();
-    }
-    if (initial == ToolState.running) {
-      _pulseController.repeat(reverse: true);
     }
   }
 
@@ -184,22 +195,10 @@ class _ToolViewState extends ConsumerState<ToolView>
     if (_prevState == newState) return;
 
     if (_prevState == ToolState.running && newState == ToolState.completed) {
-      _pulseController
-        ..stop()
-        ..reset();
       setState(() => _showCheckFlash = true);
       Future.delayed(const Duration(milliseconds: 800), () {
         if (mounted) setState(() => _showCheckFlash = false);
       });
-    } else if (_prevState == ToolState.running && newState == ToolState.error) {
-      _pulseController
-        ..stop()
-        ..reset();
-    } else if (newState == ToolState.running) {
-      // Keep pulsing the left border so the user can see the tool is in
-      // flight, but do not auto-expand — the header alone tells the story,
-      // and the body stays collapsed until the user taps.
-      _pulseController.repeat(reverse: true);
     }
 
     _prevState = newState;
@@ -396,7 +395,6 @@ class _ToolViewState extends ConsumerState<ToolView>
 
   @override
   void dispose() {
-    _pulseController.dispose();
     _chevronController.dispose();
     _staggerController.dispose();
     super.dispose();
@@ -473,6 +471,9 @@ class _ToolViewState extends ConsumerState<ToolView>
                   Map<String, dynamic>?,
                 ))(widget.tool, widget.metadata);
       }
+    } else {
+      // Unknown third-party tool: never show the raw wire name.
+      toolTitle = humanizeToolName(toolName);
     }
 
     // Extract status text. Capture the function reference locally so we
@@ -506,16 +507,8 @@ class _ToolViewState extends ConsumerState<ToolView>
 
     final typeAccentColor = toolAccentColor(toolName, theme.colorScheme);
 
-    // Permission and active failure states override the leading accent, while
-    // the family accent remains visible in the icon tile and surface tint.
+    // A pending permission request tints the header warning-orange.
     final hasPermissionRequest = isPermissionPending(permission);
-    final accentColor = hasPermissionRequest
-        ? permissionColor
-        : switch (state) {
-            ToolState.running ||
-            ToolState.error => stateColor(state, theme.colorScheme),
-            _ => typeAccentColor,
-          };
 
     // Check for tool-use error
     final resultStr = toolResult?.toString() ?? '';
@@ -529,14 +522,14 @@ class _ToolViewState extends ConsumerState<ToolView>
       if (permStatus == 'denied' || permStatus == 'canceled') {
         statusIcon = Icon(
           Icons.remove_circle_outline,
-          size: 20,
+          size: 18,
           color: theme.colorScheme.onSurfaceVariant,
         );
       }
     } else if (isToolUseError && state != ToolState.error) {
       statusIcon = Icon(
         Icons.remove_circle_outline,
-        size: 20,
+        size: 18,
         color: theme.colorScheme.onSurfaceVariant,
       );
     } else {
@@ -549,192 +542,181 @@ class _ToolViewState extends ConsumerState<ToolView>
       }
     }
 
-    // Build tool icon: emoji for MCP, KnownTools icon otherwise
-    final Widget toolIcon;
-    if (isMCP) {
-      final serverToken = toolName.replaceFirst('mcp__', '').split('__').first;
-      toolIcon = Text(
-        mcpServerEmoji(serverToken),
-        style: const TextStyle(fontSize: 18),
-      );
-    } else {
-      toolIcon = KnownTools.iconFor(
-        toolName,
-        24,
-        hasPermissionRequest ? permissionColor : typeAccentColor,
-      );
-    }
+    // Build tool icon: one consistent outlined Material set, tinted with the
+    // tool-family accent. MCP tools share the extension glyph — arbitrary
+    // per-server emojis mixed badly with the rest of the iconography.
+    final iconColor = hasPermissionRequest ? permissionColor : typeAccentColor;
+    final toolIcon = isMCP
+        ? KnownTools.mcpIcon(18, iconColor)
+        : KnownTools.iconFor(toolName, 18, iconColor);
 
     final hasContent = !minimal;
 
-    // Build the invariant children outside the AnimatedBuilder so they are
-    // not rebuilt on every pulse animation frame (60 fps while running).
-    final invariantChild = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            // Task/Agent/Workflow tools navigate directly on tap — the full
-            // conversation is the primary action. Toggle is available
-            // via long-press.
-            if ((toolName == 'Task' ||
-                    toolName == 'Agent' ||
-                    toolName == 'Workflow') &&
-                widget.onPress != null) {
-              widget.onPress!.call();
-            } else if (hasContent) {
-              _toggleExpanded();
-            } else {
-              widget.onPress?.call();
-            }
-          },
-          onLongPress: widget.onPress != null
-              ? () {
-                  HapticFeedback.mediumImpact();
-                  widget.onPress!.call();
-                }
-              : null,
-          child: ToolHeader(
-            toolIcon: toolIcon,
-            toolTitle: toolTitle,
-            status: status,
-            subtitle: subtitle,
-            state: state,
-            createdAt: createdAt,
-            statusIcon: statusIcon,
-            hasContent: hasContent,
-            showCheckFlash: _showCheckFlash,
-            chevronAnim: _chevronAnim,
-            hasPermissionRequest: hasPermissionRequest,
-          ),
-        ),
-        if (hasContent)
-          AnimatedSize(
-            duration: AppDuration.normal,
-            curve: AppCurve.standard,
-            child: (_expanded || _collapsing)
-                ? _StaggerFadeContent(
-                    controller: _staggerController,
-                    collapsing: _collapsing,
-                    child: _buildContent(
-                      context,
-                      knownTool,
-                      toolInput,
-                      toolResult,
-                      state,
-                      errorResult,
-                      permission,
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-        if (permission != null &&
-            widget.sessionId != null &&
-            toolName != 'AskUserQuestion')
-          PermissionFooter(
-            permission: permission,
-            sessionId: widget.sessionId!,
-            toolName: toolName,
-            toolInput: toolInput,
-            flavor: widget.metadata?['flavor'] as String?,
-            isSessionOnline: widget.isSessionOnline,
-            onAllow: () => _handlePermission(
-              PermissionActionKind.allow,
-              permission,
-              toolName,
-              toolInput,
+    // State emphasis without card chrome: the collapsed row sits directly on
+    // the chat background so a run of tool calls reads as a timeline, while
+    // states that deserve attention get a tinted surface behind the header
+    // (running = primary, error = error, pending permission = warning).
+    final headerTint = hasPermissionRequest
+        ? permissionColor.withValues(alpha: 0.09)
+        : switch (state) {
+            ToolState.running => theme.colorScheme.primary.withValues(
+              alpha: 0.07,
             ),
-            onDeny: () => _handlePermission(
-              PermissionActionKind.deny,
-              permission,
-              toolName,
-              toolInput,
-            ),
-            onAllowAllEdits: () => _handlePermission(
-              PermissionActionKind.allowAllEdits,
-              permission,
-              toolName,
-              toolInput,
-            ),
-            onAllowForSession: () => _handlePermission(
-              PermissionActionKind.allowForSession,
-              permission,
-              toolName,
-              toolInput,
-            ),
-            onYolo: () => _handlePermission(
-              PermissionActionKind.yolo,
-              permission,
-              toolName,
-              toolInput,
-            ),
-            onCodexApprove: () => _handlePermission(
-              PermissionActionKind.codexApprove,
-              permission,
-              toolName,
-              toolInput,
-            ),
-            onCodexApproveForSession: () => _handlePermission(
-              PermissionActionKind.codexApproveForSession,
-              permission,
-              toolName,
-              toolInput,
-            ),
-            onCodexAbort: () => _handlePermission(
-              PermissionActionKind.codexAbort,
-              permission,
-              toolName,
-              toolInput,
-            ),
-          ),
-      ],
-    );
+            ToolState.error => theme.colorScheme.error.withValues(alpha: 0.07),
+            _ => null,
+          };
 
     return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _pulseAnim,
-        child: invariantChild,
-        builder: (context, child) {
-          final borderOpacity = state == ToolState.running
-              ? _pulseAnim.value
-              : 1.0;
-          final emphasizeAccent =
-              hasPermissionRequest ||
-              state == ToolState.error ||
-              state == ToolState.running;
-          final accentBorder = BorderSide(
-            color: emphasizeAccent
-                ? accentColor.withValues(alpha: borderOpacity)
-                : typeAccentColor.withValues(alpha: 0.68),
-            width: emphasizeAccent ? AppBorder.accent : AppBorder.thick,
-          );
-          final sideBorder = BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.38),
-            width: AppBorder.hairline,
-          );
-          final surface = state == ToolState.completed
-              ? theme.colorScheme.surfaceContainerLow
-              : theme.colorScheme.surfaceContainer;
-
-          return ClipRRect(
-            clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: headerTint ?? Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Container(
-              decoration: BoxDecoration(
-                color: surface,
-                border: Border(
-                  left: accentBorder,
-                  top: sideBorder,
-                  right: sideBorder,
-                  bottom: sideBorder,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () {
+                // Task/Agent/Workflow tools navigate directly on tap — the
+                // full conversation is the primary action. Toggle is
+                // available via long-press.
+                if ((toolName == 'Task' ||
+                        toolName == 'Agent' ||
+                        toolName == 'Workflow') &&
+                    widget.onPress != null) {
+                  widget.onPress!.call();
+                } else if (hasContent) {
+                  _toggleExpanded();
+                } else {
+                  widget.onPress?.call();
+                }
+              },
+              onLongPress: widget.onPress != null
+                  ? () {
+                      HapticFeedback.mediumImpact();
+                      widget.onPress!.call();
+                    }
+                  : null,
+              child: ToolHeader(
+                toolIcon: toolIcon,
+                toolTitle: toolTitle,
+                status: status,
+                subtitle: subtitle,
+                subtitleMonospace: _monoSubtitleToolNames.contains(
+                  KnownTools.canonicalName(toolName).toLowerCase(),
+                ),
+                state: state,
+                createdAt: createdAt,
+                statusIcon: statusIcon,
+                hasContent: hasContent,
+                showCheckFlash: _showCheckFlash,
+                chevronAnim: _chevronAnim,
+                hasPermissionRequest: hasPermissionRequest,
+              ),
+            ),
+          ),
+          // Expanded body: nested panel below the chromeless header.
+          if (hasContent)
+            AnimatedSize(
+              duration: AppDuration.normal,
+              curve: AppCurve.standard,
+              child: (_expanded || _collapsing)
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.38,
+                            ),
+                            width: AppBorder.hairline,
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs,
+                        ),
+                        child: _StaggerFadeContent(
+                          controller: _staggerController,
+                          collapsing: _collapsing,
+                          child: _buildContent(
+                            context,
+                            knownTool,
+                            toolInput,
+                            toolResult,
+                            state,
+                            errorResult,
+                            permission,
+                          ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          if (permission != null &&
+              widget.sessionId != null &&
+              toolName != 'AskUserQuestion')
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xxs),
+              child: PermissionFooter(
+                permission: permission,
+                sessionId: widget.sessionId!,
+                toolName: toolName,
+                toolInput: toolInput,
+                flavor: widget.metadata?['flavor'] as String?,
+                isSessionOnline: widget.isSessionOnline,
+                onAllow: () => _handlePermission(
+                  PermissionActionKind.allow,
+                  permission,
+                  toolName,
+                  toolInput,
+                ),
+                onDeny: () => _handlePermission(
+                  PermissionActionKind.deny,
+                  permission,
+                  toolName,
+                  toolInput,
+                ),
+                onAllowAllEdits: () => _handlePermission(
+                  PermissionActionKind.allowAllEdits,
+                  permission,
+                  toolName,
+                  toolInput,
+                ),
+                onAllowForSession: () => _handlePermission(
+                  PermissionActionKind.allowForSession,
+                  permission,
+                  toolName,
+                  toolInput,
+                ),
+                onYolo: () => _handlePermission(
+                  PermissionActionKind.yolo,
+                  permission,
+                  toolName,
+                  toolInput,
+                ),
+                onCodexApprove: () => _handlePermission(
+                  PermissionActionKind.codexApprove,
+                  permission,
+                  toolName,
+                  toolInput,
+                ),
+                onCodexApproveForSession: () => _handlePermission(
+                  PermissionActionKind.codexApproveForSession,
+                  permission,
+                  toolName,
+                  toolInput,
+                ),
+                onCodexAbort: () => _handlePermission(
+                  PermissionActionKind.codexAbort,
+                  permission,
+                  toolName,
+                  toolInput,
                 ),
               ),
-              child: child,
             ),
-          );
-        },
+        ],
       ),
     );
   }

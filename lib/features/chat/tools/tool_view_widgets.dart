@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'elapsed_time.dart';
-import 'tool_status_indicator.dart' show ToolState;
+import 'tool_status_indicator.dart';
 import 'tool_view_helpers.dart';
 
-/// Header row for a tool card — icon, title, status badge, elapsed time,
-/// check flash, and expand/collapse chevron.
+/// Compact single-line header for a tool row — icon, title, optional inline
+/// status and subtitle, state-specific trailing, and expand/collapse chevron.
+///
+/// The header is deliberately chromeless: it paints no background or border
+/// of its own. [ToolView] places it on a tinted surface when the tool state
+/// deserves emphasis (running / error / pending permission), otherwise the
+/// row sits directly on the chat background so a run of tool calls reads as
+/// a timeline rather than a wall of boxes.
 class ToolHeader extends StatelessWidget {
   const ToolHeader({
     required this.toolIcon,
@@ -19,6 +25,7 @@ class ToolHeader extends StatelessWidget {
     super.key,
     this.status,
     this.subtitle,
+    this.subtitleMonospace = false,
     this.createdAt,
     this.statusIcon,
   });
@@ -32,8 +39,11 @@ class ToolHeader extends StatelessWidget {
   /// Optional inline status text shown after the title.
   final String? status;
 
-  /// Optional subtitle shown below the title.
+  /// Optional subtitle shown after the title on the same line.
   final String? subtitle;
+
+  /// Whether the subtitle is a command or path rendered in monospace.
+  final bool subtitleMonospace;
 
   /// The current execution state.
   final ToolState state;
@@ -59,81 +69,80 @@ class ToolHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(AppRadius.sm),
-          topRight: Radius.circular(AppRadius.sm),
-        ),
-      ),
+    final colorScheme = theme.colorScheme;
+
+    final titleStyle = theme.textTheme.titleSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+      fontSize: AppFontSize.md,
+    );
+    final statusStyle = theme.textTheme.titleSmall?.copyWith(
+      fontWeight: FontWeight.w400,
+      fontSize: AppFontSize.md,
+      color: colorScheme.onSurfaceVariant,
+    );
+    final subtitleStyle = theme.textTheme.bodySmall?.copyWith(
+      fontSize: AppFontSize.sm,
+      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
+      fontFamily: subtitleMonospace ? 'monospace' : null,
+      fontFamilyFallback: subtitleMonospace
+          ? const ['Courier New', 'Courier']
+          : null,
+    );
+
+    return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm + 2,
-        vertical: AppSpacing.sm,
+        horizontal: AppSpacing.smd,
+        vertical: AppSpacing.xsm,
       ),
       child: Row(
         children: [
           SizedBox(
-            width: 24,
-            height: 24,
-            child: Align(alignment: Alignment.centerLeft, child: toolIcon),
+            width: 18,
+            height: 18,
+            child: Center(child: toolIcon),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.smd),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        toolTitle,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: AppFontSize.md,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (status != null)
-                      Text(
-                        ' $status',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w400,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: 0.9,
-                      ),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
+            // One line, one RichText: title, status and subtitle share the
+            // same baseline by construction (regression guard: the old
+            // Row-of-Texts layout misaligned "Workflow 1 steps").
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: toolTitle, style: titleStyle),
+                  if (status != null)
+                    TextSpan(text: ' $status', style: statusStyle),
+                  if (subtitle != null)
+                    TextSpan(text: '  $subtitle', style: subtitleStyle),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Status badge pill
-          if (!hasPermissionRequest && state != ToolState.completed) ...[
-            const SizedBox(width: AppSpacing.sm - 2),
-            ToolStatusBadge(state: state),
-          ],
-          // Elapsed time while running
-          if (state == ToolState.running && createdAt != null) ...[
-            const SizedBox(width: AppSpacing.sm - 2),
-            ToolDuration(startTime: createdAt!),
+          // Running: quiet spinner + elapsed time.
+          if (state == ToolState.running) ...[
+            const SizedBox(width: AppSpacing.sm),
+            const ToolStatusIndicator(state: ToolState.running, size: 16),
+            if (createdAt != null) ...[
+              const SizedBox(width: AppSpacing.xs),
+              ToolDuration(startTime: createdAt!),
+            ],
+          ]
+          // Error: explicit label so failure never depends on colour alone.
+          else if (state == ToolState.error && !hasPermissionRequest) ...[
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Failed',
+              style: TextStyle(
+                fontSize: AppFontSize.xs,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.error,
+              ),
+            ),
           ],
           // Status icon / check flash
-          const SizedBox(width: AppSpacing.sm - 2),
+          const SizedBox(width: AppSpacing.xs),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             transitionBuilder: (child, animation) => ScaleTransition(
@@ -144,7 +153,7 @@ class ToolHeader extends StatelessWidget {
                 ? Icon(
                     Icons.check_circle,
                     key: const ValueKey('flash'),
-                    size: 20,
+                    size: 18,
                     color: AppColors.success,
                   )
                 : (statusIcon != null
@@ -156,13 +165,13 @@ class ToolHeader extends StatelessWidget {
           ),
           // Expand/collapse chevron
           if (hasContent) ...[
-            const SizedBox(width: AppSpacing.sm - 2),
+            const SizedBox(width: AppSpacing.xs),
             RotationTransition(
               turns: chevronAnim,
               child: Icon(
                 Icons.expand_more,
                 size: 18,
-                color: theme.colorScheme.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],

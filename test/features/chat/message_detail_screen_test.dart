@@ -239,7 +239,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Terminal'));
+      await tester.tap(find.textContaining('Terminal', findRichText: true));
       await tester.pumpAndSettle();
 
       await tester.drag(find.byType(ListView).last, const Offset(0, -260));

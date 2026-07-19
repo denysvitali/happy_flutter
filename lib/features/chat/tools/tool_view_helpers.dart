@@ -121,34 +121,59 @@ String statusBadgeLabel(ToolState state) {
 /// Accent color for permission-required state (orange).
 const Color permissionColor = AppColors.warning;
 
-/// Map of MCP server name tokens to representative emojis.
-const Map<String, String> mcpServerEmojis = {
-  'linear': '\u{1F4CB}',
-  'github': '\u{1F4BE}',
-  'gitlab': '\u{1F9A8}',
-  'jira': '\u{1F4DD}',
-  'slack': '\u{1F4AC}',
-  'notion': '\u{1F4D3}',
-  'postgres': '\u{1F5C3}',
-  'mysql': '\u{1F5C3}',
-  'sqlite': '\u{1F5C3}',
-  'filesystem': '\u{1F4C1}',
-  'brave': '\u{1F310}',
-  'puppeteer': '\u{1F916}',
-  'fetch': '\u{1F310}',
-  'memory': '\u{1F9E0}',
-  'everything': '\u{1F50D}',
-  'sequential': '\u{1F4BB}',
-  'codex': '✨',
+/// Canonical casing for well-known tool namespaces and brands, so
+/// `github.fetch_workflow_run_jobs` renders as `GitHub: …` not `Github: …`.
+const Map<String, String> _brandCasings = {
+  'github': 'GitHub',
+  'gitlab': 'GitLab',
+  'slack': 'Slack',
+  'linear': 'Linear',
+  'notion': 'Notion',
+  'jira': 'Jira',
+  'figma': 'Figma',
+  'sentry': 'Sentry',
+  'postgres': 'Postgres',
+  'mysql': 'MySQL',
+  'sqlite': 'SQLite',
+  'filesystem': 'Filesystem',
+  'playwright': 'Playwright',
+  'chrome': 'Chrome',
+  'happy': 'Happy',
+  'codex': 'Codex',
+  'gemini': 'Gemini',
 };
 
-/// Resolves a representative emoji from an MCP server name token.
-String mcpServerEmoji(String serverToken) {
-  final key = serverToken.toLowerCase();
-  for (final entry in mcpServerEmojis.entries) {
-    if (key.contains(entry.key)) return entry.value;
+/// Humanizes an unknown tool name for display.
+///
+/// Agents and MCP-adjacent providers emit raw identifiers such as
+/// `github.fetch_workflow_run_jobs` or `run_diagnostics`; showing the wire
+/// name verbatim reads as noise. Dotted names are treated as
+/// `namespace.tool_name` and rendered `Namespace: Tool Name`; plain
+/// snake_case / kebab-case names are title-cased. Names without separators
+/// (already display-ready, e.g. `Terminal`) pass through unchanged.
+String humanizeToolName(String name) {
+  final dot = name.indexOf('.');
+  if (dot > 0 && dot < name.length - 1) {
+    final namespace = name.substring(0, dot);
+    final rest = name.substring(dot + 1);
+    return '${_brandCasing(namespace)}: ${_titleCaseWords(rest)}';
   }
-  return '\u{1F527}'; // wrench fallback
+  if (name.contains('_') || name.contains('-')) {
+    return _titleCaseWords(name);
+  }
+  return name;
+}
+
+String _brandCasing(String token) {
+  return _brandCasings[token.toLowerCase()] ?? _titleCaseWords(token);
+}
+
+String _titleCaseWords(String input) {
+  return input
+      .split(RegExp(r'[_\-\s]+'))
+      .where((word) => word.isNotEmpty)
+      .map((word) => word[0].toUpperCase() + word.substring(1))
+      .join(' ');
 }
 
 /// Extracts plain text from an MCP tool result.

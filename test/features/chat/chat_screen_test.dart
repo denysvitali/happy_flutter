@@ -639,7 +639,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Read File'), findsOneWidget);
+      expect(
+        find.textContaining('Read File', findRichText: true),
+        findsOneWidget,
+      );
     });
 
     testWidgets('hides tool-call messages when enabled', (tester) async {
@@ -702,7 +705,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Terminal'), findsOneWidget);
+      expect(
+        find.textContaining('Terminal', findRichText: true),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows running tool calls without permission when hidden', (
@@ -736,7 +742,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Terminal'), findsOneWidget);
+      expect(
+        find.textContaining('Terminal', findRichText: true),
+        findsOneWidget,
+      );
       expect(find.byType(HiddenToolSummary), findsNothing);
     });
 
@@ -767,7 +776,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Terminal'), findsOneWidget);
+      expect(
+        find.textContaining('Terminal', findRichText: true),
+        findsOneWidget,
+      );
     });
 
     testWidgets('session menu toggles hidden tool calls', (tester) async {
@@ -792,7 +804,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Read File'), findsOneWidget);
+      expect(
+        find.textContaining('Read File', findRichText: true),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byTooltip('More options'));
       // Avoid pumpAndSettle: thinking-pill 1 s timer and the

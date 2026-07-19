@@ -108,7 +108,7 @@ class KnownTools {
 
   /// Icon factory for task/agent tools.
   static Widget taskIcon(double size, Color color) =>
-      Icon(Icons.rocket_launch, size: size, color: color);
+      Icon(Icons.rocket_launch_outlined, size: size, color: color);
 
   /// Icon factory for terminal/bash tools.
   static Widget bashIcon(double size, Color color) =>
@@ -120,11 +120,11 @@ class KnownTools {
 
   /// Icon factory for file read tools.
   static Widget readIcon(double size, Color color) =>
-      Icon(Icons.visibility, size: size, color: color);
+      Icon(Icons.article_outlined, size: size, color: color);
 
   /// Icon factory for file edit tools.
   static Widget editIcon(double size, Color color) =>
-      Icon(Icons.edit, size: size, color: color);
+      Icon(Icons.edit_outlined, size: size, color: color);
 
   /// Icon factory for web fetch tools.
   static Widget webFetchIcon(double size, Color color) =>
@@ -140,7 +140,7 @@ class KnownTools {
 
   /// Icon factory for reasoning tools.
   static Widget reasoningIcon(double size, Color color) =>
-      Icon(Icons.lightbulb, size: size, color: color);
+      Icon(Icons.lightbulb_outline, size: size, color: color);
 
   /// Icon factory for question tools.
   static Widget questionIcon(double size, Color color) =>
@@ -148,11 +148,11 @@ class KnownTools {
 
   /// Icon factory for MCP tools.
   static Widget mcpIcon(double size, Color color) =>
-      Icon(Icons.extension, size: size, color: color);
+      Icon(Icons.extension_outlined, size: size, color: color);
 
   /// Icon factory for notebook tools.
   static Widget notebookIcon(double size, Color color) =>
-      Icon(Icons.book, size: size, color: color);
+      Icon(Icons.menu_book_outlined, size: size, color: color);
 
   /// Icon factory for notebook edit tools.
   static Widget notebookEditIcon(double size, Color color) =>
@@ -160,7 +160,7 @@ class KnownTools {
 
   /// Icon factory for reasoning/think tools.
   static Widget thinkIcon(double size, Color color) =>
-      Icon(Icons.psychology, size: size, color: color);
+      Icon(Icons.psychology_outlined, size: size, color: color);
 
   /// Icon factory for change title tools.
   static Widget titleIcon(double size, Color color) =>
@@ -168,15 +168,15 @@ class KnownTools {
 
   /// Icon factory for codex/patch tools.
   static Widget patchIcon(double size, Color color) =>
-      Icon(Icons.compare_arrows, size: size, color: color);
+      Icon(Icons.difference_outlined, size: size, color: color);
 
   /// Icon factory for codex/diff tools.
   static Widget diffIcon(double size, Color color) =>
-      Icon(Icons.compare_arrows, size: size, color: color);
+      Icon(Icons.difference_outlined, size: size, color: color);
 
   /// Default icon for unknown tools.
   static Widget defaultIcon(double size, Color color) =>
-      Icon(Icons.build, size: size, color: color);
+      Icon(Icons.build_outlined, size: size, color: color);
 
   /// Tool names of the Codex MCP session tools (`mcp__codex__*`).
   ///

@@ -162,7 +162,12 @@ void main() {
         ),
       );
 
-      expect(find.text('list_mcp_resources'), findsOneWidget);
+      // The raw wire name is never shown; unknown tools are humanized.
+      expect(find.text('list_mcp_resources'), findsNothing);
+      expect(
+        find.text('List Mcp Resources', findRichText: true),
+        findsOneWidget,
+      );
       expect(find.text('INPUT'), findsNothing);
       expect(find.text('OUTPUT'), findsNothing);
 
@@ -208,7 +213,9 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Gh Actions: Get Check Status'));
+      await tester.tap(
+        find.text('Gh Actions: Get Check Status', findRichText: true),
+      );
       await tester.pumpAndSettle();
 
       expect(

@@ -96,8 +96,14 @@ void main() {
       ),
     );
 
-    expect(find.text('Web Search'), findsOneWidget);
-    expect(find.text('flutter release notes'), findsOneWidget);
+    expect(
+      find.textContaining('Web Search', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('flutter release notes', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.text('web_search'), findsNothing);
     expect(find.text('INPUT'), findsNothing);
     expect(find.text('OUTPUT'), findsNothing);
@@ -120,9 +126,17 @@ void main() {
       ),
     );
 
-    expect(find.text('Web Search'), findsOneWidget);
-    expect(find.text('weather today'), findsOneWidget);
-    expect(find.text('Running'), findsOneWidget);
+    expect(
+      find.textContaining('Web Search', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('weather today', findRichText: true),
+      findsOneWidget,
+    );
+    // Running state is a quiet spinner, not a text pill.
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Running'), findsNothing);
     expect(find.text('web_search_preview'), findsNothing);
     expect(find.text('INPUT'), findsNothing);
   });

@@ -329,7 +329,7 @@ void main() {
         }),
       );
 
-      await tester.tap(find.text('Terminal'));
+      await tester.tap(find.byType(ToolView));
       await tester.pumpAndSettle();
 
       expect(find.text('printf ok'), findsWidgets);

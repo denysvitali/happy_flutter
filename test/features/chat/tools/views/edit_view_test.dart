@@ -87,7 +87,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.text('Apply Changes'), findsOneWidget);
+      expect(_findRichTextContaining('Apply Changes'), findsOneWidget);
       expect(_findRichTextContaining('/src/app.dart'), findsAtLeastNWidgets(1));
       expect(find.text('DIFF'), findsOneWidget);
       expect(find.text('INPUT'), findsNothing);
