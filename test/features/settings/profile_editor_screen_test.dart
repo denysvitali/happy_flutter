@@ -160,10 +160,7 @@ void main() {
       expect(find.byIcon(Icons.visibility_off), findsNothing);
 
       // Field order: name, description, env key, env value.
-      await tester.enterText(
-        find.byType(TextFormField).at(2),
-        'MY_API_KEY',
-      );
+      await tester.enterText(find.byType(TextFormField).at(2), 'MY_API_KEY');
       await tester.pump();
 
       expect(obscuredFields(tester), isNotEmpty);
@@ -185,17 +182,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(obscuredFields(tester), isNotEmpty);
 
-      // Reveal the secret.
+      // Reveal the secret. The toggle can sit below the 800x600 test
+      // viewport, so scroll it on-screen before tapping.
+      await tester.ensureVisible(find.byIcon(Icons.visibility_off));
+      await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.visibility_off));
       await tester.pump();
       expect(obscuredFields(tester), isEmpty);
 
       // Renaming the key re-masks fail-closed, even to another
       // secret name.
-      await tester.enterText(
-        find.byType(TextFormField).at(2),
-        'SECOND_TOKEN',
-      );
+      await tester.enterText(find.byType(TextFormField).at(2), 'SECOND_TOKEN');
       await tester.pump();
       expect(obscuredFields(tester), isNotEmpty);
       expect(find.byIcon(Icons.visibility_off), findsOneWidget);
@@ -205,9 +202,7 @@ void main() {
       final profile = AIBackendProfile(
         id: 'custom_env',
         name: 'Env test',
-        environmentVariables: [
-          EnvironmentVariable(name: 'FOO', value: 'bar'),
-        ],
+        environmentVariables: [EnvironmentVariable(name: 'FOO', value: 'bar')],
       );
 
       await tester.pumpWidget(buildSubject(existing: profile));
