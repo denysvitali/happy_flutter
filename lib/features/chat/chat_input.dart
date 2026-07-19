@@ -1061,21 +1061,30 @@ class _AttachButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final label = AppLocalizations.of(context).chatAttachImage;
+    // Keep a full 44px tap target but draw the glyph in a smaller box so
+    // it doesn't leave a wide band of dead air before the text field.
     return Semantics(
       button: true,
       label: label,
       child: Tooltip(
         message: label,
-        child: InkResponse(
+        child: GestureDetector(
           onTap: onTap,
-          radius: AppTouchTarget.min / 2,
+          behavior: HitTestBehavior.opaque,
           child: SizedBox.square(
             dimension: AppTouchTarget.min,
-            child: Center(
-              child: Icon(
-                Icons.add_rounded,
-                color: cs.onSurfaceVariant,
-                size: 22,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox.square(
+                // 44px tap target minus the 8px of dead air we reclaim.
+                dimension: 36,
+                child: Center(
+                  child: Icon(
+                    Icons.add_rounded,
+                    color: cs.onSurfaceVariant,
+                    size: 22,
+                  ),
+                ),
               ),
             ),
           ),
