@@ -773,7 +773,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
-                AppSpacing.sm,
+                AppSpacing.xs,
                 AppSpacing.md,
                 AppSpacing.xs,
               ),
@@ -843,10 +843,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                   child: _AttachButton(onTap: _onAttachTap),
                 ),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                  child: _buildTextField(context),
-                ),
+                child: _buildTextField(context),
               ),
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
@@ -857,7 +854,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(AppSpacing.xsm),
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.xs,
+                  right: AppSpacing.xsm,
+                ),
                 child: SendButton(
                   isSending: widget.isSending,
                   isSendDisabled: widget.isSendDisabled,
@@ -999,10 +999,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
         focusedBorder: InputBorder.none,
         disabledBorder: InputBorder.none,
         contentPadding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
           AppSpacing.md,
-          AppSpacing.md,
-          AppSpacing.md,
+          AppSpacing.xsm,
+          AppSpacing.sm,
+          AppSpacing.xsm,
         ),
       ),
       style: theme.textTheme.bodyMedium,
