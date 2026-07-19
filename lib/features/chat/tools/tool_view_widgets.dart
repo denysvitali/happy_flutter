@@ -172,10 +172,11 @@ class ToolHeader extends StatelessWidget {
   }
 }
 
-/// Compact status pill showing an explicit execution state.
+/// Compact status pill showing the execution state.
 ///
-/// 20px tall pill with 0.15-opacity background and matching colour.
-/// Every state includes text so status never depends on colour or icon shape.
+/// Exceptional and transitional states include text so they never depend on
+/// colour alone. Completion is the expected state, so it uses a quiet check
+/// rather than repeating "Succeeded" throughout tool-heavy conversations.
 class ToolStatusBadge extends StatelessWidget {
   const ToolStatusBadge({required this.state, super.key});
 
@@ -193,14 +194,18 @@ class ToolStatusBadge extends StatelessWidget {
       ToolState.pending => Icons.schedule_rounded,
     };
     final label = switch (state) {
-      ToolState.completed => 'Succeeded',
+      ToolState.completed => null,
       ToolState.error => 'Failed',
       _ => statusBadgeLabel(state),
     };
+    final isCompleted = state == ToolState.completed;
 
     return Container(
       height: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 7),
+      width: isCompleted ? 24 : null,
+      padding: isCompleted
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(horizontal: 7),
       decoration: BoxDecoration(
         color: bg.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -211,16 +216,18 @@ class ToolStatusBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12, color: bg),
-          const SizedBox(width: AppSpacing.xxs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: bg,
-              letterSpacing: 0.2,
+          if (label != null) ...[
+            const SizedBox(width: AppSpacing.xxs),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: bg,
+                letterSpacing: 0.2,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -39,7 +39,6 @@ void main() {
 
     for (final entry in <ToolState, String>{
       ToolState.running: 'Running',
-      ToolState.completed: 'Succeeded',
       ToolState.error: 'Failed',
       ToolState.pending: 'Pending',
     }.entries) {
@@ -55,6 +54,19 @@ void main() {
         expect(find.text(entry.value), findsOneWidget);
       });
     }
+
+    testWidgets('completed badge is a quiet check without repeated text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: ToolStatusBadge(state: ToolState.completed)),
+        ),
+      );
+
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      expect(find.text('Succeeded'), findsNothing);
+    });
   });
 
   group('CollapsibleOutput', () {
