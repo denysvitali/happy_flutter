@@ -41,6 +41,7 @@ void _processAcpContent({
       'role': 'agent',
       'kind': 'text',
       'content': messageText,
+      if (dataType == DataType.message) 'isPromptEchoCandidate': true,
       'raw': outerContent,
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,

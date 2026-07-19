@@ -997,6 +997,7 @@ void main() {
 
         expect(result.messages, hasLength(1));
         expect(result.messages.first['content'], 'Codex output');
+        expect(result.messages.first['isPromptEchoCandidate'], true);
       });
 
       test('processes codex tool-call', () {
@@ -1214,6 +1215,7 @@ void main() {
 
         expect(result.messages, hasLength(1));
         expect(result.messages.first['content'], 'ACP output');
+        expect(result.messages.first['isPromptEchoCandidate'], true);
       });
 
       test('processes ACP thinking', () {
