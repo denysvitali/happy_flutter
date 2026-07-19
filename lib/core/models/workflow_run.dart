@@ -529,6 +529,172 @@ class WorkflowRun {
     );
   }
 
+  /// Most recent progress snapshot carried on a list of sidechain child
+  /// messages — the same `children` array the chat inline view reads.
+  ///
+  /// Walks the list in reverse because the most recent task event carries
+  /// the complete snapshot. Returns an empty list when no child carries a
+  /// parseable, non-empty `workflowProgress`.
+  static List<WorkflowProgressEvent> latestProgressFromChildren(
+    List<dynamic>? children,
+  ) {
+    final list = WireParsers.asList(children);
+    if (list == null) return const <WorkflowProgressEvent>[];
+    for (var i = list.length - 1; i >= 0; i--) {
+      final msg = list[i];
+      if (msg is! Map<String, dynamic>) continue;
+      final raw = WireParsers.asList(msg['workflowProgress']);
+      if (raw == null || raw.isEmpty) continue;
+      final parsed = raw
+          .whereType<Map<String, dynamic>>()
+          .map(WorkflowProgressEvent.tryFromJson)
+          .whereType<WorkflowProgressEvent>()
+          .toList(growable: false);
+      if (parsed.isNotEmpty) return parsed;
+    }
+    return const <WorkflowProgressEvent>[];
+  }
+
+  /// Reconstructs the live progress snapshot for this run from the
+  /// session's grouped messages and returns a copy with
+  /// `workflowProgress`, `phases`, and the aggregate counts filled in.
+  ///
+  /// The daemon `workflow-list` / `workflow-read` snapshots only carry
+  /// `runId` / `workflowName` / `status`; the rich progress (phases,
+  /// agents, logs) lives exclusively on the streamed task events that the
+  /// sidechain grouper attaches as `children` of the `Workflow` tool-call
+  /// message. The chat inline view reads them directly; this lets the
+  /// Workflows list and detail screens do the same so a tapped run is not
+  /// rendered blank.
+  ///
+  /// Returns [run] unchanged when the messages carry no progress for it,
+  /// so an already-rich daemon snapshot is never wiped out.
+  static WorkflowRun enrichFromMessages(
+    WorkflowRun run,
+    List<Map<String, dynamic>> messages,
+  ) {
+    final children = _progressChildrenForRun(run.runId, messages);
+    if (children == null) return run;
+    final progress = latestProgressFromChildren(children);
+    if (progress.isEmpty) return run;
+    return _withProgress(run, progress);
+  }
+
+  static WorkflowRun _withProgress(
+    WorkflowRun run,
+    List<WorkflowProgressEvent> progress,
+  ) {
+    final phaseEvents = progress
+        .whereType<WorkflowPhaseEvent>()
+        .toList(growable: false)
+      ..sort((a, b) => a.index.compareTo(b.index));
+    final agents =
+        progress.whereType<WorkflowAgent>().toList(growable: false);
+    final phases = phaseEvents
+        .map((event) => WorkflowPhase(title: event.title))
+        .toList(growable: false);
+    final seenAgents = <String>{};
+    var tokens = 0;
+    var toolCalls = 0;
+    for (final agent in agents) {
+      seenAgents.add(agent.agentId);
+      if (agent.tokens != null) tokens += agent.tokens!;
+      if (agent.toolCalls != null) toolCalls += agent.toolCalls!;
+    }
+    return run.copyWith(
+      workflowProgress: progress,
+      phases: phases,
+      agentCount: seenAgents.isNotEmpty ? seenAgents.length : null,
+      clearAgentCount: seenAgents.isEmpty,
+      totalTokens: tokens > 0 ? tokens : null,
+      clearTotalTokens: tokens == 0,
+      totalToolCalls: toolCalls > 0 ? toolCalls : null,
+      clearTotalToolCalls: toolCalls == 0,
+    );
+  }
+
+  /// Locates the sidechain `children` array that belongs to [runId].
+  ///
+  /// Primary match: a `Workflow` tool-call message whose own tag (or a
+  /// child's tag) equals [runId] — its `children` are exactly what the
+  /// chat inline view renders, including in-flight events that may not
+  /// carry the tag themselves. Fallbacks cover a single progress-bearing
+  /// `Workflow` tool-call (one-run sessions whose tag is missing) and the
+  /// set of messages tagged with [runId] anywhere in the tree (ungrouped
+  /// or orphan sidechains).
+  static List<dynamic>? _progressChildrenForRun(
+    String runId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    List<dynamic>? ownerChildren;
+    Map<String, dynamic>? soleProgressOwner;
+    var progressOwnerCount = 0;
+    final tagged = <Map<String, dynamic>>[];
+
+    void walk(List<dynamic> list) {
+      for (final entry in list) {
+        if (entry is! Map<String, dynamic>) continue;
+        final children = WireParsers.asList(entry['children']);
+        final isWorkflow =
+            entry['kind'] == 'tool-call' && entry['name'] == 'Workflow';
+        if (isWorkflow) {
+          final ownTag = _workflowRunTag(entry) ??
+              _firstWorkflowRunTag(children);
+          if (ownTag == runId && ownerChildren == null) {
+            ownerChildren = children;
+          }
+          if (_anyProgress(children)) {
+            progressOwnerCount += 1;
+            soleProgressOwner = entry;
+          }
+        }
+        if (_workflowRunTag(entry) == runId && _hasProgress(entry)) {
+          tagged.add(entry);
+        }
+        if (children != null) walk(children);
+      }
+    }
+
+    walk(messages);
+
+    if (ownerChildren != null) return ownerChildren;
+    if (progressOwnerCount == 1) {
+      return WireParsers.asList(soleProgressOwner!['children']);
+    }
+    if (tagged.isNotEmpty) return tagged;
+    return null;
+  }
+
+  static String? _workflowRunTag(Map<String, dynamic> message) =>
+      WireParsers.parseString(message['workflowRunId']);
+
+  static String? _firstWorkflowRunTag(List<dynamic>? children) {
+    final list = WireParsers.asList(children);
+    if (list == null) return null;
+    for (final entry in list) {
+      if (entry is! Map<String, dynamic>) continue;
+      final tag = WireParsers.parseString(entry['workflowRunId']);
+      if (tag != null) return tag;
+    }
+    return null;
+  }
+
+  static bool _hasProgress(Map<String, dynamic> message) {
+    final list = WireParsers.asList(message['workflowProgress']);
+    return list != null && list.isNotEmpty;
+  }
+
+  static bool _anyProgress(List<dynamic>? children) {
+    final list = WireParsers.asList(children);
+    if (list == null) return false;
+    for (final entry in list) {
+      if (entry is Map<String, dynamic> && _hasProgress(entry)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'runId': runId,

@@ -103,7 +103,18 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final run = _run;
+    final rawRun = _run;
+    final messages = sync.messagesForSession(widget.sessionId);
+    final run = rawRun == null
+        ? null
+        : WorkflowRun.enrichFromMessages(rawRun, messages);
+    final groups =
+        run == null ? const <_PhaseGroup>[] : _phaseGroups(run);
+    final logs = run == null
+        ? const <WorkflowLog>[]
+        : run.workflowProgress
+            .whereType<WorkflowLog>()
+            .toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -151,22 +162,17 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                         ),
                       ),
                     ),
-                    if (run.phases.isNotEmpty)
+                    if (groups.isNotEmpty)
                       SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, idx) => _PhaseSection(
-                            phase: run.phases[idx],
-                            agents: run.workflowProgress
-                                .whereType<WorkflowAgent>()
-                                .where((a) => a.phaseIndex == idx)
-                                .toList(),
+                            phase: groups[idx].phase,
+                            agents: groups[idx].agents,
                           ),
-                          childCount: run.phases.length,
+                          childCount: groups.length,
                         ),
                       ),
-                    if (run.workflowProgress.any(
-                      (e) => e is WorkflowLog,
-                    ))
+                    if (logs.isNotEmpty)
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -180,19 +186,17 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.sm),
-                              ...run.workflowProgress
-                                  .whereType<WorkflowLog>()
-                                  .map(
-                                    (log) => Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: AppSpacing.xs,
-                                      ),
-                                      child: Text(
-                                        log.message,
-                                        style: theme.textTheme.bodySmall,
-                                      ),
-                                    ),
+                              ...logs.map(
+                                (log) => Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: AppSpacing.xs,
                                   ),
+                                  child: Text(
+                                    log.message,
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -210,6 +214,74 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final hours = minutes ~/ 60;
     return '${hours}h ${minutes % 60}m';
   }
+
+  /// Groups agents under their phases for the detail view.
+  ///
+  /// Matches agents to phases by the explicit phase index (the same rule
+  /// the chat inline view uses) because the wire indices may be 0- or
+  /// 1-based — matching by list position would misplace every agent when
+  /// the run uses 1-based indices. Agents whose phase index matches no
+  /// phase event fall into a trailing bucket so they are never dropped.
+  List<_PhaseGroup> _phaseGroups(WorkflowRun run) {
+    final progress = run.workflowProgress;
+    final agents =
+        progress.whereType<WorkflowAgent>().toList(growable: false);
+    final phaseEvents = progress
+        .whereType<WorkflowPhaseEvent>()
+        .toList(growable: false)
+      ..sort((a, b) => a.index.compareTo(b.index));
+    if (phaseEvents.isNotEmpty) {
+      final matched = <String>{};
+      final groups = <_PhaseGroup>[];
+      for (final event in phaseEvents) {
+        final phaseAgents = agents
+            .where((a) => a.phaseIndex == event.index)
+            .toList(growable: false);
+        for (final agent in phaseAgents) {
+          matched.add(agent.agentId);
+        }
+        groups.add(
+          _PhaseGroup(WorkflowPhase(title: event.title), phaseAgents),
+        );
+      }
+      final leftover = agents
+          .where((a) => !matched.contains(a.agentId))
+          .toList(growable: false);
+      if (leftover.isNotEmpty) {
+        groups.add(
+          _PhaseGroup(
+            WorkflowPhase(title: run.workflowName),
+            leftover,
+          ),
+        );
+      }
+      return groups;
+    }
+    if (run.phases.isNotEmpty) {
+      return <_PhaseGroup>[
+        for (var i = 0; i < run.phases.length; i++)
+          _PhaseGroup(
+            run.phases[i],
+            agents
+                .where((a) => a.phaseIndex == i)
+                .toList(growable: false),
+          ),
+      ];
+    }
+    if (agents.isNotEmpty) {
+      return <_PhaseGroup>[
+        _PhaseGroup(WorkflowPhase(title: run.workflowName), agents),
+      ];
+    }
+    return const <_PhaseGroup>[];
+  }
+}
+
+class _PhaseGroup {
+  const _PhaseGroup(this.phase, this.agents);
+
+  final WorkflowPhase phase;
+  final List<WorkflowAgent> agents;
 }
 
 class _StatRow extends StatelessWidget {

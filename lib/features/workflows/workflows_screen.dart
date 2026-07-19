@@ -94,6 +94,7 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     final isUnsupported = ref
         .read(workflowsRepositoryProvider)
         .isWorkflowListUnsupportedForSession(widget.sessionId);
+    final messages = sync.messagesForSession(widget.sessionId);
 
     return Scaffold(
       appBar: AppBar(
@@ -138,7 +139,10 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
                               ),
                             );
                           }
-                          final run = runs[index - 1];
+                          final run = WorkflowRun.enrichFromMessages(
+                            runs[index - 1],
+                            messages,
+                          );
                           return WorkflowCard(
                             key: ValueKey('workflow-${run.runId}'),
                             run: run,
