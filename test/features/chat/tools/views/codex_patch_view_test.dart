@@ -260,8 +260,10 @@ void main() {
       expect(_findRichTextContaining('second.dart'), findsAtLeastNWidgets(1));
       expect(_findRichTextContaining('-old value'), findsOneWidget);
       expect(_findRichTextContaining('+new value'), findsOneWidget);
-      expect(_findRichTextContaining('-before'), findsOneWidget);
-      expect(_findRichTextContaining('+after'), findsOneWidget);
+      // oldText/newText pairs render as labeled before/after sections
+      // (red/green accent bars), not as a -/+ prefixed unified diff.
+      expect(_findRichTextContaining('before'), findsOneWidget);
+      expect(_findRichTextContaining('after'), findsOneWidget);
     });
   });
 
