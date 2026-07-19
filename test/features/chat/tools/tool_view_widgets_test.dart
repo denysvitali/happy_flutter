@@ -115,6 +115,34 @@ void main() {
       expect(decoration.color, accent.withValues(alpha: 0.14));
       expect(decoration.border, isNotNull);
     });
+
+    testWidgets('falls back to the execution accent without a family color', (
+      tester,
+    ) async {
+      final colorScheme = ColorScheme.fromSeed(seedColor: Colors.indigo);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(colorScheme: colorScheme),
+          home: Scaffold(
+            body: ToolHeader(
+              toolIcon: const Icon(Icons.build),
+              toolTitle: 'Unknown Tool',
+              state: ToolState.error,
+              hasContent: false,
+              showCheckFlash: false,
+              chevronAnim: const AlwaysStoppedAnimation<double>(0),
+              hasPermissionRequest: false,
+            ),
+          ),
+        ),
+      );
+
+      final iconTile = tester.widget<DecoratedBox>(
+        find.byType(DecoratedBox).first,
+      );
+      final decoration = iconTile.decoration as BoxDecoration;
+      expect(decoration.color, colorScheme.error.withValues(alpha: 0.14));
+    });
   });
 
   group('toolAccentColor', () {
