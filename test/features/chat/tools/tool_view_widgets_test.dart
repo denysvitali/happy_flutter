@@ -112,7 +112,7 @@ void main() {
         find.descendant(
           of: find.byType(ToolHeader),
           matching: find.byType(DecoratedBox),
-        ),
+        ).first,
       );
       final decoration = iconTile.decoration as BoxDecoration;
       expect(decoration.color, accent.withValues(alpha: 0.14));
@@ -144,7 +144,7 @@ void main() {
         find.descendant(
           of: find.byType(ToolHeader),
           matching: find.byType(DecoratedBox),
-        ),
+        ).first,
       );
       final decoration = iconTile.decoration as BoxDecoration;
       expect(decoration.color, colorScheme.error.withValues(alpha: 0.14));
