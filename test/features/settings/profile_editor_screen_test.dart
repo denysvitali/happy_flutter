@@ -160,7 +160,10 @@ void main() {
       expect(find.byIcon(Icons.visibility_off), findsNothing);
 
       // Field order: name, description, env key, env value.
-      await tester.enterText(find.byType(TextFormField).at(2), 'MY_API_KEY');
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'MY_BASE_URL'),
+        'MY_API_KEY',
+      );
       await tester.pump();
 
       expect(obscuredFields(tester), isNotEmpty);
@@ -191,8 +194,13 @@ void main() {
       expect(obscuredFields(tester), isEmpty);
 
       // Renaming the key re-masks fail-closed, even to another
-      // secret name.
-      await tester.enterText(find.byType(TextFormField).at(2), 'SECOND_TOKEN');
+      // secret name. Target the key field by its current value: a
+      // global TextFormField index breaks once ensureVisible scrolls
+      // the name/description fields out of the lazy ListView.
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'FIRST_TOKEN'),
+        'SECOND_TOKEN',
+      );
       await tester.pump();
       expect(obscuredFields(tester), isNotEmpty);
       expect(find.byIcon(Icons.visibility_off), findsOneWidget);
