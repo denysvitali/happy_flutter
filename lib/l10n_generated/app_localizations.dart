@@ -6739,6 +6739,24 @@ abstract class AppLocalizations {
   /// **'Quick Setup'**
   String get profilesQuickSetup;
 
+  /// No description provided for @profilesCompatibleAgents.
+  ///
+  /// In en, this message translates to:
+  /// **'Compatible agents'**
+  String get profilesCompatibleAgents;
+
+  /// No description provided for @profilesCompatibleAgentsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which agents can use this profile'**
+  String get profilesCompatibleAgentsHint;
+
+  /// No description provided for @profilesAtLeastOneAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one agent'**
+  String get profilesAtLeastOneAgent;
+
   /// No description provided for @profilesWizardTitle.
   ///
   /// In en, this message translates to:

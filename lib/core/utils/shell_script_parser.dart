@@ -58,6 +58,35 @@ const _envOnlyKeys = {
   'API_TIMEOUT_MS',
 };
 
+/// Infers which agent a profile targets from its provider environment.
+///
+/// A profile with no recognizable provider variables remains compatible with
+/// every agent so generic startup scripts keep their previous behavior.
+ProfileCompatibility inferProfileCompatibility(
+  Iterable<EnvironmentVariable> envVars,
+) {
+  var hasAnthropic = false;
+  var hasOpenAi = false;
+  for (final env in envVars) {
+    hasAnthropic = hasAnthropic || env.name.startsWith('ANTHROPIC_');
+    hasOpenAi =
+        hasOpenAi ||
+        env.name.startsWith('OPENAI_') ||
+        env.name.startsWith('AZURE_OPENAI_');
+  }
+
+  if (!hasAnthropic && !hasOpenAi) {
+    return const ProfileCompatibility();
+  }
+
+  return ProfileCompatibility(
+    claude: hasAnthropic,
+    codex: hasOpenAi,
+    gemini: false,
+    pi: hasAnthropic,
+  );
+}
+
 /// Builds an [AIBackendProfile] from a parsed shell script result.
 ///
 /// Maps known env var keys to the appropriate profile config fields
@@ -133,6 +162,7 @@ AIBackendProfile buildProfileFromEnvVars(
       environmentVariables: envVars,
     ),
     isBuiltIn: false,
+    compatibility: inferProfileCompatibility(result.envVars),
     createdAt: now,
     updatedAt: now,
   );

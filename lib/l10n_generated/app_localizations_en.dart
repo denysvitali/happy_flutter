@@ -3627,6 +3627,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profilesQuickSetup => 'Quick Setup';
 
   @override
+  String get profilesCompatibleAgents => 'Compatible agents';
+
+  @override
+  String get profilesCompatibleAgentsHint =>
+      'Choose which agents can use this profile';
+
+  @override
+  String get profilesAtLeastOneAgent => 'Select at least one agent';
+
+  @override
   String get profilesWizardTitle => 'New AI Profile';
 
   @override

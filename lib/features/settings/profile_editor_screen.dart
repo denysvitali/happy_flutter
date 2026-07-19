@@ -53,6 +53,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   late final TextEditingController _scriptCtrl;
   late final List<EnvRow> _envRows;
   AIBackendProfile? _profile;
+  late ProfileCompatibility _compatibility;
 
   bool _showScript = false;
   String? _selectedTemplate;
@@ -62,6 +63,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     super.initState();
     _profile = widget.existing ?? _resolveProfileById(widget.profileId);
     final p = _profile;
+    _compatibility = p?.compatibility ?? const ProfileCompatibility();
     _nameCtrl = TextEditingController(text: p?.name ?? '');
     _descCtrl = TextEditingController(text: p?.description ?? '');
     _scriptCtrl = TextEditingController(text: p?.startupBashScript ?? '');
@@ -183,10 +185,12 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     }
 
     setState(() {
+      final inferredCompatibility = inferProfileCompatibility(result.envVars);
       for (final r in _envRows) {
         r.dispose();
       }
       _envRows.clear();
+      _compatibility = inferredCompatibility;
       for (final env in result.envVars) {
         _envRows.add(EnvRow(name: env.name, value: env.value));
       }
@@ -263,7 +267,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
           ) ??
           existing?.defaultModelMode,
       isBuiltIn: existing?.isBuiltIn ?? false,
-      compatibility: existing?.compatibility ?? const ProfileCompatibility(),
+      compatibility: _compatibility,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     );
@@ -307,6 +311,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
 
     setState(() {
       _selectedTemplate = templateId;
+      _compatibility = template.compatibility;
       for (final r in _envRows) {
         r.dispose();
       }
@@ -319,6 +324,29 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         ),
       );
       _showScript = _envRows.isNotEmpty;
+    });
+  }
+
+  void _setAgentCompatibility(String agent, bool selected) {
+    final selectedCount = [
+      _compatibility.claude,
+      _compatibility.codex,
+      _compatibility.gemini,
+    ].where((value) => value).length;
+    if (!selected && selectedCount == 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.profilesAtLeastOneAgent)),
+      );
+      return;
+    }
+
+    setState(() {
+      _compatibility = ProfileCompatibility(
+        claude: agent == 'claude' ? selected : _compatibility.claude,
+        codex: agent == 'codex' ? selected : _compatibility.codex,
+        gemini: agent == 'gemini' ? selected : _compatibility.gemini,
+        pi: _compatibility.pi,
+      );
     });
   }
 
@@ -379,6 +407,50 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                 l10n: l10n,
               ),
             ),
+          const SizedBox(height: AppSpacing.md),
+
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.profilesCompatibleAgents,
+                  style: tt.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  l10n.profilesCompatibleAgentsHint,
+                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    FilterChip(
+                      label: Text(l10n.agentAgentClaude),
+                      selected: _compatibility.claude,
+                      onSelected: (selected) =>
+                          _setAgentCompatibility('claude', selected),
+                    ),
+                    FilterChip(
+                      label: Text(l10n.agentAgentCodex),
+                      selected: _compatibility.codex,
+                      onSelected: (selected) =>
+                          _setAgentCompatibility('codex', selected),
+                    ),
+                    FilterChip(
+                      label: Text(l10n.agentAgentGemini),
+                      selected: _compatibility.gemini,
+                      onSelected: (selected) =>
+                          _setAgentCompatibility('gemini', selected),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: AppSpacing.md),
 
           AppCard(
