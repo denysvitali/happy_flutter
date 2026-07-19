@@ -96,6 +96,11 @@ void _processOutputContent({
       'role': 'agent',
       'kind': 'text',
       'content': text,
+      // A subset of CLI streams forwards the just-submitted prompt through
+      // this generic output envelope before emitting the actual response.
+      // Keep the marker so the Sync merge can suppress only a verified
+      // cross-role echo, rather than deduplicating arbitrary text.
+      'isPromptEchoCandidate': true,
       'raw': outerContent,
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,

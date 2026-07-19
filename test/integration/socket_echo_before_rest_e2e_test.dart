@@ -280,6 +280,53 @@ void main() {
         expect(after, hasLength(2));
       },
     );
+
+    test(
+      'agent prompt echo is suppressed but the following reply remains',
+      () {
+        const sessionId = 'agent-prompt-echo-1';
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'user-1',
+            'localId': 'local-user-1',
+            'seq': 10,
+            'role': 'user',
+            'kind': 'text',
+            'createdAt': 1700000000000,
+            'content': 'Can you list the remote images?',
+            'sendStatus': 'sent',
+          },
+        ]);
+
+        sync.testUpsertSessionMessages(sessionId, [
+          {
+            'id': 'agent-echo-1',
+            'seq': 11,
+            'role': 'agent',
+            'kind': 'text',
+            'createdAt': 1700000000100,
+            'content': 'Can you list the remote images?',
+            'isPromptEchoCandidate': true,
+          },
+          {
+            'id': 'agent-reply-1',
+            'seq': 12,
+            'role': 'agent',
+            'kind': 'text',
+            'createdAt': 1700000000200,
+            'content': 'I\'ll check the configured remote images.',
+          },
+        ]);
+
+        final messages = sync.testSessionMessages(sessionId)!;
+        expect(messages, hasLength(2));
+        expect(messages.where((m) => m['id'] == 'agent-echo-1'), isEmpty);
+        expect(
+          messages.where((m) => m['id'] == 'agent-reply-1'),
+          hasLength(1),
+        );
+      },
+    );
   });
 }
 

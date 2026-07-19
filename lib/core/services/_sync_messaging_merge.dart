@@ -66,6 +66,51 @@ extension SyncMessagingMerge on Sync {
     return bestId;
   }
 
+  /// Detects the agent-side prompt echo emitted by some CLI output streams.
+  ///
+  /// These records are distinct from the user's persisted message: their
+  /// outer role is `agent`, but their generic output payload repeats the
+  /// prompt word-for-word immediately before the actual response.  They must
+  /// not create a second visible chat bubble.  The processor marks only that
+  /// generic output shape as a candidate; matching additionally requires a
+  /// preceding user row with identical content, a nearby timestamp, and an
+  /// adjacent server sequence when both sequences are available.
+  bool _isPromptEcho(
+    Iterable<Map<String, dynamic>> existing,
+    Map<String, dynamic> incoming,
+  ) {
+    if (incoming['isPromptEchoCandidate'] != true ||
+        incoming['role'] != 'agent') {
+      return false;
+    }
+    final incomingSignature = _messageContentSignature(incoming);
+    final incomingCreatedAt = _asInt(incoming['createdAt']);
+    if (incomingSignature == null || incomingCreatedAt == null) return false;
+    final incomingSeq = _asInt(incoming['seq']);
+
+    for (final candidate in existing) {
+      if (candidate['role'] != 'user' ||
+          _messageContentSignature(candidate) != incomingSignature) {
+        continue;
+      }
+      final candidateCreatedAt = _asInt(candidate['createdAt']);
+      if (candidateCreatedAt == null ||
+          incomingCreatedAt < candidateCreatedAt ||
+          incomingCreatedAt - candidateCreatedAt > 2 * 60 * 1000) {
+        continue;
+      }
+      final candidateSeq = _asInt(candidate['seq']);
+      if (candidateSeq != null &&
+          candidateSeq > 0 &&
+          incomingSeq != null &&
+          incomingSeq > candidateSeq + 2) {
+        continue;
+      }
+      return true;
+    }
+    return false;
+  }
+
   void _rebuildSessionContentSignatures(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) {
@@ -748,6 +793,9 @@ extension SyncMessagingMerge on Sync {
       }
     }
     for (final message in messages) {
+      if (_isPromptEcho(merged.values, message)) {
+        continue;
+      }
       final messageId = message['id'] as String?;
       if (messageId == null || messageId.isEmpty) {
         // Defensive: skip messages without valid ids to prevent crashes.

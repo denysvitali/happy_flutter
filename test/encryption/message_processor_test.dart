@@ -196,6 +196,7 @@ void main() {
         expect(result.messages.first['role'], 'agent');
         expect(result.messages.first['kind'], 'text');
         expect(result.messages.first['content'], 'Hello from the agent');
+        expect(result.messages.first['isPromptEchoCandidate'], true);
         expect(result.droppedReasons, isEmpty);
       });
 
