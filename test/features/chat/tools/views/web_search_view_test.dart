@@ -10,16 +10,20 @@ class _DebugSettingsNotifier extends SettingsNotifier {
   Settings build() => Settings().copyWith(toolCallDebugEnabled: true);
 }
 
-Widget _wrap(Widget child) {
+class _SettingsNotifier extends SettingsNotifier {
+  @override
+  Settings build() => Settings();
+}
+
+Widget _wrap(Widget child, {bool debug = true}) {
   // The expanded ToolView with both INPUT and OUTPUT sections is taller than
   // the default 800x600 test viewport, so wrap the body in a scroll view to
   // avoid RenderFlex overflow assertions in tests.
   return ProviderScope(
     overrides: [
-      // web_search has no specific view; it falls through to the debug-only
-      // INPUT/OUTPUT JSON renderer. Enable debug mode so the test exercises
-      // that path.
-      settingsNotifierProvider.overrideWith(_DebugSettingsNotifier.new),
+      settingsNotifierProvider.overrideWith(
+        debug ? _DebugSettingsNotifier.new : _SettingsNotifier.new,
+      ),
     ],
     child: MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: child)),
@@ -29,6 +33,36 @@ Widget _wrap(Widget child) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('WebSearch renders its query and nested sources', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        ToolView(
+          tool: {
+            'name': 'WebSearch',
+            'state': 'completed',
+            'toolUseId': 'ws-direct',
+            'input': {'query': ''},
+            'result': {
+              'action': {'query': 'Dart 3.11 release notes'},
+              'result': {
+                'sources': [
+                  {
+                    'title': 'Dart SDK changelog',
+                    'url': 'https://dart.dev/guides/whats-new',
+                  },
+                ],
+              },
+            },
+          },
+        ),
+        debug: false,
+      ),
+    );
+
+    expect(find.text('Dart 3.11 release notes'), findsOneWidget);
+    expect(find.text('Dart SDK changelog'), findsOneWidget);
+  });
 
   testWidgets('web_search renders as raw tool call (no special case)', (
     tester,

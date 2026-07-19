@@ -21,6 +21,7 @@ import 'views/task_tool_view.dart';
 import 'views/task_view.dart';
 import 'views/todo_view.dart';
 import 'views/web_fetch_view.dart';
+import 'views/web_search_view.dart';
 import 'views/write_view.dart';
 
 /// Single source of truth for tool-name → body view builders.
@@ -66,6 +67,7 @@ class ToolViewRegistry {
         'TodoWrite': (t, m, s) => TodoView(tool: t, metadata: m, sessionId: s),
         'todo_list': (t, m, s) => TodoView(tool: t, metadata: m, sessionId: s),
         'WebFetch': (t, m, s) => WebFetchView(tool: t, metadata: m),
+        'WebSearch': (t, m, s) => WebSearchView(tool: t),
         'ExitPlanMode': (t, m, s) => ExitPlanToolView(tool: t, metadata: m),
         'NotebookRead': (t, m, s) =>
             ReadView(tool: t, metadata: m, sessionId: s),

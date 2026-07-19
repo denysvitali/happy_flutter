@@ -201,6 +201,35 @@ void main() {
     expect(result.messages[0]['input'], {'query': 'flutter release notes'});
   });
 
+  test('web_search_call preserves direct search_query arguments', () {
+    final result = processDecryptedMessages(
+      decryptedJsonList: [
+        {
+          'role': 'agent',
+          'content': {
+            'type': 'output',
+            'data': {
+              'type': 'web_search_call',
+              'id': 'ws-direct',
+              'status': 'completed',
+              'input': {'search_query': 'Dart 3.11 release notes'},
+              'result': {'sources': []},
+            },
+          },
+        },
+      ],
+      wireMessages: [
+        {'id': 'm-direct', 'seq': 938, 'createdAt': 1774195705000},
+      ],
+      sessionId: 's1',
+    );
+
+    expect(result.messages, hasLength(1));
+    expect(result.messages.single['input'], {
+      'query': 'Dart 3.11 release notes',
+    });
+  });
+
   test('mcp_tool_use creates tool-call with result', () {
     final result = processDecryptedMessages(
       decryptedJsonList: [

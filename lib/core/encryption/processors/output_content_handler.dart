@@ -651,17 +651,26 @@ String _webSearchState(String? status) {
 }
 
 Map<String, dynamic> _webSearchInput(Map<String, dynamic> data) {
-  final action = WireParsers.asMap(data['action']);
-  if (action == null) return <String, dynamic>{};
+  // WebSearch has used both an `action` envelope and direct arguments.
+  // Accept each documented shape so a completed search does not display an
+  // empty query after a daemon protocol update.
+  for (final candidate in [
+    data['input'],
+    data['arguments'],
+    data['args'],
+    data['action'],
+    data,
+  ]) {
+    final input = WireParsers.asMap(candidate);
+    if (input == null) continue;
 
-  final query = action['query'] as String?;
-  if (query != null && query.isNotEmpty) {
-    return {'query': query};
-  }
+    final query = input['query'] ?? input['search_query'];
+    if (query is String && query.isNotEmpty) return {'query': query};
 
-  final queries = WireParsers.asList(action['queries']);
-  if (queries != null && queries.isNotEmpty) {
-    return {'query': queries.map((q) => q.toString()).join(', ')};
+    final queries = WireParsers.asList(input['queries']);
+    if (queries != null && queries.isNotEmpty) {
+      return {'query': queries.map((q) => q.toString()).join(', ')};
+    }
   }
 
   return <String, dynamic>{};
