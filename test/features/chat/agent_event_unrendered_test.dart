@@ -11,7 +11,7 @@ void main() {
 
   group('AgentEventWidget — unrendered fallback', () {
     testWidgets(
-        'renders the message text and a help icon for type=unrendered',
+        'renders the message text and a warning icon for type=unrendered',
         (tester) async {
       await tester.pumpWidget(
         _app(
@@ -25,7 +25,7 @@ void main() {
       );
 
       expect(find.text('Unsupported message (foo)'), findsOneWidget);
-      expect(find.byIcon(Icons.help_outline_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     });
 
     testWidgets('falls back to a default label when message is missing',
@@ -105,7 +105,7 @@ void main() {
       );
 
       expect(find.text('Unsupported message'), findsOneWidget);
-      expect(find.byIcon(Icons.help_outline_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     });
 
     testWidgets('message parameter is optional', (tester) async {

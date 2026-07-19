@@ -215,9 +215,13 @@ void main() {
 
       final payload = event['event'] as Map<String, dynamic>;
       expect(payload['type'], 'unrendered');
-      expect(payload['message'], contains('seq 4146-5153'));
+      // User-facing copy is intentionally plain (d1c580a1); the seq
+      // range stays available for diagnostics in debugData.
+      expect(payload['message'], "1008 messages couldn't be displayed");
 
       final debugData = event['debugData'] as Map<String, dynamic>;
+      expect(debugData['fromSeq'], 4146);
+      expect(debugData['toSeq'], 5153);
       expect(debugData['seqCount'], 1008);
       expect(debugData['rawCount'], 200);
       expect(
