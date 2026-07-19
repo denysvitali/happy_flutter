@@ -41,9 +41,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onBackTap;
 
   @override
-  Size get preferredSize => Size.fromHeight(
-    kToolbarHeight + (machineVitals == null ? 0 : _VitalsStrip.height),
-  );
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +57,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: AppSpacing.sm,
       title: _buildTitle(context),
       scrolledUnderElevation: 0.5,
-      bottom: machineVitals == null
-          ? null
-          : PreferredSize(
-              preferredSize: const Size.fromHeight(_VitalsStrip.height),
-              child: _VitalsStrip(vitals: machineVitals!),
-            ),
       actions: [
         // Loop count badge — appears only when the session has loops.
         LoopCountBadge(sessionId: sessionId),
@@ -73,6 +65,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           progress: AgentsListSheet.computeTaskProgress(sessionId),
           sessionId: sessionId,
         ),
+        if (machineVitals != null) _VitalsButton(vitals: machineVitals!),
         _AppBarAction(
           icon: Icons.info_outline_rounded,
           tooltip: context.l10n.chatSessionSettings,
@@ -253,65 +246,28 @@ class ChatMachineVitals {
   }
 }
 
-class _VitalsStrip extends StatelessWidget {
-  const _VitalsStrip({required this.vitals});
-
-  static const double height = 30;
+class _VitalsButton extends StatelessWidget {
+  const _VitalsButton({required this.vitals});
 
   final ChatMachineVitals vitals;
 
   @override
   Widget build(BuildContext context) {
+    final highest = [
+      vitals.cpuPercent,
+      vitals.memoryPercent,
+      vitals.diskPercent,
+    ].reduce((a, b) => a > b ? a : b);
     final cs = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        border: Border(
-          top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
-        ),
-      ),
-      child: SizedBox(
-        height: height,
-        child: Semantics(
-          button: true,
-          label: 'Machine health details',
-          child: InkWell(
-            onTap: () => _showDetails(context),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.monitor_heart_outlined,
-                    size: 15,
-                    color: cs.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    'Machine',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  _VitalSummary(label: 'CPU', percent: vitals.cpuPercent),
-                  const SizedBox(width: AppSpacing.md),
-                  _VitalSummary(label: 'MEM', percent: vitals.memoryPercent),
-                  const SizedBox(width: AppSpacing.md),
-                  _VitalSummary(label: 'DISK', percent: vitals.diskPercent),
-                  const SizedBox(width: AppSpacing.xs),
-                  Icon(
-                    Icons.expand_more_rounded,
-                    size: 16,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    final color = highest >= 90
+        ? AppColors.error
+        : highest >= 75
+        ? AppColors.warning
+        : cs.onSurfaceVariant;
+    return IconButton(
+      onPressed: () => _showDetails(context),
+      tooltip: 'Machine health',
+      icon: Icon(Icons.monitor_heart_outlined, color: color),
     );
   }
 
@@ -356,39 +312,6 @@ class _VitalsStrip extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _VitalSummary extends StatelessWidget {
-  const _VitalSummary({required this.label, required this.percent});
-
-  final String label;
-  final double percent;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final value = percent.clamp(0, 100).toDouble();
-    final color = value >= 90
-        ? AppColors.error
-        : value >= 75
-        ? AppColors.warning
-        : cs.onSurfaceVariant;
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: '$label '),
-          TextSpan(
-            text: '${value.toStringAsFixed(0)}%',
-            style: TextStyle(color: color, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        color: cs.onSurfaceVariant,
-        fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
   }

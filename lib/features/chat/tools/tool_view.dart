@@ -713,7 +713,9 @@ class _ToolViewState extends ConsumerState<ToolView>
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
+                color: state == ToolState.completed
+                    ? theme.colorScheme.surfaceContainerLow
+                    : theme.colorScheme.surfaceContainer,
                 border: Border(
                   left: accentBorder,
                   top: sideBorder,

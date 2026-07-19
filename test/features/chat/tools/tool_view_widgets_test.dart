@@ -67,6 +67,27 @@ void main() {
       expect(find.byIcon(Icons.check_rounded), findsOneWidget);
       expect(find.text('Succeeded'), findsNothing);
     });
+
+    testWidgets('completed header omits the status badge', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ToolHeader(
+              toolIcon: const Icon(Icons.terminal),
+              toolTitle: 'Terminal',
+              state: ToolState.completed,
+              hasContent: false,
+              showCheckFlash: false,
+              chevronAnim: const AlwaysStoppedAnimation<double>(0),
+              hasPermissionRequest: false,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(ToolStatusBadge), findsNothing);
+      expect(find.text('Succeeded'), findsNothing);
+    });
   });
 
   group('CollapsibleOutput', () {

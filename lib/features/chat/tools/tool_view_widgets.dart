@@ -123,7 +123,7 @@ class ToolHeader extends StatelessWidget {
             ),
           ),
           // Status badge pill
-          if (!hasPermissionRequest) ...[
+          if (!hasPermissionRequest && state != ToolState.completed) ...[
             const SizedBox(width: AppSpacing.sm - 2),
             ToolStatusBadge(state: state),
           ],

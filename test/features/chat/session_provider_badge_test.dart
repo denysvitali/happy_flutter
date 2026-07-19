@@ -106,12 +106,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Machine'), findsOneWidget);
-    expect(find.text('CPU 12%'), findsOneWidget);
-    expect(find.text('MEM 48%'), findsOneWidget);
-    expect(find.text('DISK 73%'), findsOneWidget);
+    expect(find.byIcon(Icons.monitor_heart_outlined), findsOneWidget);
+    expect(find.text('CPU 12%'), findsNothing);
 
-    await tester.tap(find.text('Machine'));
+    await tester.tap(find.byIcon(Icons.monitor_heart_outlined));
     await tester.pumpAndSettle();
 
     expect(find.text('Machine health'), findsOneWidget);
