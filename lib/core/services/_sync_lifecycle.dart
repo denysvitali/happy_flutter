@@ -242,7 +242,12 @@ extension SyncLifecycle on Sync {
       // flaky network on resume) and no connectivity change event fires
       // to trigger a fresh reconnect. The watchdog is cancelled on
       // suspend() and on successful socket connect.
-      _scheduleReconnectWatchdog();
+      //
+      // The zombie path passes assumeDisconnected: its status still
+      // claims "connected" (that is what makes it a zombie), so the
+      // watchdog's usual connected-status short-circuit would skip
+      // arming and leave the forced fresh dial without a safety net.
+      _scheduleReconnectWatchdog(assumeDisconnected: zombieSocket);
     }
 
     // Defer network-heavy invalidations so that foreground/background
@@ -673,10 +678,19 @@ extension SyncLifecycle on Sync {
   /// reconnected handler cancels the timer), and the timer is cancelled
   /// by [suspend] and [shutdown].  Each call resets the timer so
   /// reconnect-exhausted events and resume() don't stack timers.
-  void _scheduleReconnectWatchdog() {
+  ///
+  /// [assumeDisconnected] arms the watchdog even when the socket still
+  /// reports [ConnectionStatus.connected]. The zombie path in [resume]
+  /// passes true: that status is stale by definition there, and the
+  /// fresh dial forced alongside it may still fail — recovery must
+  /// stay watchdog-bounded either way.
+  void _scheduleReconnectWatchdog({bool assumeDisconnected = false}) {
     _reconnectWatchdogTimer?.cancel();
-    // If already connected, no watchdog needed.
-    if (socketIoClient.connectionStatus == ConnectionStatus.connected) {
+    // If already connected, no watchdog needed. Zombie detection proves
+    // the reported status can be stale, so callers that forced a dial
+    // on a zombie pass assumeDisconnected to arm anyway.
+    if (!assumeDisconnected &&
+        socketIoClient.connectionStatus == ConnectionStatus.connected) {
       _reconnectWatchdogTimer = null;
       return;
     }

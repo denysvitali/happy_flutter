@@ -368,6 +368,17 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   bool get testHasReconnectWatchdog => _reconnectWatchdogTimer != null;
 
+  /// Test helper: cancel the reconnection watchdog timer.
+  ///
+  /// Timers armed inside a test's fakeAsync zone leave a stale non-null
+  /// reference on the Sync singleton once the zone ends; tests that
+  /// assert [testHasReconnectWatchdog] must reset it between cases.
+  @visibleForTesting
+  void testCancelReconnectWatchdog() {
+    _reconnectWatchdogTimer?.cancel();
+    _reconnectWatchdogTimer = null;
+  }
+
   /// Test helper: check if _pendingUpdateSessionIds is empty.
   @visibleForTesting
   bool testPendingUpdateSessionIdsEmpty() => _pendingUpdateSessionIds.isEmpty;

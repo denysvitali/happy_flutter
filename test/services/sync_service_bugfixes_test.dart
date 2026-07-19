@@ -1135,6 +1135,7 @@ void main() {
       sync.testResetLastResumeAtMs();
       sync.testLastSuspendedAtMs = null;
       sync.testLastInvalidateAllSyncsAtMs = null;
+      sync.testCancelReconnectWatchdog();
       InvalidateSync.isBackgrounded = false;
       socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
     });
@@ -1145,6 +1146,7 @@ void main() {
       sync.testSetVisibleSessionId(null);
       sync.testLastSuspendedAtMs = null;
       sync.testLastInvalidateAllSyncsAtMs = null;
+      sync.testCancelReconnectWatchdog();
     });
 
     test(
