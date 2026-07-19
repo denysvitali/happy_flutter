@@ -1163,6 +1163,37 @@ class QwenUsageApi {
       _throwHttpError('Qwen', 'usage', fetch.response);
     }
 
+    // A 200 whose body is not a JSON object means the host served a web page
+    // (the console's SPA shell) instead of a usage API response — the default
+    // Qwen path is a guess the console does not back with a real endpoint for
+    // API keys, so it never yields windows. Surface it as an actionable error
+    // rather than a misleading "no usage"; the raw body is still captured so
+    // the debug sheet can show what came back.
+    if (!fetch.bodyIsJson) {
+      final parseError = _qwenNonJsonParseError(fetch);
+      final extra = includeDebugPayload
+          ? _buildExtra(
+              fetch,
+              const <ProviderUsageWindow>[],
+              parseError: parseError,
+            )
+          : const <String, dynamic>{};
+      if (includeDebugPayload) {
+        logger.debug(
+          'Qwen token-plan usage HTTP ${fetch.statusCode} '
+          'non-json body: $parseError payload=${fetch.compactBody}',
+        );
+      }
+      return ProviderUsage(
+        accountId: accountId,
+        type: ProviderUsageType.qwen,
+        accountName: accountName,
+        windows: const <ProviderUsageWindow>[],
+        extra: extra,
+        error: parseError,
+      );
+    }
+
     final windows = _parseWindows(fetch.body);
     final extra = includeDebugPayload
         ? _buildExtra(fetch, windows)
@@ -1208,8 +1239,10 @@ class QwenUsageApi {
     final compact = _compactStringify(raw);
 
     Map<String, dynamic> body;
+    var bodyIsJson = false;
     try {
       body = _asMap(raw, 'Qwen');
+      bodyIsJson = true;
     } catch (_) {
       body = const <String, dynamic>{};
     }
@@ -1218,6 +1251,8 @@ class QwenUsageApi {
       response: response,
       statusCode: response.statusCode ?? 0,
       body: body,
+      bodyIsJson: bodyIsJson,
+      contentType: _responseContentType(response),
       prettyBody: pretty,
       compactBody: compact,
       requestUrl: '$root$_usagePath',
@@ -1230,17 +1265,38 @@ class QwenUsageApi {
   /// since endpoint discovery is the main reason to open the debug sheet.
   Map<String, dynamic> _buildExtra(
     _QwenFetch fetch,
-    List<ProviderUsageWindow> windows,
-  ) {
+    List<ProviderUsageWindow> windows, {
+    String? parseError,
+  }) {
     if (fetch.statusCode != 200) return const <String, dynamic>{};
     return <String, dynamic>{
       'endpoint': _usagePath,
       'status': fetch.statusCode,
       'request_url': fetch.requestUrl,
+      'content_type': fetch.contentType,
       'window_count': windows.length,
+      if (parseError != null) 'parse_error': parseError,
       'raw_payload': fetch.prettyBody,
       'raw_payload_compact': fetch.compactBody,
     };
+  }
+
+  /// Lower-cased `Content-Type` (without parameters) for [response], or `''`
+  /// when the header is missing — used to explain a non-JSON 200 body.
+  String _responseContentType(Response<dynamic> response) {
+    final raw = response.headers.value('content-type') ?? '';
+    return raw.split(';').first.trim().toLowerCase();
+  }
+
+  /// Actionable error shown when a Qwen 200 response carries a non-JSON body.
+  String _qwenNonJsonParseError(_QwenFetch fetch) {
+    final ct = fetch.contentType;
+    final kind = ct.isNotEmpty ? ct : 'non-JSON';
+    return 'Qwen returned a web page ($kind), not a usage API response. '
+        'The default path is the console app shell and accepts no API key, '
+        'so no windows parsed. Open the Token Plan page in a browser, copy '
+        'the real usage request URL from the DevTools Network tab into '
+        'Base URL; otherwise this account cannot be tracked with an API key.';
   }
 
   /// Parses the (unverified) Qwen billing payload into usage windows.
@@ -1502,6 +1558,8 @@ class _QwenFetch {
     required this.response,
     required this.statusCode,
     required this.body,
+    required this.bodyIsJson,
+    required this.contentType,
     required this.prettyBody,
     required this.compactBody,
     required this.requestUrl,
@@ -1510,6 +1568,13 @@ class _QwenFetch {
   final Response<dynamic> response;
   final int statusCode;
   final Map<String, dynamic> body;
+
+  /// Whether [body] was decoded from a JSON object (vs. an empty fallback for
+  /// a non-JSON body such as an HTML page).
+  final bool bodyIsJson;
+
+  /// Lower-cased response `Content-Type` (no parameters), e.g. `text/html`.
+  final String contentType;
   final String prettyBody;
   final String compactBody;
   final String requestUrl;

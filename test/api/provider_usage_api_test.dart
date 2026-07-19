@@ -40,6 +40,14 @@ ResponseBody _text(String body, int status) => ResponseBody.fromString(
   },
 );
 
+ResponseBody _html(String body, int status) => ResponseBody.fromString(
+  body,
+  status,
+  headers: <String, List<String>>{
+    Headers.contentTypeHeader: <String>['text/html; charset=utf-8'],
+  },
+);
+
 Dio _dioWith(ResponseBody Function(RequestOptions options) handler) {
   final dio = Dio(
     BaseOptions(validateStatus: (_) => true, responseType: ResponseType.json),
@@ -1295,6 +1303,48 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('reports an error (not silent 0 windows) for an HTML 200 body',
+        () async {
+      final api = QwenUsageApi(
+        dio: _dioWith(
+          (o) => _html(
+            '<!doctype html><html><title>Console - Qwen Cloud</title></html>',
+            200,
+          ),
+        ),
+      );
+
+      final usage = await api.getUsage(
+        apiKey: 'sk-sp-test',
+        accountId: 'q1',
+        includeDebugPayload: true,
+      );
+
+      expect(usage.windows, isEmpty);
+      expect(usage.error, isNotNull);
+      expect(usage.error, contains('web page'));
+      expect(usage.error, contains('text/html'));
+      // Debug sheet gets the same explanation plus the raw HTML body.
+      expect(usage.extra['parse_error'], usage.error);
+      expect(usage.extra['content_type'], 'text/html');
+      expect(usage.extra['status'], 200);
+      expect(usage.extra['raw_payload'], contains('<!doctype html>'));
+    });
+
+    test('HTML 200 body errors without leaking the raw payload in prod',
+        () async {
+      final api = QwenUsageApi(
+        dio: _dioWith((o) => _html('<html>login</html>', 200)),
+      );
+
+      final usage = await api.getUsage(apiKey: 'sk-sp-test', accountId: 'q1');
+
+      expect(usage.windows, isEmpty);
+      expect(usage.error, isNotNull);
+      expect(usage.error, contains('API key'));
+      expect(usage.extra.containsKey('raw_payload'), isFalse);
     });
 
     test('ProviderCredentials.qwen round-trips through JSON storage', () {

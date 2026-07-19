@@ -218,5 +218,33 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'shows Problem + Content-Type rows for a non-json body',
+      (tester) async {
+        const problem = 'Endpoint returned HTML instead of JSON.';
+        await tester.pumpWidget(_pumpSheet(
+          tester,
+          ProviderUsage(
+            accountId: 'q1',
+            type: ProviderUsageType.qwen,
+            extra: const <String, dynamic>{
+              'status': 200,
+              'content_type': 'text/html',
+              'parse_error': problem,
+              'raw_payload': '<!doctype html><html></html>',
+            },
+          ),
+        ));
+
+        // Labels are plain Text widgets; values are SelectableText, so match
+        // them with textContaining (the payload also contains "html", but not
+        // "text/html", so the content-type value stays unambiguous).
+        expect(find.text('Problem'), findsOneWidget);
+        expect(find.textContaining(problem), findsOneWidget);
+        expect(find.text('Content-Type'), findsOneWidget);
+        expect(find.textContaining('text/html'), findsOneWidget);
+      },
+    );
   });
 }

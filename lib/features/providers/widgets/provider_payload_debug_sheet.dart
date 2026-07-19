@@ -46,6 +46,8 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
     final status = extra['status'];
     final requestUrl = extra['request_url'] as String?;
     final windowCount = extra['window_count'];
+    final contentType = extra['content_type'] as String?;
+    final parseError = extra['parse_error'] as String?;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
@@ -96,6 +98,7 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
                   label: 'Status',
                   value: status.toString(),
                   valueColor: switch (status) {
+                    200 when parseError != null => colorScheme.error,
                     200 => AppColors.success,
                     401 || 403 => colorScheme.error,
                     _ => null,
@@ -103,6 +106,14 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
                 ),
               if (windowCount is int)
                 _MetadataRow(label: 'Windows parsed', value: '$windowCount'),
+              if (contentType != null && contentType.isNotEmpty)
+                _MetadataRow(label: 'Content-Type', value: contentType),
+              if (parseError != null && parseError.isNotEmpty)
+                _MetadataRow(
+                  label: 'Problem',
+                  value: parseError,
+                  valueColor: colorScheme.error,
+                ),
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
