@@ -217,6 +217,8 @@ class _ToolDetailView extends StatelessWidget {
     final state = _parseToolState(toolState);
     final inputText = _commandInputText(toolName, input);
     final resultText = _commandResultText(toolName, result);
+    final hasInput = _hasMeaningfulPayload(input);
+    final hasResult = _hasMeaningfulPayload(result);
 
     return ListView(
       padding: AppScreenPadding.standard,
@@ -266,7 +268,7 @@ class _ToolDetailView extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
         ] else ...[
           // Input
-          if (input != null) ...[
+          if (hasInput) ...[
             _ToolResultSection(
               title: context.l10n.messageDetailInput,
               icon: Icons.input,
@@ -277,7 +279,7 @@ class _ToolDetailView extends StatelessWidget {
           ],
 
           // Output/Result
-          if (result != null && state != ToolState.running) ...[
+          if (hasResult && state != ToolState.running) ...[
             _ToolResultSection(
               title: state == ToolState.error
                   ? context.l10n.commonError
@@ -323,6 +325,19 @@ class _ToolDetailView extends StatelessWidget {
       ],
     );
   }
+}
+
+bool _hasMeaningfulPayload(dynamic value) {
+  if (value == null) return false;
+  if (value is Map) {
+    if (value.isEmpty) return false;
+    return value.values.any(_hasMeaningfulPayload);
+  }
+  if (value is Iterable) {
+    return value.any(_hasMeaningfulPayload);
+  }
+  if (value is String) return value.trim().isNotEmpty;
+  return true;
 }
 
 String? _commandResultText(String toolName, dynamic result) {
@@ -406,10 +421,16 @@ class _MessageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isWebSearch =
+        toolName == 'WebSearch' ||
+        toolName == 'web_search' ||
+        toolName == 'web_search_preview';
     return _DetailCard(
       title: toolTitle,
-      icon: Icons.build_outlined,
-      trailing: ToolStatusIndicator(state: state, size: 20),
+      icon: isWebSearch ? Icons.public_rounded : Icons.build_outlined,
+      trailing: state == ToolState.completed
+          ? null
+          : ToolStatusIndicator(state: state, size: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

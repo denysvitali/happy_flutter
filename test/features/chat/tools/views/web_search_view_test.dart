@@ -34,7 +34,9 @@ Widget _wrap(Widget child, {bool debug = true}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('WebSearch renders its query and nested sources', (tester) async {
+  testWidgets('WebSearch renders its query as a compact summary', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         ToolView(
@@ -61,10 +63,11 @@ void main() {
     );
 
     expect(find.text('Dart 3.11 release notes'), findsOneWidget);
-    expect(find.text('Dart SDK changelog'), findsOneWidget);
+    expect(find.text('Dart SDK changelog'), findsNothing);
+    expect(find.byIcon(Icons.expand_more), findsNothing);
   });
 
-  testWidgets('web_search renders as raw tool call (no special case)', (
+  testWidgets('web_search renders as a compact first-class tool', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -93,31 +96,17 @@ void main() {
       ),
     );
 
-    // Codex web_search no longer has a special "Web Search" title —
-    // the header shows the raw tool name.
-    expect(find.text('Web Search'), findsNothing);
-    expect(find.text('web_search'), findsOneWidget);
-    await tester.tap(find.text('web_search'));
-    await tester.pumpAndSettle();
-
-    // Input/output payloads are rendered through JsonTreeViewer, which
-    // joins each key, colon, and primitive value into a single RichText
-    // (e.g. `"title": "Flutter docs"`). `find.text` matches the whole
-    // plain text of a RichText, so use `find.textContaining` to assert
-    // the value substring is present somewhere in the rendered tree.
-    expect(
-      find.textContaining('"flutter release notes"', findRichText: true),
-      findsWidgets,
-    );
-    expect(
-      find.textContaining('"Flutter docs"', findRichText: true),
-      findsWidgets,
-    );
-    expect(find.text('INPUT'), findsOneWidget);
-    expect(find.text('OUTPUT'), findsOneWidget);
+    expect(find.text('Web Search'), findsOneWidget);
+    expect(find.text('flutter release notes'), findsOneWidget);
+    expect(find.text('web_search'), findsNothing);
+    expect(find.text('INPUT'), findsNothing);
+    expect(find.text('OUTPUT'), findsNothing);
+    expect(find.byIcon(Icons.expand_more), findsNothing);
   });
 
-  testWidgets('web_search_preview renders as raw tool call', (tester) async {
+  testWidgets('web_search_preview renders query and running state', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         ToolView(
@@ -131,17 +120,10 @@ void main() {
       ),
     );
 
-    // Tap the header to expand — running tools no longer auto-expand.
-    await tester.tap(find.text('web_search_preview'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(find.text('Web Search'), findsNothing);
-    expect(find.text('web_search_preview'), findsOneWidget);
-    expect(
-      find.textContaining('"weather today"', findRichText: true),
-      findsWidgets,
-    );
-    expect(find.text('INPUT'), findsOneWidget);
+    expect(find.text('Web Search'), findsOneWidget);
+    expect(find.text('weather today'), findsOneWidget);
+    expect(find.text('Running'), findsOneWidget);
+    expect(find.text('web_search_preview'), findsNothing);
+    expect(find.text('INPUT'), findsNothing);
   });
 }

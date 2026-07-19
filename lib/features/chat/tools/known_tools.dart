@@ -418,16 +418,24 @@ class KnownTools {
     'WebSearch': ToolDefinition(
       icon: webFetchIcon,
       title: 'Web Search',
-      minimal: false,
+      minimal: true,
+      extractSubtitle: _extractWebSearchDescription,
       extractDescription: _extractWebSearchDescription,
     ),
-    // Codex emits web_search / web_search_preview. We deliberately do not
-    // special-case these (no custom title, icon, or description) so the
-    // tool renders as a generic raw tool call with INPUT / OUTPUT JSON.
-    // Registering bare entries here just forces non-minimal mode so the
-    // body actually renders.
-    'web_search': ToolDefinition(icon: defaultIcon, minimal: false),
-    'web_search_preview': ToolDefinition(icon: defaultIcon, minimal: false),
+    'web_search': ToolDefinition(
+      icon: webFetchIcon,
+      title: 'Web Search',
+      minimal: true,
+      extractSubtitle: _extractWebSearchDescription,
+      extractDescription: _extractWebSearchDescription,
+    ),
+    'web_search_preview': ToolDefinition(
+      icon: webFetchIcon,
+      title: 'Web Search',
+      minimal: true,
+      extractSubtitle: _extractWebSearchDescription,
+      extractDescription: _extractWebSearchDescription,
+    ),
     'ToolSearch': ToolDefinition(
       icon: searchIcon,
       title: 'Tool Search',
@@ -903,18 +911,42 @@ class KnownTools {
     Map<String, dynamic> tool,
     Map<String, dynamic>? _,
   ) {
-    final input = WireParsers.asMap(tool['input']);
-    final query = input?['query'] as String?;
-    if (query != null && query.isNotEmpty) return query;
-
-    final action = WireParsers.asMap(tool['result'])?['action'];
-    final actionMap = WireParsers.asMap(action);
-    final queries = WireParsers.asList(actionMap?['queries']);
-    if (queries != null && queries.isNotEmpty) {
-      return queries.map((q) => q.toString()).join(', ');
+    final result = WireParsers.asMap(tool['result']);
+    final nestedResult = WireParsers.asMap(result?['result']);
+    final candidates = <Map<String, dynamic>?>[
+      WireParsers.asMap(tool['input']),
+      WireParsers.asMap(result?['action']),
+      WireParsers.asMap(nestedResult?['action']),
+      result,
+      nestedResult,
+    ];
+    for (final candidate in candidates) {
+      if (candidate == null) continue;
+      for (final key in const ['query', 'search_query']) {
+        final value = candidate[key];
+        if (value is String && value.trim().isNotEmpty) return value.trim();
+        final summary = _firstWebSearchListValue(value);
+        if (summary != null) return summary;
+      }
+      final queries = _firstWebSearchListValue(candidate['queries']);
+      if (queries != null) return queries;
+      final opened = _firstWebSearchListValue(candidate['open']);
+      if (opened != null) return 'Open $opened';
     }
-
     return null;
+  }
+
+  static String? _firstWebSearchListValue(dynamic value) {
+    final items = WireParsers.asList(value);
+    if (items == null || items.isEmpty) return null;
+    final labels = <String>[];
+    for (final item in items.take(2)) {
+      final map = WireParsers.asMap(item);
+      final label = map?['q'] ?? map?['query'] ?? map?['ref_id'] ?? item;
+      final text = label.toString().trim();
+      if (text.isNotEmpty) labels.add(text);
+    }
+    return labels.isEmpty ? null : labels.join(', ');
   }
 
   static String? _extractPatchText(dynamic input) {
