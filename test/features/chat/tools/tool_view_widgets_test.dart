@@ -111,7 +111,12 @@ void main() {
       final iconTile = tester.widget<DecoratedBox>(
         find.descendant(
           of: find.byType(ToolHeader),
-          matching: find.byType(DecoratedBox),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is DecoratedBox &&
+                widget.decoration is BoxDecoration &&
+                (widget.decoration as BoxDecoration).color != null,
+          ),
         ).first,
       );
       final decoration = iconTile.decoration as BoxDecoration;
@@ -143,7 +148,12 @@ void main() {
       final iconTile = tester.widget<DecoratedBox>(
         find.descendant(
           of: find.byType(ToolHeader),
-          matching: find.byType(DecoratedBox),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is DecoratedBox &&
+                widget.decoration is BoxDecoration &&
+                (widget.decoration as BoxDecoration).color != null,
+          ),
         ).first,
       );
       final decoration = iconTile.decoration as BoxDecoration;
