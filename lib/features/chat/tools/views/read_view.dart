@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
@@ -63,8 +65,7 @@ class ReadView extends StatelessWidget {
             result['text'] as String? ??
             result['body'] as String?;
         // Only an explicit agent-reported count is a genuine file total.
-        totalLines =
-            result['totalLines'] as int? ?? result['numLines'] as int?;
+        totalLines = result['totalLines'] as int? ?? result['numLines'] as int?;
       }
     }
 
@@ -457,6 +458,9 @@ class _ContentBlockState extends State<_ContentBlock> {
     // newline trimmed), so the split count matches the rendered lines.
     final lines = widget.content.split('\n');
     final startLine = widget.startLine;
+    const lineHeight = AppLineHeight.relaxed * AppFontSize.sm;
+    final contentHeight = AppSpacing.smd * 2 + lines.length * lineHeight;
+    final viewportHeight = math.min(_kContentMaxHeight, contentHeight);
 
     return Container(
       decoration: BoxDecoration(
@@ -475,12 +479,14 @@ class _ContentBlockState extends State<_ContentBlock> {
       // wrap to the available width instead of forcing sideways scrolling.
       //
       // `SizedBox(height:)` (not `ConstrainedBox(maxHeight:)`) is required
-      // so the viewport reports a bounded intrinsic height up the tree.
+      // so the viewport reports a bounded intrinsic height up the tree. Use
+      // the content height for short results so a five-line Read does not
+      // display a mostly empty 400px panel.
       // A SCV's intrinsic size equals its child's intrinsic size — so a
       // ConstrainedBox that only sets maxHeight would still let the parent
       // Column grow to the child's natural height, blowing past the bound.
       child: SizedBox(
-        height: _kContentMaxHeight,
+        height: viewportHeight,
         child: Scrollbar(
           controller: _controller,
           child: SingleChildScrollView(
@@ -538,8 +544,7 @@ class _ContentBlockState extends State<_ContentBlock> {
   // Drop the one trailing newline cat -n always appends. We don't trim
   // arbitrary trailing whitespace — a file's blank trailing line is real
   // content.
-  final body =
-      raw.endsWith('\n') ? raw.substring(0, raw.length - 1) : raw;
+  final body = raw.endsWith('\n') ? raw.substring(0, raw.length - 1) : raw;
   final lines = body.split('\n');
 
   // cat -n line-number prefix: zero+ leading spaces, digits, tab.
@@ -550,9 +555,7 @@ class _ContentBlockState extends State<_ContentBlock> {
   }
   final firstMatch = RegExp(r'^ *(\d+)\t').firstMatch(lines.first)!;
   final startLine = int.parse(firstMatch.group(1)!);
-  final stripped = lines
-      .map((l) => l.replaceFirst(prefixRe, ''))
-      .join('\n');
+  final stripped = lines.map((l) => l.replaceFirst(prefixRe, '')).join('\n');
   return (content: stripped, startLine: startLine);
 }
 
