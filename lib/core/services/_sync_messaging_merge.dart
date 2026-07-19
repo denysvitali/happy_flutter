@@ -713,6 +713,13 @@ extension SyncMessagingMerge on Sync {
         return false;
       }
 
+      // Prompt-echo candidates need the full merge path: only it runs
+      // `_isPromptEcho`, and a blind append would leak the echo as a
+      // second visible bubble repeating the user's prompt.
+      if (message['isPromptEchoCandidate'] == true) {
+        return false;
+      }
+
       final createdAt = _asInt(message['createdAt']) ?? 0;
       final seq = message['seq'] as int? ?? 0;
       if (createdAt < lastCreatedAt) {
