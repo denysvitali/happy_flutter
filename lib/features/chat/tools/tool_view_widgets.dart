@@ -93,8 +93,6 @@ class ToolHeader extends StatelessWidget {
                         toolTitle,
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          fontFamily: 'monospace',
-                          fontFamilyFallback: const ['Courier New', 'Courier'],
                           fontSize: AppFontSize.md,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -114,9 +112,11 @@ class ToolHeader extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.9,
+                      ),
                     ),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
               ],
@@ -172,10 +172,10 @@ class ToolHeader extends StatelessWidget {
   }
 }
 
-/// Compact status pill showing Running / ✓ / ✕ / Pending.
+/// Compact status pill showing an explicit execution state.
 ///
 /// 20px tall pill with 0.15-opacity background and matching colour.
-/// Completed and error states show an icon; others show text.
+/// Every state includes text so status never depends on colour or icon shape.
 class ToolStatusBadge extends StatelessWidget {
   const ToolStatusBadge({required this.state, super.key});
 
@@ -186,38 +186,43 @@ class ToolStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = stateColor(state, Theme.of(context).colorScheme);
 
-    final Widget child;
-    if (state == ToolState.completed) {
-      child = Icon(Icons.check, size: 12, color: bg);
-    } else if (state == ToolState.error) {
-      child = Icon(Icons.close, size: 12, color: bg);
-    } else {
-      child = Text(
-        statusBadgeLabel(state),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: bg,
-          letterSpacing: 0.2,
-        ),
-      );
-    }
+    final icon = switch (state) {
+      ToolState.completed => Icons.check_rounded,
+      ToolState.error => Icons.error_outline_rounded,
+      ToolState.running => Icons.autorenew_rounded,
+      ToolState.pending => Icons.schedule_rounded,
+    };
+    final label = switch (state) {
+      ToolState.completed => 'Succeeded',
+      ToolState.error => 'Failed',
+      _ => statusBadgeLabel(state),
+    };
 
     return Container(
-      height: 20,
-      width: (state == ToolState.completed || state == ToolState.error)
-          ? 20
-          : null,
-      padding: (state == ToolState.completed || state == ToolState.error)
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: 7),
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 7),
       decoration: BoxDecoration(
         color: bg.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: bg.withValues(alpha: 0.35), width: 0.5),
       ),
       alignment: Alignment.center,
-      child: child,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: bg),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: bg,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -367,9 +372,8 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
   bool get _needsCollapsing =>
       _contentHeight != null && _contentHeight! > _kCollapsedHeight;
 
-  double get _expandedHeight => widget.scrollable
-      ? widget.expandedMaxHeight
-      : _contentHeight!;
+  double get _expandedHeight =>
+      widget.scrollable ? widget.expandedMaxHeight : _contentHeight!;
 
   @override
   Widget build(BuildContext context) {

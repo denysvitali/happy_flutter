@@ -7,11 +7,7 @@ import '../tools/known_tools.dart';
 ///
 /// Returns an empty widget for telemetry-only events and malformed payloads.
 class AgentEventWidget extends StatelessWidget {
-  const AgentEventWidget({
-    required this.event,
-    this.message,
-    super.key,
-  });
+  const AgentEventWidget({required this.event, this.message, super.key});
 
   final dynamic event;
 
@@ -66,8 +62,8 @@ class AgentEventWidget extends StatelessWidget {
     final isUnrendered =
         event is Map<String, dynamic> && event['type'] == 'unrendered';
     final color = isUnrendered
-        ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55)
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
     final subAgentTool = _subAgentToolName;
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -93,17 +89,16 @@ class AgentEventWidget extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.xs),
             ] else if (isUnrendered) ...[
-              Icon(
-                Icons.help_outline_rounded,
-                size: 12,
-                color: color,
-              ),
+              Icon(Icons.warning_amber_rounded, size: 16, color: color),
               const SizedBox(width: AppSpacing.xs),
             ],
             Flexible(
               child: Text(
                 label,
-                style: theme.textTheme.labelSmall?.copyWith(color: color),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: color,
+                  fontWeight: isUnrendered ? FontWeight.w600 : null,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),

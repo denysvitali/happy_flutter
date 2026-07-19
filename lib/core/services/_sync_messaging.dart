@@ -205,6 +205,7 @@ Map<String, dynamic> _buildDroppedSeqJumpEvent({
   required List<String> droppedReasons,
 }) {
   final seqCount = toSeq >= fromSeq ? toSeq - fromSeq + 1 : rawCount;
+  final messageCount = seqCount == 1 ? '1 message' : '$seqCount messages';
   final topReasons = <String>[];
   for (final reason in droppedReasons) {
     final normalized = _normalizeDroppedReason(reason);
@@ -222,7 +223,7 @@ Map<String, dynamic> _buildDroppedSeqJumpEvent({
     'kind': 'agent-event',
     'event': {
       'type': 'unrendered',
-      'message': 'Unsupported messages received (seq $fromSeq-$toSeq)',
+      'message': "$messageCount couldn't be displayed",
     },
     'debugData': {
       'sessionId': sessionId,

@@ -183,8 +183,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
   // filter + setState are deferred so rapid keystrokes don't rebuild
   // the suggestion list on every character.
   Timer? _autocompleteDebounce;
-  static const Duration _autocompleteDebounceDuration =
-      Duration(milliseconds: 100);
+  static const Duration _autocompleteDebounceDuration = Duration(
+    milliseconds: 100,
+  );
   bool _isRecording = false;
   bool _isTranscribing = false;
   bool _isStoppingDictation = false;
@@ -772,9 +773,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
-                AppSpacing.md,
-                AppSpacing.md,
                 AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.xs,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -843,9 +844,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.xs,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                   child: _buildTextField(context),
                 ),
               ),
@@ -864,8 +863,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                   isSendDisabled: widget.isSendDisabled,
                   onTap: _onSendTap,
                   scaleAnimation: _sendScale,
-                  lastDeliveryStatus:
-                      widget.lastDeliveryStatus,
+                  lastDeliveryStatus: widget.lastDeliveryStatus,
                 ),
               ),
             ],
@@ -1075,7 +1073,7 @@ class _AttachButton extends StatelessWidget {
             dimension: AppTouchTarget.min,
             child: Center(
               child: Icon(
-                Icons.add_photo_alternate_outlined,
+                Icons.add_rounded,
                 color: cs.onSurfaceVariant,
                 size: 22,
               ),

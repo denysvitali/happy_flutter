@@ -526,7 +526,7 @@ class _ToolViewState extends ConsumerState<ToolView>
           color: theme.colorScheme.onSurfaceVariant,
         );
       }
-    } else if (isToolUseError) {
+    } else if (isToolUseError && state != ToolState.error) {
       statusIcon = Icon(
         Icons.remove_circle_outline,
         size: 20,
@@ -535,16 +535,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     } else {
       switch (state) {
         case ToolState.running:
-          statusIcon = PulsingProgressIndicator(
-            animation: _pulseAnim,
-            size: 20,
-          );
         case ToolState.error:
-          statusIcon = Icon(
-            Icons.error_outline,
-            size: 20,
-            color: theme.colorScheme.error,
-          );
         case ToolState.completed:
         case ToolState.pending:
           break;
@@ -702,9 +693,15 @@ class _ToolViewState extends ConsumerState<ToolView>
           final borderOpacity = state == ToolState.running
               ? _pulseAnim.value
               : 1.0;
+          final emphasizeAccent =
+              hasPermissionRequest ||
+              state == ToolState.error ||
+              state == ToolState.running;
           final accentBorder = BorderSide(
-            color: accentColor.withValues(alpha: borderOpacity),
-            width: 4,
+            color: emphasizeAccent
+                ? accentColor.withValues(alpha: borderOpacity)
+                : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            width: emphasizeAccent ? 3 : 1,
           );
           final sideBorder = BorderSide(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.1),

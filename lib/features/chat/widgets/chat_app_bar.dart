@@ -256,7 +256,7 @@ class ChatMachineVitals {
 class _VitalsStrip extends StatelessWidget {
   const _VitalsStrip({required this.vitals});
 
-  static const double height = 34;
+  static const double height = 30;
 
   final ChatMachineVitals vitals;
 
@@ -265,42 +265,130 @@ class _VitalsStrip extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
+        color: cs.surface,
         border: Border(
           top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
         ),
       ),
       child: SizedBox(
         height: height,
+        child: Semantics(
+          button: true,
+          label: 'Machine health details',
+          child: InkWell(
+            onTap: () => _showDetails(context),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.monitor_heart_outlined,
+                    size: 15,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    'Machine',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  _VitalSummary(label: 'CPU', percent: vitals.cpuPercent),
+                  const SizedBox(width: AppSpacing.md),
+                  _VitalSummary(label: 'MEM', percent: vitals.memoryPercent),
+                  const SizedBox(width: AppSpacing.md),
+                  _VitalSummary(label: 'DISK', percent: vitals.diskPercent),
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(
+                    Icons.expand_more_rounded,
+                    size: 16,
+                    color: cs.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDetails(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: _VitalPill(
-                  icon: Icons.speed_outlined,
-                  label: 'CPU',
-                  percent: vitals.cpuPercent,
-                ),
+              Text(
+                'Machine health',
+                style: Theme.of(sheetContext).textTheme.titleMedium,
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _VitalPill(
-                  icon: Icons.memory_outlined,
-                  label: 'MEM',
-                  percent: vitals.memoryPercent,
-                ),
+              const SizedBox(height: AppSpacing.md),
+              _VitalPill(
+                icon: Icons.speed_outlined,
+                label: 'CPU',
+                percent: vitals.cpuPercent,
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _VitalPill(
-                  icon: Icons.storage_outlined,
-                  label: 'DISK',
-                  percent: vitals.diskPercent,
-                ),
+              const SizedBox(height: AppSpacing.md),
+              _VitalPill(
+                icon: Icons.memory_outlined,
+                label: 'MEM',
+                percent: vitals.memoryPercent,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _VitalPill(
+                icon: Icons.storage_outlined,
+                label: 'DISK',
+                percent: vitals.diskPercent,
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VitalSummary extends StatelessWidget {
+  const _VitalSummary({required this.label, required this.percent});
+
+  final String label;
+  final double percent;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final value = percent.clamp(0, 100).toDouble();
+    final color = value >= 90
+        ? AppColors.error
+        : value >= 75
+        ? AppColors.warning
+        : cs.onSurfaceVariant;
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '$label '),
+          TextSpan(
+            text: '${value.toStringAsFixed(0)}%',
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: cs.onSurfaceVariant,
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
   }

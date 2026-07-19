@@ -36,6 +36,25 @@ void main() {
         expect(titleRow.textBaseline, TextBaseline.alphabetic);
       },
     );
+
+    for (final entry in <ToolState, String>{
+      ToolState.running: 'Running',
+      ToolState.completed: 'Succeeded',
+      ToolState.error: 'Failed',
+      ToolState.pending: 'Pending',
+    }.entries) {
+      testWidgets('${entry.key.name} badge includes an explicit label', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ToolStatusBadge(state: entry.key)),
+          ),
+        );
+
+        expect(find.text(entry.value), findsOneWidget);
+      });
+    }
   });
 
   group('CollapsibleOutput', () {

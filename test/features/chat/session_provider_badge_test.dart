@@ -106,12 +106,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('CPU'), findsOneWidget);
-    expect(find.text('MEM'), findsOneWidget);
-    expect(find.text('DISK'), findsOneWidget);
-    expect(find.text('12%'), findsOneWidget);
-    expect(find.text('48%'), findsOneWidget);
-    expect(find.text('73%'), findsOneWidget);
+    expect(find.text('Machine'), findsOneWidget);
+    expect(find.text('CPU 12%'), findsOneWidget);
+    expect(find.text('MEM 48%'), findsOneWidget);
+    expect(find.text('DISK 73%'), findsOneWidget);
+
+    await tester.tap(find.text('Machine'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Machine health'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNWidgets(3));
   });
 
   testWidgets('chat app bar can show an embedded back button', (tester) async {
