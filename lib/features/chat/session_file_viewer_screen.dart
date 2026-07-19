@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/code_viewer_theme.dart';
 import 'package:happy_flutter/core/utils/clipboard_utils.dart';
+import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../../core/components/app_empty_state.dart';
 import '../../core/providers/app_providers.dart';
@@ -142,11 +143,22 @@ class _SessionFileViewerScreenState
         return;
       }
 
+      // The daemon opens paths relative to its own working directory,
+      // so anchor relative paths (e.g. root-stripped display paths from
+      // resolvePath, or relative tool inputs) to the session's project
+      // root before fetching. The header keeps showing the original.
+      final machine = ref.read(machinesNotifierProvider)[machineId];
+      final fetchPath = resolveRemoteFetchPath(
+        widget.path,
+        sessionPath: session?.metadata?.path,
+        homeDir: machine?.metadata?.homeDir,
+      );
+
       final response = await ref
           .read(machinesNotifierProvider.notifier)
           .readFile(
             machineId: machineId,
-            filePath: widget.path,
+            filePath: fetchPath,
           );
 
       if (!mounted) return;

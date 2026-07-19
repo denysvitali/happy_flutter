@@ -126,6 +126,52 @@ bool isRelativePath(String filePath) {
   return path_lib.isRelative(filePath);
 }
 
+/// Whether [filePath] is absolute on the remote machine, including
+/// Windows drive (`C:\…`, `C:/…`) and UNC (`\\…`) forms, which
+/// [isAbsolutePath] misses when the app itself runs on POSIX.
+bool isRemoteAbsolutePath(String filePath) {
+  return isAbsolutePath(filePath) ||
+      RegExp(r'^[A-Za-z]:[\\/]').hasMatch(filePath) ||
+      filePath.startsWith(r'\\');
+}
+
+/// Resolves [filePath] to an absolute path for remote file fetches.
+///
+/// The daemon opens paths relative to its own working directory, which
+/// is usually NOT the session's project root — so relative paths (e.g.
+/// display paths produced by [resolvePath], or relative tool inputs)
+/// must be anchored to [sessionPath] before being sent over RPC, and
+/// `~` paths must be expanded with the machine's [homeDir].
+///
+/// Returns the input unchanged when it is already absolute or when no
+/// anchor is available.
+String resolveRemoteFetchPath(
+  String filePath, {
+  String? sessionPath,
+  String? homeDir,
+}) {
+  if (filePath.isEmpty || isRemoteAbsolutePath(filePath)) {
+    return filePath;
+  }
+
+  if (filePath.startsWith('~')) {
+    return resolveAbsolutePath(filePath, homeDir: homeDir);
+  }
+
+  final root = sessionPath;
+  if (root == null || root.isEmpty) {
+    return filePath;
+  }
+
+  final separator = root.lastIndexOf(r'\') > root.lastIndexOf('/')
+      ? r'\'
+      : '/';
+  final normalizedRoot = root.endsWith('/') || root.endsWith(r'\')
+      ? root.substring(0, root.length - 1)
+      : root;
+  return '$normalizedRoot$separator$filePath';
+}
+
 /// Join path segments.
 String joinPath(String part1, String part2, [String? part3, String? part4]) {
   if (part3 != null) {
