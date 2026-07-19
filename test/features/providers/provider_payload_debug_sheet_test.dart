@@ -35,6 +35,7 @@ void main() {
           ProviderUsageType.minimax => 'MiniMax',
           ProviderUsageType.zai => 'Z.AI',
           ProviderUsageType.grok => 'Grok',
+          ProviderUsageType.qwen => 'Qwen',
           ProviderUsageType.claudeCode => 'Claude Code',
           ProviderUsageType.codex => 'Codex',
         };

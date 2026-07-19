@@ -943,6 +943,7 @@ void main() {
         miniMax: (_) => fail('expected zai, decoded as miniMax'),
         zai: (c) => zai = c,
         grok: (_) => fail('expected zai, decoded as grok'),
+        qwen: (_) => fail('expected zai, decoded as qwen'),
       );
       expect(zai.apiKey, 'sk.test');
       expect(zai.baseUrl, zaiDefaultBaseUrl);
@@ -1136,9 +1137,193 @@ void main() {
         miniMax: (_) => fail('expected grok, decoded as miniMax'),
         zai: (_) => fail('expected grok, decoded as zai'),
         grok: (c) => grok = c,
+        qwen: (_) => fail('expected grok, decoded as qwen'),
       );
       expect(grok.accessToken, 'tok');
       expect(grok.baseUrl, grokDefaultBaseUrl);
+    });
+  });
+
+  group('QwenUsageApi', () {
+    test('GETs the token-plan usage path with a Bearer API key', () async {
+      RequestOptions? seen;
+      final api = QwenUsageApi(
+        dio: _dioWith((o) {
+          seen = o;
+          return _json(<String, dynamic>{
+            'data': <String, dynamic>{
+              'total_credits': 1000,
+              'used_credits': 250,
+            },
+          }, 200);
+        }),
+      );
+
+      await api.getUsage(apiKey: 'sk-sp-test', accountId: 'q1');
+
+      expect(
+        seen!.uri.toString(),
+        'https://home.qwencloud.com/api/billing/subscription/token-plan/usage',
+      );
+      expect(seen!.headers['Authorization'], 'Bearer sk-sp-test');
+    });
+
+    test('parses a credits totals envelope (data → totals)', () async {
+      final api = QwenUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'data': <String, dynamic>{
+              'total_credits': 2000,
+              'used_credits': 500,
+              'period_end': '2026-08-01T00:00:00Z',
+            },
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'sk-sp-test', accountId: 'q1');
+
+      expect(usage.type, ProviderUsageType.qwen);
+      expect(usage.windows, hasLength(1));
+      final window = usage.windows.single;
+      expect(window.label, 'Credits');
+      expect(window.limit, 2000.0);
+      expect(window.used, 500.0);
+      expect(window.remaining, 1500.0);
+      expect(window.utilization, closeTo(25, 0.001));
+      expect(
+        window.resetsAtMs,
+        DateTime.parse('2026-08-01T00:00:00Z').millisecondsSinceEpoch,
+      );
+      // Production default: no raw payload leaks into extra.
+      expect(usage.extra.containsKey('raw_payload'), isFalse);
+    });
+
+    test('parses a percent-only payload without totals', () async {
+      final api = QwenUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{'usage_percent': 42}, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'sk-sp-test', accountId: 'q1');
+
+      expect(usage.windows, hasLength(1));
+      expect(usage.windows.single.utilization, closeTo(42, 0.001));
+      expect(usage.windows.single.limit, isNull);
+    });
+
+    test('parses a list of limit rows under data.limits', () async {
+      final api = QwenUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{
+            'data': <String, dynamic>{
+              'limits': <dynamic>[
+                <String, dynamic>{
+                  'name': 'Monthly',
+                  'limit': 100,
+                  'remaining': 80,
+                },
+                <String, dynamic>{
+                  'name': 'Weekly',
+                  'limit': 40,
+                  'used': 10,
+                },
+              ],
+            },
+          }, 200),
+        ),
+      );
+
+      final usage = await api.getUsage(apiKey: 'sk-sp-test', accountId: 'q1');
+
+      expect(usage.windows, hasLength(2));
+      expect(usage.windows[0].label, 'Monthly');
+      expect(usage.windows[0].remaining, 80.0);
+      expect(usage.windows[0].utilization, closeTo(20, 0.001));
+      expect(usage.windows[1].label, 'Weekly');
+      expect(usage.windows[1].utilization, closeTo(25, 0.001));
+    });
+
+    test('honors a base URL override and surfaces the raw payload in debug',
+        () async {
+      RequestOptions? seen;
+      final api = QwenUsageApi(
+        dio: _dioWith((o) {
+          seen = o;
+          return _json(<String, dynamic>{
+            'total_credits': 100,
+            'used_credits': 10,
+          }, 200);
+        }),
+      );
+
+      final usage = await api.getUsage(
+        apiKey: 'sk-sp-test',
+        accountId: 'q1',
+        baseUrl: 'https://gateway.example.com',
+        includeDebugPayload: true,
+      );
+
+      expect(
+        seen!.uri.toString(),
+        'https://gateway.example.com'
+        '/api/billing/subscription/token-plan/usage',
+      );
+      expect(
+        usage.extra['request_url'],
+        'https://gateway.example.com'
+        '/api/billing/subscription/token-plan/usage',
+      );
+      expect(usage.extra['raw_payload'], contains('total_credits'));
+    });
+
+    test('throws with auth detail on a 401 response', () async {
+      final api = QwenUsageApi(
+        dio: _dioWith(
+          (o) => _json(<String, dynamic>{'message': 'invalid api key'}, 401),
+        ),
+      );
+
+      await expectLater(
+        api.getUsage(apiKey: 'bad', accountId: 'q1'),
+        throwsA(
+          isA<ProviderUsageApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('authentication failed'),
+          ),
+        ),
+      );
+    });
+
+    test('ProviderCredentials.qwen round-trips through JSON storage', () {
+      final account = ProviderAccount(
+        id: 'q1',
+        name: 'My Qwen',
+        type: ProviderUsageType.qwen,
+        credentials: ProviderCredentials.qwen(
+          QwenCredentials(apiKey: 'sk-sp-test', baseUrl: qwenDefaultBaseUrl),
+        ),
+      );
+
+      final decoded = ProviderAccount.fromJson(
+        Map<String, dynamic>.from(account.toJson()),
+      );
+
+      expect(decoded.id, 'q1');
+      expect(decoded.type, ProviderUsageType.qwen);
+
+      late QwenCredentials qwen;
+      decoded.credentials.when(
+        kimi: (_) => fail('expected qwen, decoded as kimi'),
+        miniMax: (_) => fail('expected qwen, decoded as miniMax'),
+        zai: (_) => fail('expected qwen, decoded as zai'),
+        grok: (_) => fail('expected qwen, decoded as grok'),
+        qwen: (c) => qwen = c,
+      );
+      expect(qwen.apiKey, 'sk-sp-test');
+      expect(qwen.baseUrl, qwenDefaultBaseUrl);
     });
   });
 }

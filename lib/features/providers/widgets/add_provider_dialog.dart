@@ -48,6 +48,12 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     text: grokDefaultBaseUrl,
   );
 
+  // Qwen
+  final _qwenKeyController = TextEditingController();
+  final _qwenBaseUrlController = TextEditingController(
+    text: qwenDefaultBaseUrl,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +61,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     _miniMaxApiKeyController.addListener(_onFieldChanged);
     _zaiKeyController.addListener(_onFieldChanged);
     _grokTokenController.addListener(_onFieldChanged);
+    _qwenKeyController.addListener(_onFieldChanged);
   }
 
   void _onFieldChanged() => setState(() {});
@@ -65,6 +72,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     _miniMaxApiKeyController.removeListener(_onFieldChanged);
     _zaiKeyController.removeListener(_onFieldChanged);
     _grokTokenController.removeListener(_onFieldChanged);
+    _qwenKeyController.removeListener(_onFieldChanged);
     _nameController.dispose();
     _kimiKeyController.dispose();
     _kimiBaseUrlController.dispose();
@@ -73,6 +81,8 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
     _zaiBaseUrlController.dispose();
     _grokTokenController.dispose();
     _grokBaseUrlController.dispose();
+    _qwenKeyController.dispose();
+    _qwenBaseUrlController.dispose();
     super.dispose();
   }
 
@@ -105,6 +115,14 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
               : _grokBaseUrlController.text.trim(),
         ),
       ),
+      ProviderUsageType.qwen => ProviderCredentials.qwen(
+        QwenCredentials(
+          apiKey: _qwenKeyController.text.trim(),
+          baseUrl: _qwenBaseUrlController.text.trim().isEmpty
+              ? qwenDefaultBaseUrl
+              : _qwenBaseUrlController.text.trim(),
+        ),
+      ),
       ProviderUsageType.claudeCode => ProviderCredentials.kimi(
         // Not implemented yet; guard with empty key.
         const KimiCredentials(apiKey: ''),
@@ -129,6 +147,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
         _miniMaxApiKeyController.text.trim().isNotEmpty,
       ProviderUsageType.zai => _zaiKeyController.text.trim().isNotEmpty,
       ProviderUsageType.grok => _grokTokenController.text.trim().isNotEmpty,
+      ProviderUsageType.qwen => _qwenKeyController.text.trim().isNotEmpty,
       ProviderUsageType.claudeCode || ProviderUsageType.codex => false,
     };
   }
@@ -260,6 +279,26 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
           autocorrect: false,
         ),
       ],
+      ProviderUsageType.qwen => [
+        TextField(
+          controller: _qwenKeyController,
+          decoration: InputDecoration(
+            labelText: l10n.providersQwenApiKeyLabel,
+            hintText: l10n.providersQwenApiKeyHint,
+          ),
+          obscureText: true,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        TextField(
+          controller: _qwenBaseUrlController,
+          decoration: InputDecoration(
+            labelText: l10n.providersQwenBaseUrlLabel,
+            hintText: l10n.providersQwenBaseUrlHint,
+          ),
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+        ),
+      ],
       ProviderUsageType.claudeCode ||
       ProviderUsageType.codex => [Text(l10n.providersNotImplemented)],
     };
@@ -271,6 +310,7 @@ class _AddProviderDialogState extends State<AddProviderDialog> {
       ProviderUsageType.minimax => 'MiniMax',
       ProviderUsageType.zai => 'Z.AI',
       ProviderUsageType.grok => 'Grok',
+      ProviderUsageType.qwen => 'Qwen',
       ProviderUsageType.claudeCode => 'Claude Code',
       ProviderUsageType.codex => 'Codex',
     };

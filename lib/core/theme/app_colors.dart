@@ -43,6 +43,9 @@ abstract final class AppColors {
 
   /// Grok (xAI) provider accent – mid slate that stays legible on light and
   /// dark surfaces (the xAI brand itself is pure black/white).
+  /// Qwen brand purple, used by the provider usage card icon.
+  static const Color qwen = Color(0xFF615CED);
+
   /// Matches [colorForProfile]'s `'grok'` case so the brand color has one
   /// home.
   static const Color grok = Color(0xFF64748B);
@@ -198,6 +201,8 @@ Color colorForProfile(String id) {
       return AppColors.zai;
     case 'grok':
       return AppColors.grok;
+    case 'qwen':
+      return AppColors.qwen;
     case 'minimax':
       return const Color(0xFFFF6B35);
     case 'xiaomi-mimo':

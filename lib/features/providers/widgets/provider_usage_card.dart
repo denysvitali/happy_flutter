@@ -117,6 +117,7 @@ class ProviderUsageCard extends ConsumerWidget {
       ProviderUsageType.minimax => 'MiniMax',
       ProviderUsageType.zai => 'Z.AI',
       ProviderUsageType.grok => 'Grok',
+      ProviderUsageType.qwen => 'Qwen',
       ProviderUsageType.claudeCode => 'Claude Code',
       ProviderUsageType.codex => 'Codex',
     };
@@ -192,6 +193,7 @@ class _ProviderIcon extends StatelessWidget {
       ProviderUsageType.minimax => AppColors.success,
       ProviderUsageType.zai => AppColors.zai,
       ProviderUsageType.grok => AppColors.grok,
+      ProviderUsageType.qwen => AppColors.qwen,
       ProviderUsageType.claudeCode => AppColors.warning,
       ProviderUsageType.codex => AppColors.error,
     };
@@ -205,6 +207,7 @@ class _ProviderIcon extends StatelessWidget {
           ProviderUsageType.minimax => Icons.cloud,
           ProviderUsageType.zai => Icons.bolt,
           ProviderUsageType.grok => Icons.rocket_launch,
+          ProviderUsageType.qwen => Icons.generating_tokens,
           ProviderUsageType.claudeCode => Icons.psychology,
           ProviderUsageType.codex => Icons.code,
         },

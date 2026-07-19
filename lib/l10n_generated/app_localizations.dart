@@ -9085,6 +9085,30 @@ abstract class AppLocalizations {
   /// **'https://cli-chat-proxy.grok.com/v1'**
   String get providersGrokBaseUrlHint;
 
+  /// No description provided for @providersQwenApiKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get providersQwenApiKeyLabel;
+
+  /// No description provided for @providersQwenApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your Qwen Cloud API key (sk-sp-…)'**
+  String get providersQwenApiKeyHint;
+
+  /// No description provided for @providersQwenBaseUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get providersQwenBaseUrlLabel;
+
+  /// No description provided for @providersQwenBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://home.qwencloud.com'**
+  String get providersQwenBaseUrlHint;
+
   /// No description provided for @providersNotImplemented.
   ///
   /// In en, this message translates to:

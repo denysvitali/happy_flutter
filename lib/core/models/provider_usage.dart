@@ -11,7 +11,7 @@ part 'provider_usage.freezed.dart';
 part 'provider_usage.g.dart';
 
 /// Identifier for a supported third-party usage provider.
-enum ProviderUsageType { kimi, minimax, zai, grok, claudeCode, codex }
+enum ProviderUsageType { kimi, minimax, zai, grok, qwen, claudeCode, codex }
 
 /// Default base URL for the Kimi Coding Plan usage API.
 ///
@@ -36,6 +36,18 @@ const String zaiDefaultBaseUrl = 'https://api.z.ai';
 /// its URL, headers, and behavior may change with Grok CLI releases. Power
 /// users running grok-proxy or another gateway can override it per account.
 const String grokDefaultBaseUrl = 'https://cli-chat-proxy.grok.com/v1';
+
+/// Default base URL for the Qwen Cloud Token Plan usage API.
+///
+/// Qwen Cloud (the international DashScope portal) does NOT publish a stable
+/// usage/credits endpoint — its docs only point at the web console on
+/// `home.qwencloud.com`. This host mirrors where that console serves its
+/// subscription data; the exact path used by [QwenUsageApi] is a best-effort
+/// default and power users who discover the real billing endpoint (e.g. by
+/// inspecting the console's network traffic) can override it per account.
+/// A Bearer API key from the Qwen Cloud console (`sk-sp-…` for Token Plan
+/// Individual) authenticates.
+const String qwenDefaultBaseUrl = 'https://home.qwencloud.com';
 
 /// Credentials required to authenticate with Kimi.
 ///
@@ -107,6 +119,24 @@ abstract class GrokCredentials with _$GrokCredentials {
       _$GrokCredentialsFromJson(json);
 }
 
+/// Credentials required to authenticate with Qwen Cloud (Token Plan).
+///
+/// Qwen Cloud uses a Bearer API key from the console (`sk-sp-…` keys for
+/// Token Plan Individual) against the subscription host. [baseUrl] defaults
+/// to [qwenDefaultBaseUrl] and only needs overriding for custom gateways or
+/// a corrected billing path.
+@freezed
+abstract class QwenCredentials with _$QwenCredentials {
+  const factory QwenCredentials({
+    required String apiKey,
+    @Default(qwenDefaultBaseUrl) String baseUrl,
+    String? accountName,
+  }) = _QwenCredentials;
+
+  factory QwenCredentials.fromJson(Map<String, dynamic> json) =>
+      _$QwenCredentialsFromJson(json);
+}
+
 /// Union of credentials for a configured provider account.
 @freezed
 abstract class ProviderCredentials with _$ProviderCredentials {
@@ -121,6 +151,9 @@ abstract class ProviderCredentials with _$ProviderCredentials {
 
   const factory ProviderCredentials.grok(GrokCredentials credentials) =
       _ProviderCredentialsGrok;
+
+  const factory ProviderCredentials.qwen(QwenCredentials credentials) =
+      _ProviderCredentialsQwen;
 
   factory ProviderCredentials.fromJson(Map<String, dynamic> json) =>
       _$ProviderCredentialsFromJson(json);

@@ -4994,6 +4994,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersGrokBaseUrlHint => 'https://cli-chat-proxy.grok.com/v1';
 
   @override
+  String get providersQwenApiKeyLabel => 'API key';
+
+  @override
+  String get providersQwenApiKeyHint =>
+      'Paste your Qwen Cloud API key (sk-sp-…)';
+
+  @override
+  String get providersQwenBaseUrlLabel => 'Base URL';
+
+  @override
+  String get providersQwenBaseUrlHint => 'https://home.qwencloud.com';
+
+  @override
   String get providersNotImplemented => 'This provider is not yet supported.';
 
   @override

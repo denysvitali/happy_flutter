@@ -20,6 +20,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   late final MiniMaxUsageApi _miniMaxApi;
   late final ZaiUsageApi _zaiApi;
   late final GrokUsageApi _grokApi;
+  late final QwenUsageApi _qwenApi;
 
   /// Per-account failure tracking so a dead key/network blip does not spam
   /// Loki with a full stack every refresh. Backoff starts at 30s and doubles
@@ -38,6 +39,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     _miniMaxApi = MiniMaxUsageApi();
     _zaiApi = ZaiUsageApi();
     _grokApi = GrokUsageApi();
+    _qwenApi = QwenUsageApi();
     ref.onDispose(_failures.clear);
     return const ProviderUsageSummary();
   }
@@ -131,6 +133,13 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
         ),
         grok: (c) => _grokApi.getUsage(
           accessToken: c.accessToken,
+          baseUrl: c.baseUrl,
+          accountId: account.id,
+          accountName: account.name,
+          includeDebugPayload: includeDebug,
+        ),
+        qwen: (c) => _qwenApi.getUsage(
+          apiKey: c.apiKey,
           baseUrl: c.baseUrl,
           accountId: account.id,
           accountName: account.name,

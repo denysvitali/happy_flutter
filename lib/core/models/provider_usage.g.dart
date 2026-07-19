@@ -64,6 +64,20 @@ Map<String, dynamic> _$GrokCredentialsToJson(_GrokCredentials instance) =>
       'accountName': instance.accountName,
     };
 
+_QwenCredentials _$QwenCredentialsFromJson(Map<String, dynamic> json) =>
+    _QwenCredentials(
+      apiKey: json['apiKey'] as String,
+      baseUrl: json['baseUrl'] as String? ?? qwenDefaultBaseUrl,
+      accountName: json['accountName'] as String?,
+    );
+
+Map<String, dynamic> _$QwenCredentialsToJson(_QwenCredentials instance) =>
+    <String, dynamic>{
+      'apiKey': instance.apiKey,
+      'baseUrl': instance.baseUrl,
+      'accountName': instance.accountName,
+    };
+
 _ProviderCredentialsKimi _$ProviderCredentialsKimiFromJson(
   Map<String, dynamic> json,
 ) => _ProviderCredentialsKimi(
@@ -120,6 +134,20 @@ Map<String, dynamic> _$ProviderCredentialsGrokToJson(
   'runtimeType': instance.$type,
 };
 
+_ProviderCredentialsQwen _$ProviderCredentialsQwenFromJson(
+  Map<String, dynamic> json,
+) => _ProviderCredentialsQwen(
+  QwenCredentials.fromJson(json['credentials'] as Map<String, dynamic>),
+  $type: json['runtimeType'] as String?,
+);
+
+Map<String, dynamic> _$ProviderCredentialsQwenToJson(
+  _ProviderCredentialsQwen instance,
+) => <String, dynamic>{
+  'credentials': instance.credentials.toJson(),
+  'runtimeType': instance.$type,
+};
+
 _ProviderAccount _$ProviderAccountFromJson(Map<String, dynamic> json) =>
     _ProviderAccount(
       id: json['id'] as String,
@@ -143,6 +171,7 @@ const _$ProviderUsageTypeEnumMap = {
   ProviderUsageType.minimax: 'minimax',
   ProviderUsageType.zai: 'zai',
   ProviderUsageType.grok: 'grok',
+  ProviderUsageType.qwen: 'qwen',
   ProviderUsageType.claudeCode: 'claudeCode',
   ProviderUsageType.codex: 'codex',
 };

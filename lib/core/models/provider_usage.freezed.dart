@@ -1090,6 +1090,275 @@ as String?,
 
 }
 
+
+/// @nodoc
+mixin _$QwenCredentials {
+
+ String get apiKey; String get baseUrl; String? get accountName;
+/// Create a copy of QwenCredentials
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$QwenCredentialsCopyWith<QwenCredentials> get copyWith => _$QwenCredentialsCopyWithImpl<QwenCredentials>(this as QwenCredentials, _$identity);
+
+  /// Serializes this QwenCredentials to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is QwenCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.accountName, accountName) || other.accountName == accountName));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,apiKey,baseUrl,accountName);
+
+@override
+String toString() {
+  return 'QwenCredentials(apiKey: $apiKey, baseUrl: $baseUrl, accountName: $accountName)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $QwenCredentialsCopyWith<$Res>  {
+  factory $QwenCredentialsCopyWith(QwenCredentials value, $Res Function(QwenCredentials) _then) = _$QwenCredentialsCopyWithImpl;
+@useResult
+$Res call({
+ String apiKey, String baseUrl, String? accountName
+});
+
+
+
+
+}
+/// @nodoc
+class _$QwenCredentialsCopyWithImpl<$Res>
+    implements $QwenCredentialsCopyWith<$Res> {
+  _$QwenCredentialsCopyWithImpl(this._self, this._then);
+
+  final QwenCredentials _self;
+  final $Res Function(QwenCredentials) _then;
+
+/// Create a copy of QwenCredentials
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? apiKey = null,Object? baseUrl = null,Object? accountName = freezed,}) {
+  return _then(_self.copyWith(
+apiKey: null == apiKey ? _self.apiKey : apiKey // ignore: cast_nullable_to_non_nullable
+as String,baseUrl: null == baseUrl ? _self.baseUrl : baseUrl // ignore: cast_nullable_to_non_nullable
+as String,accountName: freezed == accountName ? _self.accountName : accountName // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [QwenCredentials].
+extension QwenCredentialsPatterns on QwenCredentials {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _QwenCredentials value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _QwenCredentials() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _QwenCredentials value)  $default,){
+final _that = this;
+switch (_that) {
+case _QwenCredentials():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _QwenCredentials value)?  $default,){
+final _that = this;
+switch (_that) {
+case _QwenCredentials() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String apiKey,  String baseUrl,  String? accountName)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _QwenCredentials() when $default != null:
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String apiKey,  String baseUrl,  String? accountName)  $default,) {final _that = this;
+switch (_that) {
+case _QwenCredentials():
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String apiKey,  String baseUrl,  String? accountName)?  $default,) {final _that = this;
+switch (_that) {
+case _QwenCredentials() when $default != null:
+return $default(_that.apiKey,_that.baseUrl,_that.accountName);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _QwenCredentials implements QwenCredentials {
+  const _QwenCredentials({required this.apiKey, this.baseUrl = qwenDefaultBaseUrl, this.accountName});
+  factory _QwenCredentials.fromJson(Map<String, dynamic> json) => _$QwenCredentialsFromJson(json);
+
+@override final  String apiKey;
+@override@JsonKey() final  String baseUrl;
+@override final  String? accountName;
+
+/// Create a copy of QwenCredentials
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$QwenCredentialsCopyWith<_QwenCredentials> get copyWith => __$QwenCredentialsCopyWithImpl<_QwenCredentials>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$QwenCredentialsToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _QwenCredentials&&(identical(other.apiKey, apiKey) || other.apiKey == apiKey)&&(identical(other.baseUrl, baseUrl) || other.baseUrl == baseUrl)&&(identical(other.accountName, accountName) || other.accountName == accountName));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,apiKey,baseUrl,accountName);
+
+@override
+String toString() {
+  return 'QwenCredentials(apiKey: $apiKey, baseUrl: $baseUrl, accountName: $accountName)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$QwenCredentialsCopyWith<$Res> implements $QwenCredentialsCopyWith<$Res> {
+  factory _$QwenCredentialsCopyWith(_QwenCredentials value, $Res Function(_QwenCredentials) _then) = __$QwenCredentialsCopyWithImpl;
+@override @useResult
+$Res call({
+ String apiKey, String baseUrl, String? accountName
+});
+
+
+
+
+}
+/// @nodoc
+class __$QwenCredentialsCopyWithImpl<$Res>
+    implements _$QwenCredentialsCopyWith<$Res> {
+  __$QwenCredentialsCopyWithImpl(this._self, this._then);
+
+  final _QwenCredentials _self;
+  final $Res Function(_QwenCredentials) _then;
+
+/// Create a copy of QwenCredentials
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? apiKey = null,Object? baseUrl = null,Object? accountName = freezed,}) {
+  return _then(_QwenCredentials(
+apiKey: null == apiKey ? _self.apiKey : apiKey // ignore: cast_nullable_to_non_nullable
+as String,baseUrl: null == baseUrl ? _self.baseUrl : baseUrl // ignore: cast_nullable_to_non_nullable
+as String,accountName: freezed == accountName ? _self.accountName : accountName // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
 ProviderCredentials _$ProviderCredentialsFromJson(
   Map<String, dynamic> json
 ) {
@@ -1108,6 +1377,10 @@ ProviderCredentials _$ProviderCredentialsFromJson(
           );
                 case 'grok':
           return _ProviderCredentialsGrok.fromJson(
+            json
+          );
+                case 'qwen':
+          return _ProviderCredentialsQwen.fromJson(
             json
           );
         
@@ -1168,14 +1441,15 @@ extension ProviderCredentialsPatterns on ProviderCredentials {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _ProviderCredentialsKimi value)?  kimi,TResult Function( _ProviderCredentialsMiniMax value)?  miniMax,TResult Function( _ProviderCredentialsZai value)?  zai,TResult Function( _ProviderCredentialsGrok value)?  grok,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _ProviderCredentialsKimi value)?  kimi,TResult Function( _ProviderCredentialsMiniMax value)?  miniMax,TResult Function( _ProviderCredentialsZai value)?  zai,TResult Function( _ProviderCredentialsGrok value)?  grok,TResult Function( _ProviderCredentialsQwen value)?  qwen,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi() when kimi != null:
 return kimi(_that);case _ProviderCredentialsMiniMax() when miniMax != null:
 return miniMax(_that);case _ProviderCredentialsZai() when zai != null:
 return zai(_that);case _ProviderCredentialsGrok() when grok != null:
-return grok(_that);case _:
+return grok(_that);case _ProviderCredentialsQwen() when qwen != null:
+return qwen(_that);case _:
   return orElse();
 
 }
@@ -1193,14 +1467,15 @@ return grok(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _ProviderCredentialsKimi value)  kimi,required TResult Function( _ProviderCredentialsMiniMax value)  miniMax,required TResult Function( _ProviderCredentialsZai value)  zai,required TResult Function( _ProviderCredentialsGrok value)  grok,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _ProviderCredentialsKimi value)  kimi,required TResult Function( _ProviderCredentialsMiniMax value)  miniMax,required TResult Function( _ProviderCredentialsZai value)  zai,required TResult Function( _ProviderCredentialsGrok value)  grok,required TResult Function( _ProviderCredentialsQwen value)  qwen,}){
 final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi():
 return kimi(_that);case _ProviderCredentialsMiniMax():
 return miniMax(_that);case _ProviderCredentialsZai():
 return zai(_that);case _ProviderCredentialsGrok():
-return grok(_that);case _:
+return grok(_that);case _ProviderCredentialsQwen():
+return qwen(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1217,14 +1492,15 @@ return grok(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _ProviderCredentialsKimi value)?  kimi,TResult? Function( _ProviderCredentialsMiniMax value)?  miniMax,TResult? Function( _ProviderCredentialsZai value)?  zai,TResult? Function( _ProviderCredentialsGrok value)?  grok,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _ProviderCredentialsKimi value)?  kimi,TResult? Function( _ProviderCredentialsMiniMax value)?  miniMax,TResult? Function( _ProviderCredentialsZai value)?  zai,TResult? Function( _ProviderCredentialsGrok value)?  grok,TResult? Function( _ProviderCredentialsQwen value)?  qwen,}){
 final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi() when kimi != null:
 return kimi(_that);case _ProviderCredentialsMiniMax() when miniMax != null:
 return miniMax(_that);case _ProviderCredentialsZai() when zai != null:
 return zai(_that);case _ProviderCredentialsGrok() when grok != null:
-return grok(_that);case _:
+return grok(_that);case _ProviderCredentialsQwen() when qwen != null:
+return qwen(_that);case _:
   return null;
 
 }
@@ -1241,13 +1517,14 @@ return grok(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( KimiCredentials credentials)?  kimi,TResult Function( MiniMaxCredentials credentials)?  miniMax,TResult Function( ZaiCredentials credentials)?  zai,TResult Function( GrokCredentials credentials)?  grok,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( KimiCredentials credentials)?  kimi,TResult Function( MiniMaxCredentials credentials)?  miniMax,TResult Function( ZaiCredentials credentials)?  zai,TResult Function( GrokCredentials credentials)?  grok,TResult Function( QwenCredentials credentials)?  qwen,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi() when kimi != null:
 return kimi(_that.credentials);case _ProviderCredentialsMiniMax() when miniMax != null:
 return miniMax(_that.credentials);case _ProviderCredentialsZai() when zai != null:
 return zai(_that.credentials);case _ProviderCredentialsGrok() when grok != null:
-return grok(_that.credentials);case _:
+return grok(_that.credentials);case _ProviderCredentialsQwen() when qwen != null:
+return qwen(_that.credentials);case _:
   return orElse();
 
 }
@@ -1265,13 +1542,14 @@ return grok(_that.credentials);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( KimiCredentials credentials)  kimi,required TResult Function( MiniMaxCredentials credentials)  miniMax,required TResult Function( ZaiCredentials credentials)  zai,required TResult Function( GrokCredentials credentials)  grok,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( KimiCredentials credentials)  kimi,required TResult Function( MiniMaxCredentials credentials)  miniMax,required TResult Function( ZaiCredentials credentials)  zai,required TResult Function( GrokCredentials credentials)  grok,required TResult Function( QwenCredentials credentials)  qwen,}) {final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi():
 return kimi(_that.credentials);case _ProviderCredentialsMiniMax():
 return miniMax(_that.credentials);case _ProviderCredentialsZai():
 return zai(_that.credentials);case _ProviderCredentialsGrok():
-return grok(_that.credentials);case _:
+return grok(_that.credentials);case _ProviderCredentialsQwen():
+return qwen(_that.credentials);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1288,13 +1566,14 @@ return grok(_that.credentials);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( KimiCredentials credentials)?  kimi,TResult? Function( MiniMaxCredentials credentials)?  miniMax,TResult? Function( ZaiCredentials credentials)?  zai,TResult? Function( GrokCredentials credentials)?  grok,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( KimiCredentials credentials)?  kimi,TResult? Function( MiniMaxCredentials credentials)?  miniMax,TResult? Function( ZaiCredentials credentials)?  zai,TResult? Function( GrokCredentials credentials)?  grok,TResult? Function( QwenCredentials credentials)?  qwen,}) {final _that = this;
 switch (_that) {
 case _ProviderCredentialsKimi() when kimi != null:
 return kimi(_that.credentials);case _ProviderCredentialsMiniMax() when miniMax != null:
 return miniMax(_that.credentials);case _ProviderCredentialsZai() when zai != null:
 return zai(_that.credentials);case _ProviderCredentialsGrok() when grok != null:
-return grok(_that.credentials);case _:
+return grok(_that.credentials);case _ProviderCredentialsQwen() when qwen != null:
+return qwen(_that.credentials);case _:
   return null;
 
 }
@@ -1625,6 +1904,88 @@ as GrokCredentials,
 $GrokCredentialsCopyWith<$Res> get credentials {
   
   return $GrokCredentialsCopyWith<$Res>(_self.credentials, (value) {
+    return _then(_self.copyWith(credentials: value));
+  });
+}
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _ProviderCredentialsQwen implements ProviderCredentials {
+  const _ProviderCredentialsQwen(this.credentials, {final  String? $type}): $type = $type ?? 'qwen';
+  factory _ProviderCredentialsQwen.fromJson(Map<String, dynamic> json) => _$ProviderCredentialsQwenFromJson(json);
+
+@override final  QwenCredentials credentials;
+
+@JsonKey(name: 'runtimeType')
+final String $type;
+
+
+/// Create a copy of ProviderCredentials
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ProviderCredentialsQwenCopyWith<_ProviderCredentialsQwen> get copyWith => __$ProviderCredentialsQwenCopyWithImpl<_ProviderCredentialsQwen>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ProviderCredentialsQwenToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ProviderCredentialsQwen&&(identical(other.credentials, credentials) || other.credentials == credentials));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,credentials);
+
+@override
+String toString() {
+  return 'ProviderCredentials.qwen(credentials: $credentials)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ProviderCredentialsQwenCopyWith<$Res> implements $ProviderCredentialsCopyWith<$Res> {
+  factory _$ProviderCredentialsQwenCopyWith(_ProviderCredentialsQwen value, $Res Function(_ProviderCredentialsQwen) _then) = __$ProviderCredentialsQwenCopyWithImpl;
+@useResult
+$Res call({
+ QwenCredentials credentials
+});
+
+
+$QwenCredentialsCopyWith<$Res> get credentials;
+
+}
+/// @nodoc
+class __$ProviderCredentialsQwenCopyWithImpl<$Res>
+    implements _$ProviderCredentialsQwenCopyWith<$Res> {
+  __$ProviderCredentialsQwenCopyWithImpl(this._self, this._then);
+
+  final _ProviderCredentialsQwen _self;
+  final $Res Function(_ProviderCredentialsQwen) _then;
+
+/// Create a copy of ProviderCredentials
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? credentials = null,}) {
+  return _then(_ProviderCredentialsQwen(
+null == credentials ? _self.credentials : credentials // ignore: cast_nullable_to_non_nullable
+as QwenCredentials,
+  ));
+}
+
+/// Create a copy of ProviderCredentials
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$QwenCredentialsCopyWith<$Res> get credentials {
+  
+  return $QwenCredentialsCopyWith<$Res>(_self.credentials, (value) {
     return _then(_self.copyWith(credentials: value));
   });
 }

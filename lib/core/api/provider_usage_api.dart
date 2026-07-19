@@ -1117,6 +1117,327 @@ class GrokUsageApi {
   }
 }
 
+/// Qwen Cloud (Token Plan) usage API client.
+///
+/// Qwen Cloud does NOT publish a stable usage/credits endpoint — its docs
+/// only point at the web console (`home.qwencloud.com/billing/subscription/
+/// token-plan`). This client calls the console's subscription path
+/// (`{baseUrl}/api/billing/subscription/token-plan/usage`, default host
+/// [qwenDefaultBaseUrl]) with a Bearer API key (`sk-sp-…` for Token Plan
+/// Individual). The path is a best-effort default: point the account's base
+/// URL at the real billing endpoint (e.g. after inspecting the console's
+/// network traffic) and the in-app debug payload viewer will show the raw
+/// response so the parser can be aligned to it.
+///
+/// Parsing is deliberately lenient — the payload shape is unverified, so the
+/// parser accepts the common credit/quota spellings (`credits`/`limit`/
+/// `used`/`remaining` aliases, percent fields, `data`/`usage`/`result`
+/// envelopes, and lists of limit rows) rather than one exact shape.
+class QwenUsageApi {
+  QwenUsageApi({Dio? dio}) : _dio = dio ?? _createDio();
+
+  final Dio _dio;
+
+  /// Best-effort usage path mirroring the console's subscription page
+  /// (`/billing/subscription/token-plan`). Override via [getUsage]'s
+  /// `baseUrl` when the real billing endpoint is known.
+  static const String _usagePath = '/api/billing/subscription/token-plan/usage';
+
+  /// Fetches usage for the account identified by [apiKey].
+  ///
+  /// When [includeDebugPayload] is true (developer / debug mode), the raw
+  /// response body is surfaced via [ProviderUsage.extra] under
+  /// `'raw_payload'` / `'raw_payload_compact'` so the in-app debug viewer can
+  /// inspect it without re-issuing a request — the primary way to align the
+  /// parser with the (undocumented) billing response shape.
+  Future<ProviderUsage> getUsage({
+    required String apiKey,
+    required String accountId,
+    String? accountName,
+    String baseUrl = qwenDefaultBaseUrl,
+    bool includeDebugPayload = false,
+  }) async {
+    final fetch = await _fetchUsageRaw(apiKey, baseUrl);
+
+    if (fetch.statusCode != 200) {
+      _throwHttpError('Qwen', 'usage', fetch.response);
+    }
+
+    final windows = _parseWindows(fetch.body);
+    final extra = includeDebugPayload
+        ? _buildExtra(fetch, windows)
+        : const <String, dynamic>{};
+
+    if (includeDebugPayload) {
+      logger.debug(
+        'Qwen token-plan usage HTTP ${fetch.statusCode} '
+        'windows=${windows.length} '
+        'payload=${fetch.compactBody}',
+      );
+    }
+
+    return ProviderUsage(
+      accountId: accountId,
+      type: ProviderUsageType.qwen,
+      accountName: accountName,
+      windows: windows,
+      extra: extra,
+    );
+  }
+
+  Options _authOptions(String apiKey) => Options(
+    headers: <String, dynamic>{
+      'Authorization': 'Bearer $apiKey',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': _userAgent,
+    },
+  );
+
+  /// Performs the GET and captures both the raw Dio response and the decoded
+  /// JSON body, so the parser and the debug surface can share the work.
+  Future<_QwenFetch> _fetchUsageRaw(String apiKey, String baseUrl) async {
+    final root = _normalizeRoot(baseUrl);
+    final response = await _dio.get<dynamic>(
+      '$root$_usagePath',
+      options: _authOptions(apiKey),
+    );
+
+    final raw = response.data;
+    final pretty = _safeStringify(raw);
+    final compact = _compactStringify(raw);
+
+    Map<String, dynamic> body;
+    try {
+      body = _asMap(raw, 'Qwen');
+    } catch (_) {
+      body = const <String, dynamic>{};
+    }
+
+    return _QwenFetch(
+      response: response,
+      statusCode: response.statusCode ?? 0,
+      body: body,
+      prettyBody: pretty,
+      compactBody: compact,
+      requestUrl: '$root$_usagePath',
+    );
+  }
+
+  /// Builds the debug `extra` map carried on [ProviderUsage] — only populated
+  /// when a 2xx response arrived so we never leak credential error bodies.
+  /// The `request_url` reflects the account's (possibly overridden) base URL
+  /// since endpoint discovery is the main reason to open the debug sheet.
+  Map<String, dynamic> _buildExtra(
+    _QwenFetch fetch,
+    List<ProviderUsageWindow> windows,
+  ) {
+    if (fetch.statusCode != 200) return const <String, dynamic>{};
+    return <String, dynamic>{
+      'endpoint': _usagePath,
+      'status': fetch.statusCode,
+      'request_url': fetch.requestUrl,
+      'window_count': windows.length,
+      'raw_payload': fetch.prettyBody,
+      'raw_payload_compact': fetch.compactBody,
+    };
+  }
+
+  /// Parses the (unverified) Qwen billing payload into usage windows.
+  ///
+  /// Tolerates, in order:
+  ///   1. A list of limit rows under `limits`/`quotas`/`plans`/`data`
+  ///      (Z.AI/Kimi style).
+  ///   2. A single totals object, unwrapping `data`/`usage`/`result`/
+  ///      `credits` envelopes (MiniMax/Grok style).
+  List<ProviderUsageWindow> _parseWindows(Map<String, dynamic> response) {
+    final payload = _unwrap(response);
+
+    for (final key in const ['limits', 'quotas', 'plans', 'data']) {
+      final rows = payload[key];
+      if (rows is List) {
+        final windows = <ProviderUsageWindow>[];
+        for (final raw in rows) {
+          if (raw is! Map<String, dynamic>) continue;
+          final window = _rowToWindow(raw, _rowLabel(raw, 'Credits'));
+          if (window != null) windows.add(window);
+        }
+        if (windows.isNotEmpty) return windows;
+      }
+    }
+
+    final window = _rowToWindow(payload, 'Credits');
+    if (window != null) return <ProviderUsageWindow>[window];
+
+    return const <ProviderUsageWindow>[];
+  }
+
+  /// Converts one totals/limits row into a [ProviderUsageWindow].
+  ///
+  /// Accepts the assorted credit/quota spellings: percent fields first, then
+  /// total/used/remaining aliases. Returns null when the row carries nothing
+  /// usable so we never render a misleading 0% bar.
+  ProviderUsageWindow? _rowToWindow(
+    Map<String, dynamic> data,
+    String fallbackLabel,
+  ) {
+    final percentage = _parseDouble(
+      data['percentage'] ??
+          data['percent'] ??
+          data['usage_percent'] ??
+          data['used_percent'],
+    );
+
+    final limit = _firstDouble(data, const [
+      'total_credits', 'credits_total', 'credit_total',
+      'limit', 'limit_amount', 'total', 'total_amount', 'quota', 'capacity',
+    ]);
+    final used = _firstDouble(data, const [
+      'credits_used', 'used_credits', 'credit_used',
+      'used', 'used_amount', 'usage', 'consumed',
+    ]);
+    final remaining = _firstDouble(data, const [
+      'credits_remaining', 'remaining_credits', 'credit_remaining',
+      'remaining', 'remain', 'balance', 'left',
+    ]);
+
+    double utilization;
+    double? limitNum;
+    double? usedNum;
+    double? remainingNum;
+
+    if (percentage != null) {
+      utilization = percentage.clamp(0.0, 100.0);
+      if (limit != null && limit > 0) {
+        limitNum = limit;
+        usedNum = (limit * (utilization / 100)).clamp(0.0, limit);
+        remainingNum = (limit - usedNum).clamp(0.0, limit);
+      }
+    } else if (limit != null && limit > 0 && used != null) {
+      limitNum = limit;
+      usedNum = used < 0 ? 0 : used;
+      remainingNum = (limit - usedNum).clamp(0.0, limit);
+      utilization = (usedNum / limit) * 100;
+    } else if (limit != null && limit > 0 && remaining != null) {
+      limitNum = limit;
+      final safeRemaining = remaining.clamp(0.0, limit);
+      usedNum = (limit - safeRemaining).clamp(0.0, limit);
+      remainingNum = safeRemaining;
+      utilization = (usedNum / limit) * 100;
+    } else {
+      return null;
+    }
+
+    return ProviderUsageWindow(
+      label: _rowLabel(data, fallbackLabel),
+      utilization: utilization.clamp(0.0, 100.0),
+      resetsAtMs: _parseResetMs(data),
+      limit: limitNum,
+      used: usedNum,
+      remaining: remainingNum,
+    );
+  }
+
+  /// Human label for a row, preferring an explicit name/title/plan field and
+  /// falling back to [fallback] so single-totals payloads read "Credits".
+  static String _rowLabel(Map<String, dynamic> data, String fallback) {
+    for (final key in const ['name', 'title', 'plan', 'type', 'scope']) {
+      final value = data[key];
+      if (value is String && value.isNotEmpty) return value;
+    }
+    return fallback;
+  }
+
+  /// Descends through single-map envelope wrappers (`data` → `usage`/…) until
+  /// no wrapper key matches, so both `{data: {...}}` and bare payloads parse
+  /// the same way. Lists are left intact — the row-list path handles them.
+  static Map<String, dynamic> _unwrap(Map<String, dynamic> value) {
+    var current = value;
+    var advanced = true;
+    while (advanced) {
+      advanced = false;
+      for (final key in const ['data', 'usage', 'result', 'credits']) {
+        final child = current[key];
+        if (child is Map<String, dynamic>) {
+          current = child;
+          advanced = true;
+          break;
+        }
+        if (child is Map) {
+          current = Map<String, dynamic>.from(child);
+          advanced = true;
+          break;
+        }
+      }
+    }
+    return current;
+  }
+
+  /// Extracts a reset timestamp (ms since epoch) from the assorted reset
+  /// field names, accepting ISO-8601 strings, epoch numbers, or relative
+  /// seconds.
+  static int? _parseResetMs(Map<String, dynamic> data) {
+    const isoKeys = [
+      'reset_at', 'resetAt', 'reset_time', 'resetTime', 'nextResetTime',
+      'period_end', 'periodEnd', 'expire_time', 'expireTime', 'end_time',
+    ];
+    for (final key in isoKeys) {
+      final value = data[key];
+      if (value is String && value.isNotEmpty) {
+        final dt = DateTime.tryParse(value);
+        if (dt != null) return dt.millisecondsSinceEpoch;
+      } else if (value is num) {
+        // Epoch: treat large values as ms, smaller as seconds.
+        return value > 1e12 ? value.toInt() : (value * 1000).toInt();
+      }
+    }
+
+    for (final key in const ['reset_in', 'resetIn', 'ttl']) {
+      final seconds = _parseInt(data[key]);
+      if (seconds != null) {
+        return DateTime.now()
+            .add(Duration(seconds: seconds))
+            .millisecondsSinceEpoch;
+      }
+    }
+
+    return null;
+  }
+
+  /// First parseable numeric value among [keys]. Maps and lists never match,
+  /// so envelope values like `"usage": {...}` are skipped safely.
+  static double? _firstDouble(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = _parseDouble(data[key]);
+      if (value != null) return value;
+    }
+    return null;
+  }
+
+  static String _normalizeRoot(String baseUrl) {
+    final trimmed = baseUrl.trim();
+    final base = trimmed.isEmpty ? qwenDefaultBaseUrl : trimmed;
+    return base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value) ?? double.tryParse(value)?.toInt();
+    }
+    return null;
+  }
+}
+
 /// Encapsulates one Kimi HTTP exchange so the parser and the debug surface
 /// can share the same body without re-decoding.
 class _KimiFetch {
@@ -1171,6 +1492,27 @@ class _MiniMaxFetch {
   final Map<String, dynamic> body;
   final String prettyBody;
   final String compactBody;
+}
+
+/// Encapsulates one Qwen HTTP exchange so the parser and the debug surface
+/// can share the same body without re-decoding. Carries [requestUrl] because
+/// the base URL is expected to be overridden during endpoint discovery.
+class _QwenFetch {
+  const _QwenFetch({
+    required this.response,
+    required this.statusCode,
+    required this.body,
+    required this.prettyBody,
+    required this.compactBody,
+    required this.requestUrl,
+  });
+
+  final Response<dynamic> response;
+  final int statusCode;
+  final Map<String, dynamic> body;
+  final String prettyBody;
+  final String compactBody;
+  final String requestUrl;
 }
 
 /// Pretty-prints a JSON-compatible value, falling back to `toString()` when
