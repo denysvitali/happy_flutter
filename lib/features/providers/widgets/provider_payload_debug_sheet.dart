@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/provider_usage.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_scroll_behavior.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 
@@ -229,12 +230,19 @@ class _SelectableJson extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scrollbar(
       child: SingleChildScrollView(
-        child: SelectableText(
-          text,
-          style: const TextStyle(
-            fontFamily: 'monospace',
-            fontSize: AppFontSize.sm,
-            height: AppLineHeight.relaxed,
+        // SelectableText nests a zero-extent Scrollable that, under the app's
+        // bouncing/always-scrollable behavior, steals the vertical drag and
+        // springs back to the top — so this pane never scrolls. Clamping its
+        // descendants lets the drag fall through to this scroll view.
+        child: ScrollConfiguration(
+          behavior: const NeutralizeInnerScrollBehavior(),
+          child: SelectableText(
+            text,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: AppFontSize.sm,
+              height: AppLineHeight.relaxed,
+            ),
           ),
         ),
       ),

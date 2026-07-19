@@ -2,16 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/provider_usage.dart';
+import 'package:happy_flutter/core/theme/app_scroll_behavior.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/providers/widgets/provider_payload_debug_sheet.dart';
 
 Widget _pumpSheet(WidgetTester tester, ProviderUsage usage) => MaterialApp(
+      // Install the app's real scroll behavior. The payload scroll bug only
+      // reproduces under AppScrollBehavior (Bouncing + AlwaysScrollable): that
+      // is what lets SelectableText's zero-extent inner Scrollable steal the
+      // vertical drag and spring back to the top. The default test behavior is
+      // clamping, which masks the bug — so a regression test that omits this
+      // would pass on CI while still broken on a device.
+      scrollBehavior: const AppScrollBehavior(),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: ProviderPayloadDebugSheet(usage: usage),
       ),
     );
+
+/// The payload's scroll view. `SelectableText` (and the
+/// `DraggableScrollableSheet`) also install zero-extent scrollables, so filter
+/// for the one that actually has content to scroll.
+ScrollableState _payloadScrollable(WidgetTester tester) {
+  final states = tester
+      .stateList<ScrollableState>(find.byType(Scrollable))
+      .where(
+        (state) =>
+            state.position.axis == Axis.vertical &&
+            state.position.maxScrollExtent > 0,
+      )
+      .toList(growable: false);
+  expect(states, isNotEmpty);
+  return states.first;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -151,5 +175,48 @@ void main() {
       expect(selectable.style, isNotNull);
       expect(selectable.style!.height, AppLineHeight.relaxed);
     });
+
+    testWidgets(
+      'payload scrolls on a vertical drag over the text (device '
+      'scroll behavior)',
+      (tester) async {
+        final payload = List<String>.generate(
+          200,
+          (i) => 'raw payload line $i with enough text to wrap',
+        ).join('\n');
+        await tester.pumpWidget(_pumpSheet(
+          tester,
+          ProviderUsage(
+            accountId: 'a1',
+            type: ProviderUsageType.qwen,
+            extra: <String, dynamic>{'raw_payload': payload},
+          ),
+        ));
+        await tester.pumpAndSettle();
+
+        final sheetRect = tester.getRect(find.byType(DraggableScrollableSheet));
+        final pane = _payloadScrollable(tester);
+        final before = pane.position.pixels;
+
+        // Drag inside the payload box (lower part of the sheet), on the
+        // selectable text rather than the metadata rows above it.
+        final gesture = await tester.startGesture(
+          Offset(sheetRect.center.dx, sheetRect.top + sheetRect.height * 0.6),
+        );
+        for (var i = 0; i < 6; i++) {
+          await gesture.moveBy(const Offset(0, -32));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(
+          pane.position.pixels,
+          greaterThan(before),
+          reason: 'A drag on the payload text must scroll the pane, not be '
+              "stolen by SelectableText's zero-extent inner scrollable.",
+        );
+      },
+    );
   });
 }
