@@ -59,5 +59,27 @@ void main() {
 
       expect(messageRenderSignature(summary), isNot(running));
     });
+
+    test('changes when folded thinking content under items changes', () {
+      // With hideToolCalls on, thinking blocks fold into the summary
+      // row under `items`; streaming thinking text must invalidate the
+      // cached row even though `tools` is unchanged.
+      final thinking = <String, dynamic>{
+        'id': 'think-1',
+        'isThinking': true,
+        'content': 'half a thought',
+      };
+      final summary = <String, dynamic>{
+        'id': 'hidden-summary',
+        'kind': 'hidden-tool-summary',
+        'tools': <Map<String, dynamic>>[],
+        'items': <Map<String, dynamic>>[thinking],
+      };
+
+      final before = messageRenderSignature(summary);
+      thinking['content'] = 'half a thought, now finished';
+
+      expect(messageRenderSignature(summary), isNot(before));
+    });
   });
 }

@@ -45,6 +45,107 @@ void main() {
       expect(items[1]?['id'], 'm1');
     });
 
+    test('folds thinking blocks into the same summary as tool calls', () {
+      // Agentic loop shape: think -> tool -> think -> tool. Without
+      // folding, this rendered as alternating Thinking / "1 tool
+      // complete" rows instead of one collapsed group.
+      final items = buildChatListItems(
+        visibleMessages: [
+          {
+            'id': 'th1',
+            'role': 'agent',
+            'kind': 'text',
+            'isThinking': true,
+            'text': 'first thought',
+          },
+          {
+            'id': 't1',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'state': 'completed',
+          },
+          {
+            'id': 'th2',
+            'role': 'agent',
+            'kind': 'text',
+            'isThinking': true,
+            'text': 'second thought',
+          },
+          {
+            'id': 't2',
+            'kind': 'tool-call',
+            'name': 'Grep',
+            'state': 'completed',
+          },
+          {'id': 'm1', 'role': 'agent', 'kind': 'text', 'text': 'done'},
+        ],
+        hideToolCalls: true,
+        shouldRenderAgentEvent: (_) => true,
+        shouldHideToolCall: (msg, {required hideToolCalls}) =>
+            hideToolCalls && msg['kind'] == 'tool-call',
+      );
+      expect(items.length, 2);
+      final summary = items[0]!;
+      expect(summary['kind'], 'hidden-tool-summary');
+      // `tools` keeps only real tool calls for the counts label.
+      expect(
+        (summary['tools'] as List).map((t) => (t as Map)['id']),
+        ['t1', 't2'],
+      );
+      // `items` preserves the full working trace in original order.
+      expect(
+        (summary['items'] as List).map((t) => (t as Map)['id']),
+        ['th1', 't1', 'th2', 't2'],
+      );
+      expect(items[1]?['id'], 'm1');
+    });
+
+    test('folds a thinking-only run into a summary row', () {
+      final items = buildChatListItems(
+        visibleMessages: [
+          {'id': 'm0', 'role': 'user', 'kind': 'text', 'text': 'go'},
+          {
+            'id': 'th1',
+            'role': 'agent',
+            'kind': 'text',
+            'isThinking': true,
+            'text': 'hmm',
+          },
+          {'id': 'm1', 'role': 'agent', 'kind': 'text', 'text': 'done'},
+        ],
+        hideToolCalls: true,
+        shouldRenderAgentEvent: (_) => true,
+        shouldHideToolCall: (msg, {required hideToolCalls}) =>
+            hideToolCalls && msg['kind'] == 'tool-call',
+      );
+      expect(items.length, 3);
+      expect(items[1]?['kind'], 'hidden-tool-summary');
+      expect((items[1]!['tools'] as List), isEmpty);
+      expect((items[1]!['items'] as List).length, 1);
+    });
+
+    test('keeps thinking blocks inline when hideToolCalls is false', () {
+      final items = buildChatListItems(
+        visibleMessages: [
+          {
+            'id': 'th1',
+            'role': 'agent',
+            'kind': 'text',
+            'isThinking': true,
+            'text': 'hmm',
+          },
+          {'id': 'm1', 'role': 'agent', 'kind': 'text', 'text': 'done'},
+        ],
+        hideToolCalls: false,
+        shouldRenderAgentEvent: (_) => true,
+        shouldHideToolCall: (msg, {required hideToolCalls}) =>
+            hideToolCalls && msg['kind'] == 'tool-call',
+      );
+      expect(items.length, 2);
+      expect(items[0]?['id'], 'th1');
+      expect(items[1]?['id'], 'm1');
+    });
+
     test('filters agent events via predicate', () {
       final items = buildChatListItems(
         visibleMessages: [

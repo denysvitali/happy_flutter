@@ -20,8 +20,14 @@ typedef MessageErrorHandler =
 ///
 /// - Drops `_orphanRecovery` synthetic placeholders
 /// - Drops agent-events when [shouldRenderAgentEvent] returns false
-/// - Collapses consecutive hidden tool-calls into one
-///   `hidden-tool-summary` row when [hideToolCalls] is true
+/// - When [hideToolCalls] is true, collapses consecutive hidden
+///   tool-calls AND thinking blocks into one `hidden-tool-summary`
+///   row. Thinking folds into the same group so an agentic loop
+///   (think -> tool -> think -> tool) renders as a single summary
+///   instead of an alternating wall of "Thinking" and
+///   "1 tool complete" rows. The summary exposes two keys:
+///   `tools` (tool-calls only, drives the counts label) and
+///   `items` (everything collapsed, in original order).
 /// - Inserts a `null` sentinel after a user `/clear` message (divider)
 ///
 /// Items may be `null` (cleared-divider markers). Callers that need a
@@ -34,21 +40,27 @@ List<Map<String, dynamic>?> buildChatListItems({
   MessageErrorHandler? onMessageError,
 }) {
   final items = <Map<String, dynamic>?>[];
-  var hiddenToolCalls = <Map<String, dynamic>>[];
+  var hiddenGroup = <Map<String, dynamic>>[];
 
-  void flushHiddenToolCalls() {
-    if (hiddenToolCalls.isEmpty) return;
+  void flushHiddenGroup() {
+    if (hiddenGroup.isEmpty) return;
     final first =
-        hiddenToolCalls.first['id'] as String? ??
-        hiddenToolCalls.first['toolUseId'] as String? ??
+        hiddenGroup.first['id'] as String? ??
+        hiddenGroup.first['toolUseId'] as String? ??
         'hidden-tool-${items.length}';
     items.add({
       'kind': 'hidden-tool-summary',
       'id': 'hidden-tool-summary-$first',
       'role': 'agent',
-      'tools': hiddenToolCalls,
+      // Tool calls only — drives the "N tools complete" counts.
+      'tools': hiddenGroup
+          .where((m) => m['kind'] == 'tool-call')
+          .toList(growable: false),
+      // Everything collapsed, in original order (tools + thinking) —
+      // rendered when the summary row is expanded.
+      'items': List<Map<String, dynamic>>.unmodifiable(hiddenGroup),
     });
-    hiddenToolCalls = <Map<String, dynamic>>[];
+    hiddenGroup = <Map<String, dynamic>>[];
   }
 
   for (final msg in visibleMessages) {
@@ -58,11 +70,18 @@ List<Map<String, dynamic>?> buildChatListItems({
           !shouldRenderAgentEvent(msg['event'])) {
         continue;
       }
-      if (shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
-        hiddenToolCalls.add(msg);
+      // With tool calls hidden, thinking blocks fold into the same
+      // collapsed group — they are working noise too, and leaving them
+      // inline would break tool runs into many "1 tool complete" rows.
+      if (hideToolCalls && msg['isThinking'] == true) {
+        hiddenGroup.add(msg);
         continue;
       }
-      flushHiddenToolCalls();
+      if (shouldHideToolCall(msg, hideToolCalls: hideToolCalls)) {
+        hiddenGroup.add(msg);
+        continue;
+      }
+      flushHiddenGroup();
       items.add(msg);
       final role = msg['role'] as String?;
       final content = msg['content'] ?? msg['text'];
@@ -78,6 +97,6 @@ List<Map<String, dynamic>?> buildChatListItems({
       }
     }
   }
-  flushHiddenToolCalls();
+  flushHiddenGroup();
   return items;
 }

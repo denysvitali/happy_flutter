@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart';
+import 'thinking_block.dart';
 
 class HiddenToolSummary extends StatefulWidget {
   const HiddenToolSummary({
@@ -26,7 +27,9 @@ class HiddenToolSummary extends StatefulWidget {
 class _HiddenToolSummaryState extends State<HiddenToolSummary> {
   bool _expanded = false;
   Object? _cachedToolsRef;
+  Object? _cachedItemsRef;
   List<Map<String, dynamic>> _cachedTools = const [];
+  List<Map<String, dynamic>> _cachedItems = const [];
   int _cachedCompleted = 0;
   int _cachedPending = 0;
 
@@ -43,12 +46,27 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
       _cachedPending = _cachedTools.where(_isPending).length;
     }
     final tools = _cachedTools;
-    if (tools.isEmpty) return const SizedBox.shrink();
+    // `items` holds everything collapsed into this row, in original
+    // order — tool calls plus folded thinking blocks. Older producers
+    // only set `tools`; fall back to it.
+    final rawItems = widget.data['items'] ?? rawTools;
+    if (!identical(rawItems, _cachedItemsRef)) {
+      _cachedItemsRef = rawItems;
+      _cachedItems = (rawItems as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+    }
+    final items = _cachedItems;
+    if (items.isEmpty) return const SizedBox.shrink();
 
     final completed = _cachedCompleted;
     final pending = _cachedPending;
     final total = tools.length;
-    final summary = pending > 0
+    // A group can be thinking-only (the agent reasoned between texts
+    // without calling a tool) — there is no tool count to report.
+    final summary = total == 0
+        ? 'Thinking'
+        : pending > 0
         ? '$completed of $total tools complete, $pending pending'
         : '$completed tool${completed == 1 ? '' : 's'} complete';
 
@@ -74,7 +92,9 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
                 child: Row(
                   children: [
                     Icon(
-                      Icons.build_circle_outlined,
+                      total == 0
+                          ? Icons.psychology_outlined
+                          : Icons.build_circle_outlined,
                       size: 20,
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -117,14 +137,19 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (final tool in tools)
-                        ToolView(
-                          tool: tool,
-                          metadata: widget.metadata,
-                          sessionId: widget.sessionId,
-                          isSessionOnline: widget.isSessionOnline,
-                          onPress: _onToolPress(tool),
-                        ),
+                      for (final item in items)
+                        item['kind'] == 'tool-call'
+                            ? ToolView(
+                                tool: item,
+                                metadata: widget.metadata,
+                                sessionId: widget.sessionId,
+                                isSessionOnline: widget.isSessionOnline,
+                                onPress: _onToolPress(item),
+                              )
+                            : ThinkingBlock(
+                                content: _thinkingText(item),
+                                storageKey: item['id'] as String?,
+                              ),
                     ],
                   ),
                 )
@@ -148,6 +173,11 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
           : '/chat/$sessionId/message/$messageId';
       context.push(route, extra: tool);
     };
+  }
+
+  static String _thinkingText(Map<String, dynamic> item) {
+    final content = item['content'] ?? item['text'] ?? '';
+    return content is String ? content : content.toString();
   }
 
   bool _isCompleted(Map<String, dynamic> tool) {

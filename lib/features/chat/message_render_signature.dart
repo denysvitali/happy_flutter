@@ -112,6 +112,7 @@ const _messageSignatureKeys = <String>[
   'permission',
   'children',
   'tools',
+  'items',
   'event',
   'taskEvent',
   'taskStatus',
