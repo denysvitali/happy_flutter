@@ -147,7 +147,65 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      expect(find.textContaining('Lines'), findsOneWidget);
+      // Two lines came back (EOF), so the range ends at 12 — not at the
+      // requested offset+limit — and the agent-reported total renders
+      // as "of 100".
+      expect(find.text('Lines 11–12 of 100'), findsOneWidget);
+    });
+
+    testWidgets(
+      'line-range chip uses rendered lines, not chunk length, '
+      'for offset/limit reads',
+      (tester) async {
+        // Regression: an offset+limit Read returned a 15-line chunk from
+        // a much larger file. The chip treated the chunk length as the
+        // file total and clamped the end line down to it, rendering the
+        // nonsense label "Lines 321–15 of 15" (from > to).
+        final catNContent = [
+          for (var i = 320; i <= 334; i++) '   $i\tline $i',
+        ].join('\n');
+
+        await tester.pumpWidget(
+          _wrap(
+            ReadView(
+              tool: {
+                'input': {
+                  'file_path': '/big.dart',
+                  'offset': 320,
+                  'limit': 15,
+                },
+                'state': 'completed',
+                'result': catNContent,
+              },
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+
+        // The cat -n start line is authoritative: 320–334. No "of Z"
+        // total — a plain string result carries no file-total info.
+        expect(find.text('Lines 320–334'), findsOneWidget);
+        expect(find.textContaining('of 15'), findsNothing);
+      },
+    );
+
+    testWidgets('full-file string read shows line-count chip',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          ReadView(
+            tool: {
+              'input': {'file_path': '/f.txt'},
+              'state': 'completed',
+              'result': 'a\nb\nc',
+            },
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.text('3 lines'), findsOneWidget);
     });
 
     testWidgets('shows Content section label', (tester) async {

@@ -53,16 +53,18 @@ class ReadView extends StatelessWidget {
     if (result != null) {
       if (result is String) {
         content = result;
-        totalLines = content.split('\n').length;
+        // NB: no totalLines here — a string result's line count is the
+        // returned CHUNK length, not the file's total. Presenting it as
+        // "of Z" produced nonsense like "Lines 321–15 of 15" whenever an
+        // agent did an offset/limit read.
       } else if (result is Map<String, dynamic>) {
         content =
             result['content'] as String? ??
             result['text'] as String? ??
             result['body'] as String?;
+        // Only an explicit agent-reported count is a genuine file total.
         totalLines =
-            result['totalLines'] as int? ??
-            result['numLines'] as int? ??
-            (content?.split('\n').length ?? 0);
+            result['totalLines'] as int? ?? result['numLines'] as int?;
       }
     }
 
@@ -116,6 +118,14 @@ class _ReadViewContentState extends State<_ReadViewContent> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final content = widget.content;
+    // Parse once: strips Claude Code's `cat -n` prefixes and yields the
+    // file's true first line number for offset/limit reads. The meta row
+    // and the content pane both consume this parse so the "Lines X–Y"
+    // chip can never disagree with the rendered line-number column.
+    final parsed = (content != null && content.isNotEmpty)
+        ? _parseReadContent(content)
+        : null;
+    final renderedLines = parsed?.content.split('\n').length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,23 +152,26 @@ class _ReadViewContentState extends State<_ReadViewContent> {
         // Metadata row: line range / limit / total
         if (widget.offset != null ||
             widget.limit != null ||
-            widget.totalLines != null)
+            widget.totalLines != null ||
+            renderedLines != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.xsm),
             child: _MetaRow(
               offset: widget.offset,
               limit: widget.limit,
               totalLines: widget.totalLines,
+              startLine: parsed?.startLine,
+              renderedLines: renderedLines,
             ),
           ),
         // Content section label + scrollable content block
-        if (content != null && content.isNotEmpty) ...[
+        if (parsed != null) ...[
           const SizedBox(height: AppSpacing.sm),
           SectionLabel(label: context.l10n.toolSectionContent),
           const SizedBox(height: AppSpacing.xs),
           _ContentBlock(
-            content: content,
-            offset: widget.offset,
+            content: parsed.content,
+            startLine: parsed.startLine ?? (widget.offset ?? 0) + 1,
             extension: widget.extension,
           ),
         ],
@@ -299,35 +312,72 @@ class _FileIcon extends StatelessWidget {
 }
 
 class _MetaRow extends StatelessWidget {
-  const _MetaRow({this.offset, this.limit, this.totalLines});
+  const _MetaRow({
+    this.offset,
+    this.limit,
+    this.totalLines,
+    this.startLine,
+    this.renderedLines,
+  });
+
   final int? offset;
   final int? limit;
+
+  /// Genuine file total \u2014 only set when the agent reports it explicitly.
   final int? totalLines;
+
+  /// First line number parsed from `cat -n` output (authoritative).
+  final int? startLine;
+
+  /// Number of lines actually rendered in the content pane.
+  final int? renderedLines;
 
   @override
   Widget build(BuildContext context) {
     final chips = <Widget>[];
 
-    // Build a combined "Lines X-Y of Z" label when possible
-    if (offset != null && limit != null && totalLines != null) {
-      final from = offset! + 1;
-      final to = (offset! + limit!).clamp(0, totalLines!);
-      chips.add(_MetaChip('Lines $from\u2013$to of $totalLines'));
+    // The cat -n start line is authoritative; the offset fallback keeps
+    // the historical skip-count semantics for non-cat-n agents.
+    final from = startLine ?? (offset != null ? offset! + 1 : null);
+    final int? to;
+    if (from != null && renderedLines != null) {
+      // Trust what was actually rendered over what was requested \u2014 a
+      // chunk that hits EOF is shorter than `limit`, and the file's real
+      // total is unknown for plain string results.
+      to = from + renderedLines! - 1;
+    } else if (from != null && limit != null) {
+      to = from + limit! - 1;
     } else {
-      if (offset != null) {
-        chips.add(_MetaChip('From line ${offset! + 1}'));
+      to = null;
+    }
+
+    void addSpacer() {
+      if (chips.isNotEmpty) {
+        chips.add(const SizedBox(width: AppSpacing.xsm));
+      }
+    }
+
+    if (from != null && to != null) {
+      chips.add(
+        _MetaChip(
+          totalLines != null
+              ? 'Lines $from\u2013$to of $totalLines'
+              : 'Lines $from\u2013$to',
+        ),
+      );
+    } else {
+      if (from != null) {
+        addSpacer();
+        chips.add(_MetaChip('From line $from'));
       }
       if (limit != null) {
-        if (chips.isNotEmpty) {
-          chips.add(const SizedBox(width: AppSpacing.xsm));
-        }
+        addSpacer();
         chips.add(_MetaChip('Limit: $limit'));
       }
-      if (totalLines != null) {
-        if (chips.isNotEmpty) {
-          chips.add(const SizedBox(width: AppSpacing.xsm));
-        }
-        chips.add(_MetaChip('$totalLines lines'));
+      final count = totalLines ?? renderedLines;
+      if (count != null) {
+        addSpacer();
+        chips.add(_MetaChip('$count lines'));
       }
     }
 
@@ -363,11 +413,17 @@ class _MetaChip extends StatelessWidget {
 class _ContentBlock extends StatefulWidget {
   const _ContentBlock({
     required this.content,
-    required this.offset,
+    required this.startLine,
     required this.extension,
   });
+
+  /// File content with any `cat -n` prefixes already stripped by the
+  /// parent (see `_parseReadContent`).
   final String content;
-  final int? offset;
+
+  /// First line number for the line-number column — the file's true
+  /// index for offset/limit reads.
+  final int startLine;
   final String extension;
 
   @override
@@ -397,16 +453,10 @@ class _ContentBlockState extends State<_ContentBlock> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    // Claude Code's Read tool wraps its result in `cat -n` output: each
-    // line is prefixed with a right-aligned line number + tab (e.g.
-    // `     1\tvoid main() {`). The view already renders its own
-    // line-number column, so without stripping the prefixes we'd render
-    // line numbers twice. `_parseReadContent` also drops the single
-    // trailing `\n` that `cat -n` always emits, so the split count
-    // matches the actual rendered lines (no phantom row past EOF).
-    final parsed = _parseReadContent(widget.content);
-    final lines = parsed.content.split('\n');
-    final startLine = parsed.startLine ?? (widget.offset ?? 0) + 1;
+    // Content arrives already parsed (cat -n prefixes stripped, trailing
+    // newline trimmed), so the split count matches the rendered lines.
+    final lines = widget.content.split('\n');
+    final startLine = widget.startLine;
 
     return Container(
       decoration: BoxDecoration(
@@ -448,7 +498,7 @@ class _ContentBlockState extends State<_ContentBlock> {
                   // Content column with syntax highlighting
                   Expanded(
                     child: SyntaxHighlighter(
-                      code: parsed.content,
+                      code: widget.content,
                       language: widget.extension.isNotEmpty
                           ? widget.extension.replaceFirst('.', '')
                           : null,
