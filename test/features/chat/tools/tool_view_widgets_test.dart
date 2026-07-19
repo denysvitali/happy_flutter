@@ -61,9 +61,21 @@ void main() {
       final line = tester.widget<RichText>(
         find.text('Terminal  ls -la', findRichText: true),
       );
-      final span = line.text as TextSpan;
-      final subtitleSpan = span.children!.last as TextSpan;
-      expect(subtitleSpan.style?.fontFamily, 'monospace');
+      // Text.rich wraps the span we pass in framework-level TextSpans
+      // (DefaultTextStyle merge), so walk the tree and collect the leaf
+      // spans that actually carry text.
+      final leaves = <TextSpan>[];
+      void collect(InlineSpan span) {
+        if (span is! TextSpan) return;
+        if (span.text != null && span.text!.isNotEmpty) leaves.add(span);
+        for (final child in span.children ?? const <InlineSpan>[]) {
+          collect(child);
+        }
+      }
+
+      collect(line.text);
+      expect(leaves.map((s) => s.text), ['Terminal', '  ls -la']);
+      expect(leaves.last.style?.fontFamily, 'monospace');
     });
 
     testWidgets('running shows a quiet spinner and no pill label', (

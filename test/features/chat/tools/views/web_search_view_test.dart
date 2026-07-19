@@ -62,7 +62,10 @@ void main() {
       ),
     );
 
-    expect(find.text('Dart 3.11 release notes'), findsOneWidget);
+    expect(
+      find.textContaining('Dart 3.11 release notes', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.text('Dart SDK changelog'), findsNothing);
     expect(find.byIcon(Icons.expand_more), findsNothing);
   });
