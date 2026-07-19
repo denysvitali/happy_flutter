@@ -1349,8 +1349,8 @@ void main() {
       expect(result, isNull);
     });
 
-    test('builtInProfiles returns all 8 profiles', () {
-      expect(builtInProfiles.length, 8);
+    test('builtInProfiles returns all 9 profiles', () {
+      expect(builtInProfiles.length, 9);
       final ids = builtInProfiles.map((p) => p.id).toSet();
       expect(
         ids,
@@ -1360,6 +1360,7 @@ void main() {
           'zai',
           'minimax',
           'xiaomi-mimo',
+          'qwen',
           'openrouter',
           'openai',
           'azure-openai',

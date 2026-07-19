@@ -69,6 +69,14 @@ ProfileSetupOption? _profileSetupOptionForId(String id) {
         icon: Icons.rocket_launch,
         apiKeyLabel: 'Xiaomi MiMo API Key',
       );
+    case 'qwen':
+      return const ProfileSetupOption(
+        id: 'qwen',
+        label: 'Qwen',
+        shortDescription: 'qwen3.7-max',
+        icon: Icons.generating_tokens,
+        apiKeyLabel: 'Qwen API Key',
+      );
     case 'openrouter':
       return const ProfileSetupOption(
         id: 'openrouter',
@@ -254,6 +262,48 @@ AIBackendProfile? profileSetupTemplate(String id) {
           EnvironmentVariable(
             name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
             value: 'mimo-v2.5-pro',
+          ),
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '3000000'),
+          EnvironmentVariable(
+            name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+            value: '1',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          gemini: false,
+        ),
+      );
+    case 'qwen':
+      return AIBackendProfile(
+        id: 'qwen',
+        name: 'Qwen (Token Plan)',
+        description:
+            'Qwen Cloud Token Plan via Anthropic-compatible interface',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value:
+                'https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic',
+          ),
+          EnvironmentVariable(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
+          EnvironmentVariable(name: 'ANTHROPIC_MODEL', value: 'qwen3.7-max'),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_SMALL_FAST_MODEL',
+            value: 'qwen3.7-max',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+            value: 'qwen3.7-max',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+            value: 'qwen3.7-max',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+            value: 'qwen3.7-max',
           ),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '3000000'),
           EnvironmentVariable(

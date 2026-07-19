@@ -12,6 +12,7 @@ const _builtInIds = [
   'zai',
   'minimax',
   'xiaomi-mimo',
+  'qwen',
   'openrouter',
   'openai',
   'azure-openai',
@@ -260,6 +261,61 @@ AIBackendProfile? getBuiltInProfile(String id) {
             name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
             value:
                 r'${XIAOMI_MIMO_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          gemini: false,
+          pi: true,
+        ),
+      );
+
+    case 'qwen':
+      return AIBackendProfile(
+        id: 'qwen',
+        name: 'Qwen (Token Plan)',
+        description:
+            'Qwen Cloud Token Plan via Anthropic-compatible interface',
+        isBuiltIn: true,
+        defaultModelMode: 'qwen3.7-max',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value:
+                r'${QWEN_BASE_URL:-https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_AUTH_TOKEN',
+            value: r'${QWEN_API_KEY:-}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_MODEL',
+            value: r'${QWEN_MODEL:-qwen3.7-max}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_SMALL_FAST_MODEL',
+            value: r'${QWEN_SMALL_FAST_MODEL:-qwen3.7-max}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+            value: r'${QWEN_SONNET_MODEL:-qwen3.7-max}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+            value: r'${QWEN_OPUS_MODEL:-qwen3.7-max}',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+            value: r'${QWEN_HAIKU_MODEL:-qwen3.7-max}',
+          ),
+          EnvironmentVariable(
+            name: 'API_TIMEOUT_MS',
+            value: r'${QWEN_API_TIMEOUT_MS:-3000000}',
+          ),
+          EnvironmentVariable(
+            name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+            value: r'${QWEN_CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:-1}',
           ),
         ],
         compatibility: const ProfileCompatibility(

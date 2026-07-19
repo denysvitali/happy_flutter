@@ -85,6 +85,7 @@ void main() {
           'zai' => 'Z.AI GLM',
           'minimax' => 'MiniMax',
           'xiaomi-mimo' => 'Xiaomi MiMo',
+          'qwen' => 'Qwen',
           'openai' => 'OpenAI',
           _ => profile.name,
         };
