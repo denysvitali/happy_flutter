@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_scroll_behavior.dart';
 import 'package:happy_flutter/features/chat/widgets/message_detail_sheet.dart';
 
 Widget _wrap(Widget child) {
   return ProviderScope(
     child: MaterialApp(
+      // Install the app's real scroll behavior. The copy sheet's scroll bug
+      // only reproduces under AppScrollBehavior (Bouncing + AlwaysScrollable):
+      // that is what lets SelectableText's zero-extent inner Scrollable steal
+      // the vertical drag and spring back to the top. The default test
+      // behavior is clamping, which masks the bug — so a regression test that
+      // omits this would pass on CI while still broken on a device.
+      scrollBehavior: const AppScrollBehavior(),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: child),

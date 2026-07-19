@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/tts_service.dart';
+import '../../../core/theme/app_scroll_behavior.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/utils/wire_parsers.dart';
@@ -202,12 +203,19 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
             child: SingleChildScrollView(
               controller: scrollController,
               padding: const EdgeInsets.all(AppSpacing.lg),
-              child: SelectableText(
-                markdown,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontFamily: 'monospace',
-                  fontSize: AppFontSize.md,
-                  height: 1.5,
+              // SelectableText nests a zero-extent Scrollable that, under the
+              // app's bouncing/always-scrollable behavior, steals the vertical
+              // drag and springs back to the top — so the pane above never
+              // scrolls. Clamping its descendants lets the drag fall through.
+              child: ScrollConfiguration(
+                behavior: const NeutralizeInnerScrollBehavior(),
+                child: SelectableText(
+                  markdown,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'monospace',
+                    fontSize: AppFontSize.md,
+                    height: 1.5,
+                  ),
                 ),
               ),
             ),
