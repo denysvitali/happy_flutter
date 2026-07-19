@@ -127,19 +127,9 @@ class CodexPatchView extends StatelessWidget {
     }
 
     for (final entry in map.entries) {
-      final path = entry.key;
-      final data = WireParsers.asMap(entry.value) ?? {};
-      final normalizedKind = _normalizedKind(data);
-      final changeData = _normalizedChangeData(data, normalizedKind);
-      result.add(
-        FileChange(
-          path: path,
-          hasAdd: changeData['add'] != null,
-          hasModify: changeData['modify'] != null,
-          hasDelete: changeData['delete'] != null,
-          changeData: changeData,
-        ),
-      );
+      final path = entry.key.toString();
+      final change = _fileChangeFromValue(entry.value, pathHint: path);
+      if (change != null) result.add(change);
     }
     return result;
   }
@@ -156,11 +146,39 @@ class CodexPatchView extends StatelessWidget {
   }
 
   FileChange? _fileChangeFromData(Map<String, dynamic> data) {
-    final path = _pathFromChangeData(data);
+    return _fileChangeFromValue(data);
+  }
+
+  FileChange? _fileChangeFromValue(dynamic rawData, {String? pathHint}) {
+    final data = WireParsers.asMap(rawData);
+    if (data == null) {
+      final patch = _extractChangeText(rawData);
+      if (pathHint == null || patch == null || patch.isEmpty) return null;
+      return FileChange(
+        path: pathHint,
+        hasAdd: false,
+        hasModify: true,
+        hasDelete: false,
+        changeData: {
+          'modify': {'patch': patch},
+        },
+      );
+    }
+
+    final path = _pathFromChangeData(data) ?? pathHint;
     if (path == null || path.isEmpty) return null;
 
     final normalizedKind = _normalizedKind(data);
-    final changeData = _normalizedChangeData(data, normalizedKind);
+    var changeData = _normalizedChangeData(data, normalizedKind);
+    // Some providers use a path → patch-text map, or wrap the patch in a
+    // provider-specific envelope without an operation discriminator. Keep
+    // those changes visible as edits instead of producing a blank file row.
+    if (!_hasOperation(changeData)) {
+      final extractedText = _extractChangeText(data);
+      final fallbackData = <String, dynamic>{...data};
+      if (extractedText != null) fallbackData['patch'] = extractedText;
+      changeData = {'modify': fallbackData};
+    }
     return FileChange(
       path: path,
       hasAdd: changeData['add'] != null,
@@ -211,8 +229,10 @@ class CodexPatchView extends StatelessWidget {
     String? normalizedKind,
   ) {
     final changeData = <String, dynamic>{};
-    for (final op in const ['add', 'modify', 'delete']) {
-      final opValue = data[op];
+    for (final entry in data.entries) {
+      final op = _canonicalOperation(entry.key);
+      if (op == null) continue;
+      final opValue = entry.value;
       if (opValue == null) continue;
       final opMap = WireParsers.asMap(opValue);
       changeData[op] = opMap ?? {'content': opValue.toString()};
@@ -234,8 +254,85 @@ class CodexPatchView extends StatelessWidget {
       ..remove('operation')
       ..remove('op')
       ..remove('action')
-      ..remove('type');
+      ..remove('type')
+      ..remove('add')
+      ..remove('added')
+      ..remove('create')
+      ..remove('created')
+      ..remove('modify')
+      ..remove('modified')
+      ..remove('update')
+      ..remove('updated')
+      ..remove('edit')
+      ..remove('edited')
+      ..remove('delete')
+      ..remove('deleted')
+      ..remove('remove')
+      ..remove('removed');
     return {kind: details};
+  }
+
+  String? _canonicalOperation(Object? key) {
+    return switch (key?.toString().toLowerCase()) {
+      'add' || 'added' || 'create' || 'created' => 'add',
+      'modify' ||
+      'modified' ||
+      'update' ||
+      'updated' ||
+      'edit' ||
+      'edited' => 'modify',
+      'delete' || 'deleted' || 'remove' || 'removed' => 'delete',
+      _ => null,
+    };
+  }
+
+  bool _hasOperation(Map<String, dynamic> data) =>
+      data.containsKey('add') ||
+      data.containsKey('modify') ||
+      data.containsKey('delete');
+
+  String? _extractChangeText(dynamic value) {
+    if (value is String) return value.isEmpty ? null : value;
+
+    final list = WireParsers.asList(value);
+    if (list != null) {
+      final parts = list
+          .map(_extractChangeText)
+          .whereType<String>()
+          .where((part) => part.isNotEmpty)
+          .toList();
+      return parts.isEmpty ? null : parts.join('\n');
+    }
+
+    final map = WireParsers.asMap(value);
+    if (map == null) return null;
+
+    // Prefer actual patch/content fields over metadata such as `kind` or
+    // `operation`, which would otherwise be displayed as the diff body.
+    for (final key in const [
+      'patch',
+      'diff',
+      'unified_diff',
+      'before',
+      'old',
+      'original',
+      'after',
+      'new',
+      'oldText',
+      'newText',
+      'old_string',
+      'new_string',
+      'content',
+      'text',
+      'body',
+      'changes',
+      'edits',
+      'output',
+    ]) {
+      final text = _extractChangeText(map[key]);
+      if (text != null && text.isNotEmpty) return text;
+    }
+    return null;
   }
 
   String? _inferKindFromFields(Map<String, dynamic> data) {
@@ -244,7 +341,11 @@ class CodexPatchView extends StatelessWidget {
         data.containsKey('original') ||
         data.containsKey('diff') ||
         data.containsKey('patch') ||
-        data.containsKey('unified_diff')) {
+        data.containsKey('unified_diff') ||
+        data.containsKey('oldText') ||
+        data.containsKey('newText') ||
+        data.containsKey('old_string') ||
+        data.containsKey('new_string')) {
       return 'modify';
     }
     if (data.containsKey('after') ||
@@ -794,13 +895,26 @@ class _FileChangeDetail extends StatelessWidget {
     if (modifyData != null) {
       addContentSection(
         'before',
-        _firstString(modifyData, const ['before', 'old', 'original']),
+        _firstString(modifyData, const [
+          'before',
+          'old',
+          'original',
+          'oldText',
+          'old_string',
+        ]),
         AppColors.error,
         null,
       );
       addContentSection(
         'after',
-        _firstString(modifyData, const ['after', 'new', 'content', 'text']),
+        _firstString(modifyData, const [
+          'after',
+          'new',
+          'content',
+          'text',
+          'newText',
+          'new_string',
+        ]),
         AppColors.success,
         null,
       );

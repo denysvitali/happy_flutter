@@ -232,6 +232,37 @@ void main() {
       );
       expect(_findRichTextContaining('+final enabled = true;'), findsOneWidget);
     });
+
+    testWidgets('renders path-to-patch maps as editable file changes', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          CodexPatchView(
+            tool: {
+              'input': {
+                'changes': {
+                  'lib/first.dart': '@@\n-old value\n+new value\n',
+                  'lib/second.dart': {
+                    'updated': {'oldText': 'before', 'newText': 'after'},
+                  },
+                },
+              },
+            },
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 files changed'), findsOneWidget);
+      expect(_findRichTextContaining('first.dart'), findsAtLeastNWidgets(1));
+      expect(_findRichTextContaining('second.dart'), findsAtLeastNWidgets(1));
+      expect(_findRichTextContaining('-old value'), findsOneWidget);
+      expect(_findRichTextContaining('+new value'), findsOneWidget);
+      expect(_findRichTextContaining('-before'), findsOneWidget);
+      expect(_findRichTextContaining('+after'), findsOneWidget);
+    });
   });
 
   group('ToolView apply_patch', () {
