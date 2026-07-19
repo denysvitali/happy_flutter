@@ -563,39 +563,48 @@ class _AgentConversationScreenState
 
   ToolState _parseToolState(String state) => parseToolState(state);
 
-  /// Collapses the sub-agent activity feed so transient `task_progress`
-  /// ticks don't drown the result. While the task is running, consecutive
-  /// identical progress chips collapse to one live 'currently doing' row.
-  /// Once finished, those transient chips are dropped entirely — the
-  /// completion summary text row carries the outcome, and the wire never
-  /// exposes the inner tool calls anyway.
+  /// Collapses the sub-agent activity feed so transient indicators don't
+  /// drown the result. Transient = sub-agent progress chips and thinking
+  /// placeholders: content-less rows the screen shows while work happens.
+  /// While the task runs, a run of identical transient rows collapses to
+  /// one live indicator. Once finished they're dropped entirely — the
+  /// completion summary carries the outcome, the wire never exposes the
+  /// inner tool calls, and the thinking content isn't rendered here.
   List<Map<String, dynamic>> _buildDisplayChildren(
     List<Map<String, dynamic>> children,
     bool isRunning,
   ) {
     final out = <Map<String, dynamic>>[];
-    String? prevTool;
-    String? prevMsg;
-    var prevWasEvent = false;
+    String? prevTransientKey;
     for (final c in children) {
-      if (c['kind'] != 'agent-event') {
-        prevWasEvent = false;
+      final key = _transientKey(c);
+      if (key == null) {
+        prevTransientKey = null;
         out.add(c);
         continue;
       }
-      if (c['taskEvent'] == true && !isRunning) continue;
-      final ev = WireParsers.asMap(c['event']);
-      final tool = c['subAgentLastTool'] as String? ?? '';
-      final msg = ev?['message'] as String? ?? '';
-      if (prevWasEvent && prevTool == tool && prevMsg == msg) {
-        continue;
-      }
-      prevTool = tool;
-      prevMsg = msg;
-      prevWasEvent = true;
+      if (!isRunning) continue;
+      if (key == prevTransientKey) continue;
+      prevTransientKey = key;
       out.add(c);
     }
     return out;
+  }
+
+  /// Collapse key when [c] is a transient, content-less activity indicator
+  /// (a sub-agent progress chip or a thinking placeholder); `null` for
+  /// durable rows (real text, tool calls, errors, nested tasks).
+  String? _transientKey(Map<String, dynamic> c) {
+    if (c['kind'] == 'text' && c['isThinking'] == true) {
+      return 'thinking';
+    }
+    if (c['kind'] == 'agent-event' && c['taskEvent'] == true) {
+      final ev = WireParsers.asMap(c['event']);
+      final tool = c['subAgentLastTool'] as String? ?? '';
+      final msg = ev?['message'] as String? ?? '';
+      return 'ev:$tool:$msg';
+    }
+    return null;
   }
 }
 
