@@ -604,9 +604,6 @@ class _ToolViewState extends ConsumerState<ToolView>
             state: state,
             createdAt: createdAt,
             statusIcon: statusIcon,
-            accentColor: hasPermissionRequest
-                ? permissionColor
-                : typeAccentColor,
             hasContent: hasContent,
             showCheckFlash: _showCheckFlash,
             chevronAnim: _chevronAnim,
@@ -710,40 +707,31 @@ class _ToolViewState extends ConsumerState<ToolView>
           final accentBorder = BorderSide(
             color: emphasizeAccent
                 ? accentColor.withValues(alpha: borderOpacity)
-                : typeAccentColor.withValues(alpha: 0.72),
+                : typeAccentColor.withValues(alpha: 0.68),
             width: emphasizeAccent ? AppBorder.accent : AppBorder.thick,
           );
           final sideBorder = BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.72),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.38),
             width: AppBorder.hairline,
           );
-          final surface = Color.alphaBlend(
-            typeAccentColor.withValues(alpha: emphasizeAccent ? 0.075 : 0.045),
-            state == ToolState.completed
-                ? theme.colorScheme.surfaceContainerLow
-                : theme.colorScheme.surfaceContainer,
-          );
+          final surface = state == ToolState.completed
+              ? theme.colorScheme.surfaceContainerLow
+              : theme.colorScheme.surfaceContainer;
 
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              boxShadow: AppElevationShadow.card(theme.brightness),
-            ),
-            child: ClipRRect(
-              clipBehavior: Clip.hardEdge,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: surface,
-                  border: Border(
-                    left: accentBorder,
-                    top: sideBorder,
-                    right: sideBorder,
-                    bottom: sideBorder,
-                  ),
+          return ClipRRect(
+            clipBehavior: Clip.hardEdge,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Container(
+              decoration: BoxDecoration(
+                color: surface,
+                border: Border(
+                  left: accentBorder,
+                  top: sideBorder,
+                  right: sideBorder,
+                  bottom: sideBorder,
                 ),
-                child: child,
               ),
+              child: child,
             ),
           );
         },
