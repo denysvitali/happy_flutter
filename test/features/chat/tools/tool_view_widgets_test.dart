@@ -109,7 +109,10 @@ void main() {
       );
 
       final iconTile = tester.widget<DecoratedBox>(
-        find.byType(DecoratedBox).first,
+        find.descendant(
+          of: find.byType(ToolHeader),
+          matching: find.byType(DecoratedBox),
+        ),
       );
       final decoration = iconTile.decoration as BoxDecoration;
       expect(decoration.color, accent.withValues(alpha: 0.14));
@@ -138,7 +141,10 @@ void main() {
       );
 
       final iconTile = tester.widget<DecoratedBox>(
-        find.byType(DecoratedBox).first,
+        find.descendant(
+          of: find.byType(ToolHeader),
+          matching: find.byType(DecoratedBox),
+        ),
       );
       final decoration = iconTile.decoration as BoxDecoration;
       expect(decoration.color, colorScheme.error.withValues(alpha: 0.14));
@@ -146,7 +152,7 @@ void main() {
   });
 
   group('toolAccentColor', () {
-    final colorScheme = ColorScheme.light();
+    final colorScheme = ColorScheme.fromSeed(seedColor: Colors.indigo);
 
     test('keeps tool families visually distinct', () {
       expect(
