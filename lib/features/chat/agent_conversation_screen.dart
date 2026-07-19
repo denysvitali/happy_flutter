@@ -258,6 +258,26 @@ class _AgentConversationScreenState
         )?.whereType<Map<String, dynamic>>().toList() ??
         [];
 
+    final metadata = WireParsers.asMap(_taskMsg?['metadata']);
+    String? childModel;
+    for (final c in children) {
+      final m = _nonEmptyStr(c['model']);
+      if (m != null) {
+        childModel = m;
+        break;
+      }
+    }
+    // The model the sub-agent was invoked with. The Agent tool input
+    // only carries `model` when the parent passed one explicitly; the
+    // daemon otherwise records it on the sidechain assistant messages
+    // (child `model`), never on the Task message itself.
+    final subagentModel = _nonEmptyStr(input?['model']) ??
+        _nonEmptyStr(metadata?['model']) ??
+        childModel;
+    // The Task message's own `model` is the orchestrator that spawned
+    // this sub-agent (see output_content_handler), not the sub-agent's.
+    final parentModel = _nonEmptyStr(_taskMsg?['model']);
+
     final showPrompt =
         promptRaw != null &&
         promptRaw.isNotEmpty &&
@@ -289,15 +309,19 @@ class _AgentConversationScreenState
             ),
           );
 
-    final body = showPrompt
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _PromptSection(prompt: promptRaw),
-              Expanded(child: messagesView),
-            ],
-          )
-        : messagesView;
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DebugInfoCard(
+          state: state,
+          messageId: widget.messageId,
+          subagentModel: subagentModel,
+          parentModel: parentModel,
+        ),
+        if (showPrompt) _PromptSection(prompt: promptRaw),
+        Expanded(child: messagesView),
+      ],
+    );
 
     if (!widget.embedded) {
       return Scaffold(
@@ -849,6 +873,140 @@ class _PromptSectionState extends State<_PromptSection> {
                     ),
                   )
                 : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------
+// Debug info card (model / state / id)
+// ----------------------------------------------------------
+
+/// Returns [v] when it is a non-empty string, else `null`.
+String? _nonEmptyStr(dynamic v) => (v is String && v.isNotEmpty) ? v : null;
+
+/// Compact, always-visible debug card shown at the top of the agent
+/// conversation feed. Mirrors the label/value rows in
+/// `message_detail_screen` so the model a sub-agent was invoked with is
+/// no longer invisible when something goes wrong (e.g. a gateway
+/// "Model not exist." 400).
+class _DebugInfoCard extends StatelessWidget {
+  const _DebugInfoCard({
+    required this.state,
+    required this.messageId,
+    this.subagentModel,
+    this.parentModel,
+  });
+
+  final String state;
+  final String messageId;
+  final String? subagentModel;
+  final String? parentModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    // Local copy so flow analysis promotes it past the null check
+    // below (a public getter would not be promoted).
+    final resolvedParentModel = parentModel;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        0,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.smd),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.bug_report_outlined,
+                  size: 16,
+                  color: cs.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                // TODO(i18n): localize these debug-card labels.
+                Text(
+                  'Debug',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            _DebugRow(
+              label: 'Model',
+              value: subagentModel ?? '—',
+              mono: true,
+            ),
+            if (subagentModel == null && resolvedParentModel != null)
+              _DebugRow(
+                label: 'Parent model',
+                value: resolvedParentModel,
+                mono: true,
+              ),
+            _DebugRow(label: 'State', value: state),
+            _DebugRow(label: 'ID', value: messageId, mono: true),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DebugRow extends StatelessWidget {
+  const _DebugRow({
+    required this.label,
+    required this.value,
+    this.mono = false,
+  });
+
+  final String label;
+  final String value;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: mono ? 'monospace' : null,
+              ),
+            ),
           ),
         ],
       ),
