@@ -219,7 +219,7 @@ Guard on `sync.isInitialized` — `loadFromSync()` is a no-op when `false`. `syn
 
 **InvalidateSync fields (13):** `sessionsSync`, `settingsSync`, `profileSync`, `purchasesSync`, `machinesSync`, `pushTokenSync`, `nativeUpdateSync`, `artifactsSync`, `friendsSync`, `friendRequestsSync`, `feedSync`, `todosSync`, `sessionGitStatusSync`. `messagesSync` is `Map<String, InvalidateSync>` (per-session).
 
-**Lifecycle handling:** `Sync.suspend()` disconnects socket (unless rapid cycling detected), cancels all timers, flushes MMKV. `Sync.resume()` reconnects socket and invalidates syncs. Rapid lifecycle cycling (resume→suspend within 2s) keeps socket connected to avoid reconnect cascades.
+**Lifecycle handling:** `Sync.suspend()` disconnects socket after a 2s grace (deferred timer; cancels if resumed sooner), cancels all timers, flushes MMKV. `Sync.resume()` reconnects the socket and invalidates syncs; it also forces a fresh connection when a socket still claims `connected` after >60s backgrounded (zombie — the server-side session dies ~45s after heartbeats stop). Rapid lifecycle cycling (resume→suspend within 2s) keeps socket connected to avoid reconnect cascades. A 15s reconnect watchdog armed on resume re-arms itself while disconnected (cancelled on connect/suspend), and `Sync.forceReconnect()` is the manual "Reconnect now" entry point (offline banner) — it dials fresh and arms the same watchdog.
 
 See @docs/SYNC_PATTERNS.md for subscription template and details.
 

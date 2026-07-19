@@ -364,6 +364,10 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   set testLastSuspendedAtMs(int? value) => _lastSuspendedAtMs = value;
 
+  /// Test helper: whether the reconnection watchdog timer is armed.
+  @visibleForTesting
+  bool get testHasReconnectWatchdog => _reconnectWatchdogTimer != null;
+
   /// Test helper: check if _pendingUpdateSessionIds is empty.
   @visibleForTesting
   bool testPendingUpdateSessionIdsEmpty() => _pendingUpdateSessionIds.isEmpty;

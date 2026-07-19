@@ -57,6 +57,8 @@ Or use `createTestSync()` from `test/helpers/test_helpers.dart` which pre-wires 
 
 - `sync.create()` — Full init for new login; awaits settings/profile/purchases
 - `sync.restore()` — Restore on app restart; does NOT await settings/profile
+- `sync.forceReconnect({reason})` — User-facing "Reconnect now" entry point;
+  forces a fresh socket dial and (re-)arms the reconnect watchdog
 - `sync.onDataChanged` — Stream for data changes (debounced 100ms)
 - `sync.onSessionMessagesChanged` — Stream for session message changes (debounced 100ms)
 - `sync.isInitialized` — Whether sync has been initialized
@@ -70,6 +72,22 @@ Each data type has an `InvalidateSync` for debounced server fetches:
 - `invalidate()` — marks work needed, starts immediately if idle
 - `invalidateAndAwait()` — invalidates and returns a Future for the cycle
 - `dispose()` — cancels retry and cooldown timers
+
+## Reconnect Watchdog
+
+`resume()` arms a 15s watchdog when the socket is not connected (or is a
+zombie — see below). On fire it forces `socketIoClient.reconnect()`,
+invalidates syncs (cooldown-throttled), refreshes the visible session, and
+re-arms itself while the socket stays disconnected. It is cancelled on
+connect, `suspend()`, and `shutdown()`. This bounds foreground recovery to
+~one watchdog period after the network returns, instead of waiting out
+Socket.IO's 10-attempt backoff cycles.
+
+**Zombie sockets:** if the OS suspended the app before the 2s deferred
+suspend-disconnect fired (common on iOS), the socket can still report
+`connected` on resume while the server-side session is long dead. `resume()`
+forces a fresh connection when status is `connected` but the app was
+backgrounded longer than `Sync._zombieSocketMaxIdleMs` (60s).
 
 ## Testing Escape Hatches
 

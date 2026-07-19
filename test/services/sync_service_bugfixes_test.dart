@@ -1112,6 +1112,167 @@ void main() {
       },
     );
   });
+
+  group('Sync reconnect-after-sleep fixes', () {
+    late Sync sync;
+
+    setUp(() {
+      sync = Sync();
+      sync.testIsInitialized = true;
+      sync.encryption = _testEncryption();
+      sync.sessionsSync = InvalidateSync(() async {});
+      sync.settingsSync = InvalidateSync(() async {});
+      sync.profileSync = InvalidateSync(() async {});
+      sync.purchasesSync = InvalidateSync(() async {});
+      sync.machinesSync = InvalidateSync(() async {});
+      sync.pushTokenSync = InvalidateSync(() async {});
+      sync.nativeUpdateSync = InvalidateSync(() async {});
+      sync.artifactsSync = InvalidateSync(() async {});
+      sync.sessionGitStatusSync = InvalidateSync(() async {});
+      sync.messagesSync.clear();
+      sync.testSetVisibleSessionId(null);
+      sync.testClearSessionsWithPendingSocketMessages();
+      sync.testResetLastResumeAtMs();
+      sync.testLastSuspendedAtMs = null;
+      sync.testLastInvalidateAllSyncsAtMs = null;
+      InvalidateSync.isBackgrounded = false;
+      socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
+    });
+
+    tearDown(() {
+      socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
+      InvalidateSync.isBackgrounded = false;
+      sync.testSetVisibleSessionId(null);
+      sync.testLastSuspendedAtMs = null;
+      sync.testLastInvalidateAllSyncsAtMs = null;
+    });
+
+    test(
+      'resume() forces a fresh socket when a long-backgrounded socket '
+      'still reports connected (zombie connection)',
+      () {
+        fakeAsync((async) {
+          // Simulate an OS that suspended the app before the deferred
+          // socket disconnect fired: status still claims connected, but
+          // the app was backgrounded far longer than the server-side
+          // session could survive.
+          final nowMs = DateTime.now().millisecondsSinceEpoch;
+          sync.testLastSuspendedAtMs = nowMs - 120 * 1000;
+          socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+          final reconnectsBefore = socketIoClient.testReconnectRequests;
+          sync.resume();
+
+          expect(
+            socketIoClient.testReconnectRequests,
+            reconnectsBefore + 1,
+            reason:
+                'a socket left idle in the background past the zombie '
+                'threshold must be replaced, not trusted',
+          );
+          expect(
+            sync.testHasReconnectWatchdog,
+            isTrue,
+            reason:
+                'the zombie-socket reconnect must arm the watchdog so '
+                'recovery stays bounded if the fresh dial also fails',
+          );
+        });
+      },
+    );
+
+    test(
+      'resume() keeps a live socket after a short background stay',
+      () {
+        fakeAsync((async) {
+          final nowMs = DateTime.now().millisecondsSinceEpoch;
+          sync.testLastSuspendedAtMs = nowMs - 10 * 1000;
+          socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+          final reconnectsBefore = socketIoClient.testReconnectRequests;
+          sync.resume();
+
+          expect(
+            socketIoClient.testReconnectRequests,
+            reconnectsBefore,
+            reason:
+                'a connected socket within the zombie threshold is still '
+                'alive — tearing it down would waste the connection',
+          );
+          expect(sync.testHasReconnectWatchdog, isFalse);
+        });
+      },
+    );
+
+    test(
+      'reconnect watchdog re-arms while the socket stays disconnected '
+      'and stops once connected',
+      () {
+        fakeAsync((async) {
+          socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
+
+          final reconnectsBefore = socketIoClient.testReconnectRequests;
+          sync.resume();
+          expect(socketIoClient.testReconnectRequests, reconnectsBefore + 1);
+          expect(sync.testHasReconnectWatchdog, isTrue);
+
+          // Watchdog fires after ~15s: forces a fresh reconnect and,
+          // because the socket is still down, re-arms itself.
+          async.elapse(const Duration(milliseconds: 15001));
+          expect(
+            socketIoClient.testReconnectRequests,
+            reconnectsBefore + 2,
+            reason:
+                'watchdog must force a fresh reconnect cycle instead of '
+                'waiting out Socket.IO backoff exhaustion',
+          );
+          expect(
+            sync.testHasReconnectWatchdog,
+            isTrue,
+            reason: 'watchdog must re-arm while still disconnected',
+          );
+
+          // Second cycle — still probing.
+          async.elapse(const Duration(milliseconds: 15001));
+          expect(socketIoClient.testReconnectRequests, reconnectsBefore + 3);
+          expect(sync.testHasReconnectWatchdog, isTrue);
+
+          // Connection recovers: the next watchdog fire observes it and
+          // the chain stops (no further reconnects, no re-arm).
+          socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+          async.elapse(const Duration(milliseconds: 15001));
+          expect(socketIoClient.testReconnectRequests, reconnectsBefore + 3);
+          expect(
+            sync.testHasReconnectWatchdog,
+            isFalse,
+            reason: 'watchdog must stop re-arming once connected',
+          );
+        });
+      },
+    );
+
+    test(
+      'forceReconnect() (manual "Reconnect now") reconnects and arms '
+      'the watchdog',
+      () {
+        fakeAsync((async) {
+          socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
+
+          final reconnectsBefore = socketIoClient.testReconnectRequests;
+          sync.forceReconnect(reason: 'offline_banner');
+
+          expect(socketIoClient.testReconnectRequests, reconnectsBefore + 1);
+          expect(
+            sync.testHasReconnectWatchdog,
+            isTrue,
+            reason:
+                'a manual reconnect must keep the watchdog armed so a '
+                'failed dial is retried on a bounded cadence',
+          );
+        });
+      },
+    );
+  });
 }
 
 // Helper to call shutdown (which is async)

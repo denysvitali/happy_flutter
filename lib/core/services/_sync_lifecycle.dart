@@ -184,12 +184,27 @@ extension SyncLifecycle on Sync {
         '[Sync] rapid resume — previous resume ${lastResumeGapMs}ms ago',
       );
     }
-    final socketAlreadyConnected =
-        socketIoClient.connectionStatus == ConnectionStatus.connected;
+    final socketStatusAtResume = socketIoClient.connectionStatus;
+    // A socket that still reports "connected" after a long background stay
+    // is a zombie: the server-side session dies ~45s after the client stops
+    // heartbeating, and the client cannot notice while the isolate is
+    // suspended. When the OS suspends the app faster than the deferred
+    // disconnect timer fires (common on iOS), resume() would otherwise trust
+    // the stale status and skip both the reconnect and the watchdog, leaving
+    // the app without live updates until the next ping timeout.
+    final backgroundedForMs = _lastSuspendedAtMs != null
+        ? nowMs - _lastSuspendedAtMs!
+        : 0;
+    final zombieSocket =
+        socketStatusAtResume == ConnectionStatus.connected &&
+        backgroundedForMs > Sync._zombieSocketMaxIdleMs;
+    final socketNeedsReconnect =
+        socketStatusAtResume != ConnectionStatus.connected || zombieSocket;
     logger.info(
-      socketAlreadyConnected
-          ? '[Sync] resuming — socket already connected'
-          : '[Sync] resuming — reconnecting socket',
+      socketNeedsReconnect
+          ? '[Sync] resuming — reconnecting socket'
+                '${zombieSocket ? ' (zombie connection detected)' : ''}'
+          : '[Sync] resuming — socket already connected',
     );
     unawaited(
       Sentry.addBreadcrumb(
@@ -200,17 +215,19 @@ extension SyncLifecycle on Sync {
           data: <String, dynamic>{
             'rapidResume': isRapidResume,
             'lastResumeGapMs': lastResumeGapMs,
+            'backgroundedForMs': backgroundedForMs,
             'visibleSessionId': _visibleSessionId,
             'pendingSocketSessions': _sessionsWithPendingSocketMessages.length,
             'messageSyncCount': messagesSync.length,
             'socketDisconnectWasDeferred': socketDisconnectWasDeferred,
-            'socketStatus': socketIoClient.connectionStatus.name,
+            'zombieSocket': zombieSocket,
+            'socketStatus': socketStatusAtResume.name,
           },
         ),
       ),
     );
 
-    if (!socketAlreadyConnected) {
+    if (socketNeedsReconnect) {
       socketIoClient.reconnect();
     }
 
@@ -218,7 +235,7 @@ extension SyncLifecycle on Sync {
     messageOutbox.resume();
     NetworkMonitorService().resume();
 
-    if (!socketAlreadyConnected) {
+    if (socketNeedsReconnect) {
       // Start a reconnection watchdog that fires if the socket hasn't
       // connected within a reasonable window. This covers the case where
       // Socket.IO's internal reconnection attempts are exhausted (e.g.
@@ -648,8 +665,14 @@ extension SyncLifecycle on Sync {
   ///   - Transient network flakiness during foreground transition
   ///   - Server restarts that outlast the initial reconnect window
   ///
-  /// The timer is cancelled by [suspend] and reset by each call so
-  /// that reconnect-exhausted events and resume() don't stack timers.
+  /// The watchdog re-arms itself after each fire while the socket is
+  /// still disconnected, so recovery is bounded by roughly one watchdog
+  /// period after the network returns — instead of waiting out full
+  /// Socket.IO 10-attempt backoff cycles (~80–160s each) between retry
+  /// rounds.  Re-arming stops as soon as the socket connects (the
+  /// reconnected handler cancels the timer), and the timer is cancelled
+  /// by [suspend] and [shutdown].  Each call resets the timer so
+  /// reconnect-exhausted events and resume() don't stack timers.
   void _scheduleReconnectWatchdog() {
     _reconnectWatchdogTimer?.cancel();
     // If already connected, no watchdog needed.
@@ -717,8 +740,46 @@ extension SyncLifecycle on Sync {
             }),
           );
         }
+
+        // Re-arm while still disconnected. reconnect() above only started
+        // a fresh Socket.IO cycle; if that also fails (network still
+        // settling after wake, server restart), the library would otherwise
+        // burn through 10 backoff attempts before the exhausted-listener
+        // reschedules this watchdog. Probing once per watchdog period keeps
+        // foreground recovery bounded. _scheduleReconnectWatchdog() cancels
+        // the current timer first and no-ops once connected, and the
+        // reconnected handler cancels the timer on success.
+        _scheduleReconnectWatchdog();
       },
     );
+  }
+
+  /// Force a fresh socket connection and (re-)arm the reconnect watchdog.
+  ///
+  /// Entry point for the user-facing "Reconnect now" action. A bare
+  /// [SocketIoClient.reconnect] leaves the app without a retry safety net
+  /// when the fresh dial also fails (e.g. the network is still settling
+  /// after the device wakes); routing the manual action through here keeps
+  /// the watchdog armed so recovery stays bounded and the tap can never
+  /// degrade into a single silent failed dial.
+  void forceReconnect({String reason = 'manual'}) {
+    if (!isInitialized) return;
+    logger.info('[Sync] forceReconnect ($reason)');
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'Sync forceReconnect',
+          category: 'sync.lifecycle',
+          level: SentryLevel.info,
+          data: <String, dynamic>{
+            'reason': reason,
+            'socketStatus': socketIoClient.connectionStatus.name,
+          },
+        ),
+      ),
+    );
+    socketIoClient.reconnect();
+    _scheduleReconnectWatchdog();
   }
 
   /// Shutdown sync engine and clear volatile state.

@@ -484,8 +484,22 @@ what you have, you must use the options mode.
 
   /// Delay before the reconnection watchdog fires on resume. If the
   /// socket hasn't connected by this point, force a fresh reconnect
-  /// cycle to recover from exhausted Socket.IO attempts.
+  /// cycle to recover from exhausted Socket.IO attempts. The watchdog
+  /// re-arms itself after each fire while the socket stays disconnected
+  /// (cancelled on connect, suspend, or shutdown), so recovery time is
+  /// bounded by this interval instead of waiting out full Socket.IO
+  /// 10-attempt backoff cycles.
   static const int _reconnectWatchdogDelayMs = 15000;
+
+  /// How long a backgrounded socket may sit idle before resume() treats a
+  /// "connected" status as a zombie and forces a fresh connection. The
+  /// server-side Socket.IO session dies ~45s after the client stops
+  /// heartbeating (ping interval + ping timeout), and the client cannot
+  /// notice while the isolate is suspended. When the OS suspends the app
+  /// faster than [_suspendSocketDisconnectDelayMs] (common on iOS), the
+  /// deferred disconnect never fires and resume() would otherwise trust
+  /// the stale status, skipping both the reconnect and the watchdog.
+  static const int _zombieSocketMaxIdleMs = 60 * 1000;
 
   /// Minimum interval between broad sessions/catalog refreshes caused by
   /// socket reconnect recovery. Visible chat messages are refreshed on every

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/socket_io_client.dart' show ConnectionStatus, socketIoClient;
 import '../i18n/app_localizations.dart';
 import '../providers/app_providers.dart';
+import '../services/sync_service.dart';
 import '../theme/app_tokens.dart';
 
 /// A prominent banner displayed when the device is offline or
@@ -107,7 +108,11 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
     // is in progress.
     _ticker?.cancel();
     setState(() => _secondsRemaining = null);
-    socketIoClient.reconnect();
+    // Route through Sync (not a bare socketIoClient.reconnect()) so the
+    // reconnect watchdog is armed: if this dial also fails — common right
+    // after the device wakes — the app keeps retrying on a bounded cadence
+    // instead of leaving the user staring at a dead banner.
+    sync.forceReconnect(reason: 'offline_banner');
   }
 
   @override

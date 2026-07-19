@@ -88,6 +88,12 @@ class SocketIoClient {
   String? _authToken;
   String? _clientType;
   bool _hasConnectedOnce = false;
+
+  /// Number of times [reconnect] was requested (including no-op calls made
+  /// before [connect] ever stored credentials). Test-only observability for
+  /// lifecycle contracts — e.g. resume() forcing a fresh socket for a zombie
+  /// connection, or the reconnect watchdog re-arming.
+  int _reconnectRequests = 0;
   int _connectionGeneration = 0;
   int? _lastConnectStartedAtMs;
   int? _lastDisconnectAtMs;
@@ -203,6 +209,13 @@ class SocketIoClient {
           .enableReconnection()
           .setReconnectionDelay(2000) // 2s initial for better battery
           .setReconnectionDelayMax(10000) // 10s max — 30s is too slow on mobile
+          // Cap each connection attempt. The library default is 20s; right
+          // after the device wakes from sleep, stale cellular routes can
+          // blackhole the TCP dial, and a 20s hang per attempt turns the
+          // 10-attempt cycle into minutes of "Reconnecting…". 8s is generous
+          // for a healthy mobile TLS handshake and fails fast enough that
+          // backoff cycles reach the recovered network quickly.
+          .setTimeout(8000)
           // Cap internal reconnection attempts so a persistent server-side
           // TLS failure (e.g. cert renewal, rolling restart) does not produce
           // an unbounded storm of retries.  SocketIoClient.reconnect() resets
@@ -517,6 +530,7 @@ class SocketIoClient {
   /// first-ever connection.  Without this, [disconnect] resets the
   /// flag and the Sync reconnected handler never fires on app resume.
   void reconnect() {
+    _reconnectRequests++;
     final url = _serverUrl;
     final token = _authToken;
     final clientType = _clientType;
@@ -762,6 +776,9 @@ class SocketIoClient {
 
   @visibleForTesting
   bool get testHasConnectedOnce => _hasConnectedOnce;
+
+  @visibleForTesting
+  int get testReconnectRequests => _reconnectRequests;
 
   /// Test-only hook to force [_status] without a real Socket.IO
   /// connection, so disconnect-telemetry tests can set up a "currently
