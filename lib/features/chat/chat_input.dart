@@ -999,7 +999,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
         focusedBorder: InputBorder.none,
         disabledBorder: InputBorder.none,
         contentPadding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
+          AppSpacing.xs,
           AppSpacing.xsm,
           AppSpacing.sm,
           AppSpacing.xsm,
