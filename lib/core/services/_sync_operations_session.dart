@@ -1,5 +1,13 @@
 part of 'sync_service.dart';
 
+/// Reconstructs the backend for sessions created before backend metadata was
+/// persisted. Repository-backed sessions use Kubernetes; the remaining
+/// sessions are daemon-local processes.
+String _spawnBackendForExistingSession(Session session) {
+  final repoUrl = session.metadata?.repoUrl;
+  return repoUrl != null && repoUrl.isNotEmpty ? 'kubernetes' : 'local';
+}
+
 extension SyncSessionOperations on Sync {
   /// Create a session on a target machine/path and return the new session ID.
   /// Sends a `spawn-happy-session` RPC to the machine daemon, which starts a
@@ -1711,11 +1719,9 @@ PY
           );
           _profileModelKillInFlight.add(sessionId);
           // Clear spawned data before the respawn so auto-restore picks up the
-          // new profile/model instead of re-using the old one. Do not call the
-          // session-level killSession RPC here: that marks the stop deliberate
-          // and can strand the message if the kill races the new send. The
-          // machine spawn RPC owns replacement and kills the old process before
-          // starting the new one.
+          // new profile/model instead of re-using the old one. The machine
+          // replacement RPC owns the process boundary: it kills the old
+          // process and starts a new one with the replacement environment.
           _sessionSpawnedAt.remove(sessionId);
           _sessionSpawnedProfile.remove(sessionId);
           _sessionSpawnedModel.remove(sessionId);
@@ -1854,6 +1860,7 @@ PY
         sessionId: sessionId,
         agent: sessionAgent,
         permissionMode: effectivePermissionMode,
+        spawnBackend: _spawnBackendForExistingSession(session),
         repoUrl: session.metadata?.repoUrl,
         repoRef: session.metadata?.repoRef,
         repoCommit: session.metadata?.repoCommit,

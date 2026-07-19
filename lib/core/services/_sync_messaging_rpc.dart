@@ -514,6 +514,7 @@ extension SyncMessagingRpc on Sync {
         sessionId: sessionId,
         agent: sessionAgent,
         permissionMode: session.permissionMode,
+        spawnBackend: _spawnBackendForExistingSession(session),
         repoUrl: session.metadata?.repoUrl,
         repoRef: session.metadata?.repoRef,
         repoCommit: session.metadata?.repoCommit,

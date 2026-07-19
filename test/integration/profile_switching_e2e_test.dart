@@ -1532,10 +1532,9 @@ void main() {
     });
 
     test(
-      'profile switch respawns through machine RPC without killSession',
+      'profile switch replaces the process with new env and backend',
       () async {
-        const sessionId = 'profile-switch-no-session-kill';
-        var killCalled = false;
+        const sessionId = 'profile-switch-replacement';
         Map<String, dynamic>? capturedSpawnParams;
 
         primeOnlineSession(
@@ -1553,12 +1552,6 @@ void main() {
           profile: deepseek,
         );
 
-        sync.testSessionRPCOverride = (sid, method, params) async {
-          if (method == 'killSession') {
-            killCalled = true;
-          }
-          return <String, dynamic>{'success': true};
-        };
         sync.testMachineRPCOverride = (machineId, method, params) async {
           if (method == 'spawn-happy-session') {
             capturedSpawnParams = params;
@@ -1579,18 +1572,22 @@ void main() {
         }
 
         expect(
-          killCalled,
-          isFalse,
-          reason:
-              'Profile/model switches must not call session killSession; '
-              'that marks the stop deliberate and can strand the message.',
-        );
-        expect(
           capturedSpawnParams,
           isNotNull,
           reason:
-              'The machine respawn RPC still has to replace the running process.',
+              'The machine replacement RPC must replace the running process.',
         );
+        expect(
+          capturedSpawnParams!['spawnBackend'],
+          'local',
+          reason:
+              'Repo-less sessions must preserve the local process backend '
+              'during provider replacement.',
+        );
+        final envVars =
+            capturedSpawnParams!['environmentVariables']
+                as Map<String, dynamic>?;
+        expect(envVars?['ANTHROPIC_BASE_URL'], contains('deepseek'));
       },
     );
 
