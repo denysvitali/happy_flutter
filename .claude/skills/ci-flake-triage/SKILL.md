@@ -25,6 +25,9 @@ Note which job/shard failed and the first real error line.
 | Secure-storage / encryption fake setup errors across shards 1/5/6/7/8 | Same 2026-06-30 episode family | Same check: compare with parent commit's run. |
 | `empty_session` parser null-check, `tool_view` RenderFlex | Pre-existing failures from 2026-06-13 episode | Verify still-known before re-diagnosing. |
 | Golden mismatch after UI change | Stale goldens | Use the `update-goldens` skill. |
+| Check annotations echo passing test lines (e.g. `write_view_test.dart`) with identical window across runs | Can be EITHER the infra kill OR a real failure — the annotation window (`grep -B 20`) lands on the same recent-output lines regardless | Pull the full job log and search `[E]` / `TestFailure` / `RangeError` before calling it a flake. 2026-07-19 episode: shard 5 looked like the infra kill on 3 consecutive runs but was a real `profile_editor_screen_test.dart` bug (off-screen tap + lazy-ListView `.at(2)` index). |
+
+**Lazy-ListView test trap:** in widget tests over a scrollable form, `find.byType(TextFormField).at(N)` counts only *built* children. Scrolling (e.g. `ensureVisible`) unmounts off-cache fields and shifts every index — find fields by content (`find.widgetWithText(TextFormField, 'VALUE')`) instead, and `ensureVisible` before any `tap()` below the 800x600 fold.
 
 **Decision rule:** run the same shard against the parent commit (or check its run history). Failure predates your commit → flake/pre-existing, note it and move on. Failure is new → real regression, fix it.
 
