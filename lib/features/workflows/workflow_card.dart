@@ -5,6 +5,21 @@ import '../../core/theme/app_tokens.dart';
 import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
 
+/// Static wait copy for a live run that is not actively starting yet, so
+/// the body never contradicts the status badge (queued/paused ≠ starting)
+/// and nothing animates indefinitely while the run waits.
+String _liveWaitLabel(String status) {
+  switch (status) {
+    case WorkflowStatus.paused:
+      return 'Paused';
+    case WorkflowStatus.queued:
+    case WorkflowStatus.pending:
+      return 'Queued';
+    default:
+      return 'In progress';
+  }
+}
+
 /// Card displaying a single [WorkflowRun].
 class WorkflowCard extends StatelessWidget {
   /// Creates a [WorkflowCard].
@@ -132,13 +147,41 @@ class WorkflowCard extends StatelessWidget {
               ],
               if (!hasDetails) ...[
                 const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'No progress details',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
+                if (WorkflowStatus.isStarting(run.status))
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: cs.primary,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        'Starting…',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  )
+                else if (WorkflowStatus.isLive(run.status))
+                  Text(
+                    _liveWaitLabel(run.status),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  )
+                else
+                  Text(
+                    'No progress details',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
-                ),
               ],
             ],
           ),

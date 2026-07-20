@@ -13,13 +13,14 @@ WorkflowRun _run({
   required String runId,
   required String name,
   String? summary,
+  String status = 'completed',
   int? agentCount,
   int? totalTokens,
   int? totalToolCalls,
 }) => WorkflowRun(
   runId: runId,
   workflowName: name,
-  status: 'completed',
+  status: status,
   summary: summary,
   agentCount: agentCount,
   totalTokens: totalTokens,
@@ -74,5 +75,26 @@ void main() {
     );
 
     expect(find.text('8 agents · 178k tokens · 167 tools'), findsOneWidget);
+  });
+
+  testWidgets('shows a live indicator for a running run without details',
+      (tester) async {
+    // Mirrors the reported empty card: a background run that has been
+    // launched (async_launched) but whose snapshot is not rich yet must read
+    // as live, not as the misleading "No progress details".
+    await tester.pumpWidget(
+      _harness(
+        _run(
+          runId: 'wf_5560207c-639',
+          name: 'wf_5560207c-639',
+          status: 'async_launched',
+        ),
+      ),
+    );
+
+    expect(find.text('Workflow run'), findsOneWidget);
+    expect(find.text('Starting…'), findsOneWidget);
+    expect(find.text('No progress details'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 }

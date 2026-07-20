@@ -50,8 +50,15 @@ class WorkflowStatusBadge extends StatelessWidget {
         return ('Failed', cs.error);
       case WorkflowStatus.killed:
         return ('Killed', cs.error);
+      case WorkflowStatus.cancelled:
+        return ('Cancelled', cs.onSurfaceVariant);
+      case WorkflowStatus.asyncLaunched:
+        return ('Launching', cs.primary);
+      case WorkflowStatus.queued:
+      case WorkflowStatus.pending:
+        return ('Queued', cs.tertiary);
       default:
-        return (status, cs.onSurfaceVariant);
+        return (status.isEmpty ? 'Unknown' : status, cs.onSurfaceVariant);
     }
   }
 }

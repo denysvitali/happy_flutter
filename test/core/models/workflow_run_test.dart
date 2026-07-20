@@ -70,6 +70,56 @@ void main() {
       expect(roundTripped, run);
     });
 
+    test('parses the snake_case workflow_progress container', () {
+      // The streamed task events carry the progress array under
+      // `workflow_progress`; on-disk snapshots use `workflowProgress`.
+      // Both must parse into the same typed progress list.
+      final run = WorkflowRun.tryFromJson(const <String, dynamic>{
+        'runId': 'wf_snake',
+        'workflowName': 'sweep',
+        'status': 'running',
+        'workflow_progress': [
+          <String, dynamic>{
+            'type': 'workflow_phase',
+            'index': 1,
+            'title': 'Scan',
+          },
+          <String, dynamic>{
+            'type': 'workflow_agent',
+            'agentId': 'a1',
+            'label': 'scanner',
+            'phaseIndex': 1,
+            'phaseTitle': 'Scan',
+            'model': 'm',
+            'state': 'running',
+          },
+        ],
+      });
+      expect(run, isNotNull);
+      expect(run!.workflowProgress, hasLength(2));
+      expect(run.phases, isEmpty);
+    });
+
+    test('rawWorkflowProgress prefers camelCase, falls back to snake', () {
+      expect(
+        WorkflowRun.rawWorkflowProgress(const <String, dynamic>{
+          'workflowProgress': [1],
+          'workflow_progress': [2],
+        }),
+        [1],
+      );
+      expect(
+        WorkflowRun.rawWorkflowProgress(
+          const <String, dynamic>{'workflow_progress': [2]},
+        ),
+        [2],
+      );
+      expect(
+        WorkflowRun.rawWorkflowProgress(const <String, dynamic>{}),
+        isNull,
+      );
+    });
+
     test('returns null when required fields are missing', () {
       expect(
         WorkflowRun.tryFromJson(const <String, dynamic>{
@@ -276,6 +326,24 @@ void main() {
         ],
       );
       expect(progress, isEmpty);
+    });
+  });
+
+  group('WorkflowStatus', () {
+    test('isLive covers every in-flight state', () {
+      expect(WorkflowStatus.isLive(WorkflowStatus.running), isTrue);
+      expect(WorkflowStatus.isLive(WorkflowStatus.asyncLaunched), isTrue);
+      expect(WorkflowStatus.isLive(WorkflowStatus.queued), isTrue);
+      expect(WorkflowStatus.isLive(WorkflowStatus.pending), isTrue);
+      expect(WorkflowStatus.isLive(WorkflowStatus.paused), isTrue);
+      expect(WorkflowStatus.isLive(WorkflowStatus.completed), isFalse);
+      expect(WorkflowStatus.isLive(WorkflowStatus.failed), isFalse);
+      expect(WorkflowStatus.isLive(WorkflowStatus.killed), isFalse);
+      expect(WorkflowStatus.isLive(WorkflowStatus.cancelled), isFalse);
+    });
+
+    test('exposes the daemon async_launched status', () {
+      expect(WorkflowStatus.values, contains('async_launched'));
     });
   });
 }

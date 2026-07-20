@@ -186,6 +186,27 @@ void main() {
       expect(find.text('Camel'), findsOneWidget);
     });
 
+    testWidgets('accepts snake_case workflow_progress key', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WorkflowInlineView(
+              children: [
+                {
+                  'kind': 'agent-event',
+                  'workflow_progress': [
+                    {'type': 'workflow_phase', 'index': 1, 'title': 'Snake'},
+                  ],
+                },
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Snake'), findsOneWidget);
+    });
+
     testWidgets('renders unknown agent state as pending', (tester) async {
       await tester.pumpWidget(
         MaterialApp(

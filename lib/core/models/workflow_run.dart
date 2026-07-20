@@ -12,13 +12,39 @@ class WorkflowStatus {
   static const String failed = 'failed';
   static const String killed = 'killed';
 
+  /// Returned by the `Workflow` tool result for a background run that has
+  /// been launched but whose snapshot has not been written yet.
+  static const String asyncLaunched = 'async_launched';
+  static const String queued = 'queued';
+  static const String pending = 'pending';
+  static const String cancelled = 'cancelled';
+
   static const Set<String> values = {
     running,
     paused,
     completed,
     failed,
     killed,
+    asyncLaunched,
+    queued,
+    pending,
+    cancelled,
   };
+
+  /// Statuses that mean the run has not reached a terminal state, so the
+  /// UI should keep polling / show a live indicator.
+  static bool isLive(String status) =>
+      status == running ||
+      status == paused ||
+      status == asyncLaunched ||
+      status == queued ||
+      status == pending;
+
+  /// Whether the run is actively starting/running right now (as opposed to
+  /// merely queued or paused). Drives the animated "Starting…" indicator so
+  /// a queued/paused run does not spin forever next to its badge.
+  static bool isStarting(String status) =>
+      status == running || status == asyncLaunched;
 }
 
 /// A single phase of a Claude Code workflow run.
@@ -430,7 +456,7 @@ class WorkflowRun {
 
   factory WorkflowRun.fromJson(Map<String, dynamic> json) {
     final phasesJson = WireParsers.asList(json['phases']);
-    final progressJson = WireParsers.asList(json['workflowProgress']);
+    final progressJson = rawWorkflowProgress(json);
     return WorkflowRun(
       runId: json['runId'] as String,
       workflowName: json['workflowName'] as String,
@@ -484,6 +510,37 @@ class WorkflowRun {
   final String? logs;
   final List<WorkflowProgressEvent> workflowProgress;
 
+  /// Raw progress-event list from a map, accepting both the camelCase key
+  /// used by on-disk / `workflow-list` / `workflow-read` snapshots
+  /// (`workflowProgress`) and the snake_case key the streamed task events
+  /// use (`workflow_progress`). Centralised so the casing rule lives in one
+  /// place — every reader (RPC parse, message overlay, inline view) agrees.
+  static List<dynamic>? rawWorkflowProgress(Map<String, dynamic> json) =>
+      WireParsers.asList(
+        json['workflowProgress'] ?? json['workflow_progress'],
+      );
+
+  /// Returns [next], but when it is a sparse snapshot (no progress and no
+  /// phases — e.g. a running run whose on-disk snapshot is not written yet)
+  /// the progress/phases/counts already held in [prev] are kept, so a thin
+  /// poll result never blanks a live overlay. Pure + static for testability.
+  static WorkflowRun withFallbackProgress(
+    WorkflowRun next,
+    WorkflowRun? prev,
+  ) {
+    if (prev == null) return next;
+    if (next.workflowProgress.isNotEmpty || next.phases.isNotEmpty) {
+      return next;
+    }
+    return next.copyWith(
+      workflowProgress: prev.workflowProgress,
+      phases: prev.phases,
+      agentCount: prev.agentCount,
+      totalTokens: prev.totalTokens,
+      totalToolCalls: prev.totalToolCalls,
+    );
+  }
+
   static WorkflowRun? tryFromJson(Map<String, dynamic> json) {
     final runId = WireParsers.parseString(json['runId']);
     final taskId = WireParsers.parseString(json['taskId']);
@@ -493,7 +550,7 @@ class WorkflowRun {
       return null;
     }
     final phasesJson = WireParsers.asList(json['phases']);
-    final progressJson = WireParsers.asList(json['workflowProgress']);
+    final progressJson = rawWorkflowProgress(json);
     return WorkflowRun(
       runId: runId,
       workflowName: workflowName,
@@ -543,7 +600,7 @@ class WorkflowRun {
     for (var i = list.length - 1; i >= 0; i--) {
       final msg = list[i];
       if (msg is! Map<String, dynamic>) continue;
-      final raw = WireParsers.asList(msg['workflowProgress']);
+      final raw = rawWorkflowProgress(msg);
       if (raw == null || raw.isEmpty) continue;
       final parsed = raw
           .whereType<Map<String, dynamic>>()
@@ -555,17 +612,20 @@ class WorkflowRun {
     return const <WorkflowProgressEvent>[];
   }
 
-  /// Reconstructs the live progress snapshot for this run from the
+  /// Overlays the live, in-flight progress snapshot for this run from the
   /// session's grouped messages and returns a copy with
-  /// `workflowProgress`, `phases`, and the aggregate counts filled in.
+  /// `workflowProgress`, `phases`, and the aggregate counts refreshed.
   ///
-  /// The daemon `workflow-list` / `workflow-read` snapshots only carry
-  /// `runId` / `workflowName` / `status`; the rich progress (phases,
-  /// agents, logs) lives exclusively on the streamed task events that the
-  /// sidechain grouper attaches as `children` of the `Workflow` tool-call
-  /// message. The chat inline view reads them directly; this lets the
-  /// Workflows list and detail screens do the same so a tapped run is not
-  /// rendered blank.
+  /// Completed runs already carry a full rich snapshot (phases, agents,
+  /// tokens, `workflowProgress`) from the daemon's `workflow-list` /
+  /// `workflow-read` — both read straight from the on-disk
+  /// `wf_<runId>.json` — so for them this is usually a no-op. It matters
+  /// for *running foreground* workflows whose streamed `task_progress`
+  /// sidechain events are more current than the last persisted snapshot:
+  /// the chat inline view reads those events directly, and this lets the
+  /// Workflows list and detail screens show the same live picture.
+  /// Background workflows emit no events into the parent transcript, so
+  /// there is nothing to overlay for them until they complete.
   ///
   /// Returns [run] unchanged when the messages carry no progress for it,
   /// so an already-rich daemon snapshot is never wiped out.
@@ -680,7 +740,7 @@ class WorkflowRun {
   }
 
   static bool _hasProgress(Map<String, dynamic> message) {
-    final list = WireParsers.asList(message['workflowProgress']);
+    final list = rawWorkflowProgress(message);
     return list != null && list.isNotEmpty;
   }
 

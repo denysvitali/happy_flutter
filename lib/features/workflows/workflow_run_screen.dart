@@ -84,7 +84,9 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
           .read(workflowsNotifierProvider.notifier)
           .fetchWorkflowSnapshot(widget.sessionId, widget.runId);
       if (run != null && mounted) {
-        setState(() => _run = run);
+        setState(
+          () => _run = WorkflowRun.withFallbackProgress(run, _run),
+        );
       }
     } catch (e, st) {
       logger.warning('WorkflowRunScreen refresh failed: $e', e, st);
@@ -230,7 +232,11 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   int? _elapsedMs(WorkflowRun run) {
     if (run.durationMs != null) return run.durationMs;
     final start = run.startTime;
-    if (run.status != WorkflowStatus.running || start == null) return null;
+    if (!WorkflowStatus.isLive(run.status) ||
+        run.status == WorkflowStatus.paused ||
+        start == null) {
+      return null;
+    }
     final now = DateTime.now().millisecondsSinceEpoch;
     return now > start ? now - start : 0;
   }

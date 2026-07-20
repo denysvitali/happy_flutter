@@ -62,8 +62,7 @@ class WorkflowInlineView extends StatelessWidget {
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
       if (msg is! Map<String, dynamic>) continue;
-      final raw = msg['workflowProgress'];
-      final list = WireParsers.asList(raw);
+      final list = WorkflowRun.rawWorkflowProgress(msg);
       if (list == null || list.isEmpty) continue;
       final parsed = list
           .whereType<Map<String, dynamic>>()

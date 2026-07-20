@@ -28,6 +28,8 @@ class WorkflowsScreen extends ConsumerStatefulWidget {
 
 class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
   StreamSubscription<String>? _sub;
+  StreamSubscription<String>? _msgSub;
+  Timer? _msgDebounce;
   bool _initialLoading = true;
   String? _error;
   bool _hasRetriedOnEmptyEvent = false;
@@ -52,11 +54,25 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
             _refresh();
           }
         });
+    // Rebuild live when this session's messages change (running foreground
+    // workflows stream task_progress here), and debounce a refetch so a
+    // background run that just wrote its on-disk snapshot flips to rich
+    // promptly instead of staying a stale sparse row.
+    _msgSub = sync.onSessionMessagesChanged
+        .where((sid) => sid == widget.sessionId)
+        .listen((_) {
+          if (!mounted) return;
+          setState(() {});
+          _msgDebounce?.cancel();
+          _msgDebounce = Timer(const Duration(seconds: 1), _refreshVisible);
+        });
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _msgSub?.cancel();
+    _msgDebounce?.cancel();
     super.dispose();
   }
 
@@ -74,6 +90,19 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
       if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _initialLoading = false);
+    }
+  }
+
+  /// Refetch only the visible session's workflow list. Cheaper than
+  /// [_refresh] (no global background sweep) so it is safe on a debounce.
+  Future<void> _refreshVisible() async {
+    if (!mounted || !sync.isInitialized) return;
+    try {
+      await ref
+          .read(workflowsNotifierProvider.notifier)
+          .refreshSession(widget.sessionId);
+    } catch (e, st) {
+      logger.warning('WorkflowsScreen visible refresh failed: $e', e, st);
     }
   }
 
