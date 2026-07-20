@@ -87,6 +87,7 @@ void main() {
           'xiaomi-mimo' => 'Xiaomi MiMo',
           'qwen' => 'Qwen',
           'openai' => 'OpenAI',
+          'qwen-token-plan-codex' => 'Qwen (Codex)',
           _ => profile.name,
         };
         expect(find.text(expectedLabel), findsOneWidget);

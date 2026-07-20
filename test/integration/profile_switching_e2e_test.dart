@@ -1349,8 +1349,8 @@ void main() {
       expect(result, isNull);
     });
 
-    test('builtInProfiles returns all 9 profiles', () {
-      expect(builtInProfiles.length, 9);
+    test('builtInProfiles returns all 10 profiles', () {
+      expect(builtInProfiles.length, 10);
       final ids = builtInProfiles.map((p) => p.id).toSet();
       expect(
         ids,
@@ -1364,6 +1364,7 @@ void main() {
           'openrouter',
           'openai',
           'azure-openai',
+          'qwen-token-plan-codex',
         ]),
       );
     });
