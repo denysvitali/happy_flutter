@@ -112,6 +112,13 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         _smallFastModelCtrl.text = '';
         _timeoutCtrl.text = '600000';
         break;
+      case 'qwen-token-plan-codex':
+        _baseUrlCtrl.text =
+            'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
+        _modelCtrl.text = 'qwen3.7-max';
+        _smallFastModelCtrl.text = 'qwen3.6-flash';
+        _timeoutCtrl.text = '3000000';
+        break;
     }
   }
 
@@ -122,7 +129,8 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     final envVars = <EnvironmentVariable>[];
 
     // Determine which env vars to use based on provider type
-    if (_selectedProvider == 'openai') {
+    if (_selectedProvider == 'openai' ||
+        _selectedProvider == 'qwen-token-plan-codex') {
       envVars
         ..add(
           EnvironmentVariable(
@@ -411,6 +419,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     switch (provider) {
       case 'openai':
       case 'azure-openai':
+      case 'qwen-token-plan-codex':
         return const ProfileCompatibility(
           claude: false,
           codex: true,

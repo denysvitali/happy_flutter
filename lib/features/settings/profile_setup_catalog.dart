@@ -101,6 +101,14 @@ ProfileSetupOption? _profileSetupOptionForId(String id) {
         icon: Icons.cloud,
         apiKeyLabel: 'Azure API Key',
       );
+    case 'qwen-token-plan-codex':
+      return const ProfileSetupOption(
+        id: 'qwen-token-plan-codex',
+        label: 'Qwen (Codex)',
+        shortDescription: 'qwen3.7-max · Codex',
+        icon: Icons.generating_tokens,
+        apiKeyLabel: 'Qwen API Key',
+      );
     default:
       return null;
   }
@@ -387,6 +395,32 @@ AIBackendProfile? profileSetupTemplate(String id) {
           EnvironmentVariable(name: 'OPENAI_API_KEY', value: ''),
           EnvironmentVariable(name: 'OPENAI_BASE_URL', value: ''),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '600000'),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+        ),
+      );
+    case 'qwen-token-plan-codex':
+      return AIBackendProfile(
+        id: 'qwen-token-plan-codex',
+        name: 'Qwen (Token Plan, Codex)',
+        description:
+            'Qwen Cloud Token Plan via OpenAI-compatible interface (Codex)',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value:
+                'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
+          ),
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: ''),
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'qwen3.7-max'),
+          EnvironmentVariable(
+            name: 'OPENAI_SMALL_FAST_MODEL',
+            value: 'qwen3.7-max',
+          ),
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '3000000'),
         ],
         compatibility: const ProfileCompatibility(
           claude: false,

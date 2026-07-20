@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 
@@ -120,6 +121,31 @@ void main() {
       );
     });
 
+    test('passes Qwen Token Plan model for the built-in Codex profile', () {
+      final profile = getBuiltInProfile('qwen-token-plan-codex');
+      expect(profile, isNotNull);
+
+      // The built-in profile's non-official OPENAI_BASE_URL makes it a
+      // custom Codex profile, so the provider-owned slug is passed
+      // through instead of being normalized away.
+      expect(
+        sync.testGetModelOverride(
+          agent: 'codex',
+          profile: profile,
+          modelMode: 'qwen3.7-max',
+        ),
+        'qwen3.7-max',
+      );
+      expect(
+        sync.testGetModelOverride(
+          agent: 'codex',
+          profile: profile,
+          modelMode: 'glm-5.2:high',
+        ),
+        'glm-5.2:high',
+      );
+    });
+
     test('drops provider-owned model names for Codex default sessions', () {
       expect(
         sync.testGetModelOverride(agent: 'codex', modelMode: 'MiniMax-M3'),
@@ -195,6 +221,16 @@ void main() {
         sync.testNormalizeModelModeForAgent('gpt-5.5:high', 'codex'),
         'gpt-5.5:high',
       );
+    });
+
+    test('preserves Qwen Token Plan slugs for Codex sessions', () {
+      for (final slug in qwenTokenPlanCodexModels) {
+        expect(sync.testNormalizeModelModeForAgent(slug, 'codex'), slug);
+        expect(
+          sync.testNormalizeModelModeForAgent('$slug:high', 'codex'),
+          '$slug:high',
+        );
+      }
     });
 
     test('normalizes provider-owned names away from Codex defaults', () {

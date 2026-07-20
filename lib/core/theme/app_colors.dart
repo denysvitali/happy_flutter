@@ -202,6 +202,7 @@ Color colorForProfile(String id) {
     case 'grok':
       return AppColors.grok;
     case 'qwen':
+    case 'qwen-token-plan-codex':
       return AppColors.qwen;
     case 'minimax':
       return const Color(0xFFFF6B35);

@@ -1605,7 +1605,9 @@ PY
     final slug = modelMode.contains(':')
         ? modelMode.substring(0, modelMode.indexOf(':'))
         : modelMode;
-    return slug.startsWith('gpt-') || RegExp(r'^o\d').hasMatch(slug);
+    return slug.startsWith('gpt-') ||
+        RegExp(r'^o\d').hasMatch(slug) ||
+        isTokenPlanCodexModelSlug(slug);
   }
 
   bool _isClaudeModelAlias(String modelMode) {

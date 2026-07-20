@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
@@ -292,6 +293,22 @@ void main() {
       'gpt-5-codex',
     );
   });
+
+  test('raw model normalization preserves Qwen Token Plan slugs for Codex',
+      () {
+        // The daemon's get-codex-models catalog only reports gpt-*; the
+        // Token Plan slugs must survive normalization via the static
+        // catalog extension, with and without a reasoning-effort suffix.
+        for (final slug in qwenTokenPlanCodexModels) {
+          expect(ChatModelMode.isKnownCodexModelString(slug), isTrue);
+          expect(ChatModelMode.fromString(slug).isCodex, isTrue);
+          expect(ChatModelMode.normalizeRawForFlavor(slug, 'codex'), slug);
+          expect(
+            ChatModelMode.normalizeRawForFlavor('$slug:high', 'codex'),
+            '$slug:high',
+          );
+        }
+      });
 
   test('raw model normalization preserves provider-owned strings', () {
     expect(

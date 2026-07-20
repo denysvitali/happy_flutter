@@ -16,10 +16,33 @@ const _builtInIds = [
   'openrouter',
   'openai',
   'azure-openai',
+  'qwen-token-plan-codex',
 ];
 
 /// All built-in profile IDs in display order.
 List<String> get builtInProfileIds => List<String>.unmodifiable(_builtInIds);
+
+/// Stable Codex-compatible model slugs served by the Qwen Token Plan
+/// gateway (OpenAI-compatible `responses` wire API). The daemon's
+/// `get-codex-models` RPC only reports `gpt-*` for OpenAI, so these never
+/// appear in the live catalog; this list keeps provider-owned selections
+/// alive in model normalization (picker + spawn) for Codex profiles.
+const qwenTokenPlanCodexModels = <String>[
+  'qwen3.7-max',
+  'qwen3.7-plus',
+  'qwen3.6-flash',
+  'glm-5.2',
+  'deepseek-v4-pro',
+];
+
+final Set<String> _qwenTokenPlanCodexSlugSet = Set.unmodifiable(
+  qwenTokenPlanCodexModels,
+);
+
+/// Whether [slug] is a known Codex-compatible model slug beyond the
+/// daemon-reported `gpt-*` / `o*` families (Qwen Token Plan models).
+bool isTokenPlanCodexModelSlug(String slug) =>
+    _qwenTokenPlanCodexSlugSet.contains(slug);
 
 /// All built-in profiles in display order.
 List<AIBackendProfile> get builtInProfiles =>
@@ -412,6 +435,49 @@ AIBackendProfile? getBuiltInProfile(String id) {
           ),
           EnvironmentVariable(name: 'OPENAI_API_TIMEOUT_MS', value: '600000'),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '600000'),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+          pi: false,
+        ),
+      );
+
+    case 'qwen-token-plan-codex':
+      return AIBackendProfile(
+        id: 'qwen-token-plan-codex',
+        name: 'Qwen (Token Plan, Codex)',
+        description:
+            'Qwen Cloud Token Plan via OpenAI-compatible interface (Codex)',
+        isBuiltIn: true,
+        defaultModelMode: 'qwen3.7-max',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value:
+                r'${QWEN_OPENAI_BASE_URL:-https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_API_KEY',
+            value: r'${QWEN_API_KEY:-}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_MODEL',
+            value: r'${QWEN_MODEL:-qwen3.7-max}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_SMALL_FAST_MODEL',
+            value: r'${QWEN_SMALL_FAST_MODEL:-qwen3.7-max}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_API_TIMEOUT_MS',
+            value: r'${QWEN_API_TIMEOUT_MS:-3000000}',
+          ),
+          EnvironmentVariable(
+            name: 'API_TIMEOUT_MS',
+            value: r'${QWEN_API_TIMEOUT_MS:-3000000}',
+          ),
         ],
         compatibility: const ProfileCompatibility(
           claude: false,

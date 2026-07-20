@@ -1,3 +1,4 @@
+import '../../../core/models/built_in_profiles.dart';
 import '../../../core/rpc/rpc_types.dart';
 
 /// Model mode options exposed by the shared chat composer.
@@ -256,7 +257,9 @@ class ChatModelMode {
     final slug = trimmed.contains(':')
         ? trimmed.substring(0, trimmed.indexOf(':'))
         : trimmed;
-    return slug.startsWith('gpt-') || RegExp(r'^o\d').hasMatch(slug);
+    return slug.startsWith('gpt-') ||
+        RegExp(r'^o\d').hasMatch(slug) ||
+        isTokenPlanCodexModelSlug(slug);
   }
 
   static ChatModelMode _fromColonSelection(String raw) {
