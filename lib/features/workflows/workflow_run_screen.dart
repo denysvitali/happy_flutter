@@ -9,6 +9,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
 
 /// Detail view for a single Claude Code workflow run.
@@ -43,10 +44,6 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   bool _loading = true;
   String? _error;
   Timer? _pollTimer;
-
-  /// Matches auto-generated run names (`wf_a6c2cfba-460`) that carry no
-  /// information beyond the run id itself.
-  static final RegExp _opaqueName = RegExp(r'^wf_[a-z0-9-]+$');
 
   @override
   void initState() {
@@ -129,7 +126,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _displayName(run),
+                    workflowDisplayName(run),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -226,16 +223,6 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
               ],
             ),
     );
-  }
-
-  /// Friendly title: hides auto-generated `wf_*` names that just repeat
-  /// the run id (shown as the subtitle instead).
-  String _displayName(WorkflowRun run) {
-    final name = run.workflowName;
-    if (name.isEmpty || name == run.runId || _opaqueName.hasMatch(name)) {
-      return 'Workflow run';
-    }
-    return name;
   }
 
   /// Live elapsed time while the run is still going; the daemon only sets
@@ -360,26 +347,6 @@ class _PhaseGroup {
   final String state;
 }
 
-/// Formats large counts compactly: 999 → "999", 19698 → "19.7k",
-/// 1200000 → "1.2M".
-String _formatCount(int value) {
-  if (value < 1000) return '$value';
-  if (value < 1000000) {
-    final k = value / 1000;
-    if (k >= 100) {
-      final rounded = k.round();
-      return rounded >= 1000 ? '1M' : '${rounded}k';
-    }
-    return '${_trimDecimal(k)}k';
-  }
-  return '${_trimDecimal(value / 1000000)}M';
-}
-
-String _trimDecimal(double value) {
-  final s = value.toStringAsFixed(1);
-  return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
-}
-
 class _StatRow extends StatelessWidget {
   const _StatRow({required this.run, this.modelFallback});
 
@@ -404,12 +371,12 @@ class _StatRow extends StatelessWidget {
         if (run.totalTokens != null)
           _StatChip(
             icon: Icons.token_outlined,
-            label: '${_formatCount(run.totalTokens!)} tokens',
+            label: '${formatWorkflowCount(run.totalTokens!)} tokens',
           ),
         if (run.totalToolCalls != null)
           _StatChip(
             icon: Icons.build_outlined,
-            label: '${_formatCount(run.totalToolCalls!)} tools',
+            label: '${formatWorkflowCount(run.totalToolCalls!)} tools',
           ),
         if (model != null && model.isNotEmpty)
           _StatChip(icon: Icons.model_training_outlined, label: model),
@@ -664,10 +631,10 @@ class _AgentRow extends StatelessWidget {
       parts.add('${agent.durationMs! ~/ 1000}s');
     }
     if (agent.tokens != null) {
-      parts.add('${_formatCount(agent.tokens!)} tokens');
+      parts.add('${formatWorkflowCount(agent.tokens!)} tokens');
     }
     if (agent.toolCalls != null) {
-      parts.add('${_formatCount(agent.toolCalls!)} tools');
+      parts.add('${formatWorkflowCount(agent.toolCalls!)} tools');
     }
     return parts.join(' · ');
   }

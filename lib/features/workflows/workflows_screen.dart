@@ -39,19 +39,19 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     _sub = sync.onWorkflowsChanged
         .where((sid) => sid == widget.sessionId)
         .listen((_) {
-      if (!mounted) return;
-      setState(() {});
-      if (_hasRetriedOnEmptyEvent) return;
-      final runs = ref.read(
-        workflowsNotifierProvider.select(
-          (state) => state[widget.sessionId] ?? const <WorkflowRun>[],
-        ),
-      );
-      if (runs.isEmpty && !_initialLoading) {
-        _hasRetriedOnEmptyEvent = true;
-        _refresh();
-      }
-    });
+          if (!mounted) return;
+          setState(() {});
+          if (_hasRetriedOnEmptyEvent) return;
+          final runs = ref.read(
+            workflowsNotifierProvider.select(
+              (state) => state[widget.sessionId] ?? const <WorkflowRun>[],
+            ),
+          );
+          if (runs.isEmpty && !_initialLoading) {
+            _hasRetriedOnEmptyEvent = true;
+            _refresh();
+          }
+        });
   }
 
   @override
@@ -97,60 +97,50 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     final messages = sync.messagesForSession(widget.sessionId);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Workflows'),
-      ),
+      appBar: AppBar(title: const Text('Workflows')),
       body: _initialLoading
           ? const AppLoadingIndicator()
           : _error != null
-              ? _ErrorState(error: _error!, onRetry: _refresh)
-              : runs.isEmpty
-                  ? _EmptyState(isUnsupported: isUnsupported)
-                  : RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.lg,
-                          AppSpacing.lg,
-                          AppSpacing.lg,
-                          AppSpacing.xxxl * 2,
+          ? _ErrorState(error: _error!, onRetry: _refresh)
+          : runs.isEmpty
+          ? _EmptyState(isUnsupported: isUnsupported)
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.xxxl * 2,
+                ),
+                itemCount: runs.length + 1,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: Text(
+                        '${runs.length} '
+                        'workflow${runs.length == 1 ? '' : 's'}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        itemCount: runs.length + 1,
-                        separatorBuilder: (_, _) => const SizedBox(
-                          height: AppSpacing.md,
-                        ),
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            return Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: AppSpacing.xs,
-                              ),
-                              child: Text(
-                                '${runs.length} '
-                                'workflow${runs.length == 1 ? '' : 's'}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                            );
-                          }
-                          final run = WorkflowRun.enrichFromMessages(
-                            runs[index - 1],
-                            messages,
-                          );
-                          return WorkflowCard(
-                            key: ValueKey('workflow-${run.runId}'),
-                            run: run,
-                            onTap: () => _openRun(run),
-                          );
-                        },
                       ),
-                    ),
+                    );
+                  }
+                  final run = WorkflowRun.enrichFromMessages(
+                    runs[index - 1],
+                    messages,
+                  );
+                  return WorkflowCard(
+                    key: ValueKey('workflow-${run.runId}'),
+                    run: run,
+                    onTap: () => _openRun(run),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
@@ -170,7 +160,8 @@ class _EmptyState extends StatelessWidget {
         child: AppEmptyState(
           icon: Icons.update_disabled,
           title: 'Workflows unavailable',
-          subtitle: 'This machine is running a CLI version that does not '
+          subtitle:
+              'This machine is running a CLI version that does not '
               'support workflows. Update the Claude Code CLI to see them here.',
         ),
       );

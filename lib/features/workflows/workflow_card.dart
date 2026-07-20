@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/workflow_run.dart';
 import '../../core/theme/app_tokens.dart';
+import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
 
 /// Card displaying a single [WorkflowRun].
 class WorkflowCard extends StatelessWidget {
   /// Creates a [WorkflowCard].
-  const WorkflowCard({
-    required this.run,
-    required this.onTap,
-    super.key,
-  });
+  const WorkflowCard({required this.run, required this.onTap, super.key});
 
   /// The workflow run to display.
   final WorkflowRun run;
@@ -25,10 +22,10 @@ class WorkflowCard extends StatelessWidget {
       parts.add('${run.agentCount} agents');
     }
     if (run.totalTokens != null && run.totalTokens! > 0) {
-      parts.add('${run.totalTokens} tokens');
+      parts.add('${formatWorkflowCount(run.totalTokens!)} tokens');
     }
     if (run.totalToolCalls != null && run.totalToolCalls! > 0) {
-      parts.add('${run.totalToolCalls} tools');
+      parts.add('${formatWorkflowCount(run.totalToolCalls!)} tools');
     }
     return parts.join(' · ');
   }
@@ -47,6 +44,10 @@ class WorkflowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final subtitle = _subtitle;
+    final hasSummary = run.summary != null && run.summary!.isNotEmpty;
+    final hasDetails =
+        hasSummary || run.phases.isNotEmpty || subtitle.isNotEmpty;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -71,7 +72,7 @@ class WorkflowCard extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      run.workflowName,
+                      workflowDisplayName(run),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -81,7 +82,17 @@ class WorkflowCard extends StatelessWidget {
                   WorkflowStatusBadge(status: run.status),
                 ],
               ),
-              if (run.summary != null && run.summary!.isNotEmpty) ...[
+              if (workflowNameIsOpaque(run)) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  run.runId,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              if (hasSummary) ...[
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   run.summary!,
@@ -110,12 +121,22 @@ class WorkflowCard extends StatelessWidget {
                   ),
                 ),
               ],
-              if (_subtitle.isNotEmpty) ...[
+              if (subtitle.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  _subtitle,
+                  subtitle,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (!hasDetails) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'No progress details',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
