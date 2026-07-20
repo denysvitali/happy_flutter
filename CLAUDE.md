@@ -27,6 +27,21 @@ Repo-local skills in `.claude/skills/` encode recurring workflows — prefer the
 - `loki-trace` — cross-service log correlation via `trace_id` / `app_launch_id`
 - `ui-audit-batch` — one scoped UI-quality batch (theming, extraction, deprecations)
 
+## Inspecting a Session's Wire Data (CLI)
+
+- **Session ids are opaque hex strings** (e.g. `c948d14cf2c6fc0573379cbb1`). They are *not* git SHAs and are distinct from the `claudeSessionId` (UUID) and `machineId` (UUID) shown in the metadata. If a pasted hex id fails `git rev-parse` / `git cat-file`, treat it as a session id, not a commit.
+- Use the **`happy` CLI** (the binary on PATH is `happy` — not `haply`) to decrypt and dump a session's metadata, messages, sidechains, and process state. This is the fastest way to see the raw wire shape behind a UI rendering bug (a workflow run's `workflowProgress` / sidechain `children`, encrypted message bodies, tool-call input/result):
+
+```bash
+happy debug session <session-id>                                       # human-readable; 20 oldest messages
+happy debug session <session-id> --tail                                 # most recent messages
+happy debug session <session-id> --messages 500                         # widen the window (cap it — full transcripts are large)
+happy debug session <session-id> --json --no-process --no-diagnostics   # raw JSON bodies for jq/rg
+happy debug session <session-id> --all --remote                         # everything, incl. owning daemon/machine
+```
+
+  Useful flags: `--last-message`, `--no-messages`, `--no-process`, `--no-diagnostics`, `--remote`. Sibling verbs under `happy debug`: `bundle` (redacted tarball for bug reports), `doctor`, `logs`, `status`, `config`, `repair-sessions`.
+
 ## Production Issues / GlitchTip
 
 - **Use GlitchTip for app issue checks** when asked about app crashes,
@@ -329,6 +344,8 @@ ProviderContainer(overrides: [
 
 **Widget tests:** Wrap in `ProviderScope(overrides: [...])` inside `MaterialApp`. Stub notifiers override `build()`, `loadFromSync()`, and `refreshFromSync()`.
 
+**Finder gotcha (rediscovered twice — broke tests both times):** `find.text(x, findRichText: true)` is an EXACT match. A header rendering title+subtitle in one RichText (e.g. `'Apply Changes  new_file.dart'`) won't match `'Apply Changes'` — use `find.textContaining(x, findRichText: true)`.
+
 **Test helpers** in `test/helpers/test_helpers.dart`: `createTestSync()`, `mockResponse<T>()`.
 
 ### Golden Screenshots
@@ -407,6 +424,8 @@ Service label is `service_name="happy-flutter"` (note the dash, not underscore).
 **Pipeline stage vocab:** `raw → normalized → processed → grouped → merged → notified`. Search by `stage=<name>` to follow a single socket payload through the ingestion pipeline.
 
 **Caveat:** `mcp__loki__loki_query` has a token cap (~10k tokens per call); on large queries the result is saved to `~/.claude/projects/.../tool-results/mcp-loki-loki_query-*.txt` and must be read in chunks. Use `head`/`tail`/`limit` to bound the response, and `filter` to reduce noise.
+
+**`mcp__loki` not loaded?** Retry once, say out loud it's broken, then query Loki direct: `http://loki.monitoring.svc.cluster.local:3100` — same LogQL selectors via `/loki/api/v1/query_range`. Don't silently stall or work around it for turns.
 
 ### Prometheus (metrics)
 
