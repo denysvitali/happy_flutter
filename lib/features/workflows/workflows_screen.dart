@@ -54,15 +54,16 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
             _refresh();
           }
         });
-    // Rebuild live when this session's messages change (running foreground
-    // workflows stream task_progress here), and debounce a refetch so a
-    // background run that just wrote its on-disk snapshot flips to rich
-    // promptly instead of staying a stale sparse row.
+    // A message change means a workflow may have just completed (foreground
+    // task_progress, or a background task_notification): debounce a refetch
+    // so the card flips from a sparse row to the rich on-disk snapshot
+    // promptly. We intentionally do NOT setState on every tick — that would
+    // re-walk the whole transcript per run ~10x/s; the chat inline view is
+    // the live progress surface, the list updates on completion.
     _msgSub = sync.onSessionMessagesChanged
         .where((sid) => sid == widget.sessionId)
         .listen((_) {
           if (!mounted) return;
-          setState(() {});
           _msgDebounce?.cancel();
           _msgDebounce = Timer(const Duration(seconds: 1), _refreshVisible);
         });

@@ -72,7 +72,9 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final runs = sync.workflowsForSession(widget.sessionId);
     final found = runs.where((r) => r.runId == widget.runId).firstOrNull;
     if (found != null) {
-      setState(() => _run = found);
+      setState(
+        () => _run = WorkflowRun.withFallbackProgress(found, _run),
+      );
     }
   }
 

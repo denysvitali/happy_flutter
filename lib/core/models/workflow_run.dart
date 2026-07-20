@@ -532,6 +532,9 @@ class WorkflowRun {
     if (next.workflowProgress.isNotEmpty || next.phases.isNotEmpty) {
       return next;
     }
+    // A terminal snapshot is authoritative even when sparse; never paste a
+    // stale live overlay onto a completed/failed run.
+    if (!WorkflowStatus.isLive(next.status)) return next;
     return next.copyWith(
       workflowProgress: prev.workflowProgress,
       phases: prev.phases,

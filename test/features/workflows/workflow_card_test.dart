@@ -97,4 +97,18 @@ void main() {
     expect(find.text('No progress details'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
+
+  testWidgets('queued run shows static wait copy, no spinner', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _harness(_run(runId: 'wf_q', name: 'wf_q', status: 'queued')),
+    );
+
+    // 'Queued' appears in both the badge and the body — never a spinner,
+    // never the contradictory 'Starting…'.
+    expect(find.text('Queued'), findsWidgets);
+    expect(find.text('Starting…'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
 }

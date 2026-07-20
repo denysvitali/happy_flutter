@@ -346,4 +346,79 @@ void main() {
       expect(WorkflowStatus.values, contains('async_launched'));
     });
   });
+
+  group('WorkflowRun.withFallbackProgress', () {
+    WorkflowRun run(String status, {bool rich = false}) => WorkflowRun(
+          runId: 'wf_1',
+          workflowName: 'wf_1',
+          status: status,
+          phases: rich
+              ? const <WorkflowPhase>[WorkflowPhase(title: 'P')]
+              : const <WorkflowPhase>[],
+        );
+
+    test('returns next unchanged when there is no previous run', () {
+      final next = run('running');
+      expect(
+        identical(WorkflowRun.withFallbackProgress(next, null), next),
+        isTrue,
+      );
+    });
+
+    test('keeps a rich next snapshot as-is', () {
+      final next = run('running', rich: true);
+      final prev = run('running', rich: true);
+      expect(
+        identical(WorkflowRun.withFallbackProgress(next, prev), next),
+        isTrue,
+      );
+    });
+
+    test('keeps the held overlay for a sparse live snapshot', () {
+      final merged = WorkflowRun.withFallbackProgress(
+        run('running'),
+        run('running', rich: true),
+      );
+      expect(merged.phases.single.title, 'P');
+    });
+
+    test('never overlays stale progress onto a terminal snapshot', () {
+      final merged = WorkflowRun.withFallbackProgress(
+        run('completed'),
+        run('running', rich: true),
+      );
+      expect(merged.phases, isEmpty);
+    });
+  });
+
+  group('WorkflowRun.enrichFromMessages snake_case child key', () {
+    test('reads workflow_progress off sidechain children', () {
+      final run = WorkflowRun(
+        runId: 'wf_1',
+        workflowName: 'wf_1',
+        status: 'running',
+      );
+      final enriched = WorkflowRun.enrichFromMessages(run, <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'wf-tool',
+          'kind': 'tool-call',
+          'name': 'Workflow',
+          'children': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'kind': 'agent-event',
+              'workflowRunId': 'wf_1',
+              'workflow_progress': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'workflow_phase',
+                  'index': 1,
+                  'title': 'Scan',
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+      expect(enriched.phases.single.title, 'Scan');
+    });
+  });
 }
