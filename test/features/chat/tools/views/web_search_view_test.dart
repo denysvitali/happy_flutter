@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
@@ -33,8 +34,13 @@ Widget _wrap(Widget child, {bool debug = true}) {
 }
 
 Widget _wrapBody(Widget child) {
+  // WebSearchView reads context.l10n (AppLocalizations.of(context)!), so the
+  // harness must register the localization delegates — without them the body
+  // build throws a null-check TypeError and every finder returns nothing.
   return ProviderScope(
     child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: SingleChildScrollView(child: child)),
     ),
   );
