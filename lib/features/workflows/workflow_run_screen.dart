@@ -23,6 +23,7 @@ class WorkflowRunScreen extends ConsumerStatefulWidget {
     required this.runId,
     super.key,
     this.taskData,
+    this.embedded = false,
   });
 
   /// The session the workflow belongs to.
@@ -33,6 +34,12 @@ class WorkflowRunScreen extends ConsumerStatefulWidget {
 
   /// Optional pre-loaded workflow data passed via route extra.
   final Map<String, dynamic>? taskData;
+
+  /// When true, render only the run body (no [Scaffold]/[AppBar]) so the
+  /// screen can be embedded inside another view — e.g. the agent
+  /// conversation screen falls back to it for a `Workflow` tool call whose
+  /// inner transcript never reaches the session message stream.
+  final bool embedded;
 
   @override
   ConsumerState<WorkflowRunScreen> createState() => _WorkflowRunScreenState();
@@ -53,6 +60,10 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
         Map<String, dynamic>.from(widget.taskData!),
       );
     }
+    // Show an already-cached run on first paint instead of waiting for the
+    // poll/fetch to resolve — matters when embedded, where the parent view
+    // has no skeleton to pass as [taskData].
+    _loadFromSync();
     Future<void>.microtask(_refresh);
     _sub = sync.onWorkflowsChanged
         .where((sid) => sid == widget.sessionId)
@@ -121,38 +132,14 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final commonModel = models.length == 1 ? models.first : null;
     final elapsedMs = run == null ? null : _elapsedMs(run);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: run == null
-            ? const Text('Workflow')
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    workflowDisplayName(run),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    run.runId,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-      body: _loading && run == null
-          ? const Center(child: CircularProgressIndicator())
-          : run == null
-          ? _ErrorState(
-              error: _error ?? 'Workflow not found',
-              onRetry: _refresh,
-            )
-          : CustomScrollView(
+    final body = _loading && run == null
+        ? const Center(child: CircularProgressIndicator())
+        : run == null
+        ? _ErrorState(
+            error: _error ?? 'Workflow not found',
+            onRetry: _refresh,
+          )
+        : CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
@@ -225,7 +212,35 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                     ),
                   ),
               ],
-            ),
+            );
+
+    if (widget.embedded) return body;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: run == null
+            ? const Text('Workflow')
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    workflowDisplayName(run),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    run.runId,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+      body: body,
     );
   }
 

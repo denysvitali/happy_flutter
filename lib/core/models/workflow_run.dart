@@ -742,6 +742,15 @@ class WorkflowRun {
     return null;
   }
 
+  /// The daemon workflow-run id a container tool-call message belongs to,
+  /// read off the message's own `workflowRunId` tag or, failing that, the
+  /// first child that carries one (the streamed `task_*` events stamp it).
+  /// Returns null for non-workflow containers and for a workflow whose first
+  /// event has not yet been grouped under the tool call.
+  static String? runTagForMessage(Map<String, dynamic> message) =>
+      _workflowRunTag(message) ??
+      _firstWorkflowRunTag(WireParsers.asList(message['children']));
+
   static bool _hasProgress(Map<String, dynamic> message) {
     final list = rawWorkflowProgress(message);
     return list != null && list.isNotEmpty;

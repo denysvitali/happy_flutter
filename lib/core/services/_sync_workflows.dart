@@ -25,6 +25,15 @@ extension SyncWorkflows on Sync {
     _workflowsBySession[sessionId] ?? const <WorkflowRun>[],
   );
 
+  /// Test-only: seed the in-memory workflow runs for [sessionId] so screens
+  /// that resolve a run from the sync cache (e.g. the embedded
+  /// [WorkflowRunScreen] inside [AgentConversationScreen]) can be exercised
+  /// without a live daemon. Mirrors [testSetSessionMessages].
+  @visibleForTesting
+  void testSetWorkflows(String sessionId, List<WorkflowRun> runs) {
+    _workflowsBySession[sessionId] = List<WorkflowRun>.unmodifiable(runs);
+  }
+
   // ── Hydration ──────────────────────────────────────────────────────────
 
   /// Restore cached workflows for [sessionId] from MMKV into the in-memory

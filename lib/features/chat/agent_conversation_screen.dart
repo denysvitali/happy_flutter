@@ -5,19 +5,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/workflow_run.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/repositories/workflows_repository.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/wire_parsers.dart';
+import '../workflows/workflow_display.dart';
+import '../workflows/workflow_run_screen.dart';
 import 'chat_tts_gate.dart';
 import 'markdown/markdown.dart';
 import 'markdown/markdown_view.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart';
 import 'widgets/agent_event_widget.dart';
+import 'widgets/agent_result_summary.dart';
 
 /// Full-screen view for a Task (sub-agent) tool call's
 /// conversation.
@@ -62,8 +67,16 @@ class _AgentConversationScreenState
     extends ConsumerState<AgentConversationScreen> {
   final ScrollController _scroll = ScrollController();
   StreamSubscription<String>? _messageSubscription;
+  StreamSubscription<String>? _workflowSubscription;
   Map<String, dynamic>? _taskMsg;
   int _prevChildFingerprint = 0;
+  // A Workflow tool call's inner transcript never reaches the session
+  // message stream (the daemon keeps it in wf_<runId>.json), so the grouped
+  // `children` only ever carry transient task_* events. When we detect a
+  // workflow we resolve its run from the sync cache (and fetch once on miss)
+  // and embed [WorkflowRunScreen] so the per-agent breakdown is visible.
+  String? _runId;
+  bool _runFetchAttempted = false;
   // Sub-agent children carry no `role` field (they're sidechain
   // messages), so the predicate matches the original agent-screen
   // behavior: any text item that isn't a thinking placeholder.
@@ -76,7 +89,11 @@ class _AgentConversationScreenState
   void initState() {
     super.initState();
     _taskMsg = widget.taskData;
+    _runId = _resolveRunId(_taskMsg);
     _messageSubscription = sync.onSessionMessagesChanged
+        .where((id) => id == widget.sessionId)
+        .listen((_) => _refresh());
+    _workflowSubscription = sync.onWorkflowsChanged
         .where((id) => id == widget.sessionId)
         .listen((_) => _refresh());
     final settings = ref.read(settingsNotifierProvider);
@@ -102,9 +119,49 @@ class _AgentConversationScreenState
         'taskDataChildren=$taskDataChildren '
         'topLevelIds=${messages.take(5).map((m) => m['id']).toList()}',
       );
+      _loadRun();
       return;
     }
+    // The grouped message may gain its `workflowRunId` only once the first
+    // task_* sidechain event nests under it, so re-resolve on every refresh.
+    final resolvedRunId = _resolveRunId(found) ?? _runId;
+    if (resolvedRunId != _runId) {
+      setState(() => _runId = resolvedRunId);
+      _runFetchAttempted = false;
+    }
     _applyUpdate(found);
+    _loadRun();
+  }
+
+  String? _resolveRunId(Map<String, dynamic>? msg) {
+    if (msg == null) return null;
+    if (msg['name'] != 'Workflow') return null;
+    return WorkflowRun.runTagForMessage(msg);
+  }
+
+  /// Resolve the [WorkflowRun] for the current [_runId] from the sync cache,
+  /// falling back to a single daemon snapshot fetch on miss. The embedded
+  /// [WorkflowRunScreen] renders whatever the cache holds; this just makes
+  /// sure a not-yet-cached run gets pulled once.
+  void _loadRun() {
+    final runId = _runId;
+    if (runId == null || _runFetchAttempted) return;
+    final cached = sync
+        .workflowsForSession(widget.sessionId)
+        .where((r) => r.runId == runId)
+        .firstOrNull;
+    if (cached != null) return;
+    _runFetchAttempted = true;
+    unawaited(
+      ref
+          .read(workflowsRepositoryProvider)
+          .fetchSnapshot(widget.sessionId, runId)
+          .then((run) {
+            if (!mounted || run == null) return;
+            // The fetch writes through to the sync cache, which fires
+            // onWorkflowsChanged → _refresh; nothing to setState here.
+          }),
+    );
   }
 
   /// Recursively search messages and their children for [messageId].
@@ -234,6 +291,7 @@ class _AgentConversationScreenState
   @override
   void dispose() {
     _messageSubscription?.cancel();
+    _workflowSubscription?.cancel();
     _scroll.dispose();
     TtsService().stop();
     super.dispose();
@@ -246,8 +304,22 @@ class _AgentConversationScreenState
     final input = WireParsers.asMap(_taskMsg?['input']);
     final descriptionRaw = input?['description'] as String?;
     final promptRaw = input?['prompt'] as String?;
-    final description =
-        descriptionRaw ?? promptRaw ?? l10n.agentFallbackDescription;
+    final isWorkflow = _taskMsg?['name'] == 'Workflow';
+    final runId = isWorkflow ? _runId : null;
+    final cachedRun = runId == null
+        ? null
+        : sync
+              .workflowsForSession(widget.sessionId)
+              .where((r) => r.runId == runId)
+              .firstOrNull;
+    final resultSummary = resultAsText(_taskMsg?['result']);
+    final description = descriptionRaw ??
+        promptRaw ??
+        (isWorkflow
+            ? (cachedRun != null
+                  ? workflowDisplayName(cachedRun)
+                  : 'Workflow')
+            : l10n.agentFallbackDescription);
     final subagentType =
         input?['subagent_type'] as String? ?? _taskMsg?['taskType'] as String?;
     final state = _taskMsg?['state'] as String? ?? 'pending';
@@ -285,31 +357,15 @@ class _AgentConversationScreenState
 
     final displayChildren = _buildDisplayChildren(children, isRunning);
 
-    final messagesView = displayChildren.isEmpty
-        ? Center(
-            child: isRunning
-                ? const CircularProgressIndicator()
-                : Text(
-                    l10n.agentNoMessages,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-          )
-        : ListView.builder(
-            controller: _scroll,
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              AppSpacing.xxl,
-            ),
-            itemCount: displayChildren.length,
-            itemBuilder: (context, i) => RepaintBoundary(
-              key: ValueKey(displayChildren[i]['id'] ?? i),
-              child: _buildChildMessage(theme, displayChildren[i]),
-            ),
-          );
+    final messagesView = _buildMessagesView(
+      theme: theme,
+      l10n: l10n,
+      displayChildren: displayChildren,
+      isRunning: isRunning,
+      isWorkflow: isWorkflow,
+      runId: runId,
+      resultSummary: resultSummary,
+    );
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -605,6 +661,60 @@ class _AgentConversationScreenState
       return 'ev:$tool:$msg';
     }
     return null;
+  }
+
+  /// Builds the scrollable feed below the debug card.
+  ///
+  /// A real message transcript (classic `Task`/`Agent` sidechain children)
+  /// always wins. A `Workflow` tool call never has one — its inner activity
+  /// lives daemon-side — so when we resolved a run id we embed
+  /// [WorkflowRunScreen] (phases + per-agent prompt/result/error). Otherwise
+  /// fall back to the tool result, a running spinner, or the empty note.
+  Widget _buildMessagesView({
+    required ThemeData theme,
+    required AppLocalizations l10n,
+    required List<Map<String, dynamic>> displayChildren,
+    required bool isRunning,
+    required bool isWorkflow,
+    required String? runId,
+    required String? resultSummary,
+  }) {
+    if (displayChildren.isNotEmpty) {
+      return ListView.builder(
+        controller: _scroll,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.xxl,
+        ),
+        itemCount: displayChildren.length,
+        itemBuilder: (context, i) => RepaintBoundary(
+          key: ValueKey(displayChildren[i]['id'] ?? i),
+          child: _buildChildMessage(theme, displayChildren[i]),
+        ),
+      );
+    }
+    if (isWorkflow && runId != null) {
+      return WorkflowRunScreen(
+        sessionId: widget.sessionId,
+        runId: runId,
+        embedded: true,
+      );
+    }
+    if (!isRunning && resultSummary != null) {
+      return AgentResultSummary(text: resultSummary);
+    }
+    return Center(
+      child: isRunning
+          ? const CircularProgressIndicator()
+          : Text(
+              l10n.agentNoMessages,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+    );
   }
 }
 
