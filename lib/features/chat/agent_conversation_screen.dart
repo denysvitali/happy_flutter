@@ -136,7 +136,26 @@ class _AgentConversationScreenState
   String? _resolveRunId(Map<String, dynamic>? msg) {
     if (msg == null) return null;
     if (msg['name'] != 'Workflow') return null;
-    return WorkflowRun.runTagForMessage(msg);
+    final tag = WorkflowRun.runTagForMessage(msg);
+    if (tag != null) return tag;
+    // The grouped `workflowRunId` tag only appears once a task_* sidechain
+    // event nests under the tool call, which need not have happened (or the
+    // events never group at all). The tool *result* always echoes the run id
+    // ("Run ID: wf_…"), so fall back to parsing it — without this the embed
+    // never fires and the user sees the raw launch receipt instead of the
+    // per-agent breakdown.
+    return _runIdFromResult(msg['result']);
+  }
+
+  /// Matches the daemon run id echoed in a Workflow tool result, e.g.
+  /// `Run ID: wf_6551c046-249`. Scoped to the `Run ID:` label so unrelated
+  /// `wf_` substrings (paths, script names) don't yield a false id.
+  static final RegExp _runIdInResult = RegExp(r'Run ID:\s*([A-Za-z0-9_-]+)');
+
+  static String? _runIdFromResult(dynamic result) {
+    final text = resultAsText(result);
+    if (text == null) return null;
+    return _runIdInResult.firstMatch(text)?.group(1);
   }
 
   /// Resolve the [WorkflowRun] for the current [_runId] from the sync cache,

@@ -117,6 +117,59 @@ void main() {
     },
   );
 
+  testWidgets(
+    'parses the run id from the launch receipt when no tag is present',
+    (tester) async {
+      // The real wire shape that produced the "useless receipt" screen: the
+      // Workflow tool message carries no `workflowRunId` tag (the task_*
+      // sidechain events never grouped under it), but its tool result echoes
+      // `Run ID: wf_…`. The screen must parse that id and embed the run.
+      const liveRunId = 'wf_6551c046-249';
+      sync.testSetWorkflows(
+        _sessionId,
+        <WorkflowRun>[
+          WorkflowRun(
+            runId: liveRunId,
+            workflowName: 'finalize-mp-browser-rce',
+            status: 'completed',
+            workflowProgress: <WorkflowProgressEvent>[
+              WorkflowAgent(
+                agentId: 'a1',
+                label: 'recon:offsets',
+                phaseIndex: 0,
+                phaseTitle: '',
+                model: 'm',
+                state: 'done',
+              ),
+            ],
+          ),
+        ],
+      );
+      final taskData = <String, dynamic>{
+        'id': _taskId,
+        'kind': 'tool-call',
+        'name': 'Workflow',
+        'state': 'completed',
+        'model': 'qwen3.8-max-preview',
+        'result': 'Workflow launched in background. Task ID: wzycqw34i '
+            'Run ID: $liveRunId To resume after editing the script…',
+      };
+      sync.testSetSessionMessages(_sessionId, <Map<String, dynamic>>[taskData]);
+
+      await tester.pumpWidget(_buildApp(taskData: taskData));
+      await tester.pump();
+
+      expect(find.text('recon:offsets'), findsOneWidget);
+      // The useless raw receipt must be gone.
+      expect(
+        find.textContaining('Workflow launched in background'),
+        findsNothing,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets('falls back to the tool result when there is no run', (
     tester,
   ) async {
