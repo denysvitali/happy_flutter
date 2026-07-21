@@ -568,6 +568,14 @@ extension SyncMessagingMerge on Sync {
   }
 
   /// Apply tool results to existing tool-call messages in a session.
+  ///
+  /// Results whose tool-call has not yet arrived are queued into
+  /// `_pendingToolResults` so a later batch can match them — this
+  /// covers both the empty-session case and the realistic case where
+  /// the session already has prior messages but the matching
+  /// tool-call is still in flight (a wire ordering seen from
+  /// same-millisecond Codex events).
+  ///
   /// Returns the set of toolUseIds that were matched, so callers can
   /// drain only those from the pending queue.
   Set<String> _applyToolResults(
@@ -592,6 +600,28 @@ extension SyncMessagingMerge on Sync {
     if (result.changed) {
       _sessionMessages[sessionId] = result.messages;
       _invalidateMessageCaches(sessionId);
+    }
+
+    // Queue any results whose tool-call has not arrived yet so they
+    // can be matched on a later batch. Without this, a tool-result
+    // that lands one seq before its tool-call (a real wire ordering
+    // seen from same-millisecond Codex events) is silently dropped
+    // once the session already has prior messages, leaving the
+    // tool-call stuck in `running` state forever.
+    //
+    // The retry path in the orchestrator / legacy messaging code
+    // passes `_pendingToolResults[sessionId]` itself as `toolResults`;
+    // skip the self-append in that case to avoid duplicating entries.
+    final pending = _pendingToolResults[sessionId];
+    if (!identical(pending, toolResults)) {
+      final unmatched = toolResults
+          .where((r) => !result.matchedIds.contains(r['toolUseId']))
+          .toList();
+      if (unmatched.isNotEmpty) {
+        final queue = pending ??
+            _pendingToolResults.putIfAbsent(sessionId, () => []);
+        queue.addAll(unmatched);
+      }
     }
 
     return result.matchedIds;

@@ -206,6 +206,115 @@ void main() {
                 'did not contain its tool-call');
       },
     );
+
+    test(
+      'tool result arriving into a non-empty session before its '
+      'tool-call is queued and applied when the call arrives',
+      () async {
+        // Regression: when a session already has prior messages, a
+        // tool-result whose tool-call has not yet arrived used to be
+        // silently dropped by _applyToolResults (only the
+        // empty-existing branch queued into _pendingToolResults).
+        // The result then never matched the call when it landed one
+        // seq later, leaving the tool-call stuck in `running` state
+        // forever — visible in the UI as a permanent pending spinner.
+        const sessionId = 'cross-tool-3';
+
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 1,
+        );
+        // Pre-populate with a prior text message so the session's
+        // message list is non-empty when the late tool-result lands.
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'msg-text-0',
+            'localId': 'local-text-0',
+            'seq': 1,
+            'createdAt': 1700000001000,
+            'role': 'agent',
+            'kind': 'text',
+            'content': 'hello',
+          },
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 1);
+
+        sync.testVisibleSessionId = sessionId;
+        sync.messagesSync[sessionId] = InvalidateSync(
+          () => sync.fetchMessages(sessionId),
+        );
+
+        expect(sync.testSessionMessages(sessionId), hasLength(1));
+        expect(sync.testPendingToolResults(sessionId), isEmpty);
+
+        // Step 1: a tool-result arrives via socket for a tool-call
+        // that has NOT been seen yet. Pre-fix this result is
+        // silently dropped because existing is non-empty.
+        sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': _makeEncryptedToolResult(
+            'msg-result-late',
+            seq: 2,
+            toolUseId: 'tu-late',
+            result: 'late result body',
+          ),
+        });
+
+        await Future<void>.delayed(
+          const Duration(milliseconds: 200),
+        );
+
+        final pendingAfterResult =
+            sync.testPendingToolResults(sessionId);
+        expect(
+          pendingAfterResult
+              .where((r) => r['toolUseId'] == 'tu-late'),
+          isNotEmpty,
+          reason: 'unmatched tool result must be queued even when '
+              'the session already has messages',
+        );
+
+        // Step 2: the matching tool-call arrives via a later fetch.
+        sync.testFetchMessagesOverride =
+            (sid, afterSeq, limit) async {
+          return _buildMessagesResponse([
+            _makeEncryptedToolCall(
+              'msg-tool-late',
+              seq: 3,
+              toolUseId: 'tu-late',
+              toolName: 'Read',
+            ),
+          ]);
+        };
+
+        await sync.fetchMessages(sessionId);
+        await Future<void>.delayed(
+          const Duration(milliseconds: 200),
+        );
+
+        final msgs = sync.testSessionMessages(sessionId)!;
+        final toolCall = msgs.firstWhere(
+          (m) => m['toolUseId'] == 'tu-late',
+        );
+        expect(
+          toolCall['state'],
+          'completed',
+          reason: 'tool-call must be completed once the queued '
+              'result is drained on a later batch',
+        );
+        expect(toolCall['result'], 'late result body');
+
+        final pendingAfterCall =
+            sync.testPendingToolResults(sessionId);
+        expect(
+          pendingAfterCall
+              .where((r) => r['toolUseId'] == 'tu-late'),
+          isEmpty,
+          reason: 'matched result must be drained from pending',
+        );
+      },
+    );
   });
 }
 
