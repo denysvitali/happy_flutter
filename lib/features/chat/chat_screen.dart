@@ -9,8 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:sentry_flutter/sentry_flutter.dart'
     show Breadcrumb, Hint, Sentry, SentryLevel;
 
-import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
+import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/loop.dart';
@@ -64,7 +64,9 @@ import 'widgets/session_goal_banner.dart';
 import 'widgets/session_issue_banner.dart';
 import 'widgets/session_tasks_banner.dart';
 import 'widgets/sub_agent_status_banner.dart';
+import 'widgets/thinking_stop_bar.dart';
 import 'widgets/tts_playback_bar.dart';
+import 'widgets/typing_indicator.dart';
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
 // because Dart's library-private (`_`) visibility is required for
@@ -1418,6 +1420,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final pendingRequests = _session?.agentState?.requests;
     final hasPendingPermission =
         pendingRequests != null && pendingRequests.isNotEmpty;
+    final isThinking = _session?.thinking ?? false;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1446,6 +1449,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           canGoPrev: _ttsCanGoPrev(),
           canGoNext: _ttsCanGoNext(),
         ),
+        if (isThinking && !_isAborting)
+          ThinkingStopBar(onStop: _abortSession),
+        if (_isAborting)
+          const Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: AppSpacing.sm),
+                Text('Stopping\u2026'),
+              ],
+            ),
+          ),
       ],
     );
   }

@@ -64,6 +64,32 @@ void _processCodexContent({
     return;
   }
 
+  if (dataType == DataType.thinking) {
+    // Codex thinking / reasoning blocks. The wire payload carries the
+    // thought text in either `text` or `thinking` (both are present in
+    // happy-cli-go's codex envelope). Render as a collapsible thinking
+    // block so the user sees the agent is actively reasoning.
+    final thoughtText =
+        data['text']?.toString() ?? data['thinking']?.toString() ?? '';
+    messages.add({
+      'id': id,
+      'localId': localId,
+      'seq': seq,
+      'createdAt': createdAt,
+      'role': 'agent',
+      'kind': 'text',
+      'isThinking': true,
+      'content': thoughtText,
+      'raw': outerContent,
+      if (meta.isSidechain) 'isSidechain': true,
+      'uuid': ?meta.uuid,
+      'parentUuid': ?meta.parentUuid,
+      'parentToolUseId': ?parentToolUseId,
+      'agentId': ?agentId,
+    });
+    return;
+  }
+
   if (dataType == DataType.toolCall) {
     // Handle old (name/input), current (toolName/args), and Responses-style
     // (name/arguments) tool calls from happy-cli-go/Codex.

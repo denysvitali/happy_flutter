@@ -1154,6 +1154,63 @@ void main() {
           },
         );
       });
+
+      test('processes codex thinking as isThinking text', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'codex',
+                'data': {
+                  'type': 'thinking',
+                  'text': 'Let me analyze this code...',
+                  'thinking': 'Let me analyze this code...',
+                  'id': 'msg_1:msg_abc',
+                  'itemType': 'reasoning',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'text');
+        expect(result.messages.first['isThinking'], true);
+        expect(
+          result.messages.first['content'],
+          'Let me analyze this code...',
+        );
+      });
+
+      test('codex thinking falls back to thinking field', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'codex',
+                'data': {
+                  'type': 'thinking',
+                  'thinking': 'Fallback thought',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['isThinking'], true);
+        expect(result.messages.first['content'], 'Fallback thought');
+      });
     });
 
     group('pi content', () {

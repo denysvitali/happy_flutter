@@ -86,6 +86,30 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // change.
     _rebuildNeighborCache(items);
 
+    // Show a typing indicator at the bottom of the chat when the agent
+    // is actively working (thinking flag or recent stream activity) but
+    // the newest visible item is not already a streaming text bubble.
+    // This closes the "dead chat" gap between the user sending a message
+    // and the first visible agent output arriving.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final recentlyReceiving =
+        _lastMessageStreamActivityAt > 0 &&
+        nowMs - _lastMessageStreamActivityAt < 10000;
+    final agentWorking =
+        (_session?.active ?? false) &&
+        ((_session?.thinking ?? false) || recentlyReceiving);
+    // Suppress the indicator when the newest visible item is already an
+    // agent text bubble with a streaming cursor — two indicators would
+    // be redundant.
+    final lastItem = items.isNotEmpty ? items.last : null;
+    final lastIsStreamingText =
+        lastItem != null &&
+        lastItem['role'] == 'agent' &&
+        lastItem['kind'] != 'tool-call' &&
+        lastItem['kind'] != 'hidden-tool-summary' &&
+        lastItem['isThinking'] != true;
+    final showTypingIndicator = agentWorking && !lastIsStreamingText;
+
     final listView = ListView.builder(
       controller: _scrollController,
       reverse: true,
@@ -97,16 +121,31 @@ extension _ChatScreenBuilders on _ChatScreenState {
       // skip the default automatic wrappers to reduce widget depth.
       addAutomaticKeepAlives: false,
       addRepaintBoundaries: false,
-      itemCount: items.length + (showHeader ? 1 : 0),
+      itemCount:
+          items.length +
+          (showHeader ? 1 : 0) +
+          (showTypingIndicator ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
-        return keyToListIndex[key.value];
+        final idx = keyToListIndex[key.value];
+        if (idx == null) return null;
+        // Offset by the typing indicator slot at index 0.
+        return showTypingIndicator ? idx + 1 : idx;
       },
       itemBuilder: (context, index) {
+        // Index 0 in a reversed list is the bottom — the typing
+        // indicator lives here so it appears below the newest message.
+        if (showTypingIndicator && index == 0) {
+          return const TypingIndicator(
+            key: ValueKey('typing-indicator'),
+          );
+        }
+        final adjustedIndex =
+            showTypingIndicator ? index - 1 : index;
         try {
           return _buildMessageItem(
             context: context,
-            index: index,
+            index: adjustedIndex,
             items: items,
             showHeader: showHeader,
             hasLocalMore: hasLocalMore,
