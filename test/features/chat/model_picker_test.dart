@@ -258,6 +258,140 @@ void main() {
     expect(lastSaved, ['claude-sonnet-4-6']);
   });
 
+  group('provider-owned Codex model effort picker', () {
+    test('providerOwnedCodexEfforts fixes the slug and offers efforts', () {
+      final models = ChatModelMode.providerOwnedCodexEfforts('qwen3.7-max');
+
+      // First entry is the effort-less "Auto" variant (provider default).
+      expect(models.first.modeString, 'qwen3.7-max');
+      expect(models.first.hasEffort, isFalse);
+      expect(models.first.isCodex, isTrue);
+      expect(models.first.modelSlug, 'qwen3.7-max');
+
+      // Followed by the standard Codex effort range, all on the same slug.
+      final efforts = models.sublist(1);
+      expect(
+        efforts.map((m) => m.modeString).toList(),
+        ['qwen3.7-max:low', 'qwen3.7-max:medium', 'qwen3.7-max:high'],
+      );
+      for (final m in efforts) {
+        expect(m.modelSlug, 'qwen3.7-max');
+        expect(m.isCodex, isTrue);
+      }
+    });
+
+    test('strips an existing effort suffix from the provider model', () {
+      final models = ChatModelMode.providerOwnedCodexEfforts(
+        'qwen3.7-max:high',
+      );
+      expect(models.first.modeString, 'qwen3.7-max');
+      expect(
+        models.map((m) => m.modelSlug).toSet(),
+        {'qwen3.7-max'},
+      );
+    });
+
+    test('availableForProfile prefers the provider-owned model over the '
+        'machine catalog', () {
+      final catalog = ChatModelMode.fromCodexCatalog([
+        const CodexModelInfo(
+          slug: 'gpt-5.5',
+          displayName: 'GPT-5.5',
+          supportedReasoningEfforts: ['low', 'medium'],
+        ),
+      ]);
+
+      final models = ChatModelMode.availableForProfile(
+        flavor: 'codex',
+        claudeCompatible: false,
+        codexModels: catalog,
+        providerOwnedCodexModel: 'qwen3.7-max',
+      );
+
+      // The OpenAI catalog model must not leak in when the provider owns
+      // the model; only the provider slug + its effort variants appear.
+      expect(models.any((m) => m.modelSlug == 'gpt-5.5'), isFalse);
+      expect(
+        models.map((m) => m.modeString).toList(),
+        [
+          'qwen3.7-max',
+          'qwen3.7-max:low',
+          'qwen3.7-max:medium',
+          'qwen3.7-max:high',
+        ],
+      );
+    });
+
+    test('availableForProfile falls back to the catalog when no provider '
+        'model is owned', () {
+      final catalog = ChatModelMode.fromCodexCatalog([
+        const CodexModelInfo(
+          slug: 'gpt-5.5',
+          displayName: 'GPT-5.5',
+          supportedReasoningEfforts: ['low', 'medium'],
+        ),
+      ]);
+
+      final models = ChatModelMode.availableForProfile(
+        flavor: 'codex',
+        claudeCompatible: false,
+        codexModels: catalog,
+      );
+      expect(models, catalog);
+    });
+
+    testWidgets('shows an effort slider and emits slug:effort', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      String? selected;
+      final models = ChatModelMode.providerOwnedCodexEfforts('qwen3.7-max');
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) {
+              return Scaffold(
+                body: TextButton(
+                  onPressed: () {
+                    showModelPickerSheet(
+                      context,
+                      ChatModelMode.fromString('qwen3.7-max'),
+                      models,
+                      (m) => selected = m.modeString,
+                    );
+                  },
+                  child: const Text('Open'),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      // The provider model family is shown with an effort slider.
+      expect(find.text('qwen3.7-max'), findsWidgets);
+      expect(find.byType(Slider), findsOneWidget);
+      expect(find.text('Auto'), findsOneWidget);
+      expect(find.text('Low'), findsOneWidget);
+      expect(find.text('Medium'), findsOneWidget);
+      expect(find.text('High'), findsOneWidget);
+
+      // Drag the effort slider fully right -> High, emitting slug:effort.
+      await tester.drag(find.byType(Slider), const Offset(1000, 0));
+      await tester.pumpAndSettle();
+      expect(selected, 'qwen3.7-max:high');
+    });
+  });
+
   test('raw model normalization drops Claude effort modes for Codex', () {
     expect(ChatModelMode.normalizeRawForFlavor('opus:max', 'codex'), 'default');
     expect(

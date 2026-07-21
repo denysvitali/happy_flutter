@@ -345,6 +345,37 @@ void main() {
       expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isFalse);
     });
   });
+  group('provider-owned Codex effort round-trip', () {
+    test('resolved provider-owned effort model is selectable in the picker',
+        () {
+      // A Codex session whose profile owns the model: the user picked an
+      // effort (qwen3.7-max:high) and it was saved as the draft model mode.
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'qwen3.7-max:high',
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'codex',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedRawModelString, 'qwen3.7-max:high');
+      expect(result.resolvedModelMode.modeString, 'qwen3.7-max:high');
+      expect(result.resolvedModelMode.isCodex, isTrue);
+
+      // The picker options built from the provider-owned model must
+      // contain the resolved selection so it highlights on reopen.
+      final options = ChatModelMode.availableForProfile(
+        flavor: 'codex',
+        claudeCompatible: false,
+        providerOwnedCodexModel: result.resolvedRawModelString,
+      );
+      expect(options, contains(result.resolvedModelMode));
+    });
+  });
 }
 
 AIBackendProfile _profile({

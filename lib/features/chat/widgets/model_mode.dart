@@ -87,6 +87,13 @@ class ChatModelMode {
   /// Effort levels supported by the `claude` CLI's `--effort` flag.
   static const claudeEfforts = ['low', 'medium', 'high', 'xhigh', 'max'];
 
+  /// Canonical reasoning efforts offered for a provider-owned Codex
+  /// model. The app cannot query a third-party provider for the set its
+  /// model supports, so it exposes the standard Codex range. The model
+  /// slug itself is fixed by the selected profile; only the effort is
+  /// user-selectable (see [providerOwnedCodexEfforts]).
+  static const codexEfforts = ['low', 'medium', 'high'];
+
   static List<ChatModelMode> _buildClaudeModels() {
     final list = <ChatModelMode>[defaultModel];
     const tiers = [
@@ -172,13 +179,26 @@ class ChatModelMode {
   }
 
   /// Returns model options filtered by profile compatibility.
+  ///
+  /// When [providerOwnedCodexModel] is non-null (a Codex session whose
+  /// selected profile supplies its own model, e.g. Azure OpenAI or a
+  /// Qwen Token Plan gateway), the model slug is fixed by the provider
+  /// but the user can still vary the reasoning effort - see
+  /// [providerOwnedCodexEfforts].
   static List<ChatModelMode> availableForProfile({
     required String? flavor,
     required bool claudeCompatible,
     bool allowClaudeAliases = true,
     List<ChatModelMode>? codexModels,
+    String? providerOwnedCodexModel,
   }) {
     if (flavor == 'codex') {
+      final owned = providerOwnedCodexModel?.trim();
+      if (owned != null &&
+          owned.isNotEmpty &&
+          owned != defaultModel.modeString) {
+        return providerOwnedCodexEfforts(owned);
+      }
       return codexModels == null || codexModels.isEmpty
           ? const [defaultModel]
           : codexModels;
@@ -187,6 +207,47 @@ class ChatModelMode {
     if (claudeCompatible && allowClaudeAliases) return baseModels;
     // Provider-owned model selection uses the selected backend profile.
     return const [defaultModel];
+  }
+
+  /// Builds picker options for a provider-owned Codex model.
+  ///
+  /// The model slug is fixed by the selected profile (parsed from
+  /// [rawModel], dropping any existing `:effort` suffix), so the family
+  /// row exposes a single model. The user can still vary the reasoning
+  /// effort: the first entry is the effort-less "Auto" variant (the
+  /// provider's own default), followed by one entry per [codexEfforts].
+  /// Selecting an effort emits the wire-format `slug:effort` string.
+  static List<ChatModelMode> providerOwnedCodexEfforts(String rawModel) {
+    final slug = _stripEffortSuffix(rawModel.trim());
+    if (slug.isEmpty) return const [defaultModel];
+    return [
+      ChatModelMode._(
+        label: slug,
+        modeString: slug,
+        modelSlug: slug,
+        flavor: 'codex',
+      ),
+      for (final effort in codexEfforts)
+        ChatModelMode.fromCodexModel(
+          slug: slug,
+          displayName: slug,
+          effort: effort,
+        ),
+    ];
+  }
+
+  /// Drops a trailing `:effort` suffix from a provider-owned model string
+  /// so the base slug can be reused across effort variants. Only known
+  /// effort suffixes are stripped, so model slugs that legitimately
+  /// contain a colon are left intact.
+  static String _stripEffortSuffix(String raw) {
+    final idx = raw.lastIndexOf(':');
+    if (idx <= 0 || idx == raw.length - 1) return raw;
+    final suffix = raw.substring(idx + 1);
+    if (codexEfforts.contains(suffix) || claudeEfforts.contains(suffix)) {
+      return raw.substring(0, idx);
+    }
+    return raw;
   }
 
   static List<ChatModelMode> fromCodexCatalog(List<CodexModelInfo> catalog) {

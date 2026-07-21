@@ -1192,6 +1192,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // When the selected profile supplies its own Codex model (Azure
+    // OpenAI, Qwen Token Plan gateway, etc.) the model slug is fixed by
+    // the provider, but the user can still vary the reasoning effort.
+    // Hand the picker the provider-owned model so it offers an effort
+    // selector instead of the machine's OpenAI catalog.
+    String? providerOwnedCodexModel;
+    if (_session?.metadata?.flavor == 'codex' &&
+        profileOwnsRawCodexModel(_selectedProfile)) {
+      final raw = _profileModelOverride ?? _selectedProfile?.defaultModelMode;
+      if (raw != null &&
+          raw.trim().isNotEmpty &&
+          raw.trim() != ChatModelMode.defaultModel.modeString) {
+        providerOwnedCodexModel = raw;
+      }
+    }
+
     final availableModels = ChatModelMode.availableForProfile(
       flavor: _session?.metadata?.flavor,
       claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
@@ -1199,6 +1215,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _selectedProfile,
       ),
       codexModels: _codexModelModes,
+      providerOwnedCodexModel: providerOwnedCodexModel,
     );
 
     // Use select() so this build only re-runs when the specific settings
