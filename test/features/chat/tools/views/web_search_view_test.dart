@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+import 'package:happy_flutter/features/chat/tools/views/web_search_view.dart';
 
 class _DebugSettingsNotifier extends SettingsNotifier {
   @override
@@ -25,6 +26,14 @@ Widget _wrap(Widget child, {bool debug = true}) {
         debug ? _DebugSettingsNotifier.new : _SettingsNotifier.new,
       ),
     ],
+    child: MaterialApp(
+      home: Scaffold(body: SingleChildScrollView(child: child)),
+    ),
+  );
+}
+
+Widget _wrapBody(Widget child) {
+  return ProviderScope(
     child: MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: child)),
     ),
@@ -142,5 +151,153 @@ void main() {
     expect(find.text('Running'), findsNothing);
     expect(find.text('web_search_preview'), findsNothing);
     expect(find.text('INPUT'), findsNothing);
+  });
+
+  // ── WebSearchView body (rendered in the detail screen) ────────────────
+
+  testWidgets('WebSearchView body shows expanded queries list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrapBody(
+        WebSearchView(
+          tool: {
+            'name': 'WebSearch',
+            'state': 'completed',
+            'toolUseId': 'ws-queries',
+            'input': {
+              'query': 'CVE-2026-12015 chromium autofill',
+              'action': {
+                'type': 'search',
+                'query': null,
+                'queries': [
+                  'CVE-2026-12015',
+                  'chromium autofill use-after-free',
+                  'CVE-2026-12015 patch',
+                ],
+              },
+            },
+          },
+        ),
+      ),
+    );
+
+    // Main query row.
+    expect(
+      find.textContaining(
+        'CVE-2026-12015 chromium autofill',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+    // Queries label + each expanded query.
+    expect(find.text('Queries'), findsOneWidget);
+    expect(find.text('CVE-2026-12015'), findsOneWidget);
+    expect(
+      find.text('chromium autofill use-after-free'),
+      findsOneWidget,
+    );
+    expect(find.text('CVE-2026-12015 patch'), findsOneWidget);
+  });
+
+  testWidgets(
+    'WebSearchView body shows no-results note when result envelope is empty',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrapBody(
+          WebSearchView(
+            tool: {
+              'name': 'WebSearch',
+              'state': 'completed',
+              'toolUseId': 'ws-empty',
+              'input': {
+                'query': 'CVE-2026-12015',
+                'action': {
+                  'type': 'search',
+                  'queries': ['CVE-2026-12015'],
+                },
+              },
+              // Daemon emits {} for web_search items with no result pages
+              // on the wire.
+              'result': <String, dynamic>{},
+            },
+          ),
+        ),
+      );
+
+      expect(
+        find.textContaining(
+          'result pages are not included in the transcript',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('WebSearchView body hides no-results note while running', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrapBody(
+        WebSearchView(
+          tool: {
+            'name': 'WebSearch',
+            'state': 'running',
+            'toolUseId': 'ws-running',
+            'input': {'query': 'weather today'},
+          },
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining(
+        'result pages are not included in the transcript',
+        findRichText: true,
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('WebSearchView body renders source tiles when present', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrapBody(
+        WebSearchView(
+          tool: {
+            'name': 'WebSearch',
+            'state': 'completed',
+            'toolUseId': 'ws-sources',
+            'input': {'query': 'flutter'},
+            'result': {
+              'sources': [
+                {
+                  'title': 'Flutter docs',
+                  'url': 'https://docs.flutter.dev',
+                  'snippet': 'Build apps from a single codebase.',
+                },
+              ],
+            },
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('Flutter docs'), findsOneWidget);
+    expect(find.text('https://docs.flutter.dev'), findsOneWidget);
+    expect(
+      find.text('Build apps from a single codebase.'),
+      findsOneWidget,
+    );
+    // No "not in transcript" note when sources are present.
+    expect(
+      find.textContaining(
+        'result pages are not included in the transcript',
+        findRichText: true,
+      ),
+      findsNothing,
+    );
   });
 }

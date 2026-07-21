@@ -15,6 +15,7 @@ import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart' show parseToolState;
 import 'tools/views/codex_mcp_view.dart';
+import 'tools/views/web_search_view.dart';
 
 /// Screen showing full details of a tool-call message.
 ///
@@ -219,6 +220,10 @@ class _ToolDetailView extends StatelessWidget {
     final resultText = _commandResultText(toolName, result);
     final hasInput = _hasMeaningfulPayload(input);
     final hasResult = _hasMeaningfulPayload(result);
+    final isWebSearch =
+        toolName == 'WebSearch' ||
+        toolName == 'web_search' ||
+        toolName == 'web_search_preview';
 
     return ListView(
       padding: AppScreenPadding.standard,
@@ -256,10 +261,19 @@ class _ToolDetailView extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
         ],
 
-        // Codex MCP session tools get their pretty body (full prompt,
-        // config chips, cwd, response) instead of raw JSON cards; the
-        // wire payload stays reachable behind the collapsed disclosure.
-        if (KnownTools.codexMcpToolNames.contains(toolName)) ...[
+        // Web search tools get a first-class body (query, expanded
+        // queries, sources, or a "results not in transcript" note) so
+        // the detail screen is informative even when the daemon's
+        // result envelope is empty (Codex web_search items carry no
+        // result pages on the wire).
+        if (isWebSearch) ...[
+          WebSearchView(tool: data),
+          if (input != null || result != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            _RawPayloadDisclosure(input: input, result: result, state: state),
+          ],
+          const SizedBox(height: AppSpacing.md),
+        ] else if (KnownTools.codexMcpToolNames.contains(toolName)) ...[
           CodexMcpView(tool: data),
           if (input != null || result != null) ...[
             const SizedBox(height: AppSpacing.md),

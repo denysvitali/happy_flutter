@@ -4579,6 +4579,18 @@ abstract class AppLocalizations {
   /// **'Description'**
   String get messageDetailDescription;
 
+  /// No description provided for @webSearchQueriesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Queries'**
+  String get webSearchQueriesLabel;
+
+  /// No description provided for @webSearchNoResultsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Search completed — result pages are not included in the transcript.'**
+  String get webSearchNoResultsNote;
+
   /// No description provided for @messageDetailShare.
   ///
   /// In en, this message translates to:

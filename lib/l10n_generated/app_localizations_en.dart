@@ -2517,6 +2517,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageDetailDescription => 'Description';
 
   @override
+  String get webSearchQueriesLabel => 'Queries';
+
+  @override
+  String get webSearchNoResultsNote =>
+      'Search completed — result pages are not included in the transcript.';
+
+  @override
   String get messageDetailShare => 'Share';
 
   @override

@@ -957,6 +957,8 @@
   "messageDetailState": "State",
   "messageDetailAgentType": "Agent type",
   "messageDetailDescription": "Description",
+  "webSearchQueriesLabel": "Queries",
+  "webSearchNoResultsNote": "Search completed — result pages are not included in the transcript.",
   "messageDetailShare": "Share",
   "messageDetailBookmark": "Bookmark",
   "commonCopiedToClipboard": "Copied to clipboard",
