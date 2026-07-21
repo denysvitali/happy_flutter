@@ -431,9 +431,20 @@ extension SyncMessaging on Sync {
       // lastSeq (since session.lastSeq lags behind socket events).
       // A cursor beyond serverLastSeq indicates socket events may have
       // outpaced the server, so only exact equality is safe to skip.
+      //
+      // Exception: when there are pending (unmatched) tool results queued
+      // for this session, a tool-result arrived via socket before its
+      // tool-call, and that tool-call may still be on the server even
+      // though the cursor looks caught up (the inline result advanced both
+      // the cursor and lastSeq past the not-yet-delivered call). Skipping
+      // here would strand the pending result forever, so force the fetch
+      // and let the pending-drain below match it.
+      final hasPendingToolResults =
+          _pendingToolResults[sessionId]?.isNotEmpty ?? false;
       if (!isFirstLoad &&
           !forceProbe &&
           !hasStrippedImages &&
+          !hasPendingToolResults &&
           cursorSeq > 0 &&
           serverLastSeq > 0 &&
           cursorSeq == serverLastSeq) {
