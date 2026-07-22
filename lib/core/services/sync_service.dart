@@ -499,7 +499,14 @@ what you have, you must use the options mode.
   /// faster than [_suspendSocketDisconnectDelayMs] (common on iOS), the
   /// deferred disconnect never fires and resume() would otherwise trust
   /// the stale status, skipping both the reconnect and the watchdog.
-  static const int _zombieSocketMaxIdleMs = 60 * 1000;
+  ///
+  /// Aligned with the ~45s server-side death (was 60s): the previous 60s
+  /// left a 45-60s dead zone where the server session was already gone
+  /// but the client still trusted "connected", so the app showed live
+  /// status yet received no updates until the next ping timeout. A
+  /// false-positive here only costs one cheap forced reconnect, so we
+  /// bias the threshold down to the server-death boundary.
+  static const int _zombieSocketMaxIdleMs = 45 * 1000;
 
   /// Minimum interval between broad sessions/catalog refreshes caused by
   /// socket reconnect recovery. Visible chat messages are refreshed on every

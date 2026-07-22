@@ -87,7 +87,7 @@ Socket.IO's 10-attempt backoff cycles.
 suspend-disconnect fired (common on iOS), the socket can still report
 `connected` on resume while the server-side session is long dead. `resume()`
 forces a fresh connection when status is `connected` but the app was
-backgrounded longer than `Sync._zombieSocketMaxIdleMs` (60s).
+backgrounded longer than `Sync._zombieSocketMaxIdleMs` (45s).
 
 ## Testing Escape Hatches
 

@@ -236,7 +236,14 @@ class SettingsManager {
     try {
       final apiClient = ApiClient();
 
-      final response = await apiClient.get('/v1/account/profile');
+      // Bound the fetch so a stalled connection cannot hang the bootstrap
+      // fan-out (profile fires alongside settings/machines/sessions on
+      // cold start/resume). On timeout we keep the cached profile — the
+      // same graceful-fallback pattern syncSettings() uses — so the UI
+      // renders stale-but-present data instead of blocking.
+      final response = await apiClient
+          .get('/v1/account/profile')
+          .timeout(const Duration(seconds: 10));
 
       if (apiClient.isSuccess(response)) {
         final data = response.data;
@@ -253,6 +260,10 @@ class SettingsManager {
       } else {
         logger.warning('Failed to fetch profile: ${response.statusCode}');
       }
+    } on TimeoutException {
+      logger.warning(
+        'Profile fetch timed out after 10s; using cached profile',
+      );
     } on DioException {
       rethrow;
     } catch (error, stack) {

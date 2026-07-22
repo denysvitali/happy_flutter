@@ -105,4 +105,21 @@ void main() {
       expect(callCount, 0);
     });
   });
+
+  group('SocketIoClient reconnect backoff', () {
+    test('first attempt uses the 1s initial delay and caps at 10s', () {
+      // P1-4b: initial reconnect delay lowered 2s -> 1s for faster
+      // first-attempt recovery on resume (Jaeger traced reconnect spans
+      // averaging ~4.4s). Exponential growth must still cap at 10s so
+      // later attempts stay battery-friendly.
+      expect(SocketIoClient.testBackoffDelayMs(0), 1000);
+      expect(SocketIoClient.testBackoffDelayMs(1), 2000);
+      expect(SocketIoClient.testBackoffDelayMs(2), 4000);
+      expect(SocketIoClient.testBackoffDelayMs(3), 8000);
+      // 1s * 2^4 = 16s is clamped to the 10s max.
+      expect(SocketIoClient.testBackoffDelayMs(4), 10000);
+      expect(SocketIoClient.testBackoffDelayMs(5), 10000);
+      expect(SocketIoClient.testBackoffDelayMs(20), 10000);
+    });
+  });
 }

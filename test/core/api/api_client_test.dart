@@ -27,6 +27,20 @@ void main() {
       expect(apiClient.getCurrentServerUrl(), 'https://test.example.com');
     });
 
+    test('connect timeout is bounded to 8s for fast failure on '
+        'black-holed mobile routes', () {
+      // P0-1: connectTimeout was 30s, which Jaeger traced as ~28-34s
+      // cold-start/resume stalls on the bootstrap fan-out (profile/
+      // settings/machines/sessions). 8s bounds only the TCP+TLS
+      // handshake (a healthy mobile connect is well under 1s) and
+      // matches the proven Sync._messageFetchConnectTimeout, letting
+      // the RetryInterceptor recover on the next backoff cycle.
+      final options = apiClient.testDio!.options;
+      expect(options.connectTimeout, const Duration(seconds: 8));
+      expect(options.receiveTimeout, const Duration(seconds: 15));
+      expect(options.sendTimeout, const Duration(seconds: 30));
+    });
+
     test('should not retry on 4xx client errors', () async {
       // We can't directly test the interceptor without mocking,
       // but we can verify the client is properly configured

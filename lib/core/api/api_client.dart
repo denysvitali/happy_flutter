@@ -107,7 +107,15 @@ class ApiClient {
     final generation = ++_dioGeneration;
     final baseOptions = BaseOptions(
       baseUrl: serverUrl,
-      connectTimeout: const Duration(seconds: 30),
+      // 8s connect — bounds only the TCP+TLS handshake, not transfer.
+      // A healthy mobile connection establishes in well under a second;
+      // the previous 30s let a black-holed route (stale cellular dial
+      // after wake) hang the bootstrap calls (profile/settings/machines/
+      // sessions) for ~28-34s before failing, which Jaeger traced as the
+      // dominant cold-start/resume stall. 8s matches the proven
+      // Sync._messageFetchConnectTimeout and fails fast enough for the
+      // RetryInterceptor below to recover on the next backoff cycle.
+      connectTimeout: const Duration(seconds: 8),
       // 15s default receive — the 60s fallback was excessive for chat
       // fetches and allowed Cronet stalls to hang for too long.
       receiveTimeout: const Duration(seconds: 15),

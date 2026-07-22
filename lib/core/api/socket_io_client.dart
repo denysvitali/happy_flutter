@@ -150,7 +150,14 @@ class SocketIoClient {
 
   // Reconnection backoff constants — must match the values passed to
   // sio.OptionBuilder in connect().
-  static const int _reconnectDelayInitialMs = 2000;
+  //
+  // Initial delay lowered 2s -> 1s: Jaeger traced websocket.reconnect
+  // spans averaging ~4.4s on resume, and the first internal attempt is
+  // the one that matters most for perceived recovery. Backoff still
+  // grows exponentially to the 10s cap (1,2,4,8,10...), so only the
+  // first dial is more aggressive — battery impact is negligible while
+  // a healthy network is reached ~1s sooner.
+  static const int _reconnectDelayInitialMs = 1000;
   static const int _reconnectDelayMaxMs = 10000;
 
   /// Compute the backoff delay (ms) for the given attempt index (0-based).
@@ -207,7 +214,10 @@ class SocketIoClient {
           .setAuth({'token': token, 'clientType': clientType})
           .setTransports(['websocket'])
           .enableReconnection()
-          .setReconnectionDelay(2000) // 2s initial for better battery
+          // 1s initial (was 2s) for faster first-attempt recovery on
+          // resume; must match _reconnectDelayInitialMs. Exponential
+          // backoff to the 10s cap keeps later attempts battery-friendly.
+          .setReconnectionDelay(1000)
           .setReconnectionDelayMax(10000) // 10s max — 30s is too slow on mobile
           // Cap each connection attempt. The library default is 20s; right
           // after the device wakes from sleep, stale cellular routes can
@@ -773,6 +783,12 @@ class SocketIoClient {
       'current_route': attributes['currentRoute'],
     };
   }
+
+  /// Test-only accessor for the reconnect backoff curve so the
+  /// initial-delay / cap constants can be locked without dialing a
+  /// real server.
+  @visibleForTesting
+  static int testBackoffDelayMs(int attempt) => _backoffDelayMs(attempt);
 
   @visibleForTesting
   bool get testHasConnectedOnce => _hasConnectedOnce;

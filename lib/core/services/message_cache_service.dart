@@ -47,8 +47,15 @@ class MessageCacheService {
   /// sync save path so cold-start JSON decode and initial rendering stay
   /// predictable.
   static const int _maxCachedMessages = 200;
+  // Reads are synchronous on the main isolate (getMessages), so a 50ms+
+  // read is genuinely user-visible (it blocks cold-start render) and
+  // worth flagging.
   static const int _slowCacheReadMs = 50;
-  static const int _slowCacheWriteMs = 50;
+  // Writes run off the main isolate via compute() on the hot path
+  // (saveMessagesAsync), so a 50-100ms write does not jank the UI. The
+  // previous 50ms threshold flooded telemetry (~280 benign entries/6h);
+  // 150ms keeps the signal for genuinely slow persistence only.
+  static const int _slowCacheWriteMs = 150;
 
   /// Maximum number of sessions to keep in cache on web.
   ///
