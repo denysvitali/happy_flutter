@@ -474,6 +474,14 @@ class _AgentConversationScreenState
     }
 
     if (kind == 'agent-event') {
+      // Task progress chips in this dedicated step feed render as full
+      // "<tool> · <description>" step rows — the chat timeline keeps the
+      // compact centered chip (with the tool name de-duplicated) via
+      // AgentEventWidget, but here the tool name is part of the step the
+      // user tapped to see, so the whole label is shown verbatim.
+      if (msg['taskEvent'] == true) {
+        return _StepChipRow(theme: theme, msg: msg);
+      }
       return AgentEventWidget(event: msg['event'], message: msg);
     }
 
@@ -1207,5 +1215,67 @@ class _DebugRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+
+/// A single task-progress chip rendered as a step row in the agent
+/// conversation feed. Shows the chip's full label (e.g.
+/// `Read · lib/main.dart`) with a status glyph so a chips-only sidechain
+/// reads as the list of steps the user opened the screen to inspect.
+class _StepChipRow extends StatelessWidget {
+  const _StepChipRow({required this.theme, required this.msg});
+
+  final ThemeData theme;
+  final Map<String, dynamic> msg;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    final label = WorkflowRun.stepLabel(msg);
+    final state = WorkflowRun.stepState(msg);
+    final (icon, color) = _stateStyle(state, cs);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xxs,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 14, color: color),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (IconData, Color) _stateStyle(String state, ColorScheme cs) {
+    switch (state) {
+      case 'done':
+      case 'completed':
+        return (Icons.check_circle_outline_rounded, AppColors.success);
+      case 'error':
+      case 'failed':
+        return (Icons.error_outline_rounded, cs.error);
+      case 'start':
+      case 'running':
+      case 'progress':
+        return (Icons.play_circle_outline_rounded, cs.primary);
+      default:
+        return (Icons.circle_outlined, cs.onSurfaceVariant);
+    }
   }
 }
