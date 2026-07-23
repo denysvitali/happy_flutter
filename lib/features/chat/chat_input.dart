@@ -188,6 +188,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   );
   bool _isRecording = false;
   bool _isTranscribing = false;
+  bool _isDownloadingModel = false;
   bool _isStoppingDictation = false;
   DateTime? _dictationStartedAt;
   DateTime? _dictationSilenceStartedAt;
@@ -480,7 +481,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Future<void> _onDictationTap() async {
-    if (_isTranscribing || _isStoppingDictation) {
+    if (_isTranscribing ||
+        _isDownloadingModel ||
+        _isStoppingDictation) {
       return;
     }
 
@@ -494,6 +497,25 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Future<void> _startDictation() async {
     final sessionId = ++_dictationSessionId;
+    // If the selected model is not on disk yet, surface a clear
+    // "Downloading model…" state before the mic opens so the user
+    // is not left staring at a silent spinner mid-transcribe.
+    final selected = _dictationService.selectedModel;
+    final needsDownload = _dictationService.statusFor(selected.id) !=
+        OfflineSttStatus.ready;
+    if (needsDownload && mounted) {
+      setState(() => _isDownloadingModel = true);
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Downloading ${selected.displayName}'
+            '${selected.sizeLabel.isEmpty ? '' : ' (${selected.sizeLabel})'}…',
+          ),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    }
     try {
       _prepareDictationPreview();
       await _dictationService.start(
@@ -510,6 +532,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       if (!mounted) return;
       unawaited(HapticFeedback.mediumImpact());
       setState(() {
+        _isDownloadingModel = false;
         _isRecording = true;
         _dictationStartedAt = DateTime.now();
         _dictationSilenceStartedAt = null;
@@ -518,11 +541,21 @@ class _ChatInputState extends ConsumerState<ChatInput>
     } on OfflineDictationException catch (error) {
       if (_dictationSessionId != sessionId) return;
       _dictationSessionId++;
+      if (mounted) {
+        setState(() => _isDownloadingModel = false);
+      }
       _showDictationError(error.message);
     } catch (error) {
       if (_dictationSessionId != sessionId) return;
       _dictationSessionId++;
-      _showDictationError('Failed to start dictation');
+      if (mounted) {
+        setState(() => _isDownloadingModel = false);
+      }
+      _showDictationError(
+        needsDownload
+            ? 'Failed to download dictation model'
+            : 'Failed to start dictation',
+      );
     }
   }
 
@@ -562,7 +595,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   void _cancelDictationForSend() {
     _dictationSessionId++;
-    if (!_isRecording && !_isTranscribing && !_isStoppingDictation) {
+    if (!_isRecording &&
+        !_isTranscribing &&
+        !_isDownloadingModel &&
+        !_isStoppingDictation) {
       return;
     }
 
@@ -579,6 +615,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       setState(() {
         _isRecording = false;
         _isTranscribing = false;
+        _isDownloadingModel = false;
       });
     }
     _isStoppingDictation = false;
@@ -850,6 +887,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 child: _DictationButton(
                   isRecording: _isRecording,
                   isTranscribing: _isTranscribing,
+                  isDownloadingModel: _isDownloadingModel,
                   onTap: _onDictationTap,
                 ),
               ),
@@ -986,7 +1024,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
       controller: widget.controller,
       focusNode: _focusNode,
       decoration: InputDecoration(
-        hintText: _isRecording
+        hintText: _isDownloadingModel
+            ? 'Downloading model…'
+            : _isRecording
             ? 'Listening...'
             : _isTranscribing
             ? 'Transcribing...'
@@ -1154,19 +1194,24 @@ class _DictationButton extends StatelessWidget {
   const _DictationButton({
     required this.isRecording,
     required this.isTranscribing,
+    required this.isDownloadingModel,
     required this.onTap,
   });
 
   final bool isRecording;
   final bool isTranscribing;
+  final bool isDownloadingModel;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final color = isRecording ? cs.error : cs.onSurfaceVariant;
+    final busy = isTranscribing || isDownloadingModel;
     final label = isRecording
         ? 'Stop dictation'
+        : isDownloadingModel
+        ? 'Downloading model'
         : isTranscribing
         ? 'Transcribing'
         : 'Start dictation';
@@ -1177,12 +1222,12 @@ class _DictationButton extends StatelessWidget {
       child: Tooltip(
         message: label,
         child: InkResponse(
-          onTap: isTranscribing ? null : onTap,
+          onTap: busy ? null : onTap,
           radius: AppTouchTarget.min / 2,
           child: SizedBox.square(
             dimension: AppTouchTarget.min,
             child: Center(
-              child: isTranscribing
+              child: busy
                   ? SizedBox.square(
                       dimension: 18,
                       child: CircularProgressIndicator(

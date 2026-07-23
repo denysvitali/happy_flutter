@@ -495,7 +495,10 @@ class OfflineDictationService {
     _sampleCount = 0;
     _lastTranscript = '';
     _onTranscript = onTranscript;
-    unawaited(ensureReady());
+    // Block until the selected model is on disk. Callers (chat mic)
+    // show a "Downloading model…" state while this awaits so the user
+    // never records into a model that isn't ready yet.
+    await ensureReady();
 
     final stream = await _recorder.startStream(
       const RecordConfig(
