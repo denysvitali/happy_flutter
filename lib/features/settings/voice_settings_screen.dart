@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/offline_dictation_service.dart';
 import '../../core/services/offline_tts_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -90,6 +91,7 @@ class _VoiceSettingsScreenState
               ),
               if (ttsUseOffline && TtsService().isOfflineSupported)
                 const _OfflineVoicesNavRow(),
+              const _OfflineSttModelsNavRow(),
               SettingsNavRow(
                 icon: Icons.play_arrow,
                 title: l10n.voiceTestTts,
@@ -290,6 +292,74 @@ class _OfflineVoicesNavRowState
           title: 'Offline voices',
           subtitle: subtitle.toString(),
           onTap: () => context.pushNamed('voice-offline'),
+        );
+      },
+    );
+  }
+}
+
+/// Row that opens the offline STT model manager. Shows the active
+/// dictation model and a quick status (downloaded / not / downloading).
+class _OfflineSttModelsNavRow extends ConsumerStatefulWidget {
+  const _OfflineSttModelsNavRow();
+
+  @override
+  ConsumerState<_OfflineSttModelsNavRow> createState() =>
+      _OfflineSttModelsNavRowState();
+}
+
+class _OfflineSttModelsNavRowState
+    extends ConsumerState<_OfflineSttModelsNavRow> {
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(() {
+      ref.read(offlineDictationServiceProvider).refreshStatuses();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final service = ref.read(offlineDictationServiceProvider);
+    final models = service.models;
+    if (models.isEmpty) return const SizedBox.shrink();
+    final selectedId = ref.watch(
+      settingsNotifierProvider.select((s) => s.sttModelId),
+    );
+    final active = OfflineSttCatalog.byId(selectedId) ??
+        OfflineSttCatalog.defaultModel;
+
+    return ValueListenableBuilder<Map<String, OfflineSttStatus>>(
+      valueListenable: service.statuses,
+      builder: (context, statuses, _) {
+        final status =
+            statuses[active.id] ?? OfflineSttStatus.notDownloaded;
+        final readyCount = statuses.values
+            .where((s) => s == OfflineSttStatus.ready)
+            .length;
+        final subtitle = StringBuffer(active.displayName);
+        switch (status) {
+          case OfflineSttStatus.ready:
+            subtitle.write(' · ready');
+            break;
+          case OfflineSttStatus.downloading:
+            subtitle.write(' · downloading…');
+            break;
+          case OfflineSttStatus.failed:
+            subtitle.write(' · download failed');
+            break;
+          case OfflineSttStatus.notDownloaded:
+            subtitle.write(' · not downloaded');
+            break;
+        }
+        if (readyCount > 0) {
+          subtitle.write(' · $readyCount installed');
+        }
+        return SettingsNavRow(
+          icon: Icons.mic_none_outlined,
+          title: 'Dictation models',
+          subtitle: subtitle.toString(),
+          onTap: () => context.pushNamed('offline-stt-models'),
         );
       },
     );

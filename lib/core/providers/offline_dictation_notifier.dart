@@ -6,6 +6,7 @@ import 'package:riverpod/riverpod.dart';
 import '../i18n/app_localizations.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/offline_dictation_service.dart';
+import 'settings_notifier.dart';
 
 enum OfflineDictationStatus { idle, initializing, ready, error }
 
@@ -71,7 +72,13 @@ class OfflineDictationNotifier extends Notifier<OfflineDictationState> {
 
   Future<void> _initialize(BuildContext? context) async {
     try {
-      await ref.read(offlineDictationServiceProvider).initialize();
+      final service = ref.read(offlineDictationServiceProvider);
+      // Settings owns persistence; service selection is in-memory.
+      final savedId = ref.read(settingsNotifierProvider).sttModelId;
+      service.selectModel(savedId);
+      // Probe + refresh statuses only — no auto-download of the
+      // multi-hundred-MB default on cold start.
+      await service.initialize();
       state = const OfflineDictationState(status: OfflineDictationStatus.ready);
       _readyTimer?.cancel();
       _readyTimer = Timer(const Duration(seconds: 2), () {

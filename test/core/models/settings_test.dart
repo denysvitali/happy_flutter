@@ -317,6 +317,7 @@ void main() {
         ..ttsUseOffline = false
         ..ttsEngine = 'system'
         ..ttsVoiceId = 'voice-a'
+        ..sttModelId = 'parakeet-tdt-0.6b-v3-int8-v1'
         ..voiceAssistantLanguage = 'en-US'
         ..preferredLanguage = 'en'
         ..usagePeriod = 'sevenDays'
@@ -418,6 +419,7 @@ void main() {
       expect(SettingsUpdate.isKnownKey('themeMode'), isTrue);
       expect(SettingsUpdate.isKnownKey('ttsEnabled'), isTrue);
       expect(SettingsUpdate.isKnownKey('ttsUseOffline'), isTrue);
+      expect(SettingsUpdate.isKnownKey('sttModelId'), isTrue);
       expect(SettingsUpdate.isKnownKey('someRemovedLegacyKey'), isFalse);
     });
   });

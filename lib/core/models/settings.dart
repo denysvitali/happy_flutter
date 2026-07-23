@@ -58,6 +58,7 @@ class Settings {
   String? voiceAssistantLanguage;
   String? ttsEngine;
   String? ttsVoiceId;
+  String? sttModelId;
   String? preferredLanguage;
   String usagePeriod = 'thirtyDays';
 
@@ -113,6 +114,7 @@ class Settings {
           voiceAssistantLanguage == other.voiceAssistantLanguage &&
           ttsEngine == other.ttsEngine &&
           ttsVoiceId == other.ttsVoiceId &&
+          sttModelId == other.sttModelId &&
           preferredLanguage == other.preferredLanguage &&
           usagePeriod == other.usagePeriod &&
           lastUsedAgent == other.lastUsedAgent &&
@@ -231,6 +233,7 @@ class Settings {
       ..voiceAssistantLanguage = voiceAssistantLanguage
       ..ttsEngine = ttsEngine
       ..ttsVoiceId = ttsVoiceId
+      ..sttModelId = sttModelId
       ..preferredLanguage = preferredLanguage
       ..usagePeriod = usagePeriod
       ..recentMachinePaths = List<RecentMachinePath>.from(recentMachinePaths)
@@ -280,6 +283,7 @@ class Settings {
     Object? voiceAssistantLanguage = _unset,
     Object? ttsEngine = _unset,
     Object? ttsVoiceId = _unset,
+    Object? sttModelId = _unset,
     Object? preferredLanguage = _unset,
     String? usagePeriod,
     List<RecentMachinePath>? recentMachinePaths,
@@ -340,6 +344,9 @@ class Settings {
       ..ttsVoiceId = identical(ttsVoiceId, _unset)
           ? this.ttsVoiceId
           : ttsVoiceId as String?
+      ..sttModelId = identical(sttModelId, _unset)
+          ? this.sttModelId
+          : sttModelId as String?
       ..preferredLanguage = identical(preferredLanguage, _unset)
           ? this.preferredLanguage
           : preferredLanguage as String?

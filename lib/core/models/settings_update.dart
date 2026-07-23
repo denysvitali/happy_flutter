@@ -90,6 +90,7 @@ final class SettingsUpdate {
       ),
       'ttsEngine' => settings.copyWith(ttsEngine: value as String?),
       'ttsVoiceId' => settings.copyWith(ttsVoiceId: value as String?),
+      'sttModelId' => settings.copyWith(sttModelId: value as String?),
       'preferredLanguage' => settings.copyWith(
         preferredLanguage: value as String?,
       ),
@@ -182,6 +183,7 @@ final class SettingsUpdate {
       ..voiceAssistantLanguage = updated.voiceAssistantLanguage
       ..ttsEngine = updated.ttsEngine
       ..ttsVoiceId = updated.ttsVoiceId
+      ..sttModelId = updated.sttModelId
       ..preferredLanguage = updated.preferredLanguage
       ..usagePeriod = updated.usagePeriod
       ..recentMachinePaths = updated.recentMachinePaths

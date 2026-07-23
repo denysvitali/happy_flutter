@@ -36,6 +36,7 @@ import '../../features/settings/grok_usage_screen.dart';
 import '../../features/settings/link_device_screen.dart';
 import '../../features/settings/linked_devices_screen.dart';
 import '../../features/settings/machines_screen.dart';
+import '../../features/settings/offline_stt_models_screen.dart';
 import '../../features/settings/offline_voices_screen.dart';
 import '../../features/settings/profile_editor_screen.dart';
 import '../../features/settings/profile_wizard_screen.dart';
@@ -671,6 +672,14 @@ GoRouter createRouter() {
         name: 'voice-offline',
         pageBuilder: (context, state) =>
             _slidePage(const AuthGate(child: OfflineVoicesScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/voice/stt-models',
+        name: 'offline-stt-models',
+        pageBuilder: (context, state) => _slidePage(
+          const AuthGate(child: OfflineSttModelsScreen()),
+          state,
+        ),
       ),
       GoRoute(
         path: '/sftp/logs',
