@@ -162,42 +162,49 @@ class _OfflineSttModelsScreenState
       body: ValueListenableBuilder<Map<String, OfflineSttStatus>>(
         valueListenable: _service.statuses,
         builder: (context, statuses, _) {
-          return ListView(
-            padding: AppScreenPadding.settings,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Text(
-                  'Tap a model to select it. The first download per '
-                  "model fetches the archive from sherpa-onnx's "
-                  'GitHub release. First mic use also downloads the '
-                  'selected model if needed.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              for (final tier in tiers) ...[
-                SettingsSection(
-                  title: _tierLabel(tier),
-                  uppercase: false,
-                  children: [
-                    for (final model in grouped[tier]!)
-                      _ModelRow(
-                        model: model,
-                        status: statuses[model.id] ??
-                            OfflineSttStatus.notDownloaded,
-                        isSelected: model.id == activeId,
-                        onSelect: () => _select(model),
-                        onDownload: () => _download(model),
-                        onDelete: () => _delete(model),
-                      ),
+          return ValueListenableBuilder<
+              Map<String, OfflineSttDownloadProgress>>(
+            valueListenable: _service.progress,
+            builder: (context, progress, _) {
+              return ListView(
+                padding: AppScreenPadding.settings,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: Text(
+                      'Tap a model to select it. The first download per '
+                      "model fetches the archive from sherpa-onnx's "
+                      'GitHub release. First mic use also downloads the '
+                      'selected model if needed.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  for (final tier in tiers) ...[
+                    SettingsSection(
+                      title: _tierLabel(tier),
+                      uppercase: false,
+                      children: [
+                        for (final model in grouped[tier]!)
+                          _ModelRow(
+                            model: model,
+                            status: statuses[model.id] ??
+                                OfflineSttStatus.notDownloaded,
+                            progress: progress[model.id],
+                            isSelected: model.id == activeId,
+                            onSelect: () => _select(model),
+                            onDownload: () => _download(model),
+                            onDelete: () => _delete(model),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
                   ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-            ],
+                ],
+              );
+            },
           );
         },
       ),
@@ -231,10 +238,12 @@ class _ModelRow extends StatelessWidget {
     required this.onSelect,
     required this.onDownload,
     required this.onDelete,
+    this.progress,
   });
 
   final OfflineSttModel model;
   final OfflineSttStatus status;
+  final OfflineSttDownloadProgress? progress;
   final bool isSelected;
   final VoidCallback onSelect;
   final VoidCallback onDownload;
@@ -242,7 +251,8 @@ class _ModelRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final isReady = status == OfflineSttStatus.ready;
     final isDownloading = status == OfflineSttStatus.downloading;
     final isFailed = status == OfflineSttStatus.failed;
@@ -254,7 +264,7 @@ class _ModelRow extends StatelessWidget {
     if (isFailed) {
       subtitle.write(' · download failed, tap retry');
     } else if (isDownloading) {
-      subtitle.write(' · downloading…');
+      subtitle.write(' · ${progress?.label ?? 'downloading…'}');
     } else if (!isReady) {
       subtitle.write(' · not downloaded');
     }
@@ -277,10 +287,15 @@ class _ModelRow extends StatelessWidget {
 
     Widget trailing;
     if (isDownloading) {
-      trailing = const SizedBox(
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(strokeWidth: 2),
+      final fraction = progress?.fraction;
+      trailing = SizedBox(
+        width: 28,
+        height: 28,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          value: fraction,
+          color: cs.primary,
+        ),
       );
     } else if (isReady) {
       trailing = Row(
@@ -310,7 +325,7 @@ class _ModelRow extends StatelessWidget {
       );
     }
 
-    return SettingsRow(
+    final row = SettingsRow(
       icon: leadingIcon,
       iconColor: leadingColor,
       title: model.displayName,
@@ -323,6 +338,32 @@ class _ModelRow extends StatelessWidget {
           onDownload();
         }
       },
+    );
+
+    if (!isDownloading) return row;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        row,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg + 40,
+            0,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.xs),
+            child: LinearProgressIndicator(
+              minHeight: 4,
+              value: progress?.fraction,
+              backgroundColor: cs.surfaceContainerHighest,
+              color: cs.primary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

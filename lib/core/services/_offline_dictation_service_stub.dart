@@ -92,6 +92,24 @@ enum OfflineSttStatus {
   failed,
 }
 
+class OfflineSttDownloadProgress {
+  const OfflineSttDownloadProgress({
+    required this.modelId,
+    required this.phase,
+    this.receivedBytes = 0,
+    this.totalBytes,
+    this.fraction,
+  });
+
+  final String modelId;
+  final String phase;
+  final int receivedBytes;
+  final int? totalBytes;
+  final double? fraction;
+
+  String get label => 'Starting download…';
+}
+
 class OfflineDictationException implements Exception {
   const OfflineDictationException(this.message);
 
@@ -171,8 +189,15 @@ class OfflineDictationService {
 
   final ValueNotifier<Map<String, OfflineSttStatus>> _statuses =
       ValueNotifier<Map<String, OfflineSttStatus>>(const {});
+  final ValueNotifier<Map<String, OfflineSttDownloadProgress>> _progress =
+      ValueNotifier<Map<String, OfflineSttDownloadProgress>>(const {});
 
   ValueListenable<Map<String, OfflineSttStatus>> get statuses => _statuses;
+
+  ValueListenable<Map<String, OfflineSttDownloadProgress>> get progress =>
+      _progress;
+
+  OfflineSttDownloadProgress? progressFor(String modelId) => null;
 
   List<OfflineSttModel> get models => OfflineSttCatalog.all;
 
@@ -238,5 +263,6 @@ class OfflineDictationService {
 
   Future<void> dispose() async {
     _statuses.dispose();
+    _progress.dispose();
   }
 }

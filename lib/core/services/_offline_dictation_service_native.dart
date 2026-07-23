@@ -252,6 +252,48 @@ enum OfflineSttStatus {
   failed,
 }
 
+/// Live download/extract progress for one model.
+///
+/// [fraction] is null when Content-Length is missing (indeterminate).
+/// During extract, [phase] is `extracting` and [fraction] is null.
+class OfflineSttDownloadProgress {
+  const OfflineSttDownloadProgress({
+    required this.modelId,
+    required this.phase,
+    this.receivedBytes = 0,
+    this.totalBytes,
+    this.fraction,
+  });
+
+  final String modelId;
+
+  /// `downloading` or `extracting`.
+  final String phase;
+  final int receivedBytes;
+  final int? totalBytes;
+
+  /// 0.0–1.0 when known, else null (indeterminate).
+  final double? fraction;
+
+  String get label {
+    if (phase == 'extracting') {
+      return 'Extracting…';
+    }
+    final receivedMb = receivedBytes / (1024 * 1024);
+    final total = totalBytes;
+    if (total != null && total > 0) {
+      final totalMb = total / (1024 * 1024);
+      final pct = ((fraction ?? 0) * 100).clamp(0, 100).round();
+      return '${receivedMb.toStringAsFixed(0)} / '
+          '${totalMb.toStringAsFixed(0)} MB · $pct%';
+    }
+    if (receivedBytes > 0) {
+      return '${receivedMb.toStringAsFixed(0)} MB…';
+    }
+    return 'Starting download…';
+  }
+}
+
 class OfflineDictationException implements Exception {
   const OfflineDictationException(this.message);
 
@@ -352,6 +394,9 @@ class OfflineDictationService {
     _statuses = ValueNotifier<Map<String, OfflineSttStatus>>(
       _initialStatuses(),
     );
+    _progress = ValueNotifier<Map<String, OfflineSttDownloadProgress>>(
+      const <String, OfflineSttDownloadProgress>{},
+    );
   }
 
   static const _sampleRate = 16000;
@@ -368,6 +413,7 @@ class OfflineDictationService {
 
   String _selectedModelId = OfflineSttCatalog.defaultModel.id;
   late final ValueNotifier<Map<String, OfflineSttStatus>> _statuses;
+  late final ValueNotifier<Map<String, OfflineSttDownloadProgress>> _progress;
   final Map<String, Object?> _errors = <String, Object?>{};
   final Map<String, Future<OfflineSttResolvedFiles>> _inflight =
       <String, Future<OfflineSttResolvedFiles>>{};
@@ -380,6 +426,13 @@ class OfflineDictationService {
   }
 
   ValueListenable<Map<String, OfflineSttStatus>> get statuses => _statuses;
+
+  /// Per-model download/extract progress while status is downloading.
+  ValueListenable<Map<String, OfflineSttDownloadProgress>> get progress =>
+      _progress;
+
+  OfflineSttDownloadProgress? progressFor(String modelId) =>
+      _progress.value[modelId];
 
   List<OfflineSttModel> get models =>
       List<OfflineSttModel>.unmodifiable(OfflineSttCatalog.all);
@@ -588,6 +641,7 @@ class OfflineDictationService {
     await _audioSub?.cancel();
     await _recorder.dispose();
     _statuses.dispose();
+    _progress.dispose();
   }
 
   void _handleAudioChunk(Uint8List bytes) {
@@ -741,7 +795,19 @@ class OfflineDictationService {
     );
 
     try {
-      await _downloadModelArchive(model.archiveUrl, archiveFile);
+      await _downloadModelArchive(
+        modelId: model.id,
+        url: model.archiveUrl,
+        target: archiveFile,
+        approximateBytes: model.approximateBytes,
+      );
+      _setProgressFor(
+        model.id,
+        OfflineSttDownloadProgress(
+          modelId: model.id,
+          phase: 'extracting',
+        ),
+      );
       // Hoist plain strings so the isolate closure never captures `this`.
       final archivePath = archiveFile.path;
       final modelDirPath = modelDir.path;
@@ -765,13 +831,19 @@ class OfflineDictationService {
         'Failed to download offline speech model',
       );
     } finally {
+      _clearProgressFor(model.id);
       if (archiveFile.existsSync()) {
         await archiveFile.delete();
       }
     }
   }
 
-  Future<void> _downloadModelArchive(String url, File target) async {
+  Future<void> _downloadModelArchive({
+    required String modelId,
+    required String url,
+    required File target,
+    required int approximateBytes,
+  }) async {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 30);
     try {
@@ -783,7 +855,55 @@ class OfflineDictationService {
         );
       }
 
-      await response.pipe(target.openWrite());
+      final contentLength = response.contentLength;
+      final totalBytes = contentLength > 0
+          ? contentLength
+          : (approximateBytes > 0 ? approximateBytes : null);
+      var received = 0;
+      var lastEmitMs = 0;
+      final sink = target.openWrite();
+      try {
+        await for (final chunk in response) {
+          sink.add(chunk);
+          received += chunk.length;
+          final nowMs = DateTime.now().millisecondsSinceEpoch;
+          // Throttle UI updates to ~8/s so rebuilds stay cheap.
+          if (nowMs - lastEmitMs < 120 &&
+              (totalBytes == null || received < totalBytes)) {
+            continue;
+          }
+          lastEmitMs = nowMs;
+          final fraction = totalBytes == null
+              ? null
+              : (received / totalBytes).clamp(0.0, 1.0);
+          _setProgressFor(
+            modelId,
+            OfflineSttDownloadProgress(
+              modelId: modelId,
+              phase: 'downloading',
+              receivedBytes: received,
+              totalBytes: totalBytes,
+              fraction: fraction,
+            ),
+          );
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      // Final 100% tick if we know the size.
+      if (totalBytes != null) {
+        _setProgressFor(
+          modelId,
+          OfflineSttDownloadProgress(
+            modelId: modelId,
+            phase: 'downloading',
+            receivedBytes: received,
+            totalBytes: totalBytes,
+            fraction: 1.0,
+          ),
+        );
+      }
     } finally {
       client.close(force: true);
     }
@@ -793,6 +913,20 @@ class OfflineDictationService {
     final next = Map<String, OfflineSttStatus>.from(_statuses.value);
     next[modelId] = status;
     _statuses.value = next;
+  }
+
+  void _setProgressFor(String modelId, OfflineSttDownloadProgress progress) {
+    final next = Map<String, OfflineSttDownloadProgress>.from(_progress.value);
+    next[modelId] = progress;
+    _progress.value = next;
+  }
+
+  void _clearProgressFor(String modelId) {
+    if (!_progress.value.containsKey(modelId)) return;
+    final next = Map<String, OfflineSttDownloadProgress>.from(
+      _progress.value,
+    )..remove(modelId);
+    _progress.value = next;
   }
 }
 

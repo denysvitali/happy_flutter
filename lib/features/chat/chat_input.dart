@@ -880,16 +880,45 @@ class _ChatInputState extends ConsumerState<ChatInput>
                   child: _AttachButton(onTap: _onAttachTap),
                 ),
               Expanded(
-                child: _buildTextField(context),
+                child: _isDownloadingModel
+                    ? ValueListenableBuilder<
+                        Map<String, OfflineSttDownloadProgress>>(
+                        valueListenable: _dictationService.progress,
+                        builder: (context, progressMap, _) {
+                          final p = progressMap[
+                              _dictationService.selectedModelId];
+                          return _buildTextField(
+                            context,
+                            downloadProgress: p,
+                          );
+                        },
+                      )
+                    : _buildTextField(context),
               ),
               Padding(
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
-                child: _DictationButton(
-                  isRecording: _isRecording,
-                  isTranscribing: _isTranscribing,
-                  isDownloadingModel: _isDownloadingModel,
-                  onTap: _onDictationTap,
-                ),
+                child: _isDownloadingModel
+                    ? ValueListenableBuilder<
+                        Map<String, OfflineSttDownloadProgress>>(
+                        valueListenable: _dictationService.progress,
+                        builder: (context, progressMap, _) {
+                          final p = progressMap[
+                              _dictationService.selectedModelId];
+                          return _DictationButton(
+                            isRecording: _isRecording,
+                            isTranscribing: _isTranscribing,
+                            isDownloadingModel: true,
+                            downloadProgress: p,
+                            onTap: _onDictationTap,
+                          );
+                        },
+                      )
+                    : _DictationButton(
+                        isRecording: _isRecording,
+                        isTranscribing: _isTranscribing,
+                        isDownloadingModel: false,
+                        onTap: _onDictationTap,
+                      ),
               ),
               Padding(
                 padding: const EdgeInsets.only(
@@ -1014,7 +1043,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
     );
   }
 
-  Widget _buildTextField(BuildContext context) {
+  Widget _buildTextField(
+    BuildContext context, {
+    OfflineSttDownloadProgress? downloadProgress,
+  }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final hintColor = cs.onSurfaceVariant.withValues(alpha: 0.7);
@@ -1025,7 +1057,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       focusNode: _focusNode,
       decoration: InputDecoration(
         hintText: _isDownloadingModel
-            ? 'Downloading model…'
+            ? (downloadProgress?.label ?? 'Downloading model…')
             : _isRecording
             ? 'Listening...'
             : _isTranscribing
@@ -1196,11 +1228,13 @@ class _DictationButton extends StatelessWidget {
     required this.isTranscribing,
     required this.isDownloadingModel,
     required this.onTap,
+    this.downloadProgress,
   });
 
   final bool isRecording;
   final bool isTranscribing;
   final bool isDownloadingModel;
+  final OfflineSttDownloadProgress? downloadProgress;
   final VoidCallback onTap;
 
   @override
@@ -1208,10 +1242,11 @@ class _DictationButton extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final color = isRecording ? cs.error : cs.onSurfaceVariant;
     final busy = isTranscribing || isDownloadingModel;
+    final progressLabel = downloadProgress?.label;
     final label = isRecording
         ? 'Stop dictation'
         : isDownloadingModel
-        ? 'Downloading model'
+        ? (progressLabel ?? 'Downloading model')
         : isTranscribing
         ? 'Transcribing'
         : 'Start dictation';
@@ -1233,6 +1268,9 @@ class _DictationButton extends StatelessWidget {
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: cs.primary,
+                        value: isDownloadingModel
+                            ? downloadProgress?.fraction
+                            : null,
                       ),
                     )
                   : Icon(
