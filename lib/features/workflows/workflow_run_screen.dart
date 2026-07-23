@@ -9,6 +9,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/wire_parsers.dart';
 import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
 
@@ -122,6 +123,14 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final logs = run == null
         ? const <WorkflowLog>[]
         : run.workflowProgress.whereType<WorkflowLog>().toList(growable: false);
+    // Structured snapshot empty (older CLI / workflow types that emit only
+    // per-agent task_* chips, no aggregate `workflow_progress`): fall back to
+    // the raw step events so the user still sees every agent step.
+    final stepChildren = (run == null || groups.isNotEmpty)
+        ? const <Map<String, dynamic>>[]
+        : WorkflowRun.collapseSteps(
+            WorkflowRun.stepChildrenForRun(widget.runId, messages),
+          );
     // When every agent runs the same model, repeating it on each row is
     // noise — show it once in the stat row instead.
     final models = <String>{
@@ -180,6 +189,13 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                         hideModel: commonModel != null,
                       ),
                       childCount: groups.length,
+                    ),
+                  ),
+                if (stepChildren.isNotEmpty)
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, idx) => _StepRow(step: stepChildren[idx]),
+                      childCount: stepChildren.length,
                     ),
                   ),
                 if (logs.isNotEmpty)
@@ -750,5 +766,81 @@ class _ErrorState extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+
+/// A single step row in the fallback step timeline — used when a workflow run
+/// carries no structured `workflowProgress` snapshot but does carry the raw
+/// `task_*` progress chips / sidechain events that the chat inline view counts
+/// as "N steps". Renders the step label with a status glyph so the Workflows
+/// detail screen is never an empty page for a run that did real work.
+class _StepRow extends StatelessWidget {
+  const _StepRow({required this.step});
+
+  final Map<String, dynamic> step;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final label = WorkflowRun.stepLabel(step);
+    final state = WorkflowRun.stepState(step);
+    final (icon, color) = _stateStyle(state, cs);
+    final lastTool = WireParsers.parseString(step['subAgentLastTool']);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.xs,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (lastTool != null && lastTool.isNotEmpty) ...[
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              lastTool,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  (IconData, Color) _stateStyle(String state, ColorScheme cs) {
+    switch (state) {
+      case 'done':
+      case 'completed':
+        return (Icons.check_circle_outline_rounded, AppColors.success);
+      case 'error':
+      case 'failed':
+        return (Icons.error_outline_rounded, cs.error);
+      case 'start':
+      case 'running':
+      case 'progress':
+        return (Icons.play_circle_outline_rounded, cs.primary);
+      default:
+        return (Icons.circle_outlined, cs.onSurfaceVariant);
+    }
   }
 }

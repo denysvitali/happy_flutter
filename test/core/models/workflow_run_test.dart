@@ -421,4 +421,211 @@ void main() {
       expect(enriched.phases.single.title, 'Scan');
     });
   });
+
+  group('WorkflowRun.stepChildrenForRun (chips-only runs)', () {
+    // A workflow whose daemon snapshot carries no `workflowProgress` and
+    // whose streamed `task_*` chips carry no aggregate snapshot either — only
+    // per-agent progress chips. This is the shape that left the Workflows
+    // list/detail empty while the chat header still promised "N steps".
+    List<Map<String, dynamic>> chipsOnlyMessages({
+      required String runId,
+      required bool nestUnderTool,
+      bool withResultEcho = true,
+    }) {
+      final chips = <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'c1',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'taskStatus': 'running',
+          'event': <String, dynamic>{
+            'type': 'message',
+            'message': 'Binary CFI audit agent',
+          },
+        },
+        <String, dynamic>{
+          'id': 'c2',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'taskStatus': 'running',
+          'event': <String, dynamic>{
+            'type': 'message',
+            'message': 'Binary CFI audit agent',
+          },
+        },
+        <String, dynamic>{
+          'id': 'c3',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'taskStatus': 'completed',
+          'event': <String, dynamic>{
+            'type': 'message',
+            'message': 'Path-mining workflow',
+          },
+        },
+      ];
+      if (!nestUnderTool) {
+        // Orphan chips tagged with the run id at the top level.
+        for (final c in chips) {
+          c['workflowRunId'] = runId;
+        }
+        return chips;
+      }
+      return <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'wf-tool',
+          'kind': 'tool-call',
+          'name': 'Workflow',
+          if (withResultEcho) 'result': 'Launched. Run ID: $runId',
+          'children': chips,
+        },
+      ];
+    }
+
+    test('locates nested chips via the tool-result run-id echo', () {
+      final steps = WorkflowRun.stepChildrenForRun(
+        'wf_3e4d1aa3-68d',
+        chipsOnlyMessages(
+          runId: 'wf_3e4d1aa3-68d',
+          nestUnderTool: true,
+        ),
+      );
+      expect(steps, hasLength(3));
+    });
+
+    test('falls back to the sole Workflow tool-call when no tag exists', () {
+      final steps = WorkflowRun.stepChildrenForRun(
+        'wf_x',
+        chipsOnlyMessages(
+          runId: 'wf_x',
+          nestUnderTool: true,
+          withResultEcho: false,
+        ),
+      );
+      expect(steps, hasLength(3));
+    });
+
+    test('collects orphan top-level chips tagged with the run id', () {
+      final steps = WorkflowRun.stepChildrenForRun(
+        'wf_y',
+        chipsOnlyMessages(runId: 'wf_y', nestUnderTool: false),
+      );
+      expect(steps, hasLength(3));
+    });
+
+    test('returns empty when the run has no steps anywhere', () {
+      expect(
+        WorkflowRun.stepChildrenForRun('wf_missing', const []),
+        isEmpty,
+      );
+    });
+
+    test('enrich stays a no-op for chips-only (no workflowProgress)', () {
+      final run = WorkflowRun(
+        runId: 'wf_z',
+        workflowName: 'wf_z',
+        status: 'completed',
+      );
+      final enriched = WorkflowRun.enrichFromMessages(
+        run,
+        chipsOnlyMessages(runId: 'wf_z', nestUnderTool: true),
+      );
+      expect(enriched.workflowProgress, isEmpty);
+      expect(enriched.phases, isEmpty);
+    });
+  });
+
+  group('WorkflowRun.runIdFromToolResult', () {
+    test('parses the Run ID label from a string result', () {
+      expect(
+        WorkflowRun.runIdFromToolResult('Done. Run ID: wf_abc-123'),
+        'wf_abc-123',
+      );
+    });
+
+    test('reads a structured result map', () {
+      expect(
+        WorkflowRun.runIdFromToolResult(
+          <String, dynamic>{'runId': 'wf_struct'},
+        ),
+        'wf_struct',
+      );
+    });
+
+    test('returns null when no id is present', () {
+      expect(WorkflowRun.runIdFromToolResult('no id here'), isNull);
+      expect(WorkflowRun.runIdFromToolResult(null), isNull);
+    });
+  });
+
+  group('WorkflowRun step rendering helpers', () {
+    test('stepLabel reads task chip, tool-call, and text shapes', () {
+      expect(
+        WorkflowRun.stepLabel(<String, dynamic>{
+          'taskEvent': true,
+          'event': <String, dynamic>{'message': 'audit agent'},
+        }),
+        'audit agent',
+      );
+      expect(
+        WorkflowRun.stepLabel(<String, dynamic>{
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'input': <String, dynamic>{'command': 'ls -la\nmore'},
+        }),
+        'Bash: ls -la',
+      );
+      expect(
+        WorkflowRun.stepLabel(<String, dynamic>{
+          'kind': 'text',
+          'content': 'a summary',
+        }),
+        'a summary',
+      );
+    });
+
+    test('isRenderableStep drops bridges, links, and thinking', () {
+      expect(
+        WorkflowRun.isRenderableStep(<String, dynamic>{'isBridge': true}),
+        isFalse,
+      );
+      expect(
+        WorkflowRun.isRenderableStep(<String, dynamic>{
+          'kind': 'text',
+          'isThinking': true,
+          'content': 'x',
+        }),
+        isFalse,
+      );
+      expect(
+        WorkflowRun.isRenderableStep(<String, dynamic>{
+          'kind': 'agent-event',
+          'event': <String, dynamic>{'message': 'real'},
+        }),
+        isTrue,
+      );
+    });
+
+    test('collapseSteps dedupes consecutive identical chips', () {
+      final collapsed = WorkflowRun.collapseSteps(<Map<String, dynamic>>[
+        <String, dynamic>{
+          'taskEvent': true,
+          'taskStatus': 'running',
+          'event': <String, dynamic>{'message': 'same'},
+        },
+        <String, dynamic>{
+          'taskEvent': true,
+          'taskStatus': 'running',
+          'event': <String, dynamic>{'message': 'same'},
+        },
+        <String, dynamic>{
+          'taskEvent': true,
+          'taskStatus': 'completed',
+          'event': <String, dynamic>{'message': 'other'},
+        },
+      ]);
+      expect(collapsed, hasLength(2));
+      expect(WorkflowRun.stepLabel(collapsed.last), 'other');
+    });
+  });
 }

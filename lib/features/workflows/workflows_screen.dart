@@ -163,9 +163,35 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
                     runs[index - 1],
                     messages,
                   );
+                  // Only walk the transcript for runs that have no structured
+                  // details to show — rich daemon snapshots need no fallback.
+                  int? stepCount;
+                  String? stepPreview;
+                  final hasStructured = (run.summary != null &&
+                          run.summary!.isNotEmpty) ||
+                      run.phases.isNotEmpty ||
+                      (run.agentCount != null && run.agentCount! > 0) ||
+                      (run.totalTokens != null && run.totalTokens! > 0) ||
+                      (run.totalToolCalls != null &&
+                          run.totalToolCalls! > 0);
+                  if (!hasStructured) {
+                    final steps = WorkflowRun.stepChildrenForRun(
+                      run.runId,
+                      messages,
+                    );
+                    if (steps.isNotEmpty) {
+                      stepCount = steps.length;
+                      final collapsed = WorkflowRun.collapseSteps(steps);
+                      stepPreview = collapsed.isEmpty
+                          ? null
+                          : WorkflowRun.stepLabel(collapsed.last);
+                    }
+                  }
                   return WorkflowCard(
                     key: ValueKey('workflow-${run.runId}'),
                     run: run,
+                    stepCount: stepCount,
+                    stepPreview: stepPreview,
                     onTap: () => _openRun(run),
                   );
                 },

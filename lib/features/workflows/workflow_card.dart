@@ -23,13 +23,27 @@ String _liveWaitLabel(String status) {
 /// Card displaying a single [WorkflowRun].
 class WorkflowCard extends StatelessWidget {
   /// Creates a [WorkflowCard].
-  const WorkflowCard({required this.run, required this.onTap, super.key});
+  const WorkflowCard({
+    required this.run,
+    required this.onTap,
+    super.key,
+    this.stepCount,
+    this.stepPreview,
+  });
 
   /// The workflow run to display.
   final WorkflowRun run;
 
   /// Called when the user taps the card.
   final VoidCallback onTap;
+
+  /// Number of raw step events located for this run, when the structured
+  /// `workflowProgress` snapshot is empty. Surfaced so the card never reads
+  /// "No progress details" for a run that did emit per-agent task chips.
+  final int? stepCount;
+
+  /// Last renderable step label, shown as a one-line preview under the count.
+  final String? stepPreview;
 
   String get _subtitle {
     final parts = <String>[];
@@ -63,6 +77,7 @@ class WorkflowCard extends StatelessWidget {
     final hasSummary = run.summary != null && run.summary!.isNotEmpty;
     final hasDetails =
         hasSummary || run.phases.isNotEmpty || subtitle.isNotEmpty;
+    final hasSteps = stepCount != null && stepCount! > 0;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -147,7 +162,48 @@ class WorkflowCard extends StatelessWidget {
               ],
               if (!hasDetails) ...[
                 const SizedBox(height: AppSpacing.xs),
-                if (WorkflowStatus.isStarting(run.status))
+                if (hasSteps) ...[
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.format_list_bulleted_rounded,
+                        size: 14,
+                        color: cs.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        '$stepCount step${stepCount == 1 ? '' : 's'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (WorkflowStatus.isLive(run.status)) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: cs.primary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (stepPreview != null && stepPreview!.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      stepPreview!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ] else if (WorkflowStatus.isStarting(run.status))
                   Row(
                     children: [
                       SizedBox(

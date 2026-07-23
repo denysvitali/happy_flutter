@@ -19,6 +19,8 @@ class AgentEventWidget extends StatelessWidget {
   static const Set<String> _hiddenEventTypes = <String>{
     'ready',
     'thinking',
+    'thinking_done',
+    'thinking_start',
     'tool-execution-update',
     'usage_report',
     // Raw ACP stream envelopes from older CLI builds. Content is already

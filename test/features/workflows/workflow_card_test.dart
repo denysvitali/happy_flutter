@@ -111,4 +111,25 @@ void main() {
     expect(find.text('Starting…'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
+
+  testWidgets('shows step count + preview instead of "No progress details"', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WorkflowCard(
+            run: _run(runId: 'wf_abc', name: 'wf_abc'),
+            stepCount: 34,
+            stepPreview: 'Path-mining workflow',
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('34 steps'), findsOneWidget);
+    expect(find.text('Path-mining workflow'), findsOneWidget);
+    expect(find.text('No progress details'), findsNothing);
+  });
 }

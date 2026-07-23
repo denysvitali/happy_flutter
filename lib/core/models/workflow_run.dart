@@ -636,7 +636,7 @@ class WorkflowRun {
     WorkflowRun run,
     List<Map<String, dynamic>> messages,
   ) {
-    final children = _progressChildrenForRun(run.runId, messages);
+    final children = childrenForRun(run.runId, messages);
     if (children == null) return run;
     final progress = latestProgressFromChildren(children);
     if (progress.isEmpty) return run;
@@ -676,22 +676,28 @@ class WorkflowRun {
     );
   }
 
-  /// Locates the sidechain `children` array that belongs to [runId].
+  /// Locates the sidechain `children` (or top-level step events) that
+  /// belong to [runId] — without requiring a `workflowProgress` snapshot.
   ///
-  /// Primary match: a `Workflow` tool-call message whose own tag (or a
-  /// child's tag) equals [runId] — its `children` are exactly what the
-  /// chat inline view renders, including in-flight events that may not
-  /// carry the tag themselves. Fallbacks cover a single progress-bearing
-  /// `Workflow` tool-call (one-run sessions whose tag is missing) and the
-  /// set of messages tagged with [runId] anywhere in the tree (ungrouped
-  /// or orphan sidechains).
-  static List<dynamic>? _progressChildrenForRun(
+  /// Matching order:
+  ///  1. A `Workflow` tool-call whose tag (its own `workflowRunId`, a child's
+  ///     `workflowRunId`, or the run id echoed in its tool result) equals
+  ///     [runId] — its `children` are exactly the step events the chat inline
+  ///     view and the agent screen render.
+  ///  2. A single `Workflow` tool-call that carries any step event
+  ///     (`workflowProgress` *or* a `task_*` progress chip) — the common
+  ///     one-run-per-session case where no tag has been stamped yet.
+  ///  3. Step events tagged with [runId] that never nested under their tool
+  ///     call (orphan `task_*` chips anywhere in the tree).
+  ///
+  /// Returns `null` when nothing matches. Pure + static for testability.
+  static List<dynamic>? childrenForRun(
     String runId,
     List<Map<String, dynamic>> messages,
   ) {
     List<dynamic>? ownerChildren;
-    Map<String, dynamic>? soleProgressOwner;
-    var progressOwnerCount = 0;
+    Map<String, dynamic>? soleStepOwner;
+    var stepOwnerCount = 0;
     final tagged = <Map<String, dynamic>>[];
 
     void walk(List<dynamic> list) {
@@ -702,16 +708,17 @@ class WorkflowRun {
             entry['kind'] == 'tool-call' && entry['name'] == 'Workflow';
         if (isWorkflow) {
           final ownTag = _workflowRunTag(entry) ??
-              _firstWorkflowRunTag(children);
+              _firstWorkflowRunTag(children) ??
+              runIdFromToolResult(entry['result']);
           if (ownTag == runId && ownerChildren == null) {
             ownerChildren = children;
           }
-          if (_anyProgress(children)) {
-            progressOwnerCount += 1;
-            soleProgressOwner = entry;
+          if (_anyStepEvent(children)) {
+            stepOwnerCount += 1;
+            soleStepOwner = entry;
           }
         }
-        if (_workflowRunTag(entry) == runId && _hasProgress(entry)) {
+        if (_workflowRunTag(entry) == runId && _isStepEvent(entry)) {
           tagged.add(entry);
         }
         if (children != null) walk(children);
@@ -721,11 +728,24 @@ class WorkflowRun {
     walk(messages);
 
     if (ownerChildren != null) return ownerChildren;
-    if (progressOwnerCount == 1) {
-      return WireParsers.asList(soleProgressOwner!['children']);
+    if (stepOwnerCount == 1) {
+      return WireParsers.asList(soleStepOwner!['children']);
     }
     if (tagged.isNotEmpty) return tagged;
     return null;
+  }
+
+  /// The step events (task_* progress chips / sidechain records) for [runId]
+  /// as a flat list of maps, for rendering a step timeline when the
+  /// structured `workflowProgress` snapshot is empty. Returns an empty list
+  /// when the run has no located steps.
+  static List<Map<String, dynamic>> stepChildrenForRun(
+    String runId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    final raw = childrenForRun(runId, messages);
+    if (raw == null || raw.isEmpty) return const <Map<String, dynamic>>[];
+    return raw.whereType<Map<String, dynamic>>().toList(growable: false);
   }
 
   static String? _workflowRunTag(Map<String, dynamic> message) =>
@@ -756,15 +776,114 @@ class WorkflowRun {
     return list != null && list.isNotEmpty;
   }
 
-  static bool _anyProgress(List<dynamic>? children) {
+  /// A step event: either a `workflowProgress` snapshot or a `task_*`
+  /// progress chip (`taskEvent: true`). The latter is all older CLI builds /
+  /// some workflow types emit — no aggregate `workflow_progress` array — so
+  /// matching on it is what lets the Workflows screens show *any* steps.
+  static bool _isStepEvent(Map<String, dynamic> message) =>
+      _hasProgress(message) || message['taskEvent'] == true;
+
+  static bool _anyStepEvent(List<dynamic>? children) {
     final list = WireParsers.asList(children);
     if (list == null) return false;
     for (final entry in list) {
-      if (entry is Map<String, dynamic> && _hasProgress(entry)) {
-        return true;
-      }
+      if (entry is Map<String, dynamic> && _isStepEvent(entry)) return true;
     }
     return false;
+  }
+
+  /// Run id echoed in a Workflow tool result (`Run ID: wf_…`), or carried on
+  /// a structured result map (`runId` / `run_id`). `null` when the result has
+  /// no id. The tool *result* always echoes the id even before any `task_*`
+  /// sidechain event nests under the tool call, so this is the most reliable
+  /// tag for a freshly-completed run.
+  static String? runIdFromToolResult(dynamic result) {
+    if (result is Map<String, dynamic>) {
+      final direct = WireParsers.parseString(result['runId']) ??
+          WireParsers.parseString(result['run_id']);
+      if (direct != null) return direct;
+      return runIdFromToolResult(
+        result['result'] ?? result['output'] ?? result['content'],
+      );
+    }
+    if (result is String) {
+      return _runIdInResult.firstMatch(result)?.group(1);
+    }
+    return null;
+  }
+
+  static final RegExp _runIdInResult = RegExp(r'Run ID:\s*([A-Za-z0-9_-]+)');
+
+  // ── Step rendering helpers (shared by the inline view, the run detail
+  //    screen, and the list card so a step reads identically everywhere) ──
+
+  /// Whether [step] is a renderable row in a step timeline (drops invisible
+  /// bridges / chain links / thinking placeholders and label-less records).
+  static bool isRenderableStep(Map<String, dynamic> step) {
+    if (step['isBridge'] == true) return false;
+    if (step['kind'] == 'sidechain-link') return false;
+    if (step['kind'] == 'text' && step['isThinking'] == true) return false;
+    return stepLabel(step).isNotEmpty;
+  }
+
+  /// User-visible label for a step event: the task chip message, a tool-call
+  /// name + first input line, or a generic agent-event message.
+  static String stepLabel(Map<String, dynamic> step) {
+    if (step['taskEvent'] == true) {
+      final ev = WireParsers.asMap(step['event']);
+      final fromEvent = WireParsers.parseString(ev?['message']);
+      if (fromEvent != null && fromEvent.isNotEmpty) return fromEvent;
+      final content = WireParsers.parseString(step['content']) ??
+          WireParsers.parseString(step['text']);
+      if (content != null && content.isNotEmpty) return content;
+    }
+    final kind = WireParsers.parseString(step['kind']);
+    if (kind == 'tool-call') {
+      final name = WireParsers.parseString(step['name']) ?? 'tool';
+      final input = WireParsers.asMap(step['input']);
+      final desc = input == null
+          ? null
+          : (WireParsers.parseString(input['description']) ??
+              WireParsers.parseString(input['command']) ??
+              WireParsers.parseString(input['prompt']));
+      if (desc != null && desc.isNotEmpty) {
+        final first = desc.split('\n').first;
+        return '$name: $first';
+      }
+      return name;
+    }
+    final ev = WireParsers.asMap(step['event']);
+    final fromEvent = WireParsers.parseString(ev?['message']);
+    if (fromEvent != null && fromEvent.isNotEmpty) return fromEvent;
+    final content = WireParsers.parseString(step['content']);
+    if (content != null && content.isNotEmpty) return content;
+    return WireParsers.parseString(step['workflowName']) ??
+        WireParsers.parseString(step['subagentType']) ??
+        '';
+  }
+
+  /// Status string for a step (`taskStatus` for chips, `state` for tool
+  /// calls), empty when unknown.
+  static String stepState(Map<String, dynamic> step) =>
+      WireParsers.parseString(step['taskStatus']) ??
+      WireParsers.parseString(step['state']) ??
+      '';
+
+  /// Collapses consecutive identical steps and drops non-renderable ones so a
+  /// run of identical progress ticks reads as a single row.
+  static List<Map<String, dynamic>> collapseSteps(
+    List<Map<String, dynamic>> steps,
+  ) {
+    final out = <Map<String, dynamic>>[];
+    String? prevKey;
+    for (final step in steps) {
+      if (!isRenderableStep(step)) continue;
+      final key = '${stepState(step)}|${stepLabel(step)}';
+      if (key == prevKey) continue;
+      prevKey = key;
+      out.add(step);
+    }
+    return out;
   }
 
   Map<String, dynamic> toJson() {

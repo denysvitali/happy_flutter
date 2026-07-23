@@ -198,6 +198,55 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('renders raw step chips when no progress snapshot exists', (
+    tester,
+  ) async {
+    // A completed run whose daemon snapshot is sparse and whose streamed
+    // task_* chips carry no aggregate `workflowProgress` — the exact shape
+    // that used to render as a blank detail page. The step timeline fallback
+    // must surface every chip so the user sees the agents' work.
+    Sync().testSetSessionMessages(_sessionId, <Map<String, dynamic>>[
+      <String, dynamic>{
+        'id': 'wf-tool',
+        'kind': 'tool-call',
+        'name': 'Workflow',
+        'result': 'Launched. Run ID: $_runId',
+        'children': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'c1',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'taskStatus': 'running',
+            'event': <String, dynamic>{
+              'type': 'message',
+              'message': 'Binary CFI audit agent',
+            },
+          },
+          <String, dynamic>{
+            'id': 'c2',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'taskStatus': 'completed',
+            'event': <String, dynamic>{
+              'type': 'message',
+              'message': 'Path-mining workflow',
+            },
+          },
+        ],
+      },
+    ]);
+
+    await tester.pumpWidget(_harness());
+    await tester.pump();
+
+    expect(find.text('Binary CFI audit agent'), findsOneWidget);
+    expect(find.text('Path-mining workflow'), findsOneWidget);
+    // No structured snapshot → no phase sections, but never a blank page.
+    expect(find.text('No progress details'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
 
 Map<String, dynamic> _phase(int index, String title, {String kind = 'start'}) =>

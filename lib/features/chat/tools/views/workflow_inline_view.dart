@@ -25,7 +25,15 @@ class WorkflowInlineView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = _latestProgress();
-    if (progress.isEmpty) return const SizedBox.shrink();
+    if (progress.isEmpty) {
+      // No aggregate `workflow_progress` snapshot (older CLI / workflow types
+      // that emit only per-agent task_* chips): surface the raw step events so
+      // the expanded card shows the same "N steps" the header promises.
+      return _buildStepsFallback(
+        context,
+        WireParsers.asList(children) ?? const <dynamic>[],
+      );
+    }
 
     final phases = _extractPhases(progress);
     final agents = _extractAgents(progress);
@@ -49,6 +57,38 @@ class WorkflowInlineView extends StatelessWidget {
           const SizedBox(height: AppSpacing.xsm),
           _LogPreview(log: logs.last.message),
         ],
+      ],
+    );
+  }
+
+  Widget _buildStepsFallback(BuildContext context, List<dynamic> raw) {
+    final steps = WorkflowRun.collapseSteps(
+      raw.whereType<Map<String, dynamic>>().toList(growable: false),
+    );
+    if (steps.isEmpty) return const SizedBox.shrink();
+    const maxRows = 4;
+    final shown = steps.length > maxRows
+        ? steps.sublist(steps.length - maxRows)
+        : steps;
+    final extra = steps.length - shown.length;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final step in shown) _InlineStepRow(step: step),
+        if (extra > 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 24, top: AppSpacing.xxs),
+            child: Text(
+              '+ $extra more',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -370,5 +410,64 @@ class _LogPreview extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+
+/// Compact step row for the inline fallback (raw `task_*` chips / sidechain
+/// events when no `workflowProgress` snapshot is present).
+class _InlineStepRow extends StatelessWidget {
+  const _InlineStepRow({required this.step});
+
+  final Map<String, dynamic> step;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final label = WorkflowRun.stepLabel(step);
+    final state = WorkflowRun.stepState(step);
+    final (icon, color) = _stateStyle(state, cs);
+    return Padding(
+      padding: const EdgeInsets.only(left: 24, bottom: AppSpacing.xxs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 12, color: color),
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (IconData, Color) _stateStyle(String state, ColorScheme cs) {
+    switch (state) {
+      case 'done':
+      case 'completed':
+        return (Icons.check_circle_outline_rounded, AppColors.success);
+      case 'error':
+      case 'failed':
+        return (Icons.error_outline_rounded, cs.error);
+      case 'start':
+      case 'running':
+      case 'progress':
+        return (Icons.play_circle_outline_rounded, cs.primary);
+      default:
+        return (Icons.circle_outlined, cs.onSurfaceVariant);
+    }
   }
 }
