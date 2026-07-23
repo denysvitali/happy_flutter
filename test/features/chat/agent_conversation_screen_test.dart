@@ -69,11 +69,7 @@ void main() {
       {
         ...initialTask,
         'children': [
-          {
-            'id': 'child_text_1',
-            'kind': 'text',
-            'content': 'Subagent reply',
-          },
+          {'id': 'child_text_1', 'kind': 'text', 'content': 'Subagent reply'},
           {
             'id': 'child_tool_1',
             'kind': 'tool-call',
@@ -220,5 +216,59 @@ void main() {
 
     expect(find.text('No messages yet'), findsNothing);
     expect(find.text('Found via toolUseId'), findsOneWidget);
+  });
+
+  testWidgets('hides the async launch receipt and shows a background note', (
+    tester,
+  ) async {
+    const sessionId = 'session_1';
+    const taskId = 'task_async_bg';
+    // The exact internal-metadata receipt shape the SDK emits for a
+    // background Task — the body the app must never render verbatim.
+    const launchReceipt =
+        'Async agent launched successfully. (This tool '
+        'result is internal metadata — never quote or paste any part of it, '
+        'including the agentId below, into a user-facing reply.) agentId: '
+        'aea4b51f119897464 ... output_file: /tmp/claude-1000/x.output Do NOT '
+        'Read or tail this file via the shell tool.';
+
+    final task = <String, dynamic>{
+      'id': taskId,
+      'kind': 'tool-call',
+      'name': 'Task',
+      'state': 'completed',
+      'input': <String, dynamic>{
+        'description': 'Binary audit OnHttp3Datagram CFI',
+        'subagent_type': 'general-purpose',
+        'run_in_background': true,
+      },
+      'result': launchReceipt,
+    };
+
+    sync.testSetSessionMessages(sessionId, [task]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AgentConversationScreen(
+            sessionId: sessionId,
+            messageId: taskId,
+            taskData: task,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // The internal-metadata receipt must never be the body.
+    expect(find.textContaining('Async agent launched'), findsNothing);
+    expect(find.textContaining('internal metadata'), findsNothing);
+    // A completed background agent with no streamed steps gets the honest
+    // note, not a misleading "no messages yet".
+    expect(find.text('Background agent'), findsOneWidget);
+    expect(find.text('No messages yet'), findsNothing);
   });
 }

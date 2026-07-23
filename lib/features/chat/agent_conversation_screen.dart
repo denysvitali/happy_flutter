@@ -331,13 +331,20 @@ class _AgentConversationScreenState
               .workflowsForSession(widget.sessionId)
               .where((r) => r.runId == runId)
               .firstOrNull;
-    final resultSummary = resultAsText(_taskMsg?['result']);
-    final description = descriptionRaw ??
+    final rawResultSummary = resultAsText(_taskMsg?['result']);
+    // The async-launch receipt is internal metadata the tool result itself
+    // says must never be shown to the user ("never quote or paste any part
+    // of it"). It is NOT a useful outcome, so never render it as the result
+    // body. When the daemon streams the background agent's transcript the
+    // grouped children fill the feed above and this is moot; the guard only
+    // stops the raw receipt leaking for runs whose steps never streamed.
+    final isAsyncLaunchReceipt = _isAsyncLaunchReceipt(rawResultSummary);
+    final resultSummary = isAsyncLaunchReceipt ? null : rawResultSummary;
+    final description =
+        descriptionRaw ??
         promptRaw ??
         (isWorkflow
-            ? (cachedRun != null
-                  ? workflowDisplayName(cachedRun)
-                  : 'Workflow')
+            ? (cachedRun != null ? workflowDisplayName(cachedRun) : 'Workflow')
             : l10n.agentFallbackDescription);
     final subagentType =
         input?['subagent_type'] as String? ?? _taskMsg?['taskType'] as String?;
@@ -362,7 +369,8 @@ class _AgentConversationScreenState
     // only carries `model` when the parent passed one explicitly; the
     // daemon otherwise records it on the sidechain assistant messages
     // (child `model`), never on the Task message itself.
-    final subagentModel = _nonEmptyStr(input?['model']) ??
+    final subagentModel =
+        _nonEmptyStr(input?['model']) ??
         _nonEmptyStr(metadata?['model']) ??
         childModel;
     // The Task message's own `model` is the orchestrator that spawned
@@ -383,6 +391,7 @@ class _AgentConversationScreenState
       isRunning: isRunning,
       isWorkflow: isWorkflow,
       runId: runId,
+      isAsyncLaunchReceipt: isAsyncLaunchReceipt,
       resultSummary: resultSummary,
     );
 
@@ -725,6 +734,7 @@ class _AgentConversationScreenState
     required bool isRunning,
     required bool isWorkflow,
     required String? runId,
+    required bool isAsyncLaunchReceipt,
     required String? resultSummary,
   }) {
     if (displayChildren.isNotEmpty) {
@@ -749,6 +759,9 @@ class _AgentConversationScreenState
         runId: runId,
         embedded: true,
       );
+    }
+    if (!isRunning && isAsyncLaunchReceipt) {
+      return _BackgroundAgentTranscriptNote(theme: theme);
     }
     if (!isRunning && resultSummary != null) {
       return AgentResultSummary(text: resultSummary);
@@ -1156,11 +1169,7 @@ class _DebugInfoCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            _DebugRow(
-              label: 'Model',
-              value: subagentModel ?? '—',
-              mono: true,
-            ),
+            _DebugRow(label: 'Model', value: subagentModel ?? '—', mono: true),
             if (subagentModel == null && resolvedParentModel != null)
               _DebugRow(
                 label: 'Parent model',
@@ -1217,7 +1226,6 @@ class _DebugRow extends StatelessWidget {
     );
   }
 }
-
 
 /// A single task-progress chip rendered as a step row in the agent
 /// conversation feed. Shows the chip's full label (e.g.
@@ -1277,5 +1285,61 @@ class _StepChipRow extends StatelessWidget {
       default:
         return (Icons.circle_outlined, cs.onSurfaceVariant);
     }
+  }
+}
+
+/// True when [text] is the async sub-agent launch receipt — internal metadata
+/// the tool result explicitly says must never be surfaced to the user. Used to
+/// keep that dump out of the agent conversation body.
+bool _isAsyncLaunchReceipt(String? text) {
+  if (text == null || text.isEmpty) return false;
+  return text.contains('Async agent launched') &&
+      text.contains('internal metadata');
+}
+
+/// Shown for a completed background sub-agent whose step-by-step transcript
+/// never reached the session (older daemons, or a tailer that could not parse
+/// the launch receipt). Honest and actionable, instead of dumping the raw
+/// internal-metadata launch receipt or a misleading "no messages yet".
+class _BackgroundAgentTranscriptNote extends StatelessWidget {
+  const _BackgroundAgentTranscriptNote({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.hourglass_bottom_rounded,
+              size: 32,
+              color: cs.onSurfaceVariant,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Background agent',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              'This sub-agent ran in the background. Updated daemons '
+              'stream its step-by-step tool calls here; none were '
+              'recorded for this run.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
