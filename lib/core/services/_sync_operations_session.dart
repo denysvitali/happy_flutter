@@ -1578,9 +1578,13 @@ PY
   }
 
   /// Return the model override string to pass to --model when spawning
-  /// sessions, or null to let the daemon/profile default apply.
-  /// When [modelMode] is explicitly set (not null and not 'default'),
-  /// pass it so the daemon writes it into session metadata for tracking.
+  /// sessions, or null when the caller has no preference.
+  ///
+  /// Explicit `'default'` is preserved (not collapsed to null) so the
+  /// daemon can clear sticky third-party models / `codexThreadId` when
+  /// the user switches from e.g. Qwen Token Plan back to ChatGPT/Default.
+  /// When [modelMode] is a non-default selection, pass it so the daemon
+  /// writes it into session metadata for tracking.
   String? _getModelOverride({
     String? agent,
     AIBackendProfile? profile,
@@ -1593,6 +1597,12 @@ PY
         : _normalizeModelModeForAgent(modelMode, effectiveAgent);
     if (normalized != null && normalized != 'default') {
       return normalized;
+    }
+    // Keep an explicit default selection on the wire. Collapsing it to
+    // null made restore re-apply the previous session metadata model
+    // (e.g. qwen3.8-max-preview) against a ChatGPT account.
+    if (modelMode == 'default' || normalized == 'default') {
+      return 'default';
     }
     return null;
   }
@@ -1677,13 +1687,15 @@ PY
         : explicitProfileChange;
 
     final spawnedModel = _sessionSpawnedModel[sessionId];
+    // Any model change must respawn — including switch TO `default`.
+    // Old guard only fired for non-default → non-default, so Qwen →
+    // Default (OpenAI) kept the old process (and its sticky model /
+    // codexThreadId) alive and remote compact still used qwen.
+    final previousModel = spawnedModel ?? 'default';
+    final requestedModel = modelMode ?? 'default';
     final modelChanged =
-        modelMode != null &&
-        modelMode != 'default' &&
         _sessionSpawnedModel.containsKey(sessionId) &&
-        spawnedModel != null &&
-        spawnedModel != 'default' &&
-        spawnedModel != modelMode;
+        previousModel != requestedModel;
 
     final looksReady = health.looksReady;
     final onlineTrusted = health.isOnlineTrusted;

@@ -1533,6 +1533,77 @@ void main() {
       }
     });
 
+    test('switching from qwen model to Default respawns '
+        'with model=default', () async {
+      const sessionId = 'switch-qwen-to-default-model';
+      Map<String, dynamic>? capturedSpawnParams;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'qwen-token-plan-codex',
+      );
+      // Codex session that previously ran under Qwen Token Plan.
+      final existing = sync.testSessions[sessionId]!;
+      sync.testSessions[sessionId] = existing.copyWith(
+        metadata: existing.metadata?.copyWith(flavor: 'codex'),
+        modelMode: 'qwen3.8-max-preview',
+      );
+      sync.testSetSessionSpawnedModel(sessionId, 'qwen3.8-max-preview');
+
+      // Default profile: empty env + null profile.
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'error'};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      try {
+        await sync.sendMessage(
+          sessionId,
+          'hello',
+          modelMode: 'default',
+          profileId: null,
+        );
+      } catch (_) {
+        // REST POST not mocked; respawn is what we assert.
+      }
+
+      expect(
+        capturedSpawnParams,
+        isNotNull,
+        reason:
+            'Switching modelMode from qwen3.8-max-preview to default must '
+            'respawn — otherwise remote compact keeps the sticky Qwen model.',
+      );
+      expect(
+        capturedSpawnParams!['model'],
+        'default',
+        reason:
+            'Spawn must carry explicit model=default so the daemon clears '
+            'sticky metadata.model / codexThreadId.',
+      );
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>?;
+      // Empty map is still sent (non-null) so the daemon knows this is an
+      // explicit Default selection, not "env omitted".
+      expect(envVars, isNotNull);
+      expect(envVars!.containsKey('OPENAI_MODEL'), isFalse);
+      expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
+    });
+
+
     test(
       'profile switch replaces the process with new env and backend',
       () async {

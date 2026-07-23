@@ -1712,6 +1712,11 @@ PY
     if (normalized != null && normalized != 'default') {
       return normalized;
     }
+    // Keep an explicit default selection on the wire so the daemon can
+    // clear sticky third-party models / codexThreadId on switch-away.
+    if (modelMode == 'default' || normalized == 'default') {
+      return 'default';
+    }
     return null;
   }
 

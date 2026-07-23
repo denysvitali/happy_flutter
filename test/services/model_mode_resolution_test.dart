@@ -42,7 +42,7 @@ void main() {
       expect(sync.testGetModelOverride(), isNull);
     });
 
-    test('returns null for default', () {
+    test('returns null for default lastUsed without explicit modelMode', () {
       sync.testSettingsSnapshot = Settings()..lastUsedModelMode = 'default';
 
       expect(sync.testGetModelOverride(), isNull);
@@ -58,6 +58,20 @@ void main() {
       sync.testSettingsSnapshot = Settings();
 
       expect(sync.testGetModelOverride(), isNull);
+    });
+
+    test('keeps explicit default on the wire for Codex clear-switch', () {
+      // Switching Qwen → Default must send model="default" so the daemon
+      // clears sticky metadata.model / codexThreadId. Collapsing to null
+      // re-applied the previous third-party model on restore.
+      expect(
+        sync.testGetModelOverride(agent: 'codex', modelMode: 'default'),
+        'default',
+      );
+      expect(
+        sync.testGetModelOverride(agent: 'claude', modelMode: 'default'),
+        'default',
+      );
     });
 
     test('passes explicit Claude alias for Claude sessions', () {

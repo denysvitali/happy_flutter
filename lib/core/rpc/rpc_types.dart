@@ -45,7 +45,11 @@ class SpawnSessionRequest {
     if (sessionId != null) 'sessionId': sessionId,
     if (agent != null) 'agent': agent,
     'approvedNewDirectoryCreation': approvedNewDirectoryCreation,
-    if (environmentVariables != null && environmentVariables!.isNotEmpty)
+    // Always send when non-null — even an empty map. Empty means
+    // "explicit Default / no profile", which the daemon uses to clear
+    // sticky providerRoutingEnv from a prior Qwen/custom profile. Omitting
+    // the key left the previous env attached on restore.
+    if (environmentVariables != null)
       'environmentVariables': environmentVariables,
     if (startupBashScript != null && startupBashScript!.isNotEmpty)
       'startupBashScript': startupBashScript,

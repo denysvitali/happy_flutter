@@ -28,6 +28,10 @@ List<String> get builtInProfileIds => List<String>.unmodifiable(_builtInIds);
 /// appear in the live catalog; this list keeps provider-owned selections
 /// alive in model normalization (picker + spawn) for Codex profiles.
 const qwenTokenPlanCodexModels = <String>[
+  // Keep in sync with happy-cli-go codex_model_catalog.go
+  // (codexTokenPlanCatalogModels). Missing slugs get normalized away
+  // on ChatGPT/default Codex spawns and can stick as session.modelMode.
+  'qwen3.8-max-preview',
   'qwen3.7-max',
   'qwen3.7-plus',
   'qwen3.6-flash',

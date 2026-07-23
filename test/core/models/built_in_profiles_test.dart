@@ -68,8 +68,9 @@ void main() {
       },
     );
 
-    test('exposes the five stable Token Plan codex model slugs', () {
+    test('exposes the stable Token Plan codex model slugs', () {
       expect(qwenTokenPlanCodexModels, [
+        'qwen3.8-max-preview',
         'qwen3.7-max',
         'qwen3.7-plus',
         'qwen3.6-flash',

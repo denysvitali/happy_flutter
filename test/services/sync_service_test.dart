@@ -1283,9 +1283,10 @@ void main() {
         // Simulate ephemeral activity so online presence is trusted
         sync.testSetLastEphemeralAt(sessionId, now);
 
-        // Verify preconditions: model change is detected in _resolveSendTargetSession
-        // modelChanged = modelMode != 'default' && _sessionSpawnedModel[sessionId] == 'default'
-        // The spawned model is 'default' and we will send with 'opus' modelMode
+        // Verify preconditions: model change is detected in
+        // _resolveSendTargetSession whenever previousModel != requestedModel
+        // (including switches TO `default`). Spawned model is 'default';
+        // the follow-up send uses 'opus'.
         expect(sync.testSessionSpawnedModel[sessionId], 'default');
 
         // Verify session looks ready
