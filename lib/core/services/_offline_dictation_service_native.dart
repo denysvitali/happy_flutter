@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -174,14 +174,14 @@ class OfflineSttCatalog {
           '2bd6cf965c8bb3e068ef9fa2191387ee63a9dfa2a4e37582a8109641c20005dd',
       approximateBytes: 113 * 1024 * 1024,
       archiveRoot: 'sherpa-onnx-whisper-tiny.en',
-      // Prefer int8 when present; extractor matches by basename.
+      // Upstream names tokens `tiny.en-tokens.txt`, not `tokens.txt`.
       requiredFiles: {
         'tiny.en-encoder.int8.onnx',
         'tiny.en-decoder.int8.onnx',
-        'tokens.txt',
+        'tiny.en-tokens.txt',
       },
       family: OfflineSttFamily.whisper,
-      tokensRelPath: 'tokens.txt',
+      tokensRelPath: 'tiny.en-tokens.txt',
       encoderRelPath: 'tiny.en-encoder.int8.onnx',
       decoderRelPath: 'tiny.en-decoder.int8.onnx',
       modelType: 'whisper',
@@ -220,15 +220,16 @@ class OfflineSttCatalog {
           'b11acbbcd660b44a8e0df33724feb5aaa709cf65668f2823d59f656312544f22',
       approximateBytes: 538 * 1024 * 1024,
       archiveRoot: 'sherpa-onnx-whisper-turbo',
+      // Upstream uses turbo-* basenames, not large-v3-turbo-*.
       requiredFiles: {
-        'large-v3-turbo-encoder.int8.onnx',
-        'large-v3-turbo-decoder.int8.onnx',
-        'tokens.txt',
+        'turbo-encoder.int8.onnx',
+        'turbo-decoder.int8.onnx',
+        'turbo-tokens.txt',
       },
       family: OfflineSttFamily.whisper,
-      tokensRelPath: 'tokens.txt',
-      encoderRelPath: 'large-v3-turbo-encoder.int8.onnx',
-      decoderRelPath: 'large-v3-turbo-decoder.int8.onnx',
+      tokensRelPath: 'turbo-tokens.txt',
+      encoderRelPath: 'turbo-encoder.int8.onnx',
+      decoderRelPath: 'turbo-decoder.int8.onnx',
       modelType: 'whisper',
     ),
   ];
@@ -773,12 +774,17 @@ class OfflineDictationService {
       '[OfflineSTT] ensureFiles: cache miss; '
       'will download into ${modelDir.path}',
     );
+    _errors.remove(model.id);
     _setStatusFor(model.id, OfflineSttStatus.downloading);
     await _downloadAndExtract(model, modelDir);
     final after = resolveOfflineSttFiles(model, modelDir.path);
     if (!after.allExist) {
-      throw const OfflineDictationException(
-        'Offline speech model download is incomplete',
+      final missing = model.requiredFiles
+          .where((name) => !File(p.join(modelDir.path, name)).existsSync())
+          .join(', ');
+      throw OfflineDictationException(
+        'Offline speech model incomplete after extract'
+        '${missing.isEmpty ? '' : ': missing $missing'}',
       );
     }
     logger.info('[OfflineSTT] ensureFiles: ready at ${modelDir.path}');
@@ -827,8 +833,8 @@ class OfflineDictationService {
       rethrow;
     } catch (error, stack) {
       logger.warning('Offline speech model download failed', error, stack);
-      throw const OfflineDictationException(
-        'Failed to download offline speech model',
+      throw OfflineDictationException(
+        'Failed to download offline speech model: $error',
       );
     } finally {
       _clearProgressFor(model.id);
@@ -844,14 +850,30 @@ class OfflineDictationService {
     required File target,
     required int approximateBytes,
   }) async {
+    logger.info('[OfflineSTT] download: GET $url -> ${target.path}');
     final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 30);
+      ..connectionTimeout = const Duration(seconds: 30)
+      ..idleTimeout = const Duration(minutes: 5)
+      ..userAgent = 'happy_flutter/offline-stt';
     try {
-      final request = await client.getUrl(Uri.parse(url));
+      final request = await client.getUrl(Uri.parse(url))
+        // Explicit so a future Dart change doesn't break GitHub
+        // release-asset redirects (302 → release-assets.githubusercontent).
+        ..followRedirects = true
+        ..maxRedirects = 5;
       final response = await request.close();
+      logger.info(
+        '[OfflineSTT] download: status=${response.statusCode} '
+        'contentLength=${response.contentLength}',
+      );
+      if (response.statusCode == 404) {
+        throw OfflineDictationException(
+          'Speech model not found on upstream mirror (HTTP 404): $url',
+        );
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw OfflineDictationException(
-          'Speech model download failed (${response.statusCode})',
+          'Speech model download failed: HTTP ${response.statusCode} from $url',
         );
       }
 
@@ -891,6 +913,11 @@ class OfflineDictationService {
       } finally {
         await sink.close();
       }
+      if (received <= 0) {
+        throw const OfflineDictationException(
+          'Speech model download returned empty body',
+        );
+      }
       // Final 100% tick if we know the size.
       if (totalBytes != null) {
         _setProgressFor(
@@ -904,6 +931,17 @@ class OfflineDictationService {
           ),
         );
       }
+      logger.info(
+        '[OfflineSTT] download: completed '
+        '${(received / (1024 * 1024)).toStringAsFixed(1)}MB',
+      );
+    } on OfflineDictationException {
+      rethrow;
+    } catch (error, stack) {
+      logger.warning('[OfflineSTT] download transport failed', error, stack);
+      throw OfflineDictationException(
+        'Speech model download transport failed: $error',
+      );
     } finally {
       client.close(force: true);
     }
@@ -930,6 +968,10 @@ class OfflineDictationService {
   }
 }
 
+/// Stream-extract a `.tar.bz2` without loading the full archive into RAM.
+///
+/// Previous `readAsBytes` + `BZip2Decoder().decodeBytes` path doubled
+/// ~500MB models in memory and OOM'd phones on Parakeet / turbo.
 Future<void> _verifyAndExtractModelArchive({
   required String archivePath,
   required String modelDirPath,
@@ -937,39 +979,80 @@ Future<void> _verifyAndExtractModelArchive({
   required String expectedSha256,
   required List<String> requiredFiles,
 }) async {
-  final bytes = await File(archivePath).readAsBytes();
-  final actualSha = sha256.convert(bytes).toString();
+  // Stream the SHA so we never hold the whole archive as a byte list.
+  final digest = await sha256.bind(File(archivePath).openRead()).single;
+  final actualSha = digest.toString();
   if (actualSha != expectedSha256) {
-    throw const OfflineDictationException(
-      'Offline speech model checksum mismatch',
+    throw OfflineDictationException(
+      'Offline speech model checksum mismatch '
+      '(expected ${expectedSha256.substring(0, 12)}…, '
+      'got ${actualSha.substring(0, 12)}…)',
     );
   }
 
-  final tarBytes = BZip2Decoder().decodeBytes(bytes, verify: true);
-  final archive = TarDecoder().decodeBytes(tarBytes);
-  final required = requiredFiles.toSet();
-  final extracted = <String>{};
-
-  for (final file in archive.files) {
-    if (!file.isFile) {
-      continue;
+  final tempDir = Directory.systemTemp.createTempSync('stt_extract_');
+  final tarPath = p.join(tempDir.path, 'model.tar');
+  try {
+    // Stage 1: stream-decompress bz2 → temp tar on disk.
+    final bzInput = InputFileStream(archivePath);
+    final bzOutput = OutputFileStream(tarPath);
+    try {
+      final ok = BZip2Decoder().decodeStream(bzInput, bzOutput, verify: true);
+      if (!ok) {
+        throw const OfflineDictationException(
+          'Failed to decompress speech model archive (bzip2)',
+        );
+      }
+    } finally {
+      await bzInput.close();
+      await bzOutput.close();
     }
 
-    final name = p.basename(file.name);
-    if (!required.contains(name) || !file.name.contains(archiveRoot)) {
-      continue;
+    // Stage 2: stream-read tar and write only required basenames.
+    final tarInput = InputFileStream(tarPath);
+    try {
+      final archive = TarDecoder().decodeStream(tarInput);
+      final required = requiredFiles.toSet();
+      final extracted = <String>{};
+
+      for (final file in archive.files) {
+        if (!file.isFile) continue;
+        final name = p.basename(file.name);
+        if (!required.contains(name) || !file.name.contains(archiveRoot)) {
+          continue;
+        }
+        final outPath = p.join(modelDirPath, name);
+        final out = OutputFileStream(outPath);
+        try {
+          file.writeContent(out);
+        } finally {
+          await out.close();
+        }
+        extracted.add(name);
+      }
+
+      if (extracted.length != required.length) {
+        final missing = required.difference(extracted);
+        throw OfflineDictationException(
+          'Offline speech model archive is missing files: '
+          '${missing.join(', ')}',
+        );
+      }
+    } finally {
+      await tarInput.close();
     }
-
-    await File(
-      p.join(modelDirPath, name),
-    ).writeAsBytes(file.content, flush: true);
-    extracted.add(name);
-  }
-
-  if (extracted.length != required.length) {
-    throw const OfflineDictationException(
-      'Offline speech model archive is missing files',
+  } on OfflineDictationException {
+    rethrow;
+  } catch (error) {
+    throw OfflineDictationException(
+      'Failed to extract speech model archive: $error',
     );
+  } finally {
+    try {
+      tempDir.deleteSync(recursive: true);
+    } catch (_) {
+      // best effort
+    }
   }
 }
 

@@ -70,14 +70,22 @@ void main() {
       expect(desc['joiner'], '/cache/parakeet/joiner.int8.onnx');
     });
 
-    test('builds whisper paths', () {
-      final model = OfflineSttCatalog.byId('whisper-tiny-en-v1')!;
-      final files = resolveOfflineSttFiles(model, '/cache/whisper');
-      final desc = files.toConfigDescriptor();
-      expect(desc['family'], 'whisper');
-      expect(desc['modelType'], 'whisper');
-      expect(desc['encoder'], endsWith('tiny.en-encoder.int8.onnx'));
-      expect(desc['decoder'], endsWith('tiny.en-decoder.int8.onnx'));
+    test('builds whisper paths with upstream basenames', () {
+      final tiny = OfflineSttCatalog.byId('whisper-tiny-en-v1')!;
+      final tinyFiles = resolveOfflineSttFiles(tiny, '/cache/whisper');
+      final tinyDesc = tinyFiles.toConfigDescriptor();
+      expect(tinyDesc['family'], 'whisper');
+      expect(tinyDesc['modelType'], 'whisper');
+      expect(tinyDesc['encoder'], endsWith('tiny.en-encoder.int8.onnx'));
+      expect(tinyDesc['decoder'], endsWith('tiny.en-decoder.int8.onnx'));
+      expect(tinyDesc['tokens'], endsWith('tiny.en-tokens.txt'));
+
+      final turbo = OfflineSttCatalog.byId('whisper-turbo-v1')!;
+      final turboFiles = resolveOfflineSttFiles(turbo, '/cache/turbo');
+      final turboDesc = turboFiles.toConfigDescriptor();
+      expect(turboDesc['encoder'], endsWith('turbo-encoder.int8.onnx'));
+      expect(turboDesc['decoder'], endsWith('turbo-decoder.int8.onnx'));
+      expect(turboDesc['tokens'], endsWith('turbo-tokens.txt'));
     });
 
     test('builds senseVoice paths', () {

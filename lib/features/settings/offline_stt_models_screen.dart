@@ -60,10 +60,15 @@ class _OfflineSttModelsScreenState
         );
       } catch (e) {
         if (!mounted) return;
+        final detail = _service.errorFor(model.id) ?? e;
         messenger?.showSnackBar(
           SnackBar(
-            content: Text('Download failed: $e'),
-            duration: const Duration(seconds: 6),
+            content: Text('Download failed: $detail'),
+            duration: const Duration(seconds: 10),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => unawaitedSafe(_download(model)),
+            ),
           ),
         );
       }
@@ -80,10 +85,15 @@ class _OfflineSttModelsScreenState
       );
     } catch (e) {
       if (!mounted) return;
+      final detail = _service.errorFor(model.id) ?? e;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Download failed: $e'),
-          duration: const Duration(seconds: 6),
+          content: Text('Download failed: $detail'),
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => unawaitedSafe(_download(model)),
+          ),
         ),
       );
     }
@@ -193,6 +203,7 @@ class _OfflineSttModelsScreenState
                             status: statuses[model.id] ??
                                 OfflineSttStatus.notDownloaded,
                             progress: progress[model.id],
+                            lastError: _service.errorFor(model.id),
                             isSelected: model.id == activeId,
                             onSelect: () => _select(model),
                             onDownload: () => _download(model),
@@ -239,11 +250,13 @@ class _ModelRow extends StatelessWidget {
     required this.onDownload,
     required this.onDelete,
     this.progress,
+    this.lastError,
   });
 
   final OfflineSttModel model;
   final OfflineSttStatus status;
   final OfflineSttDownloadProgress? progress;
+  final Object? lastError;
   final bool isSelected;
   final VoidCallback onSelect;
   final VoidCallback onDownload;
@@ -262,7 +275,14 @@ class _ModelRow extends StatelessWidget {
       subtitle.write(' · ${model.sizeLabel}');
     }
     if (isFailed) {
-      subtitle.write(' · download failed, tap retry');
+      final err = lastError?.toString();
+      if (err != null && err.isNotEmpty) {
+        // Keep the first line short enough for a list subtitle.
+        final short = err.length > 90 ? '${err.substring(0, 90)}…' : err;
+        subtitle.write(' · $short');
+      } else {
+        subtitle.write(' · download failed, tap retry');
+      }
     } else if (isDownloading) {
       subtitle.write(' · ${progress?.label ?? 'downloading…'}');
     } else if (!isReady) {
