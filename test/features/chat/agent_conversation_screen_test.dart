@@ -97,6 +97,83 @@ void main() {
     expect(find.byType(ToolView), findsOneWidget);
   });
 
+  // Regression: a completed async/background agent never streams its inner
+  // tool calls across the wire, so its sidechain carries ONLY task_progress
+  // chips (kind: agent-event). The session list counts those as "N steps",
+  // but the detail screen used to drop every chip once the agent finished
+  // and fall through to the async-launch receipt — so the user tapped
+  // "8 steps" and saw nothing. The chips are the steps; keep them.
+  testWidgets(
+    'shows progress chips as steps for a chips-only completed agent',
+    (tester) async {
+      const sessionId = 'session_1';
+      const taskId = 'task_async';
+      const launchReceipt =
+          'Async agent launched successfully. (This tool result is '
+          'internal metadata — never quote or paste any part of it';
+
+      final task = <String, dynamic>{
+        'id': taskId,
+        'kind': 'tool-call',
+        'name': 'Agent',
+        'state': 'completed',
+        'input': <String, dynamic>{
+          'description': 'Hunt rebuild storms',
+          'subagent_type': 'Explore',
+        },
+        // The async-launch stub — NOT a useful outcome; must not be what
+        // the user sees when the activity feed would otherwise be empty.
+        'result': launchReceipt,
+        'children': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'te_1',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'subAgentLastTool': 'Read',
+            'event': <String, dynamic>{
+              'type': 'message',
+              'message': 'Read · lib/main.dart',
+            },
+          },
+          <String, dynamic>{
+            'id': 'te_2',
+            'kind': 'agent-event',
+            'taskEvent': true,
+            'subAgentLastTool': 'Bash',
+            'event': <String, dynamic>{
+              'type': 'message',
+              'message': 'Bash · grep render',
+            },
+          },
+        ],
+      };
+
+      sync.testSetSessionMessages(sessionId, [task]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: AgentConversationScreen(
+              sessionId: sessionId,
+              messageId: taskId,
+              taskData: task,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // The steps (progress chips) are visible...
+      expect(find.text('Read · lib/main.dart'), findsOneWidget);
+      expect(find.text('Bash · grep render'), findsOneWidget);
+      // ...instead of the empty-state or the useless launch receipt.
+      expect(find.text('No messages yet'), findsNothing);
+      expect(find.textContaining('Async agent launched'), findsNothing);
+    },
+  );
+
   testWidgets('finds parent message by toolUseId and renders children', (
     tester,
   ) async {

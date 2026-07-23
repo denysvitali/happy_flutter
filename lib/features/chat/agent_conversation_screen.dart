@@ -642,13 +642,23 @@ class _AgentConversationScreenState
   /// drown the result. Transient = sub-agent progress chips and thinking
   /// placeholders: content-less rows the screen shows while work happens.
   /// While the task runs, a run of identical transient rows collapses to
-  /// one live indicator. Once finished they're dropped entirely — the
-  /// completion summary carries the outcome, the wire never exposes the
-  /// inner tool calls, and the thinking content isn't rendered here.
+  /// one live indicator.
+  ///
+  /// Once finished, thinking placeholders (no user-visible content) are
+  /// always dropped. Progress chips are dropped too *when the agent left a
+  /// real transcript* (durable text / tool-call / error / nested-task rows)
+  /// — there the chips are noise next to the actual work. But async /
+  /// background agents never stream their inner tool calls across the wire,
+  /// so their sidechain carries *only* progress chips: those chips are the
+  /// "N steps" the session list promises, and dropping them leaves an empty
+  /// feed that falls through to the (useless) async-launch receipt. In that
+  /// chips-only case we keep them, de-duplicated, so the detail shows the
+  /// steps the user tapped to see.
   List<Map<String, dynamic>> _buildDisplayChildren(
     List<Map<String, dynamic>> children,
     bool isRunning,
   ) {
+    final hasDurable = children.any((c) => _transientKey(c) == null);
     final out = <Map<String, dynamic>>[];
     String? prevTransientKey;
     for (final c in children) {
@@ -658,7 +668,18 @@ class _AgentConversationScreenState
         out.add(c);
         continue;
       }
-      if (!isRunning) continue;
+      if (isRunning) {
+        if (key == prevTransientKey) continue;
+        prevTransientKey = key;
+        out.add(c);
+        continue;
+      }
+      // Finished: thinking placeholders carry nothing to show.
+      if (c['kind'] == 'text' && c['isThinking'] == true) continue;
+      // A real transcript already fills the feed; chips beside it are noise.
+      if (hasDurable) continue;
+      // Chips-only sidechain: these progress ticks are the steps — keep them
+      // (consecutive-identical collapsed) instead of an empty feed.
       if (key == prevTransientKey) continue;
       prevTransientKey = key;
       out.add(c);
