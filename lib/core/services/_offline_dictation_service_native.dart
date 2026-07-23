@@ -26,17 +26,20 @@ class OfflineDictationService {
     : _recorder = recorder ?? AudioRecorder();
 
   static const _sampleRate = 16000;
+  // NVIDIA Parakeet TDT 0.6B v3 (int8) via sherpa-onnx — 25 European
+  // languages, punctuation + casing. Much larger than the old Moonshine
+  // tiny (~640 MB on disk) but far more accurate for dictation.
   static const _modelUrl =
       'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/'
-      'sherpa-onnx-moonshine-tiny-en-int8.tar.bz2';
+      'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2';
   static const _modelSha256 =
-      'd5fe6ec4334fef36255b2a4010412cad4c007e33103fec62fb5d17cad88086f2';
-  static const _archiveRoot = 'sherpa-onnx-moonshine-tiny-en-int8';
+      '5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf';
+  static const _archiveRoot =
+      'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8';
   static const _modelFileNames = {
-    'preprocess.onnx',
-    'encode.int8.onnx',
-    'uncached_decode.int8.onnx',
-    'cached_decode.int8.onnx',
+    'encoder.int8.onnx',
+    'decoder.int8.onnx',
+    'joiner.int8.onnx',
     'tokens.txt',
   };
 
@@ -46,7 +49,7 @@ class OfflineDictationService {
   int _sampleCount = 0;
   StreamSubscription<Uint8List>? _audioSub;
   Timer? _liveTranscriptionTimer;
-  Future<_MoonshineModelFiles>? _modelFilesFuture;
+  Future<_ParakeetModelFiles>? _modelFilesFuture;
   void Function(String)? _onTranscript;
   bool _isTranscribingLive = false;
   String _lastTranscript = '';
@@ -155,7 +158,7 @@ class OfflineDictationService {
       final files = await _ensureModelFilesOnce();
       // Build the request before spawning the isolate so the closure
       // captures only this sendable object — never `this`, which has
-      // a `Future<_MoonshineModelFiles>? _modelFilesFuture` field
+      // a `Future<_ParakeetModelFiles>? _modelFilesFuture` field
       // that would surface as
       // "Illegal argument in isolate message: object is unsendable
       // Library:'dart:async' Class: _Future".
@@ -260,7 +263,7 @@ class OfflineDictationService {
     final files = await _ensureModelFilesOnce();
     // Build the request before spawning the isolate so the closure
     // captures only this sendable object — never `this`, which has a
-    // `Future<_MoonshineModelFiles>? _modelFilesFuture` field that
+    // `Future<_ParakeetModelFiles>? _modelFilesFuture` field that
     // would surface as
     // "Illegal argument in isolate message: object is unsendable
     // Library:'dart:async' Class: _Future" on production builds.
@@ -272,7 +275,7 @@ class OfflineDictationService {
     return Isolate.run(() => _transcribeInWorker(req));
   }
 
-  Future<_MoonshineModelFiles> _ensureModelFilesOnce() {
+  Future<_ParakeetModelFiles> _ensureModelFilesOnce() {
     final existing = _modelFilesFuture;
     if (existing != null) {
       return existing;
@@ -293,10 +296,10 @@ class OfflineDictationService {
     return future;
   }
 
-  Future<_MoonshineModelFiles> _ensureModelFiles() async {
+  Future<_ParakeetModelFiles> _ensureModelFiles() async {
     final supportDir = await getApplicationSupportDirectory();
     final modelDir = Directory(
-      p.join(supportDir.path, 'speech', 'moonshine_tiny_en_int8'),
+      p.join(supportDir.path, 'speech', 'parakeet_tdt_0_6b_v3_int8'),
     );
     await modelDir.create(recursive: true);
     var files = _modelFiles(modelDir);
@@ -315,12 +318,11 @@ class OfflineDictationService {
     return files;
   }
 
-  _MoonshineModelFiles _modelFiles(Directory modelDir) {
-    return _MoonshineModelFiles(
-      preprocessor: p.join(modelDir.path, 'preprocess.onnx'),
-      encoder: p.join(modelDir.path, 'encode.int8.onnx'),
-      uncachedDecoder: p.join(modelDir.path, 'uncached_decode.int8.onnx'),
-      cachedDecoder: p.join(modelDir.path, 'cached_decode.int8.onnx'),
+  _ParakeetModelFiles _modelFiles(Directory modelDir) {
+    return _ParakeetModelFiles(
+      encoder: p.join(modelDir.path, 'encoder.int8.onnx'),
+      decoder: p.join(modelDir.path, 'decoder.int8.onnx'),
+      joiner: p.join(modelDir.path, 'joiner.int8.onnx'),
       tokens: p.join(modelDir.path, 'tokens.txt'),
     );
   }
@@ -328,14 +330,14 @@ class OfflineDictationService {
   Future<void> _downloadAndExtractModel(Directory modelDir) async {
     final tempDir = await getTemporaryDirectory();
     final archiveFile = File(
-      p.join(tempDir.path, 'sherpa_moonshine_tiny_en_int8.tar.bz2'),
+      p.join(tempDir.path, 'sherpa_parakeet_tdt_0_6b_v3_int8.tar.bz2'),
     );
 
     try {
       await _downloadModelArchive(archiveFile);
       // Hoist plain-string paths into locals so the closure captures
       // only sendable Strings — never `this`, which has a
-      // `Future<_MoonshineModelFiles>? _modelFilesFuture` field that
+      // `Future<_ParakeetModelFiles>? _modelFilesFuture` field that
       // is not sendable across an isolate boundary.
       final archivePath = archiveFile.path;
       final modelDirPath = modelDir.path;
@@ -422,15 +424,17 @@ String _transcribeInWorker(_OfflineTranscriptionRequest request) {
   sherpa.initBindings();
   final config = sherpa.OfflineRecognizerConfig(
     model: sherpa.OfflineModelConfig(
-      moonshine: sherpa.OfflineMoonshineModelConfig(
-        preprocessor: request.files.preprocessor,
+      transducer: sherpa.OfflineTransducerModelConfig(
         encoder: request.files.encoder,
-        uncachedDecoder: request.files.uncachedDecoder,
-        cachedDecoder: request.files.cachedDecoder,
+        decoder: request.files.decoder,
+        joiner: request.files.joiner,
       ),
       tokens: request.files.tokens,
       numThreads: 2,
       debug: false,
+      // Required for NeMo Parakeet TDT — without this, sherpa may try
+      // the wrong transducer layout and produce garbage / crash.
+      modelType: 'nemo_transducer',
     ),
   );
 
@@ -469,28 +473,25 @@ class _OfflineTranscriptionRequest {
   final String? audioPath;
   final Float32List? samples;
   final int sampleRate;
-  final _MoonshineModelFiles files;
+  final _ParakeetModelFiles files;
 }
 
-class _MoonshineModelFiles {
-  const _MoonshineModelFiles({
-    required this.preprocessor,
+class _ParakeetModelFiles {
+  const _ParakeetModelFiles({
     required this.encoder,
-    required this.uncachedDecoder,
-    required this.cachedDecoder,
+    required this.decoder,
+    required this.joiner,
     required this.tokens,
   });
 
-  final String preprocessor;
   final String encoder;
-  final String uncachedDecoder;
-  final String cachedDecoder;
+  final String decoder;
+  final String joiner;
   final String tokens;
 
   bool get allExist =>
-      File(preprocessor).existsSync() &&
       File(encoder).existsSync() &&
-      File(uncachedDecoder).existsSync() &&
-      File(cachedDecoder).existsSync() &&
+      File(decoder).existsSync() &&
+      File(joiner).existsSync() &&
       File(tokens).existsSync();
 }
