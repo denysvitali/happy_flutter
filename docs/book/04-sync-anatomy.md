@@ -128,7 +128,7 @@ sync.resume()               // -> Future<void>
 
 Plus a few `load*` / `invalidate*` helpers, and `getMessagesForSession(sessionId)` / `getSession(sessionId)` for in-memory reads.
 
-## The 13 `InvalidateSync` fields
+## The 9 `InvalidateSync` fields
 
 `Sync` owns one `InvalidateSync` per data domain, exposed as public fields so notifiers can call `.invalidate()` / `.invalidateAndAwait()` on them:
 
@@ -141,14 +141,14 @@ InvalidateSync machinesSync;
 InvalidateSync pushTokenSync;
 InvalidateSync nativeUpdateSync;
 InvalidateSync artifactsSync;
-InvalidateSync friendsSync;
-InvalidateSync friendRequestsSync;
-InvalidateSync feedSync;
-InvalidateSync todosSync;
 InvalidateSync sessionGitStatusSync;
 // plus:
 Map<String, InvalidateSync> messagesSync;  // per session id
 ```
+
+The authoritative list is `createTestSync()` in
+`test/helpers/test_helpers.dart` — it must wire every field, so it fails to
+compile when one is added or removed.
 
 See [Chapter 6](06-invalidate-sync.md).
 

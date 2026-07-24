@@ -30,28 +30,22 @@ void dispose() {
 
 ## Sync Test Setup
 
-`Sync()` is a true singleton (factory returns `_instance`). When testing, initialize all InvalidateSync fields:
+`Sync()` is a true singleton (factory returns `_instance`), so every
+`InvalidateSync` field must be re-wired in `setUp` or a previous test's
+state leaks into the next one.
+
+**Use `createTestSync()` from `test/helpers/test_helpers.dart`** — it is the
+single source of truth for the field list and pre-wires every one to a no-op:
 
 ```dart
 setUp(() {
-  sync = Sync();
-  sync.sessionsSync = InvalidateSync(() async {});
-  sync.settingsSync = InvalidateSync(() async {});
-  sync.profileSync = InvalidateSync(() async {});
-  sync.purchasesSync = InvalidateSync(() async {});
-  sync.machinesSync = InvalidateSync(() async {});
-  sync.pushTokenSync = InvalidateSync(() async {});
-  sync.nativeUpdateSync = InvalidateSync(() async {});
-  sync.artifactsSync = InvalidateSync(() async {});
-  sync.friendsSync = InvalidateSync(() async {});
-  sync.friendRequestsSync = InvalidateSync(() async {});
-  sync.feedSync = InvalidateSync(() async {});
-  sync.todosSync = InvalidateSync(() async {});
-  sync.sessionGitStatusSync = InvalidateSync(() async {});
+  sync = createTestSync();
 });
 ```
 
-Or use `createTestSync()` from `test/helpers/test_helpers.dart` which pre-wires all fields to no-ops.
+Do not hand-roll the field list in a test: it drifts the moment a domain is
+added or removed. If a test needs realistic in-memory session maps rather than
+no-ops, use `createPartialMockSync()` instead.
 
 ## Key Methods
 
