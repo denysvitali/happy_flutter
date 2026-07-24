@@ -16,6 +16,7 @@ import '../models/sftp_directory.dart';
 import '../providers/sftp_provider.dart';
 import 'sftp_connection_history_screen.dart';
 import 'sftp_log_viewer_screen.dart';
+import '../../../core/utils/utils.dart';
 
 /// Right-pane modes when the directory manager is rendered as a
 /// master-detail layout on wider viewports.
@@ -413,7 +414,7 @@ class _SftpDirectoryManagerScreenState
                   if (directorySize != null)
                     _InfoChip(
                       icon: Icons.storage,
-                      label: _formatSize(directorySize),
+                      label: formatBytes(directorySize),
                     ),
                 ],
               ),
@@ -536,16 +537,6 @@ class _SftpDirectoryManagerScreenState
     }
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    }
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
 }
 
 /// A card for a single file or directory entry
@@ -585,7 +576,7 @@ class _FileEntityCard extends StatelessWidget {
     try {
       final stat = entity.statSync();
       if (!isDir) {
-        subtitle = _formatSize(stat.size);
+        subtitle = formatBytes(stat.size);
       }
       subtitle =
           '${subtitle ?? ''}  ·  '
@@ -713,16 +704,6 @@ class _FileEntityCard extends StatelessWidget {
     }
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    }
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
 
   String _formatDate(DateTime dt) {
     final now = DateTime.now();

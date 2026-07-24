@@ -5,6 +5,7 @@ import '../../../../core/components/settings_section.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../models/connection_event.dart';
+import '../../../../core/utils/utils.dart';
 
 /// Card displaying a single connection event
 class ConnectionEventCard extends StatelessWidget {
@@ -124,29 +125,11 @@ class ConnectionEventCard extends StatelessWidget {
       case ConnectionEventType.sessionEnd:
         final dur = event.duration;
         return 'Session ended'
-            '${dur != null ? ' (${_formatDuration(dur)})' : ''}';
+            '${dur != null ? ' (${formatDuration(dur)})' : ''}';
     }
   }
 
-  String _formatTime(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
-
-  String _formatDuration(Duration d) {
-    if (d.inHours > 0) {
-      return '${d.inHours}h ${d.inMinutes.remainder(60)}m';
-    }
-    if (d.inMinutes > 0) {
-      return '${d.inMinutes}m '
-          '${d.inSeconds.remainder(60)}s';
-    }
-    return '${d.inSeconds}s';
-  }
+  String _formatTime(DateTime dt) => formatRelativeTime(dt);
 }
 
 /// A filter chip for connection event types

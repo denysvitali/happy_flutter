@@ -10,6 +10,7 @@ import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
 import 'app_status_dot.dart';
 import 'voice_assistant_status_bar.dart';
+import '../utils/utils.dart';
 
 /// Sidebar navigation widget matching React Native's SidebarView.tsx.
 ///
@@ -426,23 +427,11 @@ class _SidebarSessionListItem extends ConsumerWidget {
     );
   }
 
-  String _formatTimestamp(int timestamp) {
-    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d';
-    } else {
-      return '${date.month}/${date.day}';
-    }
-  }
+  String _formatTimestamp(int timestamp) => formatRelativeTime(
+    DateTime.fromMillisecondsSinceEpoch(timestamp),
+    compact: true,
+    absoluteFallback: (d) => '${d.month}/${d.day}',
+  );
 }
 
 class _ConnectionInfo {

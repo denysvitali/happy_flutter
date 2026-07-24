@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
+import '../../../../core/utils/utils.dart';
 
 /// Entry model for LS results.
 class LSEntry {
@@ -442,7 +443,7 @@ class _EntryRow extends StatelessWidget {
             // Size
             if (entry.size != null)
               Text(
-                _formatSize(entry.size!),
+                formatBytes(entry.size!),
                 style: TextStyle(
                   fontSize: AppFontSize.xs,
                   fontFamily: 'monospace',
@@ -472,14 +473,4 @@ class _EntryRow extends StatelessWidget {
     );
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    }
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
 }

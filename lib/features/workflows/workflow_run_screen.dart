@@ -12,6 +12,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/wire_parsers.dart';
 import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
+import '../../core/utils/utils.dart';
 
 /// Detail view for a single Claude Code workflow run.
 ///
@@ -162,7 +163,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                             const SizedBox(width: AppSpacing.sm),
                             if (elapsedMs != null)
                               Text(
-                                _formatDuration(elapsedMs),
+                                formatDuration(Duration(milliseconds: elapsedMs)),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: cs.onSurfaceVariant,
                                 ),
@@ -274,14 +275,6 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     return now > start ? now - start : 0;
   }
 
-  String _formatDuration(int ms) {
-    final seconds = ms ~/ 1000;
-    if (seconds < 60) return '${seconds}s';
-    final minutes = seconds ~/ 60;
-    if (minutes < 60) return '${minutes}m ${seconds % 60}s';
-    final hours = minutes ~/ 60;
-    return '${hours}h ${minutes % 60}m';
-  }
 
   /// Groups agents under their phases for the detail view.
   ///

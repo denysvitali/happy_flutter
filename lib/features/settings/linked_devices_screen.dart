@@ -10,6 +10,8 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/safe_pop.dart';
+import '../../core/utils/utils.dart';
+import '../../core/utils/datetime_extensions.dart';
 
 /// Linked devices screen
 class LinkedDevicesScreen extends ConsumerStatefulWidget {
@@ -198,14 +200,8 @@ class DeviceTile extends StatelessWidget {
     }
   }
 
-  String _formatLastActive() {
-    final now = DateTime.now();
-    final diff = now.difference(device.lastActive);
-
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return device.lastActive.toLocal().toString().split(' ')[0];
-  }
+  String _formatLastActive() => formatRelativeTime(
+    device.lastActive,
+    absoluteFallback: (d) => d.toLocal().toIsoDateString(),
+  );
 }

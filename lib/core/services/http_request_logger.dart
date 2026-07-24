@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../utils/utils.dart' as utils;
+
 /// A single recorded HTTP request/response pair.
 class HttpRequestEntry {
   HttpRequestEntry({
@@ -24,14 +26,10 @@ class HttpRequestEntry {
   final int? responseBytes;
   final int? durationMs;
 
-  static String formatBytes(int? bytes) {
-    if (bytes == null) return '-';
-    if (bytes < 1024) return '${bytes}B';
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)}KB';
-    }
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
-  }
+  /// Nullable, unspaced wrapper around the shared [formatBytes] so log lines
+  /// stay compact and missing sizes render as '-'.
+  static String formatBytes(int? bytes) =>
+      bytes == null ? '-' : utils.formatBytes(bytes, spaced: false);
 
   String toFormattedString() {
     final ts = timestamp.toIso8601String();

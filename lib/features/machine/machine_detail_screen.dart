@@ -21,6 +21,7 @@ import '../../core/theme/app_tokens.dart'
     show AppFontSize, AppSpacing, AppTouchTarget;
 import '../../core/utils/safe_pop.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/utils/utils.dart';
 
 /// Detail screen for a single machine.
 ///
@@ -50,20 +51,9 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     });
   }
 
-  String _formatTimestamp(int ms) {
-    final dt = DateTime.fromMillisecondsSinceEpoch(ms);
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-
-    if (diff.inDays > 0) {
-      return '${diff.inDays}d ago';
-    } else if (diff.inHours > 0) {
-      return '${diff.inHours}h ago';
-    } else if (diff.inMinutes > 0) {
-      return '${diff.inMinutes}m ago';
-    }
-    return 'just now';
-  }
+  String _formatTimestamp(int ms) => formatRelativeTime(
+    DateTime.fromMillisecondsSinceEpoch(ms),
+  );
 
   String _getSessionName(Session session) {
     final meta = session.metadata;
@@ -462,8 +452,8 @@ class _ResourceStatsList extends StatelessWidget {
             icon: Icons.memory_outlined,
             label: 'Memory',
             value: '${_formatPercent(stats.memoryPercent)}  '
-                '${_formatBytes(stats.memoryUsedBytes)} / '
-                '${_formatBytes(stats.memoryTotalBytes)}',
+                '${formatBytes(stats.memoryUsedBytes, adaptivePrecision: true)} / '
+                '${formatBytes(stats.memoryTotalBytes, adaptivePrecision: true)}',
             percent: stats.memoryPercent,
           ),
           _ResourceDivider(),
@@ -471,8 +461,8 @@ class _ResourceStatsList extends StatelessWidget {
             icon: Icons.storage_outlined,
             label: 'Disk',
             value: '${_formatPercent(stats.diskPercent)}  '
-                '${_formatBytes(stats.diskUsedBytes)} / '
-                '${_formatBytes(stats.diskTotalBytes)}',
+                '${formatBytes(stats.diskUsedBytes, adaptivePrecision: true)} / '
+                '${formatBytes(stats.diskTotalBytes, adaptivePrecision: true)}',
             subtitle: stats.diskPath,
             percent: stats.diskPercent,
           ),
@@ -591,18 +581,6 @@ String _formatPercent(double value) {
   return '${value.clamp(0, 100).toStringAsFixed(0)}%';
 }
 
-String _formatBytes(int bytes) {
-  if (bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  var value = bytes.toDouble();
-  var unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  final precision = value >= 10 || unit == 0 ? 0 : 1;
-  return '${value.toStringAsFixed(precision)} ${units[unit]}';
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Card container for grouped rows

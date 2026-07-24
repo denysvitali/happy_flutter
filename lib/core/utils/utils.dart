@@ -66,30 +66,52 @@ String formatTimestamp(
   bool relative = false,
 }) {
   final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
-  final now = DateTime.now();
+  if (!relative) return _shortDate(date);
+  return formatRelativeTime(date, useYesterdayLabel: true);
+}
 
-  if (relative) {
-    final diff = now.difference(date);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
+/// Format a point in time relative to [now] (defaults to the current time).
+///
+/// - Under 1 min  -> "Just now"
+/// - Under 1 hour -> "2m ago"  (compact: "2m")
+/// - Under 1 day  -> "3h ago"  (compact: "3h")
+/// - Under 7 days -> "3d ago"  (compact: "3d")
+/// - Otherwise    -> [absoluteFallback], or "M/d/yyyy"
+///
+/// [useYesterdayLabel] swaps the day bucket for "Yesterday" when [when] falls
+/// on the previous calendar day, matching the session list's wording.
+///
+/// This is the single implementation behind what used to be six drifting
+/// per-screen copies (machine detail, SFTP log/connection cards, linked
+/// devices, sidebar, session cards).
+String formatRelativeTime(
+  DateTime when, {
+  DateTime? now,
+  bool compact = false,
+  bool useYesterdayLabel = false,
+  String Function(DateTime)? absoluteFallback,
+}) {
+  final reference = now ?? DateTime.now();
+  final diff = reference.difference(when);
+  final suffix = compact ? '' : ' ago';
 
-    // Check for "Yesterday" by comparing calendar dates.
-    final today = DateTime(now.year, now.month, now.day);
-    final dateDay = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    );
-    if (today.difference(dateDay).inDays == 1) {
-      return 'Yesterday';
-    }
+  if (diff.inMinutes < 1) return 'Just now';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}m$suffix';
+  if (diff.inHours < 24) return '${diff.inHours}h$suffix';
 
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
+  if (useYesterdayLabel) {
+    // Compare calendar dates, not elapsed hours: 25h ago can still be today.
+    final today = DateTime(reference.year, reference.month, reference.day);
+    final thatDay = DateTime(when.year, when.month, when.day);
+    if (today.difference(thatDay).inDays == 1) return 'Yesterday';
   }
 
-  return '${date.month}/${date.day}/${date.year}';
+  if (diff.inDays < 7) return '${diff.inDays}d$suffix';
+  return (absoluteFallback ?? _shortDate)(when);
 }
+
+String _shortDate(DateTime date) =>
+    '${date.month}/${date.day}/${date.year}';
 
 /// Format duration
 String formatDuration(Duration duration) {
@@ -102,23 +124,34 @@ String formatDuration(Duration duration) {
   return '${duration.inSeconds}s';
 }
 
-/// Format a byte count for display (B / KB / MB / GB).
+/// Format a byte count for display (B / KB / MB / GB / TB).
 ///
-/// Shared by machine detail, SFTP, HTTP logger, etc. so size strings
-/// do not drift across features.
-String formatBytes(int bytes, {int decimals = 1}) {
-  if (bytes < 0) return '0 B';
-  if (bytes < 1024) return '$bytes B';
-  final kb = bytes / 1024;
-  if (kb < 1024) {
-    return '${kb.toStringAsFixed(decimals)} KB';
+/// Shared by machine detail, SFTP, tool views, the HTTP logger, etc. so size
+/// strings do not drift across features.
+///
+/// - [decimals] — fixed fraction digits for scaled units.
+/// - [spaced] — insert a space before the unit ("1.5 KB" vs "1.5KB").
+/// - [adaptivePrecision] — drop the fraction once the value reaches 10
+///   ("9.8 MB", "12 MB"), for dense dashboard rows.
+String formatBytes(
+  int bytes, {
+  int decimals = 1,
+  bool spaced = true,
+  bool adaptivePrecision = false,
+}) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  final gap = spaced ? ' ' : '';
+  if (bytes <= 0) return '0${gap}B';
+  if (bytes < 1024) return '$bytes${gap}B';
+
+  var value = bytes.toDouble();
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
   }
-  final mb = kb / 1024;
-  if (mb < 1024) {
-    return '${mb.toStringAsFixed(decimals)} MB';
-  }
-  final gb = mb / 1024;
-  return '${gb.toStringAsFixed(decimals)} GB';
+  final precision = adaptivePrecision && value >= 10 ? 0 : decimals;
+  return '${value.toStringAsFixed(precision)}$gap${units[unit]}';
 }
 
 /// Sanitize string for display

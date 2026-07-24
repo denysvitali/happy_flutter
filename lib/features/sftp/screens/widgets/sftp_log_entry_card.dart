@@ -5,6 +5,8 @@ import '../../../../core/components/settings_section.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../models/sftp_log.dart';
+import '../../../../core/utils/utils.dart';
+import '../../../../core/utils/datetime_extensions.dart';
 
 /// A single log entry card with expandable details
 class SftpLogEntryCard extends StatelessWidget {
@@ -201,19 +203,10 @@ class SftpLogEntryCard extends StatelessWidget {
     }
   }
 
-  String _formatTime(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-
-    return '${dt.year}-'
-        '${dt.month.toString().padLeft(2, '0')}-'
-        '${dt.day.toString().padLeft(2, '0')}';
-  }
+  String _formatTime(DateTime dt) => formatRelativeTime(
+    dt,
+    absoluteFallback: (d) => d.toIsoDateString(),
+  );
 }
 
 /// A label/value detail row inside an expanded log entry

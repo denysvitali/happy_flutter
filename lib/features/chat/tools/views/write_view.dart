@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 import '_section_label.dart';
+import '../../../../core/utils/utils.dart';
 
 /// View for displaying Write tool content.
 ///
@@ -201,12 +202,6 @@ class _WriteInfoChip extends StatelessWidget {
   final int lineCount;
   final int byteCount;
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '${bytes}B';
-    final kb = bytes / 1024;
-    return '${kb.toStringAsFixed(kb < 10 ? 1 : 0)}KB';
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -221,7 +216,7 @@ class _WriteInfoChip extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         _InfoPill(
           icon: Icons.data_usage,
-          label: _formatSize(byteCount),
+          label: formatBytes(byteCount, spaced: false, adaptivePrecision: true),
           colorScheme: cs,
         ),
       ],
