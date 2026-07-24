@@ -81,33 +81,36 @@ void main() {
       );
     });
 
-    test('drops explicit Claude alias for Codex sessions', () {
+    test('drops explicit Claude alias for Codex sessions by returning default', () {
+      // Claude aliases are stripped for Codex spawns so they do not
+      // leak into a ChatGPT session. The wire value 'default' is kept
+      // (not collapsed to null) so the daemon clears the sticky model.
       expect(
         sync.testGetModelOverride(agent: 'codex', modelMode: 'opus'),
-        isNull,
+        'default',
       );
       expect(
         sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet'),
-        isNull,
+        'default',
       );
       expect(
         sync.testGetModelOverride(agent: 'codex', modelMode: 'opus:max'),
-        isNull,
+        'default',
       );
       expect(
         sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet:high'),
-        isNull,
+        'default',
       );
       expect(
         sync.testGetModelOverride(agent: 'codex', modelMode: 'claude-fable-5'),
-        isNull,
+        'default',
       );
       expect(
         sync.testGetModelOverride(
           agent: 'codex',
           modelMode: 'anthropic/claude-opus-4-6',
         ),
-        isNull,
+        'default',
       );
     });
 
@@ -124,7 +127,7 @@ void main() {
 
       expect(
         sync.testGetModelOverride(profile: profile, modelMode: 'opus'),
-        isNull,
+        'default',
       );
     });
 
@@ -160,14 +163,17 @@ void main() {
       );
     });
 
-    test('drops provider-owned model names for Codex default sessions', () {
+    test('returns default for provider-owned model names in Codex default sessions', () {
+      // MiniMax-M3 is not a known Codex model, so normalization
+      // collapses it to 'default' which is kept explicit on the wire
+      // (not collapsed to null) so the daemon clears the sticky model.
       expect(
         sync.testGetModelOverride(agent: 'codex', modelMode: 'MiniMax-M3'),
-        isNull,
+        'default',
       );
       expect(
         sync.testGetModelOverride(agent: 'codex', modelMode: 'MiniMax-M3:high'),
-        isNull,
+        'default',
       );
     });
 
