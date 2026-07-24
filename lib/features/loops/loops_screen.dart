@@ -14,6 +14,7 @@ import 'create_loop_sheet.dart';
 import 'loop_actions.dart';
 import 'loop_card.dart';
 import 'loop_refresh_state.dart';
+import '../../core/utils/snack.dart';
 
 /// Per-session list of scheduled prompts (loops).
 ///
@@ -38,9 +39,9 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen>
   void initState() {
     super.initState();
     Future<void>.microtask(_refresh);
-    _sub = sync.onLoopsChanged
-        .where((sid) => sid == widget.sessionId)
-        .listen((_) {
+    _sub = sync.onLoopsChanged.where((sid) => sid == widget.sessionId).listen((
+      _,
+    ) {
       if (mounted) setState(() {});
     });
   }
@@ -63,9 +64,7 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen>
       builder: (_) => CreateLoopSheet(sessionId: widget.sessionId),
     );
     if (created != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.loopsLoopScheduled(created.id))),
-      );
+      context.showSnack(context.l10n.loopsLoopScheduled(created.id));
     }
   }
 
@@ -102,15 +101,14 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final loops =
-        ref.watch(loopsNotifierProvider.select(
-      (state) => state[widget.sessionId] ?? const <Loop>[],
-    ));
+    final loops = ref.watch(
+      loopsNotifierProvider.select(
+        (state) => state[widget.sessionId] ?? const <Loop>[],
+      ),
+    );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.loopsTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.loopsTitle)),
       floatingActionButton: initialLoading || refreshError != null
           ? null
           : FloatingActionButton.extended(
@@ -121,62 +119,51 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen>
       body: initialLoading
           ? const AppLoadingIndicator()
           : refreshError != null
-              ? _LoopsErrorState(
-                  error: refreshError!,
-                  onRetry: () {
-                    clearLoopRefreshError();
-                    _refresh();
-                  },
-                )
-              : loops.isEmpty
-                  ? const _LoopsEmptyState()
-                  : RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.lg,
-                          AppSpacing.lg,
-                          AppSpacing.lg,
-                          AppSpacing.xxxl * 2,
+          ? _LoopsErrorState(
+              error: refreshError!,
+              onRetry: () {
+                clearLoopRefreshError();
+                _refresh();
+              },
+            )
+          : loops.isEmpty
+          ? const _LoopsEmptyState()
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.xxxl * 2,
+                ),
+                itemCount: loops.length + 1,
+                separatorBuilder: (_, _) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, idx) {
+                  if (idx == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: Text(
+                        l10n.loopsCount(loops.length),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        itemCount: loops.length + 1,
-                        separatorBuilder: (_, _) => const SizedBox(
-                          height: AppSpacing.md,
-                        ),
-                        itemBuilder: (context, idx) {
-                          if (idx == 0) {
-                            return Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: AppSpacing.xs,
-                              ),
-                              child: Text(
-                                l10n.loopsCount(loops.length),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                            );
-                          }
-                          final loop = loops[idx - 1];
-                          return LoopCard(
-                            key: ValueKey('loop-${loop.id}'),
-                            loop: loop,
-                            onPauseToggle: (paused) async {
-                              await _pauseLoop(
-                                loopId: loop.id,
-                                paused: paused,
-                              );
-                            },
-                            onDelete: () => _deleteLoop(loop.id),
-                          );
-                        },
                       ),
-                    ),
+                    );
+                  }
+                  final loop = loops[idx - 1];
+                  return LoopCard(
+                    key: ValueKey('loop-${loop.id}'),
+                    loop: loop,
+                    onPauseToggle: (paused) async {
+                      await _pauseLoop(loopId: loop.id, paused: paused);
+                    },
+                    onDelete: () => _deleteLoop(loop.id),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

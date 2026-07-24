@@ -6,6 +6,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/snack.dart';
 
 /// Sticky bar above the composer when the session has pending
 /// permission requests. Keeps Allow/Deny reachable on long transcripts
@@ -46,9 +47,7 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
           .allow(widget.sessionId, first.key);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.permissionActionFailed)),
-        );
+        context.showSnack(context.l10n.permissionActionFailed);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -66,9 +65,7 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
           .deny(widget.sessionId, first.key);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.permissionActionFailed)),
-        );
+        context.showSnack(context.l10n.permissionActionFailed);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -84,9 +81,7 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
     final cs = Theme.of(context).colorScheme;
     final count = widget.requests.length;
     final toolLabel = first.value.tool;
-    final subtitle = count > 1
-        ? '$toolLabel · +${count - 1}'
-        : toolLabel;
+    final subtitle = count > 1 ? '$toolLabel · +${count - 1}' : toolLabel;
 
     return Material(
       color: cs.errorContainer.withValues(alpha: 0.55),

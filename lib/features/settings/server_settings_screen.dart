@@ -7,6 +7,7 @@ import '../../core/components/app_card.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/snack.dart';
 
 class ServerSettingsScreen extends ConsumerStatefulWidget {
   const ServerSettingsScreen({super.key});
@@ -16,8 +17,7 @@ class ServerSettingsScreen extends ConsumerStatefulWidget {
       _ServerSettingsScreenState();
 }
 
-class _ServerSettingsScreenState
-    extends ConsumerState<ServerSettingsScreen> {
+class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
   late TextEditingController _urlController;
   bool _isVerifying = false;
   bool? _isConnected;
@@ -57,8 +57,7 @@ class _ServerSettingsScreenState
       _isConnected = result.isValid;
       _statusMessage = result.isValid
           ? l10n.serverConnected
-          : (result.errorMessage ??
-              l10n.serverConnectionFailed);
+          : (result.errorMessage ?? l10n.serverConnectionFailed);
     });
   }
 
@@ -66,8 +65,7 @@ class _ServerSettingsScreenState
     final url = _urlController.text.trim();
     if (url.isEmpty) {
       setState(() {
-        _errorText = AppLocalizations.of(context)
-            .serverUrlCannotBeEmpty;
+        _errorText = AppLocalizations.of(context).serverUrlCannotBeEmpty;
       });
       return;
     }
@@ -96,8 +94,7 @@ class _ServerSettingsScreenState
       _isConnected = result.isValid;
       _statusMessage = result.isValid
           ? l10n.serverConnected
-          : (result.errorMessage ??
-              l10n.serverConnectionFailed);
+          : (result.errorMessage ?? l10n.serverConnectionFailed);
     });
 
     if (!result.isValid) {
@@ -114,14 +111,7 @@ class _ServerSettingsScreenState
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          AppLocalizations.of(context)
-              .settingsServerSaved,
-        ),
-      ),
-    );
+    context.showSnack(AppLocalizations.of(context).settingsServerSaved);
   }
 
   void _handleReset() {
@@ -129,28 +119,20 @@ class _ServerSettingsScreenState
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(
-          AppLocalizations.of(dialogContext)
-              .settingsServerResetToDefault,
+          AppLocalizations.of(dialogContext).settingsServerResetToDefault,
         ),
         content: Text(
-          AppLocalizations.of(dialogContext)
-              .settingsServerResetConfirm,
+          AppLocalizations.of(dialogContext).settingsServerResetConfirm,
         ),
         actions: [
           TextButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, false),
-            child: Text(
-              AppLocalizations.of(dialogContext)
-                  .commonCancel,
-            ),
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(AppLocalizations.of(dialogContext).commonCancel),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(
-              AppLocalizations.of(dialogContext)
-                  .settingsServerResetToDefault,
+              AppLocalizations.of(dialogContext).settingsServerResetToDefault,
             ),
           ),
         ],
@@ -172,13 +154,8 @@ class _ServerSettingsScreenState
         _isConnected = null;
         _statusMessage = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)
-                .settingsServerResetSuccess,
-          ),
-        ),
+      context.showSnack(
+        AppLocalizations.of(context).settingsServerResetSuccess,
       );
       unawaited(_checkConnectivity(defaultUrl));
     });
@@ -196,8 +173,7 @@ class _ServerSettingsScreenState
       body: SingleChildScrollView(
         padding: AppScreenPadding.settings,
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppCard(
               child: Row(
@@ -206,26 +182,21 @@ class _ServerSettingsScreenState
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           l10n.settingsServer,
-                          style:
-                              theme.textTheme.titleSmall,
+                          style: theme.textTheme.titleSmall,
                         ),
                         if (_statusMessage != null)
                           Text(
                             _statusMessage!,
-                            style: theme
-                                .textTheme.bodySmall
-                                ?.copyWith(
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: _isConnected ?? false
                                   ? cs.primary
                                   : _isConnected == false
-                                      ? cs.error
-                                      : cs
-                                          .onSurfaceVariant,
+                                  ? cs.error
+                                  : cs.onSurfaceVariant,
                             ),
                           ),
                       ],
@@ -241,10 +212,8 @@ class _ServerSettingsScreenState
                 bottom: AppSpacing.sm,
               ),
               child: Text(
-                l10n.serverCustomUrlSectionLabel
-                    .toUpperCase(),
-                style:
-                    theme.textTheme.labelMedium?.copyWith(
+                l10n.serverCustomUrlSectionLabel.toUpperCase(),
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
@@ -259,36 +228,26 @@ class _ServerSettingsScreenState
                 hintText: defaultServerUrl,
                 errorText: _errorText,
                 border: const OutlineInputBorder(),
-                prefixIcon:
-                    const Icon(Icons.dns_outlined),
-                suffixIcon:
-                    _urlController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _urlController.clear();
-                              setState(
-                                () => _errorText = null,
-                              );
-                            },
-                          )
-                        : null,
+                prefixIcon: const Icon(Icons.dns_outlined),
+                suffixIcon: _urlController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _urlController.clear();
+                          setState(() => _errorText = null);
+                        },
+                      )
+                    : null,
               ),
-              onChanged: (_) =>
-                  setState(() => _errorText = null),
+              onChanged: (_) => setState(() => _errorText = null),
             ),
             const SizedBox(height: AppSpacing.sm),
             if (isCustom)
               Padding(
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.xs,
-                ),
+                padding: const EdgeInsets.only(left: AppSpacing.xs),
                 child: Text(
                   l10n.serverCurrentlyUsingCustomUrl,
-                  style:
-                      theme.textTheme.bodySmall?.copyWith(
-                    color: cs.primary,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: cs.primary),
                 ),
               ),
             const SizedBox(height: AppSpacing.xxl),
@@ -296,49 +255,33 @@ class _ServerSettingsScreenState
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed:
-                        _isVerifying
-                            ? null
-                            : _handleReset,
-                    child: Text(
-                      l10n.settingsServerResetToDefault,
-                    ),
+                    onPressed: _isVerifying ? null : _handleReset,
+                    child: Text(l10n.settingsServerResetToDefault),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: FilledButton(
-                    onPressed:
-                        _isVerifying
-                            ? null
-                            : _handleSave,
+                    onPressed: _isVerifying ? null : _handleSave,
                     child: _isVerifying
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Text(
-                            l10n.settingsServerSaveVerify,
-                          ),
+                        : Text(l10n.settingsServerSaveVerify),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.xxl),
             Padding(
-              padding: const EdgeInsets.only(
-                left: AppSpacing.xs,
-              ),
+              padding: const EdgeInsets.only(left: AppSpacing.xs),
               child: Text(
                 'This is an advanced feature. Changing'
                 ' the server URL will disconnect you'
                 ' from the current server.',
-                style:
-                    theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: cs.onSurfaceVariant,
                 ),
               ),
@@ -355,30 +298,15 @@ class _ServerSettingsScreenState
       return SizedBox(
         width: 24,
         height: 24,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: cs.primary,
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
       );
     }
     if (_isConnected ?? false) {
-      return Icon(
-        Icons.check_circle_rounded,
-        color: cs.primary,
-        size: 24,
-      );
+      return Icon(Icons.check_circle_rounded, color: cs.primary, size: 24);
     }
     if (_isConnected == false) {
-      return Icon(
-        Icons.error_outline,
-        color: cs.error,
-        size: 24,
-      );
+      return Icon(Icons.error_outline, color: cs.error, size: 24);
     }
-    return Icon(
-      Icons.dns_outlined,
-      color: cs.onSurfaceVariant,
-      size: 24,
-    );
+    return Icon(Icons.dns_outlined, color: cs.onSurfaceVariant, size: 24);
   }
 }

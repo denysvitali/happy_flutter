@@ -12,6 +12,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
 import '../../core/utils/safe_pop.dart';
+import '../../core/utils/snack.dart';
 
 /// Account restoration screen
 class RestoreAccountScreen extends ConsumerStatefulWidget {
@@ -22,8 +23,7 @@ class RestoreAccountScreen extends ConsumerStatefulWidget {
       _RestoreAccountScreenState();
 }
 
-class _RestoreAccountScreenState
-    extends ConsumerState<RestoreAccountScreen> {
+class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
   final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
   bool _isLoading = false;
@@ -88,10 +88,7 @@ class _RestoreAccountScreenState
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: cs.onErrorContainer,
-                        ),
+                        Icon(Icons.error_outline, color: cs.onErrorContainer),
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
@@ -165,17 +162,11 @@ class _RestoreAccountScreenState
     try {
       await AuthService().restoreAccount(_controller.text.trim());
       if (mounted) {
-        unawaited(
-          ref.read(authStateNotifierProvider.notifier).checkAuth(),
-        );
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
         if (mounted) {
           safePop<void>(context);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(context.l10n.accountRestoredSuccess),
-              ),
-            );
+            context.showSnack(context.l10n.accountRestoredSuccess);
           }
         }
       }

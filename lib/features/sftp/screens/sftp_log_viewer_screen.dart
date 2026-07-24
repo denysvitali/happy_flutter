@@ -10,6 +10,7 @@ import '../../../core/utils/clipboard_utils.dart';
 import '../models/sftp_log.dart';
 import 'widgets/sftp_log_entry_card.dart';
 import 'widgets/sftp_log_stats_tab.dart';
+import '../../../core/utils/snack.dart';
 
 export 'widgets/sftp_log_entry_card.dart';
 export 'widgets/sftp_log_stats_tab.dart';
@@ -129,9 +130,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
     final logs = _filteredLogs;
     if (logs.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('No logs to export')));
+        context.showSnack('No logs to export');
       }
       return;
     }
@@ -140,13 +139,9 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
     await setClipboardTextSafely(jsonStr);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${logs.length} log entries copied '
-            'to clipboard',
-          ),
-        ),
+      context.showSnack(
+        '${logs.length} log entries copied '
+        'to clipboard',
       );
     }
   }
@@ -191,9 +186,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
     await sftpLogStore.rotateLogs();
     _loadLogs();
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Old logs rotated')));
+      context.showSnack('Old logs rotated');
     }
   }
 
@@ -217,10 +210,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
           }
         },
         itemBuilder: (_) => [
-          const PopupMenuItem(
-            value: 'rotate',
-            child: Text('Rotate old logs'),
-          ),
+          const PopupMenuItem(value: 'rotate', child: Text('Rotate old logs')),
           const PopupMenuItem(value: 'clear', child: Text('Clear logs')),
         ],
       ),

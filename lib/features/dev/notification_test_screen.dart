@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import 'widgets/dev_info_row.dart';
+import '../../core/utils/snack.dart';
 
 /// Debug screen for testing and inspecting push notification configuration.
 class NotificationTestScreen extends ConsumerStatefulWidget {
@@ -89,17 +90,11 @@ class _NotificationTestScreenState
           _authStatus = settings.authorizationStatus;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Permission: ${settings.authorizationStatus.name}'),
-          ),
-        );
+        context.showSnack('Permission: ${settings.authorizationStatus.name}');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        context.showSnack('Error: $e');
       }
     }
   }
@@ -115,15 +110,11 @@ class _NotificationTestScreenState
           _fcmToken = token;
         });
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Token refreshed')));
+        context.showSnack('Token refreshed');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        context.showSnack('Error: $e');
       }
     }
   }
@@ -132,9 +123,7 @@ class _NotificationTestScreenState
     if (token == null) return;
     await setClipboardTextSafely(token);
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Token copied')));
+    context.showSnack('Token copied');
   }
 
   static String _truncateToken(String token) {
@@ -319,9 +308,7 @@ class _NotificationTestScreenState
                     ..info('FCM Token: $_fcmToken')
                     ..info('APNS Token: $_apnsToken')
                     ..info('Auth status: ${_authStatus?.name}');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Token info logged')),
-                  );
+                  context.showSnack('Token info logged');
                 },
               ),
               _ActionRow(
@@ -341,9 +328,7 @@ class _NotificationTestScreenState
 
                   await setClipboardTextSafely(buffer.toString());
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notification info copied')),
-                  );
+                  context.showSnack('Notification info copied');
                 },
               ),
             ],
@@ -368,7 +353,6 @@ class _NotificationTestScreenState
     }
   }
 }
-
 
 class _ActionRow extends StatelessWidget {
   const _ActionRow({

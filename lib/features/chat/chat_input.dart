@@ -24,6 +24,7 @@ import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
 import 'widgets/picker_sheets.dart';
 import 'widgets/slash_commands.dart';
+import '../../core/utils/snack.dart';
 
 export 'widgets/model_mode.dart' show ChatModelMode;
 
@@ -481,9 +482,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Future<void> _onDictationTap() async {
-    if (_isTranscribing ||
-        _isDownloadingModel ||
-        _isStoppingDictation) {
+    if (_isTranscribing || _isDownloadingModel || _isStoppingDictation) {
       return;
     }
 
@@ -501,8 +500,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
     // "Downloading model…" state before the mic opens so the user
     // is not left staring at a silent spinner mid-transcribe.
     final selected = _dictationService.selectedModel;
-    final needsDownload = _dictationService.statusFor(selected.id) !=
-        OfflineSttStatus.ready;
+    final needsDownload =
+        _dictationService.statusFor(selected.id) != OfflineSttStatus.ready;
     if (needsDownload && mounted) {
       setState(() => _isDownloadingModel = true);
       final messenger = ScaffoldMessenger.maybeOf(context);
@@ -695,9 +694,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   void _showDictationError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    context.showSnack(message);
   }
 
   void _startDictationWatchers() {
@@ -882,15 +879,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
               Expanded(
                 child: _isDownloadingModel
                     ? ValueListenableBuilder<
-                        Map<String, OfflineSttDownloadProgress>>(
+                        Map<String, OfflineSttDownloadProgress>
+                      >(
                         valueListenable: _dictationService.progress,
                         builder: (context, progressMap, _) {
-                          final p = progressMap[
-                              _dictationService.selectedModelId];
-                          return _buildTextField(
-                            context,
-                            downloadProgress: p,
-                          );
+                          final p =
+                              progressMap[_dictationService.selectedModelId];
+                          return _buildTextField(context, downloadProgress: p);
                         },
                       )
                     : _buildTextField(context),
@@ -899,11 +894,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 padding: const EdgeInsets.only(right: AppSpacing.xs),
                 child: _isDownloadingModel
                     ? ValueListenableBuilder<
-                        Map<String, OfflineSttDownloadProgress>>(
+                        Map<String, OfflineSttDownloadProgress>
+                      >(
                         valueListenable: _dictationService.progress,
                         builder: (context, progressMap, _) {
-                          final p = progressMap[
-                              _dictationService.selectedModelId];
+                          final p =
+                              progressMap[_dictationService.selectedModelId];
                           return _DictationButton(
                             isRecording: _isRecording,
                             isTranscribing: _isTranscribing,
@@ -991,20 +987,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (!mounted || widget.isSending) return;
     if (image == null) {
       if (!result.cancelled) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.chatImageAddFailed)));
+        context.showSnack(l10n.chatImageAddFailed);
       }
       return;
     }
 
     if (!controller.add(image) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.chatAttachmentLimit(ChatAttachmentController.maxAttachments),
-          ),
-        ),
+      context.showSnack(
+        l10n.chatAttachmentLimit(ChatAttachmentController.maxAttachments),
       );
     }
   }

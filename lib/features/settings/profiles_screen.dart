@@ -15,6 +15,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/env_secrets.dart';
 import '../../core/utils/shell_script_parser.dart';
 import 'profile_editor_screen.dart';
+import '../../core/utils/snack.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
 class ProfilesScreen extends ConsumerStatefulWidget {
@@ -142,8 +143,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                       key: ValueKey(_selectedProfileId),
                       profileId: _selectedProfileId,
                       embedded: true,
-                      onClose: () =>
-                          setState(() => _selectedProfileId = null),
+                      onClose: () => setState(() => _selectedProfileId = null),
                     ),
               emptyDetail: const TabletDetailEmpty(
                 icon: Icons.person_outline,
@@ -194,8 +194,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               context: context,
               profile: profile,
               isSelected: isSelected,
-              isInlineSelected:
-                  isWide && _selectedProfileId == profile.id,
+              isInlineSelected: isWide && _selectedProfileId == profile.id,
               onTap: () {
                 if (isWide) {
                   setState(() => _selectedProfileId = profile.id);
@@ -372,9 +371,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final result = parseShellScript(text);
     if (result.envVars.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.profilesImportNoVars)));
+        context.showSnack(l10n.profilesImportNoVars);
       }
       return;
     }
@@ -508,12 +505,8 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         .read(settingsNotifierProvider.notifier)
         .updateSetting('profiles', updatedProfiles);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          AppLocalizations.of(context).profilesDuplicated(profile.name),
-        ),
-      ),
+    context.showSnack(
+      AppLocalizations.of(context).profilesDuplicated(profile.name),
     );
   }
 

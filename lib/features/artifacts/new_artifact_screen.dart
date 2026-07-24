@@ -7,6 +7,7 @@ import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/artifact_form_fields.dart';
 import 'widgets/artifact_pane_header.dart';
+import '../../core/utils/snack.dart';
 
 /// Screen for creating a new artifact.
 ///
@@ -34,12 +35,10 @@ class NewArtifactScreen extends ConsumerStatefulWidget {
   final void Function(String artifactId)? onCreated;
 
   @override
-  ConsumerState<NewArtifactScreen> createState() =>
-      _NewArtifactScreenState();
+  ConsumerState<NewArtifactScreen> createState() => _NewArtifactScreenState();
 }
 
-class _NewArtifactScreenState
-    extends ConsumerState<NewArtifactScreen> {
+class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
@@ -60,11 +59,7 @@ class _NewArtifactScreenState
     final content = _contentController.text.trim();
 
     if (title.isEmpty && content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.artifactsEnterTitleOrContent),
-        ),
-      );
+      context.showSnack(context.l10n.artifactsEnterTitleOrContent);
       return;
     }
 
@@ -84,15 +79,9 @@ class _NewArtifactScreenState
         context.go('/artifacts/$artifactId');
       }
     } catch (e, st) {
-      logger.warning(
-        '[NewArtifactScreen] createArtifact failed: $e',
-        e,
-        st,
-      );
+      logger.warning('[NewArtifactScreen] createArtifact failed: $e', e, st);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failedMsg)),
-      );
+      context.showSnack(failedMsg);
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
@@ -211,5 +200,3 @@ class _NewArtifactScreenState
     );
   }
 }
-
-

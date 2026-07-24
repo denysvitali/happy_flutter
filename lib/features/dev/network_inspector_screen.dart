@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/datetime_extensions.dart';
+import '../../core/utils/snack.dart';
 
 /// Debug screen that shows all HTTP requests made by [ApiClient].
 class NetworkInspectorScreen extends StatefulWidget {
@@ -84,9 +85,7 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
     if (_entries.isEmpty) return;
     await setClipboardTextSafely(_buildCopyText());
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_entries.length} requests copied')),
-      );
+      context.showSnack('${_entries.length} requests copied');
     }
   }
 
@@ -475,14 +474,8 @@ class _RequestRow extends StatelessWidget {
                   await setClipboardTextSafely(e.toFormattedString());
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          AppLocalizations.of(
-                            context,
-                          ).networkInspectorEntryCopied,
-                        ),
-                      ),
+                    context.showSnack(
+                      AppLocalizations.of(context).networkInspectorEntryCopied,
                     );
                   }
                 },

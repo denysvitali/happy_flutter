@@ -11,13 +11,11 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/datetime_extensions.dart';
+import '../../core/utils/snack.dart';
 
 /// Debug logs screen - available when developer mode is enabled
 class DevLogsScreen extends ConsumerWidget {
-  const DevLogsScreen({
-    super.key,
-    this.requireDeveloperMode = true,
-  });
+  const DevLogsScreen({super.key, this.requireDeveloperMode = true});
 
   final bool requireDeveloperMode;
 
@@ -169,9 +167,7 @@ class DevLogsScreen extends ConsumerWidget {
     final logs = ref.read(loggerNotifierProvider).filteredLogs;
     if (logs.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(noLogsMsg)));
+        context.showSnack(noLogsMsg);
       }
       return;
     }
@@ -186,9 +182,7 @@ class DevLogsScreen extends ConsumerWidget {
               result.truncated,
             )
           : l10n.textSelectionFailedToCopy;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      context.showSnack(message);
     }
   }
 

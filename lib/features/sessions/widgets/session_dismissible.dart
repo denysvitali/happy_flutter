@@ -8,6 +8,7 @@ import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/snack.dart';
 
 enum _SwipeAction { archive, delete }
 
@@ -89,9 +90,7 @@ class _DismissibleActiveSessionState
         st,
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(failedArchiveMsg)),
-        );
+        context.showSnack(failedArchiveMsg);
       }
       return false;
     }
@@ -117,9 +116,7 @@ class _DismissibleActiveSessionState
     final success = await sessionsNotifier.optimisticDelete(widget.session.id);
 
     if (!success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failedDeleteMsg)),
-      );
+      context.showSnack(failedDeleteMsg);
     }
     return success;
   }
@@ -154,11 +151,10 @@ class _DualActionBackground extends StatelessWidget {
           onTap: () => onSelectAction(_SwipeAction.archive),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            color: colorScheme.tertiary
-                .withValues(alpha: archiveActive ? 1.0 : 0.55),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+            color: colorScheme.tertiary.withValues(
+              alpha: archiveActive ? 1.0 : 0.55,
             ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -188,11 +184,10 @@ class _DualActionBackground extends StatelessWidget {
           onTap: () => onSelectAction(_SwipeAction.delete),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            color: colorScheme.error
-                .withValues(alpha: deleteActive ? 1.0 : 0.55),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
+            color: colorScheme.error.withValues(
+              alpha: deleteActive ? 1.0 : 0.55,
             ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -286,9 +281,7 @@ class DismissibleInactiveSession extends ConsumerWidget {
     final success = await sessionsNotifier.optimisticDelete(session.id);
 
     if (!success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failedDeleteMsg)),
-      );
+      context.showSnack(failedDeleteMsg);
     }
     return success;
   }

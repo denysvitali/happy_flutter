@@ -5,6 +5,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/snack.dart';
 
 /// Bottom sheet for creating a new scheduled prompt (loop).
 ///
@@ -103,9 +104,7 @@ class _CreateLoopSheetState extends ConsumerState<CreateLoopSheet> {
       logger.warning('[CreateLoopSheet] submit failed: $e', e, st);
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${l10n.loopsScheduleFailed}: $e')),
-      );
+      context.showSnack('${l10n.loopsScheduleFailed}: $e');
     }
   }
 
@@ -185,9 +184,7 @@ class _CreateLoopSheetState extends ConsumerState<CreateLoopSheet> {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   _validationErrorMessage(_validationError!, l10n),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.error,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: cs.error),
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),

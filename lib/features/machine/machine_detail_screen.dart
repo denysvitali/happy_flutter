@@ -22,6 +22,7 @@ import '../../core/theme/app_tokens.dart'
 import '../../core/utils/safe_pop.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 import '../../core/utils/utils.dart';
+import '../../core/utils/snack.dart';
 
 /// Detail screen for a single machine.
 ///
@@ -51,9 +52,8 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     });
   }
 
-  String _formatTimestamp(int ms) => formatRelativeTime(
-    DateTime.fromMillisecondsSinceEpoch(ms),
-  );
+  String _formatTimestamp(int ms) =>
+      formatRelativeTime(DateTime.fromMillisecondsSinceEpoch(ms));
 
   String _getSessionName(Session session) {
     final meta = session.metadata;
@@ -90,12 +90,8 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
         sync.machinesSync.invalidate();
         safePop<void>(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.l10n.machineDeleteFailed(response.statusCode ?? 0),
-            ),
-          ),
+        context.showSnack(
+          context.l10n.machineDeleteFailed(response.statusCode ?? 0),
         );
       }
     }
@@ -451,7 +447,8 @@ class _ResourceStatsList extends StatelessWidget {
           _ResourceRow(
             icon: Icons.memory_outlined,
             label: 'Memory',
-            value: '${_formatPercent(stats.memoryPercent)}  '
+            value:
+                '${_formatPercent(stats.memoryPercent)}  '
                 '${formatBytes(stats.memoryUsedBytes, adaptivePrecision: true)} / '
                 '${formatBytes(stats.memoryTotalBytes, adaptivePrecision: true)}',
             percent: stats.memoryPercent,
@@ -460,7 +457,8 @@ class _ResourceStatsList extends StatelessWidget {
           _ResourceRow(
             icon: Icons.storage_outlined,
             label: 'Disk',
-            value: '${_formatPercent(stats.diskPercent)}  '
+            value:
+                '${_formatPercent(stats.diskPercent)}  '
                 '${formatBytes(stats.diskUsedBytes, adaptivePrecision: true)} / '
                 '${formatBytes(stats.diskTotalBytes, adaptivePrecision: true)}',
             subtitle: stats.diskPath,
@@ -580,7 +578,6 @@ String _formatPercent(double value) {
   if (value.isNaN || value.isInfinite) return '0%';
   return '${value.clamp(0, 100).toStringAsFixed(0)}%';
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Card container for grouped rows

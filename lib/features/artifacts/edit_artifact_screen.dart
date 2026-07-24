@@ -8,6 +8,7 @@ import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/artifact_form_fields.dart';
 import 'widgets/artifact_pane_header.dart';
+import '../../core/utils/snack.dart';
 
 /// Screen for editing an existing artifact.
 ///
@@ -69,9 +70,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     final content = _contentController.text.trim();
 
     if (title.isEmpty && content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.artifactsEnterTitleOrContent)),
-      );
+      context.showSnack(context.l10n.artifactsEnterTitleOrContent);
       return;
     }
 
@@ -99,9 +98,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
         st,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(failedMsg)));
+      context.showSnack(failedMsg);
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
@@ -127,23 +124,23 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
           children: [
             ArtifactPaneHeader(
               title: l10n.artifactsEdit,
-                          actions: [
-                            ArtifactBusyTextButton(
-                              label: l10n.commonSave,
-                              isBusy: _isBusy,
-                              onPressed: _handleSave,
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                              ),
-                              tooltip: _isFullscreen
-                                  ? l10n.commonClose
-                                  : 'Expand to full screen',
-                              onPressed: () =>
-                                  setState(() => _isFullscreen = !_isFullscreen),
-                            ),
-                          ],
+              actions: [
+                ArtifactBusyTextButton(
+                  label: l10n.commonSave,
+                  isBusy: _isBusy,
+                  onPressed: _handleSave,
+                ),
+                IconButton(
+                  icon: Icon(
+                    _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                  ),
+                  tooltip: _isFullscreen
+                      ? l10n.commonClose
+                      : 'Expand to full screen',
+                  onPressed: () =>
+                      setState(() => _isFullscreen = !_isFullscreen),
+                ),
+              ],
               onClose: widget.onClose,
             ),
             Expanded(child: emptyBody),
@@ -212,8 +209,9 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
                       )
                     : Text(
                         l10n.commonSave,
-                        style: theme.textTheme.labelLarge
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
               ),
             ),
@@ -235,11 +233,8 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
             icon: Icon(
               _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
             ),
-            tooltip: _isFullscreen
-                ? l10n.commonClose
-                : 'Expand to full screen',
-            onPressed: () =>
-                setState(() => _isFullscreen = !_isFullscreen),
+            tooltip: _isFullscreen ? l10n.commonClose : 'Expand to full screen',
+            onPressed: () => setState(() => _isFullscreen = !_isFullscreen),
           ),
         ],
         onClose: () {
@@ -289,7 +284,8 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
       // Read current text at pop-gesture time, not build time,
       // to avoid stale state when text changes between canPop
       // evaluation and the callback being invoked.
-      canPop: _titleController.text.trim() == (artifact.title ?? '') &&
+      canPop:
+          _titleController.text.trim() == (artifact.title ?? '') &&
           _contentController.text.trim() == (artifact.body ?? ''),
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop &&
@@ -362,7 +358,6 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
   }
 }
 
-
 class _EncryptionNote extends StatelessWidget {
   const _EncryptionNote();
 
@@ -402,4 +397,3 @@ class _EncryptionNote extends StatelessWidget {
     );
   }
 }
-

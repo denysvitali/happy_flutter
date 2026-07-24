@@ -11,6 +11,7 @@ import '../models/connection_event.dart';
 import '../services/connection_history_store.dart';
 import 'widgets/connection_event_card.dart';
 import 'widgets/device_analytics_card.dart';
+import '../../../core/utils/snack.dart';
 
 export '../models/connection_event.dart';
 export '../services/connection_history_store.dart';
@@ -74,9 +75,7 @@ class _SftpConnectionHistoryScreenState
   Future<void> _exportHistory() async {
     if (_events.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('No events to export')));
+        context.showSnack('No events to export');
       }
       return;
     }
@@ -85,9 +84,7 @@ class _SftpConnectionHistoryScreenState
     await setClipboardTextSafely(jsonStr);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_events.length} events copied to clipboard')),
-      );
+      context.showSnack('${_events.length} events copied to clipboard');
     }
   }
 

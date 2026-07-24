@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_scroll_behavior.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
+import '../../../core/utils/snack.dart';
 
 /// Modal bottom sheet that renders the raw provider response payload captured
 /// by the usage API clients ([KimiUsageApi], [MiniMaxUsageApi], [ZaiUsageApi]).
@@ -16,10 +17,7 @@ import '../../../core/utils/clipboard_utils.dart';
 /// the pretty form for display, but expose the compact form too for the copy
 /// button so users can paste it straight into a bug report.
 class ProviderPayloadDebugSheet extends StatelessWidget {
-  const ProviderPayloadDebugSheet({
-    required this.usage,
-    super.key,
-  });
+  const ProviderPayloadDebugSheet({required this.usage, super.key});
 
   final ProviderUsage usage;
 
@@ -85,10 +83,7 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               _MetadataRow(label: 'Account', value: usage.accountName ?? '—'),
-              _MetadataRow(
-                label: 'Type',
-                value: usage.type.name,
-              ),
+              _MetadataRow(label: 'Type', value: usage.type.name),
               if (endpoint != null)
                 _MetadataRow(label: 'Endpoint', value: endpoint),
               if (requestUrl != null)
@@ -128,20 +123,15 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
                     onPressed: pretty == null && compact == null
                         ? null
                         : () async {
-                            final text =
-                                pretty ?? compact ?? '';
+                            final text = pretty ?? compact ?? '';
                             final result = await setClipboardTextSafely(text);
                             if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  result.success
-                                      ? (result.truncated
-                                            ? 'Copied (truncated)'
-                                            : l10n.commonCopied)
-                                      : l10n.textSelectionFailedToCopy,
-                                ),
-                              ),
+                            context.showSnack(
+                              result.success
+                                  ? (result.truncated
+                                        ? 'Copied (truncated)'
+                                        : l10n.commonCopied)
+                                  : l10n.textSelectionFailedToCopy,
                             );
                           },
                     icon: const Icon(Icons.copy, size: 18),
@@ -277,6 +267,5 @@ String _providerDisplayName(ProviderUsageType type) {
 /// Copies [text] using the system clipboard. Wrapped here so the bottom sheet
 /// can stay free of utility imports.
 @visibleForTesting
-Future<void> copyTextForTest(String text) => Clipboard.setData(
-      ClipboardData(text: text),
-    );
+Future<void> copyTextForTest(String text) =>
+    Clipboard.setData(ClipboardData(text: text));

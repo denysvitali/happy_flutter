@@ -4,6 +4,7 @@ import '../../core/services/http_request_logger.dart';
 import '../../core/services/power_diagnostics_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/snack.dart';
 
 class PowerDiagnosticsScreen extends StatefulWidget {
   const PowerDiagnosticsScreen({super.key});
@@ -34,9 +35,7 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
   Future<void> _copyReport() async {
     await setClipboardTextSafely(_diagnostics.exportText());
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Power diagnostics copied')));
+    context.showSnack('Power diagnostics copied');
   }
 
   Future<void> _confirmReset() async {
@@ -334,10 +333,7 @@ class _ActivityChartCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final samples = snapshot.activitySeries;
-    final peak = samples.fold<int>(
-      0,
-      (m, s) => s.total > m ? s.total : m,
-    );
+    final peak = samples.fold<int>(0, (m, s) => s.total > m ? s.total : m);
     final minutes = snapshot.runtime.inMinutes;
     final ratePerMin = minutes == 0
         ? 0.0
@@ -491,10 +487,7 @@ class _ActivityPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final span = (endMs - startMs).clamp(1, 1 << 40);
-    final peak = samples.fold<int>(
-      1,
-      (m, s) => s.total > m ? s.total : m,
-    );
+    final peak = samples.fold<int>(1, (m, s) => s.total > m ? s.total : m);
     final pxPerMs = size.width / span;
     final barWidthPx = (bucketMs * pxPerMs).clamp(1.0, size.width);
     final baseY = size.height - 1;

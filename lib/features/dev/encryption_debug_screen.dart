@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import 'widgets/dev_info_row.dart';
+import '../../core/utils/snack.dart';
 
 /// Debug screen showing encryption status and configuration.
 class EncryptionDebugScreen extends ConsumerWidget {
@@ -198,11 +199,7 @@ class EncryptionDebugScreen extends ConsumerWidget {
                             .read(encryptionNotifierProvider.notifier)
                             .clearAllCaches();
                         logger.info('Encryption caches cleared');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Encryption caches cleared'),
-                          ),
-                        );
+                        context.showSnack('Encryption caches cleared');
                       }
                     },
                   ),
@@ -293,9 +290,6 @@ class EncryptionDebugScreen extends ConsumerWidget {
 
     await setClipboardTextSafely(buffer.toString());
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Encryption debug info copied')),
-    );
+    context.showSnack('Encryption debug info copied');
   }
 }
-

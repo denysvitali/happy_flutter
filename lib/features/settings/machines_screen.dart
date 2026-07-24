@@ -16,6 +16,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/utils/snack.dart';
 
 class MachinesScreen extends ConsumerStatefulWidget {
   const MachinesScreen({super.key});
@@ -76,12 +77,8 @@ class _MachinesScreenState extends ConsumerState<MachinesScreen>
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.l10n.machineDeleteFailed(response.statusCode ?? 0),
-        ),
-      ),
+    context.showSnack(
+      context.l10n.machineDeleteFailed(response.statusCode ?? 0),
     );
   }
 

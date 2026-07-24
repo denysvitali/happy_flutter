@@ -11,6 +11,7 @@ import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
+import '../../../core/utils/snack.dart';
 
 /// Shows a modal bottom sheet with session actions (settings, stop,
 /// delete).
@@ -89,10 +90,7 @@ void showSessionMenu(
                   HapticFeedback.lightImpact();
                   Navigator.pop(sheetContext);
                   unawaited(
-                    showConfirmDeleteDialog(
-                      outerContext,
-                      sessionId: sessionId,
-                    ),
+                    showConfirmDeleteDialog(outerContext, sessionId: sessionId),
                   );
                 },
               ),
@@ -152,15 +150,13 @@ Future<void> showConfirmDeleteDialog(
     isDestructive: true,
   );
   if (!confirmed || !context.mounted) return;
-  final deleted = await ProviderScope.containerOf(context)
-      .read(sessionsNotifierProvider.notifier)
-      .optimisticDelete(sessionId);
+  final deleted = await ProviderScope.containerOf(
+    context,
+  ).read(sessionsNotifierProvider.notifier).optimisticDelete(sessionId);
   if (!context.mounted) return;
   if (deleted) {
     Navigator.of(context).pop();
     return;
   }
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(l10n.chatFailedToDeleteSession)),
-  );
+  context.showSnack(l10n.chatFailedToDeleteSession);
 }

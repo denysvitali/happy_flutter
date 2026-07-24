@@ -61,10 +61,7 @@ int timestampNow() => DateTime.now().millisecondsSinceEpoch;
 /// - Yesterday    -> "Yesterday"
 /// - Under 7 days -> "3d ago"
 /// - Otherwise    -> "M/d/yyyy"
-String formatTimestamp(
-  int timestamp, {
-  bool relative = false,
-}) {
+String formatTimestamp(int timestamp, {bool relative = false}) {
   final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
   if (!relative) return _shortDate(date);
   return formatRelativeTime(date, useYesterdayLabel: true);
@@ -110,8 +107,7 @@ String formatRelativeTime(
   return (absoluteFallback ?? _shortDate)(when);
 }
 
-String _shortDate(DateTime date) =>
-    '${date.month}/${date.day}/${date.year}';
+String _shortDate(DateTime date) => '${date.month}/${date.day}/${date.year}';
 
 /// Format duration
 String formatDuration(Duration duration) {
@@ -213,7 +209,6 @@ String prettyJson(dynamic json) {
 
 /// Debouncer
 class Debouncer {
-
   Debouncer({required this.delay});
   final Duration delay;
   Timer? _timer;
@@ -231,7 +226,6 @@ class Debouncer {
 
 /// Throttler
 class Throttler {
-
   Throttler({required this.interval});
   final Duration interval;
   int _lastRun = 0;

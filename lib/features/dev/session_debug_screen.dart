@@ -10,6 +10,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
 import 'widgets/dev_info_row.dart';
+import '../../core/utils/snack.dart';
 
 /// Debug screen showing session state and sync status.
 class SessionDebugScreen extends ConsumerStatefulWidget {
@@ -370,9 +371,6 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
 
     await setClipboardTextSafely(buffer.toString());
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Session debug info copied')));
+    context.showSnack('Session debug info copied');
   }
 }
-

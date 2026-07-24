@@ -10,6 +10,7 @@ import '../../core/utils/env_secrets.dart';
 import '../../core/utils/shell_script_parser.dart';
 import 'profile_setup_catalog.dart';
 import 'widgets/profile_editor_widgets.dart';
+import '../../core/utils/snack.dart';
 
 /// Full-screen editor for creating or editing a custom AI backend
 /// profile.
@@ -71,9 +72,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     _envRows = (p?.environmentVariables ?? [])
         .map((e) => EnvRow(name: e.name, value: e.value))
         .toList();
-    _modelRows = (p?.models ?? [])
-        .map((m) => ModelRow(model: m))
-        .toList();
+    _modelRows = (p?.models ?? []).map((m) => ModelRow(model: m)).toList();
     _showScript = p?.startupBashScript?.isNotEmpty ?? false;
   }
 
@@ -186,9 +185,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     final result = parseShellScript(text);
     if (result.envVars.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.profilesImportNoVars)));
+        context.showSnack(l10n.profilesImportNoVars);
       }
       return;
     }
@@ -241,9 +238,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       if (mounted) _close();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failedMsg)));
+        context.showSnack(failedMsg);
       }
     }
   }
@@ -320,9 +315,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       if (mounted) _close();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failedMsg)));
+        context.showSnack(failedMsg);
       }
     }
   }
@@ -358,9 +351,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       _compatibility.gemini,
     ].where((value) => value).length;
     if (!selected && selectedCount == 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.profilesAtLeastOneAgent)),
-      );
+      context.showSnack(context.l10n.profilesAtLeastOneAgent);
       return;
     }
 

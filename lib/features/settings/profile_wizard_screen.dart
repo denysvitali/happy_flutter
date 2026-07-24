@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/safe_pop.dart';
 import 'profile_setup_catalog.dart';
+import '../../core/utils/snack.dart';
 
 /// Multi-step wizard for creating a new AI profile.
 /// Step 1: Choose provider
@@ -453,9 +454,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         currentStep: _currentStep,
         onStepContinue: () {
           if (_currentStep == 0 && _selectedProvider == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.profilesWizardSelectProvider)),
-            );
+            context.showSnack(l10n.profilesWizardSelectProvider);
             return;
           }
           if (_currentStep < 2) {

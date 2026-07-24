@@ -11,6 +11,7 @@ import '../../core/theme/app_tokens.dart';
 import 'widgets/add_provider_dialog.dart';
 import 'widgets/provider_usage_card.dart';
 import 'widgets/rename_provider_dialog.dart';
+import '../../core/utils/snack.dart';
 
 /// Tab screen showing usage across third-party LLM providers.
 ///
@@ -56,9 +57,7 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
     if (!mounted) return;
 
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.providersAddAccountFailed)),
-      );
+      context.showSnack(context.l10n.providersAddAccountFailed);
     }
   }
 
@@ -99,9 +98,7 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
 
     if (!mounted) return;
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.providersRenameAccountFailed)),
-      );
+      context.showSnack(l10n.providersRenameAccountFailed);
     }
   }
 
@@ -155,9 +152,7 @@ class _ProvidersUsageScreenState extends ConsumerState<ProvidersUsageScreen> {
     if (success) {
       _clearSelection();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.providersRemoveAccountFailed)),
-      );
+      context.showSnack(context.l10n.providersRemoveAccountFailed);
     }
   }
 

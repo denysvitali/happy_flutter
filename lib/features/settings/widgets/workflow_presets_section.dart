@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/components/settings_section.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/snack.dart';
 
 class WorkflowPresetsSection extends ConsumerWidget {
   const WorkflowPresetsSection({
@@ -94,9 +95,7 @@ class WorkflowPresetsSection extends ConsumerWidget {
     final notifier = ref.read(settingsNotifierProvider.notifier);
     await notifier.applySettings(Map<String, dynamic>.from(preset.values));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('${preset.title} preset applied')));
+    context.showSnack('${preset.title} preset applied');
   }
 }
 

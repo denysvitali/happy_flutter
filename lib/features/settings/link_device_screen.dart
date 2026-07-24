@@ -14,6 +14,7 @@ import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/safe_pop.dart';
 import '../auth/widgets/qr_code_display.dart';
+import '../../core/utils/snack.dart';
 
 /// The three modes of the device linking screen.
 enum _LinkMode { scan, showQR, enterURL }
@@ -23,8 +24,7 @@ class LinkDeviceScreen extends ConsumerStatefulWidget {
   const LinkDeviceScreen({super.key});
 
   @override
-  ConsumerState<LinkDeviceScreen> createState() =>
-      _LinkDeviceScreenState();
+  ConsumerState<LinkDeviceScreen> createState() => _LinkDeviceScreenState();
 }
 
 class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
@@ -47,9 +47,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
   @override
   void initState() {
     super.initState();
-    _scanController = MobileScannerController(
-      formats: [BarcodeFormat.qrCode],
-    );
+    _scanController = MobileScannerController(formats: [BarcodeFormat.qrCode]);
   }
 
   @override
@@ -88,27 +86,16 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
   Future<void> _pollForApproval() async {
     if (_linkingResult == null) return;
     try {
-      await AuthService()
-          .waitForLinkingApproval(_linkingResult!.linkingId);
+      await AuthService().waitForLinkingApproval(_linkingResult!.linkingId);
       if (mounted) {
-        unawaited(
-          ref.read(authStateNotifierProvider.notifier).checkAuth(),
-        );
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.authDeviceLinkedSuccess),
-            ),
-          );
+          context.showSnack(context.l10n.authDeviceLinkedSuccess);
           if (mounted) safePop<void>(context);
         }
       }
     } catch (e, st) {
-      logger.warning(
-        'Device linking approval poll failed: $e',
-        e,
-        st,
-      );
+      logger.warning('Device linking approval poll failed: $e', e, st);
       if (mounted) {
         setState(() {
           _error = _formatError(e);
@@ -127,11 +114,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
     try {
       await AuthService().approveLinkingRequest(url);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.authDeviceLinkedSuccess),
-          ),
-        );
+        context.showSnack(context.l10n.authDeviceLinkedSuccess);
         if (mounted) safePop<void>(context);
       }
     } catch (e, st) {
@@ -215,10 +198,9 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
               Text(
                 'Link a New Device',
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: AppSpacing.xxl),
               SegmentedButton<_LinkMode>(
@@ -250,16 +232,11 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                   decoration: BoxDecoration(
                     color: cs.errorContainer,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(
-                      color: cs.error.withValues(alpha: 0.3),
-                    ),
+                    border: Border.all(color: cs.error.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: cs.onErrorContainer,
-                      ),
+                      Icon(Icons.error_outline, color: cs.onErrorContainer),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
@@ -377,10 +354,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const AppLoadingIndicator(
-                  size: AppIconSize.md,
-                  strokeWidth: 2,
-                ),
+                const AppLoadingIndicator(size: AppIconSize.md, strokeWidth: 2),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   'Waiting for device to scan...',

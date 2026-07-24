@@ -6,6 +6,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
+import '../../../core/utils/snack.dart';
 
 /// Shows the backup key in a dialog with a copy button.
 Future<void> showBackupKeyDialog(BuildContext context) async {
@@ -60,9 +61,7 @@ Future<void> showBackupKeyDialog(BuildContext context) async {
                 onPressed: () async {
                   await setClipboardTextSafely(key);
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.accountBackupKeyCopied)),
-                  );
+                  context.showSnack(l10n.accountBackupKeyCopied);
                 },
                 icon: const Icon(Icons.content_copy),
                 label: Text(l10n.commonCopy),

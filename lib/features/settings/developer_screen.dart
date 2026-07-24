@@ -12,6 +12,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/package_info_cache.dart';
 import '../../dart_version.dart';
+import '../../core/utils/snack.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
 class DeveloperScreen extends ConsumerStatefulWidget {
@@ -169,14 +170,10 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                         );
                       }
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              AppLocalizations.of(
-                                context,
-                              ).developerSentToSentry('$eventId'),
-                            ),
-                          ),
+                        context.showSnack(
+                          AppLocalizations.of(
+                            context,
+                          ).developerSentToSentry('$eventId'),
                         );
                       }
                     }
@@ -278,12 +275,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                 Navigator.pop(context);
                 await Storage().clearAll();
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        AppLocalizations.of(context).developerCacheCleared,
-                      ),
-                    ),
+                  context.showSnack(
+                    AppLocalizations.of(context).developerCacheCleared,
                   );
                 }
               },
@@ -352,12 +345,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                       .loadSettings();
                 }
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        AppLocalizations.of(context).developerSettingsReset,
-                      ),
-                    ),
+                  context.showSnack(
+                    AppLocalizations.of(context).developerSettingsReset,
                   );
                 }
               },
@@ -389,26 +378,18 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
                   await sync.settingsSync.invalidateAndAwait();
                   if (context.mounted) {
                     ref.read(settingsNotifierProvider.notifier).loadFromSync();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          AppLocalizations.of(
-                            context,
-                          ).developerForceSyncSettingsSuccess,
-                        ),
-                      ),
+                    context.showSnack(
+                      AppLocalizations.of(
+                        context,
+                      ).developerForceSyncSettingsSuccess,
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          AppLocalizations.of(
-                            context,
-                          ).developerForceSyncSettingsError,
-                        ),
-                      ),
+                    context.showSnack(
+                      AppLocalizations.of(
+                        context,
+                      ).developerForceSyncSettingsError,
                     );
                   }
                 }
