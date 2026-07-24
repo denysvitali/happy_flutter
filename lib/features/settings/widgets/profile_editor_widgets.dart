@@ -513,3 +513,115 @@ class _ValueFieldState extends State<ValueField> {
     );
   }
 }
+
+/// Mutable row state for a single model entry.
+class ModelRow {
+  ModelRow({String model = ''})
+      : modelCtrl = TextEditingController(text: model);
+
+  final TextEditingController modelCtrl;
+
+  void dispose() {
+    modelCtrl.dispose();
+  }
+}
+
+/// Section for configuring the models available when this profile is selected.
+class ModelsSection extends StatelessWidget {
+  const ModelsSection({
+    required this.modelRows,
+    required this.l10n,
+    required this.textTheme,
+    required this.colorScheme,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onChanged,
+    super.key,
+  });
+
+  final List<ModelRow> modelRows;
+  final AppLocalizations l10n;
+  final TextTheme textTheme;
+  final ColorScheme colorScheme;
+  final VoidCallback onAdd;
+  final void Function(int index) onRemove;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.profilesModelsTitle,
+          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          l10n.profilesModelsHint,
+          style: textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (modelRows.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            child: Center(
+              child: Text(
+                l10n.profilesModelsEmpty,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ...modelRows.asMap().entries.map((entry) {
+          final i = entry.key;
+          final row = entry.value;
+          return Padding(
+            key: ObjectKey(row),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: row.modelCtrl,
+                    decoration: InputDecoration(
+                      labelText: l10n.profilesModelLabel,
+                      hintText: 'e.g. claude-opus-4-6',
+                      border: const OutlineInputBorder(),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    onChanged: (_) => onChanged(),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                IconButton(
+                  icon: Icon(Icons.close, size: AppIconSize.md),
+                  tooltip: l10n.profilesModelRemove,
+                  onPressed: () => onRemove(i),
+                ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: AppSpacing.sm),
+        FilledButton.icon(
+          onPressed: onAdd,
+          icon: const Icon(Icons.add, size: AppIconSize.md),
+          label: Text(l10n.profilesModelAdd),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, AppTouchTarget.comfortable),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+      ],
+    );
+  }
+}

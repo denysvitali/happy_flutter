@@ -169,53 +169,55 @@ Map<String, dynamic> _$GlobalWarningsToJson(GlobalWarnings instance) =>
       'gemini': instance.gemini,
     };
 
-AIBackendProfile _$AIBackendProfileFromJson(Map<String, dynamic> json) =>
-    AIBackendProfile(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String?,
-      anthropicConfig: json['anthropicConfig'] == null
-          ? null
-          : AnthropicConfig.fromJson(
-              json['anthropicConfig'] as Map<String, dynamic>,
-            ),
-      openaiConfig: json['openaiConfig'] == null
-          ? null
-          : OpenAIConfig.fromJson(json['openaiConfig'] as Map<String, dynamic>),
-      azureOpenAIConfig: json['azureOpenAIConfig'] == null
-          ? null
-          : AzureOpenAIConfig.fromJson(
-              json['azureOpenAIConfig'] as Map<String, dynamic>,
-            ),
-      togetherAIConfig: json['togetherAIConfig'] == null
-          ? null
-          : TogetherAIConfig.fromJson(
-              json['togetherAIConfig'] as Map<String, dynamic>,
-            ),
-      tmuxConfig: json['tmuxConfig'] == null
-          ? null
-          : TmuxConfig.fromJson(json['tmuxConfig'] as Map<String, dynamic>),
-      startupBashScript: json['startupBashScript'] as String?,
-      environmentVariables:
-          (json['environmentVariables'] as List<dynamic>?)
-              ?.map(
-                (e) => EnvironmentVariable.fromJson(e as Map<String, dynamic>),
-              )
-              .toList() ??
-          const [],
-      defaultSessionType: json['defaultSessionType'] as String?,
-      defaultPermissionMode: json['defaultPermissionMode'] as String?,
-      defaultModelMode: json['defaultModelMode'] as String?,
-      compatibility: json['compatibility'] == null
-          ? const ProfileCompatibility(claude: true, codex: true, gemini: true)
-          : ProfileCompatibility.fromJson(
-              json['compatibility'] as Map<String, dynamic>,
-            ),
-      isBuiltIn: json['isBuiltIn'] as bool? ?? false,
-      createdAt: (json['createdAt'] as num?)?.toInt() ?? 0,
-      updatedAt: (json['updatedAt'] as num?)?.toInt() ?? 0,
-      version: json['version'] as String? ?? '1.0.0',
-    );
+AIBackendProfile _$AIBackendProfileFromJson(
+  Map<String, dynamic> json,
+) => AIBackendProfile(
+  id: json['id'] as String,
+  name: json['name'] as String,
+  description: json['description'] as String?,
+  anthropicConfig: json['anthropicConfig'] == null
+      ? null
+      : AnthropicConfig.fromJson(
+          json['anthropicConfig'] as Map<String, dynamic>,
+        ),
+  openaiConfig: json['openaiConfig'] == null
+      ? null
+      : OpenAIConfig.fromJson(json['openaiConfig'] as Map<String, dynamic>),
+  azureOpenAIConfig: json['azureOpenAIConfig'] == null
+      ? null
+      : AzureOpenAIConfig.fromJson(
+          json['azureOpenAIConfig'] as Map<String, dynamic>,
+        ),
+  togetherAIConfig: json['togetherAIConfig'] == null
+      ? null
+      : TogetherAIConfig.fromJson(
+          json['togetherAIConfig'] as Map<String, dynamic>,
+        ),
+  tmuxConfig: json['tmuxConfig'] == null
+      ? null
+      : TmuxConfig.fromJson(json['tmuxConfig'] as Map<String, dynamic>),
+  startupBashScript: json['startupBashScript'] as String?,
+  environmentVariables:
+      (json['environmentVariables'] as List<dynamic>?)
+          ?.map((e) => EnvironmentVariable.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+  defaultSessionType: json['defaultSessionType'] as String?,
+  defaultPermissionMode: json['defaultPermissionMode'] as String?,
+  defaultModelMode: json['defaultModelMode'] as String?,
+  models:
+      (json['models'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
+  compatibility: json['compatibility'] == null
+      ? const ProfileCompatibility(claude: true, codex: true, gemini: true)
+      : ProfileCompatibility.fromJson(
+          json['compatibility'] as Map<String, dynamic>,
+        ),
+  isBuiltIn: json['isBuiltIn'] as bool? ?? false,
+  createdAt: (json['createdAt'] as num?)?.toInt() ?? 0,
+  updatedAt: (json['updatedAt'] as num?)?.toInt() ?? 0,
+  version: json['version'] as String? ?? '1.0.0',
+);
 
 Map<String, dynamic> _$AIBackendProfileToJson(AIBackendProfile instance) =>
     <String, dynamic>{
@@ -234,6 +236,7 @@ Map<String, dynamic> _$AIBackendProfileToJson(AIBackendProfile instance) =>
       'defaultSessionType': instance.defaultSessionType,
       'defaultPermissionMode': instance.defaultPermissionMode,
       'defaultModelMode': instance.defaultModelMode,
+      'models': instance.models,
       'compatibility': instance.compatibility.toJson(),
       'isBuiltIn': instance.isBuiltIn,
       'createdAt': instance.createdAt,

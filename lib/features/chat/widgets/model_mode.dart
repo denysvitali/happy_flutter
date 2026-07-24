@@ -180,17 +180,25 @@ class ChatModelMode {
 
   /// Returns model options filtered by profile compatibility.
   ///
-  /// When [providerOwnedCodexModel] is non-null (a Codex session whose
-  /// selected profile supplies its own model, e.g. Azure OpenAI or a
-  /// Qwen Token Plan gateway), the model slug is fixed by the provider
-  /// but the user can still vary the reasoning effort - see
-  /// [providerOwnedCodexEfforts].
+  /// When [profileModels] is non-empty, the profile has a custom
+  /// model list configured in the provider setup screen. Those
+  /// models replace the default flavor catalog (Claude tiers,
+  /// Codex catalog) so the user picks from the models they
+  /// actually configured. The [defaultModel] entry is always
+  /// included as the first option.
+  ///
+  /// When [providerOwnedCodexModel] is non-null (a Codex session
+  /// whose selected profile supplies its own model, e.g. Azure
+  /// OpenAI or a Qwen Token Plan gateway), the model slug is
+  /// fixed by the profile but the user can still vary the
+  /// reasoning effort - see [providerOwnedCodexEfforts].
   static List<ChatModelMode> availableForProfile({
     required String? flavor,
     required bool claudeCompatible,
     bool allowClaudeAliases = true,
     List<ChatModelMode>? codexModels,
     String? providerOwnedCodexModel,
+    List<String>? profileModels,
   }) {
     if (flavor == 'codex') {
       final owned = providerOwnedCodexModel?.trim();
@@ -202,6 +210,15 @@ class ChatModelMode {
       return codexModels == null || codexModels.isEmpty
           ? const [defaultModel]
           : codexModels;
+    }
+    // Profile has custom models configured — use those instead of
+    // the hardcoded flavor catalog.
+    if (profileModels != null && profileModels.isNotEmpty) {
+      return [
+        defaultModel,
+        for (final model in profileModels)
+          ChatModelMode.fromString(model),
+      ];
     }
     final baseModels = availableForFlavor(flavor);
     if (claudeCompatible && allowClaudeAliases) return baseModels;

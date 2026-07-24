@@ -6763,6 +6763,42 @@ abstract class AppLocalizations {
   /// **'Choose which agents can use this profile'**
   String get profilesCompatibleAgentsHint;
 
+  /// No description provided for @profilesModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Models'**
+  String get profilesModelsTitle;
+
+  /// No description provided for @profilesModelsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Models available when this profile is selected'**
+  String get profilesModelsHint;
+
+  /// No description provided for @profilesModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model identifier'**
+  String get profilesModelLabel;
+
+  /// No description provided for @profilesModelAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add model'**
+  String get profilesModelAdd;
+
+  /// No description provided for @profilesModelRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get profilesModelRemove;
+
+  /// No description provided for @profilesModelsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No models configured'**
+  String get profilesModelsEmpty;
+
   /// No description provided for @profilesAtLeastOneAgent.
   ///
   /// In en, this message translates to:

@@ -52,6 +52,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   late final TextEditingController _descCtrl;
   late final TextEditingController _scriptCtrl;
   late final List<EnvRow> _envRows;
+  late final List<ModelRow> _modelRows;
   AIBackendProfile? _profile;
   late ProfileCompatibility _compatibility;
 
@@ -69,6 +70,9 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     _scriptCtrl = TextEditingController(text: p?.startupBashScript ?? '');
     _envRows = (p?.environmentVariables ?? [])
         .map((e) => EnvRow(name: e.name, value: e.value))
+        .toList();
+    _modelRows = (p?.models ?? [])
+        .map((m) => ModelRow(model: m))
         .toList();
     _showScript = p?.startupBashScript?.isNotEmpty ?? false;
   }
@@ -90,6 +94,9 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     for (final r in _envRows) {
       r.dispose();
     }
+    for (final r in _modelRows) {
+      r.dispose();
+    }
     super.dispose();
   }
 
@@ -101,6 +108,17 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     setState(() {
       _envRows[index].dispose();
       _envRows.removeAt(index);
+    });
+  }
+
+  void _addModelRow() {
+    setState(() => _modelRows.add(ModelRow()));
+  }
+
+  void _removeModelRow(int index) {
+    setState(() {
+      _modelRows[index].dispose();
+      _modelRows.removeAt(index);
     });
   }
 
@@ -251,6 +269,11 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         )
         .toList();
 
+    final models = _modelRows
+        .map((r) => r.modelCtrl.text.trim())
+        .where((m) => m.isNotEmpty)
+        .toList();
+
     final now = DateTime.now().millisecondsSinceEpoch;
     final existing = _profile;
     final updated = AIBackendProfile(
@@ -266,6 +289,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             environmentVariables: envVars,
           ) ??
           existing?.defaultModelMode,
+      models: models,
       isBuiltIn: existing?.isBuiltIn ?? false,
       compatibility: _compatibility,
       createdAt: existing?.createdAt ?? now,
@@ -462,6 +486,20 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
               onImport: _showImportDialog,
               onAdd: _addEnvRow,
               onRemove: _removeEnvRow,
+              onChanged: () => setState(() {}),
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          AppCard(
+            child: ModelsSection(
+              modelRows: _modelRows,
+              l10n: l10n,
+              textTheme: tt,
+              colorScheme: cs,
+              onAdd: _addModelRow,
+              onRemove: _removeModelRow,
               onChanged: () => setState(() {}),
             ),
           ),

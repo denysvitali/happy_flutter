@@ -3641,6 +3641,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose which agents can use this profile';
 
   @override
+  String get profilesModelsTitle => 'Models';
+
+  @override
+  String get profilesModelsHint =>
+      'Models available when this profile is selected';
+
+  @override
+  String get profilesModelLabel => 'Model identifier';
+
+  @override
+  String get profilesModelAdd => 'Add model';
+
+  @override
+  String get profilesModelRemove => 'Remove';
+
+  @override
+  String get profilesModelsEmpty => 'No models configured';
+
+  @override
   String get profilesAtLeastOneAgent => 'Select at least one agent';
 
   @override

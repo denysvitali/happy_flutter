@@ -603,6 +603,7 @@ class AIBackendProfile {
     this.defaultSessionType,
     this.defaultPermissionMode,
     this.defaultModelMode,
+    this.models = const [],
     this.compatibility = const ProfileCompatibility(
       claude: true,
       codex: true,
@@ -630,6 +631,7 @@ class AIBackendProfile {
   final String? defaultSessionType;
   final String? defaultPermissionMode;
   final String? defaultModelMode;
+  final List<String> models;
   final ProfileCompatibility compatibility;
   final bool isBuiltIn;
   final int createdAt;
@@ -700,6 +702,7 @@ class AIBackendProfile {
       'defaultSessionType': defaultSessionType,
       'defaultPermissionMode': defaultPermissionMode,
       'defaultModelMode': defaultModelMode,
+      'models': models.map((e) => e).toList(),
       'compatibility': compatibility.toJson(),
       'isBuiltIn': isBuiltIn,
       'createdAt': createdAt,
@@ -722,6 +725,7 @@ class AIBackendProfile {
     String? defaultSessionType,
     String? defaultPermissionMode,
     String? defaultModelMode,
+    List<String>? models,
     ProfileCompatibility? compatibility,
     bool? isBuiltIn,
     int? createdAt,
@@ -745,6 +749,7 @@ class AIBackendProfile {
       defaultPermissionMode:
           defaultPermissionMode ?? this.defaultPermissionMode,
       defaultModelMode: defaultModelMode ?? this.defaultModelMode,
+      models: models != null ? List<String>.from(models) : this.models,
       compatibility: compatibility ?? this.compatibility,
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,
       createdAt: createdAt ?? this.createdAt,

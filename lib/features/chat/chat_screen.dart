@@ -1216,6 +1216,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       codexModels: _codexModelModes,
       providerOwnedCodexModel: providerOwnedCodexModel,
+      profileModels: _selectedProfile?.models,
     );
 
     // Use select() so this build only re-runs when the specific settings
