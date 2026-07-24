@@ -116,15 +116,7 @@ class ProjectHeader extends StatelessWidget {
             if (activeCount > 0)
               _ActiveBadge(count: activeCount),
             const SizedBox(width: AppSpacing.xs),
-            AnimatedRotation(
-              turns: isCollapsed ? -0.25 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                Icons.keyboard_arrow_down,
-                size: AppIconSize.lg,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
+            _CollapseChevron(isCollapsed: isCollapsed),
           ],
         ),
       ),
@@ -214,15 +206,7 @@ class PathHeader extends StatelessWidget {
             ),
             _HeaderCountPill(count: sessionCount),
             const SizedBox(width: AppSpacing.xs),
-            AnimatedRotation(
-              turns: isCollapsed ? -0.25 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                Icons.keyboard_arrow_down,
-                size: AppIconSize.lg,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
+            _CollapseChevron(isCollapsed: isCollapsed),
           ],
         ),
       ),
@@ -310,15 +294,7 @@ class CollapsibleDateHeader extends StatelessWidget {
             ),
             _HeaderCountPill(count: sessionCount),
             const SizedBox(width: AppSpacing.xs),
-            AnimatedRotation(
-              turns: isCollapsed ? -0.25 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                Icons.keyboard_arrow_down,
-                size: AppIconSize.lg,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
+            _CollapseChevron(isCollapsed: isCollapsed),
           ],
         ),
       ),
@@ -426,15 +402,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 2),
-            AnimatedRotation(
-              turns: isCollapsed ? -0.25 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                Icons.keyboard_arrow_down,
-                size: AppIconSize.lg,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
+            _CollapseChevron(isCollapsed: isCollapsed),
           ],
         ),
       ),
@@ -599,6 +567,28 @@ class _ToggleChip extends StatelessWidget {
             color: selected ? cs.primary : cs.onSurfaceVariant,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Rotating chevron that marks a collapsible session/project header.
+///
+/// Four headers in this file drew the same AnimatedRotation + arrow icon.
+class _CollapseChevron extends StatelessWidget {
+  const _CollapseChevron({required this.isCollapsed});
+
+  final bool isCollapsed;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedRotation(
+      turns: isCollapsed ? -0.25 : 0,
+      duration: const Duration(milliseconds: 200),
+      child: Icon(
+        Icons.keyboard_arrow_down,
+        size: AppIconSize.lg,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }

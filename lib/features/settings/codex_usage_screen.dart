@@ -120,13 +120,17 @@ class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
                 if (id != null) _loadUsage(id);
               },
             )
-          : _CodexUsageEmptyBody(
+          : MachineScopedEmptyBody(
               machines: machines,
               selectedMachineId: _selectedMachineId,
               onMachineChanged: (id) {
                 setState(() => _selectedMachineId = id);
                 if (id != null) _loadUsage(id);
               },
+              pickerTitle: l10n.codexUsageSelectMachine,
+              icon: Icons.code,
+              title: l10n.codexUsageNotAvailable,
+              subtitle: l10n.codexUsageNotAvailableSubtitle,
             ),
     );
   }
@@ -379,42 +383,6 @@ class _CodexUsageRateLimitSection extends StatelessWidget {
   }
 }
 
-class _CodexUsageEmptyBody extends StatelessWidget {
-  const _CodexUsageEmptyBody({
-    required this.machines,
-    required this.selectedMachineId,
-    required this.onMachineChanged,
-  });
-
-  final Map<String, Machine> machines;
-  final String? selectedMachineId;
-  final ValueChanged<String?> onMachineChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      children: [
-        Padding(
-          padding: AppScreenPadding.settings,
-          child: MachinePicker(
-            machines: machines,
-            selectedMachineId: selectedMachineId,
-            onChanged: onMachineChanged,
-            sectionTitle: l10n.codexUsageSelectMachine,
-          ),
-        ),
-        const Spacer(),
-        AppEmptyState(
-          icon: Icons.code,
-          title: l10n.codexUsageNotAvailable,
-          subtitle: l10n.codexUsageNotAvailableSubtitle,
-        ),
-        const Spacer(),
-      ],
-    );
-  }
-}
 
 class _CodexUsageErrorBody extends StatelessWidget {
   const _CodexUsageErrorBody({

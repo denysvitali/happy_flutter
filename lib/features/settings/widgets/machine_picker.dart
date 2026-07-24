@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/components/app_empty_state.dart';
 import '../../../core/components/settings_section.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
@@ -113,6 +114,52 @@ class MachinePicker extends StatelessWidget {
             },
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// "No data for this machine yet" body: a [MachinePicker] pinned to the top
+/// with a centered empty state beneath it.
+///
+/// Shared by the Claude limits, Codex usage, and Grok usage screens, which
+/// each carried a byte-identical copy differing only in icon and copy.
+class MachineScopedEmptyBody extends StatelessWidget {
+  const MachineScopedEmptyBody({
+    required this.machines,
+    required this.selectedMachineId,
+    required this.onMachineChanged,
+    required this.pickerTitle,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    super.key,
+  });
+
+  final Map<String, Machine> machines;
+  final String? selectedMachineId;
+  final ValueChanged<String?> onMachineChanged;
+  final String pickerTitle;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: AppScreenPadding.settings,
+          child: MachinePicker(
+            machines: machines,
+            selectedMachineId: selectedMachineId,
+            onChanged: onMachineChanged,
+            sectionTitle: pickerTitle,
+          ),
+        ),
+        const Spacer(),
+        AppEmptyState(icon: icon, title: title, subtitle: subtitle),
+        const Spacer(),
       ],
     );
   }

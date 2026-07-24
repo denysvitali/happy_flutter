@@ -188,13 +188,17 @@ class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
                 if (id != null) _loadAll(id);
               },
             )
-          : _NoDataBody(
+          : MachineScopedEmptyBody(
               machines: machines,
               selectedMachineId: _selectedMachineId,
               onMachineChanged: (id) {
                 setState(() => _selectedMachineId = id);
                 if (id != null) _loadAll(id);
               },
+              pickerTitle: l10n.claudeLimitsSelectMachine,
+              icon: Icons.speed,
+              title: l10n.claudeLimitsNotAvailable,
+              subtitle: l10n.claudeLimitsNotAvailableSubtitle,
             ),
     );
   }
@@ -285,42 +289,6 @@ class _LimitsBody extends StatelessWidget {
   }
 }
 
-class _NoDataBody extends StatelessWidget {
-  const _NoDataBody({
-    required this.machines,
-    required this.selectedMachineId,
-    required this.onMachineChanged,
-  });
-
-  final Map<String, Machine> machines;
-  final String? selectedMachineId;
-  final ValueChanged<String?> onMachineChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      children: [
-        Padding(
-          padding: AppScreenPadding.settings,
-          child: MachinePicker(
-            machines: machines,
-            selectedMachineId: selectedMachineId,
-            onChanged: onMachineChanged,
-            sectionTitle: l10n.claudeLimitsSelectMachine,
-          ),
-        ),
-        const Spacer(),
-        AppEmptyState(
-          icon: Icons.speed,
-          title: l10n.claudeLimitsNotAvailable,
-          subtitle: l10n.claudeLimitsNotAvailableSubtitle,
-        ),
-        const Spacer(),
-      ],
-    );
-  }
-}
 
 class _ErrorBody extends StatelessWidget {
   const _ErrorBody({

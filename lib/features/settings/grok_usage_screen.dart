@@ -115,13 +115,17 @@ class _GrokUsageScreenState extends ConsumerState<GrokUsageScreen> {
                 if (id != null) _loadUsage(id);
               },
             )
-          : _GrokUsageEmptyBody(
+          : MachineScopedEmptyBody(
               machines: machines,
               selectedMachineId: _selectedMachineId,
               onMachineChanged: (id) {
                 setState(() => _selectedMachineId = id);
                 if (id != null) _loadUsage(id);
               },
+              pickerTitle: l10n.grokUsageSelectMachine,
+              icon: Icons.auto_awesome,
+              title: l10n.grokUsageNotAvailable,
+              subtitle: l10n.grokUsageNotAvailableSubtitle,
             ),
     );
   }
@@ -229,42 +233,6 @@ class _GrokUsageBody extends StatelessWidget {
   }
 }
 
-class _GrokUsageEmptyBody extends StatelessWidget {
-  const _GrokUsageEmptyBody({
-    required this.machines,
-    required this.selectedMachineId,
-    required this.onMachineChanged,
-  });
-
-  final Map<String, Machine> machines;
-  final String? selectedMachineId;
-  final ValueChanged<String?> onMachineChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      children: [
-        Padding(
-          padding: AppScreenPadding.settings,
-          child: MachinePicker(
-            machines: machines,
-            selectedMachineId: selectedMachineId,
-            onChanged: onMachineChanged,
-            sectionTitle: l10n.grokUsageSelectMachine,
-          ),
-        ),
-        const Spacer(),
-        AppEmptyState(
-          icon: Icons.auto_awesome,
-          title: l10n.grokUsageNotAvailable,
-          subtitle: l10n.grokUsageNotAvailableSubtitle,
-        ),
-        const Spacer(),
-      ],
-    );
-  }
-}
 
 class _GrokUsageErrorBody extends StatelessWidget {
   const _GrokUsageErrorBody({
