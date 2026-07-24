@@ -7,6 +7,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'widgets/artifact_form_fields.dart';
 
 /// Screen for editing an existing artifact.
 ///
@@ -110,7 +111,6 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final artifact = ref.watch(
       artifactsNotifierProvider.select(
         (artifacts) => artifacts[widget.artifactId],
@@ -157,33 +157,13 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
           children: [
             const _EncryptionNote(),
             const SizedBox(height: AppSpacing.xl),
-            _SectionLabel(label: l10n.artifactsTitleLabel),
+            ArtifactSectionLabel(label: l10n.artifactsTitleLabel),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
               controller: _titleController,
-              decoration: InputDecoration(
+              decoration: artifactFieldDecoration(
+                context,
                 hintText: l10n.artifactsEnterTitle,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-                filled: true,
-                fillColor: cs.surfaceContainerLow,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
-                ),
-                hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
               ),
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.next,
@@ -191,34 +171,14 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: AppSpacing.xxl),
-            _SectionLabel(label: l10n.artifactsContentLabel),
+            ArtifactSectionLabel(label: l10n.artifactsContentLabel),
             const SizedBox(height: AppSpacing.sm),
             TextFormField(
               controller: _contentController,
-              decoration: InputDecoration(
+              decoration: artifactFieldDecoration(
+                context,
                 hintText: l10n.artifactsEnterContent,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  borderSide: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-                filled: true,
-                fillColor: cs.surfaceContainerLow,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
-                ),
                 alignLabelWithHint: true,
-                hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
               ),
               textCapitalization: TextCapitalization.sentences,
               maxLines: 10,
@@ -523,21 +483,3 @@ class _EncryptionNote extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.5,
-        fontSize: AppFontSize.sm,
-      ),
-    );
-  }
-}
