@@ -148,11 +148,11 @@ extension SyncSocket on Sync {
     // from MMKV for every session that came back from the cache
     // restore above. Defer to a microtask so it doesn't block
     // isInitialized = true and the first frame paint.
-    Future<void>.microtask(hydrateAllFromCache);
+    unawaited(Future<void>.microtask(hydrateAllFromCache));
 
     // Cold-start workflows hydration: populate the in-memory workflows
     // map from MMKV for every session that came back from the cache.
-    Future<void>.microtask(hydrateAllWorkflowsFromCache);
+    unawaited(Future<void>.microtask(hydrateAllWorkflowsFromCache));
 
     // Setup socket connection
     final serverUrl = getServerUrl();
@@ -752,12 +752,14 @@ extension SyncSocket on Sync {
         e,
         stack,
       );
-      Sentry.addBreadcrumb(
-        Breadcrumb(
-          message: 'session encryption open failed',
-          category: 'sync.encryption',
-          level: SentryLevel.warning,
-          data: {'sessionId': sessionId, 'error': e.toString()},
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'session encryption open failed',
+            category: 'sync.encryption',
+            level: SentryLevel.warning,
+            data: {'sessionId': sessionId, 'error': e.toString()},
+          ),
         ),
       );
     }

@@ -854,11 +854,13 @@ extension SyncMessagingRpc on Sync {
     // string changes while the session keeps running with the old profile's
     // env vars (API keys, base URLs).
     if (!_sessionSpawnedProfile.containsKey(sessionId)) {
-      MMKVStorage().getSessionProfile(sessionId).then((storedProfileId) {
-        if (!_sessionSpawnedProfile.containsKey(sessionId)) {
-          _sessionSpawnedProfile[sessionId] = storedProfileId;
-        }
-      });
+      unawaited(
+        MMKVStorage().getSessionProfile(sessionId).then((storedProfileId) {
+          if (!_sessionSpawnedProfile.containsKey(sessionId)) {
+            _sessionSpawnedProfile[sessionId] = storedProfileId;
+          }
+        }),
+      );
     }
 
     final needsVisibleRegroup = _sessionsNeedingVisibleRegroup.remove(
@@ -892,18 +894,22 @@ extension SyncMessagingRpc on Sync {
     // Each InvalidateSync holds Timers, a Completer, and closures that
     // capture the Sync singleton — unbounded growth for 500+ sessions.
     _evictStaleMessagesSync();
-    Sentry.addBreadcrumb(
-      Breadcrumb(
-        message: 'onSessionVisible',
-        category: 'sync.messages',
-        data: {
-          'sessionId': sessionId,
-          'hasPending': _sessionsWithPendingSocketMessages.contains(sessionId),
-          'hasMessagesInMemory':
-              _sessionMessages[sessionId]?.isNotEmpty ?? false,
-          'cursorSeq': _sessionLastSeq[sessionId] ?? 0,
-          'serverLastSeq': _sessions[sessionId]?.lastSeq ?? 0,
-        },
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'onSessionVisible',
+          category: 'sync.messages',
+          data: {
+            'sessionId': sessionId,
+            'hasPending': _sessionsWithPendingSocketMessages.contains(
+              sessionId,
+            ),
+            'hasMessagesInMemory':
+                _sessionMessages[sessionId]?.isNotEmpty ?? false,
+            'cursorSeq': _sessionLastSeq[sessionId] ?? 0,
+            'serverLastSeq': _sessions[sessionId]?.lastSeq ?? 0,
+          },
+        ),
       ),
     );
 
