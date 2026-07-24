@@ -133,6 +133,10 @@ class TaskEventSummaryCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               summary,
+              // `local_bash` notifications repeat the entire shell command
+              // as their summary; clamp so one task can't own the screen.
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurface.withValues(alpha: 0.85),
               ),

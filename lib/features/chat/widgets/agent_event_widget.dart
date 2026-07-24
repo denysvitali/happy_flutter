@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/task_label.dart';
 import '../tools/known_tools.dart';
 
 /// Renders a centered system-style label for agent lifecycle events.
@@ -110,7 +111,12 @@ class AgentEventWidget extends StatelessWidget {
             ],
             Flexible(
               child: Text(
-                displayLabel,
+                // Defensive clamp: cached/legacy events can carry a whole
+                // multi-line shell command as their label, which would
+                // otherwise dump a wall of centered text into the timeline.
+                compactTaskLabel(displayLabel),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: color,
                   fontWeight: isUnrendered ? FontWeight.w600 : null,

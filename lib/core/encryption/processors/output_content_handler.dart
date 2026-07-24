@@ -818,7 +818,12 @@ void _processMetaOutput({
 
       // For in-flight subtasks, surface the current tool in the chip
       // label so the user can see what the sub-agent is doing right now.
-      final baseLabel = description ?? summary ?? 'Task $subtype';
+      // `local_bash` tasks put the whole shell command in `description`;
+      // flatten + clamp so the chip stays one readable line.
+      final compacted = compactTaskLabel(
+        description ?? summary ?? 'Task $subtype',
+      );
+      final baseLabel = compacted.isEmpty ? 'Task $subtype' : compacted;
       final label =
           (subtype == 'task_progress' &&
               lastToolName != null &&

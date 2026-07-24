@@ -222,7 +222,10 @@ void _processAcpContent({
         return;
       }
 
-      final label = description ?? summary ?? 'Task $subtype';
+      // Flatten + clamp: `local_bash` tasks carry the whole shell command
+      // here, and the chip renders as a single centered line.
+      final compacted = compactTaskLabel(description ?? summary ?? '');
+      final label = compacted.isEmpty ? 'Task $subtype' : compacted;
       messages.add({
         'id': '${id}_te',
         'seq': seq,

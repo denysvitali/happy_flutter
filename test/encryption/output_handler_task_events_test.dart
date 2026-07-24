@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
+import 'package:happy_flutter/core/utils/task_label.dart';
 
 // Regression coverage for the dynamic-workflow surfacing path.
 //
@@ -99,6 +100,40 @@ void main() {
       expect(msg['subAgentLastTool'], 'Bash');
       final event = msg['event'] as Map<String, dynamic>;
       expect(event['message'], 'Bash · wait for scan completion');
+    });
+
+    test('local_bash task_started flattens and clamps the shell command', () {
+      // Production shape (session ccc5ed21, seq 408): Claude Code stamps the
+      // WHOLE multi-line command into `description` for background bash.
+      // Rendered verbatim it dumped a wall of centered text into the chat.
+      const command = 'cd /home/workspace/git/happy_flutter\n'
+          "python3 - <<'PY'\n"
+          'import re\n'
+          'specs = [\n'
+          "  ('lib/features/settings/claude_limits_screen.dart', '_ErrorBody'),\n"
+          ']\n'
+          'PY\n'
+          'timeout 900 mise exec -- flutter analyze lib/features/settings';
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          metaSystem({
+            'subtype': 'task_started',
+            'task_type': 'local_bash',
+            'description': command,
+            'task_id': 'byhky9nf7',
+          }, uuid: 't-started-bash'),
+        ],
+        wireMessages: [wire(id: 'm1', seq: 1)],
+        sessionId: 's1',
+      );
+
+      final msg = result.messages.first;
+      expect(msg['kind'], 'agent-event');
+      expect(msg['taskType'], 'local_bash');
+      final label = (msg['event'] as Map<String, dynamic>)['message'] as String;
+      expect(label.contains('\n'), false);
+      expect(label.length, lessThanOrEqualTo(kMaxTaskLabelChars + 1));
+      expect(label.startsWith('cd /home/workspace/git/happy_flutter '), true);
     });
 
     test('task_progress does not double-prefix when description already starts '
