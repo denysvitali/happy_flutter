@@ -132,7 +132,10 @@ void main() {
         );
 
         expect(capturedParams, isNotNull);
-        expect(capturedParams!.containsKey('model'), isFalse);
+        // A Claude alias stripped for an incompatible provider is sent as an
+        // explicit model='default' rather than omitted, so the daemon clears
+        // any sticky metadata.model from the previous spawn.
+        expect(capturedParams!['model'], 'default');
         final env = capturedParams!['environmentVariables'] as Map;
         expect(
           env['ANTHROPIC_BASE_URL'],
@@ -165,7 +168,10 @@ void main() {
 
       expect(capturedParams, isNotNull);
       expect(capturedParams!['model'], 'fable:high');
-      expect(capturedParams!.containsKey('environmentVariables'), isFalse);
+      // environmentVariables is always sent when non-null, empty included: an
+      // empty map means "explicit Default / no profile" and tells the daemon
+      // to clear sticky providerRoutingEnv. See rpc_types.dart.
+      expect(capturedParams!['environmentVariables'], isEmpty);
     });
 
     test('sonnet:high with codex profile strips modelMode', () async {
@@ -190,7 +196,8 @@ void main() {
       );
 
       expect(capturedParams, isNotNull);
-      expect(capturedParams!.containsKey('model'), isFalse);
+      // Stripped for Codex -> explicit 'default', not an omitted key.
+      expect(capturedParams!['model'], 'default');
       final env = capturedParams!['environmentVariables'] as Map;
       expect(env.containsKey('ANTHROPIC_BASE_URL'), isFalse);
       expect(env['OPENAI_BASE_URL'], 'https://api.openai.com/v1');
@@ -216,7 +223,8 @@ void main() {
       );
 
       expect(capturedParams, isNotNull);
-      expect(capturedParams!.containsKey('environmentVariables'), isFalse);
+      // Sent as an empty map, not omitted — see rpc_types.dart.
+      expect(capturedParams!['environmentVariables'], isEmpty);
     });
 
     test('provider mismatch RPC error surfaces typed exception', () async {
@@ -1011,11 +1019,12 @@ void main() {
           reason: 'Offline session must trigger auto-restore spawn RPC',
         );
         expect(
-          capturedSpawnParams!.containsKey('model'),
-          isFalse,
+          capturedSpawnParams!['model'],
+          'default',
           reason:
               'Claude model override must be dropped when profile sets a '
-              'third-party Anthropic-compatible base URL',
+              'third-party Anthropic-compatible base URL, and replaced with '
+              'an explicit default so the daemon clears sticky metadata',
         );
         final envVars =
             capturedSpawnParams!['environmentVariables']
