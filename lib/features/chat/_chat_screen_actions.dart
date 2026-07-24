@@ -394,9 +394,14 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   void _onModelModeChanged(ChatModelMode model) {
+    // Models configured on the selected profile (e.g. 'GLM-5') parse as
+    // unknown/provider strings, so without the allowlist normalization
+    // would silently rewrite the pick to 'default' and the model would
+    // never take effect.
     final normalized = ChatModelMode.normalizeForFlavor(
       model,
       _session?.metadata?.flavor,
+      allowedRawModels: _selectedProfile?.models,
     );
     setState(() {
       _userOverrodeModelOrProfile = true;
@@ -470,12 +475,14 @@ extension _ChatScreenActions on _ChatScreenState {
             profileDefaultModelMode,
             _session?.metadata?.flavor,
             preserveProviderOwned: profileOwnsRawCodexModel(profile),
+            allowedRawModels: profile?.models,
           )
         : ChatModelMode.defaultModel.modeString;
     final newModel = profileDefaultModelMode != null
         ? ChatModelMode.normalizeForFlavor(
             ChatModelMode.fromString(rawModelString),
             _session?.metadata?.flavor,
+            allowedRawModels: profile?.models,
           )
         : ChatModelMode.defaultModel;
 

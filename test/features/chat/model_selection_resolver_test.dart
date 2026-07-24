@@ -376,6 +376,80 @@ void main() {
       expect(options, contains(result.resolvedModelMode));
     });
   });
+  group('profile-configured model list', () {
+    test('saved profile model survives restore as both UI model and raw '
+        'string', () {
+      // Regression: picking a profile-configured model ('GLM-5') saved the
+      // draft correctly, but on the next chat open the resolver normalized
+      // the unknown slug back to 'default', so the pick appeared to never
+      // take effect.
+      final profile = _profile(id: 'glm', models: ['GLM-5', 'GLM-4.6']);
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'GLM-5',
+        savedProfileId: 'glm',
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: [profile],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedRawModelString, 'GLM-5');
+      expect(result.resolvedModelMode.modeString, 'GLM-5');
+    });
+
+    test('saved profile model with effort suffix keeps its raw string', () {
+      // Regression: 'GLM-5:high' parses as a Codex variant, so
+      // normalizeRawForFlavor rewrote it to 'default' on Claude sessions
+      // even though the profile explicitly offers it.
+      final profile = _profile(id: 'glm', models: ['GLM-5', 'GLM-5:high']);
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'GLM-5:high',
+        savedProfileId: 'glm',
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: [profile],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedRawModelString, 'GLM-5:high');
+      expect(result.resolvedModelMode.modeString, 'GLM-5:high');
+
+      // The restored selection must be one of the picker's options so it
+      // highlights on reopen.
+      final options = ChatModelMode.availableForProfile(
+        flavor: 'claude',
+        claudeCompatible: true,
+        profileModels: profile.models,
+      );
+      expect(options, contains(result.resolvedModelMode));
+    });
+
+    test('unknown saved model without a profile still normalizes to '
+        'default', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'GLM-5:high',
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedRawModelString, 'default');
+      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+    });
+  });
 }
 
 AIBackendProfile _profile({
@@ -384,6 +458,7 @@ AIBackendProfile _profile({
   String? defaultPermissionMode,
   AnthropicConfig? anthropicConfig,
   ProfileCompatibility compatibility = const ProfileCompatibility(),
+  List<String> models = const [],
 }) {
   return AIBackendProfile(
     id: id,
@@ -392,5 +467,6 @@ AIBackendProfile _profile({
     defaultPermissionMode: defaultPermissionMode,
     anthropicConfig: anthropicConfig,
     compatibility: compatibility,
+    models: models,
   );
 }

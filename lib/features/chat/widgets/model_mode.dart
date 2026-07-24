@@ -289,8 +289,37 @@ class ChatModelMode {
     return models;
   }
 
+  /// True when [modeString] appears verbatim in [allowedRawModels] — the
+  /// selected profile's configured model list. Profile-configured models
+  /// are provider-owned raw strings (e.g. `GLM-5`, `MiniMax-M3:high`) that
+  /// belong to neither the Claude tier catalog nor the known Codex slugs,
+  /// so flavor normalization would otherwise silently rewrite the user's
+  /// pick to `default`.
+  static bool _isAllowedRawModel(
+    String modeString,
+    List<String>? allowedRawModels,
+  ) {
+    if (allowedRawModels == null) return false;
+    final needle = modeString.trim();
+    if (needle.isEmpty) return false;
+    for (final entry in allowedRawModels) {
+      if (entry.trim() == needle) return true;
+    }
+    return false;
+  }
+
   /// Normalizes a model selection so it is valid for the session flavor.
-  static ChatModelMode normalizeForFlavor(ChatModelMode model, String? flavor) {
+  ///
+  /// [allowedRawModels] is the selected profile's configured model list
+  /// (see [availableForProfile]); entries in it are valid selections for a
+  /// Claude-compatible session even though they parse as unknown/provider
+  /// strings. Codex sessions never offer profile models, so the allowlist
+  /// is ignored for `codex`.
+  static ChatModelMode normalizeForFlavor(
+    ChatModelMode model,
+    String? flavor, {
+    List<String>? allowedRawModels,
+  }) {
     final available = availableForFlavor(flavor);
     if (available.contains(model) || (flavor == 'codex' && model.isCodex)) {
       return model;
@@ -302,21 +331,33 @@ class ChatModelMode {
         model.isCustom) {
       return model;
     }
+    if (flavor != 'codex' &&
+        _isAllowedRawModel(model.modeString, allowedRawModels)) {
+      return model;
+    }
     return defaultModel;
   }
 
   /// Normalize a stored raw model string for a session flavor while preserving
   /// provider-owned strings that the app cannot parse into picker options.
+  ///
+  /// [allowedRawModels] is the selected profile's configured model list;
+  /// entries survive verbatim (including `:effort` suffixes, which would
+  /// otherwise parse as Codex variants and be dropped on Claude sessions).
   static String normalizeRawForFlavor(
     String value,
     String? flavor, {
     bool preserveProviderOwned = false,
+    List<String>? allowedRawModels,
   }) {
     final trimmed = value.trim();
     if (flavor == 'codex' &&
         !preserveProviderOwned &&
         !isKnownCodexModelString(trimmed)) {
       return defaultModel.modeString;
+    }
+    if (_isAllowedRawModel(trimmed, allowedRawModels)) {
+      return trimmed;
     }
     final parsed = fromString(value);
     final normalized = normalizeForFlavor(parsed, flavor);

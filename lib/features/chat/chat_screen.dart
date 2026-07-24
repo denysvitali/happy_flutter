@@ -578,10 +578,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
       // Re-normalize model only when the session's flavor actually changed
       // to avoid overwriting the user's model selection on every sync event.
+      // Profile-configured models ('GLM-5', …) are valid picks even though
+      // they parse as unknown strings — keep them via the allowlist.
       if (sessionChanged) {
         _modelMode = ChatModelMode.normalizeForFlavor(
           _modelMode,
           latestSession?.metadata?.flavor,
+          allowedRawModels: _selectedProfile?.models,
         );
         unawaited(_refreshCodexModelModes(latestSession));
       }

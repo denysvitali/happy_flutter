@@ -234,6 +234,13 @@ class _GroupedModelPickerContentState
     final defaultModel = widget.models
         .where((model) => model == ChatModelMode.defaultModel)
         .toList();
+    // Plain provider slugs from a profile's model list (e.g. 'GLM-5')
+    // parse with no modelSlug, so they can't join a family group. Render
+    // them as flat tiles or they would vanish from the sheet entirely
+    // whenever any other model does have a slug.
+    final ungrouped = widget.models
+        .where((m) => m.modelSlug == null && m != ChatModelMode.defaultModel)
+        .toList();
     final grouped = <String, List<ChatModelMode>>{};
     for (final model in widget.models.where((m) => m.modelSlug != null)) {
       grouped.putIfAbsent(model.modelSlug!, () => []).add(model);
@@ -267,6 +274,8 @@ class _GroupedModelPickerContentState
               theme,
               widget.onChanged,
             ),
+          for (final model in ungrouped)
+            _buildModelTile(context, model, _current, theme, widget.onChanged),
           for (final entry in grouped.entries)
             _buildGroupedModelRow(
               context,

@@ -106,39 +106,36 @@ ModelSelectionResolution resolveModelSelection({
   final selectedProfileOwnsRawCodexModel = profileOwnsRawCodexModel(
     selectedProfile,
   );
+  // Models configured on the selected profile are provider-owned raw
+  // strings (e.g. 'GLM-5', 'GLM-5:high') that would otherwise normalize
+  // to 'default' — the pick would silently never take effect, and an
+  // effort-suffixed entry would additionally lose its raw string here.
+  final profileModels = selectedProfile?.models;
+
+  String normalizeRaw(String raw) => ChatModelMode.normalizeRawForFlavor(
+    raw,
+    flavor,
+    preserveProviderOwned: selectedProfileOwnsRawCodexModel,
+    allowedRawModels: profileModels,
+  );
+
+  ChatModelMode normalizeModel(String raw) => ChatModelMode.normalizeForFlavor(
+    ChatModelMode.fromString(raw),
+    flavor,
+    allowedRawModels: profileModels,
+  );
 
   // Priority: saved draft > session model > profile default > settings
   // default.
   if (savedModelMode != null) {
-    rawModelModeString = ChatModelMode.normalizeRawForFlavor(
-      savedModelMode,
-      flavor,
-      preserveProviderOwned: selectedProfileOwnsRawCodexModel,
-    );
-    modelMode = ChatModelMode.normalizeForFlavor(
-      ChatModelMode.fromString(rawModelModeString),
-      flavor,
-    );
+    rawModelModeString = normalizeRaw(savedModelMode);
+    modelMode = normalizeModel(rawModelModeString);
   } else if (sessionModelMode != null) {
-    rawModelModeString = ChatModelMode.normalizeRawForFlavor(
-      sessionModelMode,
-      flavor,
-      preserveProviderOwned: selectedProfileOwnsRawCodexModel,
-    );
-    modelMode = ChatModelMode.normalizeForFlavor(
-      ChatModelMode.fromString(rawModelModeString),
-      flavor,
-    );
+    rawModelModeString = normalizeRaw(sessionModelMode);
+    modelMode = normalizeModel(rawModelModeString);
   } else if (selectedProfile?.defaultModelMode case final profileModelMode?) {
-    rawModelModeString = ChatModelMode.normalizeRawForFlavor(
-      profileModelMode,
-      flavor,
-      preserveProviderOwned: selectedProfileOwnsRawCodexModel,
-    );
-    modelMode = ChatModelMode.normalizeForFlavor(
-      ChatModelMode.fromString(rawModelModeString),
-      flavor,
-    );
+    rawModelModeString = normalizeRaw(profileModelMode);
+    modelMode = normalizeModel(rawModelModeString);
   } else if (lastUsedModelMode != null) {
     // Fall back to the user's last-used model preference so new sessions
     // inherit the model the user most recently picked. `lastUsedModelMode`

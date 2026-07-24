@@ -462,4 +462,133 @@ void main() {
       'MiniMax-Text-01',
     );
   });
+
+  group('profile-configured models allowlist', () {
+    test('normalizeForFlavor keeps profile models instead of dropping to '
+        'default', () {
+      // Regression: tapping a profile-configured model ('GLM-5') ran
+      // through normalizeForFlavor in _onModelModeChanged, which mapped
+      // the unknown slug to 'default' — the sheet closed but the model
+      // never took effect.
+      final picked = ChatModelMode.fromString('GLM-5');
+      expect(
+        ChatModelMode.normalizeForFlavor(picked, 'claude'),
+        ChatModelMode.defaultModel,
+      );
+      expect(
+        ChatModelMode.normalizeForFlavor(
+          picked,
+          'claude',
+          allowedRawModels: const ['GLM-5', 'GLM-4.6'],
+        ),
+        picked,
+      );
+    });
+
+    test('normalizeForFlavor keeps effort-suffixed profile models', () {
+      final picked = ChatModelMode.fromString('GLM-5:high');
+      expect(
+        ChatModelMode.normalizeForFlavor(
+          picked,
+          'claude',
+          allowedRawModels: const ['GLM-5', 'GLM-5:high'],
+        ).modeString,
+        'GLM-5:high',
+      );
+    });
+
+    test('allowlist does not leak into Codex sessions', () {
+      final picked = ChatModelMode.fromString('GLM-5:high');
+      expect(
+        ChatModelMode.normalizeForFlavor(
+          picked,
+          'codex',
+          allowedRawModels: const ['GLM-5:high'],
+        ),
+        ChatModelMode.defaultModel,
+      );
+      expect(
+        ChatModelMode.normalizeRawForFlavor(
+          'GLM-5:high',
+          'codex',
+          allowedRawModels: const ['GLM-5:high'],
+        ),
+        'default',
+      );
+    });
+
+    test('normalizeRawForFlavor keeps effort-suffixed profile models on '
+        'Claude sessions', () {
+      // Without the allowlist this parses as a Codex variant and is
+      // rewritten to 'default', losing the saved pick on restore.
+      expect(
+        ChatModelMode.normalizeRawForFlavor('GLM-5:high', 'claude'),
+        'default',
+      );
+      expect(
+        ChatModelMode.normalizeRawForFlavor(
+          'GLM-5:high',
+          'claude',
+          allowedRawModels: const ['GLM-5', 'GLM-5:high'],
+        ),
+        'GLM-5:high',
+      );
+    });
+  });
+
+  testWidgets('plain profile slugs render next to effort-suffixed family '
+      'and commit on tap', (tester) async {
+    // Regression: 'GLM-5' parses with no modelSlug, so when the profile
+    // list also contained 'GLM-5:high' (which has a slug) the grouped
+    // picker dropped the plain variant entirely.
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    String? selected;
+    final models = ChatModelMode.availableForProfile(
+      flavor: 'claude',
+      claudeCompatible: true,
+      profileModels: const ['GLM-5', 'GLM-5:high'],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: TextButton(
+                onPressed: () {
+                  showModelPickerSheet(
+                    context,
+                    ChatModelMode.defaultModel,
+                    models,
+                    (model) => selected = model.modeString,
+                  );
+                },
+                child: const Text('Open'),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    // The plain slug is visible as its own tile even though the grouped
+    // family ('GLM 5') is also present.
+    expect(find.text('GLM-5'), findsOneWidget);
+    expect(find.text('GLM 5'), findsOneWidget);
+
+    await tester.tap(find.text('GLM-5'));
+    await tester.pumpAndSettle();
+
+    // Sheet pops and the exact raw string is committed.
+    expect(selected, 'GLM-5');
+    expect(find.text('GLM-5'), findsNothing);
+  });
 }
