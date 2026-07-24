@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/workflow_run.dart';
 import '../../core/providers/app_providers.dart';
@@ -409,57 +410,13 @@ class _AgentConversationScreenState
       ],
     );
 
-    if (!widget.embedded) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                description,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium,
-              ),
-              if (subagentType != null)
-                Text(
-                  subagentType,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-            ],
-          ),
-          actions: [
-            if (isRunning)
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.lg),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        body: body,
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _AgentEmbeddedHeader(
-          description: description,
-          subagentType: subagentType,
-          isRunning: isRunning,
-          onClose: widget.onClose,
-        ),
-        Expanded(child: body),
-      ],
+    return EmbeddedPaneShell(
+      title: description,
+      subtitle: subagentType,
+      body: body,
+      embedded: widget.embedded,
+      showProgress: isRunning,
+      onClose: widget.onClose,
     );
   }
 
@@ -775,92 +732,6 @@ class _AgentConversationScreenState
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-    );
-  }
-}
-
-// ----------------------------------------------------------
-// Embedded header
-// ----------------------------------------------------------
-
-class _AgentEmbeddedHeader extends StatelessWidget {
-  const _AgentEmbeddedHeader({
-    required this.description,
-    required this.isRunning,
-    this.subagentType,
-    this.onClose,
-  });
-
-  final String description;
-  final String? subagentType;
-  final bool isRunning;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant,
-            width: AppBorder.hairline,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  description,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (subagentType != null)
-                  Text(
-                    subagentType!,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (isRunning)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ),
-          if (onClose != null)
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 20),
-              // TODO(i18n): close tooltip not yet localized
-              tooltip: 'Close',
-              onPressed: onClose,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-            ),
-        ],
-      ),
     );
   }
 }
@@ -1242,7 +1113,7 @@ class _StepChipRow extends StatelessWidget {
     final cs = theme.colorScheme;
     final label = WorkflowRun.stepLabel(msg);
     final state = WorkflowRun.stepState(msg);
-    final (icon, color) = _stateStyle(state, cs);
+    final (icon, color) = workflowStateStyle(state, cs);
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -1270,22 +1141,6 @@ class _StepChipRow extends StatelessWidget {
     );
   }
 
-  (IconData, Color) _stateStyle(String state, ColorScheme cs) {
-    switch (state) {
-      case 'done':
-      case 'completed':
-        return (Icons.check_circle_outline_rounded, AppColors.success);
-      case 'error':
-      case 'failed':
-        return (Icons.error_outline_rounded, cs.error);
-      case 'start':
-      case 'running':
-      case 'progress':
-        return (Icons.play_circle_outline_rounded, cs.primary);
-      default:
-        return (Icons.circle_outlined, cs.onSurfaceVariant);
-    }
-  }
 }
 
 /// True when [text] is the async sub-agent launch receipt — internal metadata

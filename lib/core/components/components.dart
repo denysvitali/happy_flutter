@@ -29,6 +29,7 @@ export 'package:happy_flutter/core/components/settings_section.dart';
 export 'package:happy_flutter/core/components/shimmer_view.dart';
 export 'package:happy_flutter/core/components/sidebar/app_sidebar.dart';
 export 'package:happy_flutter/core/components/sidebar_view.dart';
+export 'package:happy_flutter/core/components/tablet/embedded_pane.dart';
 export 'package:happy_flutter/core/components/tablet/master_detail_scaffold.dart';
 export 'package:happy_flutter/core/components/tablet/resizable_pane_divider.dart';
 export 'package:happy_flutter/core/components/task_detail_dialog.dart';

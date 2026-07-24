@@ -4,6 +4,7 @@ import '../../../../core/models/workflow_run.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/wire_parsers.dart';
+import '../../../workflows/workflow_display.dart';
 
 /// Compact inline progress for a Claude Code dynamic workflow.
 ///
@@ -284,7 +285,11 @@ class _AgentStatusRow extends StatelessWidget {
     final phaseTitle = agent.phaseTitle;
     final model = agent.model;
 
-    final (icon, color) = _stateStyle(agent.state, cs);
+    final (icon, color) = workflowStateStyle(
+      agent.state,
+      cs,
+      pendingIcon: Icons.hourglass_empty_rounded,
+    );
 
     return Padding(
       padding: const EdgeInsets.only(left: 24, bottom: AppSpacing.xxs),
@@ -327,22 +332,6 @@ class _AgentStatusRow extends StatelessWidget {
     );
   }
 
-  (IconData, Color) _stateStyle(String state, ColorScheme cs) {
-    switch (state) {
-      case 'done':
-      case 'completed':
-        return (Icons.check_circle_outline_rounded, AppColors.success);
-      case 'error':
-      case 'failed':
-        return (Icons.error_outline_rounded, cs.error);
-      case 'start':
-      case 'running':
-      case 'progress':
-        return (Icons.play_circle_outline_rounded, cs.primary);
-      default:
-        return (Icons.hourglass_empty_rounded, cs.onSurfaceVariant);
-    }
-  }
 }
 
 class _MiniStat extends StatelessWidget {
@@ -427,7 +416,7 @@ class _InlineStepRow extends StatelessWidget {
     final cs = theme.colorScheme;
     final label = WorkflowRun.stepLabel(step);
     final state = WorkflowRun.stepState(step);
-    final (icon, color) = _stateStyle(state, cs);
+    final (icon, color) = workflowStateStyle(state, cs);
     return Padding(
       padding: const EdgeInsets.only(left: 24, bottom: AppSpacing.xxs),
       child: Row(
@@ -454,20 +443,4 @@ class _InlineStepRow extends StatelessWidget {
     );
   }
 
-  (IconData, Color) _stateStyle(String state, ColorScheme cs) {
-    switch (state) {
-      case 'done':
-      case 'completed':
-        return (Icons.check_circle_outline_rounded, AppColors.success);
-      case 'error':
-      case 'failed':
-        return (Icons.error_outline_rounded, cs.error);
-      case 'start':
-      case 'running':
-      case 'progress':
-        return (Icons.play_circle_outline_rounded, cs.primary);
-      default:
-        return (Icons.circle_outlined, cs.onSurfaceVariant);
-    }
-  }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
@@ -63,71 +64,11 @@ class SessionRecentScreen extends ConsumerWidget {
             ),
           );
 
-    if (!embedded) {
-      return Scaffold(
-        appBar: AppBar(title: Text(l10n.sessionsRecentTitle)),
-        body: body,
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _RecentEmbeddedHeader(
-          title: l10n.sessionsRecentTitle,
-          onClose: onClose,
-        ),
-        Expanded(child: body),
-      ],
-    );
-  }
-}
-
-class _RecentEmbeddedHeader extends StatelessWidget {
-  const _RecentEmbeddedHeader({required this.title, this.onClose});
-
-  final String title;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant,
-            width: AppBorder.hairline,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (onClose != null)
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 20),
-              // TODO(i18n): close tooltip not yet localized
-              tooltip: 'Close',
-              onPressed: onClose,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-            ),
-        ],
-      ),
+    return EmbeddedPaneShell(
+      title: l10n.sessionsRecentTitle,
+      body: body,
+      embedded: embedded,
+      onClose: onClose,
     );
   }
 }

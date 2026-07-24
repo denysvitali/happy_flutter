@@ -10,6 +10,7 @@ import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 
 import '../../core/components/app_empty_state.dart';
+import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/providers/app_providers.dart';
 import 'markdown/markdown_view.dart';
 import 'syntax_highlighter.dart';
@@ -303,26 +304,13 @@ class _SessionFileViewerScreenState
       ],
     );
 
-    if (!widget.embedded) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(_fileName, overflow: TextOverflow.ellipsis),
-          actions: actions,
-        ),
-        body: body,
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _FileViewerEmbeddedHeader(
-          fileName: _fileName,
-          actions: actions,
-          onClose: widget.onClose,
-        ),
-        Expanded(child: body),
-      ],
+    return EmbeddedPaneShell(
+      title: _fileName,
+      body: body,
+      embedded: widget.embedded,
+      appBarActions: actions,
+      headerActions: actions,
+      onClose: widget.onClose,
     );
   }
 
@@ -448,65 +436,6 @@ class _ImageView extends StatelessWidget {
             },
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// In-pane header used when the viewer is embedded inside a tablet
-/// master-detail scaffold. Shows the file name, the same action buttons
-/// as the AppBar, and a close button.
-class _FileViewerEmbeddedHeader extends StatelessWidget {
-  const _FileViewerEmbeddedHeader({
-    required this.fileName,
-    required this.actions,
-    this.onClose,
-  });
-
-  final String fileName;
-  final List<Widget> actions;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant,
-            width: AppBorder.hairline,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              fileName,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          ...actions,
-          if (onClose != null)
-            IconButton(
-              icon: const Icon(Icons.close_rounded, size: 20),
-              // TODO(i18n): close tooltip not yet localized
-              tooltip: 'Close',
-              onPressed: onClose,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-              padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-            ),
-        ],
       ),
     );
   }

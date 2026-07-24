@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/code_viewer_theme.dart';
@@ -54,7 +55,7 @@ class MessageDetailScreen extends ConsumerWidget {
     final data = messageData;
 
     if (data == null) {
-      return _ScreenShell(
+      return EmbeddedPaneShell(
         title: context.l10n.messageDetailTitle,
         embedded: embedded,
         onClose: onClose,
@@ -64,7 +65,7 @@ class MessageDetailScreen extends ConsumerWidget {
 
     final kind = data['kind'] as String? ?? 'unknown';
     if (kind != 'tool-call') {
-      return _ScreenShell(
+      return EmbeddedPaneShell(
         title: context.l10n.messageDetailTitle,
         embedded: embedded,
         onClose: onClose,
@@ -72,85 +73,11 @@ class MessageDetailScreen extends ConsumerWidget {
       );
     }
 
-    return _ScreenShell(
+    return EmbeddedPaneShell(
       title: context.l10n.toolDetailsTitle,
       embedded: embedded,
       onClose: onClose,
       body: _ToolDetailView(data: data),
-    );
-  }
-}
-
-/// Wraps [body] in a [Scaffold] (route mode) or a thin in-pane header +
-/// body column (embedded mode for tablet master-detail).
-class _ScreenShell extends StatelessWidget {
-  const _ScreenShell({
-    required this.title,
-    required this.body,
-    required this.embedded,
-    this.onClose,
-  });
-
-  final String title;
-  final Widget body;
-  final bool embedded;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!embedded) {
-      return Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: body,
-      );
-    }
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(
-                color: theme.colorScheme.outlineVariant,
-                width: AppBorder.hairline,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (onClose != null)
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  // TODO(i18n): close tooltip not yet localized
-                  tooltip: 'Close',
-                  onPressed: onClose,
-                  constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 36,
-                  ),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                ),
-            ],
-          ),
-        ),
-        Expanded(child: body),
-      ],
     );
   }
 }

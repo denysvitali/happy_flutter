@@ -1,6 +1,37 @@
+import 'package:flutter/material.dart';
+
 import '../../core/models/workflow_run.dart';
+import '../../core/theme/app_colors.dart';
 
 /// Display helpers shared by the workflows list and run detail screens.
+
+/// Icon + colour for a workflow agent/phase wire state.
+///
+/// The wire sends `running` / `progress` for live work, so those cases must
+/// be handled explicitly or every in-flight item falls into the pending
+/// bucket. [pendingIcon] distinguishes the two call sites that existed
+/// before this was shared: agent rows show an hourglass while waiting,
+/// phase rows show an empty circle.
+(IconData, Color) workflowStateStyle(
+  String state,
+  ColorScheme cs, {
+  IconData pendingIcon = Icons.circle_outlined,
+}) {
+  switch (state) {
+    case 'done':
+    case 'completed':
+      return (Icons.check_circle_outline_rounded, AppColors.success);
+    case 'error':
+    case 'failed':
+      return (Icons.error_outline_rounded, cs.error);
+    case 'start':
+    case 'running':
+    case 'progress':
+      return (Icons.play_circle_outline_rounded, cs.primary);
+    default:
+      return (pendingIcon, cs.onSurfaceVariant);
+  }
+}
 
 /// Matches auto-generated run names (`wf_a6c2cfba-460`) that carry no
 /// information beyond the run id itself.

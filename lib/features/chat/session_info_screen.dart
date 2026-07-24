@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
 import '../../core/components/app_section_header.dart';
+import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
@@ -80,7 +81,7 @@ class SessionInfoScreen extends ConsumerWidget {
     final title = context.l10n.sessionInfoTitle;
 
     if (session == null) {
-      return _InfoShell(
+      return EmbeddedPaneShell(
         title: title,
         embedded: embedded,
         onClose: onClose,
@@ -88,85 +89,11 @@ class SessionInfoScreen extends ConsumerWidget {
       );
     }
 
-    return _InfoShell(
+    return EmbeddedPaneShell(
       title: title,
       embedded: embedded,
       onClose: onClose,
       body: _SessionInfoBody(session: session, embedded: embedded),
-    );
-  }
-}
-
-/// Wraps [body] in a [Scaffold] (route mode) or a thin in-pane header +
-/// body column (embedded mode for tablet master-detail).
-class _InfoShell extends StatelessWidget {
-  const _InfoShell({
-    required this.title,
-    required this.body,
-    required this.embedded,
-    this.onClose,
-  });
-
-  final String title;
-  final Widget body;
-  final bool embedded;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!embedded) {
-      return Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: body,
-      );
-    }
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(
-                color: theme.colorScheme.outlineVariant,
-                width: AppBorder.hairline,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (onClose != null)
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  // TODO(i18n): close tooltip not yet localized
-                  tooltip: 'Close',
-                  onPressed: onClose,
-                  constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 36,
-                  ),
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                ),
-            ],
-          ),
-        ),
-        Expanded(child: body),
-      ],
     );
   }
 }

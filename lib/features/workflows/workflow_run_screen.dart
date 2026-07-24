@@ -601,7 +601,11 @@ class _AgentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final (icon, color) = _stateStyle(agent.state, cs);
+    final (icon, color) = workflowStateStyle(
+      agent.state,
+      cs,
+      pendingIcon: Icons.hourglass_empty_rounded,
+    );
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.xs),
@@ -681,22 +685,6 @@ class _AgentRow extends StatelessWidget {
   /// Mirrors the chat inline view: the wire sends `running` / `progress`
   /// for live agents, so without those cases every in-flight agent would
   /// fall into the "waiting" hourglass.
-  (IconData, Color) _stateStyle(String state, ColorScheme cs) {
-    switch (state) {
-      case 'done':
-      case 'completed':
-        return (Icons.check_circle_outline_rounded, AppColors.success);
-      case 'error':
-      case 'failed':
-        return (Icons.error_outline_rounded, cs.error);
-      case 'start':
-      case 'running':
-      case 'progress':
-        return (Icons.play_circle_outline_rounded, cs.primary);
-      default:
-        return (Icons.hourglass_empty_rounded, cs.onSurfaceVariant);
-    }
-  }
 }
 
 class _AgentDetailBlock extends StatelessWidget {
@@ -786,7 +774,7 @@ class _StepRow extends StatelessWidget {
     final cs = theme.colorScheme;
     final label = WorkflowRun.stepLabel(step);
     final state = WorkflowRun.stepState(step);
-    final (icon, color) = _stateStyle(state, cs);
+    final (icon, color) = workflowStateStyle(state, cs);
     final lastTool = WireParsers.parseString(step['subAgentLastTool']);
 
     return Padding(
@@ -827,20 +815,4 @@ class _StepRow extends StatelessWidget {
     );
   }
 
-  (IconData, Color) _stateStyle(String state, ColorScheme cs) {
-    switch (state) {
-      case 'done':
-      case 'completed':
-        return (Icons.check_circle_outline_rounded, AppColors.success);
-      case 'error':
-      case 'failed':
-        return (Icons.error_outline_rounded, cs.error);
-      case 'start':
-      case 'running':
-      case 'progress':
-        return (Icons.play_circle_outline_rounded, cs.primary);
-      default:
-        return (Icons.circle_outlined, cs.onSurfaceVariant);
-    }
-  }
 }
