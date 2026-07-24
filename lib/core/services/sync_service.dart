@@ -101,6 +101,8 @@ part '_sync_messaging_send.dart';
 part '_sync_operations.dart';
 part '_sync_operations_mcp.dart';
 part '_sync_operations_session.dart';
+part '_sync_operations_session_profile.dart';
+part '_sync_operations_machine_rpc.dart';
 part '_sync_sessions.dart';
 part '_sync_socket.dart';
 part '_sync_socket_events.dart';
