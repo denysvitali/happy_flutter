@@ -5,6 +5,32 @@ import 'elapsed_time.dart';
 import 'tool_status_indicator.dart';
 import 'tool_view_helpers.dart';
 
+/// Outer chrome for a boxed tool result card (bash, read, diff, patch…).
+///
+/// Shared so the seven views that draw this box can't drift apart.
+BoxDecoration toolCardDecoration(ColorScheme cs) => BoxDecoration(
+  color: cs.surface,
+  borderRadius: BorderRadius.circular(AppRadius.sm),
+  border: Border.all(color: cs.outlineVariant),
+);
+
+/// Chrome for the title bar that sits at the top of a [toolCardDecoration]
+/// card: matching top corner radius plus a hairline separator underneath.
+BoxDecoration toolCardHeaderDecoration(ColorScheme cs) => BoxDecoration(
+  color: cs.surfaceContainer,
+  borderRadius: const BorderRadius.only(
+    topLeft: Radius.circular(AppRadius.sm),
+    topRight: Radius.circular(AppRadius.sm),
+  ),
+  border: Border(bottom: BorderSide(color: cs.outlineVariant)),
+);
+
+/// Padding used inside a [toolCardHeaderDecoration] title bar.
+const EdgeInsets toolCardHeaderPadding = EdgeInsets.symmetric(
+  horizontal: AppSpacing.smd,
+  vertical: AppSpacing.xsm,
+);
+
 /// Compact single-line header for a tool row — icon, title, optional inline
 /// status and subtitle, state-specific trailing, and expand/collapse chevron.
 ///

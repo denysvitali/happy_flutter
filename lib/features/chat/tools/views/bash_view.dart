@@ -10,6 +10,7 @@ import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
 import '_section_label.dart';
+import '../tool_view_widgets.dart';
 
 /// View for displaying Bash tool command and output.
 class BashView extends StatelessWidget {
@@ -262,29 +263,15 @@ class _TerminalCommandBar extends StatelessWidget {
     final label = description ?? 'bash';
 
     return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+      decoration: toolCardDecoration(cs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Title bar -- description (or "bash") + copy button
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.smd,
-              vertical: AppSpacing.xsm,
-            ),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainer,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppRadius.sm),
-                topRight: Radius.circular(AppRadius.sm),
-              ),
-              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-            ),
+            padding: toolCardHeaderPadding,
+            decoration: toolCardHeaderDecoration(cs),
             child: Row(
               children: [
                 Icon(Icons.terminal,

@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/ui/diff/calculate_diff.dart';
 import 'package:happy_flutter/core/ui/diff/unified_diff_view.dart';
+import '../tool_view_widgets.dart';
 
 /// Shared chrome for diff-rendering tool views.
 ///
@@ -75,11 +76,7 @@ class _FileDiffViewState extends State<FileDiffView> {
     final show = isShort || _expanded;
 
     return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+      decoration: toolCardDecoration(cs),
       clipBehavior: Clip.hardEdge,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,14 +303,7 @@ class _FileDiffHeader extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(AppRadius.sm),
-          topRight: Radius.circular(AppRadius.sm),
-        ),
-        border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-      ),
+      decoration: toolCardHeaderDecoration(cs),
       child: Row(
         children: [
           if (icon != null) ...[

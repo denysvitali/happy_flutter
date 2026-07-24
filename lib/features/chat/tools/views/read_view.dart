@@ -15,6 +15,7 @@ import 'package:happy_flutter/features/chat/syntax_highlighter.dart';
 import '../tool_section_view.dart';
 import '_section_label.dart';
 import 'bash_view.dart' show FilePillChip;
+import '../tool_view_widgets.dart';
 
 /// View for displaying Read tool file content preview.
 class ReadView extends StatelessWidget {
@@ -212,28 +213,14 @@ class _FileHeader extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+      decoration: toolCardDecoration(cs),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Title bar: file icon + path + copy button
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.smd,
-              vertical: AppSpacing.xsm,
-            ),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainer,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppRadius.sm),
-                topRight: Radius.circular(AppRadius.sm),
-              ),
-              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-            ),
+            padding: toolCardHeaderPadding,
+            decoration: toolCardHeaderDecoration(cs),
             child: Row(
               children: [
                 _FileIcon(extension: extension),
@@ -463,11 +450,7 @@ class _ContentBlockState extends State<_ContentBlock> {
     final viewportHeight = math.min(_kContentMaxHeight, contentHeight);
 
     return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+      decoration: toolCardDecoration(cs),
       // Bounded scrollable viewport. Long files render in a fixed-height
       // pane (instead of growing the chat row), and the user can drag/scroll
       // within the pane to reach lines past the viewport.

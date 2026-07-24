@@ -11,6 +11,7 @@ import 'package:happy_flutter/core/utils/tool_result_parser.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
+import '../tool_view_widgets.dart';
 
 /// View for displaying CodexBash tool (parsed bash commands).
 class CodexBashView extends StatelessWidget {
@@ -174,29 +175,15 @@ class _FileOperationBar extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+      decoration: toolCardDecoration(cs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Title bar
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.smd,
-              vertical: AppSpacing.xsm,
-            ),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainer,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppRadius.sm),
-                topRight: Radius.circular(AppRadius.sm),
-              ),
-              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-            ),
+            padding: toolCardHeaderPadding,
+            decoration: toolCardHeaderDecoration(cs),
             child: Row(
               children: [
                 Icon(icon, size: AppIconSize.sm, color: iconColor),
@@ -360,29 +347,15 @@ class _TerminalCommandBar extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return Container(
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+      decoration: toolCardDecoration(cs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Title bar
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.smd,
-              vertical: AppSpacing.xsm,
-            ),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainer,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppRadius.sm),
-                topRight: Radius.circular(AppRadius.sm),
-              ),
-              border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-            ),
+            padding: toolCardHeaderPadding,
+            decoration: toolCardHeaderDecoration(cs),
             child: Row(
               children: [
                 Icon(Icons.terminal,

@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../../syntax_highlighter.dart';
 import '../json_viewer.dart';
 import '../tool_section_view.dart';
+import '../tool_view_widgets.dart';
 
 /// File change model for CodexPatch results.
 class FileChange {
@@ -92,11 +93,7 @@ class CodexPatchView extends StatelessWidget {
 
     return ToolSectionView(
       child: Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: cs.outlineVariant),
-        ),
+        decoration: toolCardDecoration(cs),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -515,14 +512,7 @@ class _PatchHeaderBar extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(AppRadius.sm),
-          topRight: Radius.circular(AppRadius.sm),
-        ),
-        border: Border(bottom: BorderSide(color: cs.outlineVariant)),
-      ),
+      decoration: toolCardHeaderDecoration(cs),
       child: Row(
         children: [
           Icon(Icons.edit_note, size: 14, color: cs.onSurfaceVariant),
