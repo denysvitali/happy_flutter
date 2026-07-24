@@ -38,8 +38,6 @@ import '../models/settings.dart';
 import '../models/workflow_run.dart';
 import '../rpc/rpc_types.dart';
 import '../sync/artifact_manager.dart';
-import '../sync/machine_manager.dart';
-import '../sync/session_manager.dart';
 import '../sync/settings_manager.dart';
 import '../sync/sync_exceptions.dart';
 import '../sync/sync_progress.dart';
@@ -282,8 +280,6 @@ what you have, you must use the options mode.
   late Encryption encryption;
   ArtifactManager? artifactManager;
   SettingsManager? settingsManager;
-  SessionManager? sessionManager;
-  MachineManager? machineManager;
   bool _encryptionInitialized = false;
   late String serverID;
   late String anonID;

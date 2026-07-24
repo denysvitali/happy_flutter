@@ -24,63 +24,7 @@ extension SyncSocket on Sync {
     _encryptionInitialized = true;
     anonID = encryption.anonId;
     serverID = parseToken(credentials.token);
-    artifactManager = ArtifactManager(
-      encryption: encryption,
-      artifactsSyncGetter: () => artifactsSync,
-      onDataChanged: _notifyDataChanged,
-    );
-    settingsManager = SettingsManager(
-      encryption: encryption,
-      nativeUpdateFreshnessMs: Sync._nativeUpdateFreshnessMs,
-      isTransientConnectionError: Sync._isTransientConnectionError,
-      settingsSyncGetter: () => settingsSync,
-      profileSyncGetter: () => profileSync,
-      purchasesSyncGetter: () => purchasesSync,
-      onDataChanged: _notifyDataChanged,
-    );
-    sessionManager = SessionManager(
-      encryption: encryption,
-      sessionsSyncGetter: () => sessionsSync,
-      onDataChanged: _notifyDataChanged,
-      onSessionMessagesChanged: _notifySessionMessagesChanged,
-      ensureSessionEncryptionInitialized: _ensureSessionEncryptionInitialized,
-      isTransientConnectionError: Sync._isTransientConnectionError,
-      applyPermissionRequests: (sessionId) async =>
-          _applyPermissionRequests(sessionId),
-      checkForNewPermissionRequests: _checkForNewPermissionRequests,
-      onFetchSessionsStarted: null,
-      onSyncProgress: _setSyncProgress,
-      scheduleSaveSessionsCache: _scheduleSaveSessionsCache,
-    );
-    sessionManager!.bindLateDependencies(
-      sessionMessages: _sessionMessages,
-      onSessionDeleted: _onSessionDeleted,
-    );
-    machineManager = MachineManager(
-      encryption: encryption,
-      settingsSnapshotGetter: () =>
-          settingsManager?.settingsSnapshot ?? Settings(),
-      machinesSyncGetter: () => machinesSync,
-      onDataChanged: _notifyDataChanged,
-      fetchSingleSession: (sessionId) async {
-        await sessionManager?.fetchSingleSession(sessionId);
-      },
-      refreshSessions: () async {
-        await sessionManager?.refreshSessions();
-      },
-      ensureMachineReachable: ensureMachineReachable,
-      isTransientRpcError: Sync._isTransientRpcError,
-      isRpcMethodNotAvailable: Sync._isRpcMethodNotAvailable,
-      isTransientConnectionError: Sync._isTransientConnectionError,
-      onSessionVisible: onSessionVisible,
-      machineRPCOverride: (machineId, method, params, {timeout}) async {
-        final override = testMachineRPCOverride;
-        if (override == null) return null;
-        return override(machineId, method, params);
-      },
-      onFetchMachinesStarted: null,
-      onSyncProgress: _setSyncProgress,
-    );
+    _constructManagers(encryption);
     await _init();
 
     // Await initial syncs in parallel — these are independent HTTP
@@ -110,6 +54,16 @@ extension SyncSocket on Sync {
     _encryptionInitialized = true;
     anonID = encryption.anonId;
     serverID = parseToken(credentials.token);
+    _constructManagers(encryption);
+    await _init();
+    // isInitialized is set early inside _init() after cache restore.
+  }
+
+  /// Builds the extracted state managers that [Sync] delegates to.
+  ///
+  /// Shared by [create] and [restore] — both entry points need the exact
+  /// same wiring, and duplicating it once caused the two paths to drift.
+  void _constructManagers(Encryption encryption) {
     artifactManager = ArtifactManager(
       encryption: encryption,
       artifactsSyncGetter: () => artifactsSync,
@@ -124,51 +78,6 @@ extension SyncSocket on Sync {
       purchasesSyncGetter: () => purchasesSync,
       onDataChanged: _notifyDataChanged,
     );
-    sessionManager = SessionManager(
-      encryption: encryption,
-      sessionsSyncGetter: () => sessionsSync,
-      onDataChanged: _notifyDataChanged,
-      onSessionMessagesChanged: _notifySessionMessagesChanged,
-      ensureSessionEncryptionInitialized: _ensureSessionEncryptionInitialized,
-      isTransientConnectionError: Sync._isTransientConnectionError,
-      applyPermissionRequests: (sessionId) async =>
-          _applyPermissionRequests(sessionId),
-      checkForNewPermissionRequests: _checkForNewPermissionRequests,
-      onFetchSessionsStarted: null,
-      onSyncProgress: _setSyncProgress,
-      scheduleSaveSessionsCache: _scheduleSaveSessionsCache,
-    );
-    sessionManager!.bindLateDependencies(
-      sessionMessages: _sessionMessages,
-      onSessionDeleted: _onSessionDeleted,
-    );
-    machineManager = MachineManager(
-      encryption: encryption,
-      settingsSnapshotGetter: () =>
-          settingsManager?.settingsSnapshot ?? Settings(),
-      machinesSyncGetter: () => machinesSync,
-      onDataChanged: _notifyDataChanged,
-      fetchSingleSession: (sessionId) async {
-        await sessionManager?.fetchSingleSession(sessionId);
-      },
-      refreshSessions: () async {
-        await sessionManager?.refreshSessions();
-      },
-      ensureMachineReachable: ensureMachineReachable,
-      isTransientRpcError: Sync._isTransientRpcError,
-      isRpcMethodNotAvailable: Sync._isRpcMethodNotAvailable,
-      isTransientConnectionError: Sync._isTransientConnectionError,
-      onSessionVisible: onSessionVisible,
-      machineRPCOverride: (machineId, method, params, {timeout}) async {
-        final override = testMachineRPCOverride;
-        if (override == null) return null;
-        return override(machineId, method, params);
-      },
-      onFetchMachinesStarted: null,
-      onSyncProgress: _setSyncProgress,
-    );
-    await _init();
-    // isInitialized is set early inside _init() after cache restore.
   }
 
   /// Internal initialization
