@@ -498,12 +498,15 @@ void main() {
     });
 
     test('allowlist does not leak into Codex sessions', () {
-      final picked = ChatModelMode.fromString('GLM-5:high');
+      // A plain provider slug parses with no flavor; on a Codex session
+      // it must still normalize to default even when allowlisted —
+      // profile models are only offered for Claude-compatible sessions.
+      final picked = ChatModelMode.fromString('GLM-5');
       expect(
         ChatModelMode.normalizeForFlavor(
           picked,
           'codex',
-          allowedRawModels: const ['GLM-5:high'],
+          allowedRawModels: const ['GLM-5'],
         ),
         ChatModelMode.defaultModel,
       );
