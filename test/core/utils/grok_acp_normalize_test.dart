@@ -123,6 +123,43 @@ void main() {
       expect(map['exitCode'], 0);
     });
 
+    test('omits shell fields that are absent from the raw output', () {
+      // Regression: the map used `?'stderr': value`, which tests the *key*
+      // for null, not the value — so absent fields were emitted as explicit
+      // nulls. happy-cli-go omits them, so the client must too.
+      final result =
+          normalizeGrokToolResult({
+                'output': 'capture-ok\n',
+                'exit_code': 0,
+              })
+              as Map;
+      expect(result['stdout'], 'capture-ok\n');
+      expect(result['exitCode'], 0);
+      expect(result.containsKey('stderr'), isFalse);
+      expect(result.containsKey('command'), isFalse);
+      expect(result.containsKey('description'), isFalse);
+      expect(result.containsKey('truncated'), isFalse);
+      expect(result.containsKey('timedOut'), isFalse);
+    });
+
+    test('keeps shell fields that are present', () {
+      final result =
+          normalizeGrokToolResult({
+                'output': 'oops\n',
+                'stderr': 'boom',
+                'exit_code': 1,
+                'command': 'false',
+                'truncated': true,
+                'timed_out': false,
+              })
+              as Map;
+      expect(result['stderr'], 'boom');
+      expect(result['exitCode'], 1);
+      expect(result['command'], 'false');
+      expect(result['truncated'], true);
+      expect(result['timedOut'], false);
+    });
+
     test('parses ListDir tree into entries', () {
       final result = normalizeGrokToolResult({
         'type': 'ListDir',

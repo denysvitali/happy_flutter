@@ -331,13 +331,18 @@ Map<String, dynamic> _normalizeShellResult(
   } else if (exitRaw is String) {
     exitCode = int.tryParse(exitRaw);
   }
+  // `key: ?value` omits the entry when the value is null. The `?key: value`
+  // form omits it when the *key* is null, which for constant string keys
+  // never happens — so that form silently emitted `'stderr': null` and
+  // friends instead of leaving them out. Matches happy-cli-go, which omits
+  // empty fields.
   return {
-    ?'stdout': stdout,
-    ?'stderr': map['stderr'],
-    ?'exitCode': exitCode,
-    ?'command': map['command'],
-    ?'description': map['description'],
-    ?'truncated': map['truncated'],
+    'stdout': ?stdout,
+    'stderr': ?map['stderr'],
+    'exitCode': ?exitCode,
+    'command': ?map['command'],
+    'description': ?map['description'],
+    'truncated': ?map['truncated'],
     if (map['timed_out'] != null) 'timedOut': map['timed_out'],
   };
 }
