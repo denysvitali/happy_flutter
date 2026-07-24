@@ -9558,6 +9558,342 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image (not available offline)'**
   String get chatImageNotCached;
+
+  /// Generic refresh action label
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get commonRefresh;
+
+  /// Generic overflow-menu tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get commonMore;
+
+  /// Label shown on a save button while the write is in flight
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get commonSaving;
+
+  /// Settings row opening remote MCP server management
+  ///
+  /// In en, this message translates to:
+  /// **'MCP Servers'**
+  String get settingsMcpServers;
+
+  /// Subtitle for the MCP servers settings row
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Claude Code MCP servers on your machines'**
+  String get settingsMcpServersSubtitle;
+
+  /// Title of the MCP server management screen
+  ///
+  /// In en, this message translates to:
+  /// **'MCP Servers'**
+  String get mcpServersTitle;
+
+  /// Action that opens the new-MCP-server form
+  ///
+  /// In en, this message translates to:
+  /// **'Add server'**
+  String get mcpAddServer;
+
+  /// Title of the MCP server edit form
+  ///
+  /// In en, this message translates to:
+  /// **'Edit MCP server'**
+  String get mcpEditTitle;
+
+  /// Section title for the machine picker
+  ///
+  /// In en, this message translates to:
+  /// **'Machine'**
+  String get mcpMachineSection;
+
+  /// Section title for the project directory picker
+  ///
+  /// In en, this message translates to:
+  /// **'Project'**
+  String get mcpProjectSection;
+
+  /// Helper text under the project picker
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a project to also manage its project-scoped servers.'**
+  String get mcpProjectHelper;
+
+  /// Project picker option meaning no project selected
+  ///
+  /// In en, this message translates to:
+  /// **'All machines scopes only'**
+  String get mcpProjectNone;
+
+  /// Validation error when a project scope has no directory
+  ///
+  /// In en, this message translates to:
+  /// **'Select a project directory for this scope'**
+  String get mcpProjectRequired;
+
+  /// Empty state title when the machine declares no MCP servers
+  ///
+  /// In en, this message translates to:
+  /// **'No MCP servers'**
+  String get mcpNoServersTitle;
+
+  /// Empty state subtitle for MCP servers
+  ///
+  /// In en, this message translates to:
+  /// **'Add a server to make new tools available to Claude Code on this machine.'**
+  String get mcpNoServersSubtitle;
+
+  /// Error shown when the mcp-list RPC fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the MCP configuration from this machine'**
+  String get mcpLoadFailed;
+
+  /// Error shown when the mcp-set RPC fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the MCP server'**
+  String get mcpSaveFailed;
+
+  /// Error shown when toggling a server fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t change {name}'**
+  String mcpToggleFailed(String name);
+
+  /// Title of the MCP server delete confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Delete MCP server'**
+  String get mcpDeleteTitle;
+
+  /// Body of the MCP server delete confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {name} from the {scope} scope on this machine?'**
+  String mcpDeleteConfirm(String name, String scope);
+
+  /// Error shown when deleting a server fails
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t delete {name}'**
+  String mcpDeleteFailed(String name);
+
+  /// Label for the user MCP scope
+  ///
+  /// In en, this message translates to:
+  /// **'User — ~/.claude.json'**
+  String get mcpScopeUser;
+
+  /// Label for the user-settings MCP scope
+  ///
+  /// In en, this message translates to:
+  /// **'User settings — ~/.claude/settings.json'**
+  String get mcpScopeUserSettings;
+
+  /// Label for the local MCP scope
+  ///
+  /// In en, this message translates to:
+  /// **'Project (private) — ~/.claude.json'**
+  String get mcpScopeLocal;
+
+  /// Label for the project MCP scope
+  ///
+  /// In en, this message translates to:
+  /// **'Project (shared) — .mcp.json'**
+  String get mcpScopeProject;
+
+  /// Label for the project-settings MCP scope
+  ///
+  /// In en, this message translates to:
+  /// **'Project settings — .claude/settings.json'**
+  String get mcpScopeProjectSettings;
+
+  /// Label for the local-settings MCP scope
+  ///
+  /// In en, this message translates to:
+  /// **'Project settings (local) — .claude/settings.local.json'**
+  String get mcpScopeLocalSettings;
+
+  /// Helper text under the scope picker
+  ///
+  /// In en, this message translates to:
+  /// **'Scope decides which file on the machine the server is written to.'**
+  String get mcpScopeHelper;
+
+  /// Badge shown when a server requires an interactive login
+  ///
+  /// In en, this message translates to:
+  /// **'Needs auth'**
+  String get mcpBadgeNeedsAuth;
+
+  /// Badge shown when a higher-priority scope declares the same server name
+  ///
+  /// In en, this message translates to:
+  /// **'Shadowed'**
+  String get mcpBadgeShadowed;
+
+  /// Badge shown for a shared .mcp.json server that has not been approved
+  ///
+  /// In en, this message translates to:
+  /// **'Not approved'**
+  String get mcpBadgeAwaitingApproval;
+
+  /// Header for the list of Claude config file paths
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration files'**
+  String get mcpSourceFiles;
+
+  /// Note shown when enableAllProjectMcpServers is set
+  ///
+  /// In en, this message translates to:
+  /// **'Shared project servers are auto-approved on this machine.'**
+  String get mcpApproveAllEnabled;
+
+  /// Section title for the name and scope fields
+  ///
+  /// In en, this message translates to:
+  /// **'Identity'**
+  String get mcpIdentitySection;
+
+  /// Section title for the transport selector
+  ///
+  /// In en, this message translates to:
+  /// **'Transport'**
+  String get mcpTransportSection;
+
+  /// Section title for stdio command fields
+  ///
+  /// In en, this message translates to:
+  /// **'Process'**
+  String get mcpProcessSection;
+
+  /// Section title for URL-based transport fields
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint'**
+  String get mcpEndpointSection;
+
+  /// Label for the MCP server name field
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get mcpFieldName;
+
+  /// Label for the MCP server scope field
+  ///
+  /// In en, this message translates to:
+  /// **'Scope'**
+  String get mcpFieldScope;
+
+  /// Label for the MCP server project directory field
+  ///
+  /// In en, this message translates to:
+  /// **'Project directory'**
+  String get mcpFieldProject;
+
+  /// Label for the stdio command field
+  ///
+  /// In en, this message translates to:
+  /// **'Command'**
+  String get mcpFieldCommand;
+
+  /// Label for the stdio arguments field
+  ///
+  /// In en, this message translates to:
+  /// **'Arguments'**
+  String get mcpFieldArgs;
+
+  /// Label for the stdio environment field
+  ///
+  /// In en, this message translates to:
+  /// **'Environment'**
+  String get mcpFieldEnv;
+
+  /// Label for the remote endpoint URL field
+  ///
+  /// In en, this message translates to:
+  /// **'URL'**
+  String get mcpFieldUrl;
+
+  /// Label for the remote endpoint headers field
+  ///
+  /// In en, this message translates to:
+  /// **'Headers'**
+  String get mcpFieldHeaders;
+
+  /// Helper text for the MCP server name field
+  ///
+  /// In en, this message translates to:
+  /// **'Letters, numbers, spaces, dot, dash, underscore.'**
+  String get mcpNameHelper;
+
+  /// Helper text explaining why name and scope are locked while editing
+  ///
+  /// In en, this message translates to:
+  /// **'Name and scope identify the server and cannot be changed. Delete and re-add to move it.'**
+  String get mcpNameLockedHelper;
+
+  /// Validation error for an empty MCP server name
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a server name'**
+  String get mcpNameRequired;
+
+  /// Validation error for an invalid MCP server name
+  ///
+  /// In en, this message translates to:
+  /// **'Use only letters, numbers, spaces, dot, dash, underscore'**
+  String get mcpNameInvalid;
+
+  /// Helper text for the stdio command field
+  ///
+  /// In en, this message translates to:
+  /// **'Executable to run, e.g. npx or an absolute path.'**
+  String get mcpCommandHelper;
+
+  /// Validation error for an empty stdio command
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a command'**
+  String get mcpCommandRequired;
+
+  /// Helper text for the stdio arguments field
+  ///
+  /// In en, this message translates to:
+  /// **'One argument per line.'**
+  String get mcpArgsHelper;
+
+  /// Helper text for the stdio environment field
+  ///
+  /// In en, this message translates to:
+  /// **'One KEY=VALUE per line.'**
+  String get mcpEnvHelper;
+
+  /// Helper text for the headers field
+  ///
+  /// In en, this message translates to:
+  /// **'One Header-Name=value per line.'**
+  String get mcpHeadersHelper;
+
+  /// Validation error for an empty endpoint URL
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a URL'**
+  String get mcpUrlRequired;
+
+  /// Validation error for a malformed endpoint URL
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a full URL including https://'**
+  String get mcpUrlInvalid;
 }
 
 class _AppLocalizationsDelegate

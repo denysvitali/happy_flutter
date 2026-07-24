@@ -184,6 +184,7 @@ lib/
     ├── settings/          # Theme, language, voice, features, profiles, usage, etc.
     ├── artifacts/         # Artifact list, detail, edit, create
     ├── machine/           # Machine detail
+    ├── mcp/               # Remote Claude Code MCP server management
     ├── sftp/              # SFTP with own models/providers/screens
     ├── terminal/          # Terminal connect and screen
     ├── user/              # User profile

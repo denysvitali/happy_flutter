@@ -5302,4 +5302,190 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatImageNotCached => 'Image (not available offline)';
+
+  @override
+  String get commonRefresh => 'Refresh';
+
+  @override
+  String get commonMore => 'More';
+
+  @override
+  String get commonSaving => 'Saving…';
+
+  @override
+  String get settingsMcpServers => 'MCP Servers';
+
+  @override
+  String get settingsMcpServersSubtitle =>
+      'Manage Claude Code MCP servers on your machines';
+
+  @override
+  String get mcpServersTitle => 'MCP Servers';
+
+  @override
+  String get mcpAddServer => 'Add server';
+
+  @override
+  String get mcpEditTitle => 'Edit MCP server';
+
+  @override
+  String get mcpMachineSection => 'Machine';
+
+  @override
+  String get mcpProjectSection => 'Project';
+
+  @override
+  String get mcpProjectHelper =>
+      'Choose a project to also manage its project-scoped servers.';
+
+  @override
+  String get mcpProjectNone => 'All machines scopes only';
+
+  @override
+  String get mcpProjectRequired => 'Select a project directory for this scope';
+
+  @override
+  String get mcpNoServersTitle => 'No MCP servers';
+
+  @override
+  String get mcpNoServersSubtitle =>
+      'Add a server to make new tools available to Claude Code on this machine.';
+
+  @override
+  String get mcpLoadFailed =>
+      'Couldn\'t read the MCP configuration from this machine';
+
+  @override
+  String get mcpSaveFailed => 'Couldn\'t save the MCP server';
+
+  @override
+  String mcpToggleFailed(String name) {
+    return 'Couldn\'t change $name';
+  }
+
+  @override
+  String get mcpDeleteTitle => 'Delete MCP server';
+
+  @override
+  String mcpDeleteConfirm(String name, String scope) {
+    return 'Remove $name from the $scope scope on this machine?';
+  }
+
+  @override
+  String mcpDeleteFailed(String name) {
+    return 'Couldn\'t delete $name';
+  }
+
+  @override
+  String get mcpScopeUser => 'User — ~/.claude.json';
+
+  @override
+  String get mcpScopeUserSettings => 'User settings — ~/.claude/settings.json';
+
+  @override
+  String get mcpScopeLocal => 'Project (private) — ~/.claude.json';
+
+  @override
+  String get mcpScopeProject => 'Project (shared) — .mcp.json';
+
+  @override
+  String get mcpScopeProjectSettings =>
+      'Project settings — .claude/settings.json';
+
+  @override
+  String get mcpScopeLocalSettings =>
+      'Project settings (local) — .claude/settings.local.json';
+
+  @override
+  String get mcpScopeHelper =>
+      'Scope decides which file on the machine the server is written to.';
+
+  @override
+  String get mcpBadgeNeedsAuth => 'Needs auth';
+
+  @override
+  String get mcpBadgeShadowed => 'Shadowed';
+
+  @override
+  String get mcpBadgeAwaitingApproval => 'Not approved';
+
+  @override
+  String get mcpSourceFiles => 'Configuration files';
+
+  @override
+  String get mcpApproveAllEnabled =>
+      'Shared project servers are auto-approved on this machine.';
+
+  @override
+  String get mcpIdentitySection => 'Identity';
+
+  @override
+  String get mcpTransportSection => 'Transport';
+
+  @override
+  String get mcpProcessSection => 'Process';
+
+  @override
+  String get mcpEndpointSection => 'Endpoint';
+
+  @override
+  String get mcpFieldName => 'Name';
+
+  @override
+  String get mcpFieldScope => 'Scope';
+
+  @override
+  String get mcpFieldProject => 'Project directory';
+
+  @override
+  String get mcpFieldCommand => 'Command';
+
+  @override
+  String get mcpFieldArgs => 'Arguments';
+
+  @override
+  String get mcpFieldEnv => 'Environment';
+
+  @override
+  String get mcpFieldUrl => 'URL';
+
+  @override
+  String get mcpFieldHeaders => 'Headers';
+
+  @override
+  String get mcpNameHelper =>
+      'Letters, numbers, spaces, dot, dash, underscore.';
+
+  @override
+  String get mcpNameLockedHelper =>
+      'Name and scope identify the server and cannot be changed. Delete and re-add to move it.';
+
+  @override
+  String get mcpNameRequired => 'Enter a server name';
+
+  @override
+  String get mcpNameInvalid =>
+      'Use only letters, numbers, spaces, dot, dash, underscore';
+
+  @override
+  String get mcpCommandHelper =>
+      'Executable to run, e.g. npx or an absolute path.';
+
+  @override
+  String get mcpCommandRequired => 'Enter a command';
+
+  @override
+  String get mcpArgsHelper => 'One argument per line.';
+
+  @override
+  String get mcpEnvHelper => 'One KEY=VALUE per line.';
+
+  @override
+  String get mcpHeadersHelper => 'One Header-Name=value per line.';
+
+  @override
+  String get mcpUrlRequired => 'Enter a URL';
+
+  @override
+  String get mcpUrlInvalid => 'Enter a full URL including https://';
 }

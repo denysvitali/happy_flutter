@@ -26,6 +26,8 @@ import '../../features/dev/notification_test_screen.dart';
 import '../../features/dev/power_diagnostics_screen.dart';
 import '../../features/dev/session_debug_screen.dart';
 import '../../features/machine/machine_detail_screen.dart';
+import '../../features/mcp/mcp_server_edit_screen.dart';
+import '../../features/mcp/mcp_servers_screen.dart';
 import '../../features/sessions/sessions_screen.dart';
 import '../../features/settings/account_screen.dart';
 import '../../features/settings/claude_limits_screen.dart';
@@ -359,6 +361,29 @@ GoRouter createRouter() {
         name: 'usage',
         pageBuilder: (context, state) =>
             _slidePage(const AuthGate(child: UsageScreen()), state),
+      ),
+      GoRoute(
+        path: '/settings/mcp-servers',
+        name: 'mcp-servers',
+        pageBuilder: (context, state) =>
+            _slidePage(const AuthGate(child: McpServersScreen()), state),
+      ),
+      GoRoute(
+        // Non-URL payload (machine id, known projects, the server being
+        // edited) travels via `extra`; a missing payload means the route was
+        // deep-linked, so fall back to the picker screen.
+        path: '/settings/mcp-servers/edit',
+        name: 'mcp-server-edit',
+        pageBuilder: (context, state) {
+          final args = state.extra;
+          if (args is! McpServerEditArgs) {
+            return _slidePage(const AuthGate(child: McpServersScreen()), state);
+          }
+          return _slideUpPage(
+            AuthGate(child: McpServerEditScreen(args: args)),
+            state,
+          );
+        },
       ),
       GoRoute(
         path: '/settings/claude-limits',

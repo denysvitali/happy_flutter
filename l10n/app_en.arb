@@ -2253,5 +2253,247 @@
   "chatImageNotCached": "Image (not available offline)",
   "@chatImageNotCached": {
     "description": "Placeholder shown for an image whose data was stripped from the offline cache"
+  },
+  "commonRefresh": "Refresh",
+  "@commonRefresh": {
+    "description": "Generic refresh action label"
+  },
+  "commonMore": "More",
+  "@commonMore": {
+    "description": "Generic overflow-menu tooltip"
+  },
+  "commonSaving": "Saving…",
+  "@commonSaving": {
+    "description": "Label shown on a save button while the write is in flight"
+  },
+  "settingsMcpServers": "MCP Servers",
+  "@settingsMcpServers": {
+    "description": "Settings row opening remote MCP server management"
+  },
+  "settingsMcpServersSubtitle": "Manage Claude Code MCP servers on your machines",
+  "@settingsMcpServersSubtitle": {
+    "description": "Subtitle for the MCP servers settings row"
+  },
+  "mcpServersTitle": "MCP Servers",
+  "@mcpServersTitle": {
+    "description": "Title of the MCP server management screen"
+  },
+  "mcpAddServer": "Add server",
+  "@mcpAddServer": {
+    "description": "Action that opens the new-MCP-server form"
+  },
+  "mcpEditTitle": "Edit MCP server",
+  "@mcpEditTitle": {
+    "description": "Title of the MCP server edit form"
+  },
+  "mcpMachineSection": "Machine",
+  "@mcpMachineSection": {
+    "description": "Section title for the machine picker"
+  },
+  "mcpProjectSection": "Project",
+  "@mcpProjectSection": {
+    "description": "Section title for the project directory picker"
+  },
+  "mcpProjectHelper": "Choose a project to also manage its project-scoped servers.",
+  "@mcpProjectHelper": {
+    "description": "Helper text under the project picker"
+  },
+  "mcpProjectNone": "All machines scopes only",
+  "@mcpProjectNone": {
+    "description": "Project picker option meaning no project selected"
+  },
+  "mcpProjectRequired": "Select a project directory for this scope",
+  "@mcpProjectRequired": {
+    "description": "Validation error when a project scope has no directory"
+  },
+  "mcpNoServersTitle": "No MCP servers",
+  "@mcpNoServersTitle": {
+    "description": "Empty state title when the machine declares no MCP servers"
+  },
+  "mcpNoServersSubtitle": "Add a server to make new tools available to Claude Code on this machine.",
+  "@mcpNoServersSubtitle": {
+    "description": "Empty state subtitle for MCP servers"
+  },
+  "mcpLoadFailed": "Couldn't read the MCP configuration from this machine",
+  "@mcpLoadFailed": {
+    "description": "Error shown when the mcp-list RPC fails"
+  },
+  "mcpSaveFailed": "Couldn't save the MCP server",
+  "@mcpSaveFailed": {
+    "description": "Error shown when the mcp-set RPC fails"
+  },
+  "mcpToggleFailed": "Couldn't change {name}",
+  "@mcpToggleFailed": {
+    "description": "Error shown when toggling a server fails",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpDeleteTitle": "Delete MCP server",
+  "@mcpDeleteTitle": {
+    "description": "Title of the MCP server delete confirmation"
+  },
+  "mcpDeleteConfirm": "Remove {name} from the {scope} scope on this machine?",
+  "@mcpDeleteConfirm": {
+    "description": "Body of the MCP server delete confirmation",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpDeleteFailed": "Couldn't delete {name}",
+  "@mcpDeleteFailed": {
+    "description": "Error shown when deleting a server fails",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpScopeUser": "User — ~/.claude.json",
+  "@mcpScopeUser": {
+    "description": "Label for the user MCP scope"
+  },
+  "mcpScopeUserSettings": "User settings — ~/.claude/settings.json",
+  "@mcpScopeUserSettings": {
+    "description": "Label for the user-settings MCP scope"
+  },
+  "mcpScopeLocal": "Project (private) — ~/.claude.json",
+  "@mcpScopeLocal": {
+    "description": "Label for the local MCP scope"
+  },
+  "mcpScopeProject": "Project (shared) — .mcp.json",
+  "@mcpScopeProject": {
+    "description": "Label for the project MCP scope"
+  },
+  "mcpScopeProjectSettings": "Project settings — .claude/settings.json",
+  "@mcpScopeProjectSettings": {
+    "description": "Label for the project-settings MCP scope"
+  },
+  "mcpScopeLocalSettings": "Project settings (local) — .claude/settings.local.json",
+  "@mcpScopeLocalSettings": {
+    "description": "Label for the local-settings MCP scope"
+  },
+  "mcpScopeHelper": "Scope decides which file on the machine the server is written to.",
+  "@mcpScopeHelper": {
+    "description": "Helper text under the scope picker"
+  },
+  "mcpBadgeNeedsAuth": "Needs auth",
+  "@mcpBadgeNeedsAuth": {
+    "description": "Badge shown when a server requires an interactive login"
+  },
+  "mcpBadgeShadowed": "Shadowed",
+  "@mcpBadgeShadowed": {
+    "description": "Badge shown when a higher-priority scope declares the same server name"
+  },
+  "mcpBadgeAwaitingApproval": "Not approved",
+  "@mcpBadgeAwaitingApproval": {
+    "description": "Badge shown for a shared .mcp.json server that has not been approved"
+  },
+  "mcpSourceFiles": "Configuration files",
+  "@mcpSourceFiles": {
+    "description": "Header for the list of Claude config file paths"
+  },
+  "mcpApproveAllEnabled": "Shared project servers are auto-approved on this machine.",
+  "@mcpApproveAllEnabled": {
+    "description": "Note shown when enableAllProjectMcpServers is set"
+  },
+  "mcpIdentitySection": "Identity",
+  "@mcpIdentitySection": {
+    "description": "Section title for the name and scope fields"
+  },
+  "mcpTransportSection": "Transport",
+  "@mcpTransportSection": {
+    "description": "Section title for the transport selector"
+  },
+  "mcpProcessSection": "Process",
+  "@mcpProcessSection": {
+    "description": "Section title for stdio command fields"
+  },
+  "mcpEndpointSection": "Endpoint",
+  "@mcpEndpointSection": {
+    "description": "Section title for URL-based transport fields"
+  },
+  "mcpFieldName": "Name",
+  "@mcpFieldName": {
+    "description": "Label for the MCP server name field"
+  },
+  "mcpFieldScope": "Scope",
+  "@mcpFieldScope": {
+    "description": "Label for the MCP server scope field"
+  },
+  "mcpFieldProject": "Project directory",
+  "@mcpFieldProject": {
+    "description": "Label for the MCP server project directory field"
+  },
+  "mcpFieldCommand": "Command",
+  "@mcpFieldCommand": {
+    "description": "Label for the stdio command field"
+  },
+  "mcpFieldArgs": "Arguments",
+  "@mcpFieldArgs": {
+    "description": "Label for the stdio arguments field"
+  },
+  "mcpFieldEnv": "Environment",
+  "@mcpFieldEnv": {
+    "description": "Label for the stdio environment field"
+  },
+  "mcpFieldUrl": "URL",
+  "@mcpFieldUrl": {
+    "description": "Label for the remote endpoint URL field"
+  },
+  "mcpFieldHeaders": "Headers",
+  "@mcpFieldHeaders": {
+    "description": "Label for the remote endpoint headers field"
+  },
+  "mcpNameHelper": "Letters, numbers, spaces, dot, dash, underscore.",
+  "@mcpNameHelper": {
+    "description": "Helper text for the MCP server name field"
+  },
+  "mcpNameLockedHelper": "Name and scope identify the server and cannot be changed. Delete and re-add to move it.",
+  "@mcpNameLockedHelper": {
+    "description": "Helper text explaining why name and scope are locked while editing"
+  },
+  "mcpNameRequired": "Enter a server name",
+  "@mcpNameRequired": {
+    "description": "Validation error for an empty MCP server name"
+  },
+  "mcpNameInvalid": "Use only letters, numbers, spaces, dot, dash, underscore",
+  "@mcpNameInvalid": {
+    "description": "Validation error for an invalid MCP server name"
+  },
+  "mcpCommandHelper": "Executable to run, e.g. npx or an absolute path.",
+  "@mcpCommandHelper": {
+    "description": "Helper text for the stdio command field"
+  },
+  "mcpCommandRequired": "Enter a command",
+  "@mcpCommandRequired": {
+    "description": "Validation error for an empty stdio command"
+  },
+  "mcpArgsHelper": "One argument per line.",
+  "@mcpArgsHelper": {
+    "description": "Helper text for the stdio arguments field"
+  },
+  "mcpEnvHelper": "One KEY=VALUE per line.",
+  "@mcpEnvHelper": {
+    "description": "Helper text for the stdio environment field"
+  },
+  "mcpHeadersHelper": "One Header-Name=value per line.",
+  "@mcpHeadersHelper": {
+    "description": "Helper text for the headers field"
+  },
+  "mcpUrlRequired": "Enter a URL",
+  "@mcpUrlRequired": {
+    "description": "Validation error for an empty endpoint URL"
+  },
+  "mcpUrlInvalid": "Enter a full URL including https://",
+  "@mcpUrlInvalid": {
+    "description": "Validation error for a malformed endpoint URL"
   }
 }
