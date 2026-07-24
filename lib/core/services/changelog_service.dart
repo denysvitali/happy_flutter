@@ -187,7 +187,10 @@ class ChangelogService {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return data['object']?['sha'] as String?;
       }
-    } catch (_) {}
+    } catch (_) {
+      // The changelog is a nice-to-have: any GitHub API or parse failure
+      // falls through to null and the caller renders without it.
+    }
     return null;
   }
 

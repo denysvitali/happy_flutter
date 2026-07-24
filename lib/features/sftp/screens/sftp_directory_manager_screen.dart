@@ -582,7 +582,11 @@ class _FileEntityCard extends StatelessWidget {
           '${subtitle ?? ''}  ·  '
                   '${_formatDate(stat.modified)}'
               .trim();
-    } catch (_) {}
+    } catch (_) {
+      // Best-effort subtitle only: a stat that fails or a date we cannot
+      // format must not stop the row from rendering. `subtitle` stays at
+      // whatever was built before the throw.
+    }
 
     final card = AppCard(
       onTap: () {

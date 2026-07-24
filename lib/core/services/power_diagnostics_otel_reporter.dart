@@ -5,9 +5,14 @@ import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart';
 /// metrics.
 ///
 /// This is intentionally decoupled from the service so the service does not
-/// depend directly on the OTel package. All calls are best-effort and wrapped
-/// in try/catch: OTel initialization failures must never break local
-/// diagnostics or the rest of the app.
+/// depend directly on the OTel package.
+///
+/// **Every method here is best-effort and never throws.** OTel counter
+/// creation can fail (uninitialized SDK, no exporter, misconfigured meter) and
+/// such a failure must never break local diagnostics or the host flow that is
+/// merely trying to record a metric. All swallowing happens in exactly one
+/// place — [_bump] — so there is a single documented failure policy rather
+/// than eleven bare `catch (_) {}` blocks.
 class PowerDiagnosticsOtelReporter {
   PowerDiagnosticsOtelReporter._();
 
@@ -16,167 +21,119 @@ class PowerDiagnosticsOtelReporter {
 
   static PowerDiagnosticsOtelReporter get instance => _instance;
 
-  Counter<int>? _httpRequestBytesCounter;
-  Counter<int>? _httpResponseBytesCounter;
-  Counter<int>? _socketConnectCounter;
-  Counter<int>? _socketDisconnectCounter;
-  Counter<int>? _socketErrorCounter;
-  Counter<int>? _syncInvalidationCounter;
-  Counter<int>? _syncGlobalInvalidationCounter;
-  Counter<int>? _syncBackgroundSkipCounter;
-  Counter<int>? _outboxScheduleCounter;
-  Counter<int>? _outboxAttemptCounter;
-  Counter<int>? _outboxFailureCounter;
-
-  // Lazy lookup for app-level error counters. Keyed by an opaque
-  // "metric.name" string (e.g. "app.auto_restore.failed"). Created on
-  // first bump so we never pay for counters that are never used.
-  final Map<String, Counter<int>> _appErrorCounters = {};
+  /// Counters, created on first bump and keyed by full metric name, so a
+  /// counter that is never bumped is never created.
+  final Map<String, Counter<int>> _counters = {};
 
   UIMeter get _meter {
     return FlutterOTel.meter(name: 'happy_flutter.power_diagnostics');
+  }
+
+  /// Adds [delta] to the counter named [name], creating it on first use.
+  ///
+  /// Swallows every error: see the class doc. This is the only place in the
+  /// class that catches.
+  void _bump(
+    String name, {
+    required String description,
+    required String unit,
+    int delta = 1,
+  }) {
+    try {
+      _counters
+          .putIfAbsent(
+            name,
+            () => _meter.createCounter<int>(
+              name: name,
+              description: description,
+              unit: unit,
+            ),
+          )
+          .add(delta);
+    } catch (_) {
+      // Best-effort: OTel failures must not break local diagnostics.
+    }
   }
 
   void recordHttpBytes({
     required int requestBytes,
     required int responseBytes,
   }) {
-    try {
-      _httpRequestBytesCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.http.request_bytes',
-        description: 'Total HTTP request bytes sent',
-        unit: 'By',
-      );
-      _httpResponseBytesCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.http.response_bytes',
-        description: 'Total HTTP response bytes received',
-        unit: 'By',
-      );
-      _httpRequestBytesCounter!.add(requestBytes);
-      _httpResponseBytesCounter!.add(responseBytes);
-    } catch (_) {
-      // Best-effort: OTel failures must not break local diagnostics.
-    }
+    _bump(
+      'happy_flutter.http.request_bytes',
+      description: 'Total HTTP request bytes sent',
+      unit: 'By',
+      delta: requestBytes,
+    );
+    _bump(
+      'happy_flutter.http.response_bytes',
+      description: 'Total HTTP response bytes received',
+      unit: 'By',
+      delta: responseBytes,
+    );
   }
 
-  void recordSocketConnect() {
-    try {
-      _socketConnectCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.socket.connects',
-        description: 'Socket connection events',
-        unit: '{connections}',
-      );
-      _socketConnectCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordSocketConnect() => _bump(
+    'happy_flutter.socket.connects',
+    description: 'Socket connection events',
+    unit: '{connections}',
+  );
 
-  void recordSocketDisconnect() {
-    try {
-      _socketDisconnectCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.socket.disconnects',
-        description: 'Socket disconnect events',
-        unit: '{connections}',
-      );
-      _socketDisconnectCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordSocketDisconnect() => _bump(
+    'happy_flutter.socket.disconnects',
+    description: 'Socket disconnect events',
+    unit: '{connections}',
+  );
 
-  void recordSocketError() {
-    try {
-      _socketErrorCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.socket.errors',
-        description: 'Socket errors',
-        unit: '{errors}',
-      );
-      _socketErrorCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordSocketError() => _bump(
+    'happy_flutter.socket.errors',
+    description: 'Socket errors',
+    unit: '{errors}',
+  );
 
-  void recordSyncInvalidation() {
-    try {
-      _syncInvalidationCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.sync.invalidations',
-        description: 'Sync invalidation calls',
-        unit: '{invalidations}',
-      );
-      _syncInvalidationCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordSyncInvalidation() => _bump(
+    'happy_flutter.sync.invalidations',
+    description: 'Sync invalidation calls',
+    unit: '{invalidations}',
+  );
 
-  void recordGlobalSyncInvalidation() {
-    try {
-      _syncGlobalInvalidationCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.sync.global_invalidations',
-        description: 'Global sync invalidation calls',
-        unit: '{invalidations}',
-      );
-      _syncGlobalInvalidationCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordGlobalSyncInvalidation() => _bump(
+    'happy_flutter.sync.global_invalidations',
+    description: 'Global sync invalidation calls',
+    unit: '{invalidations}',
+  );
 
-  void recordSyncBackgroundSkip() {
-    try {
-      _syncBackgroundSkipCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.sync.background_skips',
-        description: 'Sync invalidations skipped while backgrounded',
-        unit: '{invalidations}',
-      );
-      _syncBackgroundSkipCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordSyncBackgroundSkip() => _bump(
+    'happy_flutter.sync.background_skips',
+    description: 'Sync invalidations skipped while backgrounded',
+    unit: '{invalidations}',
+  );
 
-  void recordOutboxSchedule() {
-    try {
-      _outboxScheduleCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.outbox.schedules',
-        description: 'Message outbox schedule events',
-        unit: '{events}',
-      );
-      _outboxScheduleCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordOutboxSchedule() => _bump(
+    'happy_flutter.outbox.schedules',
+    description: 'Message outbox schedule events',
+    unit: '{events}',
+  );
 
-  void recordOutboxAttempt() {
-    try {
-      _outboxAttemptCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.outbox.attempts',
-        description: 'Message outbox delivery attempts',
-        unit: '{events}',
-      );
-      _outboxAttemptCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordOutboxAttempt() => _bump(
+    'happy_flutter.outbox.attempts',
+    description: 'Message outbox delivery attempts',
+    unit: '{events}',
+  );
 
-  void recordOutboxFailure() {
-    try {
-      _outboxFailureCounter ??= _meter.createCounter<int>(
-        name: 'happy_flutter.outbox.failures',
-        description: 'Message outbox delivery failures',
-        unit: '{events}',
-      );
-      _outboxFailureCounter!.add(1);
-    } catch (_) {}
-  }
+  void recordOutboxFailure() => _bump(
+    'happy_flutter.outbox.failures',
+    description: 'Message outbox delivery failures',
+    unit: '{events}',
+  );
 
-  /// Bump an app-level error counter.
+  /// Bumps an app-level error counter.
   ///
-  /// `name` is a short, dotted identifier such as `app.auto_restore.failed`.
-  /// We lazily create the underlying OTel counter on first use so call
-  /// sites that never fire don't pay the creation cost.  All work is
-  /// wrapped in try/catch — OTel initialization failures must never
-  /// break the host flow.
-  void recordAppError(String name) {
-    try {
-      final counter = _appErrorCounters.putIfAbsent(name, () {
-        return _meter.createCounter<int>(
-          name: 'happy_flutter.$name',
-          description: 'App-level error event: $name',
-          unit: '{events}',
-        );
-      });
-      counter.add(1);
-    } catch (_) {
-      // Best-effort: OTel failures must not break the host flow.
-    }
-  }
+  /// [name] is a short, dotted identifier such as `app.auto_restore.failed`;
+  /// it is emitted as `happy_flutter.<name>`.
+  void recordAppError(String name) => _bump(
+    'happy_flutter.$name',
+    description: 'App-level error event: $name',
+    unit: '{events}',
+  );
 }
