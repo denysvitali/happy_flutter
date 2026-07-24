@@ -126,7 +126,7 @@ A single file. The platform-view-backed chat list (used in performance-sensitive
 
 ### `lib/core/providers/`
 
-The Riverpod layer. 19 files, all small.
+The Riverpod layer. 26 files, all small.
 
 - `app_providers.dart` — barrel. Re-exports the common providers.
 - `auth_state_notifier.dart` — the coordinator. On auth change, calls `loadFromSync`/`clear` on every other notifier.
@@ -146,7 +146,7 @@ RPC layer. `rpc_types.dart` is referenced from `sync_service.dart`. There may be
 
 ### `lib/core/routing/`
 
-`app_router.dart` — GoRouter setup. **~64 flat `GoRoute` entries.** Three custom page transitions: `_fadePage` (tab destinations), `_slideUpPage` (modal/creation), `_slidePage` (detail with iOS-style swipe-back). See [Chapter 12](12-routing-theme-widgets.md).
+`app_router.dart` — GoRouter setup. **57 flat `GoRoute` entries.** Three custom page transitions: `_fadePage` (tab destinations), `_slideUpPage` (modal/creation), `_slidePage` (detail with iOS-style swipe-back). See [Chapter 12](12-routing-theme-widgets.md).
 
 ### `lib/core/services/`
 
@@ -154,7 +154,7 @@ The big one. ~60 files. **The single most important directory in the codebase.**
 
 The directory mixes:
 
-- **`Sync` and its 19 part files** (`sync_service.dart` + `_sync_*.dart`) — covered in [Part II](04-sync-anatomy.md).
+- **`Sync` and its 21 part files** (`sync_service.dart` + `_sync_*.dart`) — covered in [Part II](04-sync-anatomy.md).
 - **Top-level helper services** that `Sync` calls or that screens use directly:
   - Storage: `mmkv_storage.dart` (+ `mmkv_storage_native.dart`/`_web.dart`), `server_config.dart` (+ native/web), `sessions_cache_storage.dart` (+ native/web), `cached_storage.dart`, `draft_storage.dart`, `draft_service.dart`, `pinned_sessions_storage.dart`, `session_folders_storage.dart`, `recent_commands_storage.dart`, `storage_service.dart`.
   - Auth + encryption: `auth_service.dart`, `_auth_approval_flow.dart`, `encryption_service.dart`, `encryption_keys.dart`, `crypto_worker.dart`, `token_refresh_manager.dart`, `certificate_provider.dart`.
@@ -224,7 +224,7 @@ Top-level app widgets.
 
 ### `lib/core/wire/`
 
-`message_envelope.dart` — the structural envelope of a server message. Different from the *semantic* parsing in `_sync_messaging_parse*.dart`.
+`message_envelope.dart` — the structural envelope of a server message. Different from the *semantic* parsing in `lib/core/encryption/processors/`.
 
 ## `lib/features/` — the user-facing features
 

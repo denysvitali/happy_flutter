@@ -6,7 +6,7 @@ The plumbing for navigation, visual style, and the three widget layers. Less cod
 
 The router is a single file: `lib/core/routing/app_router.dart`. It contains:
 
-- ~64 flat `GoRoute` entries
+- 57 flat `GoRoute` entries
 - Three custom page transitions
 - A few `ShellRoute`s for tab shells
 - The `AuthGate` wrapper

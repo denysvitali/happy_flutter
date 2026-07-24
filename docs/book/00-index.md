@@ -18,7 +18,7 @@ This book is opinionated. It tells you which files matter and which are noise. I
 
 ### Part II — The Heart (Sync)
 
-4. **[Sync: Anatomy](04-sync-anatomy.md)** — why one class, how 19 part files compose, the four concerns.
+4. **[Sync: Anatomy](04-sync-anatomy.md)** — why one class, how 21 part files compose, the four concerns.
 5. **[Sync Lifecycle](05-sync-lifecycle.md)** — `create` vs `restore`, `suspend`/`resume`, rapid-cycling guard.
 6. **[InvalidateSync](06-invalidate-sync.md)** — the debounced-fetch primitive.
 7. **[The Socket.IO Layer](07-socket.md)** — connection, reconnect, the fast path.

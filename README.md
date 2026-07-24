@@ -32,9 +32,9 @@ lib/
 │   ├── models/                  # Pure Dart models with manual fromJson/toJson/copyWith
 │   ├── providers/               # Riverpod NotifierProviders (one file per notifier; app_providers.dart is the barrel)
 │   ├── repositories/            # Injectable domain boundaries for providers and actions
-│   ├── routing/                 # GoRouter setup (createRouter()) and ~64 route definitions
+│   ├── routing/                 # GoRouter setup (createRouter()) and 57 route definitions
 │   ├── rpc/                     # RPC layer
-│   ├── services/                # Auth, Sync (split across ~20 _sync_*.dart part files), storage, push, TTS, etc.
+│   ├── services/                # Auth, Sync (split across 21 part files), storage, push, TTS, etc.
 │   ├── theme/                   # app_tokens.dart: AppSpacing, AppRadius, AppFontSize, AppDuration, AppBreakpoint
 │   ├── ui/                      # Lower-level shared widgets (avatars, tab_bar, shimmer, diff, status_bar)
 │   ├── components/              # Higher-level shared components (AppCard, AppEmptyState, sidebar, settings sections)
@@ -47,20 +47,22 @@ lib/
     ├── command_palette/         # Modal command search
     ├── dev/                     # Dev logs, encryption debug, network inspector, notification test
     ├── inbox/                   # Friends, friend search, inbox
+    ├── loops/                   # Recurring-prompt loops
+    ├── machine/                 # Machine detail
+    ├── mcp/                     # Remote MCP server management
+    ├── providers/               # AI backend providers and usage
     ├── sessions/                # Session list (embeds Inbox + Settings as inline tabs), creation, pickers
     ├── settings/                # App settings (theme, language, voice, profiles, usage, machines, etc.)
-    ├── artifacts/               # Artifact list, detail, edit, create
-    ├── machine/                 # Machine detail
     ├── sftp/                    # SFTP feature with own models/providers/screens
     ├── terminal/                # Terminal connect and screen
-    ├── user/                    # User profile
+    ├── workflows/               # Workflow-run detail
     └── zen/                     # Todo/zen mode
 ```
 
 ### Key Architectural Patterns
 
 - **State Management**: Riverpod v3 with manual `NotifierProvider` (no code generation)
-- **Sync Singleton**: Central in-memory data hub (`Sync` class) — main file ~1,000 lines, split across ~20 `_sync_*.dart` part files. `InvalidateSync` provides debounced server fetches with exponential backoff.
+- **Sync Singleton**: Central in-memory data hub (`Sync` class) — main file ~1,700 lines, split across 21 `part` files. `InvalidateSync` provides debounced server fetches with exponential backoff.
 - **Provider Bridge**: Notifiers expose `loadFromSync()` (in-memory read) and `refreshFromSync()` (server fetch + read). Screens use `SyncSubscriptionMixin` (in `lib/core/utils/`) which wraps `sync.onDataChanged` / `onDomainChanged` with deduplication.
 - **Repository Boundaries**: Session, machine, settings, artifact, message, and workflow operations are exposed through Riverpod-injectable repositories while `Sync` remains the compatibility facade.
 - **Service/API Duality**: Some domains expose both a singleton `XxxService` (production) and an injectable `XxxApi` class (tests).

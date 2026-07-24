@@ -83,7 +83,7 @@ Sync Singleton (~1,000 LoC main file + ~20 _sync_*.dart part files)
 
 ### 1. Sync Singleton — Still a God, but Decomposed (HIGH, was CRITICAL)
 
-`sync_service.dart` itself is now ~1,000 lines, but the class is split across ~20 `_sync_*.dart` part files (`_sync_messaging*`, `_sync_socket*`, `_sync_data*`, `_sync_lifecycle`, `_sync_operations*`, `_sync_health`, `_sync_isolate_helpers`, `_sync_test_helpers`, etc.). Concerns are visually separated but the runtime object is still one class managing sessions, messages, machines, artifacts, settings, profiles, friends, feed, todos, encryption, WebSocket, and API calls.
+`sync_service.dart` itself is now ~1,700 lines, but the class is split across 20 `_sync_*.dart` part files (`_sync_messaging*`, `_sync_socket*`, `_sync_data*`, `_sync_lifecycle`, `_sync_operations*`, `_sync_health`, `_sync_isolate_helpers`, `_sync_test_helpers`, etc.). Concerns are visually separated but the runtime object is still one class managing sessions, messages, machines, artifacts, settings, profiles, friends, feed, todos, encryption, WebSocket, and API calls.
 
 **Evidence:** API clients (`SessionsApi()`, `KvApi()`, `PushApi()`) are still constructed directly inside Sync. No DI / repository abstraction has been introduced yet.
 
@@ -95,15 +95,15 @@ Direct `sync.<method>()` calls from screens have been reduced. Current state:
 
 | Screen | `sync.` references | Notes |
 |--------|--------------------|-------|
-| `chat_screen.dart` | ~14 | Down from 28+. Still the largest violator (`sendMessage`, `deleteSession`, `applySettings`, abort, etc.). |
-| `new_session_screen.dart` | ~6 | `createSession`, `createWorktree`, `applySettings`. |
+| `chat_screen.dart` | 18 (+15 in `_chat_screen_actions.dart`) | Down from 28+. Still the largest violator (`sendMessage`, `deleteSession`, `applySettings`, abort, etc.). |
+| `sessions/widgets/new_session_dialog.dart` | 2 | `createSession` / `applySettings`. (There is no `new_session_screen.dart`; creation moved into this dialog.) |
 | Most other screens | 0 raw `sync.onDataChanged.listen` | Migrated to `SyncSubscriptionMixin` (see below). |
 
 ### 3. Business Logic in Presentation Layer (HIGH)
 
 Screens still contain operations that belong in notifiers or use cases:
 - `chat_screen.dart`: message send, abort, delete, settings application
-- `new_session_screen.dart`: session creation + worktree workflow
+- `sessions/widgets/new_session_dialog.dart`: session creation + worktree workflow
 - `artifact_detail_screen.dart`: artifact deletion
 
 ### 4. Repository Migration (MEDIUM, in progress)
@@ -161,7 +161,7 @@ Data Layer
 
 1. **Phase 1 — Extract business logic from screens into notifiers** (P0, **partially done**)
    - Stream subscriptions: ✅ centralized via `SyncSubscriptionMixin` for non-chat screens. `subscribeToDomains` provides scoped invalidation.
-   - Direct `sync.method()` calls: 🟡 reduced significantly across most features, but `chat_screen.dart` (~14) and `new_session_screen.dart` (~6) still call Sync directly. Move remaining `sync.sendMessage` / abort / delete / `createSession` / `createWorktree` calls behind `chatActionNotifierProvider` and `SessionsNotifier`.
+   - Direct `sync.method()` calls: 🟡 reduced significantly across most features, but `chat_screen.dart` (18, plus 15 in `_chat_screen_actions.dart`) and `sessions/widgets/new_session_dialog.dart` (2) still call Sync directly. Move remaining `sync.sendMessage` / abort / delete / `createSession` / `createWorktree` calls behind `chatActionNotifierProvider` and `SessionsNotifier`.
 
 2. **Phase 2 — Create repository interfaces** (P1, **substantially complete**)
    - `SessionsRepository`, `MachinesRepository`, `SettingsRepository`,

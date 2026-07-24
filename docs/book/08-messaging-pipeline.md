@@ -12,8 +12,8 @@ This chapter traces **one** message from the user's tap to its final state.
 |---|---|---|
 | `lib/core/services/_sync_messaging.dart` | 1262 | Public surface: `sendMessage`, `fetchMessages`, the per-session `messagesSync` map, the merge entry point |
 | `lib/core/services/_sync_messaging_send.dart` | 922 | The send path: optimistic insert, REST POST, outbox enqueue, retry |
-| `lib/core/services/_sync_messaging_parse.dart` | 357 | Wire-envelope → `Message` parsing (the structural parse) |
-| `lib/core/services/_sync_messaging_parse_output.dart` | 976 | Tool-output envelope parsing, summarization, dedupe |
+| `lib/core/wire/message_envelope.dart` | 155 | Wire-envelope → `Message` parsing (the structural parse) |
+| `lib/core/encryption/processors/output_content_handler.dart` | 919 | Tool-output envelope parsing, summarization, dedupe |
 | `lib/core/services/_sync_messaging_merge.dart` | 1428 | **The merge function. The largest single file.** |
 | `lib/core/services/_sync_messaging_rpc.dart` | 954 | RPC layer for the send path |
 | `lib/core/services/message_outbox.dart` | (sibling) | MMKV-backed failed-send queue |
@@ -79,11 +79,11 @@ _sync_socket_events.dart dispatches by dataType
      ▼
 _sync_messaging.dart handler:
      │
-     ├──► parse update.payload via _sync_messaging_parse.dart
+     ├──► parse update.payload via wire/message_envelope.dart
      │       (wire envelope → Message with localId, serverId, content, role, ...)
      │
      ├──► if it's a tool-result envelope, route through tool_result_processor.dart
-     │       and _sync_messaging_parse_output.dart
+     │       and encryption/processors/output_content_handler.dart
      │
      ├──► merge via _sync_messaging_merge.dart
      │       merge(localMessage: optimistic, serverMessage: server)
@@ -221,7 +221,7 @@ The retry uses the **same `localId`** as the original. The server sees the same 
 
 ## Phase 6: Server echo (socket `api-update`)
 
-The server, having processed the message, emits an `api-update` with a payload that contains the message. The payload structure is in `lib/core/wire/message_envelope.dart`. The wire-level *semantic* parsing is in `_sync_messaging_parse.dart`.
+The server, having processed the message, emits an `api-update` with a payload that contains the message. The payload structure is in `lib/core/wire/message_envelope.dart`. The wire-level *semantic* parsing is in `lib/core/encryption/processors/`.
 
 The parser:
 
@@ -234,7 +234,7 @@ The parser:
 
 ## Phase 7: Tool-result handling
 
-If the update is a tool-result, the parser routes through `_sync_messaging_parse_output.dart` and `tool_result_processor.dart`. The output filter has a known set of "skip" categories that log at info-level (assistant content list is empty, unrecognized output content block, user content block type=X not handled, pi result with no tool rows) and a "log at warning for unknown" policy.
+If the update is a tool-result, the parser routes through `lib/core/encryption/processors/output_content_handler.dart` and `lib/core/services/tool_result_processor.dart`. The output filter has a known set of "skip" categories that log at info-level (assistant content list is empty, unrecognized output content block, user content block type=X not handled, pi result with no tool rows) and a "log at warning for unknown" policy.
 
 A `tool-result` carries a tool call id, an output (string or structured), a parent message id, an isError flag, and permissions. The handler appends a new message with `role = 'tool'` and `toolData = {...}` to the message stream.
 
@@ -356,7 +356,7 @@ A truly stuck `Sending` is rare; the production data shows it as a low-frequency
 - `lib/core/services/_sync_messaging.dart` — start here for the public surface
 - `lib/core/services/_sync_messaging_send.dart` — the send path
 - `lib/core/services/_sync_messaging_merge.dart` — the merge function (read this whole file)
-- `lib/core/services/_sync_messaging_parse.dart` — wire parsing
+- `lib/core/wire/message_envelope.dart` + `lib/core/encryption/processors/` — wire parsing
 - `lib/core/services/message_outbox.dart` — the retry queue
 - `lib/core/services/message_cache_service.dart` — the per-session cache
 - `test/fsm/message_state_machine_contract_test.dart` — the contract

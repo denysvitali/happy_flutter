@@ -19,7 +19,9 @@ class Sync {
 
 ## Why one class
 
-`docs/ARCHITECTURE.md` (May 2026) calls this out as the **god object** issue. The runtime is one class managing ~13 domains. The class is **textually decomposed** into 19 part files for navigation, but the runtime is still one object.
+`docs/ARCHITECTURE.md` calls this out as the **god object** issue. The runtime
+is one class managing ~11 domains. The class is **textually decomposed** into
+21 `part` files for navigation, but the runtime is still one object.
 
 The decomposition is honest about the trade-off:
 
@@ -30,12 +32,12 @@ When you add a new method to `Sync`, **put it in the part file that matches the 
 
 ## The file (top of `sync_service.dart`)
 
-1149 lines. Holds:
+1,676 lines. Holds:
 
-1. **The factory and constructor** (lines 125-129).
-2. **Constants** (lines 131-180): `sessionReadyTimeoutMs`, page sizes, fetch timeouts, supported permission modes, the system prompt suffix.
-3. **Public fields**: in-memory state, per-domain `InvalidateSync` fields, streams, outbox refs.
-4. **The `part` directives** (lines 69-86): the 19 part files.
+1. **The factory and constructor.**
+2. **Constants**: `sessionReadyTimeoutMs`, page sizes, fetch timeouts, supported permission modes, the system prompt suffix, `recentlySpawnedWaitMs` / `recentlySpawnedFlagMs`.
+3. **Public fields**: in-memory state, per-domain `InvalidateSync` fields, `StreamController`s, outbox refs.
+4. **The `part` directives** (lines 91-111).
 
 ```dart
 part '_sync_data.dart';
@@ -46,69 +48,89 @@ part '_sync_isolate_helpers.dart';
 part '_sync_lifecycle.dart';
 part '_sync_messaging.dart';
 part '_sync_messaging_merge.dart';
-part '_sync_messaging_parse.dart';
-part '_sync_messaging_parse_output.dart';
 part '_sync_messaging_rpc.dart';
 part '_sync_messaging_send.dart';
 part '_sync_operations.dart';
+part '_sync_operations_mcp.dart';
 part '_sync_operations_session.dart';
 part '_sync_sessions.dart';
 part '_sync_socket.dart';
 part '_sync_socket_events.dart';
+part '_sync_loops.dart';
+part '_sync_workflows.dart';
+part 'message_pipeline/message_models.dart';
+part 'message_pipeline/message_ingestion_orchestrator.dart';
 part '_sync_test_helpers.dart';
 ```
 
-The main file's job: hold the public surface (fields, getters, top-level methods that span concerns), and `part` everything else.
+`_sync_session_restore_split.dart` sits next to these but is **not** a part —
+it is a plain `import`ed library of pure helpers. The `_sync_` prefix is
+misleading; treat it as a normal file.
 
-## The 19 part files (the four concerns)
+The main file's job: hold the public surface (fields, getters, top-level
+methods that span concerns), and `part` everything else.
 
-The 19 part files group into four concerns, but the names are not always intuitive. Here's the map.
+## The 21 part files (the four concerns)
+
+LoC figures below are current as of 2026-07-24. If you are reading them to
+decide where something lives, prefer `wc -l lib/core/services/_sync_*.dart` —
+the numbers drift.
 
 ### Concern 1: Lifecycle and operations
 
 | File | LoC | What it holds |
 |---|---|---|
-| `_sync_lifecycle.dart` | 802 | `create`, `restore`, `suspend`, `resume`, `clear`, `isInitialized`, `isReady`. The app-entry / app-exit plumbing. |
-| `_sync_operations.dart` | 384 | Cross-domain operations (e.g. session-archive, session-delete). |
-| `_sync_operations_session.dart` | 1380 | Session-scoped operations (create, archive, delete, worktree creation, etc.). The largest of the part files. |
-| `_sync_sessions.dart` | 163 | Session-list fetching, session updates. Thin — most session logic is in `_sync_operations_session.dart`. |
+| `_sync_lifecycle.dart` | 1046 | `create`, `restore`, `suspend`, `resume`, `shutdown`, `clear`, `isInitialized`, `isReady`, the reconnect watchdog. |
+| `_sync_operations_session.dart` | 2223 | Session-scoped operations (create, archive, delete, worktree, spawn registry). **The largest part file.** |
+| `_sync_sessions.dart` | 188 | Session-list fetching, session updates. Thin — most session logic is in `_sync_operations_session.dart`. |
+| `_sync_operations.dart` | 156 | Cross-domain operations. |
+| `_sync_operations_mcp.dart` | 148 | Remote MCP server operations. |
 | `_sync_health.dart` | 68 | Health checks, liveness, freshness reports. |
 
 ### Concern 2: Data (per-domain fetching)
 
 | File | LoC | What it holds |
 |---|---|---|
-| `_sync_data.dart` | 705 | The cross-domain fetch coordinator. Settings, profile, purchases, friends, todos, feed, push tokens, native update, session git status. |
-| `_sync_data_artifacts.dart` | 234 | Artifact-specific fetch and merge. |
-| `_sync_data_machines.dart` | 414 | Machine-specific fetch and merge. |
+| `_sync_data.dart` | 764 | The cross-domain fetch coordinator: `fetchSessions`, `fetchSingleSession`, settings, profile, purchases, push tokens, native update, session git status. |
+| `_sync_data_machines.dart` | 508 | Machine fetch/merge and `handleEphemeralUpdate`. |
+| `_sync_data_artifacts.dart` | 41 | Artifact fetch entry point (the bulk lives in `lib/core/sync/artifact_manager.dart`). |
+| `_sync_loops.dart` | 693 | Loops domain. |
+| `_sync_workflows.dart` | 473 | Workflow-run domain. |
 
 ### Concern 3: Messaging (the hard part)
 
 | File | LoC | What it holds |
 |---|---|---|
-| `_sync_messaging.dart` | 1262 | **The top of the messaging subsystem.** Public `sendMessage`, `fetchMessages`, message-merge entry points, the `messagesSync` map (per-session `InvalidateSync`). |
-| `_sync_messaging_send.dart` | 922 | The send path: optimistic insert, REST POST, outbox enqueue, retry. |
-| `_sync_messaging_parse.dart` | 357 | Wire-envelope → `Message` parsing. The structural parse (server enqueues, message kinds). |
-| `_sync_messaging_parse_output.dart` | 976 | **The dense tool-output parser.** Tool-result envelopes, summarization, dedupe. The source of the `fetchMessages dropped (output filter)` production warnings before the recent fix. |
-| `_sync_messaging_merge.dart` | 1428 | **The merge function.** Where `localId` identity is enforced. The largest single file. |
-| `_sync_messaging_rpc.dart` | 954 | RPC layer — sending messages over the streaming RPC channel. |
+| `_sync_messaging.dart` | 1789 | **The top of the messaging subsystem.** `fetchMessages` (1,141 lines by itself), message-merge entry points, the `messagesSync` map. |
+| `_sync_messaging_send.dart` | 1342 | The send path: optimistic insert, REST POST, outbox enqueue, retry. Where `localId` identity originates. |
+| `_sync_messaging_rpc.dart` | 1247 | RPC layer, plus `onSessionVisible`. |
+| `_sync_messaging_merge.dart` | 977 | **The merge function.** Where `localId` identity is enforced. |
+| `message_pipeline/message_ingestion_orchestrator.dart` | 517 | The `raw → normalized → processed → grouped → merged → notified` pipeline. |
+| `message_pipeline/message_models.dart` | 97 | Pipeline value types. |
+
+Wire-envelope and tool-output parsing now live under
+`lib/core/encryption/processors/` (`output_content_handler.dart`,
+`codex_content_handler.dart`, `pi_content_handler.dart`), **not** in
+`_sync_messaging_parse*.dart` — those part files no longer exist.
 
 ### Concern 4: Socket and isolation
 
 | File | LoC | What it holds |
 |---|---|---|
-| `_sync_socket.dart` | 804 | The socket connection, reconnect logic, the `onDataChanged` / `onSessionMessagesChanged` streams. |
-| `_sync_socket_events.dart` | 798 | Per-event-type handlers: `api-update`, `inline-message`, etc. |
-| `_sync_isolate_helpers.dart` | 319 | Isolate.run helpers for CPU-bound work (offline TTS, AES decrypt). The "no `this` capture" pattern. |
-| `_sync_test_helpers.dart` | 459 | `@visibleForTesting` escape hatches: `testSocketConnectedOverride`, `testSocketSendOverride`, `testNotifyDataChanged()`, `testSetSessionMessages()`. |
+| `_sync_socket.dart` | 1075 | The socket connection, reconnect logic, the `onDataChanged` / `onSessionMessagesChanged` streams, cached-message restore. |
+| `_sync_socket_events.dart` | 844 | Per-event-type handlers: `new-message`, `update-session`, `api-update`, etc. |
+| `_sync_isolate_helpers.dart` | 179 | `Isolate.run` helpers for CPU-bound work. The "no `this` capture" pattern. |
+| `_sync_test_helpers.dart` | 767 | `@visibleForTesting` escape hatches: `testSocketConnectedOverride`, `testSocketSendOverride`, `testNotifyDataChanged()`, `testSetSessionMessages()`. |
 
-## Total: 13,578 LoC
+## Total: ~16,250 LoC
 
-The `Sync` class is 1,149 + 12,429 = 13,578 LoC across 20 files. It is the largest single class in the codebase by a wide margin. (For comparison, the providers barrel is 19 files × ~80 LoC = ~1,500 LoC.)
+`sync_service.dart` (1,676) + the part files (14,577) ≈ 16,250 LoC across 22
+files. It is the largest single class in the codebase by a wide margin. (For
+comparison, the providers barrel is 26 files / ~3,100 LoC.)
 
 ## The public surface (what notifiers and screens touch)
 
-Most notifiers don't touch `Sync` directly. They go through `loadFromSync()` / `refreshFromSync()` on the notifier itself. But the **direct calls** that exist (mostly in `chat_screen.dart`, `new_session_screen.dart`, and a handful of others) are:
+Most notifiers don't touch `Sync` directly. They go through `loadFromSync()` / `refreshFromSync()` on the notifier itself. But the **direct calls** that exist (mostly in `chat_screen.dart`, `_chat_screen_actions.dart`, `sessions/widgets/new_session_dialog.dart`, and a handful of others) are:
 
 ```dart
 sync.isInitialized           // bool

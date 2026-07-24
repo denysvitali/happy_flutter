@@ -70,12 +70,12 @@ For everything except chat, the loop is simpler: `onDataChanged` → `loadFromSy
 ## Files to read next
 
 - `lib/main.dart` — the entry point, the three globals
-- `lib/core/services/sync_service.dart` — the top of the Sync class (~1100 LoC, with 19 part files)
+- `lib/core/services/sync_service.dart` — the top of the Sync class (~1,700 LoC, with 21 part files)
 - `lib/core/types/identity_types.dart` — `LocalId`, `ServerMessageId`, `SessionId`
 - `lib/core/fsm/message_state_machine.dart` — the FSM
 
 ## Gotchas
 
 - The fact that `Sync` is a singleton (`factory Sync() => _instance`) means **tests must reset its state**. Use `createTestSync()` from `test/helpers/test_helpers.dart`. The default `Sync()` returns a dirty global.
-- There are two `dataType` parsing layers: `lib/core/wire/message_envelope.dart` (the structural envelope) and `_sync_messaging_parse*.dart` (the semantic content). They look similar but are not the same.
+- There are two `dataType` parsing layers: `lib/core/wire/message_envelope.dart` (the structural envelope) and `lib/core/encryption/processors/` (the semantic content). They look similar but are not the same.
 - The messaging FSM is a *projection* of event logs (`lib/core/event_log/`), not a real state machine on a live object. The "transition" functions return new state; they don't mutate.

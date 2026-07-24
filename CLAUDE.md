@@ -159,37 +159,53 @@ mise exec -- flutter run
 lib/
 ├── main.dart              # App entry point
 ├── core/
+│   ├── actors/            # SessionActor — serialized per-session command queue
 │   ├── api/               # ApiClient (Dio), SocketIoClient, per-domain API classes
-│   ├── encryption/        # NaCl (legacy), AES-256-GCM (new), key derivation
+│   ├── components/        # Higher-level widgets (AppCard, AppEmptyState, sidebar)
+│   ├── config/            # AppConfig compile-time/runtime config
+│   ├── crdt/              # LWWRegister + settings CRDT merge
+│   ├── dialogs/           # AppDialog, ConfirmDialog
+│   ├── encryption/        # NaCl (legacy), AES-256-GCM (new), key derivation,
+│   │                      #   processors/ (wire content → Message semantics)
+│   ├── event_log/         # Append-only event log + message projection
+│   ├── fsm/               # MessageStateMachine (draft→sending→sent→merged)
 │   ├── i18n/              # Internationalization helpers
 │   ├── models/            # freezed/json_serializable + a few manual models
+│   ├── native_chat_list/  # Platform-view chat list bridge
 │   ├── providers/         # Riverpod NotifierProvider state (app_providers.dart barrel)
 │   ├── repositories/      # Injectable domain boundaries; Sync-backed during migration
 │   ├── routing/           # GoRouter setup (createRouter())
 │   ├── rpc/               # RPC layer
-│   ├── services/          # Auth, Sync, storage, logging, push, TTS, etc.
+│   ├── services/          # Auth, Sync (21 part files), storage, logging, push, TTS
+│   ├── sync/              # ArtifactManager, SettingsManager, sync exceptions/progress
 │   ├── theme/             # Colors, typography, design tokens
+│   ├── types/             # Identity + message-state value types
 │   ├── ui/                # Lower-level widgets (avatars, tab_bar, shimmer, diff)
-│   ├── components/        # Higher-level (AppCard, AppEmptyState, sidebar, settings)
+│   ├── utils/             # InvalidateSync, path/version/message utils, ANSI parser
 │   ├── widgets/           # Additional shared widgets
-│   └── utils/             # InvalidateSync, path/version/message utils, ANSI parser
+│   └── wire/              # MessageEnvelope — structural wire shape
 └── features/
+    ├── artifacts/         # Artifact list, detail, edit, create
     ├── auth/              # QR auth, device linking, backup restore
     ├── changelog/         # In-app changelog viewer
     ├── chat/              # Chat screen, input, markdown, tool views, autocomplete
     ├── command_palette/   # Modal command search
     ├── dev/               # Dev logs, encryption debug, network inspector
     ├── inbox/             # Friends, friend search, inbox
-    ├── sessions/          # Session list, new session, machine/path/profile pickers
-    ├── settings/          # Theme, language, voice, features, profiles, usage, etc.
-    ├── artifacts/         # Artifact list, detail, edit, create
+    ├── loops/             # Recurring-prompt loops
     ├── machine/           # Machine detail
     ├── mcp/               # Remote Claude Code MCP server management
+    ├── providers/         # AI backend providers + usage
+    ├── sessions/          # Session list, new-session dialog, machine/path/profile pickers
+    ├── settings/          # Theme, language, voice, features, profiles, usage, etc.
     ├── sftp/              # SFTP with own models/providers/screens
     ├── terminal/          # Terminal connect and screen
-    ├── user/              # User profile
+    ├── workflows/         # Workflow-run detail
     └── zen/               # Zen home, new, view, priority
 ```
+
+Three widget layers exist (`core/ui`, `core/components`, `core/widgets`); the
+split is not guessable from the names — see the UI Conventions section.
 
 ### State Management
 
@@ -223,7 +239,7 @@ lib/
 
 Three top-level globals: `sync` (Sync singleton), `logger` (LoggerService), `socketIoClient` (SocketIoClient).
 
-**`Sync` is a true singleton** (`factory Sync() => _instance`). The main file `lib/core/services/sync_service.dart` is ~1,000 lines, split across ~20 `_sync_*.dart` part files (`_sync_messaging*`, `_sync_socket*`, `_sync_data*`, `_sync_lifecycle`, `_sync_operations*`, `_sync_health`, `_sync_test_helpers`, etc.). When adding methods, place them in the part file matching the concern.
+**`Sync` is a true singleton** (`factory Sync() => _instance`). The main file `lib/core/services/sync_service.dart` is ~1,700 lines (it holds the public field surface), split across 20 `_sync_*.dart` part files (`_sync_messaging*`, `_sync_socket*`, `_sync_data*`, `_sync_lifecycle`, `_sync_operations*`, `_sync_health`, `_sync_test_helpers`, etc.). When adding methods, place them in the part file matching the concern.
 
 **Provider bridge pattern:** Screens subscribe to `sync.onDataChanged` (debounced 100ms):
 - `provider.notifier.loadFromSync()` — reads in-memory state (instant). Use on every `onDataChanged` callback.
@@ -241,7 +257,7 @@ See @docs/SYNC_PATTERNS.md for subscription template and details.
 
 ### Navigation
 
-Routes defined in `lib/core/routing/app_router.dart` (not `main.dart`). ~64 flat `GoRoute` entries. Use named routes:
+Routes defined in `lib/core/routing/app_router.dart` (not `main.dart`). 57 flat `GoRoute` entries. Use named routes:
 
 ```dart
 context.goNamed('chat', pathParameters: {'sessionId': id});
@@ -321,7 +337,7 @@ import 'package:flutter/material.dart' hide TabBar;
 
 ## Testing
 
-**Unit, widget, and integration tests.** Integration tests in `test/integration/` cover session spawning, message deduplication, routing, pagination, cold starts, reconnection, and concurrent sends (~18 e2e files). They use `mock_sync_server.dart` and `fake_session_encryption.dart` helpers, plus replay fixtures under `test/integration/jsonl_replay/`.
+**Unit, widget, and integration tests.** Integration tests in `test/integration/` cover session spawning, message deduplication, routing, pagination, cold starts, reconnection, and concurrent sends (27 files, 20 of them `*_e2e_test.dart`). They use `mock_sync_server.dart` and `fake_session_encryption.dart` helpers, plus replay fixtures under `test/integration/jsonl_replay/`.
 
 **Global test config:** `test/flutter_test_config.dart` runs before every test file — calls `TestWidgetsFlutterBinding.ensureInitialized()`, disables Google Fonts runtime fetching, loads Roboto Mono for golden screenshots.
 
@@ -380,7 +396,20 @@ commit message instead.
 
 ## Dependency Overrides
 
-`pubspec.yaml` has `dependency_overrides` — check the inline comments there for the current set (as of Jun 2026: `shared_preferences_android`, `mmkv_platform_interface`, `flutter_secure_storage_linux`, `go_router`).
+`pubspec.yaml` has **~30 `dependency_overrides`** in three groups, each with an
+inline comment explaining the pin. Read those comments before touching any of
+them — several encode Flutter-SDK constraints that a bump silently breaks:
+
+1. **Platform-implementation pins** — `shared_preferences_android`,
+   `mmkv_platform_interface`, `flutter_secure_storage_linux`, `go_router`,
+   `dartastic_opentelemetry*`.
+2. **Force-upgrade block (2026-06-15)** — unblocks transitive constraints
+   flagged by `pub upgrade`. **Never force-bump a package whose latest release
+   declares Dart 3.12**: overrides bypass pub's SDK check, so it resolves and
+   then fails at compile time. mise pins Flutter 3.41 / Dart 3.11.
+3. **Caps** — `cupertino_http` (3.x breaks `flutter build linux`),
+   `jni`/`cronet_http`/`path_provider_android` (held by `sentry_flutter`'s
+   hard pin on `jni` 0.14.2).
 
 ## Additional Documentation
 
@@ -390,7 +419,7 @@ commit message instead.
 | @ROADMAP.md | Production bugs, sprint priorities, feature status |
 | @docs/AGENTS.md | Repository-local agent instructions for docs-specific overrides |
 | @docs/ARCHITECTURE.md | Architecture review (Sync god object, known issues) |
-| `docs/` | 27 internal docs on security, protocol, UI/UX, sync, and operations |
+| `docs/` | 13 internal docs on security, protocol, UI/UX, sync, and operations, plus `docs/book/` (15 chapters) |
 
 ## Logs & Metrics — Observability
 
