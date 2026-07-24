@@ -48,7 +48,8 @@ class WorkflowCard extends StatelessWidget {
   String get _subtitle {
     final parts = <String>[];
     if (run.agentCount != null && run.agentCount! > 0) {
-      parts.add('${run.agentCount} agents');
+      final count = run.agentCount!;
+      parts.add('$count ${count == 1 ? 'agent' : 'agents'}');
     }
     if (run.totalTokens != null && run.totalTokens! > 0) {
       parts.add('${formatWorkflowCount(run.totalTokens!)} tokens');
@@ -59,14 +60,26 @@ class WorkflowCard extends StatelessWidget {
     return parts.join(' · ');
   }
 
-  double get _phaseProgress {
-    final phases = run.phases;
-    if (phases.isEmpty) return 0;
-    final completed = run.workflowProgress
-        .whereType<WorkflowPhaseEvent>()
-        .map((e) => e.index)
-        .fold(0, (max, idx) => idx > max ? idx : max);
-    return (completed / phases.length).clamp(0.0, 1.0);
+  /// Fraction of phases actually finished.
+  ///
+  /// Counting announced phase events instead would read 100% the moment the
+  /// run starts, because a run announces its whole phase list up front.
+  double _phaseProgress(List<WorkflowPhaseGroup> groups) {
+    if (groups.isEmpty) return 0;
+    final done = groups.where((g) => g.state == WorkflowPhaseState.done).length;
+    return (done / groups.length).clamp(0.0, 1.0);
+  }
+
+  /// "Probe · phase 1 of 4" while running, "4 phases" once nothing is live.
+  String _phaseLabel(List<WorkflowPhaseGroup> groups) {
+    final active = groups.indexWhere(
+      (g) => g.state == WorkflowPhaseState.active,
+    );
+    if (active < 0) {
+      return '${groups.length} ${groups.length == 1 ? 'phase' : 'phases'}';
+    }
+    return '${groups[active].phase.title} · '
+        'phase ${active + 1} of ${groups.length}';
   }
 
   @override
@@ -74,9 +87,10 @@ class WorkflowCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final subtitle = _subtitle;
+    final groups = WorkflowRun.phaseGroups(run);
     final hasSummary = run.summary != null && run.summary!.isNotEmpty;
     final hasDetails =
-        hasSummary || run.phases.isNotEmpty || subtitle.isNotEmpty;
+        hasSummary || groups.isNotEmpty || subtitle.isNotEmpty;
     final hasSteps = stepCount != null && stepCount! > 0;
 
     return Card(
@@ -133,19 +147,19 @@ class WorkflowCard extends StatelessWidget {
                   ),
                 ),
               ],
-              if (run.phases.isNotEmpty) ...[
+              if (groups.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.xs),
                   child: LinearProgressIndicator(
-                    value: _phaseProgress,
+                    value: _phaseProgress(groups),
                     minHeight: 6,
                     backgroundColor: cs.surfaceContainerHighest,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '${run.phases.length} phases',
+                  _phaseLabel(groups),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
                   ),

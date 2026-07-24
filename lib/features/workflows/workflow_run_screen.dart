@@ -9,10 +9,10 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/utils.dart';
 import '../../core/utils/wire_parsers.dart';
 import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
-import '../../core/utils/utils.dart';
 
 /// Detail view for a single Claude Code workflow run.
 ///
@@ -53,6 +53,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   bool _loading = true;
   String? _error;
   Timer? _pollTimer;
+  Timer? _tickTimer;
 
   @override
   void initState() {
@@ -71,12 +72,20 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
         .where((sid) => sid == widget.sessionId)
         .listen((_) => _loadFromSync());
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
+    // Elapsed time ticks on its own so it counts up smoothly instead of
+    // jumping in 3s steps whenever the poll lands.
+    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final run = _run;
+      if (!mounted || run == null || !WorkflowStatus.isLive(run.status)) return;
+      setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _sub?.cancel();
     _pollTimer?.cancel();
+    _tickTimer?.cancel();
     super.dispose();
   }
 
@@ -120,7 +129,12 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final run = rawRun == null
         ? null
         : WorkflowRun.enrichFromMessages(rawRun, messages);
-    final groups = run == null ? const <_PhaseGroup>[] : _phaseGroups(run);
+    final groups = run == null
+        ? const <WorkflowPhaseGroup>[]
+        : WorkflowRun.phaseGroups(
+            run,
+            fallbackTitle: workflowDisplayName(run),
+          );
     final logs = run == null
         ? const <WorkflowLog>[]
         : run.workflowProgress.whereType<WorkflowLog>().toList(growable: false);
@@ -163,7 +177,9 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                             const SizedBox(width: AppSpacing.sm),
                             if (elapsedMs != null)
                               Text(
-                                formatDuration(Duration(milliseconds: elapsedMs)),
+                                formatDuration(
+                                  Duration(milliseconds: elapsedMs),
+                                ),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: cs.onSurfaceVariant,
                                 ),
@@ -176,6 +192,10 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                         ],
                         const SizedBox(height: AppSpacing.md),
                         _StatRow(run: run, modelFallback: commonModel),
+                        if (groups.length > 1) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          _PhaseProgress(groups: groups),
+                        ],
                       ],
                     ),
                   ),
@@ -184,10 +204,9 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, idx) => _PhaseSection(
-                        phase: groups[idx].phase,
-                        agents: groups[idx].agents,
-                        state: groups[idx].state,
+                        group: groups[idx],
                         hideModel: commonModel != null,
+                        runIsLive: WorkflowStatus.isLive(run.status),
                       ),
                       childCount: groups.length,
                     ),
@@ -199,35 +218,34 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                       childCount: stepChildren.length,
                     ),
                   ),
-                if (logs.isNotEmpty)
+                if (run.error != null && run.error!.isNotEmpty)
                   SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Logs',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          ...logs.map(
-                            (log) => Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: AppSpacing.xs,
-                              ),
-                              child: Text(
-                                log.message,
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: _RunTextSection(
+                      title: 'Error',
+                      body: run.error!,
+                      color: cs.error,
                     ),
                   ),
+                if (run.result != null && run.result!.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: _RunTextSection(
+                      title: 'Result',
+                      body: run.result!,
+                    ),
+                  ),
+                if (logs.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: _RunTextSection(
+                      title: 'Logs',
+                      body: logs
+                          .map((log) => log.message)
+                          .join('\n'),
+                      monospace: true,
+                    ),
+                  ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.xl),
+                ),
               ],
             );
 
@@ -276,107 +294,6 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   }
 
 
-  /// Groups agents under their phases for the detail view.
-  ///
-  /// Matches agents to phases by the explicit phase index (the same rule
-  /// the chat inline view uses) because the wire indices may be 0- or
-  /// 1-based — matching by list position would misplace every agent when
-  /// the run uses 1-based indices. Agents whose phase index matches no
-  /// phase event fall into a trailing bucket so they are never dropped.
-  ///
-  /// Phase events are deduped by index (last wins) so a phase emitting
-  /// both a start and a done event renders one section, not two.
-  List<_PhaseGroup> _phaseGroups(WorkflowRun run) {
-    final progress = run.workflowProgress;
-    final agents = progress.whereType<WorkflowAgent>().toList(growable: false);
-    final byIndex = <int, WorkflowPhaseEvent>{};
-    for (final event in progress.whereType<WorkflowPhaseEvent>()) {
-      byIndex[event.index] = event;
-    }
-    final phaseEvents = byIndex.values.toList(growable: false)
-      ..sort((a, b) => a.index.compareTo(b.index));
-    if (phaseEvents.isNotEmpty) {
-      final matched = <String>{};
-      final groups = <_PhaseGroup>[];
-      for (final event in phaseEvents) {
-        final phaseAgents = agents
-            .where((a) => a.phaseIndex == event.index)
-            .toList(growable: false);
-        for (final agent in phaseAgents) {
-          matched.add(agent.agentId);
-        }
-        groups.add(
-          _PhaseGroup(
-            WorkflowPhase(title: event.title),
-            phaseAgents,
-            _phaseState(event.kind, phaseAgents),
-          ),
-        );
-      }
-      final leftover = agents
-          .where((a) => !matched.contains(a.agentId))
-          .toList(growable: false);
-      if (leftover.isNotEmpty) {
-        groups.add(
-          _PhaseGroup(
-            WorkflowPhase(title: run.workflowName),
-            leftover,
-            _phaseState('start', leftover),
-          ),
-        );
-      }
-      return groups;
-    }
-    if (run.phases.isNotEmpty) {
-      final groups = <_PhaseGroup>[];
-      for (var i = 0; i < run.phases.length; i++) {
-        final phaseAgents = agents
-            .where((a) => a.phaseIndex == i)
-            .toList(growable: false);
-        groups.add(
-          _PhaseGroup(
-            run.phases[i],
-            phaseAgents,
-            _phaseState('start', phaseAgents),
-          ),
-        );
-      }
-      return groups;
-    }
-    if (agents.isNotEmpty) {
-      return <_PhaseGroup>[
-        _PhaseGroup(
-          WorkflowPhase(title: run.workflowName),
-          agents,
-          _phaseState('start', agents),
-        ),
-      ];
-    }
-    return const <_PhaseGroup>[];
-  }
-
-  /// Derives a display state for a phase: `done` when the phase reported
-  /// completion or every agent finished, `active` when it has agents in
-  /// flight, and `pending` when nothing has reached it yet — a phase with
-  /// no agents must never look like missing content.
-  String _phaseState(String kind, List<WorkflowAgent> agents) {
-    if (kind == 'done' || kind == 'completed') return 'done';
-    if (agents.isEmpty) return 'pending';
-    final finished = agents.every(
-      (a) => a.state == 'done' || a.state == 'completed',
-    );
-    return finished ? 'done' : 'active';
-  }
-}
-
-class _PhaseGroup {
-  const _PhaseGroup(this.phase, this.agents, this.state);
-
-  final WorkflowPhase phase;
-  final List<WorkflowAgent> agents;
-
-  /// One of `done`, `active`, `pending`.
-  final String state;
 }
 
 class _StatRow extends StatelessWidget {
@@ -398,7 +315,8 @@ class _StatRow extends StatelessWidget {
         if (run.agentCount != null)
           _StatChip(
             icon: Icons.smart_toy_outlined,
-            label: '${run.agentCount} agents',
+            label: '${run.agentCount} '
+                '${run.agentCount == 1 ? 'agent' : 'agents'}',
           ),
         if (run.totalTokens != null)
           _StatChip(
@@ -442,29 +360,110 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-class _PhaseSection extends StatelessWidget {
-  const _PhaseSection({
-    required this.phase,
-    required this.agents,
-    required this.state,
-    required this.hideModel,
-  });
+/// Compact per-phase progress bar and "Phase N of M" label for the header.
+class _PhaseProgress extends StatelessWidget {
+  const _PhaseProgress({required this.groups});
 
-  final WorkflowPhase phase;
-  final List<WorkflowAgent> agents;
-
-  /// One of `done`, `active`, `pending`.
-  final String state;
-
-  /// Suppress the per-agent model label (shown once in the stat row).
-  final bool hideModel;
+  final List<WorkflowPhaseGroup> groups;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final pending = state == 'pending';
+    final done = groups
+        .where((g) => g.state == WorkflowPhaseState.done)
+        .length;
+    final activeIdx = groups.indexWhere(
+      (g) => g.state == WorkflowPhaseState.active,
+    );
+    // The phase the user should be looking at: the running one, else how far
+    // the run got before it stopped.
+    final current = activeIdx >= 0 ? activeIdx + 1 : done;
+    final label = current == 0
+        ? '${groups.length} phases'
+        : 'Phase $current of ${groups.length}';
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.xs),
+          child: LinearProgressIndicator(
+            value: groups.isEmpty ? 0 : done / groups.length,
+            minHeight: 4,
+            backgroundColor: cs.surfaceContainerHighest,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PhaseSection extends StatelessWidget {
+  const _PhaseSection({
+    required this.group,
+    required this.hideModel,
+    required this.runIsLive,
+  });
+
+  final WorkflowPhaseGroup group;
+
+  /// Suppress the per-agent model label (shown once in the stat row).
+  final bool hideModel;
+
+  /// A phase with no agents reads as "Pending" on a live run but "Skipped"
+  /// once the run is over — otherwise a finished run looks stuck.
+  final bool runIsLive;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final state = group.state;
+    final pending = state == WorkflowPhaseState.pending;
+
+    // A phase nothing has reached yet is one compact row: a bold heading plus
+    // an italic "Pending" line for each is a screen of empty scaffolding.
+    if (pending && group.agents.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          0,
+          AppSpacing.lg,
+          AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            _PhaseStateIcon(state: state),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                group.phase.title,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              runIsLive ? 'Pending' : 'Skipped',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final agentCount = group.agents.length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -478,32 +477,42 @@ class _PhaseSection extends StatelessWidget {
           Row(
             children: [
               _PhaseStateIcon(state: state),
-              const SizedBox(width: AppSpacing.xs),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  phase.title,
+                  group.phase.title,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: pending ? cs.onSurfaceVariant : null,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (agentCount > 0)
+                Text(
+                  '$agentCount ${agentCount == 1 ? 'agent' : 'agents'}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
             ],
           ),
-          if (phase.detail != null) ...[
+          if (group.phase.detail != null) ...[
             const SizedBox(height: AppSpacing.xxs),
-            Text(
-              phase.detail!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
+            Padding(
+              padding: const EdgeInsets.only(left: 16 + AppSpacing.sm),
+              child: Text(
+                group.phase.detail!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ),
           ],
           const SizedBox(height: AppSpacing.sm),
-          if (agents.isEmpty)
+          if (group.agents.isEmpty)
             _PhasePlaceholder(state: state)
           else
-            ...agents.map(
+            ...group.agents.map(
               (agent) => _AgentRow(agent: agent, hideModel: hideModel),
             ),
         ],
@@ -521,33 +530,44 @@ class _PhaseStateIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     switch (state) {
-      case 'done':
+      case WorkflowPhaseState.done:
         return const Icon(
           Icons.check_circle_outline_rounded,
           size: 16,
           color: AppColors.success,
         );
-      case 'active':
+      case WorkflowPhaseState.failed:
+        return Icon(Icons.error_outline_rounded, size: 16, color: cs.error);
+      case WorkflowPhaseState.active:
+        // Boxed at the icon size so the spinner shares the baseline and
+        // metrics of the other state glyphs instead of reading as a stray
+        // speck next to the phase title.
         return SizedBox(
-          width: 14,
-          height: 14,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
+          width: 16,
+          height: 16,
+          child: Center(
+            child: SizedBox(
+              width: 13,
+              height: 13,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
+              ),
+            ),
           ),
         );
       default:
         return Icon(
-          Icons.circle_outlined,
+          Icons.radio_button_unchecked,
           size: 16,
-          color: cs.onSurfaceVariant,
+          color: cs.outline,
         );
     }
   }
 }
 
-/// Stand-in row for a phase that has no agents yet, so pending phases
-/// read as "not started" instead of missing content.
+/// Stand-in row for a phase that has agents pending or reported completion
+/// without agents, so a phase never looks like missing content.
 class _PhasePlaceholder extends StatelessWidget {
   const _PhasePlaceholder({required this.state});
 
@@ -558,13 +578,14 @@ class _PhasePlaceholder extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final label = switch (state) {
-      'done' => 'Completed',
-      'active' => 'Starting…',
+      WorkflowPhaseState.done => 'Completed',
+      WorkflowPhaseState.failed => 'Failed',
+      WorkflowPhaseState.active => 'Starting…',
       _ => 'Pending',
     };
     return Padding(
       padding: const EdgeInsets.only(
-        left: AppSpacing.lg + AppSpacing.xs,
+        left: 16 + AppSpacing.sm,
         bottom: AppSpacing.xs,
       ),
       child: Text(
@@ -637,14 +658,7 @@ class _AgentRow extends StatelessWidget {
               ),
           ],
         ),
-        subtitle: agent.durationMs != null || agent.tokens != null
-            ? Text(
-                _agentStats(agent),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              )
-            : null,
+        subtitle: _AgentSubtitle(agent: agent, stats: _agentStats(agent)),
         children: [
           if (agent.promptPreview != null)
             _AgentDetailBlock(label: 'Prompt', text: agent.promptPreview!),
@@ -664,7 +678,7 @@ class _AgentRow extends StatelessWidget {
   String _agentStats(WorkflowAgent agent) {
     final parts = <String>[];
     if (agent.durationMs != null) {
-      parts.add('${agent.durationMs! ~/ 1000}s');
+      parts.add(formatDuration(Duration(milliseconds: agent.durationMs!)));
     }
     if (agent.tokens != null) {
       parts.add('${formatWorkflowCount(agent.tokens!)} tokens');
@@ -675,9 +689,57 @@ class _AgentRow extends StatelessWidget {
     return parts.join(' · ');
   }
 
-  /// Mirrors the chat inline view: the wire sends `running` / `progress`
-  /// for live agents, so without those cases every in-flight agent would
-  /// fall into the "waiting" hourglass.
+}
+
+/// Agent subtitle: the run stats plus, while the agent is live, the tool it is
+/// working in right now — the difference between "something is happening" and
+/// a row that looks frozen.
+class _AgentSubtitle extends StatelessWidget {
+  const _AgentSubtitle({required this.agent, required this.stats});
+
+  final WorkflowAgent agent;
+  final String stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tool = agent.lastToolName;
+    final summary = agent.lastToolSummary;
+    final toolLine = tool == null || tool.isEmpty
+        ? null
+        : (summary == null || summary.isEmpty ? tool : '$tool · $summary');
+    if (stats.isEmpty && toolLine == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (stats.isNotEmpty)
+          Text(
+            stats,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        if (toolLine != null)
+          Row(
+            children: [
+              Icon(Icons.build_outlined, size: 11, color: cs.onSurfaceVariant),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Text(
+                  toolLine,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 }
 
 class _AgentDetailBlock extends StatelessWidget {
@@ -709,12 +771,80 @@ class _AgentDetailBlock extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xxs),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
+            ),
+            child: Text(
+              text.trim(),
+              maxLines: 8,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: color ?? cs.onSurfaceVariant,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A titled block of run-level text (result, error, log tail).
+class _RunTextSection extends StatelessWidget {
+  const _RunTextSection({
+    required this.title,
+    required this.body,
+    this.color,
+    this.monospace = false,
+  });
+
+  final String title;
+  final String body;
+  final Color? color;
+  final bool monospace;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            text,
-            maxLines: 8,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: color ?? cs.onSurfaceVariant,
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(AppRadius.xs),
+            ),
+            child: SelectableText(
+              body.trim(),
+              style: (monospace
+                      ? theme.textTheme.bodySmall?.copyWith(
+                          fontFamily: 'RobotoMono',
+                        )
+                      : theme.textTheme.bodySmall)
+                  ?.copyWith(color: color ?? cs.onSurface, height: 1.35),
             ),
           ),
         ],

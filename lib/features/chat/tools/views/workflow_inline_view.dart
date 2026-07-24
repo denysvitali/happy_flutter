@@ -6,18 +6,18 @@ import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/wire_parsers.dart';
 import '../../../workflows/workflow_display.dart';
 
+/// Maximum agent rows shown inline before collapsing into a "+ N more" line.
+const int _maxAgentRows = 4;
+
 /// Compact inline progress for a Claude Code dynamic workflow.
 ///
-/// Renders the latest phase/agent snapshot carried on task_progress
+/// Renders the accumulated phase/agent state carried on task_progress
 /// sidechain events. Phases are shown as a vertical stepper, current
 /// agents are listed with status, and the most recent log line is
 /// surfaced so the user sees live progress instead of radio silence.
 class WorkflowInlineView extends StatelessWidget {
   /// Creates a [WorkflowInlineView].
-  const WorkflowInlineView({
-    required this.children,
-    super.key,
-  });
+  const WorkflowInlineView({required this.children, super.key});
 
   /// Sidechain children of the Workflow tool-call, including agent-event
   /// messages with `workflowProgress` snapshots.
@@ -36,24 +36,46 @@ class WorkflowInlineView extends StatelessWidget {
       );
     }
 
-    final phases = _extractPhases(progress);
+    final groups = WorkflowRun.phaseGroupsFrom(
+      declared: const <WorkflowPhase>[],
+      progress: progress,
+      fallbackTitle: '',
+    );
     final agents = _extractAgents(progress);
     final logs = _extractLogs(progress);
-    final currentPhaseIndex = _currentPhaseIndex(phases, agents);
+    // Inline is a glance, not the full run: lead with whatever is running now
+    // and keep the tail short. The detail screen has the complete list.
+    final live = agents
+        .where((a) => WorkflowRun.isLiveAgentState(a.state))
+        .toList(growable: false);
+    final shown = live.isNotEmpty
+        ? live.take(_maxAgentRows).toList(growable: false)
+        : agents.length > _maxAgentRows
+        ? agents.sublist(agents.length - _maxAgentRows)
+        : agents;
+    final hidden = agents.length - shown.length;
+    final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (phases.isNotEmpty) ...[
-          _PhaseStepper(
-            phases: phases,
-            currentIndex: currentPhaseIndex,
-          ),
+        if (groups.isNotEmpty) ...[
+          _PhaseStepper(groups: groups),
           const SizedBox(height: AppSpacing.sm),
         ],
-        if (agents.isNotEmpty)
-          ...agents.map((agent) => _AgentStatusRow(agent: agent)),
+        ...shown.map((agent) => _AgentStatusRow(agent: agent)),
+        if (hidden > 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 24, top: AppSpacing.xxs),
+            child: Text(
+              '+ $hidden more ${hidden == 1 ? 'agent' : 'agents'}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
         if (logs.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xsm),
           _LogPreview(log: logs.last.message),
@@ -94,68 +116,18 @@ class WorkflowInlineView extends StatelessWidget {
     );
   }
 
-  List<WorkflowProgressEvent> _latestProgress() {
-    final messages = WireParsers.asList(children);
-    if (messages == null) return const [];
+  /// `workflow_progress` arrives as a delta per state change, so the stream
+  /// has to be folded to know the current picture — reading only the newest
+  /// event shows one agent and loses every phase.
+  List<WorkflowProgressEvent> _latestProgress() =>
+      WorkflowRun.accumulateProgressFromChildren(children);
 
-    // Walk children in reverse: the most recent task_progress event
-    // carries the complete workflow snapshot.
-    for (var i = messages.length - 1; i >= 0; i--) {
-      final msg = messages[i];
-      if (msg is! Map<String, dynamic>) continue;
-      final list = WorkflowRun.rawWorkflowProgress(msg);
-      if (list == null || list.isEmpty) continue;
-      final parsed = list
-          .whereType<Map<String, dynamic>>()
-          .map(WorkflowProgressEvent.tryFromJson)
-          .whereType<WorkflowProgressEvent>()
-          .toList(growable: false);
-      if (parsed.isNotEmpty) return parsed;
-    }
-    return const [];
-  }
-
-  List<WorkflowPhaseEvent> _extractPhases(
-    List<WorkflowProgressEvent> progress,
-  ) {
-    return progress.whereType<WorkflowPhaseEvent>().toList(growable: false);
-  }
-
-  List<WorkflowAgent> _extractAgents(
-    List<WorkflowProgressEvent> progress,
-  ) {
+  List<WorkflowAgent> _extractAgents(List<WorkflowProgressEvent> progress) {
     return progress.whereType<WorkflowAgent>().toList(growable: false);
   }
 
   List<WorkflowLog> _extractLogs(List<WorkflowProgressEvent> progress) {
     return progress.whereType<WorkflowLog>().toList(growable: false);
-  }
-
-  int _currentPhaseIndex(
-    List<WorkflowPhaseEvent> phases,
-    List<WorkflowAgent> agents,
-  ) {
-    if (phases.isEmpty) return -1;
-
-    // Prefer matching against each phase's explicit `index` field, so the
-    // result is correct whether the wire uses 0-based or 1-based indices.
-    var matchedPosition = -1;
-    for (final agent in agents) {
-      for (var i = 0; i < phases.length; i++) {
-        if (phases[i].index == agent.phaseIndex) {
-          if (i > matchedPosition) matchedPosition = i;
-        }
-      }
-    }
-    if (matchedPosition >= 0) return matchedPosition;
-
-    // Fallback: assume phaseIndex maps directly to the phase list position.
-    var maxIndex = -1;
-    for (final agent in agents) {
-      if (agent.phaseIndex > maxIndex) maxIndex = agent.phaseIndex;
-    }
-    if (maxIndex < 0) return 0;
-    return maxIndex.clamp(0, phases.length - 1);
   }
 }
 
@@ -164,36 +136,23 @@ class WorkflowInlineView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _PhaseStepper extends StatelessWidget {
-  const _PhaseStepper({
-    required this.phases,
-    required this.currentIndex,
-  });
+  const _PhaseStepper({required this.groups});
 
-  final List<WorkflowPhaseEvent> phases;
-  final int currentIndex;
+  final List<WorkflowPhaseGroup> groups;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
     return Wrap(
       spacing: AppSpacing.xs,
       runSpacing: AppSpacing.xxs,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        for (var i = 0; i < phases.length; i++) ...[
-          _PhaseDot(
-            phase: phases[i],
-            isCurrent: i == currentIndex,
-            isCompleted: i < currentIndex,
-          ),
-          if (i < phases.length - 1)
-            Container(
-              width: 12,
-              height: 1,
-              color: cs.outlineVariant,
-            ),
+        for (var i = 0; i < groups.length; i++) ...[
+          _PhaseDot(group: groups[i]),
+          if (i < groups.length - 1)
+            Container(width: 12, height: 1, color: cs.outlineVariant),
         ],
       ],
     );
@@ -201,24 +160,25 @@ class _PhaseStepper extends StatelessWidget {
 }
 
 class _PhaseDot extends StatelessWidget {
-  const _PhaseDot({
-    required this.phase,
-    required this.isCurrent,
-    required this.isCompleted,
-  });
+  const _PhaseDot({required this.group});
 
-  final WorkflowPhaseEvent phase;
-  final bool isCurrent;
-  final bool isCompleted;
+  final WorkflowPhaseGroup group;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final state = group.state;
+    final isCurrent = state == WorkflowPhaseState.active;
+    final isCompleted = state == WorkflowPhaseState.done;
+    final isFailed = state == WorkflowPhaseState.failed;
 
     final Color bg;
     final Color fg;
-    if (isCurrent) {
+    if (isFailed) {
+      bg = cs.errorContainer;
+      fg = cs.onErrorContainer;
+    } else if (isCurrent) {
       bg = cs.primaryContainer;
       fg = cs.onPrimaryContainer;
     } else if (isCompleted) {
@@ -241,7 +201,9 @@ class _PhaseDot extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isCompleted)
+          if (isFailed)
+            Icon(Icons.error_outline_rounded, size: 10, color: fg)
+          else if (isCompleted)
             Icon(Icons.check_rounded, size: 10, color: fg)
           else if (isCurrent)
             SizedBox(
@@ -256,7 +218,7 @@ class _PhaseDot extends StatelessWidget {
             Icon(Icons.circle_outlined, size: 10, color: fg),
           const SizedBox(width: 4),
           Text(
-            phase.title,
+            group.phase.title,
             style: theme.textTheme.labelSmall?.copyWith(
               color: fg,
               fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w500,
@@ -331,7 +293,6 @@ class _AgentStatusRow extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _MiniStat extends StatelessWidget {
@@ -379,11 +340,7 @@ class _LogPreview extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.notes_rounded,
-            size: 12,
-            color: cs.onSurfaceVariant,
-          ),
+          Icon(Icons.notes_rounded, size: 12, color: cs.onSurfaceVariant),
           const SizedBox(width: AppSpacing.xxs),
           Expanded(
             child: Text(
@@ -401,7 +358,6 @@ class _LogPreview extends StatelessWidget {
     );
   }
 }
-
 
 /// Compact step row for the inline fallback (raw `task_*` chips / sidechain
 /// events when no `workflowProgress` snapshot is present).
@@ -442,5 +398,4 @@ class _InlineStepRow extends StatelessWidget {
       ),
     );
   }
-
 }

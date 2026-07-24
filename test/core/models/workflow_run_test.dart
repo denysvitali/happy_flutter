@@ -58,10 +58,7 @@ void main() {
             'toolCalls': 2,
             'durationMs': 2000,
           },
-          {
-            'type': 'workflow_log',
-            'message': 'starting scan',
-          },
+          {'type': 'workflow_log', 'message': 'starting scan'},
         ],
       };
       final run = WorkflowRun.tryFromJson(json);
@@ -109,9 +106,9 @@ void main() {
         [1],
       );
       expect(
-        WorkflowRun.rawWorkflowProgress(
-          const <String, dynamic>{'workflow_progress': [2]},
-        ),
+        WorkflowRun.rawWorkflowProgress(const <String, dynamic>{
+          'workflow_progress': [2],
+        }),
         [2],
       );
       expect(
@@ -160,61 +157,56 @@ void main() {
   });
 
   group('WorkflowRun.enrichFromMessages', () {
-    WorkflowRun skeleton(String runId) => WorkflowRun(
-          runId: runId,
-          workflowName: runId,
-          status: 'completed',
-        );
+    WorkflowRun skeleton(String runId) =>
+        WorkflowRun(runId: runId, workflowName: runId, status: 'completed');
 
     List<Map<String, dynamic>> groupedMessages({
       required String runId,
       required int phaseBase,
-    }) =>
-        <Map<String, dynamic>>[
+    }) => <Map<String, dynamic>>[
+      <String, dynamic>{
+        'id': 'wf-tool',
+        'kind': 'tool-call',
+        'name': 'Workflow',
+        'children': <Map<String, dynamic>>[
           <String, dynamic>{
-            'id': 'wf-tool',
-            'kind': 'tool-call',
-            'name': 'Workflow',
-            'children': <Map<String, dynamic>>[
+            'kind': 'agent-event',
+            'workflowRunId': runId,
+            'workflowProgress': <Map<String, dynamic>>[
               <String, dynamic>{
-                'kind': 'agent-event',
-                'workflowRunId': runId,
-                'workflowProgress': <Map<String, dynamic>>[
-                  <String, dynamic>{
-                    'type': 'workflow_phase',
-                    'index': phaseBase,
-                    'title': 'Read',
-                  },
-                  <String, dynamic>{
-                    'type': 'workflow_phase',
-                    'index': phaseBase + 1,
-                    'title': 'Report',
-                  },
-                  <String, dynamic>{
-                    'type': 'workflow_agent',
-                    'agentId': 'a1',
-                    'label': 'read-go-mod',
-                    'phaseIndex': phaseBase,
-                    'phaseTitle': 'Read',
-                    'model': 'm',
-                    'state': 'done',
-                    'tokens': 10,
-                    'toolCalls': 3,
-                  },
-                  <String, dynamic>{
-                    'type': 'workflow_log',
-                    'message': 'finished',
-                  },
-                ],
+                'type': 'workflow_phase',
+                'index': phaseBase,
+                'title': 'Read',
               },
+              <String, dynamic>{
+                'type': 'workflow_phase',
+                'index': phaseBase + 1,
+                'title': 'Report',
+              },
+              <String, dynamic>{
+                'type': 'workflow_agent',
+                'agentId': 'a1',
+                'label': 'read-go-mod',
+                'phaseIndex': phaseBase,
+                'phaseTitle': 'Read',
+                'model': 'm',
+                'state': 'done',
+                'tokens': 10,
+                'toolCalls': 3,
+              },
+              <String, dynamic>{'type': 'workflow_log', 'message': 'finished'},
             ],
           },
-        ];
+        ],
+      },
+    ];
 
     test('returns the run unchanged when there are no messages', () {
       final run = skeleton('wf_1');
-      final enriched =
-          WorkflowRun.enrichFromMessages(run, const <Map<String, dynamic>>[]);
+      final enriched = WorkflowRun.enrichFromMessages(
+        run,
+        const <Map<String, dynamic>>[],
+      );
       expect(identical(enriched, run), isTrue);
       expect(enriched.workflowProgress, isEmpty);
     });
@@ -238,10 +230,13 @@ void main() {
         ...groupedMessages(runId: 'wf_1', phaseBase: 0),
         ...groupedMessages(runId: 'wf_2', phaseBase: 0),
       ];
-      final enriched =
-          WorkflowRun.enrichFromMessages(skeleton('wf_2'), messages);
-      final agents =
-          enriched.workflowProgress.whereType<WorkflowAgent>().toList();
+      final enriched = WorkflowRun.enrichFromMessages(
+        skeleton('wf_2'),
+        messages,
+      );
+      final agents = enriched.workflowProgress
+          .whereType<WorkflowAgent>()
+          .toList();
       expect(agents, hasLength(1));
       // Exactly one owner matched: the wf_2 snapshot, never wf_1's.
       expect(enriched.phases, hasLength(2));
@@ -263,8 +258,10 @@ void main() {
           ],
         },
       ];
-      final enriched =
-          WorkflowRun.enrichFromMessages(skeleton('wf_1'), messages);
+      final enriched = WorkflowRun.enrichFromMessages(
+        skeleton('wf_1'),
+        messages,
+      );
       expect(enriched.phases, hasLength(1));
       expect(enriched.phases.single.title, 'Only');
     });
@@ -290,9 +287,9 @@ void main() {
     });
   });
 
-  group('WorkflowRun.latestProgressFromChildren', () {
-    test('returns the last non-empty snapshot', () {
-      final progress = WorkflowRun.latestProgressFromChildren(
+  group('WorkflowRun.accumulateProgressFromChildren', () {
+    test('a later delta wins for the same phase index', () {
+      final progress = WorkflowRun.accumulateProgressFromChildren(
         <Map<String, dynamic>>[
           <String, dynamic>{
             'workflowProgress': <Map<String, dynamic>>[
@@ -319,7 +316,7 @@ void main() {
     });
 
     test('skips children without progress', () {
-      final progress = WorkflowRun.latestProgressFromChildren(
+      final progress = WorkflowRun.accumulateProgressFromChildren(
         <Map<String, dynamic>>[
           <String, dynamic>{'kind': 'agent-event'},
           <String, dynamic>{'workflowProgress': 'not-a-list'},
@@ -349,13 +346,13 @@ void main() {
 
   group('WorkflowRun.withFallbackProgress', () {
     WorkflowRun run(String status, {bool rich = false}) => WorkflowRun(
-          runId: 'wf_1',
-          workflowName: 'wf_1',
-          status: status,
-          phases: rich
-              ? const <WorkflowPhase>[WorkflowPhase(title: 'P')]
-              : const <WorkflowPhase>[],
-        );
+      runId: 'wf_1',
+      workflowName: 'wf_1',
+      status: status,
+      phases: rich
+          ? const <WorkflowPhase>[WorkflowPhase(title: 'P')]
+          : const <WorkflowPhase>[],
+    );
 
     test('returns next unchanged when there is no previous run', () {
       final next = run('running');
@@ -398,26 +395,29 @@ void main() {
         workflowName: 'wf_1',
         status: 'running',
       );
-      final enriched = WorkflowRun.enrichFromMessages(run, <Map<String, dynamic>>[
-        <String, dynamic>{
-          'id': 'wf-tool',
-          'kind': 'tool-call',
-          'name': 'Workflow',
-          'children': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'kind': 'agent-event',
-              'workflowRunId': 'wf_1',
-              'workflow_progress': <Map<String, dynamic>>[
-                <String, dynamic>{
-                  'type': 'workflow_phase',
-                  'index': 1,
-                  'title': 'Scan',
-                },
-              ],
-            },
-          ],
-        },
-      ]);
+      final enriched = WorkflowRun.enrichFromMessages(
+        run,
+        <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'wf-tool',
+            'kind': 'tool-call',
+            'name': 'Workflow',
+            'children': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'kind': 'agent-event',
+                'workflowRunId': 'wf_1',
+                'workflow_progress': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'type': 'workflow_phase',
+                    'index': 1,
+                    'title': 'Scan',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      );
       expect(enriched.phases.single.title, 'Scan');
     });
   });
@@ -485,10 +485,7 @@ void main() {
     test('locates nested chips via the tool-result run-id echo', () {
       final steps = WorkflowRun.stepChildrenForRun(
         'wf_3e4d1aa3-68d',
-        chipsOnlyMessages(
-          runId: 'wf_3e4d1aa3-68d',
-          nestUnderTool: true,
-        ),
+        chipsOnlyMessages(runId: 'wf_3e4d1aa3-68d', nestUnderTool: true),
       );
       expect(steps, hasLength(3));
     });
@@ -514,10 +511,7 @@ void main() {
     });
 
     test('returns empty when the run has no steps anywhere', () {
-      expect(
-        WorkflowRun.stepChildrenForRun('wf_missing', const []),
-        isEmpty,
-      );
+      expect(WorkflowRun.stepChildrenForRun('wf_missing', const []), isEmpty);
     });
 
     test('enrich stays a no-op for chips-only (no workflowProgress)', () {
@@ -545,9 +539,9 @@ void main() {
 
     test('reads a structured result map', () {
       expect(
-        WorkflowRun.runIdFromToolResult(
-          <String, dynamic>{'runId': 'wf_struct'},
-        ),
+        WorkflowRun.runIdFromToolResult(<String, dynamic>{
+          'runId': 'wf_struct',
+        }),
         'wf_struct',
       );
     });
@@ -626,6 +620,279 @@ void main() {
       ]);
       expect(collapsed, hasLength(2));
       expect(WorkflowRun.stepLabel(collapsed.last), 'other');
+    });
+  });
+
+  group('workflow_progress delta accumulation', () {
+    // Claude Code emits one event per state change, not a cumulative
+    // snapshot. Reading only the newest child collapses a multi-agent run to
+    // whichever agent ticked last — the defect these tests pin.
+    Map<String, dynamic> delta(List<Map<String, dynamic>> events) =>
+        <String, dynamic>{
+          'kind': 'agent-event',
+          'workflowRunId': 'wf_1',
+          'workflowProgress': events,
+        };
+
+    Map<String, dynamic> agentEvent(
+      String id,
+      String state, {
+      int phaseIndex = 1,
+      String phaseTitle = 'Read',
+      int? tokens,
+      int? toolCalls,
+      String? promptPreview,
+      int? durationMs,
+    }) => <String, dynamic>{
+      'type': 'workflow_agent',
+      'agentId': id,
+      'label': id,
+      'phaseIndex': phaseIndex,
+      'phaseTitle': phaseTitle,
+      'model': 'claude-opus-5',
+      'state': state,
+      if (tokens != null) 'tokens': tokens,
+      if (toolCalls != null) 'toolCalls': toolCalls,
+      if (promptPreview != null) 'promptPreview': promptPreview,
+      if (durationMs != null) 'durationMs': durationMs,
+    };
+
+    final children = <Map<String, dynamic>>[
+      delta(<Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'workflow_phase',
+          'index': 1,
+          'title': 'Read',
+        },
+        <String, dynamic>{
+          'type': 'workflow_phase',
+          'index': 2,
+          'title': 'Report',
+        },
+        agentEvent('a1', 'start', promptPreview: 'read the file'),
+      ]),
+      delta(<Map<String, dynamic>>[
+        agentEvent('a1', 'progress', tokens: 100, toolCalls: 2),
+      ]),
+      delta(<Map<String, dynamic>>[
+        agentEvent('a1', 'done', tokens: 120, toolCalls: 3, durationMs: 4000),
+        agentEvent('a2', 'start', phaseIndex: 2, phaseTitle: 'Report'),
+      ]),
+      delta(<Map<String, dynamic>>[
+        agentEvent(
+          'a2',
+          'progress',
+          phaseIndex: 2,
+          phaseTitle: 'Report',
+          tokens: 50,
+        ),
+      ]),
+    ];
+
+    test('keeps every agent and every announced phase', () {
+      final progress = WorkflowRun.accumulateProgressFromChildren(children);
+      final agents = progress.whereType<WorkflowAgent>().toList();
+      final phases = progress.whereType<WorkflowPhaseEvent>().toList();
+      expect(agents.map((a) => a.agentId), <String>['a1', 'a2']);
+      expect(phases.map((p) => p.title), <String>['Read', 'Report']);
+    });
+
+    test('folds the newest state without erasing retained fields', () {
+      final progress = WorkflowRun.accumulateProgressFromChildren(children);
+      final a1 = progress.whereType<WorkflowAgent>().firstWhere(
+        (a) => a.agentId == 'a1',
+      );
+      expect(a1.state, 'done');
+      expect(a1.tokens, 120);
+      expect(a1.durationMs, 4000);
+      // Only the very first delta carried the prompt.
+      expect(a1.promptPreview, 'read the file');
+    });
+
+    test('never reverts a finished agent on an out-of-order delta', () {
+      final progress = WorkflowRun.accumulateProgressFromChildren(
+        <Map<String, dynamic>>[
+          delta(<Map<String, dynamic>>[agentEvent('a1', 'done')]),
+          delta(<Map<String, dynamic>>[agentEvent('a1', 'progress')]),
+        ],
+      );
+      expect(progress.whereType<WorkflowAgent>().single.state, 'done');
+    });
+
+    test('aggregates counts across all agents, deduped by agentId', () {
+      final run = WorkflowRun.enrichFromMessages(
+        WorkflowRun(runId: 'wf_1', workflowName: 'probe', status: 'running'),
+        <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'wf-tool',
+            'kind': 'tool-call',
+            'name': 'Workflow',
+            'workflowRunId': 'wf_1',
+            'children': children,
+          },
+        ],
+      );
+      expect(run.agentCount, 2);
+      expect(run.totalTokens, 170);
+      expect(run.totalToolCalls, 3);
+    });
+
+    test('keeps declared phase detail and unannounced phases', () {
+      final declared = WorkflowRun(
+        runId: 'wf_1',
+        workflowName: 'probe',
+        status: 'running',
+        phases: const <WorkflowPhase>[
+          WorkflowPhase(title: 'Read', detail: 'read inputs'),
+          WorkflowPhase(title: 'Report', detail: 'write it up'),
+          WorkflowPhase(title: 'Verify', detail: 'double check'),
+        ],
+      );
+      final run = WorkflowRun.enrichFromMessages(
+        declared,
+        <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'wf-tool',
+            'kind': 'tool-call',
+            'name': 'Workflow',
+            'workflowRunId': 'wf_1',
+            'children': children,
+          },
+        ],
+      );
+      expect(run.phases.map((p) => p.title), <String>[
+        'Read',
+        'Report',
+        'Verify',
+      ]);
+      expect(run.phases.first.detail, 'read inputs');
+      expect(run.phases.last.detail, 'double check');
+    });
+  });
+
+  group('WorkflowRun.phaseGroups', () {
+    WorkflowAgent agent(
+      String id,
+      String state, {
+      required int phaseIndex,
+      required String phaseTitle,
+    }) => WorkflowAgent(
+      agentId: id,
+      label: id,
+      phaseIndex: phaseIndex,
+      phaseTitle: phaseTitle,
+      model: 'm',
+      state: state,
+    );
+
+    test('attaches agents by 1-based wire index, not list position', () {
+      final run = WorkflowRun(
+        runId: 'wf_1',
+        workflowName: 'probe',
+        status: 'running',
+        phases: const <WorkflowPhase>[
+          WorkflowPhase(title: 'Read'),
+          WorkflowPhase(title: 'Report'),
+        ],
+        workflowProgress: <WorkflowProgressEvent>[
+          const WorkflowPhaseEvent(index: 1, title: 'Read', kind: 'start'),
+          const WorkflowPhaseEvent(index: 2, title: 'Report', kind: 'start'),
+          agent('a1', 'done', phaseIndex: 1, phaseTitle: 'Read'),
+          agent('a2', 'progress', phaseIndex: 2, phaseTitle: 'Report'),
+        ],
+      );
+      final groups = WorkflowRun.phaseGroups(run);
+      expect(groups, hasLength(2));
+      expect(groups[0].agents.single.agentId, 'a1');
+      expect(groups[0].state, WorkflowPhaseState.done);
+      expect(groups[1].agents.single.agentId, 'a2');
+      expect(groups[1].state, WorkflowPhaseState.active);
+    });
+
+    test('matches by phaseTitle when no phase event has been seen', () {
+      final run = WorkflowRun(
+        runId: 'wf_1',
+        workflowName: 'probe',
+        status: 'running',
+        phases: const <WorkflowPhase>[
+          WorkflowPhase(title: 'Probe'),
+          WorkflowPhase(title: 'Verify'),
+        ],
+        workflowProgress: <WorkflowProgressEvent>[
+          agent('a1', 'progress', phaseIndex: 1, phaseTitle: 'Probe'),
+        ],
+      );
+      final groups = WorkflowRun.phaseGroups(run);
+      expect(groups[0].agents.single.agentId, 'a1');
+      expect(groups[0].state, WorkflowPhaseState.active);
+      expect(groups[1].state, WorkflowPhaseState.pending);
+    });
+
+    test('marks skipped-over phases done once a later phase has agents', () {
+      final run = WorkflowRun(
+        runId: 'wf_1',
+        workflowName: 'probe',
+        status: 'running',
+        phases: const <WorkflowPhase>[
+          WorkflowPhase(title: 'One'),
+          WorkflowPhase(title: 'Two'),
+          WorkflowPhase(title: 'Three'),
+        ],
+        workflowProgress: <WorkflowProgressEvent>[
+          agent('a1', 'progress', phaseIndex: 3, phaseTitle: 'Three'),
+        ],
+      );
+      final groups = WorkflowRun.phaseGroups(run);
+      expect(groups[0].state, WorkflowPhaseState.done);
+      expect(groups[1].state, WorkflowPhaseState.done);
+      expect(groups[2].state, WorkflowPhaseState.active);
+    });
+
+    test('reports a failed phase when its agents errored', () {
+      final run = WorkflowRun(
+        runId: 'wf_1',
+        workflowName: 'probe',
+        status: 'failed',
+        phases: const <WorkflowPhase>[WorkflowPhase(title: 'One')],
+        workflowProgress: <WorkflowProgressEvent>[
+          agent('a1', 'error', phaseIndex: 1, phaseTitle: 'One'),
+        ],
+      );
+      expect(
+        WorkflowRun.phaseGroups(run).single.state,
+        WorkflowPhaseState.failed,
+      );
+    });
+
+    test('never drops an agent that matches no phase', () {
+      final run = WorkflowRun(
+        runId: 'wf_1',
+        workflowName: 'probe',
+        status: 'running',
+        phases: const <WorkflowPhase>[WorkflowPhase(title: 'One')],
+        workflowProgress: <WorkflowProgressEvent>[
+          const WorkflowPhaseEvent(index: 1, title: 'One', kind: 'start'),
+          agent('orphan', 'progress', phaseIndex: 9, phaseTitle: 'Ghost'),
+        ],
+      );
+      final groups = WorkflowRun.phaseGroups(run, fallbackTitle: 'Other');
+      expect(groups, hasLength(2));
+      expect(groups.last.phase.title, 'Other');
+      expect(groups.last.agents.single.agentId, 'orphan');
+    });
+
+    test('buckets everything under a fallback phase when none are known', () {
+      final run = WorkflowRun(
+        runId: 'wf_1',
+        workflowName: 'probe',
+        status: 'running',
+        workflowProgress: <WorkflowProgressEvent>[
+          agent('a1', 'progress', phaseIndex: 0, phaseTitle: ''),
+        ],
+      );
+      final groups = WorkflowRun.phaseGroups(run);
+      expect(groups.single.phase.title, 'probe');
+      expect(groups.single.agents, hasLength(1));
     });
   });
 }

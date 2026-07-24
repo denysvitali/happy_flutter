@@ -86,8 +86,10 @@ void main() {
     // Logs section.
     expect(find.text('all done'), findsOneWidget);
 
-    // 'Read' has no agents yet — pending placeholder, not a bare header.
-    expect(find.text('Pending'), findsOneWidget);
+    // 'Read' reported no agents but the run moved past it, so it reads as
+    // finished rather than as a phase that is still waiting its turn.
+    expect(find.text('Completed'), findsOneWidget);
+    expect(find.text('Pending'), findsNothing);
 
     // Unmount so the screen cancels its poll timer + stream sub.
     await tester.pumpWidget(const SizedBox.shrink());

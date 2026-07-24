@@ -153,6 +153,8 @@ class WorkflowAgent implements WorkflowProgressEvent {
     this.promptPreview,
     this.resultPreview,
     this.error,
+    this.lastToolName,
+    this.lastToolSummary,
   });
 
   factory WorkflowAgent.fromJson(Map<String, dynamic> json) {
@@ -169,6 +171,8 @@ class WorkflowAgent implements WorkflowProgressEvent {
       promptPreview: json['promptPreview'] as String?,
       resultPreview: json['resultPreview'] as String?,
       error: json['error'] as String?,
+      lastToolName: json['lastToolName'] as String?,
+      lastToolSummary: json['lastToolSummary'] as String?,
     );
   }
 
@@ -187,6 +191,11 @@ class WorkflowAgent implements WorkflowProgressEvent {
   final String? promptPreview;
   final String? resultPreview;
   final String? error;
+
+  /// Tool the agent invoked most recently, and a one-line summary of it — the
+  /// only live signal of what a long-running agent is actually doing.
+  final String? lastToolName;
+  final String? lastToolSummary;
 
   static WorkflowAgent? tryFromJson(Map<String, dynamic> json) {
     final agentId = WireParsers.parseString(json['agentId']);
@@ -216,6 +225,8 @@ class WorkflowAgent implements WorkflowProgressEvent {
       promptPreview: WireParsers.parseString(json['promptPreview']),
       resultPreview: WireParsers.parseString(json['resultPreview']),
       error: WireParsers.parseString(json['error']),
+      lastToolName: WireParsers.parseString(json['lastToolName']),
+      lastToolSummary: WireParsers.parseString(json['lastToolSummary']),
     );
   }
 
@@ -235,6 +246,8 @@ class WorkflowAgent implements WorkflowProgressEvent {
       if (promptPreview != null) 'promptPreview': promptPreview,
       if (resultPreview != null) 'resultPreview': resultPreview,
       if (error != null) 'error': error,
+      if (lastToolName != null) 'lastToolName': lastToolName,
+      if (lastToolSummary != null) 'lastToolSummary': lastToolSummary,
     };
   }
 
@@ -257,6 +270,10 @@ class WorkflowAgent implements WorkflowProgressEvent {
     bool clearResultPreview = false,
     String? error,
     bool clearError = false,
+    String? lastToolName,
+    bool clearLastToolName = false,
+    String? lastToolSummary,
+    bool clearLastToolSummary = false,
   }) {
     return WorkflowAgent(
       agentId: agentId ?? this.agentId,
@@ -275,6 +292,11 @@ class WorkflowAgent implements WorkflowProgressEvent {
           ? null
           : (resultPreview ?? this.resultPreview),
       error: clearError ? null : (error ?? this.error),
+      lastToolName:
+          clearLastToolName ? null : (lastToolName ?? this.lastToolName),
+      lastToolSummary: clearLastToolSummary
+          ? null
+          : (lastToolSummary ?? this.lastToolSummary),
     );
   }
 
@@ -293,7 +315,9 @@ class WorkflowAgent implements WorkflowProgressEvent {
           durationMs == other.durationMs &&
           promptPreview == other.promptPreview &&
           resultPreview == other.resultPreview &&
-          error == other.error;
+          error == other.error &&
+          lastToolName == other.lastToolName &&
+          lastToolSummary == other.lastToolSummary;
 
   @override
   int get hashCode => Object.hash(
@@ -309,6 +333,8 @@ class WorkflowAgent implements WorkflowProgressEvent {
         promptPreview,
         resultPreview,
         error,
+        lastToolName,
+        lastToolSummary,
       );
 
   @override
@@ -428,6 +454,50 @@ class WorkflowLog implements WorkflowProgressEvent {
 
   @override
   String toString() => 'WorkflowLog(message: $message)';
+}
+
+/// Display states a phase can be in.
+class WorkflowPhaseState {
+  const WorkflowPhaseState._();
+
+  static const String pending = 'pending';
+  static const String active = 'active';
+  static const String done = 'done';
+  static const String failed = 'failed';
+}
+
+/// One phase of a run together with the agents that ran inside it.
+class WorkflowPhaseGroup {
+  /// Creates a [WorkflowPhaseGroup].
+  const WorkflowPhaseGroup({
+    required this.phase,
+    required this.agents,
+    required this.state,
+    this.wireIndex,
+  });
+
+  /// The phase, including its declared `detail` when the script provided one.
+  final WorkflowPhase phase;
+
+  /// Agents attached to this phase, in report order.
+  final List<WorkflowAgent> agents;
+
+  /// One of the [WorkflowPhaseState] values.
+  final String state;
+
+  /// The `index` the wire used for this phase, when it announced one.
+  final int? wireIndex;
+
+  /// Whether the phase has started (or finished) as opposed to still waiting.
+  bool get hasStarted => state != WorkflowPhaseState.pending;
+}
+
+/// A declared phase paired with the progress event that announced it.
+class _PhaseSlot {
+  const _PhaseSlot({required this.phase, this.event});
+
+  final WorkflowPhase phase;
+  final WorkflowPhaseEvent? event;
 }
 
 /// A Claude Code workflow run mirrored from the daemon.
@@ -589,30 +659,113 @@ class WorkflowRun {
     );
   }
 
-  /// Most recent progress snapshot carried on a list of sidechain child
-  /// messages — the same `children` array the chat inline view reads.
+  /// Accumulated progress carried on a list of sidechain child messages — the
+  /// same `children` array the chat inline view reads.
   ///
-  /// Walks the list in reverse because the most recent task event carries
-  /// the complete snapshot. Returns an empty list when no child carries a
-  /// parseable, non-empty `workflowProgress`.
-  static List<WorkflowProgressEvent> latestProgressFromChildren(
+  /// **`workflow_progress` is a delta, not a snapshot.** Claude Code emits one
+  /// event per state change (usually a single `workflow_agent`), so reading
+  /// only the newest child shows one agent, drops every phase announced at run
+  /// start, and makes the aggregate token/tool counts collapse to whichever
+  /// agent ticked last — the view then jumps around as deltas arrive. This
+  /// walks every child forward and folds the stream into the current state:
+  /// phases keyed by `index`, agents keyed by `agentId` (newest wins, but
+  /// fields absent from a delta are retained and a terminal state is never
+  /// reverted), logs appended in order with consecutive duplicates dropped.
+  ///
+  /// Returns an empty list when no child carries parseable progress.
+  static List<WorkflowProgressEvent> accumulateProgressFromChildren(
     List<dynamic>? children,
   ) {
     final list = WireParsers.asList(children);
     if (list == null) return const <WorkflowProgressEvent>[];
-    for (var i = list.length - 1; i >= 0; i--) {
-      final msg = list[i];
+    final phases = <int, WorkflowPhaseEvent>{};
+    final agents = <String, WorkflowAgent>{};
+    final agentOrder = <String>[];
+    final logs = <WorkflowLog>[];
+    for (final msg in list) {
       if (msg is! Map<String, dynamic>) continue;
       final raw = rawWorkflowProgress(msg);
       if (raw == null || raw.isEmpty) continue;
-      final parsed = raw
-          .whereType<Map<String, dynamic>>()
-          .map(WorkflowProgressEvent.tryFromJson)
-          .whereType<WorkflowProgressEvent>()
-          .toList(growable: false);
-      if (parsed.isNotEmpty) return parsed;
+      for (final entry in raw) {
+        if (entry is! Map<String, dynamic>) continue;
+        final event = WorkflowProgressEvent.tryFromJson(entry);
+        if (event is WorkflowPhaseEvent) {
+          phases[event.index] = mergePhaseEvent(phases[event.index], event);
+        } else if (event is WorkflowAgent) {
+          final prev = agents[event.agentId];
+          if (prev == null) agentOrder.add(event.agentId);
+          agents[event.agentId] = mergeAgentEvent(prev, event);
+        } else if (event is WorkflowLog) {
+          if (logs.isEmpty || logs.last.message != event.message) {
+            logs.add(event);
+          }
+        }
+      }
     }
-    return const <WorkflowProgressEvent>[];
+    if (phases.isEmpty && agents.isEmpty && logs.isEmpty) {
+      return const <WorkflowProgressEvent>[];
+    }
+    final orderedPhases = phases.values.toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    return <WorkflowProgressEvent>[
+      ...orderedPhases,
+      for (final id in agentOrder) agents[id]!,
+      ...logs,
+    ];
+  }
+
+  /// Agent states that mean the agent will not report again.
+  static bool isTerminalAgentState(String state) =>
+      state == 'done' ||
+      state == 'completed' ||
+      state == 'error' ||
+      state == 'failed';
+
+  /// Whether the agent is actively working right now.
+  static bool isLiveAgentState(String state) =>
+      state == 'start' ||
+      state == 'running' ||
+      state == 'progress' ||
+      state == 'queued';
+
+  /// Folds a newer agent delta onto what is already known.
+  ///
+  /// A delta omits fields it has nothing new to say about (a `progress` tick
+  /// carries no `durationMs`/`resultPreview`), so unset fields must fall back
+  /// to the retained value instead of blanking the row. Out-of-order delivery
+  /// must also not resurrect a finished agent, hence the terminal-state guard.
+  static WorkflowAgent mergeAgentEvent(WorkflowAgent? prev, WorkflowAgent next) {
+    if (prev == null) return next;
+    final keepPrevState =
+        isTerminalAgentState(prev.state) && !isTerminalAgentState(next.state);
+    return next.copyWith(
+      state: keepPrevState ? prev.state : next.state,
+      label: next.label.isEmpty ? prev.label : next.label,
+      tokens: next.tokens ?? prev.tokens,
+      toolCalls: next.toolCalls ?? prev.toolCalls,
+      durationMs: next.durationMs ?? prev.durationMs,
+      promptPreview: next.promptPreview ?? prev.promptPreview,
+      resultPreview: next.resultPreview ?? prev.resultPreview,
+      error: next.error ?? prev.error,
+      lastToolName: next.lastToolName ?? prev.lastToolName,
+      lastToolSummary: next.lastToolSummary ?? prev.lastToolSummary,
+    );
+  }
+
+  /// Folds a newer phase delta onto what is already known, keeping the more
+  /// advanced `kind` so a re-announced phase never regresses from done back to
+  /// start.
+  static WorkflowPhaseEvent mergePhaseEvent(
+    WorkflowPhaseEvent? prev,
+    WorkflowPhaseEvent next,
+  ) {
+    if (prev == null) return next;
+    final prevDone = prev.kind == 'done' || prev.kind == 'completed';
+    final nextDone = next.kind == 'done' || next.kind == 'completed';
+    return next.copyWith(
+      kind: prevDone && !nextDone ? prev.kind : next.kind,
+      title: next.title.isEmpty ? prev.title : next.title,
+    );
   }
 
   /// Overlays the live, in-flight progress snapshot for this run from the
@@ -638,7 +791,7 @@ class WorkflowRun {
   ) {
     final children = childrenForRun(run.runId, messages);
     if (children == null) return run;
-    final progress = latestProgressFromChildren(children);
+    final progress = accumulateProgressFromChildren(children);
     if (progress.isEmpty) return run;
     return _withProgress(run, progress);
   }
@@ -647,33 +800,232 @@ class WorkflowRun {
     WorkflowRun run,
     List<WorkflowProgressEvent> progress,
   ) {
-    final phaseEvents = progress
-        .whereType<WorkflowPhaseEvent>()
-        .toList(growable: false)
-      ..sort((a, b) => a.index.compareTo(b.index));
     final agents =
         progress.whereType<WorkflowAgent>().toList(growable: false);
-    final phases = phaseEvents
-        .map((event) => WorkflowPhase(title: event.title))
-        .toList(growable: false);
-    final seenAgents = <String>{};
+    // Merge, never replace: the declared phases carry `detail` and include
+    // phases the run has not announced yet, which is the roadmap the user
+    // needs while the run is still early.
+    final phases = mergePhases(run.phases, progress);
+    // Deduped by agentId so a re-reported agent cannot double-count.
+    final byId = <String, WorkflowAgent>{};
+    for (final agent in agents) {
+      byId[agent.agentId] = agent;
+    }
     var tokens = 0;
     var toolCalls = 0;
-    for (final agent in agents) {
-      seenAgents.add(agent.agentId);
+    for (final agent in byId.values) {
       if (agent.tokens != null) tokens += agent.tokens!;
       if (agent.toolCalls != null) toolCalls += agent.toolCalls!;
     }
     return run.copyWith(
       workflowProgress: progress,
       phases: phases,
-      agentCount: seenAgents.isNotEmpty ? seenAgents.length : null,
-      clearAgentCount: seenAgents.isEmpty,
+      agentCount: byId.isNotEmpty ? byId.length : null,
+      clearAgentCount: byId.isEmpty,
       totalTokens: tokens > 0 ? tokens : null,
       clearTotalTokens: tokens == 0,
       totalToolCalls: toolCalls > 0 ? toolCalls : null,
       clearTotalToolCalls: toolCalls == 0,
     );
+  }
+
+  /// The run's phase roadmap: [declared] phases (from the script's
+  /// `meta.phases`, carrying `detail`) enriched with any phase the progress
+  /// stream announced but the script never declared. Returns an empty list
+  /// when neither source has phases.
+  static List<WorkflowPhase> mergePhases(
+    List<WorkflowPhase> declared,
+    List<WorkflowProgressEvent> progress,
+  ) =>
+      _phaseSlots(declared, progress)
+          .map((slot) => slot.phase)
+          .toList(growable: false);
+
+  /// Phases with their agents attached, in run order — the single derivation
+  /// the inline view, the list card, and the run detail screen share so a run
+  /// reads the same everywhere.
+  ///
+  /// [fallbackTitle] titles the bucket used when the run reports agents but no
+  /// phases at all; agents that match no phase are never dropped.
+  static List<WorkflowPhaseGroup> phaseGroups(
+    WorkflowRun run, {
+    String? fallbackTitle,
+  }) =>
+      phaseGroupsFrom(
+        declared: run.phases,
+        progress: run.workflowProgress,
+        fallbackTitle: fallbackTitle ?? run.workflowName,
+      );
+
+  /// [phaseGroups] for callers that hold a raw progress stream rather than a
+  /// [WorkflowRun] — the chat inline view reads sidechain children directly.
+  static List<WorkflowPhaseGroup> phaseGroupsFrom({
+    required List<WorkflowPhase> declared,
+    required List<WorkflowProgressEvent> progress,
+    required String fallbackTitle,
+  }) {
+    final agents = progress.whereType<WorkflowAgent>().toList(growable: false);
+    final slots = _phaseSlots(declared, progress);
+    if (slots.isEmpty) {
+      if (agents.isEmpty) return const <WorkflowPhaseGroup>[];
+      return <WorkflowPhaseGroup>[
+        WorkflowPhaseGroup(
+          phase: WorkflowPhase(title: fallbackTitle),
+          agents: agents,
+          state: _phaseStateFor(null, agents, isPast: false),
+        ),
+      ];
+    }
+
+    final byWireIndex = <int, int>{};
+    for (var i = 0; i < slots.length; i++) {
+      final index = slots[i].event?.index;
+      if (index != null) byWireIndex[index] = i;
+    }
+    final buckets = <int, List<WorkflowAgent>>{};
+    final leftover = <WorkflowAgent>[];
+    for (final agent in agents) {
+      final position = _slotForAgent(agent, slots, byWireIndex);
+      if (position == null) {
+        leftover.add(agent);
+      } else {
+        buckets.putIfAbsent(position, () => <WorkflowAgent>[]).add(agent);
+      }
+    }
+
+    // Workflows advance in order, so any phase before the furthest one that
+    // has agents is finished even if it reported nothing itself.
+    var furthest = -1;
+    for (final position in buckets.keys) {
+      if (position > furthest) furthest = position;
+    }
+
+    final groups = <WorkflowPhaseGroup>[];
+    for (var i = 0; i < slots.length; i++) {
+      final slotAgents = buckets[i] ?? const <WorkflowAgent>[];
+      groups.add(
+        WorkflowPhaseGroup(
+          phase: slots[i].phase,
+          agents: slotAgents,
+          state: _phaseStateFor(
+            slots[i].event?.kind,
+            slotAgents,
+            isPast: i < furthest,
+          ),
+          wireIndex: slots[i].event?.index,
+        ),
+      );
+    }
+    if (leftover.isNotEmpty) {
+      groups.add(
+        WorkflowPhaseGroup(
+          phase: WorkflowPhase(title: fallbackTitle),
+          agents: leftover,
+          state: _phaseStateFor(null, leftover, isPast: false),
+        ),
+      );
+    }
+    return groups;
+  }
+
+  /// Resolves the phase an agent belongs to.
+  ///
+  /// The wire index is authoritative when the run announced its phases; it may
+  /// be 0- or 1-based, which is exactly why positional matching is the last
+  /// resort. `phaseTitle` is carried on every agent event and is what makes
+  /// attachment work for a live run whose phase announcement has scrolled out
+  /// of the delta stream.
+  static int? _slotForAgent(
+    WorkflowAgent agent,
+    List<_PhaseSlot> slots,
+    Map<int, int> byWireIndex,
+  ) {
+    final byIndex = byWireIndex[agent.phaseIndex];
+    if (byIndex != null) return byIndex;
+    if (agent.phaseTitle.isNotEmpty) {
+      for (var i = 0; i < slots.length; i++) {
+        if (slots[i].phase.title == agent.phaseTitle) return i;
+      }
+    }
+    if (byWireIndex.isEmpty) {
+      if (agent.phaseIndex >= 0 && agent.phaseIndex < slots.length) {
+        return agent.phaseIndex;
+      }
+      final oneBased = agent.phaseIndex - 1;
+      if (oneBased >= 0 && oneBased < slots.length) return oneBased;
+    }
+    return null;
+  }
+
+  static String _phaseStateFor(
+    String? kind,
+    List<WorkflowAgent> agents, {
+    required bool isPast,
+  }) {
+    if (kind == 'done' || kind == 'completed') return WorkflowPhaseState.done;
+    if (agents.isNotEmpty) {
+      if (agents.any((a) => isLiveAgentState(a.state))) {
+        return WorkflowPhaseState.active;
+      }
+      if (agents.every((a) => isTerminalAgentState(a.state))) {
+        final failed = agents.any(
+          (a) => a.state == 'error' || a.state == 'failed',
+        );
+        return failed ? WorkflowPhaseState.failed : WorkflowPhaseState.done;
+      }
+      return WorkflowPhaseState.active;
+    }
+    return isPast ? WorkflowPhaseState.done : WorkflowPhaseState.pending;
+  }
+
+  /// Aligns declared phases with announced phase events.
+  static List<_PhaseSlot> _phaseSlots(
+    List<WorkflowPhase> declared,
+    List<WorkflowProgressEvent> progress,
+  ) {
+    final byIndex = <int, WorkflowPhaseEvent>{};
+    for (final event in progress.whereType<WorkflowPhaseEvent>()) {
+      byIndex[event.index] = mergePhaseEvent(byIndex[event.index], event);
+    }
+    final events = byIndex.values.toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+
+    if (declared.isEmpty) {
+      return events
+          .map(
+            (event) => _PhaseSlot(
+              phase: WorkflowPhase(title: event.title),
+              event: event,
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    final used = <int>{};
+    final slots = <_PhaseSlot>[];
+    for (var i = 0; i < declared.length; i++) {
+      final phase = declared[i];
+      WorkflowPhaseEvent? match;
+      for (final event in events) {
+        if (used.contains(event.index)) continue;
+        if (event.title == phase.title) {
+          match = event;
+          break;
+        }
+      }
+      if (match == null && i < events.length && !used.contains(events[i].index)) {
+        match = events[i];
+      }
+      if (match != null) used.add(match.index);
+      slots.add(_PhaseSlot(phase: phase, event: match));
+    }
+    for (final event in events) {
+      if (used.contains(event.index)) continue;
+      slots.add(
+        _PhaseSlot(phase: WorkflowPhase(title: event.title), event: event),
+      );
+    }
+    return slots;
   }
 
   /// Locates the sidechain `children` (or top-level step events) that
