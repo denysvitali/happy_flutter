@@ -1124,14 +1124,6 @@ extension SyncMessagingRpc on Sync {
     return cursorSeq <= 0 || serverLastSeq <= 0;
   }
 
-  int _tailAfterSeqForSession(String sessionId) {
-    return _cursorManager.tailAfterSeq(
-      sessionId,
-      serverLastSeq: _sessions[sessionId]?.lastSeq ?? 0,
-      initialLoad: Sync.initialLoad,
-    );
-  }
-
   /// Whether a session's agent is connected enough to receive messages.
   /// Checks both ephemeral presence and lifecycle metadata.
   /// Guards against stale lifecycleState by requiring a recent timestamp.
