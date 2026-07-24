@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/file_type_colors.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
+import 'search_chips.dart';
 
 /// File item model for Glob results.
 class GlobFile {
@@ -85,10 +86,15 @@ class _GlobViewState extends State<GlobView> {
           // Pattern badge row
           Row(
             children: [
-              _PatternBadge(pattern: pattern),
+              SearchToolBadge(
+                label: 'glob',
+                pattern: pattern,
+                icon: Icons.travel_explore,
+                accent: cs.primary,
+              ),
               if (path != null && path.isNotEmpty) ...[
                 const SizedBox(width: AppSpacing.xsm),
-                _PathChip(path: path),
+                SearchPathChip(path: path),
               ],
             ],
           ),
@@ -245,117 +251,7 @@ class _ResultCountChip extends StatelessWidget {
   }
 }
 
-/// A styled badge showing the glob pattern.
-class _PatternBadge extends StatelessWidget {
-  const _PatternBadge({required this.pattern});
 
-  final String pattern;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.smd,
-        vertical: AppSpacing.xxs2,
-      ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.xsm),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.6),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.travel_explore,
-            size: AppIconSize.sm,
-            color: cs.primary,
-          ),
-          const SizedBox(width: AppSpacing.xsm),
-          Text(
-            'glob',
-            style: TextStyle(
-              fontSize: AppFontSize.xs,
-              fontWeight: FontWeight.w600,
-              color: cs.onSurfaceVariant,
-              letterSpacing: 0.3,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xsm),
-          Container(
-            width: 1,
-            height: AppIconSize.xs,
-            color: cs.outlineVariant,
-          ),
-          const SizedBox(width: AppSpacing.xsm),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 200),
-            child: SelectableText(
-              pattern,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: AppFontSize.sm,
-                fontWeight: FontWeight.w600,
-                color: cs.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A chip showing the search path.
-class _PathChip extends StatelessWidget {
-  const _PathChip({required this.path});
-
-  final String path;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs2,
-      ),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.xsm),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.6),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.folder_outlined,
-            size: AppIconSize.xs,
-            color: cs.secondary,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 160),
-            child: Text(
-              path,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: AppFontSize.xs,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// A single row in the file list.
 class _FileRow extends StatelessWidget {

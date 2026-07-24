@@ -4,9 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/artifact_form_fields.dart';
+import 'widgets/artifact_pane_header.dart';
 
 /// Screen for creating a new artifact.
 ///
@@ -168,11 +168,16 @@ class _NewArtifactScreenState
     if (widget.embedded) {
       return Column(
         children: [
-          _EmbeddedNewHeader(
+          ArtifactPaneHeader(
             title: l10n.artifactsNew,
-            isBusy: _isBusy,
-            onCreate: _handleCreate,
             onClose: widget.onClose,
+            actions: [
+              ArtifactBusyTextButton(
+                label: l10n.commonCreate,
+                isBusy: _isBusy,
+                onPressed: _handleCreate,
+              ),
+            ],
           ),
           Expanded(child: form),
         ],
@@ -207,87 +212,4 @@ class _NewArtifactScreenState
   }
 }
 
-/// Compact header for the embedded create pane: title + create + close.
-class _EmbeddedNewHeader extends StatelessWidget {
-  const _EmbeddedNewHeader({
-    required this.title,
-    required this.isBusy,
-    required this.onCreate,
-    this.onClose,
-  });
-
-  final String title;
-  final bool isBusy;
-  final Future<void> Function() onCreate;
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final l10n = AppLocalizations.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: AppOpacity.half),
-            width: AppBorder.hairline,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: kToolbarHeight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                    ),
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: TextButton(
-                    onPressed: isBusy ? null : onCreate,
-                    child: isBusy
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(
-                            l10n.commonCreate,
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-                if (onClose != null)
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: l10n.commonClose,
-                    onPressed: onClose,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 

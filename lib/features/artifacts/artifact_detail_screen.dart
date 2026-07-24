@@ -13,6 +13,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/safe_pop.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
+import 'widgets/artifact_pane_header.dart';
 
 /// Screen showing detail view for a single artifact.
 class ArtifactDetailScreen extends ConsumerStatefulWidget {
@@ -72,7 +73,7 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
       if (widget.embedded) {
         return Column(
           children: [
-            _EmbeddedHeader(
+            ArtifactPaneHeader(
               title: l10n.artifactsDetail,
               onClose: widget.onClose,
             ),
@@ -118,7 +119,7 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
     if (widget.embedded) {
       return Column(
         children: [
-          _EmbeddedHeader(
+          ArtifactPaneHeader(
             title: headerTitle,
             onClose: widget.onClose,
             actions: actions,
@@ -178,71 +179,6 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
   }
 }
 
-/// Compact header shown at the top of an embedded detail pane. Mirrors the
-/// AppBar visual language using design tokens (no explicit hex colors).
-class _EmbeddedHeader extends StatelessWidget {
-  const _EmbeddedHeader({
-    required this.title,
-    this.onClose,
-    this.actions = const [],
-  });
-
-  final String title;
-  final VoidCallback? onClose;
-  final List<Widget> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: AppOpacity.half),
-            width: AppBorder.hairline,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: kToolbarHeight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                    ),
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                ...actions,
-                if (onClose != null)
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: AppLocalizations.of(context).commonClose,
-                    onPressed: onClose,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _ArtifactDetailBody extends StatelessWidget {
   const _ArtifactDetailBody({required this.artifact});

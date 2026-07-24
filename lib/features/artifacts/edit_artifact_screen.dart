@@ -5,9 +5,9 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/artifact_form_fields.dart';
+import 'widgets/artifact_pane_header.dart';
 
 /// Screen for editing an existing artifact.
 ///
@@ -125,13 +125,25 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
       if (widget.embedded) {
         return Column(
           children: [
-            _EmbeddedEditHeader(
+            ArtifactPaneHeader(
               title: l10n.artifactsEdit,
-              isBusy: _isBusy,
-              isFullscreen: _isFullscreen,
-              onSave: _handleSave,
-              onToggleFullscreen: () =>
-                  setState(() => _isFullscreen = !_isFullscreen),
+                          actions: [
+                            ArtifactBusyTextButton(
+                              label: l10n.commonSave,
+                              isBusy: _isBusy,
+                              onPressed: _handleSave,
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                              ),
+                              tooltip: _isFullscreen
+                                  ? l10n.commonClose
+                                  : 'Expand to full screen',
+                              onPressed: () =>
+                                  setState(() => _isFullscreen = !_isFullscreen),
+                            ),
+                          ],
               onClose: widget.onClose,
             ),
             Expanded(child: emptyBody),
@@ -211,13 +223,25 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
     );
 
     if (widget.embedded) {
-      final embeddedHeader = _EmbeddedEditHeader(
+      final embeddedHeader = ArtifactPaneHeader(
         title: l10n.artifactsEdit,
-        isBusy: _isBusy,
-        isFullscreen: _isFullscreen,
-        onSave: _handleSave,
-        onToggleFullscreen: () =>
-            setState(() => _isFullscreen = !_isFullscreen),
+        actions: [
+          ArtifactBusyTextButton(
+            label: l10n.commonSave,
+            isBusy: _isBusy,
+            onPressed: _handleSave,
+          ),
+          IconButton(
+            icon: Icon(
+              _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+            ),
+            tooltip: _isFullscreen
+                ? l10n.commonClose
+                : 'Expand to full screen',
+            onPressed: () =>
+                setState(() => _isFullscreen = !_isFullscreen),
+          ),
+        ],
         onClose: () {
           if (_isFullscreen) {
             // Exit full-screen first instead of closing.
@@ -338,110 +362,6 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
   }
 }
 
-/// Compact header for the embedded edit pane: title + save + fullscreen + close.
-class _EmbeddedEditHeader extends StatelessWidget {
-  const _EmbeddedEditHeader({
-    required this.title,
-    required this.isBusy,
-    required this.isFullscreen,
-    required this.onSave,
-    required this.onToggleFullscreen,
-    this.onClose,
-  });
-
-  final String title;
-  final bool isBusy;
-
-  /// Whether the editor is currently in full-screen mode.
-  final bool isFullscreen;
-
-  final Future<void> Function() onSave;
-
-  /// Called when the user taps the fullscreen / fullscreen_exit button.
-  final VoidCallback onToggleFullscreen;
-
-  final VoidCallback? onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final l10n = AppLocalizations.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: AppOpacity.half),
-            width: AppBorder.hairline,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: kToolbarHeight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                    ),
-                    child: Text(
-                      title,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: TextButton(
-                    onPressed: isBusy ? null : onSave,
-                    child: isBusy
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(
-                            l10n.commonSave,
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    isFullscreen
-                        ? Icons.fullscreen_exit
-                        : Icons.fullscreen,
-                  ),
-                  tooltip: isFullscreen
-                      ? l10n.commonClose
-                      : 'Expand to full screen',
-                  onPressed: onToggleFullscreen,
-                ),
-                if (onClose != null)
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: l10n.commonClose,
-                    onPressed: onClose,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _EncryptionNote extends StatelessWidget {
   const _EncryptionNote();

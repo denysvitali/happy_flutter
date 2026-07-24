@@ -3,6 +3,7 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
 import '../tool_section_view.dart';
 import 'grep_view_widgets.dart';
+import 'search_chips.dart';
 
 /// Match item model for Grep results.
 class GrepMatch {
@@ -81,10 +82,15 @@ class _GrepViewState extends State<GrepView> {
           // Header row: pattern badge + path chip
           Row(
             children: [
-              GrepPatternBadge(pattern: pattern),
+              SearchToolBadge(
+                label: 'grep',
+                pattern: pattern,
+                icon: Icons.manage_search,
+                accent: cs.tertiary,
+              ),
               if (path != null && path.isNotEmpty) ...[
                 const SizedBox(width: AppSpacing.xsm),
-                GrepPathChip(path: path),
+                SearchPathChip(path: path),
               ],
             ],
           ),
