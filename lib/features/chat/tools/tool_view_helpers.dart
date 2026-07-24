@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/utils/wire_parsers.dart';
@@ -214,6 +216,55 @@ String? _mcpTextFromContentBlocks(dynamic value) {
   if (texts.isEmpty) return null;
   return texts.join('\n');
 }
+
+/// Decodes [raw] when it is a JSON object or array, otherwise returns null.
+///
+/// Scalars (`"42"`, `"true"`, a bare quoted string) decode successfully as
+/// JSON but pretty-printing them changes nothing, so they are treated as plain
+/// text. Bounded by a cheap first-character check so ordinary log output never
+/// pays for a failed parse.
+Object? tryDecodeJsonCollection(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.length < 2) return null;
+  final first = trimmed[0];
+  if (first != '{' && first != '[') return null;
+  try {
+    final decoded = jsonDecode(trimmed);
+    if (decoded is Map || decoded is List) return decoded;
+  } on FormatException {
+    return null;
+  }
+  return null;
+}
+
+/// One-glance summary of an MCP text result, for the collapsed tool header.
+///
+/// A collapsed MCP row otherwise says nothing about what came back. Prefers
+/// the shape of the payload (`4 items`, `29 operations`, `3 fields`) and falls
+/// back to a line count for non-JSON text. Returns null for empty results.
+String? mcpResultSummary(String text) {
+  final decoded = tryDecodeJsonCollection(text);
+  if (decoded is List) return _pluralize(decoded.length, 'item');
+  if (decoded is Map) {
+    // Envelope shapes such as `{limit, offset, total, traces: [...]}` are far
+    // better summarized by their payload list than by a field count.
+    for (final entry in decoded.entries) {
+      final value = entry.value;
+      final key = entry.key.toString();
+      if (value is List && key.endsWith('s')) return '${value.length} $key';
+    }
+    return _pluralize(decoded.length, 'field');
+  }
+
+  final trimmed = text.trimRight();
+  if (trimmed.isEmpty) return null;
+  final lines = trimmed.split('\n').length;
+  if (lines == 1) return null;
+  return _pluralize(lines, 'line');
+}
+
+String _pluralize(int count, String noun) =>
+    '$count $noun${count == 1 ? '' : 's'}';
 
 /// Permission action kinds emitted from [ToolView].
 enum PermissionActionKind {

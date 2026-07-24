@@ -21,6 +21,7 @@ import 'tool_view_helpers.dart';
 import 'tool_view_registry.dart';
 import 'tool_view_widgets.dart';
 import 'views/ask_user_question_view.dart';
+import 'views/mcp_result_view.dart';
 import 'views/task_tool_view.dart';
 
 // Re-export public helpers so existing imports continue to work.
@@ -492,11 +493,19 @@ class _ToolViewState extends ConsumerState<ToolView>
       subtitle = extractSubtitle(widget.tool, widget.metadata);
     }
 
+    // MCP results carry no per-tool view, so the collapsed row would say
+    // nothing at all about what came back. Summarize the payload shape
+    // ("4 items", "29 traces") inline next to the title.
+    final mcpText = isMCP ? mcpToolTextResult(toolResult) : null;
+    if (status == null && subtitle == null && mcpText != null) {
+      status = mcpResultSummary(mcpText);
+    }
+
     // Determine minimal mode
     final bool minimal;
     if (knownTool != null) {
       minimal = knownTool.minimal;
-    } else if (isMCP && mcpToolTextResult(toolResult) != null) {
+    } else if (isMCP && mcpText != null) {
       minimal = false;
     } else {
       // Unknown/MCP tools: always minimal — details via tap/long-press only.
@@ -767,11 +776,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     if (mcpTextResult != null) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
-        child: _McpTextOutput(
-          text: mcpTextResult,
-          rawResult: toolResult,
-          maxHeight: double.infinity,
-        ),
+        child: McpResultView(text: mcpTextResult),
       );
     }
 
@@ -869,89 +874,6 @@ class _ToolViewState extends ConsumerState<ToolView>
       }
     }
     return value.toString();
-  }
-}
-
-class _McpTextOutput extends StatefulWidget {
-  const _McpTextOutput({
-    required this.text,
-    required this.rawResult,
-    this.maxHeight = 300,
-  });
-
-  final String text;
-  final dynamic rawResult;
-
-  /// Maximum height of the output pane.
-  ///
-  /// Pass [double.infinity] to fill an external bounded parent such as
-  /// [CollapsibleOutput]. A finite fallback of 300 is used when this is
-  /// not bounded by a parent.
-  final double maxHeight;
-
-  @override
-  State<_McpTextOutput> createState() => _McpTextOutputState();
-}
-
-class _McpTextOutputState extends State<_McpTextOutput> {
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final effectiveMaxHeight = widget.maxHeight.isFinite
-        ? widget.maxHeight
-        : 300.0;
-
-    final textOutput = Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadius.sm - 2),
-        border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: ToolOutputScrollFrame(
-        child: SelectableText(
-          widget.text,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontFamilyFallback: const ['Courier New', 'Courier'],
-            fontSize: AppFontSize.sm,
-            color: theme.colorScheme.onSurface,
-            height: AppLineHeight.relaxed,
-          ),
-        ),
-      ),
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final hasBoundedHeight = constraints.maxHeight.isFinite;
-        Widget content = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: ToolViewCopyButton(text: widget.text),
-            ),
-            // Only expand when the widget has a finite max height. When placed
-            // inside an unbounded-height ancestor (e.g. a scrollable), Expanded
-            // would receive infinite remaining space and throw.
-            if (hasBoundedHeight) Expanded(child: textOutput) else textOutput,
-          ],
-        );
-
-        if (widget.maxHeight.isFinite) {
-          content = ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: effectiveMaxHeight),
-            child: content,
-          );
-        }
-
-        return content;
-      },
-    );
   }
 }
 
