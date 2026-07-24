@@ -298,5 +298,32 @@ void main() {
         'MiniMax-Text-01',
       );
     });
+
+    test('normalizes vendor/model strings away from Claude', () {
+      // Models with a vendor prefix like inclusionai/ling-3.0-flash:free
+      // carry a slash that identifies them as third-party — Claude CLI
+      // rejects these with "There's an issue with the selected model".
+      expect(
+        sync.testNormalizeModelModeForAgent(
+          'inclusionai/ling-3.0-flash:free',
+          'claude',
+        ),
+        'default',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent(
+          'inclusionai/ling-3.0-flash',
+          'claude',
+        ),
+        'default',
+      );
+      expect(
+        sync.testNormalizeModelModeForAgent(
+          'anthropic/claude-opus-4-6',
+          'claude',
+        ),
+        'anthropic/claude-opus-4-6',
+      );
+    });
   });
 }

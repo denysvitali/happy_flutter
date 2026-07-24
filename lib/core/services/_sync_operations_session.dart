@@ -1403,11 +1403,13 @@ PY
     if (agent == 'codex' && !_isKnownCodexModelMode(modelMode)) {
       return 'default';
     }
-    // The reverse direction: Codex/Gemini-style names from a previous
+    // The reverse direction: non-Claude model names from a previous
     // session must not leak into Claude spawns — Claude CLI rejects them
     // with "There's an issue with the selected model ... Run --model to
     // pick a different model." `lastUsedModelMode` is a global preference,
     // not per-agent, so the stale value survives a profile switch.
+    // Vendor/model strings like inclusionai/ling-3.0-flash:free use a
+    // slash in the provider prefix and are never valid Claude models.
     if (agent == 'claude' && _isNonClaudeModelMode(modelMode)) {
       return 'default';
     }
@@ -1547,15 +1549,33 @@ PY
     return match?.group(1) ?? value;
   }
 
-  /// Recognize known non-Claude model identifiers so they can be stripped
-  /// from Claude spawns. Conservative on purpose: Claude-compatible
-  /// providers (e.g. GLM, MiniMax) use arbitrary model names that we want
-  /// to preserve, so we only match patterns that are definitely Codex or
-  /// Gemini.
+  /// Recognize non-Claude model identifiers so they can be stripped
+  /// from Claude spawns. Claude CLI rejects foreign model names
+  /// with "There's an issue with the selected model ... Run --model
+  /// to pick a different model." `lastUsedModelMode` is a global
+  /// preference, not per-agent, so the stale value survives a
+  /// profile switch.
+  ///
+  /// Known non-Claude patterns:
+  /// - OpenAI/Codex models: `gpt-*`, `o<digit>*` token plan slugs.
+  /// - Gemini models: `gemini-*`.
+  /// - Vendor/model strings: `inclusionai/ling-3.0-flash:free` carry
+  ///   a `/` slash that is never a Claude model name (vs. Anthropic-
+  ///   compatible providers like `anthropic/claude-opus-4-6` which
+  ///   _is_ a Claude model alias and must pass through).
+  /// - Codex selections use `<slug>:<reasoning-effort>` wire format.
+  /// Custom Claude models also use `:` for effort, so check the slug.
   bool _isNonClaudeModelMode(String modelMode) {
-    // OpenAI / Azure OpenAI models from Codex profiles.
+    // Vendor/model strings with a '/' prefix (e.g. 'inclusionai/…')
+    // carry a provider name that Claude CLI cannot resolve. Only
+    // reject them when the full string is not a known Claude alias
+    // so that 'anthropic/claude-opus-4-6' third-party endpoints
+    // still pass through.
+    if (modelMode.contains('/') &&
+        !_isClaudeModelAlias(modelMode)) {
+      return true;
+    }
     if (modelMode.startsWith('gpt-')) return true;
-    // Gemini models.
     if (modelMode.startsWith('gemini-')) return true;
     // Codex selections use `<slug>:<reasoning-effort>` wire format.
     // Custom Claude models also use `:` for effort, so check the slug.
