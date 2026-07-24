@@ -91,14 +91,17 @@ class _GrokUsageScreenState extends ConsumerState<GrokUsageScreen> {
       body: _isLoading
           ? const AppLoadingIndicator()
           : _error != null
-          ? _GrokUsageErrorBody(
+          ? MachineScopedEmptyBody(
               machines: machines,
               selectedMachineId: _selectedMachineId,
               onMachineChanged: (id) {
                 setState(() => _selectedMachineId = id);
                 if (id != null) _loadUsage(id);
               },
-              error: _error!,
+              pickerTitle: l10n.grokUsageSelectMachine,
+              icon: Icons.error_outline,
+              title: l10n.grokUsageNotAvailable,
+              subtitle: _error!,
               onRetry: () {
                 if (_selectedMachineId != null) {
                   _loadUsage(_selectedMachineId!);
@@ -234,51 +237,6 @@ class _GrokUsageBody extends StatelessWidget {
 }
 
 
-class _GrokUsageErrorBody extends StatelessWidget {
-  const _GrokUsageErrorBody({
-    required this.machines,
-    required this.selectedMachineId,
-    required this.onMachineChanged,
-    required this.error,
-    required this.onRetry,
-  });
-
-  final Map<String, Machine> machines;
-  final String? selectedMachineId;
-  final ValueChanged<String?> onMachineChanged;
-  final String error;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      children: [
-        Padding(
-          padding: AppScreenPadding.settings,
-          child: MachinePicker(
-            machines: machines,
-            selectedMachineId: selectedMachineId,
-            onChanged: onMachineChanged,
-            sectionTitle: l10n.grokUsageSelectMachine,
-          ),
-        ),
-        const Spacer(),
-        AppEmptyState(
-          icon: Icons.error_outline,
-          title: l10n.grokUsageNotAvailable,
-          subtitle: error,
-          action: FilledButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: Text(l10n.commonRetry),
-          ),
-        ),
-        const Spacer(),
-      ],
-    );
-  }
-}
 
 
 

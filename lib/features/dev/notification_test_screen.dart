@@ -8,6 +8,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
+import 'widgets/dev_info_row.dart';
 
 /// Debug screen for testing and inspecting push notification configuration.
 class NotificationTestScreen extends ConsumerStatefulWidget {
@@ -199,7 +200,7 @@ class _NotificationTestScreenState
           SettingsSection(
             title: 'Authorization',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.shield,
                 label: 'Status',
                 value: _authStatus?.name ?? 'Unknown',
@@ -294,7 +295,7 @@ class _NotificationTestScreenState
           SettingsSection(
             title: 'APNS Token (iOS)',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.phone_iphone,
                 label: 'Token',
                 value: _apnsToken != null
@@ -368,43 +369,6 @@ class _NotificationTestScreenState
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return SettingsRow(
-      icon: icon,
-      title: label,
-      iconColor: valueColor,
-      trailing: Flexible(
-        child: Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: valueColor ?? cs.onSurfaceVariant,
-            fontFamily: 'monospace',
-            fontSize: AppFontSize.md,
-          ),
-          textAlign: TextAlign.end,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
-  }
-}
 
 class _ActionRow extends StatelessWidget {
   const _ActionRow({

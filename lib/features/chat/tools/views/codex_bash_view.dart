@@ -12,6 +12,7 @@ import 'package:happy_flutter/core/utils/wire_parsers.dart';
 
 import '../tool_section_view.dart';
 import '../tool_view_widgets.dart';
+import 'terminal_command_bar.dart';
 
 /// View for displaying CodexBash tool (parsed bash commands).
 class CodexBashView extends StatelessWidget {
@@ -302,7 +303,7 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _TerminalCommandBar(command: widget.command, cwd: widget.cwd),
+        TerminalCommandBar(command: widget.command, cwd: widget.cwd),
         if (widget.stdout != null && widget.stdout!.isNotEmpty)
           _TerminalOutputSection(
             label: 'stdout',
@@ -336,104 +337,6 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
 // Shared terminal sub-widgets
 // ---------------------------------------------------------------------------
 
-class _TerminalCommandBar extends StatelessWidget {
-  const _TerminalCommandBar({required this.command, this.cwd});
-  final String command;
-  final String? cwd;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Container(
-      decoration: toolCardDecoration(cs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Title bar
-          Container(
-            padding: toolCardHeaderPadding,
-            decoration: toolCardHeaderDecoration(cs),
-            child: Row(
-              children: [
-                Icon(Icons.terminal,
-                    size: AppIconSize.sm, color: cs.onSurfaceVariant),
-                const SizedBox(width: AppSpacing.xsm),
-                Text(
-                  'bash',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontFamily: 'monospace',
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                if (cwd != null && cwd!.isNotEmpty) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    '\u00b7',
-                    style: TextStyle(
-                      fontSize: AppFontSize.xs,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      cwd!,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: AppFontSize.xs,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ] else
-                  const Spacer(),
-                ToolViewCopyButton(text: command, iconSize: 14),
-              ],
-            ),
-          ),
-          // Command line
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.smd,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  r'$',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.md,
-                    color: AppColors.success,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: SelectableText(
-                    command,
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.md,
-                      color: cs.onSurface,
-                      height: AppLineHeight.normal,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _TerminalOutputSection extends StatefulWidget {
   const _TerminalOutputSection({

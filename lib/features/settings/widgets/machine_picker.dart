@@ -119,11 +119,16 @@ class MachinePicker extends StatelessWidget {
   }
 }
 
-/// "No data for this machine yet" body: a [MachinePicker] pinned to the top
-/// with a centered empty state beneath it.
+/// "No data / error for this machine" body: a [MachinePicker] pinned to the
+/// top with a centered empty state beneath it.
+///
+/// The picker is deliberately part of the error state too — when the
+/// auto-selected machine lacks the provider, retrying re-queries the same
+/// broken machine, so the user must be able to switch machines from here.
 ///
 /// Shared by the Claude limits, Codex usage, and Grok usage screens, which
-/// each carried a byte-identical copy differing only in icon and copy.
+/// each carried two byte-identical copies (empty + error) differing only in
+/// icon and copy.
 class MachineScopedEmptyBody extends StatelessWidget {
   const MachineScopedEmptyBody({
     required this.machines,
@@ -133,6 +138,7 @@ class MachineScopedEmptyBody extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onRetry,
     super.key,
   });
 
@@ -144,8 +150,12 @@ class MachineScopedEmptyBody extends StatelessWidget {
   final String title;
   final String subtitle;
 
+  /// When set, the empty state gains a Retry button.
+  final VoidCallback? onRetry;
+
   @override
   Widget build(BuildContext context) {
+    final retry = onRetry;
     return Column(
       children: [
         Padding(
@@ -158,7 +168,18 @@ class MachineScopedEmptyBody extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        AppEmptyState(icon: icon, title: title, subtitle: subtitle),
+        AppEmptyState(
+          icon: icon,
+          title: title,
+          subtitle: subtitle,
+          action: retry == null
+              ? null
+              : FilledButton.icon(
+                  onPressed: retry,
+                  icon: const Icon(Icons.refresh),
+                  label: Text(AppLocalizations.of(context).commonRetry),
+                ),
+        ),
         const Spacer(),
       ],
     );

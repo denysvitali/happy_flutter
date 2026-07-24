@@ -8,6 +8,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
+import 'widgets/dev_info_row.dart';
 
 /// Debug screen showing encryption status and configuration.
 class EncryptionDebugScreen extends ConsumerWidget {
@@ -50,21 +51,21 @@ class EncryptionDebugScreen extends ConsumerWidget {
           SettingsSection(
             title: 'Status',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.power,
                 label: 'Encryption initialized',
                 value: syncInitialized ? 'Yes' : 'No',
                 valueColor: syncInitialized ? AppColors.success : cs.error,
               ),
               if (syncInitialized) ...[
-                _InfoRow(
+                DevInfoRow(
                   icon: Icons.fingerprint,
                   label: 'Anonymous ID',
                   value: sync.anonID.isNotEmpty
                       ? '${sync.anonID.substring(0, 8)}...'
                       : 'N/A',
                 ),
-                _InfoRow(
+                DevInfoRow(
                   icon: Icons.storage,
                   label: 'Server ID',
                   value: sync.serverID.isNotEmpty
@@ -80,42 +81,42 @@ class EncryptionDebugScreen extends ConsumerWidget {
           SettingsSection(
             title: 'Algorithms',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.lock,
                 label: 'Legacy',
                 value: 'NaCl SecretBox (XSalsa20-Poly1305)',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.lock_outline,
                 label: 'Sessions',
                 value: 'AES-256-GCM',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.vpn_key,
                 label: 'Key Derivation',
                 value: 'HMAC-SHA512 (BIP32-like)',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.key,
                 label: 'Key Exchange',
                 value: 'NaCl CryptoBox (X25519-XSalsa20)',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.tag,
                 label: 'AES-GCM Nonce',
                 value: '12 bytes (IV)',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.verified,
                 label: 'AES-GCM Auth Tag',
                 value: '16 bytes',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.password,
                 label: 'SecretBox Nonce',
                 value: '24 bytes (libsodium)',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.key_off,
                 label: 'Key Size',
                 value: '256 bits (32 bytes)',
@@ -128,17 +129,17 @@ class EncryptionDebugScreen extends ConsumerWidget {
           SettingsSection(
             title: 'Data Keys',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.chat,
                 label: 'Sessions with keys',
                 value: '$sessionCount',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.computer,
                 label: 'Machines with keys',
                 value: '$machineCount',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.description,
                 label: 'Artifacts with keys',
                 value: '$artifactCount',
@@ -151,32 +152,32 @@ class EncryptionDebugScreen extends ConsumerWidget {
           SettingsSection(
             title: 'Cache Stats',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.cached,
                 label: 'Agent states',
                 value: '${cacheStats['agentStates'] ?? 0}',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.data_object,
                 label: 'Metadata entries',
                 value: '${cacheStats['metadata'] ?? 0}',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.message,
                 label: 'Decrypted messages',
                 value: '${cacheStats['messages'] ?? 0}',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.memory,
                 label: 'Machine metadata',
                 value: '${cacheStats['machineMetadata'] ?? 0}',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.settings,
                 label: 'Daemon states',
                 value: '${cacheStats['daemonStates'] ?? 0}',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.all_inbox,
                 label: 'Total cached',
                 value: '${cacheStats['totalEntries'] ?? 0}',
@@ -215,32 +216,32 @@ class EncryptionDebugScreen extends ConsumerWidget {
           SettingsSection(
             title: 'Cache Limits',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.format_list_numbered,
                 label: 'Agent states max',
                 value: '1000',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.format_list_numbered,
                 label: 'Metadata max',
                 value: '1000',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.format_list_numbered,
                 label: 'Messages max',
                 value: '1000',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.format_list_numbered,
                 label: 'Machine metadata max',
                 value: '500',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.format_list_numbered,
                 label: 'Daemon states max',
                 value: '500',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.auto_delete,
                 label: 'Eviction policy',
                 value: 'LRU (Least Recently Used)',
@@ -298,40 +299,3 @@ class EncryptionDebugScreen extends ConsumerWidget {
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return SettingsRow(
-      icon: icon,
-      title: label,
-      iconColor: valueColor,
-      trailing: Flexible(
-        child: Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: valueColor ?? cs.onSurfaceVariant,
-            fontFamily: 'monospace',
-            fontSize: AppFontSize.md,
-          ),
-          textAlign: TextAlign.end,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
-  }
-}

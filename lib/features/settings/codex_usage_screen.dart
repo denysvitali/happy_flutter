@@ -96,14 +96,17 @@ class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
       body: _isLoading
           ? const AppLoadingIndicator()
           : _error != null
-          ? _CodexUsageErrorBody(
+          ? MachineScopedEmptyBody(
               machines: machines,
               selectedMachineId: _selectedMachineId,
               onMachineChanged: (id) {
                 setState(() => _selectedMachineId = id);
                 if (id != null) _loadUsage(id);
               },
-              error: _error!,
+              pickerTitle: l10n.codexUsageSelectMachine,
+              icon: Icons.error_outline,
+              title: l10n.codexUsageNotAvailable,
+              subtitle: _error!,
               onRetry: () {
                 if (_selectedMachineId != null) {
                   _loadUsage(_selectedMachineId!);
@@ -384,54 +387,6 @@ class _CodexUsageRateLimitSection extends StatelessWidget {
 }
 
 
-class _CodexUsageErrorBody extends StatelessWidget {
-  const _CodexUsageErrorBody({
-    required this.machines,
-    required this.selectedMachineId,
-    required this.onMachineChanged,
-    required this.error,
-    required this.onRetry,
-  });
-
-  final Map<String, Machine> machines;
-  final String? selectedMachineId;
-  final ValueChanged<String?> onMachineChanged;
-  final String error;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    // Picker included so the error state is escapable: when the
-    // auto-selected machine lacks Codex, the user can switch to one that
-    // has it instead of being stuck retrying the same broken machine.
-    return Column(
-      children: [
-        Padding(
-          padding: AppScreenPadding.settings,
-          child: MachinePicker(
-            machines: machines,
-            selectedMachineId: selectedMachineId,
-            onChanged: onMachineChanged,
-            sectionTitle: l10n.codexUsageSelectMachine,
-          ),
-        ),
-        const Spacer(),
-        AppEmptyState(
-          icon: Icons.error_outline,
-          title: l10n.codexUsageNotAvailable,
-          subtitle: error,
-          action: FilledButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: Text(l10n.commonRetry),
-          ),
-        ),
-        const Spacer(),
-      ],
-    );
-  }
-}
 
 class _CodexUsageStatRow extends StatelessWidget {
   const _CodexUsageStatRow({

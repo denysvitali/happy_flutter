@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/sync_subscription_mixin.dart';
+import 'widgets/dev_info_row.dart';
 
 /// Debug screen showing session state and sync status.
 class SessionDebugScreen extends ConsumerStatefulWidget {
@@ -68,19 +69,19 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
           SettingsSection(
             title: 'Connection',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: _connectionIcon(connectionStatus),
                 label: 'Socket status',
                 value: connectionStatus.name,
                 valueColor: _connectionColor(connectionStatus, cs),
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.power,
                 label: 'Sync initialized',
                 value: syncInitialized ? 'Yes' : 'No',
                 valueColor: syncInitialized ? AppColors.success : cs.error,
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.check_circle,
                 label: 'Sync ready',
                 value: sync.isReady ? 'Yes' : 'No',
@@ -93,22 +94,22 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
           SettingsSection(
             title: 'Sessions',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.all_inbox,
                 label: 'Total sessions',
                 value: '$sessionCount',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.play_circle,
                 label: 'Active sessions',
                 value: '$activeSessions',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.circle,
                 label: 'Online sessions',
                 value: '$onlineSessions',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.numbers,
                 label: 'Data change counter',
                 value: '${sync.dataChangeCounter}',
@@ -146,52 +147,52 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
           SettingsSection(
             title: 'Sync Managers',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.chat,
                 label: 'Sessions sync',
                 value: 'Active',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.message,
                 label: 'Message syncs',
                 value: '${sync.messagesSync.length}',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.settings,
                 label: 'Settings sync',
                 value: 'Active',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.person,
                 label: 'Profile sync',
                 value: 'Active',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.computer,
                 label: 'Machines sync',
                 value: 'Active',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.notifications,
                 label: 'Push token sync',
                 value: 'Active',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.description,
                 label: 'Artifacts sync',
                 value: 'Active',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.people,
                 label: 'Friends sync',
                 value: 'Active',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.rss_feed,
                 label: 'Feed sync',
                 value: 'Active',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.checklist,
                 label: 'Todos sync',
                 value: 'Active',
@@ -204,22 +205,22 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
           SettingsSection(
             title: 'Other State',
             children: [
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.attach_money,
                 label: 'RevenueCat init',
                 value: sync.revenueCatInitialized ? 'Yes' : 'No',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.system_update,
                 label: 'Native update available',
                 value: sync.hasNativeUpdate ? 'Yes' : 'No',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.description,
                 label: 'Artifacts',
                 value: '${sync.artifacts.length}',
               ),
-              _InfoRow(
+              DevInfoRow(
                 icon: Icons.computer,
                 label: 'Machines',
                 value: '${sync.machines.length}',
@@ -375,40 +376,3 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return SettingsRow(
-      icon: icon,
-      title: label,
-      iconColor: valueColor,
-      trailing: Flexible(
-        child: Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: valueColor ?? cs.onSurfaceVariant,
-            fontFamily: 'monospace',
-            fontSize: AppFontSize.md,
-          ),
-          textAlign: TextAlign.end,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    );
-  }
-}
