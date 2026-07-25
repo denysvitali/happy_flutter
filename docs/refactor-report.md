@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-25
 **Audit:** `docs/refactor-audit.md` (Phase A)
-**Commits:** `66454f0f` … `c90a3566` (11)
+**Commits:** `66454f0f` … `f4ec4d18` (13)
 **Verification:** `flutter analyze` after every commit — 0 errors, 0 new
 warnings. Tests run on CI only, per CLAUDE.md.
 
@@ -22,7 +22,7 @@ warnings. Tests run on CI only, per CLAUDE.md.
 | `unawaited_futures` | 5 | 0 |
 | Undocumented `catch (_) {}` | 11 | 0 |
 | Test files | 354 | 354 (+23 test cases) |
-| CI on `main` | red for 7 consecutive runs | fixed (see §4) |
+| CI on `main` | red for 7 consecutive runs | **green** (run 30147431204) |
 
 LOC is deliberately flat: this pass moved and de-duplicated code rather than
 deleting features. The 3 remaining `invalid_annotation_target` warnings come
@@ -161,7 +161,7 @@ stderr/command/description rows. Two regression tests added.
 Reproduction: normalize `{'output': 'ok\n', 'exit_code': 0}` and inspect the
 result — before, `containsKey('stderr')` was `true` with a null value.
 
-### 4.2 `main` was red before this pass, for 7 consecutive runs (`test:` fd517533)
+### 4.2 `main` was red before this pass, for 7 consecutive runs (`test:` fd517533, f4ec4d18)
 
 Not caused by this work. Commits `b1b5dd34` / `47ce220f` / `74fe51a2`
 deliberately changed two wire rules, and `74fe51a2` updated only
@@ -183,6 +183,23 @@ I first patched `_getModelOverride` to restore the old omission, then reverted
 that on finding `model_mode_resolution_test.dart` pins the new semantics
 deliberately. The stale assertions were the defect; each is now updated with a
 comment naming the reason so it does not get "fixed" back.
+
+Shard 6/8 held three more pre-existing failures, verified identical on the
+parent commit before any of this work:
+
+- `session_lifecycle_e2e_test.dart` — the same stale wire assertion, in a file
+  the first grep missed because it is formatted differently.
+- `tool_view_permission_integration_test.dart` — `find.text` with
+  `findRichText: true` is an **exact** match, and `ToolHeader` renders title +
+  status + subtitle in one `RichText`, so the widget's text is
+  `'Gh Actions: Get Check Status Completed'`. This is the finder gotcha
+  `CLAUDE.md` documents; it has now bitten a third time, so the fix names it at
+  the call site.
+- `workflow_run_screen_test.dart` — two widgets legitimately read `'Completed'`
+  (the run-level `WorkflowStatusBadge` and the agent-less phase placeholder);
+  `findsOneWidget` pinned an accident of which one existed.
+
+After these, CI on `main` is green for the first time in 8 runs.
 
 ### 4.3 Audit overstatements, corrected
 
