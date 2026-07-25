@@ -14,6 +14,7 @@ import 'processors/data_type.dart';
 part 'processors/user_message_handler.dart';
 part 'processors/output_content_handler.dart';
 part 'processors/event_content_handler.dart';
+part 'processors/agent_event_head.dart';
 part 'processors/codex_content_handler.dart';
 part 'processors/pi_content_handler.dart';
 part 'processors/acp_content_handler.dart';

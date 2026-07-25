@@ -9,17 +9,16 @@ void _processUserMessage({
   required Object? nestedContent,
   required List<Map<String, dynamic>> messages,
 }) {
-  final text = nestedContent is Map<String, dynamic> &&
-          nestedContent['type'] == 'text'
+  final text =
+      nestedContent is Map<String, dynamic> && nestedContent['type'] == 'text'
       ? nestedContent['text']?.toString() ?? ''
       : nestedContent is List
-          ? _extractTextFromContentBlocks(
-              nestedContent.whereType<Map<String, dynamic>>().toList(),
-            )
-          : nestedContent?.toString() ?? '';
+      ? _extractTextFromContentBlocks(
+          nestedContent.whereType<Map<String, dynamic>>().toList(),
+        )
+      : nestedContent?.toString() ?? '';
 
-  final textOrImagePlaceholder =
-      text?.isNotEmpty == true
+  final textOrImagePlaceholder = text?.isNotEmpty == true
       ? text
       : _containsImageContentBlock(nestedContent)
       ? '[image]'

@@ -18,55 +18,25 @@ void _processPiContent({
   required List<Map<String, dynamic>> usageUpdates,
   List<String>? droppedReasons,
 }) {
-  final data = nestedContent['data'];
-  if (data is! Map<String, dynamic>) {
-    droppedReasons?.add(
-      'pi data is '
-      '${data?.runtimeType ?? 'null'}, expected Map',
-    );
-    return;
-  }
-
-  final usageData =
-      _extractUsageMap(data['usage']) ??
-      _extractUsageMap(
-        data['message'] is Map ? (data['message'] as Map)['usage'] : null,
-      );
-  if (usageData != null) {
-    usageUpdates.add({
-      'sessionId': sessionId,
-      'usage': usageData,
-      'timestamp': createdAt,
-    });
-  }
-
-  final dataType = data['type'] as String?;
-  final meta = _sidechainMeta(data);
-  final parentToolUseId = _extractParentToolUseId(data);
-  final agentId = _extractAgentId(data);
-
-  if (dataType == DataType.message ||
-      dataType == DataType.reasoning ||
-      dataType == DataType.modelOutput) {
-    final content = data['fullText'] ?? data['message'];
-    messages.add({
-      'id': id,
-      'localId': localId,
-      'seq': seq,
-      'createdAt': createdAt,
-      'role': 'agent',
-      'kind': 'text',
-      'content': content?.toString() ?? '',
-      if (dataType == DataType.message) 'isPromptEchoCandidate': true,
-      'raw': outerContent,
-      if (meta.isSidechain) 'isSidechain': true,
-      'uuid': ?meta.uuid,
-      'parentUuid': ?meta.parentUuid,
-      'parentToolUseId': ?parentToolUseId,
-      'agentId': ?agentId,
-    });
-    return;
-  }
+  final head = _processAgentEventHead(
+    vendor: 'pi',
+    id: id,
+    localId: localId,
+    seq: seq,
+    createdAt: createdAt,
+    sessionId: sessionId,
+    outerContent: outerContent,
+    nestedContent: nestedContent,
+    messages: messages,
+    usageUpdates: usageUpdates,
+    droppedReasons: droppedReasons,
+  );
+  if (head == null || head.emitted) return;
+  final data = head.data;
+  final dataType = head.dataType;
+  final meta = head.meta;
+  final parentToolUseId = head.parentToolUseId;
+  final agentId = head.agentId;
 
   if (dataType == DataType.toolCall) {
     final toolName = data['toolName'] ?? data['name'] ?? 'unknown';

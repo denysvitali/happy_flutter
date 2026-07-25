@@ -30,9 +30,8 @@ void _processAcpContent({
       // Grok Build (and other ACP clients) may emit the sessionUpdate name
       // as the data type when streaming is coalesced into a single payload.
       dataType == 'agent_message_chunk') {
-    final messageText = data['message']?.toString() ??
-        data['text']?.toString() ??
-        '';
+    final messageText =
+        data['message']?.toString() ?? data['text']?.toString() ?? '';
     messages.add({
       'id': id,
       'localId': localId,
@@ -53,9 +52,8 @@ void _processAcpContent({
   }
 
   if (dataType == DataType.thinking || dataType == 'agent_thought_chunk') {
-    final thoughtText = data['text']?.toString() ??
-        data['message']?.toString() ??
-        '';
+    final thoughtText =
+        data['text']?.toString() ?? data['message']?.toString() ?? '';
     messages.add({
       'id': id,
       'localId': localId,
@@ -82,11 +80,13 @@ void _processAcpContent({
     final toolCall = data['toolCall'] is Map<String, dynamic>
         ? data['toolCall'] as Map<String, dynamic>
         : data;
-    final rawName = toolCall['name'] ??
+    final rawName =
+        toolCall['name'] ??
         toolCall['title'] ??
         toolCall['kind'] ??
         data['name'];
-    final rawInput = WireParsers.asMap(toolCall['input']) ??
+    final rawInput =
+        WireParsers.asMap(toolCall['input']) ??
         WireParsers.asMap(toolCall['rawInput']) ??
         WireParsers.asMap(data['input']) ??
         WireParsers.asMap(data['rawInput']) ??
@@ -98,7 +98,8 @@ void _processAcpContent({
     final input = normalized.input;
     final status = (toolCall['status'] ?? data['status'])?.toString();
     final state = _toolCallStateFromStatus(status);
-    final toolUseId = toolCall['callId'] ??
+    final toolUseId =
+        toolCall['callId'] ??
         toolCall['toolCallId'] ??
         toolCall['tool_call_id'] ??
         toolCall['id'] ??
@@ -128,15 +129,17 @@ void _processAcpContent({
 
   if (_isToolResultEnvelope(data)) {
     final normalized = Map<String, dynamic>.from(data);
-    final rawResult = data['result'] ??
+    final rawResult =
+        data['result'] ??
         data['output'] ??
         data['content'] ??
         data['rawOutput'];
     normalized['result'] = normalizeGrokToolResult(rawResult);
     // Grok emits status: completed|failed; map onto isError when absent.
     if (normalized['isError'] != true && normalized['is_error'] != true) {
-      final status =
-          (data['status'] ?? data['state'])?.toString().toLowerCase();
+      final status = (data['status'] ?? data['state'])
+          ?.toString()
+          .toLowerCase();
       if (status == 'failed' || status == 'error') {
         normalized['isError'] = true;
       }

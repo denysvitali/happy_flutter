@@ -31,15 +31,15 @@ void _processSessionContent({
   if (eventType == null) return;
 
   final eventRole = envelope['role'] as String?;
-  final envelopeId =
-      (envelope['id'] ?? envelope['uuid']) as String? ?? id;
+  final envelopeId = (envelope['id'] ?? envelope['uuid']) as String? ?? id;
   final envelopeCreatedAt = _parseCreatedAtMs(
     envelope['time'] ?? envelope['createdAt'] ?? createdAt,
   );
-  final parentUuid = (envelope['subagent'] ??
-          envelope['parentUuid'] ??
-          envelope['parent_uuid'])
-      as String?;
+  final parentUuid =
+      (envelope['subagent'] ??
+              envelope['parentUuid'] ??
+              envelope['parent_uuid'])
+          as String?;
   final isSidechain = parentUuid != null && parentUuid.isNotEmpty;
   final uuid = (envelope['id'] ?? envelope['uuid']) as String? ?? id;
 
@@ -77,8 +77,7 @@ void _processSessionContent({
       'createdAt': envelopeCreatedAt,
       'role': 'agent',
       'kind': 'text',
-      'content':
-          (eventMap['text'] ?? eventMap['message'])?.toString() ?? '',
+      'content': (eventMap['text'] ?? eventMap['message'])?.toString() ?? '',
       'raw': outerContent,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
@@ -88,8 +87,7 @@ void _processSessionContent({
   }
 
   if (eventType == DataType.textEvent) {
-    final text =
-        (eventMap['text'] ?? eventMap['message'])?.toString() ?? '';
+    final text = (eventMap['text'] ?? eventMap['message'])?.toString() ?? '';
     if (eventRole == 'agent') {
       final thinking = eventMap['thinking'] == true;
       messages.add({
@@ -100,8 +98,7 @@ void _processSessionContent({
         'role': 'agent',
         'kind': 'text',
         if (thinking) 'isThinking': true,
-        'content':
-            thinking ? '*Thinking...*\n\n*$text*' : text,
+        'content': thinking ? '*Thinking...*\n\n*$text*' : text,
         'raw': outerContent,
         if (isSidechain) 'isSidechain': true,
         if (uuid.isNotEmpty) 'uuid': uuid,
@@ -134,9 +131,7 @@ void _processSessionContent({
     final args = eventMap['args'] ?? eventMap['input'];
     final input = WireParsers.asMap(args) ?? <String, dynamic>{};
     final callId =
-        (eventMap['call'] ??
-                eventMap['callId'] ??
-                eventMap['toolUseId'])
+        (eventMap['call'] ?? eventMap['callId'] ?? eventMap['toolUseId'])
             as String?;
     messages.add({
       'id': envelopeId,
@@ -145,8 +140,7 @@ void _processSessionContent({
       'createdAt': envelopeCreatedAt,
       'role': 'agent',
       'kind': 'tool-call',
-      'name':
-          (eventMap['name'] ?? eventMap['tool'])?.toString() ?? 'unknown',
+      'name': (eventMap['name'] ?? eventMap['tool'])?.toString() ?? 'unknown',
       'input': input,
       'toolUseId': callId ?? envelopeId,
       'state': 'running',
@@ -161,19 +155,13 @@ void _processSessionContent({
 
   if (eventType == DataType.toolCallEnd) {
     final callId =
-        (eventMap['call'] ??
-                eventMap['callId'] ??
-                eventMap['toolUseId'])
+        (eventMap['call'] ?? eventMap['callId'] ?? eventMap['toolUseId'])
             as String?;
     if (callId == null || callId.isEmpty) return;
     toolResults.add({
       'toolUseId': callId,
-      'result':
-          eventMap['result'] ??
-          eventMap['output'] ??
-          eventMap['content'],
-      'isError':
-          eventMap['isError'] == true || eventMap['is_error'] == true,
+      'result': eventMap['result'] ?? eventMap['output'] ?? eventMap['content'],
+      'isError': eventMap['isError'] == true || eventMap['is_error'] == true,
       'createdAt': envelopeCreatedAt,
       if (isSidechain) 'isSidechain': true,
       if (uuid.isNotEmpty) 'uuid': uuid,
