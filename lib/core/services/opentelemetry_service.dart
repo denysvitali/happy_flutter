@@ -53,7 +53,19 @@ class OpenTelemetryService {
       <String, Histogram<double>>{};
   final Map<String, Counter<int>> _counters = <String, Counter<int>>{};
 
+  /// `signal:phase` keys already reported by [_reportPipelineError], so a
+  /// recurring failure logs once per process instead of once per record.
+  final Set<String> _reportedPipelineErrors = <String>{};
+
+  /// Self-check counter: if the metrics pipeline is broken this is the one
+  /// series that says so. See [_reportPipelineError].
+  static const String _pipelineErrorMetric = 'app.otel.pipeline_errors';
+
   bool get isInitialized => _initialized;
+
+  @visibleForTesting
+  Set<String> get debugReportedPipelineErrors =>
+      Set<String>.unmodifiable(_reportedPipelineErrors);
 
   NavigatorObserver get routeObserver => _routeObserver;
 
@@ -145,6 +157,7 @@ class OpenTelemetryService {
         enableLogs: logsEnabled,
         enableAutoLogEvents: autoLogEventsEnabled,
       );
+      _applyResourceToMeterProvider();
       _replacePackageLifecycleObserver();
       _installLoggerSink();
       _initialized = true;
@@ -167,6 +180,92 @@ class OpenTelemetryService {
     } on Object {
       // Tracing should never block auth or sync startup. initialize() logs
       // failures, and timeouts simply mean the request proceeds untraced.
+    }
+  }
+
+  /// Copy the SDK's resource onto the meter provider's **delegate**.
+  ///
+  /// `flutterrific_opentelemetry` 0.4.0 wraps the SDK `MeterProvider` in a
+  /// `UIMeterProvider` whose `resource` setter is an unimplemented stub
+  /// (`set resource(Resource? value) { // TODO: implement resource }`).
+  /// `OTel.initialize` does perform `meterProvider.resource = defaultResource`
+  /// — the assignment is just silently discarded. The periodic reader then
+  /// builds `MetricData(resource: meterProvider.resource, ...)` off the
+  /// delegate, so every exported metric shipped with an EMPTY resource: no
+  /// `service.name`, no `service.version`, no `service.instance.id`. In
+  /// Prometheus that meant `target_info{service_name="happy-flutter"}`
+  /// matched zero series and every app counter/histogram carried only
+  /// `otel_scope_name` / `otel_scope_version`, so any query filtered by
+  /// service was blind to all of them.
+  ///
+  /// `UITracerProvider` and `UILoggerProvider` forward their setters
+  /// correctly, which is why traces and logs were unaffected.
+  void _applyResourceToMeterProvider() {
+    try {
+      final resource = OTel.defaultResource;
+      if (resource == null) {
+        _reportPipelineError(
+          signal: 'metrics',
+          phase: 'resource',
+          detail: 'OTel.defaultResource is null after initialize',
+        );
+        return;
+      }
+      final delegate = FlutterOTel.meterProvider.delegate..resource = resource;
+      if (delegate.resource == null) {
+        _reportPipelineError(
+          signal: 'metrics',
+          phase: 'resource',
+          detail: 'meter provider delegate rejected the resource',
+        );
+      }
+    } catch (e, stack) {
+      _reportPipelineError(
+        signal: 'metrics',
+        phase: 'resource',
+        detail: '$e',
+        stackTrace: stack,
+      );
+    }
+  }
+
+  /// Report a failure in the telemetry pipeline itself.
+  ///
+  /// Metric plumbing used to fail behind bare `catch (_) {}` blocks, so a
+  /// broken exporter or a rejected instrument produced no log line anywhere —
+  /// which is exactly how the empty-resource bug above survived in production.
+  /// Logged once per `signal:phase` so a per-record failure cannot spam the
+  /// ring buffer, and counted under `app.otel.pipeline_errors` so the class of
+  /// bug is queryable even when nobody is reading logs.
+  void _reportPipelineError({
+    required String signal,
+    required String phase,
+    required String detail,
+    StackTrace? stackTrace,
+  }) {
+    final key = '$signal:$phase';
+    if (_reportedPipelineErrors.add(key)) {
+      logger.warning(
+        '[OpenTelemetry] $signal pipeline failure at $phase: $detail',
+        null,
+        stackTrace,
+      );
+    }
+    // Best-effort self-check counter. Deliberately does not route through
+    // [recordCount]'s try/catch-and-forget so a failure here cannot recurse.
+    try {
+      _counters
+          .putIfAbsent(
+            _pipelineErrorMetric,
+            () => FlutterOTel.meter(name: 'happy_flutter').createCounter<int>(
+              name: _pipelineErrorMetric,
+              description: 'Failures inside the OTel export pipeline itself',
+              unit: '{event}',
+            ),
+          )
+          .addWithMap(1, <String, Object>{'signal': signal, 'phase': phase});
+    } catch (_) {
+      // The metrics pipeline is the thing that is broken; nothing to do.
     }
   }
 
@@ -271,8 +370,15 @@ class OpenTelemetryService {
       } else {
         histogram.recordWithMap(seconds, safe);
       }
-    } catch (_) {
-      // Metrics must never break the host flow.
+    } catch (e, stack) {
+      // Metrics must never break the host flow — but they must not fail
+      // silently either.
+      _reportPipelineError(
+        signal: 'metrics',
+        phase: 'histogram',
+        detail: '$name: $e',
+        stackTrace: stack,
+      );
     }
   }
 
@@ -300,8 +406,15 @@ class OpenTelemetryService {
       } else {
         counter.addWithMap(value, safe);
       }
-    } catch (_) {
-      // Metrics must never break the host flow.
+    } catch (e, stack) {
+      // Metrics must never break the host flow — but they must not fail
+      // silently either.
+      _reportPipelineError(
+        signal: 'metrics',
+        phase: 'counter',
+        detail: '$name: $e',
+        stackTrace: stack,
+      );
     }
   }
 
@@ -445,9 +558,7 @@ class OTelSpan {
   void end({bool? ok}) {
     if (_span.isEnded) return;
     final failed = _errored || ok == false;
-    _span.end(
-      spanStatus: failed ? SpanStatusCode.Error : SpanStatusCode.Ok,
-    );
+    _span.end(spanStatus: failed ? SpanStatusCode.Error : SpanStatusCode.Ok);
   }
 }
 
