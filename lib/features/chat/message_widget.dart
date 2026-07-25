@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/workflow_run.dart';
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
 import 'message_render_signature.dart';
@@ -212,14 +213,31 @@ class _MessageWidgetState extends State<MessageWidget>
                     final isTask = toolName == 'Task' || toolName == 'Agent';
                     final isWorkflow = toolName == 'Workflow';
                     final String route;
+                    Object? extra = widget.messageData;
                     if (isTask) {
                       route = '/chat/${widget.sessionId}/agent/$messageId';
                     } else if (isWorkflow) {
-                      route = '/chat/${widget.sessionId}/workflows';
+                      // Deep-link straight to the run detail when the run id
+                      // is already resolvable from the grouped tag or the
+                      // launch receipt; the list is only the fallback for a
+                      // run whose id has not crossed the wire yet.
+                      final runId =
+                          WorkflowRun.runTagForMessage(widget.messageData) ??
+                          WorkflowRun.runIdFromToolResult(
+                            widget.messageData['result'],
+                          );
+                      if (runId != null) {
+                        route = '/chat/${widget.sessionId}/workflow/$runId';
+                        // The run screen hydrates from the sync cache and
+                        // snapshot fetch; the tool-call map is not run JSON.
+                        extra = null;
+                      } else {
+                        route = '/chat/${widget.sessionId}/workflows';
+                      }
                     } else {
                       route = '/chat/${widget.sessionId}/message/$messageId';
                     }
-                    context.push(route, extra: widget.messageData);
+                    context.push(route, extra: extra);
                   }
                 : null,
           ),
