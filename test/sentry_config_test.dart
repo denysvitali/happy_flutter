@@ -24,6 +24,23 @@ void main() {
       },
     );
 
+    test('traces sample rate defaults are unchanged and in range', () {
+      // 0.02 in release drops 98% of performance transactions. That is a
+      // deliberate cost tradeoff, so the default is pinned here — raise it
+      // per build with --dart-define=SENTRY_TRACES_SAMPLE_RATE=<0..1>
+      // rather than by editing this default.
+      expect(sentryTracesSampleRate, inInclusiveRange(0, 1));
+      expect(sentryTracesSampleRate, 0.10); // tests run in non-release mode
+      expect(sentryEnableDioInterceptor, isTrue);
+    });
+
+    test('frame metrics transactions default to OFF but are switchable', () {
+      // Was a plain `const false`, which made the Sentry branch in
+      // FrameMetricsService._flush unreachable dead code. It is now a
+      // dart-define so the branch is genuinely enable-able.
+      expect(sentryEnableFrameMetrics, isFalse);
+    });
+
     test('ANR capture default to ON', () {
       // Belt and suspenders: ANR detection should be enabled by
       // default so we keep getting signal in GlitchTip.
