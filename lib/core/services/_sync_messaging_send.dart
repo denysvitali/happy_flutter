@@ -980,6 +980,25 @@ extension SyncMessagingSend on Sync {
     }
   }
 
+  /// Last-resort retry path: rebuild the send from the outbox
+  /// dead-letter bucket when the in-memory chat row can no longer
+  /// supply the original `raw` record (cold start, evicted cache, or a
+  /// row that was never persisted with its payload).
+  ///
+  /// Returns `true` when a dead-lettered entry was requeued.
+  Future<bool> _retryFromDeadLetter(String sessionId, String localId) async {
+    if (messageOutbox.deadEntry(localId) == null) return false;
+    _updateMessageSendStatus(sessionId, localId, 'sending');
+    final revived = await messageOutbox.reviveDead(localId);
+    if (!revived) return false;
+    logger.info(
+      '[retryFailedMessage] requeued from dead-letter bucket: '
+      'sessionId=$sessionId localId=$localId',
+    );
+    _notifySessionMessagesChanged(sessionId);
+    return true;
+  }
+
   /// Retry a failed message send.
   ///
   /// Re-queues the message in the outbox with reset retry count.
@@ -988,6 +1007,7 @@ extension SyncMessagingSend on Sync {
   Future<void> retryFailedMessage(String sessionId, String localId) async {
     final msgs = _sessionMessages[sessionId];
     if (msgs == null) {
+      if (await _retryFromDeadLetter(sessionId, localId)) return;
       logger.warning('[retryFailedMessage] session not found: $sessionId');
       return;
     }
@@ -1001,6 +1021,7 @@ extension SyncMessagingSend on Sync {
     }
 
     if (failedMessage == null) {
+      if (await _retryFromDeadLetter(sessionId, localId)) return;
       logger.warning(
         '[retryFailedMessage] message not found: '
         'sessionId=$sessionId localId=$localId',
@@ -1010,6 +1031,7 @@ extension SyncMessagingSend on Sync {
 
     final raw = failedMessage['raw'];
     if (raw == null || raw is! Map<String, dynamic>) {
+      if (await _retryFromDeadLetter(sessionId, localId)) return;
       logger.warning(
         '[retryFailedMessage] message missing raw data: localId=$localId',
       );

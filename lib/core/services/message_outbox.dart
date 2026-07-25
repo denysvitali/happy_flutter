@@ -19,6 +19,7 @@ class OutboxEntry {
     required this.rawRecord,
     required this.queuedAt,
     this.retryCount = 0,
+    this.dead = false,
   });
 
   factory OutboxEntry.fromJson(Map<String, dynamic> json) {
@@ -30,6 +31,7 @@ class OutboxEntry {
       rawRecord: WireParsers.asMap(json['rawRecord']) ?? {},
       queuedAt: json['queuedAt'] as int,
       retryCount: json['retryCount'] as int? ?? 0,
+      dead: json['dead'] == true,
     );
   }
 
@@ -54,7 +56,14 @@ class OutboxEntry {
   /// How many delivery attempts have been made so far.
   final int retryCount;
 
-  OutboxEntry copyWith({int? retryCount}) {
+  /// Whether this entry exhausted its retries and moved to the
+  /// dead-letter bucket. Dead entries are still persisted (the encrypted
+  /// payload is the only recoverable copy of the user's message) but are
+  /// never auto-retried; the user drives recovery from the `'failed'`
+  /// row's retry affordance.
+  final bool dead;
+
+  OutboxEntry copyWith({int? retryCount, bool? dead}) {
     return OutboxEntry(
       localId: localId,
       sessionId: sessionId,
@@ -63,6 +72,7 @@ class OutboxEntry {
       rawRecord: rawRecord,
       queuedAt: queuedAt,
       retryCount: retryCount ?? this.retryCount,
+      dead: dead ?? this.dead,
     );
   }
 
@@ -75,6 +85,7 @@ class OutboxEntry {
       'rawRecord': rawRecord,
       'queuedAt': queuedAt,
       'retryCount': retryCount,
+      if (dead) 'dead': true,
     };
   }
 }
@@ -112,6 +123,11 @@ class MessageOutbox {
   static const int _baseDelayMs = 1000;
   static const int _maxDelayMs = 30000;
 
+  /// How many dead-lettered entries are kept on disk. Bounded so a
+  /// long-running permanent failure (e.g. a deleted session) cannot grow
+  /// the MMKV blob without limit. Oldest entries are dropped first.
+  static const int maxDeadEntries = 50;
+
   MMKVStorage _storage;
 
   /// Override the storage backend for testing. Avoids MMKV
@@ -125,6 +141,12 @@ class MessageOutbox {
   OutboxStatusChangedFn? _onStatusChanged;
 
   final Map<String, OutboxEntry> _entries = {};
+
+  /// Dead-letter bucket: entries that exhausted [_maxRetries]. They are
+  /// persisted alongside the live entries so the encrypted payload
+  /// survives a cold start and the user's retry affordance still has
+  /// something to resend.
+  final Map<String, OutboxEntry> _dead = {};
   final Map<String, Timer> _retryTimers = {};
   Timer? _persistTimer;
   bool _initialized = false;
@@ -153,14 +175,25 @@ class MessageOutbox {
       for (final item in list) {
         if (item is Map<String, dynamic>) {
           final entry = OutboxEntry.fromJson(item);
-          _entries[entry.localId] = entry;
+          if (entry.dead) {
+            _dead[entry.localId] = entry;
+          } else {
+            _entries[entry.localId] = entry;
+          }
           logger.info(
             '[MessageOutbox] restored entry '
             'localId=${entry.localId} '
             'session=${entry.sessionId} '
-            'retryCount=${entry.retryCount}',
+            'retryCount=${entry.retryCount} '
+            'dead=${entry.dead}',
           );
         }
+      }
+      // Republish the terminal state of every dead-lettered entry so the
+      // chat row comes back as 'failed' (and therefore retryable) after a
+      // cold start, instead of a row stuck on 'sending' forever.
+      for (final entry in _dead.values) {
+        _onStatusChanged?.call(entry.sessionId, entry.localId, 'failed');
       }
       // Flush all restored entries (with a brief initial delay so sync can
       // finish initializing before we start making network calls).
@@ -177,7 +210,8 @@ class MessageOutbox {
 
   /// Queue a failed message for retry.
   Future<void> add(OutboxEntry entry) async {
-    _entries[entry.localId] = entry;
+    _dead.remove(entry.localId);
+    _entries[entry.localId] = entry.copyWith(dead: false);
     _schedulePersist();
     _onStatusChanged?.call(entry.sessionId, entry.localId, 'pending');
     logger.info(
@@ -189,7 +223,9 @@ class MessageOutbox {
 
   /// Remove an entry that was successfully delivered externally.
   Future<void> remove(String localId) async {
-    if (_entries.remove(localId) != null) {
+    final removed =
+        _entries.remove(localId) != null || _dead.remove(localId) != null;
+    if (removed) {
       _retryTimers.remove(localId)?.cancel();
       _schedulePersist();
       logger.info('[MessageOutbox] removed localId=$localId');
@@ -201,6 +237,27 @@ class MessageOutbox {
 
   /// All pending entries (unmodifiable view).
   List<OutboxEntry> get entries => List.unmodifiable(_entries.values);
+
+  /// All dead-lettered entries (unmodifiable view).
+  List<OutboxEntry> get deadEntries => List.unmodifiable(_dead.values);
+
+  /// The dead-lettered entry for [localId], or `null` when the message
+  /// never exhausted its retries.
+  ///
+  /// This is the last surviving copy of a permanently-failed message —
+  /// use it to rebuild a retry when the in-memory chat row no longer
+  /// carries the original `raw` record.
+  OutboxEntry? deadEntry(String localId) => _dead[localId];
+
+  /// Move a dead-lettered entry back into the live queue with a fresh
+  /// retry budget. No-op when [localId] is not dead-lettered.
+  Future<bool> reviveDead(String localId) async {
+    final entry = _dead.remove(localId);
+    if (entry == null) return false;
+    logger.info('[MessageOutbox] reviving dead entry localId=$localId');
+    await add(entry.copyWith(retryCount: 0, dead: false));
+    return true;
+  }
 
   /// Suspend retry timers when app goes to background.
   /// Entries are preserved for retry on resume.
@@ -251,6 +308,7 @@ class MessageOutbox {
     }
     _retryTimers.clear();
     _entries.clear();
+    _dead.clear();
     _initialized = false;
   }
 
@@ -336,9 +394,14 @@ class MessageOutbox {
     if (updated.retryCount >= _maxRetries) {
       logger.warning(
         '[MessageOutbox] max retries reached for '
-        'localId=$localId — marking as failed',
+        'localId=$localId — dead-lettering',
       );
+      // Do NOT drop the entry: its encrypted payload is the only
+      // recoverable copy of the user's message. Move it to the
+      // dead-letter bucket so a cold start can still republish the
+      // 'failed' row and a retry can rebuild the send.
       _entries.remove(localId);
+      _deadLetter(updated.copyWith(dead: true));
       _schedulePersist();
       _onStatusChanged?.call(entry.sessionId, localId, 'failed');
       return;
@@ -354,6 +417,21 @@ class MessageOutbox {
     _scheduleRetry(updated);
   }
 
+  void _deadLetter(OutboxEntry entry) {
+    _dead[entry.localId] = entry;
+    if (_dead.length <= maxDeadEntries) return;
+    // Bounded: drop the oldest dead entries first.
+    final ordered = List.of(_dead.values)
+      ..sort((a, b) => a.queuedAt.compareTo(b.queuedAt));
+    for (final stale in ordered.take(_dead.length - maxDeadEntries)) {
+      _dead.remove(stale.localId);
+      logger.warning(
+        '[MessageOutbox] dead-letter bucket full, dropping '
+        'localId=${stale.localId}',
+      );
+    }
+  }
+
   void _schedulePersist() {
     _persistTimer?.cancel();
     _persistTimer = Timer(const Duration(milliseconds: 100), () {
@@ -363,7 +441,10 @@ class MessageOutbox {
 
   Future<void> _persist() async {
     try {
-      final list = _entries.values.map((e) => e.toJson()).toList();
+      final list = [
+        ..._entries.values.map((e) => e.toJson()),
+        ..._dead.values.map((e) => e.toJson()),
+      ];
       await _storage.saveOutboxEntries(jsonEncode(list));
     } catch (e) {
       logger.warning('[MessageOutbox] failed to persist: $e');
