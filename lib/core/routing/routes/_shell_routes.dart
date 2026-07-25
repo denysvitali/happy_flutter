@@ -1,6 +1,6 @@
 part of '../app_router.dart';
 
-/// Top-level shell destinations: the auth landing, the sessions tab shell and
+/// Top-level shell destinations: the root landing, the sessions tab shell and
 /// the chat screen itself.
 ///
 /// Order matters: go_router matches routes in declaration order, so
@@ -9,7 +9,15 @@ part of '../app_router.dart';
 List<RouteBase> get shellRoutes => [
     GoRoute(
       path: '/',
-      name: 'auth',
+      // NOT 'auth'. `_routeName(state)` feeds `state.name` straight into
+      // `PerformanceContextService.currentRoute`, which is stamped onto
+      // every span as `current_route`. '/' renders the ordinary signed-in
+      // sessions list wrapped in an AuthGate, so naming it 'auth' tagged all
+      // normal browsing as authentication activity — a 45-second send from
+      // this screen was misread as an auth bounce during a production audit.
+      // Whether the user is actually signed out is AuthGate's business and
+      // belongs in its own attribute, not in the route name.
+      name: 'home',
       pageBuilder: (context, state) {
         final tabParam = state.uri.queryParameters['tab'];
         return _fadePage(
