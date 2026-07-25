@@ -653,11 +653,12 @@ void main() {
 
         expect(capturedParams, isNotNull);
         expect(
-          capturedParams!.containsKey('model'),
-          isFalse,
+          capturedParams!['model'],
+          'default',
           reason:
               'Claude model override must be dropped when profile sets a '
-              'third-party Anthropic-compatible base URL',
+              'third-party Anthropic-compatible base URL, and replaced with '
+              'an explicit default so the daemon clears sticky metadata',
         );
         final envVars =
             capturedParams!['environmentVariables']

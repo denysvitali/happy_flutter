@@ -213,8 +213,15 @@ void main() {
         ),
       );
 
+      // find.text with findRichText is an EXACT match, and ToolHeader renders
+      // title + status + subtitle in a single RichText ('Gh Actions: Get Check
+      // Status Completed'), so the exact form finds nothing. See the finder
+      // gotcha in CLAUDE.md.
       await tester.tap(
-        find.text('Gh Actions: Get Check Status', findRichText: true),
+        find.textContaining(
+          'Gh Actions: Get Check Status',
+          findRichText: true,
+        ),
       );
       await tester.pumpAndSettle();
 

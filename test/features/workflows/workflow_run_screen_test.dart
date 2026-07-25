@@ -88,7 +88,12 @@ void main() {
 
     // 'Read' reported no agents but the run moved past it, so it reads as
     // finished rather than as a phase that is still waiting its turn.
-    expect(find.text('Completed'), findsOneWidget);
+    //
+    // Two widgets say 'Completed': the run-level WorkflowStatusBadge in the
+    // header (success-coloured chip) and the phase placeholder for 'Read'
+    // (italic bodySmall). Both are correct here, so assert the count rather
+    // than pinning one and breaking whenever the other appears.
+    expect(find.text('Completed'), findsNWidgets(2));
     expect(find.text('Pending'), findsNothing);
 
     // Unmount so the screen cancels its poll timer + stream sub.
