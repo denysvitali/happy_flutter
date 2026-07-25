@@ -74,7 +74,12 @@ extension SyncSocketEvents on Sync {
       final resumeHttpFallbackRecentlyFired =
           _lastResumeHttpFallbackAtMs != null &&
           reconnectNowMs - _lastResumeHttpFallbackAtMs! < 3000;
+      // Reconnects are the single highest-volume anomaly in production
+      // (~173/day). Which recovery branch each one takes is the grouping
+      // that makes them actionable, so record it as a bounded reason.
+      final String reconnectReason;
       if (resumeHttpFallbackRecentlyFired) {
+        reconnectReason = 'resume_http_fallback';
         logger.debug(
           '[Sync] skipping reconnect global invalidation; '
           'resume HTTP fallback already refreshed sessions',
@@ -83,13 +88,31 @@ extension SyncSocketEvents on Sync {
         reconnectNowMs,
         resumeHttpFallbackRecentlyFired: resumeHttpFallbackRecentlyFired,
       )) {
+        reconnectReason = _forceFullFetchNext
+            ? 'forced_full_fetch'
+            : 'global_invalidation';
         _invalidateAllSyncs(force: true);
       } else {
+        reconnectReason = 'cooldown_throttled';
         logger.debug(
           '[Sync] skipping reconnect global invalidation; '
           'recent sessions recovery already ran',
         );
       }
+      OpenTelemetryService().recordCount(
+        'app.socket.reconnects',
+        attributes: {
+          'reason': reconnectReason,
+          // A reconnect that needed no catch-up work is transient churn;
+          // one that triggered a full refresh cost the user real latency.
+          'transient':
+              reconnectReason != 'global_invalidation' &&
+              reconnectReason != 'forced_full_fetch',
+          'current_route':
+              PerformanceContextService().currentRoute ?? 'unknown',
+        },
+        description: 'Socket reconnects, by the recovery path they took',
+      );
       // Refresh _lastEphemeralAt for all sessions that show as online.
       // Without this, stale timestamps from before the disconnect cause
       // looksReady to return false and trigger unnecessary auto-restore.
@@ -217,6 +240,7 @@ extension SyncSocketEvents on Sync {
               if (payload['id'] is String) 'entity.id': payload['id'] as String,
             },
           );
+    var handlerFailed = false;
     Future<void> processUpdate() async {
       ApiUpdate? update;
       try {
@@ -287,7 +311,12 @@ extension SyncSocketEvents on Sync {
         }
       } catch (error, stack) {
         logger.error('Failed to handle update', error, stack);
-        socketSpan?.recordError(error, stack);
+        handlerFailed = true;
+        socketSpan
+          // The exception type is a bounded, groupable value — the message is
+          // not, and would make the attribute unqueryable.
+          ?..setAttribute('error.reason', error.runtimeType.toString())
+          ..recordError(error, stack);
       }
     }
 
@@ -296,7 +325,10 @@ extension SyncSocketEvents on Sync {
     } else {
       await OpenTelemetryService().withActiveSpan(socketSpan, processUpdate);
     }
-    socketSpan?.end(ok: true);
+    // Previously an unconditional `end(ok: true)`, so every socket.event span
+    // reported OK even when the handler threw and every "failed to handle
+    // update" was invisible in Jaeger.
+    socketSpan?.end(ok: !handlerFailed);
   }
 
   /// Socket payloads can arrive as a single-element list depending on the
