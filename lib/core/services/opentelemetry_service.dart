@@ -389,6 +389,11 @@ class OpenTelemetryService {
 class OTelSpan {
   OTelSpan._(this._span);
 
+  /// Wrap an already-started SDK [Span]. Test-only: production always goes
+  /// through [OpenTelemetryService.startTrace] / `startChildSpan`.
+  @visibleForTesting
+  factory OTelSpan.forTesting(Span span) = OTelSpan._;
+
   final Span _span;
 
   SpanContext get spanContext => _span.spanContext;
@@ -409,16 +414,40 @@ class OTelSpan {
     }
   }
 
+  /// Set once [recordError] has been called. The Error status is sticky:
+  /// [end] used to always pass an explicit status, so the common
+  /// `recordError(...)` followed by `end()` sequence overwrote Error back to
+  /// Ok. The exception event survived; the status did not, so every failing
+  /// span looked healthy in Jaeger.
+  bool _errored = false;
+
+  /// Whether an error has been recorded on this span.
+  @visibleForTesting
+  bool get debugErrored => _errored;
+
+  /// The status the span currently carries.
+  @visibleForTesting
+  SpanStatusCode get debugStatus => _span.status;
+
   void recordError(Object error, [StackTrace? stackTrace]) {
     if (_span.isEnded) return;
+    _errored = true;
     _span
       ..recordException(error, stackTrace: stackTrace)
       ..setStatus(SpanStatusCode.Error, error.runtimeType.toString());
   }
 
-  void end({bool ok = true}) {
+  /// End the span.
+  ///
+  /// [ok] is nullable so callers can say "I have no opinion" (the default)
+  /// rather than asserting success. A recorded error always wins: passing
+  /// `ok: true` after [recordError] cannot resurrect an Ok status.
+  void end({bool? ok}) {
     if (_span.isEnded) return;
-    _span.end(spanStatus: ok ? SpanStatusCode.Ok : SpanStatusCode.Error);
+    final failed = _errored || ok == false;
+    _span.end(
+      spanStatus: failed ? SpanStatusCode.Error : SpanStatusCode.Ok,
+    );
   }
 }
 
