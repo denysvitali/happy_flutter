@@ -2,7 +2,11 @@
 
 **Date:** 2026-07-24
 **Scope:** `lib/**` (excluding `*.g.dart`, `*.freezed.dart`, `lib/l10n_generated/**`), `docs/**`, `CLAUDE.md`
-**Status:** Audit only. No code edited. Awaiting plan approval before Phase B.
+**Status:** Phase A complete and Phase B executed. See
+`docs/refactor-report.md` for what was done, what was deferred and why, and
+the two bugs found. Corrections to this audit's own numbers (the `print(`
+count and the `empty_catches` claim) are recorded there — this file is kept as
+the pre-work snapshot.
 
 ---
 
@@ -402,7 +406,14 @@ discovery of unknown severity; two overlap with open ROADMAP items.
 
 ---
 
-## 8. Stop point
+## 8. Outcome
 
-Phase A complete. No files under `lib/` or `test/` were modified. Awaiting
-approval of §6 before Phase B.
+Phase B ran batches 1-8 of §6. Results, before/after metrics, deferred items
+and the bugs found are in `docs/refactor-report.md`.
+
+Deferred out of §6, with reasons given in the report: the full `fetchMessages`
+and `fetchSessions` decompositions (need a CI-driven loop — the test suite
+cannot be run locally), the three-way `_TerminalOutputSection` merge (the
+copies are not equivalent, so merging changes pixels), the
+`lib/core/utils/` dissolution, the `core/widgets` merge, and the long tails
+(`as`/`dynamic`, `// ignore:`, functions over 60 lines).
