@@ -575,7 +575,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
     final normalized = value
         .toLowerCase()
         .replaceAll(_labelUnsafe, '_')
-        .replaceAll(RegExp('^_+|_+\$'), '');
+        .replaceAll(RegExp(r'^_+|_+$'), '');
     if (normalized.isEmpty) return 'unknown';
     return normalized.length <= 48 ? normalized : normalized.substring(0, 48);
   }
