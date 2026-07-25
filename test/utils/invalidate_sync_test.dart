@@ -98,6 +98,69 @@ void main() {
       },
     );
 
+    group('failure throttling', () {
+      test(
+        'exhausted retries stamp the run end so minInterval throttles the '
+        'next invalidation',
+        () async {
+          var callCount = 0;
+          final sync = InvalidateSync(
+            () async {
+              callCount++;
+              throw StateError('network timeout');
+            },
+            minInterval: const Duration(milliseconds: 200),
+            maxRetries: 0,
+          );
+
+          sync.invalidate();
+          await expectLater(sync.awaitQueue(), throwsStateError);
+          expect(callCount, 1);
+
+          // Immediately re-invalidating must be deferred by the cooldown
+          // instead of hammering the failing endpoint. Previously
+          // _lastRunEnd was never stamped on the failure path, so this
+          // second call ran the action synchronously.
+          sync.invalidate();
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          expect(
+            callCount,
+            1,
+            reason: 'failure path must honour minInterval before re-running',
+          );
+
+          await Future<void>.delayed(const Duration(milliseconds: 260));
+          expect(callCount, 2);
+          sync.dispose();
+        },
+      );
+    });
+
+    group('backgrounded retries', () {
+      tearDown(() => InvalidateSync.isBackgrounded = false);
+
+      test(
+        'retry scheduled while backgrounded still completes awaitQueue',
+        () async {
+          var callCount = 0;
+          final sync = InvalidateSync(() async {
+            callCount++;
+            InvalidateSync.isBackgrounded = true;
+            throw StateError('network timeout');
+          }, maxRetries: 2);
+
+          sync.invalidate();
+
+          // Previously the backgrounded bail-out in _scheduleRetry returned
+          // without touching the completer, so this await hung until the
+          // next foreground invalidate().
+          await sync.awaitQueue().timeout(const Duration(seconds: 2));
+          expect(callCount, 1);
+          sync.dispose();
+        },
+      );
+    });
+
     group('dispose lifecycle', () {
       test('dispose completes awaitQueue normally', () async {
         final blocker = Completer<void>();
