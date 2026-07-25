@@ -59,22 +59,30 @@ void main() {
     'id': 'm1',
     'kind': 'tool-call',
     'name': 'Workflow',
-    'state': 'running',
+    'state': 'completed',
     'input': {'name': 'inspect-go-mod'},
     if (workflowRunId != null) 'workflowRunId': workflowRunId,
     if (result != null) 'result': result,
   };
 
+  // Bounded pumps instead of pumpAndSettle: the tool row hosts repeating
+  // animations (live-state shimmer/spinner) that never settle.
+  Future<void> settle(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+
   Future<void> tapHeader(WidgetTester tester) async {
     await tester.tap(find.byType(InkWell).first, warnIfMissed: false);
-    await tester.pumpAndSettle();
+    await settle(tester);
   }
 
   testWidgets('grouped workflowRunId tag routes to the run detail', (
     tester,
   ) async {
     await tester.pumpWidget(wrap(workflowTool(workflowRunId: 'wf_aaa-111')));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tapHeader(tester);
 
@@ -94,7 +102,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tapHeader(tester);
 
@@ -105,7 +113,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(wrap(workflowTool()));
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     await tapHeader(tester);
 
