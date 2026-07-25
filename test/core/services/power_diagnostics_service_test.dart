@@ -154,8 +154,7 @@ void main() {
             id: 300,
             timestamp: DateTime(2026),
             method: 'GET',
-            path:
-                '/v3/sessions/123e4567-e89b-12d3-a456-426614174000/messages',
+            path: '/v3/sessions/123e4567-e89b-12d3-a456-426614174000/messages',
             statusCode: 200,
           ),
         )
@@ -164,19 +163,104 @@ void main() {
             id: 301,
             timestamp: DateTime(2026),
             method: 'GET',
-            path:
-                '/v3/sessions/123e4567-e89b-12d3-a456-426614174111/messages',
+            path: '/v3/sessions/123e4567-e89b-12d3-a456-426614174111/messages',
             statusCode: 200,
           ),
         );
 
       final snapshot = powerDiagnostics.snapshot();
-      expect(
-        snapshot.httpEndpointCounts['GET /v3/sessions/:id/messages'],
-        2,
-      );
+      expect(snapshot.httpEndpointCounts['GET /v3/sessions/:id/messages'], 2);
       expect(snapshot.httpEndpointCounts.length, lessThanOrEqualTo(200));
       expect(snapshot.httpEndpointStats.length, lessThanOrEqualTo(200));
+    });
+  });
+
+  // Counters used to be emitted with no attributes at all, so the raw
+  // `errorStr`, sync `name` and outbox `localId` the call sites already
+  // carried were thrown away and no `reason` dimension existed anywhere in
+  // the client. Bucketing is what makes them safe to export.
+  group('PowerDiagnosticsService.classifySocketError', () {
+    test('buckets transport failures into stable reasons', () {
+      expect(
+        PowerDiagnosticsService.classifySocketError(
+          'TimeoutException after 0:00:08.000000',
+        ),
+        'timeout',
+      );
+      expect(
+        PowerDiagnosticsService.classifySocketError(
+          'SocketException: Failed host lookup: api.example.com',
+        ),
+        'dns',
+      );
+      expect(
+        PowerDiagnosticsService.classifySocketError(
+          'SocketException: Connection refused (OS Error: errno = 111)',
+        ),
+        'connection_refused',
+      );
+      expect(
+        PowerDiagnosticsService.classifySocketError(
+          'HandshakeException: certificate verify failed',
+        ),
+        'tls',
+      );
+      expect(
+        PowerDiagnosticsService.classifySocketError('server returned 401'),
+        'unauthorized',
+      );
+      expect(
+        PowerDiagnosticsService.classifySocketError('Connection reset by peer'),
+        'connection_reset',
+      );
+    });
+
+    test('never returns an unbounded value', () {
+      // Two distinct addresses/ports must collapse to ONE label value,
+      // otherwise every reconnect creates a new Prometheus series.
+      final first = PowerDiagnosticsService.classifySocketError(
+        'websocket error to wss://a.example.com:443/socket abc-123',
+      );
+      final second = PowerDiagnosticsService.classifySocketError(
+        'websocket error to wss://b.example.com:8443/socket def-456',
+      );
+
+      expect(first, second);
+      expect(first, 'transport');
+    });
+
+    test('falls back to a fixed label for unrecognised text', () {
+      expect(PowerDiagnosticsService.classifySocketError(''), 'empty');
+      expect(
+        PowerDiagnosticsService.classifySocketError('something novel'),
+        'unknown',
+      );
+    });
+  });
+
+  group('PowerDiagnosticsService outbox failure reasons', () {
+    setUp(powerDiagnostics.reset);
+
+    test('records the reason in the event log and keeps the localId local', () {
+      powerDiagnostics.recordOutboxFailure('local-abc-123', reason: 'timeout');
+
+      final snapshot = powerDiagnostics.snapshot();
+      expect(snapshot.outboxFailures, 1);
+      expect(
+        snapshot.recentEvents.last.message,
+        'failure localId=local-abc-123 reason=timeout',
+      );
+    });
+
+    test('still accepts a bare localId', () {
+      powerDiagnostics.recordOutboxFailure('local-abc-123');
+
+      final snapshot = powerDiagnostics.snapshot();
+      expect(snapshot.outboxFailures, 1);
+      expect(
+        snapshot.recentEvents.last.message,
+        'failure localId=local-abc-123',
+      );
     });
   });
 }

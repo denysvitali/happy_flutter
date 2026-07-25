@@ -1,5 +1,9 @@
-import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart' show Counter;
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
+    show Counter;
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart';
+
+import 'logger_service.dart';
+import 'opentelemetry_service.dart';
 
 /// Forwards [PowerDiagnosticsService] counter increments to OpenTelemetry
 /// metrics.
@@ -13,6 +17,11 @@ import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart';
 /// merely trying to record a metric. All swallowing happens in exactly one
 /// place — [_bump] — so there is a single documented failure policy rather
 /// than eleven bare `catch (_) {}` blocks.
+///
+/// Swallowed is not the same as invisible: [_bump] logs the first failure per
+/// counter name. The previous bare `catch (_) {}` is why the empty-resource
+/// export bug (see `OpenTelemetryService._applyResourceToMeterProvider`) ran
+/// unnoticed for the lifetime of the metric pipeline.
 class PowerDiagnosticsOtelReporter {
   PowerDiagnosticsOtelReporter._();
 
@@ -25,33 +34,58 @@ class PowerDiagnosticsOtelReporter {
   /// counter that is never bumped is never created.
   final Map<String, Counter<int>> _counters = {};
 
+  /// Metric names whose failure has already been logged, so a counter that
+  /// fails on every call logs once per process instead of once per event.
+  final Set<String> _reportedFailures = {};
+
   UIMeter get _meter {
     return FlutterOTel.meter(name: 'happy_flutter.power_diagnostics');
   }
 
   /// Adds [delta] to the counter named [name], creating it on first use.
   ///
+  /// [attributes] must be low-cardinality: a value that can take an unbounded
+  /// number of forms (a localId, a session id, a raw error string) creates one
+  /// Prometheus series per value and will take the collector down. Callers are
+  /// responsible for bucketing before they get here.
+  ///
   /// Swallows every error: see the class doc. This is the only place in the
-  /// class that catches.
+  /// class that catches, and it logs the first failure per [name].
   void _bump(
     String name, {
     required String description,
     required String unit,
     int delta = 1,
+    Map<String, String> attributes = const {},
   }) {
     try {
-      _counters
-          .putIfAbsent(
-            name,
-            () => _meter.createCounter<int>(
-              name: name,
-              description: description,
-              unit: unit,
-            ),
-          )
-          .add(delta);
-    } catch (_) {
-      // Best-effort: OTel failures must not break local diagnostics.
+      final counter = _counters.putIfAbsent(
+        name,
+        () => _meter.createCounter<int>(
+          name: name,
+          description: description,
+          unit: unit,
+        ),
+      );
+      if (attributes.isEmpty) {
+        counter.add(delta);
+      } else {
+        counter.addWithMap(delta, attributes);
+      }
+    } catch (e, stack) {
+      // Best-effort: OTel failures must not break local diagnostics — but
+      // they must not be invisible either.
+      //
+      // Counters recorded before `OpenTelemetryService.initialize()` finishes
+      // are expected to fail and are not worth reporting; anything after it
+      // is a real pipeline defect.
+      if (OpenTelemetryService().isInitialized && _reportedFailures.add(name)) {
+        logger.warning(
+          '[PowerDiagnosticsOtel] counter $name unavailable: $e',
+          e,
+          stack,
+        );
+      }
     }
   }
 
@@ -85,28 +119,36 @@ class PowerDiagnosticsOtelReporter {
     unit: '{connections}',
   );
 
-  void recordSocketError() => _bump(
+  /// [reason] must come from [PowerDiagnosticsService.classifySocketError] —
+  /// never a raw exception string.
+  void recordSocketError({String reason = 'unknown'}) => _bump(
     'happy_flutter.socket.errors',
     description: 'Socket errors',
     unit: '{errors}',
+    attributes: {'reason': reason},
   );
 
-  void recordSyncInvalidation() => _bump(
+  /// [domain] is the `InvalidateSync` name (`fetchMessages`, `fetchSessions`,
+  /// …) — a fixed set defined in code, so it is safe as a label.
+  void recordSyncInvalidation({String domain = 'unknown'}) => _bump(
     'happy_flutter.sync.invalidations',
     description: 'Sync invalidation calls',
     unit: '{invalidations}',
+    attributes: {'domain': domain},
   );
 
-  void recordGlobalSyncInvalidation() => _bump(
+  void recordGlobalSyncInvalidation({String domain = 'unknown'}) => _bump(
     'happy_flutter.sync.global_invalidations',
     description: 'Global sync invalidation calls',
     unit: '{invalidations}',
+    attributes: {'domain': domain},
   );
 
-  void recordSyncBackgroundSkip() => _bump(
+  void recordSyncBackgroundSkip({String domain = 'unknown'}) => _bump(
     'happy_flutter.sync.background_skips',
     description: 'Sync invalidations skipped while backgrounded',
     unit: '{invalidations}',
+    attributes: {'domain': domain},
   );
 
   void recordOutboxSchedule() => _bump(
@@ -121,10 +163,13 @@ class PowerDiagnosticsOtelReporter {
     unit: '{events}',
   );
 
-  void recordOutboxFailure() => _bump(
+  /// [reason] is a bucketed failure class, never the `localId` — that is a
+  /// per-message value and would create one series per sent message.
+  void recordOutboxFailure({String reason = 'unknown'}) => _bump(
     'happy_flutter.outbox.failures',
     description: 'Message outbox delivery failures',
     unit: '{events}',
+    attributes: {'reason': reason},
   );
 
   /// Bumps an app-level error counter.
