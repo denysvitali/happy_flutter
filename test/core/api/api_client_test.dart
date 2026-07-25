@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     show BatchSpanProcessor, ConsoleExporter, OTel;
 import 'package:happy_flutter/core/api/api_client.dart';
+import 'package:happy_flutter/core/api/retry_interceptor.dart';
 
 void main() {
   group('ApiClient Retry Logic', () {
@@ -27,18 +28,48 @@ void main() {
       expect(apiClient.getCurrentServerUrl(), 'https://test.example.com');
     });
 
-    test('connect timeout is bounded to 8s for fast failure on '
-        'black-holed mobile routes', () {
+    test('connect + receive timeouts bound the request to 23s on the '
+        'native adapter', () {
       // P0-1: connectTimeout was 30s, which Jaeger traced as ~28-34s
       // cold-start/resume stalls on the bootstrap fan-out (profile/
-      // settings/machines/sessions). 8s bounds only the TCP+TLS
-      // handshake (a healthy mobile connect is well under 1s) and
-      // matches the proven Sync._messageFetchConnectTimeout, letting
-      // the RetryInterceptor recover on the next backoff cycle.
+      // settings/machines/sessions).
+      //
+      // These are NOT two independent phases on device: NativeAdapter
+      // (Cronet / cupertino_http) runs through ConversionLayerAdapter,
+      // which applies `connectTimeout + receiveTimeout` as a single
+      // `client.send(...).timeout(...)` and reports expiry as
+      // DioExceptionType.receiveTimeout. The number that matters is the
+      // sum — 23s here — and there is no separate handshake bound.
       final options = apiClient.testDio!.options;
       expect(options.connectTimeout, const Duration(seconds: 8));
       expect(options.receiveTimeout, const Duration(seconds: 15));
       expect(options.sendTimeout, const Duration(seconds: 30));
+      expect(
+        options.connectTimeout! + options.receiveTimeout!,
+        const Duration(seconds: 23),
+        reason: 'the effective single budget applied by the native adapter',
+      );
+    });
+
+    test('server status failures reach the retry interceptor even though '
+        'validateStatus accepts every status', () {
+      // validateStatus: (_) => true means Dio never raises a DioException
+      // for a 5xx, so the retry classification has to run on the response
+      // chain. The retry interceptor must therefore be registered first
+      // (response interceptors run in registration order).
+      final options = apiClient.testDio!.options;
+      expect(options.validateStatus(503), isTrue);
+      final interceptors = apiClient.testDio!.interceptors;
+      final retryIndex = interceptors.indexWhere((i) => i is RetryInterceptor);
+      final firstWrapperIndex = interceptors.indexWhere(
+        (i) => i is InterceptorsWrapper,
+      );
+      expect(retryIndex, isNonNegative);
+      expect(
+        retryIndex,
+        lessThan(firstWrapperIndex),
+        reason: 'the retry interceptor classifies responses first',
+      );
     });
 
     test('should not retry on 4xx client errors', () async {

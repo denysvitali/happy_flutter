@@ -107,14 +107,18 @@ class ApiClient {
     final generation = ++_dioGeneration;
     final baseOptions = BaseOptions(
       baseUrl: serverUrl,
-      // 8s connect — bounds only the TCP+TLS handshake, not transfer.
-      // A healthy mobile connection establishes in well under a second;
-      // the previous 30s let a black-holed route (stale cellular dial
-      // after wake) hang the bootstrap calls (profile/settings/machines/
-      // sessions) for ~28-34s before failing, which Jaeger traced as the
-      // dominant cold-start/resume stall. 8s matches the proven
-      // Sync._messageFetchConnectTimeout and fails fast enough for the
-      // RetryInterceptor below to recover on the next backoff cycle.
+      // NOTE: on mobile these two are ONE budget, not two phases. The app
+      // runs on NativeAdapter (Cronet / cupertino_http) via
+      // ConversionLayerAdapter, which has no separate connect phase: it
+      // computes `connectTimeout + receiveTimeout` and applies the sum as a
+      // single `client.send(request).timeout(...)`, surfacing expiry as
+      // DioExceptionType.receiveTimeout. So connectTimeout is NOT an
+      // independent handshake bound and does NOT fail fast on a black-holed
+      // route (stale cellular dial after wake) — the effective ceiling for
+      // response headers is 8s + 15s = 23s here, and 8s + the per-request
+      // receiveTimeout on calls that override it (e.g. message fetches).
+      // Lower the *sum* to make requests fail faster; lowering only
+      // connectTimeout does nothing on device.
       connectTimeout: const Duration(seconds: 8),
       // 15s default receive — the 60s fallback was excessive for chat
       // fetches and allowed Cronet stalls to hang for too long.
@@ -122,6 +126,10 @@ class ApiClient {
       sendTimeout: const Duration(seconds: 30),
       contentType: 'application/json',
       responseType: ResponseType.json,
+      // Every status is "valid": call sites inspect `response.statusCode`
+      // instead of catching DioException. Consequence: Dio never raises for
+      // a 4xx/5xx, so status-based classification (retry, re-auth) must
+      // live in an onResponse interceptor — see [RetryInterceptor].
       validateStatus: (_) => true,
     );
 
@@ -132,13 +140,16 @@ class ApiClient {
     // lazily on the first request via [_ensureNativeAdapter];
     // see [initialize] for the rationale.
 
-    // Add retry interceptor first (executes last on error)
+    // Add retry interceptor first: it runs first on the response chain (so
+    // it can classify status failures, which `validateStatus` keeps out of
+    // the error chain) and last on the error chain.
     dio.interceptors.add(
       RetryInterceptor(
         dioGetter: () => dio,
-        maxRetries: 4,
+        maxRetries: 3,
         baseDelayMs: 1000,
         maxDelayMs: 10000,
+        maxTotalElapsedMs: 20000,
       ),
     );
 
