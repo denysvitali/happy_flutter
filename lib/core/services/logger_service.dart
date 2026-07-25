@@ -62,9 +62,13 @@ class LogEntry {
 /// Maintains an in-memory buffer of log entries and notifies listeners when new
 /// entries are added. All logs are also written to the console in debug builds.
 ///
-/// When [developerModeEnabled] is true, all log levels are captured even in
+/// When developer mode is enabled, all log levels are captured even in
 /// release builds, allowing developers to see operational logs in
 /// the DevLogsScreen.
+///
+/// **Console/buffer visibility and telemetry export are independent.** A
+/// release build without developer mode buffers and prints nothing below
+/// `error`, but still exports every `warning` and `error` to Sentry and OTel.
 class LoggerService {
   factory LoggerService() => _instance;
   LoggerService._();
@@ -94,6 +98,20 @@ class LoggerService {
   /// Re-entrancy guard so an OTel forwarding failure cannot recurse.
   bool _forwardingToOtel = false;
 
+  /// Test-only override for [kReleaseMode]. `kReleaseMode` is a compile-time
+  /// constant, so the release gating below is otherwise unreachable from the
+  /// test suite — which is exactly how it silently dropped every warning in
+  /// shipped builds.
+  bool? _releaseModeOverride;
+
+  bool get _isReleaseMode => _releaseModeOverride ?? kReleaseMode;
+
+  @visibleForTesting
+  // ignore: avoid_setters_without_getters
+  set debugReleaseModeOverride(bool? value) {
+    _releaseModeOverride = value;
+  }
+
   /// Get the current minimum log level
   LogLevel get minLevel => _minLevel;
 
@@ -108,11 +126,20 @@ class LoggerService {
     _developerModeEnabled = enabled;
   }
 
-  /// Install a sink that receives every log entry that survives level/mode
-  /// gating. Used by [OpenTelemetryService] to forward logs to the OTel
-  /// collector. The sink is wrapped in a re-entrancy guard and never throws.
+  /// Install a sink that receives every log entry that is exported — which
+  /// includes warnings and errors in release builds even when they are not
+  /// buffered or printed. Used by [OpenTelemetryService] to forward logs to
+  /// the OTel collector. The sink is wrapped in a re-entrancy guard and never
+  /// throws.
   void installOtelSink(void Function(LogEntry) sink) {
     _otelLogSink = sink;
+  }
+
+  /// Remove a previously installed OTel sink. Test-only: production installs
+  /// the sink exactly once, from [OpenTelemetryService.initialize].
+  @visibleForTesting
+  void removeOtelSink() {
+    _otelLogSink = null;
   }
 
   /// Add a log entry
@@ -127,18 +154,22 @@ class LoggerService {
       return;
     }
 
-    // All three downstream flags collapse to the same predicate
-    // (`!release || devMode || error`). Compute it once.
+    // "Should this be shown to a human on this device?" and "should this be
+    // exported to Sentry/OTel?" are DIFFERENT questions. Conflating them is
+    // what silently deleted 82% of the app's deliberate error signal: in a
+    // release build with developer mode off, only `LogLevel.error` reached
+    // the forwarders, so the ~400 `logger.warning` call sites produced no
+    // Sentry event and no OTel log record at all. Console/buffer noise stays
+    // suppressed; EXPORT never does.
+    final release = _isReleaseMode;
     final shouldBufferAndNotify =
-        !kReleaseMode || _developerModeEnabled || level == LogLevel.error;
-    final shouldWriteConsole =
-        kDebugMode || (kReleaseMode && _developerModeEnabled);
+        !release || _developerModeEnabled || level == LogLevel.error;
+    final shouldWriteConsole = kDebugMode || (release && _developerModeEnabled);
+    final shouldForward =
+        shouldBufferAndNotify || level.index >= LogLevel.warning.index;
 
-    // If nothing downstream will consume this entry, skip allocation
-    // entirely. `shouldLog` already filtered out below-min levels and
-    // non-errors in release-without-dev-mode, so this is just a final
-    // guard for safety.
-    if (!shouldBufferAndNotify && !shouldWriteConsole) {
+    // If nothing downstream will consume this entry, skip allocation entirely.
+    if (!shouldBufferAndNotify && !shouldWriteConsole && !shouldForward) {
       return;
     }
 
@@ -160,7 +191,10 @@ class LoggerService {
       if (_logs.length > _maxLogs) {
         _logs.removeFirst();
       }
+    }
 
+    // Forwarding is deliberately outside the buffer guard — see above.
+    if (shouldForward) {
       _forwardToSentry(entry);
       _forwardToOtel(entry);
     }
@@ -184,15 +218,24 @@ class LoggerService {
     }
   }
 
+  /// Whether [level] will be processed at all — buffered, printed, *or*
+  /// forwarded to Sentry/OTel. Call sites use this as a cheap guard before
+  /// building expensive log messages.
+  ///
+  /// Note this is deliberately broader than "will appear in DevLogsScreen":
+  /// in a release build without developer mode, warnings return `true` even
+  /// though they are neither printed nor buffered, because they still have
+  /// to reach the telemetry exporters.
   bool shouldLog(LogLevel level) {
     if (level.index < _minLevel.index) {
       return false;
     }
 
-    // In release mode, only process errors unless developer mode is enabled
-    // (developer mode allows seeing all logs in DevLogsScreen for debugging)
-    if (kReleaseMode && !_developerModeEnabled && level != LogLevel.error) {
-      return false;
+    // In release mode without developer mode, drop debug/info entirely —
+    // nothing downstream consumes them. Warnings and errors always survive
+    // because both are exported.
+    if (_isReleaseMode && !_developerModeEnabled) {
+      return level.index >= LogLevel.warning.index;
     }
 
     return true;
