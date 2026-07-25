@@ -287,6 +287,12 @@ class Sync {
   static const int maxVisibleSessionMessagesForTesting =
       _maxVisibleSessionMessages;
 
+  /// [_maxBackgroundSessionMessages], exposed so merge tests can drive the
+  /// trim without hard-coding the cap.
+  @visibleForTesting
+  static const int maxBackgroundSessionMessagesForTesting =
+      _maxBackgroundSessionMessages;
+
   /// Soft budget for a single [fetchMessages] cycle.  When the elapsed
   /// time exceeds this, we stop crawling forward pages and let the
   /// next invalidate-cycle resume from the advanced cursor.  Any
@@ -506,6 +512,13 @@ what you have, you must use the options mode.
   // Pending settings
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   final Map<String, Map<String, String?>> _sessionContentSignatures = {};
+
+  /// Read-only view of the decrypt pre-filter's per-session signature map.
+  @visibleForTesting
+  Map<String, String?> testContentSignatures(String sessionId) =>
+      Map.unmodifiable(
+        _sessionContentSignatures[sessionId] ?? const <String, String?>{},
+      );
   Map<String, List<Map<String, dynamic>>>? _sessionMessagesCache;
 
   /// Cached preview metadata per session — avoids rescanning

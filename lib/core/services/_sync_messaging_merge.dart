@@ -134,6 +134,61 @@ extension SyncMessagingMerge on Sync {
     _sessionContentSignatures[sessionId] = signatures;
   }
 
+  /// Incremental replacement for [_rebuildSessionContentSignatures] on the
+  /// upsert path.
+  ///
+  /// The full rebuild recomputes a fingerprint for every one of up to 1000
+  /// rows on the main isolate, once per fetched page, even though a page only
+  /// ever changes the rows it carries. This instead drops entries for rows
+  /// that left the window (trim, optimistic-placeholder eviction,
+  /// prompt-echo skip) with a pure map/set walk, then refreshes only the
+  /// [incoming] rows that actually survived the merge.
+  ///
+  /// Refreshing only surviving rows matters: a row dropped by
+  /// `_isPromptEcho` must not leave a signature behind, or the fetch
+  /// pre-filter would treat it as already-present and never merge it.
+  void _applySessionContentSignatureDelta(
+    String sessionId,
+    List<Map<String, dynamic>> incoming,
+  ) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) {
+      _sessionContentSignatures.remove(sessionId);
+      return;
+    }
+    final signatures = _sessionContentSignatures[sessionId];
+    if (signatures == null) {
+      _rebuildSessionContentSignatures(sessionId);
+      return;
+    }
+
+    final liveKeys = <String>{};
+    for (final message in messages) {
+      final id = message['id'] as String?;
+      if (id == null || id.isEmpty) continue;
+      liveKeys.add(id);
+      // Output content blocks also register their base wire ID — keep both
+      // alive so a re-fetch still matches (see
+      // [_updateSessionContentSignatures]).
+      final baseId = _stripOutputSuffix(id);
+      if (baseId != null && baseId != id) {
+        liveKeys.add(baseId);
+      }
+    }
+    signatures.removeWhere((key, _) => !liveKeys.contains(key));
+
+    for (final message in incoming) {
+      final id = message['id'] as String?;
+      if (id == null || id.isEmpty || !liveKeys.contains(id)) continue;
+      final signature = _messageContentSignature(message);
+      signatures[id] = signature;
+      final baseId = _stripOutputSuffix(id);
+      if (baseId != null && baseId != id) {
+        signatures[baseId] = signature;
+      }
+    }
+  }
+
   void _updateSessionContentSignatures(
     String sessionId,
     List<Map<String, dynamic>> messages,
@@ -837,7 +892,9 @@ extension SyncMessagingMerge on Sync {
       if (trimmed.length == appended.length) {
         _updateSessionContentSignatures(sessionId, messages);
       } else {
-        _rebuildSessionContentSignatures(sessionId);
+        // Rows fell off the head — prune them instead of re-fingerprinting
+        // the whole window.
+        _applySessionContentSignatureDelta(sessionId, messages);
       }
       _ensureFirstLoadedSeq(sessionId);
       return;
@@ -988,7 +1045,7 @@ extension SyncMessagingMerge on Sync {
     _sessionMessages[sessionId] = sorted.length > maxMessages
         ? sorted.sublist(sorted.length - maxMessages)
         : sorted;
-    _rebuildSessionContentSignatures(sessionId);
+    _applySessionContentSignatureDelta(sessionId, messages);
     if (sessionId == _visibleSessionId &&
         messages.isNotEmpty &&
         logger.shouldLog(LogLevel.debug)) {

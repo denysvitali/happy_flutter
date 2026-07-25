@@ -982,6 +982,12 @@ extension SyncMessagingRpc on Sync {
         }
         if (cached.isNotEmpty) {
           _sessionMessages[sessionId] = cached;
+          // Seed the content signatures for the restored window, exactly as
+          // the cold-start restore in `_restoreRecentCachedMessagesAsync`
+          // does. Without this the signature map is empty, so the next tail
+          // refresh's pre-filter matches nothing and re-decrypts the whole
+          // restored window.
+          _rebuildSessionContentSignatures(sessionId);
           _invalidateMessageCaches(sessionId);
           final maxSeq = _maxCachedMessageSeq(cached);
           if (maxSeq != null) {
