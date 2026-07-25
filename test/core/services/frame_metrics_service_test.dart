@@ -67,4 +67,38 @@ void main() {
       expect(service.debugFrozenFrameCount, 1);
     });
   });
+
+  // The `ui.jank` span used to be started and ended in the same statement, so
+  // its duration was always zero and
+  // `traces_span_metrics_duration_seconds{span_name="ui.jank"}` carried no
+  // information at all. It now spans the measured jank episode.
+  group('FrameMetricsService jank window', () {
+    test('spans the episode instead of an instant', () async {
+      final service = FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 70),
+          raster: const Duration(milliseconds: 40),
+          total: const Duration(milliseconds: 110),
+        );
+
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+      service.debugFlush();
+
+      expect(service.debugLastJankWindow, isNotNull);
+      expect(service.debugLastJankWindow!.inMicroseconds, greaterThan(0));
+    });
+
+    test('reports no window when no frame was frozen', () {
+      final service = FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 4),
+          raster: const Duration(milliseconds: 4),
+          total: const Duration(milliseconds: 8),
+        );
+
+      service.debugFlush();
+
+      expect(service.debugLastJankWindow, isNull);
+    });
+  });
 }
