@@ -350,6 +350,10 @@ AIBackendProfile? profileSetupTemplate(String id) {
             value: 'anthropic/claude-haiku-4.5',
           ),
           EnvironmentVariable(
+            name: 'ANTHROPIC_DEFAULT_FABLE_MODEL',
+            value: 'anthropic/claude-fable-5',
+          ),
+          EnvironmentVariable(
             name: 'CLAUDE_CODE_SUBAGENT_MODEL',
             value: 'anthropic/claude-opus-4.6',
           ),

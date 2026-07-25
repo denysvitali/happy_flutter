@@ -348,7 +348,17 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
             ..add(
               EnvironmentVariable(
                 name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-                value: 'anthropic/claude-haiku-4.5',
+                value: _smallFastModelCtrl.text.isNotEmpty
+                    ? _smallFastModelCtrl.text
+                    : 'anthropic/claude-haiku-4.5',
+              ),
+            )
+            ..add(
+              EnvironmentVariable(
+                name: 'ANTHROPIC_DEFAULT_FABLE_MODEL',
+                value: _smallFastModelCtrl.text.isNotEmpty
+                    ? _smallFastModelCtrl.text
+                    : 'anthropic/claude-fable-5',
               ),
             )
             ..add(

@@ -117,6 +117,7 @@ String? suggestProfileName(List<EnvironmentVariable> envVars) {
   const modelVarNames = {
     'ANTHROPIC_MODEL',
     'ANTHROPIC_DEFAULT_OPUS_MODEL',
+    'ANTHROPIC_DEFAULT_FABLE_MODEL',
     'OPENAI_MODEL',
   };
   EnvironmentVariable? candidate;
