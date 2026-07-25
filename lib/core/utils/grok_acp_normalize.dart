@@ -10,7 +10,7 @@ library;
 
 import 'dart:convert';
 
-import 'wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 /// Maps Grok Build built-in tool names onto Happy/Claude display names.
 ///
