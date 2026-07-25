@@ -177,7 +177,15 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          options.extra['_otelStart'] = DateTime.now().millisecondsSinceEpoch;
+          // A retried request re-enters onRequest with the *same*
+          // RequestOptions instance, so close the previous attempt's span
+          // before overwriting it — otherwise every failed attempt's span
+          // is created and never ended (never exported), and the surviving
+          // span reports only the last attempt's duration.
+          _endRetriedAttemptSpan(options);
+          final startedAtMs = DateTime.now().millisecondsSinceEpoch;
+          options.extra['_otelStart'] = startedAtMs;
+          options.extra['_otelFirstStart'] ??= startedAtMs;
           options.extra['_otelReqBytes'] = _estimateRequestBytes(options.data);
           // Parent the HTTP span under the active OTel span when one is
           // set on this isolate (e.g. chat.send_message wrapping the
@@ -187,22 +195,22 @@ class ApiClient {
           // from these headers) becomes a grandchild of chat.send_message
           // in the same trace.
           final activeSpan = OpenTelemetryService().currentSpan;
-          if (activeSpan != null) {
-            options.extra['_otelSpan'] = OpenTelemetryService().startChildSpan(
-              _otelHttpSpanName(options),
-              parent: activeSpan,
-              kind: SpanKind.client,
-              attributes: _otelHttpAttributes(options),
-            );
-          } else {
-            options.extra['_otelSpan'] = OpenTelemetryService().startTrace(
-              _otelHttpSpanName(options),
-              kind: SpanKind.client,
-              attributes: _otelHttpAttributes(options),
-            );
-          }
-          final span = options.extra['_otelSpan'] as OTelSpan?;
+          final span = activeSpan != null
+              ? OpenTelemetryService().startChildSpan(
+                  _otelHttpSpanName(options),
+                  parent: activeSpan,
+                  kind: SpanKind.client,
+                  attributes: _otelHttpAttributes(options),
+                )
+              : OpenTelemetryService().startTrace(
+                  _otelHttpSpanName(options),
+                  kind: SpanKind.client,
+                  attributes: _otelHttpAttributes(options),
+                );
           if (span != null) {
+            // Only store live spans: the presence of this key means "a span
+            // is open for the current attempt".
+            options.extra['_otelSpan'] = span;
             injectTraceContext(span.spanContext, options);
           }
           return handler.next(options);
@@ -278,6 +286,11 @@ class ApiClient {
                   extra: cachedResponse.extra,
                   headers: cachedResponse.headers,
                 ),
+                // Run the response chain for cache hits too, otherwise the
+                // span opened in onRequest is never ended (never exported)
+                // and the request tracker never sees the hit. The cache's
+                // own onResponse is a no-op here because `fromCache` is set.
+                true,
               );
             }
           }
@@ -365,9 +378,52 @@ class ApiClient {
       'http.request.body.size':
           options.extra['_otelReqBytes'] ?? _estimateRequestBytes(options.data),
       'http.cache_hit': options.extra['fromCache'] == true,
-      if (options.extra['_retryCount'] is int)
-        'http.retry_count': options.extra['_retryCount'] as int,
+      if (options.extra[RetryInterceptor.retryCountKey] is int) ...{
+        'http.retry_count':
+            options.extra[RetryInterceptor.retryCountKey] as int,
+        // 1-based index of the attempt this span covers.
+        'http.attempt':
+            (options.extra[RetryInterceptor.retryCountKey] as int) + 1,
+      },
     };
+  }
+
+  /// Ends the span of the attempt that just failed, if this request is
+  /// being retried.
+  ///
+  /// [RetryInterceptor] re-issues the failed [RequestOptions] as-is, so the
+  /// tracing interceptor sees the same `extra` map again. Without this the
+  /// previous span is simply overwritten: it never ends, so the span
+  /// processor never exports it and the retry sequence is invisible in
+  /// Jaeger except for a `http.retry_count` attribute on the last attempt.
+  static void _endRetriedAttemptSpan(RequestOptions options) {
+    final span = options.extra['_otelSpan'] as OTelSpan?;
+    if (span == null) return;
+    options.extra.remove('_otelSpan');
+
+    final startMs = options.extra['_otelStart'] as int?;
+    if (startMs != null) {
+      span.setAttribute(
+        'http.duration_ms',
+        DateTime.now().millisecondsSinceEpoch - startMs,
+      );
+    }
+    final retryCount = options.extra[RetryInterceptor.retryCountKey] as int?;
+    if (retryCount != null) {
+      span.setAttribute('http.attempt', retryCount);
+    }
+    final lastStatus = options.extra[RetryInterceptor.lastStatusKey] as int?;
+    if (lastStatus != null) {
+      span.setAttribute('http.response.status_code', lastStatus);
+    }
+    final lastErrorType =
+        options.extra[RetryInterceptor.lastErrorTypeKey] as String?;
+    if (lastErrorType != null) {
+      span.setAttribute('error.type', lastErrorType);
+    }
+    span
+      ..setAttribute('http.attempt.retried', true)
+      ..end(ok: false);
   }
 
   static String _otelHttpSpanName(RequestOptions options) {
@@ -383,23 +439,30 @@ class ApiClient {
   }) {
     final span = options.extra['_otelSpan'] as OTelSpan?;
     if (span == null) return;
+    // Drop the reference so a later interceptor pass (or a retry that
+    // reuses these options) cannot end the same span twice.
+    options.extra.remove('_otelSpan');
 
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
     final startMs = options.extra['_otelStart'] as int?;
     if (startMs != null) {
-      span.setAttribute(
-        'http.duration_ms',
-        DateTime.now().millisecondsSinceEpoch - startMs,
-      );
+      span.setAttribute('http.duration_ms', nowMs - startMs);
+    }
+    // Elapsed time across every attempt plus the backoff waits between
+    // them — the number the user actually experienced.
+    final firstStartMs = options.extra['_otelFirstStart'] as int?;
+    if (firstStartMs != null) {
+      span.setAttribute('http.total_duration_ms', nowMs - firstStartMs);
     }
     span
       ..setAttribute('http.response.status_code', statusCode)
       ..setAttribute('http.response.body.size', responseBytes)
       ..setAttribute('http.cache_hit', options.extra['fromCache'] == true);
-    if (options.extra['_retryCount'] is int) {
-      span.setAttribute(
-        'http.retry_count',
-        options.extra['_retryCount'] as int,
-      );
+    final retryCount = options.extra[RetryInterceptor.retryCountKey] as int?;
+    if (retryCount != null) {
+      span
+        ..setAttribute('http.retry_count', retryCount)
+        ..setAttribute('http.attempt', retryCount + 1);
     }
     if (error != null) {
       span
