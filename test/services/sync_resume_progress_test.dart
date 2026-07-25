@@ -234,7 +234,10 @@ void main() {
           reason: 'resume should show pending conversation progress',
         );
 
-        async.elapse(const Duration(seconds: 6));
+        async.elapse(
+          Sync.resumeSessionsAwaitTimeoutForTesting +
+              const Duration(seconds: 1),
+        );
         async.flushMicrotasks();
 
         expect(
@@ -303,10 +306,13 @@ void main() {
           reason: 'progress should show pending while sessionsSync stalls',
         );
 
-        // The 6s bounded wait elapses while the sessionsSync future is
-        // still pending — this is the exact "TimeoutException after
-        // 0:00:06.000000" path from the production crash.
-        async.elapse(const Duration(seconds: 7));
+        // The bounded wait elapses while the sessionsSync future is still
+        // pending — this is the exact "TimeoutException after
+        // <_resumeSessionsAwaitTimeout>" path from the production crash.
+        async.elapse(
+          Sync.resumeSessionsAwaitTimeoutForTesting +
+              const Duration(seconds: 1),
+        );
         async.flushMicrotasks();
 
         expect(

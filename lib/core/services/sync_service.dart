@@ -183,9 +183,31 @@ class Sync {
   static const int _backgroundMessageFetchPageLimit = 1;
   static const int _maxVisibleSessionMessages = kIsWeb ? 600 : 1000;
   static const int _maxBackgroundSessionMessages = 200;
+  /// Bounds only the TCP+TLS handshake, not the transfer. A healthy mobile
+  /// connection establishes in well under a second, so 8 s still fails fast
+  /// on a black-holed route.
   static const Duration _messageFetchConnectTimeout = Duration(seconds: 8);
-  static const Duration _messageFetchReceiveTimeout = Duration(seconds: 8);
-  static const Duration _messageSendTimeout = Duration(seconds: 8);
+
+  /// Budget for receiving a message page body.
+  ///
+  /// Was 8 s, copied from the connect timeout above. That number bounds a
+  /// handshake, not a body: production traces show the server producing a
+  /// page in 94.8 ms and the client aborting at 8.14 s — the whole 8 s was
+  /// transfer of a ~1.5 MB payload, which needs ~1.5 Mbit/s sustained to
+  /// fit. 30 s covers the same page at ~400 kbit/s.
+  ///
+  /// Raising this only trades an error for a stall if the page has no
+  /// recovery path; it does now ([_messagesSyncMaxRetries]). Worst case for
+  /// one page is 30 s + 1 s backoff + 30 s, and the chat screen never blocks
+  /// on it — it awaits the sync queue with its own short UI cap.
+  static const Duration _messageFetchReceiveTimeout = Duration(seconds: 30);
+
+  /// Budget for a message send round-trip. Also inherited from the 8 s
+  /// connect timeout. A send carries the user's whole prompt (attachments
+  /// included) and its response is small, so the risk profile is the
+  /// opposite of a page fetch: giving up early strands a message the server
+  /// may well have accepted. 20 s.
+  static const Duration _messageSendTimeout = Duration(seconds: 20);
 
   /// Default throttle between consecutive orphan-recovery fetchOlder
   /// attempts. Reduced from 60s to 15s so users see recovery within
@@ -270,7 +292,14 @@ class Sync {
   /// next invalidate-cycle resume from the advanced cursor.  Any
   /// already-merged messages stay in memory, so the user sees the
   /// freshest tail load even if a slow server tries to bury us.
-  static const Duration _messageFetchBudget = Duration(seconds: 15);
+  ///
+  /// Must leave room for more than one page, otherwise the crawl is
+  /// guaranteed to defer after every single page and a session with a real
+  /// backlog only advances one page per invalidate-cycle. At 15 s it was
+  /// already below [_messageFetchReceiveTimeout], so a single slow page
+  /// blew the whole budget; 40 s fits a handful of healthy pages while
+  /// still capping how long one session can pin the fetcher.
+  static const Duration _messageFetchBudget = Duration(seconds: 40);
   static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);
   static const Duration _sessionListMachineRefreshDelay = Duration(
     milliseconds: 800,
@@ -601,7 +630,22 @@ what you have, you must use the options mode.
   /// `awaitQueue().then(...)`).
   Timer? _resumeConversationProgressSafetyTimer;
   static const int _resumeConversationProgressTimeoutMs = 30 * 1000;
-  static const Duration _resumeSessionsAwaitTimeout = Duration(seconds: 6);
+  /// How long resume waits for the sessions/messages sync queues to settle
+  /// before continuing anyway.
+  ///
+  /// Was 6 s, another descendant of the 8 s page-fetch number: it awaits a
+  /// whole sync *queue* (sessions refresh plus a batch of per-session
+  /// message fetches), not one HTTP page, so it was almost always tripping
+  /// and logging a false "resume refresh did not settle". 15 s covers a
+  /// normal resume batch on mobile without letting a wedged queue hold the
+  /// resume path open indefinitely.
+  static const Duration _resumeSessionsAwaitTimeout = Duration(seconds: 15);
+
+  /// [_resumeSessionsAwaitTimeout], exposed so resume-progress tests advance
+  /// fake time by the real budget instead of a stale literal.
+  @visibleForTesting
+  static const Duration resumeSessionsAwaitTimeoutForTesting =
+      _resumeSessionsAwaitTimeout;
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
