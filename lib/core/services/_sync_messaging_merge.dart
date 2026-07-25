@@ -199,10 +199,17 @@ extension SyncMessagingMerge on Sync {
   /// aggressive mode. While a parent Task likely exists just below the
   /// loaded window, we want to paginate quickly; after this many futile
   /// pages we fall back to the default throttle to avoid hammering the
-  /// server when the parent is genuinely missing. See
-  /// [Sync._orphanPageSequencesPerAggressiveAttempt].
+  /// server when the parent is genuinely missing. Derived from the
+  /// seq-based budget so the aggressive phase reaches the same distance
+  /// regardless of [Sync._orphanFetchOlderPageSize]. See
+  /// [Sync._orphanAggressiveWalkbackSequences].
   static const int _orphanFetchOlderAggressiveAttempts =
-      Sync._orphanPageSequencesPerAggressiveAttempt;
+      Sync._orphanAggressiveWalkbackSequences ~/ Sync._orphanFetchOlderPageSize;
+
+  /// Minimum spacing between two aggressive-mode walk-back pages. See
+  /// [Sync._orphanFetchOlderAggressiveFloorMs].
+  static const int _orphanFetchOlderAggressiveFloorMs =
+      Sync._orphanFetchOlderAggressiveFloorMs;
 
   /// Hard cap on total no-progress fetchOlder attempts. Once reached,
   /// orphan recovery gives up and the sidechain messages render inline
@@ -442,9 +449,32 @@ extension SyncMessagingMerge on Sync {
       return;
     }
 
-    final canRetryFetch =
-        useAggressiveThrottle ||
-        nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
+    // Aggressive mode still has to respect a floor: it used to fire with no
+    // throttle at all, so the first pages went out back-to-back.
+    final canRetryFetch = useAggressiveThrottle
+        ? nowMs - lastFetchAttempt >= _orphanFetchOlderAggressiveFloorMs
+        : nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
+
+    // The walk-back exists to pull a parent Task into the loaded window. When
+    // the session is already at the visible message cap, `_upsertSessionMessages`
+    // trims back to the newest N on every upsert and throws the entire fetched
+    // page away — including the parent we went looking for. Every page is then
+    // guaranteed to make zero progress, and the no-progress counter simply
+    // climbs to the hard cap while burning bandwidth and decrypt time.
+    final loadedCount = messagesNow.length;
+    final atVisibleCap = loadedCount >= Sync._maxVisibleSessionMessages;
+    if (atVisibleCap) {
+      _sidechainRegroupSweepCount.remove(sessionId);
+      _orphanSuppressedUntilMs[sessionId] =
+          nowMs + _orphanFetchOlderExhaustedThrottleMs;
+      logger.info(
+        '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
+        'session=$sessionId — session is at the visible cap '
+        '($loadedCount messages), so any fetched older page would be '
+        'trimmed away; rendering inline',
+      );
+      return;
+    }
 
     if (canRetryFetch && hasMoreOlder && !isLoadingOlderMessages(sessionId)) {
       _orphanFetchOlderAttemptedMs[sessionId] = nowMs;

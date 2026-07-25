@@ -203,13 +203,24 @@ class Sync {
   /// (parent Tasks 10k-50k seqs behind the loaded window) can
   /// recover. Once the budget is exhausted and orphans persist, the
   /// sidechain messages render inline.
-  static const int _orphanFetchOlderMaxPageSequences = 50 * 500;
+  static const int _orphanFetchOlderMaxPageSequences = 25000;
 
-  /// Number of pages (×500 seqs/page) per aggressive walk-back phase
-  /// before falling back to the standard throttle. Aggressive mode
-  /// tracks pages consumed, not attempts; after this many pages
-  /// without resolution, switch to throttled mode.
-  static const int _orphanPageSequencesPerAggressiveAttempt = 5;
+  /// Seq range the aggressive (lightly-throttled) walk-back phase may
+  /// cover before falling back to the standard throttle.
+  ///
+  /// Expressed in sequences rather than pages so it is independent of
+  /// [_orphanFetchOlderPageSize]: shrinking the page must not shrink how
+  /// far back the aggressive phase can reach.
+  static const int _orphanAggressiveWalkbackSequences = 2500;
+
+  /// Floor between two consecutive walk-back pages in aggressive mode.
+  ///
+  /// Aggressive mode previously ran with no throttle at all, so the first
+  /// pages fired back-to-back — in production that meant several ~1.5 MB
+  /// requests in a row, every one of them discarded by the visible-cap trim.
+  /// A 1 s floor keeps recovery fast without letting it monopolise the
+  /// connection.
+  static const int _orphanFetchOlderAggressiveFloorMs = 1000;
 
   /// Per-page fetch size for [/v3/sessions/:id/messages].
   ///
@@ -227,7 +238,32 @@ class Sync {
   /// CanvasKit memory spikes while decrypting and rendering large sessions.
   static const int _messageFetchPageSize = kIsWeb ? 100 : 200;
   static const int _olderMessagePageSize = 100;
-  static const int _orphanFetchOlderPageSize = 500;
+
+  /// Per-page fetch size for the automatic orphan-recovery walk-back.
+  ///
+  /// Was 500 — the only call site in the app that asked for that many rows.
+  /// On sessions with large encrypted payloads (~7.6 KB/row observed) that is
+  /// ~1.5 MB per request, which needs ~1.2 Mbit/s sustained to fit the
+  /// per-page timeout; production traces show these requests timing out
+  /// client-side at 8.1 s while the server had produced the body in 94.8 ms.
+  ///
+  /// The walk-back's reach is budgeted in *sequences*
+  /// ([_orphanFetchOlderMaxPageSequences] and
+  /// [_orphanAggressiveWalkbackSequences]), not pages, so a smaller page
+  /// costs more round-trips but covers exactly the same seq range.
+  static const int _orphanFetchOlderPageSize = 100;
+
+  /// [_orphanFetchOlderPageSize], exposed so walk-back contract tests size
+  /// their seq windows from the real constant instead of a stale literal.
+  @visibleForTesting
+  static const int orphanFetchOlderPageSizeForTesting =
+      _orphanFetchOlderPageSize;
+
+  /// [_maxVisibleSessionMessages], exposed so walk-back contract tests can
+  /// build a session that is exactly at the trim cap.
+  @visibleForTesting
+  static const int maxVisibleSessionMessagesForTesting =
+      _maxVisibleSessionMessages;
 
   /// Soft budget for a single [fetchMessages] cycle.  When the elapsed
   /// time exceeds this, we stop crawling forward pages and let the
