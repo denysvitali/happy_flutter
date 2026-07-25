@@ -279,6 +279,43 @@ void main() {
       expect(statuses, contains('pending'));
     });
 
+    // ── Suspend ─────────────────────────────────────────────────────────────
+
+    test('suspendAndFlush persists pending entries before cancelling timers',
+        () async {
+      outbox.configure(deliver: (e) async => false);
+
+      await outbox.add(_makeEntry(localId: 'flush-me'));
+      // The persist is debounced 100ms — nothing on disk yet.
+      expect(storage._outboxData, isNull);
+
+      await outbox.suspendAndFlush();
+
+      expect(storage._outboxData, isNotNull);
+      final saved =
+          (jsonDecode(storage._outboxData!) as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+      expect(saved.single['localId'], 'flush-me');
+      // Entry survives the suspend so resume() can retry it.
+      expect(outbox.contains('flush-me'), isTrue);
+    });
+
+    test('suspend() flushes the debounced persist without an await', () async {
+      outbox.configure(deliver: (e) async => false);
+
+      await outbox.add(_makeEntry(localId: 'flush-sync'));
+      expect(storage._outboxData, isNull);
+
+      outbox.suspend();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(storage._outboxData, isNotNull);
+      final saved =
+          (jsonDecode(storage._outboxData!) as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+      expect(saved.single['localId'], 'flush-sync');
+    });
+
     // ── Dispose ─────────────────────────────────────────────────────────────
 
     test('dispose cancels pending timers', () async {

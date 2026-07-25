@@ -204,13 +204,33 @@ class MessageOutbox {
 
   /// Suspend retry timers when app goes to background.
   /// Entries are preserved for retry on resume.
+  ///
+  /// Any debounced persist is flushed first. Cancelling [_persistTimer]
+  /// without writing loses every entry queued in the preceding 100 ms
+  /// when the OS kills the backgrounded app — the message disappears
+  /// from MMKV while the cached UI row still reads `'sending'`.
+  ///
+  /// The flush is started synchronously (the JSON encode runs before
+  /// this method returns), mirroring the sibling cache flushes in
+  /// `Sync.suspend()`. Callers that can await should prefer
+  /// [suspendAndFlush].
   void suspend() {
+    unawaited(suspendAndFlush());
+  }
+
+  /// Awaitable variant of [suspend]: completes once the pending persist
+  /// has actually been written to storage.
+  Future<void> suspendAndFlush() async {
+    final hadPendingPersist = _persistTimer != null;
     _persistTimer?.cancel();
     _persistTimer = null;
     for (final t in _retryTimers.values) {
       t.cancel();
     }
     _retryTimers.clear();
+    if (hadPendingPersist) {
+      await _persist();
+    }
   }
 
   /// Resume retry timers when app returns to foreground.
