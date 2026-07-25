@@ -7,6 +7,38 @@
 // ignore_for_file: invalid_use_of_protected_member
 part of 'chat_screen.dart';
 
+/// How long the initial load waits for the MMKV cache restore inside
+/// `Sync.onSessionVisible` before giving up and rendering the spinner.
+///
+/// The restore is a local read; anything past this is a stalled MMKV
+/// call, not a slow cache.
+const Duration _cacheRestoreBudget = Duration(milliseconds: 800);
+
+/// Outer cap on the background `awaitQueue()` when cached content is
+/// already on screen.
+///
+/// This wraps the WHOLE page crawl, not one page: the inner fetch budget
+/// is 15 s with per-page 8 s timeouts, so the previous 8 s outer cap
+/// fired FIRST on any multi-page load and replaced a typed DioException
+/// with a bare TimeoutException carrying no cause. That is the 8,006,080
+/// µs `chat.sync.await` span seen in production — the timeout constant,
+/// not a network measurement, inflating the error bucket with zero user
+/// impact. The await is unawaited, so a longer value costs nothing.
+const Duration _backgroundAwaitBudget = Duration(seconds: 30);
+
+/// Cap on the blocking `awaitQueue()` when there is no cache to show.
+///
+/// Raised from 5 s: the inner per-page fetch alone allows 8 s, so a slow
+/// first page rendered a WRONG "no messages" empty state.
+const Duration _blockingAwaitBudget = Duration(seconds: 12);
+
+/// How long an optimistic row may sit in `'sending'` before the UI
+/// escalates it to `'pending'` ("Retry queued").
+///
+/// A long stall is otherwise visually indistinguishable from a fast send
+/// except by how long the spinner spins.
+const Duration _sendStallThreshold = Duration(seconds: 5);
+
 extension _ChatScreenActions on _ChatScreenState {
   /// Batches three async storage reads into a single setState call
   /// to avoid 3 separate rebuilds on screen open.
@@ -149,21 +181,6 @@ extension _ChatScreenActions on _ChatScreenState {
     });
 
     try {
-      final cacheSpan = transaction.startChild(
-        'chat.cache.check',
-        description: 'Check cached messages',
-      );
-      unawaited(
-        (cacheSpan..setData('cachedCount', initialMessageCount)).finish(),
-      );
-      OpenTelemetryService()
-          .startChildSpan(
-            'chat.cache.check',
-            parent: otelTrace,
-            attributes: {'message.cached_count': initialMessageCount},
-          )
-          ?.end();
-
       unawaited(
         Sentry.addBreadcrumb(
           Breadcrumb(
@@ -188,12 +205,53 @@ extension _ChatScreenActions on _ChatScreenState {
         parent: otelTrace,
         attributes: {'session.id': sessionId},
       );
-      unawaited(sync.onSessionVisible(sessionId));
+      final visibleFuture = sync.onSessionVisible(sessionId);
       // Suppress the live "session activity" notification while the
       // user is looking at the session in-app.
       unawaited(sessionActivityCoordinator.setVisibleSession(sessionId));
       unawaited(visibleSpan.finish());
       otelVisibleSpan?.end();
+
+      // `chat.cache.check` used to open and finish in the same statement,
+      // recording only `_messages.length` — it measured nothing, and the
+      // `hasCached` probe below ran BEFORE the MMKV read inside
+      // onSessionVisible had resolved, so a genuinely cold chat WITH a
+      // valid cache took the blocking path. Await the restore (bounded)
+      // and let the span cover the real read.
+      final cacheSpan = transaction.startChild(
+        'chat.cache.check',
+        description: 'Restore cached messages',
+      );
+      final otelCacheSpan = OpenTelemetryService().startChildSpan(
+        'chat.cache.check',
+        parent: otelTrace,
+        attributes: {'message.pre_read_count': initialMessageCount},
+      );
+      var cacheRestoreTimedOut = false;
+      try {
+        await visibleFuture.timeout(_cacheRestoreBudget);
+      } on TimeoutException {
+        cacheRestoreTimedOut = true;
+        logger.warning(
+          '[ChatScreen] cache restore exceeded '
+          '${_cacheRestoreBudget.inMilliseconds}ms session=$sessionId',
+        );
+      } catch (error, stack) {
+        logger.warning(
+          '[ChatScreen] onSessionVisible failed session=$sessionId',
+          error,
+          stack,
+        );
+      }
+      final restoredCount = sync.messagesForSession(sessionId).length;
+      cacheSpan
+        ..setData('cachedCount', restoredCount)
+        ..setData('timedOut', cacheRestoreTimedOut);
+      unawaited(cacheSpan.finish());
+      otelCacheSpan
+        ?..setAttribute('message.cached_count', restoredCount)
+        ..setAttribute('cache.restore_timed_out', cacheRestoreTimedOut)
+        ..end();
 
       // Show cached messages immediately instead of
       // waiting for the debounced stream notification
@@ -211,7 +269,7 @@ extension _ChatScreenActions on _ChatScreenState {
       // If we have cached messages, clear the loading spinner
       // immediately so users see content instead of waiting up
       // to 5s for the sync queue to drain (warm start fix).
-      final syncCachedCount = sync.messagesForSession(sessionId).length;
+      final syncCachedCount = restoredCount;
       final hasCached = _messages.isNotEmpty || syncCachedCount > 0;
       _refreshFromSync(markLoaded: hasCached);
       final firstPaintCount = _messages.length;
@@ -242,32 +300,30 @@ extension _ChatScreenActions on _ChatScreenState {
         attributes: {'has_cached_messages': hasCached},
       );
       final queueFuture = sync.messagesSync[sessionId]?.awaitQueue();
-      // Cap background await at 8s so network-change stalls (Cronet
-      // ERR_NETWORK_CHANGED) fail fast instead of blocking for 30s.
-      // The per-page fetch already uses 8s connect+receive timeouts;
-      // aligning the UI await prevents the 15s+ stalls seen in
-      // trace 9554856ddcc15b9250663f04e65daa61.
-      const backgroundTimeout = Duration(seconds: 8);
       if (hasCached) {
         awaitSpan.setData('mode', 'background');
         otelAwaitSpan?.setAttribute('mode', 'background');
         if (queueFuture != null) {
           unawaited(
             queueFuture
-                .timeout(backgroundTimeout)
+                .timeout(_backgroundAwaitBudget)
                 .catchError((Object e, StackTrace st) {
                   // Real refresh fail — surface as a breadcrumb but
                   // don't fail the transaction; the user already sees
-                  // cached data. Use a long timeout for background
-                  // catch-up so large message gaps (cursor << serverSeq)
-                  // don't falsely trip this path.
+                  // cached data.
                   logger.warning(
                     '[ChatScreen] background messagesSync awaitQueue failed '
                     'session=$sessionId',
                     e,
                     st,
                   );
-                  otelAwaitSpan?.recordError(e, st);
+                  // NOT recorded as a span error: cached content is on
+                  // screen, so this has zero user impact and would just
+                  // inflate the error bucket. The attribute keeps it
+                  // queryable.
+                  otelAwaitSpan
+                    ?..setAttribute('timed_out', e is TimeoutException)
+                    ..setAttribute('error.type', e.runtimeType.toString());
                   return;
                 })
                 .whenComplete(() {
@@ -291,7 +347,7 @@ extension _ChatScreenActions on _ChatScreenState {
         awaitSpan.setData('mode', 'blocking');
         otelAwaitSpan?.setAttribute('mode', 'blocking');
         try {
-          await queueFuture?.timeout(const Duration(seconds: 5));
+          await queueFuture?.timeout(_blockingAwaitBudget);
           awaitSpan.setData('timedOut', false);
           otelAwaitSpan?.setAttribute('timed_out', false);
         } catch (e) {
@@ -749,6 +805,32 @@ extension _ChatScreenActions on _ChatScreenState {
 
     unawaited(DraftStorage().removeDraft(widget.sessionId));
 
+    // Stall watchdog: the only transitions out of 'sending' are a
+    // completed POST, an exception, or an AutoRestoreFailure, so a long
+    // stall looks exactly like a fast send — just a longer spinner.
+    // Escalate to 'pending' ("Retry queued") so the user gets a real
+    // state. The sync layer's own status updates overwrite this as soon
+    // as the send actually resolves.
+    //
+    // Deliberately NOT cancelled on the success path: `sendMessage()`
+    // returns as soon as the optimistic row is inserted, while the POST
+    // it stalls on runs afterwards in `Sync._completeSend`. The callback
+    // is a no-op once the row leaves `'sending'`.
+    final stallWatchdog = Timer(_sendStallThreshold, () {
+      if (!mounted) return;
+      final next = markOptimisticMessageStalled(_messages, localId);
+      if (identical(next, _messages)) return;
+      logger.warning(
+        '[ChatScreen] send still in flight after '
+        '${_sendStallThreshold.inSeconds}s; showing "Retry queued" '
+        'session=${widget.sessionId} localId=$localId',
+      );
+      setState(() {
+        _messages = next;
+        _invalidateNeighborCache();
+      });
+    });
+
     try {
       final sentSessionId = await ref
           .read(chatActionNotifierProvider.notifier)
@@ -774,6 +856,15 @@ extension _ChatScreenActions on _ChatScreenState {
         e,
         st,
       );
+      // The failure is already visible; the watchdog has nothing to add.
+      stallWatchdog.cancel();
+      // Re-persist the draft REGARDLESS of `mounted`. The draft was
+      // already deleted and the composer cleared before the send; if the
+      // user navigated away during the stall, the guarded restore below
+      // never runs and the typed text is restored NOWHERE.
+      if (text.isNotEmpty) {
+        unawaited(DraftStorage().saveDraft(widget.sessionId, text));
+      }
       if (mounted) {
         // Mark optimistic message as failed instead of removing it,
         // so the user can see it and retry.

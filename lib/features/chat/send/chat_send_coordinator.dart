@@ -65,6 +65,32 @@ List<Map<String, dynamic>> markOptimisticMessageFailed(
   ];
 }
 
+/// Returns a new list with the still-`'sending'` message matching
+/// [localId] escalated to `'pending'` ("Retry queued").
+///
+/// Used by the send-stall watchdog: a message that has been in flight for
+/// several seconds is indistinguishable from a fast send except by how
+/// long the spinner spins. Rows that already reached a terminal state
+/// (`'sent'`, `'failed'`) or that are already `'pending'` are left alone,
+/// and the original list is returned unchanged when nothing matches — so
+/// the caller can skip the rebuild.
+List<Map<String, dynamic>> markOptimisticMessageStalled(
+  List<Map<String, dynamic>> messages,
+  String localId,
+) {
+  final idx = messages.indexWhere(
+    (m) =>
+        (m['localId'] == localId || m['id'] == localId) &&
+        m['sendStatus'] == 'sending',
+  );
+  if (idx == -1) return messages;
+  return [
+    ...messages.sublist(0, idx),
+    {...messages[idx], 'sendStatus': 'pending'},
+    ...messages.sublist(idx + 1),
+  ];
+}
+
 /// Whether [text] is the special `/clear` command (exact match after trim).
 bool isClearCommand(String text) => text.trim() == '/clear';
 
