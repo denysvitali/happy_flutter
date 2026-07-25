@@ -1636,6 +1636,13 @@ extension SyncMessaging on Sync {
       _applyPermissionRequests(sessionId);
 
       // Move the lower boundary back to cover the page we just fetched.
+      if (startSeq == 0) {
+        // Reaching seq 0 means the whole history has been paginated. Pin it
+        // so [_ensureFirstLoadedSeq] cannot re-arm the boundary from the
+        // in-memory minimum after the newest-N trim drops the oldest rows —
+        // that turned every tail message into another history re-download.
+        _sessionsHistoryFullyLoaded.add(sessionId);
+      }
       _sessionFirstLoadedSeq[sessionId] = startSeq == 0 ? 0 : startSeq + 1;
       MMKVStorage().saveSessionFirstLoadedSeq(
         Map.unmodifiable(_sessionFirstLoadedSeq),
@@ -1683,6 +1690,12 @@ extension SyncMessaging on Sync {
   /// detects that staleness and corrects it by scanning the in-memory
   /// messages for their minimum seq.
   void _ensureFirstLoadedSeq(String sessionId) {
+    // A session that has already been paginated back to seq 0 has no older
+    // history on the server, so a rising in-memory minimum only means the
+    // newest-N trim discarded rows we already fetched. Re-arming the
+    // boundary here would make the orphan sweep re-download them forever.
+    if (_sessionsHistoryFullyLoaded.contains(sessionId)) return;
+
     final current = _sessionFirstLoadedSeq[sessionId];
     // Only fix when the boundary claims "all loaded" (0 or null) but
     // in-memory data suggests otherwise.
@@ -1711,6 +1724,7 @@ extension SyncMessaging on Sync {
     messagesSync.remove(sessionId)?.dispose();
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     _loadingOlderMessages.remove(sessionId);
+    _sessionsHistoryFullyLoaded.remove(sessionId);
     _sessionMessages.remove(sessionId);
     _invalidatePreviewCache(sessionId);
     _sessionContentSignatures.remove(sessionId);

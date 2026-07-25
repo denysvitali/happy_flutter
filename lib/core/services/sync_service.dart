@@ -321,6 +321,26 @@ what you have, you must use the options mode.
   /// Sessions currently being paginated backwards (older-message loads).
   final Set<String> _loadingOlderMessages = {};
 
+  /// Sessions whose history has been paginated all the way back to seq 0.
+  ///
+  /// [_sessionFirstLoadedSeq] has two writers that disagree about what it
+  /// means: `fetchOlderMessages` treats it as "oldest seq ever fetched" and
+  /// writes 0 when it reaches the beginning, while `_ensureFirstLoadedSeq`
+  /// treats it as "oldest seq currently in memory" and re-arms it from the
+  /// in-memory minimum whenever it is 0 or null.
+  ///
+  /// Without this marker the two writers form a loop driven purely by tail
+  /// traffic: walk back to 0 -> a new tail message arrives -> the newest-N
+  /// trim in `_upsertSessionMessages` drops the oldest rows -> the in-memory
+  /// minimum rises -> `_ensureFirstLoadedSeq` writes a fresh non-zero
+  /// boundary -> `hasOlderMessages` flips back to true -> the orphan sweep
+  /// re-downloads history the client already had and discarded. Unbounded.
+  ///
+  /// Deliberately in-memory only: a restart restores full scroll-back for a
+  /// user who wants to page through the beginning again. Cleared when the
+  /// session is deleted.
+  final Set<String> _sessionsHistoryFullyLoaded = {};
+
   /// Sessions that received socket messages while non-visible.
   /// Used to force a server fetch (instead of stale cache restore) when
   /// the user opens a session that had pending socket messages.
@@ -849,6 +869,20 @@ what you have, you must use the options mode.
   /// Returns the active per-cycle budget, honoring any test override.
   Duration get _activeMessageFetchBudget =>
       testMessageFetchBudgetOverride ?? _messageFetchBudget;
+
+  /// Whether [sessionId] has been paginated back to seq 0, which pins
+  /// [_sessionFirstLoadedSeq] against re-arming. See
+  /// [_sessionsHistoryFullyLoaded].
+  @visibleForTesting
+  bool testHistoryFullyLoaded(String sessionId) =>
+      _sessionsHistoryFullyLoaded.contains(sessionId);
+
+  /// Drops the "history fully loaded" pin for [sessionId] so tests sharing
+  /// the [Sync] singleton stay isolated.
+  @visibleForTesting
+  void testClearHistoryFullyLoaded(String sessionId) {
+    _sessionsHistoryFullyLoaded.remove(sessionId);
+  }
 
   /// Override _typedMachineRPC for testing createSession and
   /// auto-restore without a real socket connection.
