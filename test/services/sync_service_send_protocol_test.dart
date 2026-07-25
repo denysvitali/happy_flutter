@@ -443,6 +443,53 @@ void main() {
       expect(matching.single['sendStatus'], 'pending');
     });
 
+    test('HTTP 409 is permanent — no outbox retry, row marked failed',
+        () async {
+      responseStatus = 409;
+      responseData = <String, dynamic>{'error': 'session is not accepting'};
+
+      await instance.sendMessage(
+        'sess-1',
+        'conflict',
+        clientLocalId: 'client-local-409',
+      );
+      await instance.lastCompleteSendFuture;
+
+      expect(messageOutbox.contains('client-local-409'), isFalse);
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final matching = localMessages.where(
+        (m) => m['localId'] == 'client-local-409',
+      );
+      expect(matching, hasLength(1));
+      expect(matching.single['sendStatus'], 'failed');
+    });
+
+    test('HTTP 500 carrying a not-found body is treated as permanent',
+        () async {
+      // The server collapses NotFound into a bare 500. Trusting the
+      // status code alone burns 4 HTTP + 3 outbox attempts on a session
+      // that no longer exists.
+      responseStatus = 500;
+      responseData = <String, dynamic>{'error': 'session not found'};
+
+      await instance.sendMessage(
+        'sess-1',
+        'gone',
+        clientLocalId: 'client-local-gone',
+      );
+      await instance.lastCompleteSendFuture;
+
+      expect(messageOutbox.contains('client-local-gone'), isFalse);
+
+      final localMessages = instance.testSessionMessages('sess-1')!;
+      final matching = localMessages.where(
+        (m) => m['localId'] == 'client-local-gone',
+      );
+      expect(matching, hasLength(1));
+      expect(matching.single['sendStatus'], 'failed');
+    });
+
     test('explicit retry requeues the same localId and one row', () async {
       final raw = <String, dynamic>{
         'role': 'user',
@@ -820,6 +867,17 @@ void main() {
         ),
         isTrue,
       );
+      // 409 Conflict / 410 Gone / 412 Failed Precondition are equally
+      // unrecoverable — retrying only burns the outbox budget.
+      for (final status in [409, 410, 412]) {
+        expect(
+          instance.testIsPermanentSendFailure(
+            StateError('Failed to send message: $status'),
+          ),
+          isTrue,
+          reason: 'status $status should be permanent',
+        );
+      }
       // And they must not be treated as retryable.
       expect(
         instance.testIsRetryableSendFailure(
