@@ -110,7 +110,7 @@ class NetworkMonitorService {
 
     final socket = socketIoClient;
     if (socket.connectionStatus != ConnectionStatus.connected) {
-      socket.reconnect();
+      socket.reconnect(reason: DialReason.networkRestored);
     }
   }
 

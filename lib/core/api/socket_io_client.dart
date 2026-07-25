@@ -75,6 +75,45 @@ class SocketAckTimeoutException implements Exception {
 /// WebSocket connection state
 enum ConnectionStatus { disconnected, connecting, connected, error }
 
+/// Bounded set of reasons a dial was started.
+///
+/// Emitted as the `websocket.dial_reason` span attribute.  Keep this list
+/// small: it is a span attribute, so every value becomes a distinct
+/// Jaeger/Sentry facet.
+abstract final class DialReason {
+  /// First dial of the app process.
+  static const String coldStart = 'cold_start';
+
+  /// App returned to the foreground.
+  static const String lifecycleResume = 'lifecycle_resume';
+
+  /// Platform connectivity change reported the network is back.
+  static const String networkRestored = 'network_restored';
+
+  /// The Sync reconnect watchdog fired while still disconnected.
+  static const String watchdog = 'watchdog';
+
+  /// User tapped "Reconnect now".
+  static const String userManual = 'user_manual';
+
+  /// Auth token was rotated and the live socket still holds the old one.
+  static const String tokenRefresh = 'token_refresh';
+
+  /// Resume found a socket that still claims "connected" after a
+  /// background stay long enough for the server session to have died.
+  static const String zombieDetected = 'zombie_detected';
+
+  /// Server URL changed under a live socket.
+  static const String serverUrlChanged = 'server_url_changed';
+
+  /// Socket.IO's own Manager retried internally — this never enters
+  /// [SocketIoClient.connect], so it is reported as a standalone span.
+  static const String libraryRetry = 'library_retry';
+
+  /// Caller did not say.
+  static const String unspecified = 'unspecified';
+}
+
 /// Socket.io compatible WebSocket client
 /// Matches React Native's apiSocket.ts behavior
 class SocketIoClient {
@@ -94,11 +133,21 @@ class SocketIoClient {
   /// lifecycle contracts — e.g. resume() forcing a fresh socket for a zombie
   /// connection, or the reconnect watchdog re-arming.
   int _reconnectRequests = 0;
+
+  /// Number of times [reconnect] short-circuited because a dial was
+  /// already in flight. Test-only observability for the in-flight guard.
+  int _reconnectSkipped = 0;
+
+  /// Dials started since the last successful connect. Reported as the
+  /// `websocket.dial_attempt` span attribute so a redial storm is visible
+  /// as a rising index instead of N indistinguishable spans.
+  int _dialAttempt = 0;
   int _connectionGeneration = 0;
   int? _lastConnectStartedAtMs;
   int? _lastDisconnectAtMs;
   Stopwatch? _connectStopwatch;
   int? _connectSpanGeneration;
+  String? _connectSpanReason;
   ISentrySpan? _connectTransaction;
   OTelSpan? _connectOtelSpan;
 
@@ -160,6 +209,27 @@ class SocketIoClient {
   static const int _reconnectDelayInitialMs = 1000;
   static const int _reconnectDelayMaxMs = 10000;
 
+  /// Per-attempt connect timeout passed to the Socket.IO Manager.
+  ///
+  /// The server allows 20s for the handshake
+  /// (`internal/server/ws/server.go`, `SetConnectTimeout(20s)`).  The
+  /// previous 8s abandoned handshakes the server would have completed —
+  /// the client gave up mid-negotiation and the server then booked the
+  /// half-open connection as an involuntary disconnect, inflating both
+  /// sides of the churn numbers.  15s stays comfortably under the server
+  /// bound while surviving a cold cellular TLS negotiation.
+  static const int _connectTimeoutMs = 15000;
+
+  /// Minimum spacing between externally requested dials.
+  ///
+  /// Five independent callers (lifecycle resume, reconnect watchdog,
+  /// forceReconnect, network-restored, reconnect-exhausted) can fire
+  /// within the same second.  Without this guard each one tears down a
+  /// half-open socket and immediately starts another, so the server sees
+  /// overlapping connections and counts the abandoned ones as involuntary
+  /// disconnects.
+  static const int _dialInFlightWindowMs = 5000;
+
   /// Compute the backoff delay (ms) for the given attempt index (0-based).
   static int _backoffDelayMs(int attempt) {
     final ms = (_reconnectDelayInitialMs * _pow2(attempt).clamp(1, 1 << 20))
@@ -183,11 +253,16 @@ class SocketIoClient {
   /// Current connection status
   ConnectionStatus get connectionStatus => _status;
 
-  /// Initialize and connect using the official Socket.IO protocol
+  /// Initialize and connect using the official Socket.IO protocol.
+  ///
+  /// [reason] is a [DialReason] constant recorded on the `websocket.dial`
+  /// span so redial storms can be attributed to the caller that caused
+  /// them.
   void connect({
     required String serverUrl,
     required String token,
     String clientType = 'user-scoped',
+    String reason = DialReason.coldStart,
   }) {
     if (_socket != null) {
       logger.info(
@@ -197,15 +272,16 @@ class SocketIoClient {
       return;
     }
 
-    logger.info('Socket.IO connecting to $serverUrl');
+    logger.info('Socket.IO connecting to $serverUrl (reason=$reason)');
     _serverUrl = serverUrl;
     _authToken = token;
     _clientType = clientType;
     _lastConnectStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     _connectStopwatch = Stopwatch()..start();
+    _dialAttempt++;
     final generation = ++_connectionGeneration;
     _updateStatus(ConnectionStatus.connecting);
-    _startConnectionSpans(generation);
+    _startConnectionSpans(generation, reason: reason);
 
     _socket = sio.io(
       serverUrl,
@@ -219,13 +295,9 @@ class SocketIoClient {
           // backoff to the 10s cap keeps later attempts battery-friendly.
           .setReconnectionDelay(1000)
           .setReconnectionDelayMax(10000) // 10s max — 30s is too slow on mobile
-          // Cap each connection attempt. The library default is 20s; right
-          // after the device wakes from sleep, stale cellular routes can
-          // blackhole the TCP dial, and a 20s hang per attempt turns the
-          // 10-attempt cycle into minutes of "Reconnecting…". 8s is generous
-          // for a healthy mobile TLS handshake and fails fast enough that
-          // backoff cycles reach the recovered network quickly.
-          .setTimeout(8000)
+          // Cap each connection attempt just under the server's own
+          // handshake budget — see [_connectTimeoutMs].
+          .setTimeout(_connectTimeoutMs)
           // Cap internal reconnection attempts so a persistent server-side
           // TLS failure (e.g. cert renewal, rolling restart) does not produce
           // an unbounded storm of retries.  SocketIoClient.reconnect() resets
@@ -254,6 +326,7 @@ class SocketIoClient {
       if (!_isCurrentGeneration(generation)) return;
       logger.info('Socket.IO connected');
       powerDiagnostics.recordSocketStatus(ConnectionStatus.connected);
+      _dialAttempt = 0;
       _resetErrorThrottle();
       _updateStatus(ConnectionStatus.connected);
 
@@ -449,6 +522,21 @@ class SocketIoClient {
       if (!_nextReconnectDelayController.isClosed) {
         _nextReconnectDelayController.add(nextDelaySecs);
       }
+      // The Manager's own retries never pass through [connect], so they
+      // used to produce NO span at all — the dial spans undercounted real
+      // dials by up to the reconnection-attempt cap. Emit a zero-duration
+      // marker span so trace-side dial counts match reality.
+      OpenTelemetryService()
+          .startTrace(
+            'websocket.dial',
+            attributes: {
+              'websocket.dial_reason': DialReason.libraryRetry,
+              'websocket.dial_attempt': attemptIndex,
+              'current_route':
+                  PerformanceContextService().currentRoute ?? 'unknown',
+            },
+          )
+          ?.end();
     });
 
     _socket!.onAny((event, data) {
@@ -511,7 +599,9 @@ class SocketIoClient {
       status: const SpanStatus.cancelled(),
     );
     _connectionGeneration++;
-    _socket?.disconnect();
+    // `Socket.dispose()` already calls `disconnect()` internally
+    // (socket_io_client/src/socket.dart), so calling both emitted a
+    // second close event for every teardown.
     _socket?.dispose();
     _socket = null;
     if (!preserveConnectionHistory) {
@@ -527,6 +617,12 @@ class SocketIoClient {
     // hiding how often the socket actually churns.
     if (_status != ConnectionStatus.disconnected) {
       powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
+      // Same generation-guard hole: without this, `_lastDisconnectAtMs`
+      // was only ever set by the library's own disconnect event, so
+      // `disconnect_gap_ms` on the next dial measured from the last
+      // *involuntary* disconnect — possibly many suspend/resume cycles
+      // ago, which is where the 27-minute gaps in the traces came from.
+      _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
     }
     _updateStatus(ConnectionStatus.disconnected);
   }
@@ -535,20 +631,53 @@ class SocketIoClient {
   ///
   /// No-op if [connect] was never called (no credentials stored).
   ///
+  /// Also a no-op when a dial started less than [_dialInFlightWindowMs]
+  /// ago and is still negotiating: five independent callers can request a
+  /// reconnect within the same second, and each one used to tear down the
+  /// half-open socket and dial again, so the server saw overlapping
+  /// connections and booked the abandoned ones as involuntary
+  /// disconnects.  Pass [force] to bypass the guard when the current
+  /// dial is known to be useless (e.g. it is using a rotated token).
+  ///
   /// Preserves [_hasConnectedOnce] so the [onConnect] handler fires
   /// [_notifyReconnected] instead of treating the reconnection as a
   /// first-ever connection.  Without this, [disconnect] resets the
   /// flag and the Sync reconnected handler never fires on app resume.
-  void reconnect() {
+  void reconnect({
+    String reason = DialReason.unspecified,
+    bool force = false,
+  }) {
     _reconnectRequests++;
     final url = _serverUrl;
     final token = _authToken;
     final clientType = _clientType;
     if (url == null || token == null || clientType == null) return;
+    if (!force && _isDialInFlight()) {
+      _reconnectSkipped++;
+      logger.info(
+        'Socket.IO reconnect($reason) skipped — a dial started '
+        '${_elapsedSince(_lastConnectStartedAtMs)}ms ago is still in flight',
+      );
+      return;
+    }
     final hadConnectedOnce = _hasConnectedOnce;
     disconnect(preserveConnectionHistory: true);
-    connect(serverUrl: url, token: token, clientType: clientType);
+    connect(
+      serverUrl: url,
+      token: token,
+      clientType: clientType,
+      reason: reason,
+    );
     _hasConnectedOnce = hadConnectedOnce;
+  }
+
+  /// True while a dial is still negotiating inside the in-flight window.
+  bool _isDialInFlight() {
+    if (_status != ConnectionStatus.connecting) return false;
+    final startedAt = _lastConnectStartedAtMs;
+    if (startedAt == null) return false;
+    return DateTime.now().millisecondsSinceEpoch - startedAt <
+        _dialInFlightWindowMs;
   }
 
   /// Emit event through Socket.IO
@@ -583,30 +712,49 @@ class SocketIoClient {
     }
   }
 
-  /// Emit event and wait for acknowledgement
+  /// Emit event and wait for acknowledgement.
+  ///
+  /// [timeout] is the TOTAL budget: it covers both waiting for the socket
+  /// to reach [ConnectionStatus.connected] and waiting for the ACK.
+  /// Previously the wait leg always used [waitForConnection]'s 10s default
+  /// and the ACK leg got the full [timeout] on top, so a 30s caller could
+  /// burn 40s of wall clock.
   Future<dynamic> emitWithAck(
     String event,
     dynamic data, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    final connected = await waitForConnection();
+    final deadline = DateTime.now().add(timeout);
+    final connected = await waitForConnection(timeout: timeout);
     if (!connected) {
       // Throw a typed exception instead of returning null — null propagates
       // silently and produces confusing "RPC failed: null" errors that are
       // hard to distinguish from other failures.
       throw SocketNotConnectedException(event);
     }
+    // Re-read the socket AFTER the await: a lifecycle suspend or a
+    // watchdog-driven reconnect landing in the await gap sets
+    // `_socket = null`, and dereferencing `_socket!` here was a live
+    // "Null check operator used on a null value" crash class.
+    final socket = _socket;
+    if (socket == null) {
+      throw SocketNotConnectedException(event);
+    }
     powerDiagnostics.recordSocketSend(event, ack: true);
     final completer = Completer<dynamic>();
-    _socket!.emitWithAck(
+    socket.emitWithAck(
       event,
       data,
       ack: (response) {
         if (!completer.isCompleted) completer.complete(response);
       },
     );
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      throw SocketAckTimeoutException(event);
+    }
     try {
-      return await completer.future.timeout(timeout);
+      return await completer.future.timeout(remaining);
     } on TimeoutException {
       // Treat ACK timeout as transient — Socket.IO will retry or reconnect.
       throw SocketAckTimeoutException(event);
@@ -656,18 +804,24 @@ class SocketIoClient {
 
   /// Update the auth token for the current connection.
   ///
-  /// If connected, disconnects and reconnects with the new token
-  /// to ensure the server accepts the updated credentials.
+  /// If a socket exists, it is torn down and redialled with the new
+  /// token.  Mutating `socket.auth` alone is not enough: the live
+  /// connection keeps the credential it handshook with, so a socket whose
+  /// token the server has already rejected would keep retrying forever
+  /// with a credential that can never work.
   void updateToken(String token) {
     if (_authToken == token) return;
     _authToken = token;
-    if (_socket != null && _serverUrl != null) {
-      // Update auth on existing socket for next reconnect
-      _socket!.auth = {
-        'token': token,
-        'clientType': _clientType ?? 'user-scoped',
-      };
-    }
+    if (_socket == null || _serverUrl == null) return;
+    // Update auth first so the redial (and any internal Manager retry)
+    // handshakes with the new credential.
+    _socket!.auth = {
+      'token': token,
+      'clientType': _clientType ?? 'user-scoped',
+    };
+    // force: the in-flight dial is using the stale token, so waiting it
+    // out only delays recovery.
+    reconnect(reason: DialReason.tokenRefresh, force: true);
   }
 
   /// Update server URL and reconnect if already connected.
@@ -681,6 +835,7 @@ class SocketIoClient {
           serverUrl: newUrl,
           token: _authToken!,
           clientType: _clientType ?? 'user-scoped',
+          reason: DialReason.serverUrlChanged,
         );
       }
     }
@@ -702,11 +857,17 @@ class SocketIoClient {
     }
   }
 
-  void _startConnectionSpans(int generation) {
-    final name = _hasConnectedOnce
-        ? 'websocket.reconnect'
-        : 'websocket.connect';
-    final attributes = _connectionAttributes();
+  /// Start the dial spans.
+  ///
+  /// One span name for every dial (`websocket.dial`) with the caller's
+  /// [reason] as an attribute.  The previous split on `_hasConnectedOnce`
+  /// produced exactly ONE `websocket.connect` per app process and labelled
+  /// every later dial — including deliberate foreground resumes —
+  /// `websocket.reconnect`, which is what made the connect/reconnect ratio
+  /// unreadable.
+  void _startConnectionSpans(int generation, {required String reason}) {
+    const name = 'websocket.dial';
+    final attributes = _connectionAttributes(reason: reason);
     _connectSpanGeneration = generation;
     _connectTransaction = Sentry.startTransaction(
       name,
@@ -720,6 +881,7 @@ class SocketIoClient {
       name,
       attributes: _otelConnectionAttributes(attributes),
     );
+    _connectSpanReason = reason;
   }
 
   void _finishConnectionSpans(
@@ -735,7 +897,7 @@ class SocketIoClient {
         _connectStopwatch?.elapsedMilliseconds ??
         _elapsedSince(_lastConnectStartedAtMs);
     final attributes = _connectionAttributes(
-      recovered: _socket?.recovered ?? false,
+      reason: _connectSpanReason ?? DialReason.unspecified,
       connectDurationMs: elapsedMs,
     );
     final transaction = _connectTransaction;
@@ -743,6 +905,7 @@ class SocketIoClient {
     _connectTransaction = null;
     _connectOtelSpan = null;
     _connectSpanGeneration = null;
+    _connectSpanReason = null;
     _connectStopwatch = null;
 
     for (final entry in attributes.entries) {
@@ -758,12 +921,20 @@ class SocketIoClient {
     otelSpan?.end(ok: ok);
   }
 
+  // NOTE: `recovered` is deliberately NOT reported. It mirrors
+  // `Socket.recovered`, which requires Socket.IO connection state
+  // recovery — the Go server never calls `SetConnectionStateRecovery`
+  // (`internal/server/ws/server.go`), so the flag was a constant `false`
+  // carrying zero information, and it was sampled after failed dials
+  // where it is false by construction. Every reconnect is therefore a
+  // cold rejoin; Sync compensates with a forced invalidation.
   Map<String, Object?> _connectionAttributes({
-    bool recovered = false,
+    required String reason,
     int? connectDurationMs,
   }) {
     return {
-      'recovered': recovered,
+      'reason': reason,
+      'attempt': _dialAttempt,
       'connectDurationMs': connectDurationMs,
       'disconnectGapMs':
           _lastConnectStartedAtMs != null && _lastDisconnectAtMs != null
@@ -777,7 +948,8 @@ class SocketIoClient {
     Map<String, Object?> attributes,
   ) {
     return {
-      'websocket.recovered': attributes['recovered'],
+      'websocket.dial_reason': attributes['reason'],
+      'websocket.dial_attempt': attributes['attempt'],
       'websocket.connect_duration_ms': attributes['connectDurationMs'],
       'websocket.disconnect_gap_ms': attributes['disconnectGapMs'],
       'current_route': attributes['currentRoute'],
@@ -795,6 +967,31 @@ class SocketIoClient {
 
   @visibleForTesting
   int get testReconnectRequests => _reconnectRequests;
+
+  /// Number of [reconnect] calls short-circuited by the in-flight guard.
+  @visibleForTesting
+  int get testReconnectSkipped => _reconnectSkipped;
+
+  @visibleForTesting
+  int get testDialAttempt => _dialAttempt;
+
+  /// Test-only hook to simulate "a dial started N ms ago" without
+  /// dialing a real server.
+  @visibleForTesting
+  set testLastConnectStartedAtMs(int? value) => _lastConnectStartedAtMs = value;
+
+  /// Test-only hook to install stored credentials so [reconnect] takes
+  /// its real path without a live Socket.IO Manager.
+  @visibleForTesting
+  void testSetCredentials({
+    String? serverUrl,
+    String? token,
+    String? clientType,
+  }) {
+    _serverUrl = serverUrl;
+    _authToken = token;
+    _clientType = clientType;
+  }
 
   /// Test-only hook to force [_status] without a real Socket.IO
   /// connection, so disconnect-telemetry tests can set up a "currently
