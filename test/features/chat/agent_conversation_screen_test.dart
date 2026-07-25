@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/features/chat/agent_conversation_screen.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
+import 'package:happy_flutter/features/chat/widgets/task_event_summary_card.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -169,6 +170,99 @@ void main() {
       expect(find.textContaining('Async agent launched'), findsNothing);
     },
   );
+
+  // Regression: a running sub-agent reports each step three times — the
+  // in-flight progress chip ("Bash · Running Full test run"), a tool-less
+  // chip once the tool clears ("Full test run"), and a task_updated
+  // completion notification whose summary repeats it. The notification
+  // arrives as `kind: 'text'`, so the feed rendered it through the plain
+  // text path as an unlabelled agent-prose bubble, and the screen printed
+  // the same sentence twice in a row under the tool card.
+  testWidgets('collapses the completion echo of a progress chip', (
+    tester,
+  ) async {
+    const sessionId = 'session_1';
+    const taskId = 'task_running';
+
+    final task = <String, dynamic>{
+      'id': taskId,
+      'kind': 'tool-call',
+      'name': 'Task',
+      'state': 'running',
+      'input': <String, dynamic>{
+        'description': 'Refactor handlers package',
+        'subagent_type': 'general-purpose',
+      },
+      'children': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'te_1',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'taskStatus': 'in_progress',
+          'subAgentLastTool': 'Bash',
+          'event': <String, dynamic>{
+            'type': 'message',
+            'message': 'Bash · Running Full test run',
+          },
+        },
+        <String, dynamic>{
+          'id': 'tool_1',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'toolUseId': 'bash_1',
+          'state': 'completed',
+          'input': <String, dynamic>{
+            'command': 'go test ./...',
+            'description': 'go test',
+          },
+          'result': 'ok',
+        },
+        <String, dynamic>{
+          'id': 'te_2',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'taskStatus': 'in_progress',
+          'event': <String, dynamic>{
+            'type': 'message',
+            'message': 'Full test run',
+          },
+        },
+        <String, dynamic>{
+          'id': 'te_2_tn',
+          'kind': 'text',
+          'taskEvent': true,
+          'taskStatus': 'completed',
+          'content': 'Full test run',
+        },
+      ],
+    };
+
+    sync.testSetSessionMessages(sessionId, [task]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AgentConversationScreen(
+            sessionId: sessionId,
+            messageId: taskId,
+            taskData: task,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // The in-flight chip keeps its own row (it names the tool)...
+    expect(find.text('Bash · Running Full test run'), findsOneWidget);
+    // ...but the tool-less chip and the completion notification that echoes
+    // it collapse into a single row instead of printing it twice.
+    expect(find.text('Full test run'), findsOneWidget);
+    // The survivor is the completion notification, rendered as the task
+    // summary card the chat timeline uses — not an agent-prose bubble.
+    expect(find.byType(TaskEventSummaryCard), findsOneWidget);
+  });
 
   testWidgets('finds parent message by toolUseId and renders children', (
     tester,
