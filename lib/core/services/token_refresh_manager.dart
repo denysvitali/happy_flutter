@@ -17,11 +17,30 @@ typedef OnTokenRefreshFailed = void Function();
 ///
 /// Ensures only one refresh attempt is in flight at a time and notifies
 /// listeners when token refresh fails irreversibly.
+///
+/// SERVER CONTRACT (verified against the happy-server Go implementation):
+/// happy-server issues persistent tokens with **no `exp` claim** — they
+/// never expire, and verification results are cached permanently
+/// (`internal/server/auth/tokens.go`). There is also **no
+/// `POST /v1/auth/refresh` route**: such a request falls through to the
+/// grpc-gateway catch-all and returns 404. A 401 from this server therefore
+/// means the token no longer verifies (rotated master secret, revoked or
+/// foreign token), never that it expired. The only recovery is a fresh
+/// sign-in, which is why the HTTP layer calls [notifyReauthRequired] rather
+/// than [refreshToken]. [refreshToken] is kept for servers that do expose a
+/// refresh endpoint, and still returns [AuthForbiddenError] against this one.
 class TokenRefreshManager {
   TokenRefreshManager._();
   static final TokenRefreshManager _instance = TokenRefreshManager._();
 
   final _authService = AuthService();
+
+  /// Minimum spacing between re-auth notifications, so a fan-out of
+  /// parallel requests all failing with 401 does not restart the auth
+  /// check once per request.
+  static const _reauthNotifyThrottle = Duration(seconds: 10);
+
+  DateTime? _lastReauthNotifyAt;
 
   /// Whether a token refresh is currently in flight.
   bool _isRefreshing = false;
@@ -123,6 +142,33 @@ class TokenRefreshManager {
     }
   }
 
+  /// Notifies listeners that the current token is no longer accepted and
+  /// the user has to sign in again.
+  ///
+  /// Called by the HTTP layer on a 401. See the class doc: this server has
+  /// no refresh endpoint and its tokens never expire, so there is nothing
+  /// to refresh — the app can only re-verify and, on failure, re-auth.
+  ///
+  /// Notifications are throttled to one per [_reauthNotifyThrottle] so a
+  /// burst of parallel 401s triggers a single auth re-check.
+  void notifyReauthRequired() {
+    final now = DateTime.now();
+    final last = _lastReauthNotifyAt;
+    if (last != null && now.difference(last) < _reauthNotifyThrottle) {
+      logger.info(
+        'TokenRefreshManager: re-auth already signalled '
+        '${now.difference(last).inMilliseconds}ms ago - skipping',
+      );
+      return;
+    }
+    _lastReauthNotifyAt = now;
+    logger.warning(
+      'TokenRefreshManager: token rejected by server - '
+      're-authentication required',
+    );
+    _notifyRefreshFailed();
+  }
+
   void _notifyRefreshFailed() {
     for (final listener in _onRefreshFailedListeners) {
       try {
@@ -142,6 +188,7 @@ class TokenRefreshManager {
   /// Used during sign-out to clear any pending refresh attempts.
   void reset() {
     _isRefreshing = false;
+    _lastReauthNotifyAt = null;
     for (final completer in _pendingCompleters) {
       completer.completeError(
         AuthException('Token refresh cancelled due to sign-out'),

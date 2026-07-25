@@ -47,9 +47,19 @@ class AuthService {
   /// Calls POST /v1/auth/refresh with the current token to obtain a new token.
   /// Updates the stored credentials with the new token.
   ///
+  /// SERVER CONTRACT: happy-server does **not** implement this endpoint —
+  /// the request falls through to the grpc-gateway catch-all and returns
+  /// 404 — and its tokens carry no `exp` claim, so they never expire. Against
+  /// that server this method always ends in [AuthForbiddenError], which is
+  /// the honest outcome: a rejected token can only be replaced by a fresh
+  /// sign-in. The method is kept for deployments that do expose a refresh
+  /// endpoint; the HTTP layer no longer calls it on a 401 (see
+  /// [TokenRefreshManager.notifyReauthRequired]).
+  ///
   /// Returns the new token on success.
-  /// Throws [AuthForbiddenError] if the refresh token is invalid or expired
-  /// (user must re-authenticate).
+  /// Throws [AuthForbiddenError] if the token is rejected (401/403) or the
+  /// endpoint does not exist (404) — in both cases the user must
+  /// re-authenticate.
   /// Throws [AuthException] on other errors.
   Future<String> refreshToken() async {
     final credentials = await TokenStorage().getCredentials();
@@ -81,9 +91,10 @@ class AuthService {
 
         logger.info('Token refreshed successfully');
         return newToken;
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
+      } else if (_isReauthStatus(response.statusCode)) {
         throw AuthForbiddenError(
-          'Refresh token is invalid or expired',
+          'Token cannot be refreshed (${response.statusCode}) - '
+          're-authentication required',
           serverResponse: response.data?.toString(),
         );
       } else {
@@ -92,9 +103,10 @@ class AuthService {
         );
       }
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+      if (_isReauthStatus(e.response?.statusCode)) {
         throw AuthForbiddenError(
-          'Refresh token is invalid or expired',
+          'Token cannot be refreshed (${e.response?.statusCode}) - '
+          're-authentication required',
           serverResponse: e.response?.data?.toString(),
         );
       }
@@ -104,6 +116,13 @@ class AuthService {
       }
       throw AuthException('Token refresh request failed: ${e.message}');
     }
+  }
+
+  /// Statuses from the refresh endpoint that mean "sign in again": the
+  /// token was rejected (401/403) or the endpoint does not exist on this
+  /// server (404), which is the case for happy-server.
+  static bool _isReauthStatus(int? statusCode) {
+    return statusCode == 401 || statusCode == 403 || statusCode == 404;
   }
 
   /// Start QR authentication.
