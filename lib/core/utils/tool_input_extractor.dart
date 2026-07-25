@@ -9,7 +9,7 @@
 /// and return `null` when no matching field is found.
 library;
 
-import 'wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 // ---------------------------------------------------------------------------
 // Command / shell extraction
