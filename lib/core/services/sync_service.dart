@@ -1550,6 +1550,24 @@ what you have, you must use the options mode.
   /// in quick succession (e.g. during streaming).
   static const Duration _messagesSyncMinInterval = Duration(milliseconds: 500);
 
+  /// Retry budget for the per-session `messagesSync` [InvalidateSync].
+  ///
+  /// Message pages are fetched with `disableRetry: true` so the Dio
+  /// [RetryInterceptor] never sees them — a stuck page must not be retried
+  /// inside its own receive-timeout budget. That left message fetches with
+  /// zero retries at BOTH layers: a single transport stall permanently
+  /// discarded a page and the chat silently kept stale data until an
+  /// unrelated event re-invalidated the session.
+  ///
+  /// One InvalidateSync retry (1s + jitter, see [InvalidateSync.baseDelayMs])
+  /// restores a real recovery layer without reintroducing a retry storm:
+  /// the failure path now also stamps `_lastRunEnd`, so
+  /// [_messagesSyncMinInterval] throttles anything that follows.
+  ///
+  /// Every `messagesSync` instance must use this constant — grep for
+  /// `name: 'fetchMessages'` when adding a new construction site.
+  static const int _messagesSyncMaxRetries = 1;
+
   /// Extra cooldown for visible no-embed probes when the cursor has not
   /// advanced since the previous probe.
   static const int _noEmbedProbeCooldownMs = 2000;

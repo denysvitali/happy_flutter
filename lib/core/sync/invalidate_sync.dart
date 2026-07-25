@@ -41,10 +41,15 @@ class InvalidateSync {
   // Exponential backoff configuration
   static const int baseDelayMs = 1000;
   static const int maxDelayMs = 5000;
-  // Reduced from 5 to 2: the Dio retry interceptor already handles 4
-  // retries at the HTTP layer, so 2 additional InvalidateSync retries
-  // (total 6) is sufficient.  Excessive retries prolong delivery delays
-  // and drain battery on mobile networks.
+  // Reduced from 5 to 2: for routes that go through the Dio retry
+  // interceptor (4 retries at the HTTP layer), 2 additional InvalidateSync
+  // retries (total 6) is sufficient.  Excessive retries prolong delivery
+  // delays and drain battery on mobile networks.
+  //
+  // CAUTION: routes that opt out with `extra: {'disableRetry': true}` — the
+  // message-page fetches in `_sync_messaging.dart` do — get NO HTTP-layer
+  // retry at all, so this class is their only recovery layer.  Never pass
+  // `maxRetries: 0` for those; see `Sync._messagesSyncMaxRetries`.
   static const int defaultMaxRetries = 2;
 
   /// Whether the app is currently backgrounded. When true, all InvalidateSync
