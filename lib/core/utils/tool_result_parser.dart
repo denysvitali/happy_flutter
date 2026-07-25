@@ -9,7 +9,7 @@
 /// return `null` when the expected fields are absent or malformed.
 library;
 
-import 'wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 // ---------------------------------------------------------------------------
 // Exit code
