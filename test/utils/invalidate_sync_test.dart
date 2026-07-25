@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 void main() {
   group('InvalidateSync', () {

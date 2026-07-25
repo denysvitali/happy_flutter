@@ -12,7 +12,7 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
-import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 /// E2E tests for the message outbox retry flow.
 ///

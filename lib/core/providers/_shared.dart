@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../utils/invalidate_sync.dart';
+import '../sync/invalidate_sync.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
 

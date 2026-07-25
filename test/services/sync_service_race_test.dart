@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
-import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 Session _makeTestSession(String id) => Session(
       id: id,

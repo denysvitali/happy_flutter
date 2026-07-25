@@ -10,7 +10,7 @@ import '../../core/theme/code_viewer_theme.dart';
 import '../../core/utils/ansi_parser.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/command_utils.dart';
-import '../../core/utils/wire_parsers.dart';
+import '../../core/wire/wire_parsers.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/grok_acp_normalize.dart';
-import 'package:happy_flutter/core/utils/wire_parsers.dart';
+import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import 'elapsed_time.dart';
 import 'known_tools.dart';
 import 'tool_status_indicator.dart';

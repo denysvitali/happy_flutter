@@ -9,7 +9,7 @@ import '../../core/models/profile.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/utils/safe_pop.dart';
+import '../../core/routing/safe_pop.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/datetime_extensions.dart';
 

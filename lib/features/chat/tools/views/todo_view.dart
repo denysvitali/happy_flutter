@@ -5,7 +5,7 @@ import '../../../../core/models/todo.dart';
 import '../../../../core/providers/app_providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
-import '../../../../core/utils/wire_parsers.dart';
+import '../../../../core/wire/wire_parsers.dart';
 import '../tool_section_view.dart';
 
 /// View-local task list item (the on-the-wire shape from TodoWrite).

@@ -6,7 +6,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/code_viewer_theme.dart';
 import '../../../core/utils/clipboard_utils.dart';
-import '../../../core/utils/wire_parsers.dart';
+import '../../../core/wire/wire_parsers.dart';
 import 'message_detail_sheet.dart';
 
 /// Tappable error card that shows a detail sheet on tap.

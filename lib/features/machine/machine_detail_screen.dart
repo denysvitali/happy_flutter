@@ -19,8 +19,8 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
     show AppFontSize, AppSpacing, AppTouchTarget;
-import '../../core/utils/safe_pop.dart';
-import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/routing/safe_pop.dart';
+import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/snack.dart';
 

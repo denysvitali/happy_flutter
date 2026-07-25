@@ -1,4 +1,4 @@
-import 'package:happy_flutter/core/utils/wire_parsers.dart';
+import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
 /// Result of [splitCachedSessionsForColdStart]: the most-recent
 /// [recent] session JSON maps to be decoded synchronously on cold

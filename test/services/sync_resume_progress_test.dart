@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
-import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 /// Tests that the resume "Fetching conversations" progress indicator
 /// always resolves to either complete or hidden, regardless of whether

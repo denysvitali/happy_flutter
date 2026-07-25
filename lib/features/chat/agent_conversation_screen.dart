@@ -14,7 +14,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/utils/wire_parsers.dart';
+import '../../core/wire/wire_parsers.dart';
 import '../workflows/workflow_display.dart';
 import '../workflows/workflow_run_screen.dart';
 import 'chat_tts_gate.dart';

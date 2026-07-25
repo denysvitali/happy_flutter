@@ -15,7 +15,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
-import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../chat/chat_screen.dart';

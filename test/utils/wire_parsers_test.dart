@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/utils/wire_parsers.dart';
+import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
 void main() {
   group('WireParsers.parseInt', () {

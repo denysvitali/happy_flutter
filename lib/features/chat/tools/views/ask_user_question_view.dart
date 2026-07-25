@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/app_providers.dart';
 import '../../../../core/services/logger_service.dart' show logger;
 import '../../../../core/theme/app_tokens.dart';
-import '../../../../core/utils/wire_parsers.dart';
+import '../../../../core/wire/wire_parsers.dart';
 import 'ask_user_question_widgets.dart';
 
 /// Question option model.

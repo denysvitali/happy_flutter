@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/components/app_badge.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
-import '../../../../core/utils/wire_parsers.dart';
+import '../../../../core/wire/wire_parsers.dart';
 import '../known_tools.dart';
 import '../tool_status_indicator.dart';
 import '../tool_view.dart' show parseToolState;

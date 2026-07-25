@@ -10,8 +10,8 @@ import 'package:happy_flutter/core/providers/loops_notifier.dart';
 import 'package:happy_flutter/core/services/loop_storage.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
-import 'package:happy_flutter/core/utils/invalidate_sync.dart';
-import 'package:happy_flutter/core/utils/sync_domain.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
+import 'package:happy_flutter/core/sync/sync_domain.dart';
 import '../../helpers/test_helpers.dart';
 
 class _FakeMMKVStorage extends MMKVStorage {

@@ -8,7 +8,7 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
-import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 /// Cold-start contract test for the user's worst-case session:
 /// 1500 messages including 15 background `Agent` tool_uses, where the

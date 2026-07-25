@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/utils/wire_parsers.dart';
+import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import '../../syntax_highlighter.dart';
 import '../json_viewer.dart';
 import '../tool_section_view.dart';

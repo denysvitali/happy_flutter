@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
-import 'package:happy_flutter/core/utils/wire_parsers.dart';
+import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import 'known_tools.dart';
 import 'tool_status_indicator.dart' show ToolState;
 

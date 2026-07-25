@@ -4,7 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
-import '../utils/wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 import 'logger_service.dart';
 import 'mmkv_storage.dart';
 import 'power_diagnostics_service.dart';

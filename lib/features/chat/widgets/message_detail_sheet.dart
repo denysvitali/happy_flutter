@@ -8,7 +8,7 @@ import '../../../core/services/tts_service.dart';
 import '../../../core/theme/app_scroll_behavior.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
-import '../../../core/utils/wire_parsers.dart';
+import '../../../core/wire/wire_parsers.dart';
 
 // ---------------------------------------------------------------------------
 // Message detail bottom sheet (tap on bot message)

@@ -11,7 +11,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/backup_key_utils.dart';
-import '../../core/utils/safe_pop.dart';
+import '../../core/routing/safe_pop.dart';
 import '../../core/utils/snack.dart';
 
 /// Account restoration screen

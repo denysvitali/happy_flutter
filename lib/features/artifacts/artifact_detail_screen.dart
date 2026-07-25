@@ -11,8 +11,8 @@ import '../../core/services/sync_service.dart' show SyncDomain;
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
-import '../../core/utils/safe_pop.dart';
-import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/routing/safe_pop.dart';
+import '../../core/sync/sync_subscription_mixin.dart';
 import 'widgets/artifact_pane_header.dart';
 
 /// Screen showing detail view for a single artifact.

@@ -10,7 +10,7 @@
 /// names and JSON serialization.
 library;
 
-import '../utils/wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 class Loop {
   /// Build a [Loop] from a wire payload, tolerating lenient numeric and

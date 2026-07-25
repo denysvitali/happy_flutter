@@ -1,4 +1,4 @@
-import '../utils/wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 /// Returns true for messages that should count as visible orphans
 /// (i.e. would render as their own subagent tile if not grouped).

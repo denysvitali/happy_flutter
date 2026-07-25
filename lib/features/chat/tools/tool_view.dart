@@ -9,7 +9,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/utils/grok_acp_normalize.dart';
 import '../../../core/utils/tool_error_parser.dart';
-import '../../../core/utils/wire_parsers.dart';
+import '../../../core/wire/wire_parsers.dart';
 import '../message_render_signature.dart';
 import 'json_viewer.dart';
 import 'known_tools.dart';

@@ -11,8 +11,8 @@ import '../encryption/base64.dart';
 import '../encryption/encryption_manager.dart';
 import '../models/artifact.dart';
 import '../services/logger_service.dart' show logger;
-import '../utils/invalidate_sync.dart';
-import '../utils/sync_domain.dart';
+import '../sync/invalidate_sync.dart';
+import '../sync/sync_domain.dart';
 
 class _ArtifactIsolateItem {
   const _ArtifactIsolateItem({

@@ -5,7 +5,7 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/permission_description.dart';
-import '../../../core/utils/wire_parsers.dart';
+import '../../../core/wire/wire_parsers.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {

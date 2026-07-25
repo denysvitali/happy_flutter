@@ -13,7 +13,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
-import '../../core/utils/safe_pop.dart';
+import '../../core/routing/safe_pop.dart';
 import '../../core/utils/session_utils.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';

@@ -8,7 +8,7 @@ import '../../core/theme/app_tokens.dart'
     show AppFontSize, AppIconSize, AppSpacing, AppBorder, AppDuration,
         AppCurve, AppTouchTarget;
 import '../../core/utils/ansi_parser.dart';
-import '../../core/utils/safe_pop.dart';
+import '../../core/routing/safe_pop.dart';
 
 /// Terminal emulator screen — displays terminal output with a dark
 /// background and allows entering commands.

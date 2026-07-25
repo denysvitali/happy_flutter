@@ -8,7 +8,7 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
-import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 /// E2E tests for two delivery-ordering gaps the canonical-localId merge
 /// contract must withstand (ROADMAP P0, "Out-of-order delivery tests"):

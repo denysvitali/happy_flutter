@@ -4,7 +4,7 @@ import 'package:happy_flutter/core/models/todo.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/utils/wire_parsers.dart';
+import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import '../tool_section_view.dart';
 
 /// Renders TaskCreate / TaskUpdate / TaskList / TaskGet tool calls AND

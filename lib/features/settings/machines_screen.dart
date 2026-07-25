@@ -15,7 +15,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/utils/sync_subscription_mixin.dart';
+import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/utils/snack.dart';
 
 class MachinesScreen extends ConsumerStatefulWidget {

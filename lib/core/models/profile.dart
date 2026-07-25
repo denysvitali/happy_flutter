@@ -1,4 +1,4 @@
-import '../utils/wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 /// User profile model
 /// Matches React Native schema from sources/sync/profile.ts

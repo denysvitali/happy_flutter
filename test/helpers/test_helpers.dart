@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
-import 'package:happy_flutter/core/utils/invalidate_sync.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 /// Creates a mock [Response] with the given [data] and [statusCode].
 ///

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/workflow_run.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
-import '../../../../core/utils/wire_parsers.dart';
+import '../../../../core/wire/wire_parsers.dart';
 import '../../../workflows/workflow_display.dart';
 
 /// Maximum agent rows shown inline before collapsing into a "+ N more" line.

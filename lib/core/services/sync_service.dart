@@ -64,15 +64,15 @@ import '../types/identity_types.dart';
 // ignore: unused_import
 import '../types/message_state.dart';
 import '../utils/image_content_blocks.dart';
-import '../utils/invalidate_sync.dart';
+import '../sync/invalidate_sync.dart';
 import '../utils/message_invariant_monitor.dart';
 import '../utils/parse_token.dart';
 import '../utils/path_utils.dart' show resolveAbsolutePath;
-import '../utils/sync_domain.dart';
+import '../sync/sync_domain.dart';
 export '../sync/sync_exceptions.dart' show IncompatibleProviderAndModelError;
 export '../sync/sync_progress.dart' show SyncProgress;
-export '../utils/sync_domain.dart' show SyncDomain;
-import '../utils/wire_parsers.dart';
+export '../sync/sync_domain.dart' show SyncDomain;
+import '../wire/wire_parsers.dart';
 // Canary mode — runtime invariant assertions.  No-ops when kCanary
 // is false, so the part files can call CanaryAssert.* freely without
 // production overhead.

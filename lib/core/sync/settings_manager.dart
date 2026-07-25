@@ -13,9 +13,9 @@ import '../models/purchases.dart';
 import '../models/settings.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/mmkv_storage.dart';
-import '../utils/invalidate_sync.dart';
-import '../utils/sync_domain.dart';
-import '../utils/wire_parsers.dart';
+import '../sync/invalidate_sync.dart';
+import '../sync/sync_domain.dart';
+import '../wire/wire_parsers.dart';
 
 /// Manages settings, profile, purchases, push token, and native update
 /// synchronization. Extracted from the Sync god object.

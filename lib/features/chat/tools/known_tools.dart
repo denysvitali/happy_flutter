@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
-import 'package:happy_flutter/core/utils/wire_parsers.dart';
+import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
 /// Tool definitions with icons, subtitles, descriptions, and metadata.
 ///

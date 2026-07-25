@@ -1,5 +1,5 @@
 import '../models/session.dart';
-import '../utils/wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 /// Processes tool results and permission requests against
 /// message lists.

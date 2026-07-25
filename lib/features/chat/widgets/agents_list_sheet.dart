@@ -5,7 +5,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/wire_parsers.dart';
+import '../../../core/wire/wire_parsers.dart';
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart' show parseToolState;
 

@@ -1,6 +1,6 @@
 library;
 
-import '../utils/wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 /// Canonical status values for a Claude Code workflow run.
 class WorkflowStatus {

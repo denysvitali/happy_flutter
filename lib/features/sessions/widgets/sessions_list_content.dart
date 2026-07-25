@@ -15,7 +15,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
-import '../../../core/utils/sync_subscription_mixin.dart';
+import '../../../core/sync/sync_subscription_mixin.dart';
 import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
 import 'folder_view_cards.dart';

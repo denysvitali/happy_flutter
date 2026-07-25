@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import '../services/logger_service.dart' show logger;
 import '../services/message_processing_service.dart';
-import '../utils/wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 import 'base64.dart';
 import 'crypto_secret_box.dart';

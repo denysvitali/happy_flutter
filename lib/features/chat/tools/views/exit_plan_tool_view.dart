@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/i18n/app_localizations.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/clipboard_utils.dart';
-import '../../../../core/utils/wire_parsers.dart';
+import '../../../../core/wire/wire_parsers.dart';
 import '../../markdown/markdown_view.dart';
 import '../tool_section_view.dart';
 

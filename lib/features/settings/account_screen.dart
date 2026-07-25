@@ -7,7 +7,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/utils/safe_pop.dart';
+import '../../core/routing/safe_pop.dart';
 import '../../core/widgets/network_avatar_image.dart';
 import 'helpers/account_dialogs.dart';
 import 'widgets/connected_accounts_section.dart';

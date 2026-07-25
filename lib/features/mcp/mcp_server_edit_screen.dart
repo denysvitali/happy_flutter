@@ -9,7 +9,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/mcp_server.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/utils/safe_pop.dart';
+import '../../core/routing/safe_pop.dart';
 import 'mcp_servers_screen.dart' show scopeLabel;
 
 /// Navigation payload for [McpServerEditScreen].

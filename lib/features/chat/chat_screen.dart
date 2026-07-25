@@ -30,7 +30,7 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
-import '../../core/utils/wire_parsers.dart';
+import '../../core/wire/wire_parsers.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../loops/create_loop_sheet.dart';
