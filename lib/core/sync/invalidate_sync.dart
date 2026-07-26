@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../services/failure_telemetry.dart';
 import '../services/logger_service.dart';
 import '../services/power_diagnostics_service.dart';
 
@@ -273,6 +274,16 @@ class InvalidateSync {
           // logger.error already forwards to Sentry via
           // _forwardToSentry — no need for a separate captureException.
           logger.error('InvalidateSync: max retries exceeded', error);
+          // `normalizedName` is the name with any dynamic suffix
+          // (`messages:<sessionId>`) stripped — the same bounded value
+          // already used as the Sentry transaction name. Never the raw
+          // name, which carries a session id.
+          recordSyncFailure(
+            domain: normalizedName,
+            reason: _disposed
+                ? kReasonDisposed
+                : classifySyncFailureReason(error),
+          );
           unawaited(
             Sentry.addBreadcrumb(
               Breadcrumb(

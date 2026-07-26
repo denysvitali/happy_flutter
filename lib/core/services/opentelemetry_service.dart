@@ -382,6 +382,15 @@ class OpenTelemetryService {
     }
   }
 
+  /// Test-only observer for [recordCount].  Invoked *before* the
+  /// initialization guard so tests can assert that a counter call site
+  /// exists without standing up the whole OTel export pipeline.
+  ///
+  /// Production code must never set this.
+  @visibleForTesting
+  static void Function(String name, int value, Map<String, Object?> attributes)?
+      debugCountSink;
+
   /// Increment a low-cardinality counter. Best-effort and safe before OTel
   /// initialization, matching [recordDuration].
   void recordCount(
@@ -390,6 +399,14 @@ class OpenTelemetryService {
     Map<String, Object?> attributes = const {},
     String? description,
   }) {
+    final sink = debugCountSink;
+    if (sink != null) {
+      try {
+        sink(name, value, attributes);
+      } catch (_) {
+        // A broken test sink must never break the host flow.
+      }
+    }
     if (!_initialized || !metricsEnabled || value <= 0) return;
     try {
       final counter = _counters.putIfAbsent(name, () {

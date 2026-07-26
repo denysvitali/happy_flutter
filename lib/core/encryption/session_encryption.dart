@@ -1,6 +1,7 @@
 import 'dart:convert' show jsonDecode, jsonEncode;
 import 'dart:typed_data';
 
+import '../services/failure_telemetry.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/message_processing_service.dart';
 import '../wire/wire_parsers.dart';
@@ -102,12 +103,25 @@ class SessionEncryption {
   /// refresh before it can decrypt newer AES envelopes.
   bool get canDecryptAes => _decryptor is AES256Encryption;
 
+  /// Bounded envelope tag for the decrypt-failure counter.  Derived from
+  /// the decryptor this session was opened with, not from the ciphertext.
+  DecryptEnvelopeTag get _envelopeTag =>
+      canDecryptAes ? kEnvelopeAes : kEnvelopeNacl;
+
   /// Batch decrypt messages
   Future<List<DecryptedMessage?>> decryptMessages(
     List<Map<String, dynamic>> messages,
   ) async {
     final results = List<DecryptedMessage?>.filled(messages.length, null);
     final toDecrypt = <({int index, Map<String, dynamic> message})>[];
+
+    // Failure counters are aggregated across the whole batch and emitted
+    // once at the end.  A rotated key fails every message on a 500-message
+    // page; one counter add per message would be a per-message attribute-map
+    // allocation storm on the decrypt hot path.  The batch is the honest
+    // granularity anyway — the failures share one cause.
+    var freshFailures = 0;
+    var cachedFailures = 0;
 
     for (var i = 0; i < messages.length; i++) {
       final message = messages[i];
@@ -121,6 +135,11 @@ class SessionEncryption {
       if (cacheKey.isNotEmpty) {
         final cached = _cache.getCachedMessage(cacheKey);
         if (cached != null) {
+          // A cached entry with null content is a *memoized* decrypt
+          // failure: the page re-renders the same error bubble without
+          // re-attempting crypto.  Counted separately so the dashboards
+          // can tell a fresh outage from replayed damage.
+          if (cached.content == null) cachedFailures++;
           results[i] = cached;
           continue;
         }
@@ -219,6 +238,7 @@ class SessionEncryption {
           }
           results[item.index] = result;
         } else {
+          freshFailures++;
           final result = DecryptedMessage(
             id: item.message['id'] as String? ?? '',
             seq: item.message['seq'] as int? ?? 0,
@@ -234,6 +254,20 @@ class SessionEncryption {
         }
       }
     }
+
+    // At most two counter adds per batch, regardless of page size.
+    recordDecryptFailure(
+      envelope: _envelopeTag,
+      stage: kStageMessages,
+      fromCache: false,
+      count: freshFailures,
+    );
+    recordDecryptFailure(
+      envelope: _envelopeTag,
+      stage: kStageMessages,
+      fromCache: true,
+      count: cachedFailures,
+    );
 
     return results;
   }
@@ -329,6 +363,11 @@ class SessionEncryption {
         e,
         stack,
       );
+      recordDecryptFailure(
+        envelope: _envelopeTag,
+        stage: kStageRaw,
+        fromCache: false,
+      );
       return null;
     }
   }
@@ -360,6 +399,11 @@ class SessionEncryption {
         'session=$_sessionId version=$version len=${encrypted.length}',
         e,
       );
+      recordDecryptFailure(
+        envelope: kEnvelopeUnknown,
+        stage: kStageMetadata,
+        fromCache: false,
+      );
       return null;
     }
     final decrypted = await CryptoSecretBox.withDiagnosticScope(
@@ -367,11 +411,23 @@ class SessionEncryption {
       () => _decryptor.decrypt([encryptedData]),
     );
     if (decrypted[0] == null) {
+      recordDecryptFailure(
+        envelope: _envelopeTag,
+        stage: kStageMetadata,
+        fromCache: false,
+      );
       return null;
     }
 
     final data = WireParsers.asMap(decrypted[0]);
-    if (data == null) return null;
+    if (data == null) {
+      recordDecryptFailure(
+        envelope: _envelopeTag,
+        stage: kStageMetadata,
+        fromCache: false,
+      );
+      return null;
+    }
     _cache.setCachedMetadata(_sessionId, version, data);
     return data;
   }
@@ -407,6 +463,11 @@ class SessionEncryption {
         'session=$_sessionId version=$version len=${encrypted.length}',
         e,
       );
+      recordDecryptFailure(
+        envelope: kEnvelopeUnknown,
+        stage: kStageAgentState,
+        fromCache: false,
+      );
       return {};
     }
     final decrypted = await CryptoSecretBox.withDiagnosticScope(
@@ -414,11 +475,23 @@ class SessionEncryption {
       () => _decryptor.decrypt([encryptedData]),
     );
     if (decrypted[0] == null) {
+      recordDecryptFailure(
+        envelope: _envelopeTag,
+        stage: kStageAgentState,
+        fromCache: false,
+      );
       return {};
     }
 
     final data = WireParsers.asMap(decrypted[0]);
-    if (data == null) return {};
+    if (data == null) {
+      recordDecryptFailure(
+        envelope: _envelopeTag,
+        stage: kStageAgentState,
+        fromCache: false,
+      );
+      return {};
+    }
     _cache.setCachedAgentState(_sessionId, version, data);
     return data;
   }

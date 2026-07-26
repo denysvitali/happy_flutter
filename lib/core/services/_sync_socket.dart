@@ -731,6 +731,10 @@ extension SyncSocket on Sync {
       }
     } catch (error, stack) {
       logger.warning('Failed to restore sessions cache', error, stack);
+      recordSyncFailure(
+        domain: SyncDomain.sessions.name,
+        reason: classifySyncFailureReason(error),
+      );
       _sessions.clear();
       _sessionDataKeys.clear();
       _sessionEncryptedDataKeys.clear();

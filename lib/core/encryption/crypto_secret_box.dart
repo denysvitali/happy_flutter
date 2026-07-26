@@ -7,6 +7,7 @@ import 'package:meta/meta.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:sodium/sodium.dart';
 
+import '../services/failure_telemetry.dart';
 import '../services/logger_service.dart' show logger;
 import 'nacl_isolate_worker.dart' as nacl_iso;
 import 'sodium_singleton.dart';
@@ -36,6 +37,18 @@ extension DecryptEnvelopeWire on DecryptEnvelope {
         return 'nacl-secret-box';
       case DecryptEnvelope.unknown:
         return 'unknown';
+    }
+  }
+
+  /// Bounded tag for the `app.crypto.decrypt_failures` counter.
+  DecryptEnvelopeTag get metricTag {
+    switch (this) {
+      case DecryptEnvelope.aesV0:
+        return kEnvelopeAes;
+      case DecryptEnvelope.naclSecretBox:
+        return kEnvelopeNacl;
+      case DecryptEnvelope.unknown:
+        return kEnvelopeUnknown;
     }
   }
 }
@@ -373,6 +386,25 @@ class CryptoSecretBox {
       count: 1,
     );
     debugSink?.call(diagnostic);
+
+    // Count only the failures that no higher-level site can see.
+    //
+    // Scoped payloads (`session:<id>:messages`, `:metadata`,
+    // `machine:<id>:daemon-state`, DEK unwrap, ...) are counted by their
+    // owning call site, which knows the *true* batch failure count.  This
+    // layer cannot: the isolate batch path replays at most
+    // [maxFailureReplays] failures inline, so counting here would silently
+    // under-report a wrong-key page.  Emitting in both places would instead
+    // double-count.  Unscoped payloads (direct `CryptoSecretBox` users such
+    // as RPC routes) have no owning site, so they are counted here.
+    final metricStage = decryptStageFromScope(scope);
+    if (metricStage == kStageUnknown) {
+      recordDecryptFailure(
+        envelope: envelope.metricTag,
+        stage: kStageUnknown,
+        fromCache: false,
+      );
+    }
 
     // Sodium auth failures during a key rotation are expected; demote
     // the suppressed-capture case to info so dev-logs/Sentry

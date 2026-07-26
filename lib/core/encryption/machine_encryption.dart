@@ -1,3 +1,4 @@
+import '../services/failure_telemetry.dart';
 import '../services/logger_service.dart' show logger;
 
 import 'base64.dart';
@@ -21,6 +22,11 @@ class MachineEncryption {
   final Encryptor _encryptor;
   final Decryptor _decryptor;
   final EncryptionCache _cache;
+
+  /// Bounded envelope tag for the decrypt-failure counter.  Derived from
+  /// the decryptor this machine was opened with, not from the ciphertext.
+  DecryptEnvelopeTag get _envelopeTag =>
+      _decryptor is AES256Encryption ? kEnvelopeAes : kEnvelopeNacl;
 
   /// Encrypt machine metadata
   Future<String> encryptMetadata(Map<String, dynamic> metadata) async {
@@ -47,10 +53,20 @@ class MachineEncryption {
         () => _decryptor.decrypt([encryptedData]),
       );
       if (decrypted[0] == null) {
+        recordDecryptFailure(
+          envelope: _envelopeTag,
+          stage: kStageMetadata,
+          fromCache: false,
+        );
         return null;
       }
 
       if (decrypted[0] is! Map<String, dynamic>) {
+        recordDecryptFailure(
+          envelope: _envelopeTag,
+          stage: kStageMetadata,
+          fromCache: false,
+        );
         return null;
       }
       final data = decrypted[0] as Map<String, dynamic>;
@@ -62,6 +78,11 @@ class MachineEncryption {
         'MachineEncryption.decryptMetadata failed machine=$_machineId',
         e,
         stack,
+      );
+      recordDecryptFailure(
+        envelope: _envelopeTag,
+        stage: kStageMetadata,
+        fromCache: false,
       );
       return null;
     }
@@ -107,6 +128,14 @@ class MachineEncryption {
         e,
         stack,
       );
+      // Daemon state is the machine-side analogue of a session's agent
+      // state, so it shares the `agent_state` stage rather than widening
+      // the closed vocabulary.
+      recordDecryptFailure(
+        envelope: _envelopeTag,
+        stage: kStageAgentState,
+        fromCache: false,
+      );
       // Cache null to avoid repeated decryption attempts
       _cache.setCachedDaemonState(_machineId, version, null);
       return null;
@@ -134,6 +163,11 @@ class MachineEncryption {
         'MachineEncryption.decryptRaw failed machine=$_machineId',
         e,
         stack,
+      );
+      recordDecryptFailure(
+        envelope: _envelopeTag,
+        stage: kStageRaw,
+        fromCache: false,
       );
       return null;
     }

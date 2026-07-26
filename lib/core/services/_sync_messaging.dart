@@ -1296,6 +1296,10 @@ extension SyncMessaging on Sync {
         _notifySessionMessagesChanged(sessionId);
         _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
         fetchOutcome = 'network_error';
+        recordSyncFailure(
+          domain: SyncDomain.messages.name,
+          reason: classifySyncFailureReason(e),
+        );
         rethrow;
       } on TypeError catch (typeError, stack) {
         fetchOutcome = 'decode_error';
@@ -1465,6 +1469,12 @@ extension SyncMessaging on Sync {
           '[backfillInitialHistory] $sessionId page=$i failed',
           error,
           stack,
+        );
+        // Page index is deliberately not an attribute — it is bounded but
+        // adds no signal, and the counter stays flat at (domain, reason).
+        recordSyncFailure(
+          domain: SyncDomain.messages.name,
+          reason: classifySyncFailureReason(error),
         );
         return;
       }

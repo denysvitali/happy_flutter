@@ -107,6 +107,10 @@ extension SyncData on Sync {
       }
 
       if (sessionDecryptTasks.isNotEmpty) {
+        // Aggregated across the fetch: a re-wrapped DEK fails for every
+        // session in the page at once, so the batch is the honest
+        // granularity and it keeps this off the per-session path.
+        var dekFailures = 0;
         final decryptedKeys = await Future.wait(
           sessionDecryptTasks.map(
             (t) => encryption
@@ -130,6 +134,7 @@ extension SyncData on Sync {
           if (decryptedKey != null) {
             sessionKeys[sessionId] = decryptedKey;
           } else {
+            dekFailures++;
             logger.warning(
               '[Encryption] DEK decryption failed for session '
               '$sessionId (returned null) -- falling back to legacy '
@@ -150,6 +155,12 @@ extension SyncData on Sync {
             sessionKeys[sessionId] = null;
           }
         }
+        recordDecryptFailure(
+          envelope: kEnvelopeAes,
+          stage: kStageDek,
+          fromCache: false,
+          count: dekFailures,
+        );
       }
 
       // Parallelize the per-session encryptor open.  Without this
@@ -509,6 +520,11 @@ extension SyncData on Sync {
           logger.info(
             '[Encryption] DEK decryption threw for single session '
             '$sessionId: $e -- falling back to legacy encryption.',
+          );
+          recordDecryptFailure(
+            envelope: kEnvelopeAes,
+            stage: kStageDek,
+            fromCache: false,
           );
         }
       } else {

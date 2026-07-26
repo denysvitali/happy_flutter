@@ -318,6 +318,9 @@ extension SyncDataMachines on Sync {
 
         // Decrypt all machine keys in parallel.
         if (machineDecryptTasks.isNotEmpty) {
+          // Aggregated per fetch — see the session DEK path in
+          // `_sync_data.dart` for why this is counted at batch level.
+          var dekFailures = 0;
           final decryptedKeys = await Future.wait(
             machineDecryptTasks.map(
               (t) => encryption
@@ -340,6 +343,7 @@ extension SyncDataMachines on Sync {
               machineKeys[machineId] = decryptedKey;
               _machineDataKeys[machineId] = decryptedKey;
             } else {
+              dekFailures++;
               logger.info(
                 '[Encryption] DEK decryption failed for machine '
                 '$machineId (returned null) -- falling back to legacy '
@@ -349,6 +353,12 @@ extension SyncDataMachines on Sync {
               machineKeys[machineId] = null;
             }
           }
+          recordDecryptFailure(
+            envelope: kEnvelopeAes,
+            stage: kStageDek,
+            fromCache: false,
+            count: dekFailures,
+          );
         }
 
         await encryption.initializeMachines(machineKeys);

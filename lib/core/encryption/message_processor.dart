@@ -28,6 +28,7 @@ class ProcessedMessages {
     required this.usageUpdates,
     required this.maxSeq,
     this.droppedReasons = const [],
+    this.undecryptableRenderedCount = 0,
   });
 
   /// Display-ready message maps.
@@ -46,6 +47,16 @@ class ProcessedMessages {
   /// Debug info for messages that were silently dropped during
   /// processing. Each entry: `{seq, reason}`.
   final List<String> droppedReasons;
+
+  /// How many messages in this batch were turned into a user-visible
+  /// `decryption_failed` error bubble.
+  ///
+  /// Carried out of this function rather than counted in place because
+  /// [processDecryptedMessages] runs inside `Isolate.run` on large pages,
+  /// where the OTel singleton is uninitialised and any counter add would
+  /// be silently dropped.  The caller emits
+  /// `app.messages.undecryptable_rendered` on the main isolate.
+  final int undecryptableRenderedCount;
 }
 
 typedef _UserContentBlock = Map<String, dynamic>;
@@ -205,6 +216,7 @@ ProcessedMessages processDecryptedMessages({
   final usageUpdates = <Map<String, dynamic>>[];
   final droppedReasons = <String>[];
   var maxSeq = -1;
+  var undecryptableRendered = 0;
 
   for (var i = 0; i < wireMessages.length; i++) {
     final wire = wireMessages[i];
@@ -231,6 +243,7 @@ ProcessedMessages processDecryptedMessages({
         continue;
       }
 
+      undecryptableRendered++;
       messages.add({
         'id': 'error-${id.isEmpty ? 'unknown-$i' : id}',
         'seq': seq,
@@ -447,6 +460,7 @@ ProcessedMessages processDecryptedMessages({
     usageUpdates: usageUpdates,
     maxSeq: maxSeq,
     droppedReasons: droppedReasons,
+    undecryptableRenderedCount: undecryptableRendered,
   );
 }
 

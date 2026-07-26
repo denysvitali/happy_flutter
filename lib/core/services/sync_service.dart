@@ -42,6 +42,7 @@ import '../sync/artifact_manager.dart';
 import '../sync/settings_manager.dart';
 import '../sync/sync_exceptions.dart';
 import '../sync/sync_progress.dart';
+import '../services/failure_telemetry.dart';
 import '../services/loop_storage.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
