@@ -302,6 +302,7 @@ class _MessageWidgetState extends State<MessageWidget>
       widget.isFromCurrentUser
           ? UserBubble(
               text: text,
+              messageData: widget.messageData,
               imageBlocks: extractUserImageBlocks(widget.messageData['raw']),
               onOptionPress: widget.onOptionPress,
               sendStatus: sendStatus,

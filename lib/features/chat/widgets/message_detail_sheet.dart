@@ -97,22 +97,22 @@ void showMessageDetailSheet(
                 ),
               ),
             if (model != null)
-              _MessageInfoRow(
+              MessageInfoRow(
                 icon: Icons.auto_awesome_outlined,
                 label: l10n.messageDetailModel,
                 value: model,
               ),
             if (permissionMode != null)
-              _MessageInfoRow(
+              MessageInfoRow(
                 icon: Icons.shield_outlined,
                 label: l10n.messageDetailPermission,
                 value: permissionMode,
               ),
             if (createdAt != null)
-              _MessageInfoRow(
+              MessageInfoRow(
                 icon: Icons.access_time_outlined,
                 label: l10n.messageDetailSent,
-                value: _formatTimestamp(createdAt, now),
+                value: formatMessageTimestamp(createdAt, now),
               ),
           ],
         ),
@@ -121,7 +121,8 @@ void showMessageDetailSheet(
   );
 }
 
-String _formatTimestamp(int milliseconds, DateTime now) {
+/// Formats a message timestamp relative to [now] ("Today at 14:03").
+String formatMessageTimestamp(int milliseconds, DateTime now) {
   final dt = DateTime.fromMillisecondsSinceEpoch(milliseconds);
   final diff = now.difference(dt);
 
@@ -230,11 +231,14 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
 // Shared row widgets
 // ---------------------------------------------------------------------------
 
-class _MessageInfoRow extends StatelessWidget {
-  const _MessageInfoRow({
+/// Icon + label + value row shared by the message detail sheet and the
+/// long-press focus card.
+class MessageInfoRow extends StatelessWidget {
+  const MessageInfoRow({
     required this.icon,
     required this.label,
     required this.value,
+    super.key,
   });
 
   final IconData icon;

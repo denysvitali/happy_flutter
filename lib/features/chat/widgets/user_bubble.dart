@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -8,7 +9,7 @@ import '../../../core/components/pressable_card.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
-import 'message_detail_sheet.dart';
+import 'message_focus_view.dart';
 import 'send_status_indicator.dart';
 
 /// Extracts Anthropic `image` content blocks from a user message's `raw`
@@ -28,7 +29,7 @@ List<Map<String, dynamic>>? extractUserImageBlocks(Object? raw) {
 /// Right-aligned speech bubble for user messages.
 ///
 /// Uses primary color background with iMessage-style grouped radii.
-class UserBubble extends StatelessWidget {
+class UserBubble extends StatefulWidget {
   const UserBubble({
     required this.text,
     super.key,
@@ -38,6 +39,7 @@ class UserBubble extends StatelessWidget {
     this.onRetry,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
+    this.messageData,
   });
 
   final String text;
@@ -54,8 +56,20 @@ class UserBubble extends StatelessWidget {
   final bool isFirstInGroup;
   final bool isLastInGroup;
 
+  /// Raw message record, used to populate the long-press focus card.
+  final Map<String, dynamic>? messageData;
+
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
+
+  @override
+  State<UserBubble> createState() => _UserBubbleState();
+}
+
+class _UserBubbleState extends State<UserBubble> {
+  /// Marks the in-place bubble row so the focus view can animate its copy
+  /// from exactly where the finger is.
+  final GlobalKey _anchorKey = GlobalKey();
 
   String _truncateForLabel(String text) {
     const maxLength = 100;
@@ -63,17 +77,77 @@ class UserBubble extends StatelessWidget {
     return '${text.substring(0, maxLength)}...';
   }
 
-  @override
-  Widget build(BuildContext context) {
+  void _openFocusView() {
+    HapticFeedback.heavyImpact();
+    unawaited(
+      showMessageFocusView(
+        context,
+        anchorKey: _anchorKey,
+        text: widget.text,
+        messageData: widget.messageData,
+        messageBuilder: (ctx) => _row(ctx, interactive: false),
+      ),
+    );
+  }
+
+  /// The full bubble row (alignment + padding included).
+  ///
+  /// `interactive: false` drops the press/long-press wrapper so the same
+  /// subtree can be re-rendered as the focused copy.
+  Widget _row(BuildContext context, {required bool interactive}) {
     final cs = Theme.of(context).colorScheme;
     final color = cs.primary;
 
     // Grouped radii: right side pinches for consecutive messages.
     final radius = BorderRadius.only(
-      topLeft: _full,
-      topRight: isFirstInGroup ? _full : _small,
-      bottomLeft: _full,
-      bottomRight: isLastInGroup ? _full : _small,
+      topLeft: UserBubble._full,
+      topRight: widget.isFirstInGroup ? UserBubble._full : UserBubble._small,
+      bottomLeft: UserBubble._full,
+      bottomRight: widget.isLastInGroup ? UserBubble._full : UserBubble._small,
+    );
+
+    final bubble = Semantics(
+      label: 'User message: ${_truncateForLabel(widget.text)}',
+      button: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md + 2,
+          vertical: AppSpacing.sm + 2,
+        ),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.80,
+        ),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: color.withAlpha(40),
+              blurRadius: AppSpacing.sm,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.imageBlocks != null) ...[
+              for (final block in widget.imageBlocks!)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: _UserImageThumb(block: block),
+                ),
+            ],
+            if (widget.text.isNotEmpty)
+              MarkdownView(
+                markdown: widget.text,
+                onOptionPress: widget.onOptionPress,
+                textColor: cs.onPrimary,
+              ),
+          ],
+        ),
+      ),
     );
 
     return Align(
@@ -82,75 +156,39 @@ class UserBubble extends StatelessWidget {
         padding: EdgeInsets.only(
           left: AppSpacing.xxl,
           right: AppSpacing.sm,
-          top: isFirstInGroup ? AppSpacing.xs : 1,
-          bottom: isLastInGroup ? AppSpacing.xs : 1,
+          top: widget.isFirstInGroup ? AppSpacing.xs : 1,
+          bottom: widget.isLastInGroup ? AppSpacing.xs : 1,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           mainAxisSize: MainAxisSize.min,
           children: [
-            PressableCard(
-              onLongPress: () {
-                HapticFeedback.heavyImpact();
-                showRawMarkdownSheet(context, text);
-              },
-              pressedScale: 0.97,
-              enableHaptics: false,
-              duration: const Duration(milliseconds: 100),
-              child: Semantics(
-                label: 'User message: ${_truncateForLabel(text)}',
-                button: false,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md + 2,
-                    vertical: AppSpacing.sm + 2,
-                  ),
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.sizeOf(context).width * 0.80,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: radius,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withAlpha(40),
-                        blurRadius: AppSpacing.sm,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (imageBlocks != null) ...[
-                        for (final block in imageBlocks!)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppSpacing.xs,
-                            ),
-                            child: _UserImageThumb(block: block),
-                          ),
-                      ],
-                      if (text.isNotEmpty)
-                        MarkdownView(
-                          markdown: text,
-                          onOptionPress: onOptionPress,
-                          textColor: cs.onPrimary,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (sendStatus != null)
+            if (interactive)
+              PressableCard(
+                onLongPress: _openFocusView,
+                pressedScale: 0.97,
+                enableHaptics: false,
+                duration: const Duration(milliseconds: 100),
+                child: bubble,
+              )
+            else
+              bubble,
+            if (widget.sendStatus != null)
               SendStatusIndicator(
-                status: sendStatus!,
-                onRetry: onRetry,
+                status: widget.sendStatus!,
+                onRetry: interactive ? widget.onRetry : null,
               ),
           ],
         ),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return KeyedSubtree(
+      key: _anchorKey,
+      child: _row(context, interactive: true),
     );
   }
 }

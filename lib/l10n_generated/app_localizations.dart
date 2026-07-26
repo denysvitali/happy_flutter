@@ -4603,6 +4603,24 @@ abstract class AppLocalizations {
   /// **'Bookmark'**
   String get messageDetailBookmark;
 
+  /// No description provided for @messageFocusSelectText.
+  ///
+  /// In en, this message translates to:
+  /// **'Select text'**
+  String get messageFocusSelectText;
+
+  /// No description provided for @messageFocusSpeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Speak'**
+  String get messageFocusSpeak;
+
+  /// No description provided for @messageFocusStopSpeaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get messageFocusStopSpeaking;
+
   /// No description provided for @commonCopiedToClipboard.
   ///
   /// In en, this message translates to:

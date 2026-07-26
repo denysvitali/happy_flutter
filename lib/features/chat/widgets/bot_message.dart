@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
 import 'message_detail_sheet.dart';
+import 'message_focus_view.dart';
 import 'streaming_cursor.dart';
 
 /// Left-aligned bot message bubble with full markdown rendering.
@@ -40,6 +43,10 @@ class BotMessage extends StatefulWidget {
 
 class _BotMessageState extends State<BotMessage> {
   bool _pressed = false;
+
+  /// Marks the in-place bubble row so the focus view can animate its copy
+  /// from exactly where the finger is.
+  final GlobalKey _anchorKey = GlobalKey();
 
   // Precomputed border-radius variants. Selecting one is just an indexed
   // lookup — avoids allocating a fresh BorderRadius on every build.
@@ -81,20 +88,84 @@ class _BotMessageState extends State<BotMessage> {
     return _radiusMiddle;
   }
 
-  @override
-  Widget build(BuildContext context) {
+  void _openFocusView() {
+    HapticFeedback.heavyImpact();
+    setState(() => _pressed = false);
+    unawaited(
+      showMessageFocusView(
+        context,
+        anchorKey: _anchorKey,
+        text: widget.text,
+        messageData: widget.messageData,
+        messageBuilder: _row,
+      ),
+    );
+  }
+
+  /// The full bubble row (alignment + padding included), rendered both
+  /// in-place and as the focused copy so the two line up pixel for pixel.
+  Widget _row(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
     // Grouped radii: left side pinches for consecutive messages.
     final radius = _radius();
 
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: AppSpacing.sm,
+          right: AppSpacing.sm,
+          top: widget.isCompact
+              ? 0
+              : (widget.isFirstInGroup ? AppSpacing.xs : 1),
+          bottom: widget.isCompact
+              ? 0
+              : (widget.isLastInGroup ? AppSpacing.xs : 1),
+        ),
+        child: Semantics(
+          label: widget.isStreaming
+              ? 'AI response streaming'
+              : 'AI message: ${_truncateForLabel(widget.text)}',
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: widget.isCompact ? AppSpacing.xs : AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: radius,
+              border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
+                width: 0.5,
+              ),
+            ),
+            child: DefaultTextStyle.merge(
+              style: TextStyle(color: cs.onSurface),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MarkdownView(
+                    markdown: widget.text,
+                    onOptionPress: widget.onOptionPress,
+                  ),
+                  if (widget.isStreaming) const StreamingCursor(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => showMessageDetailSheet(context, widget.messageData),
-      onLongPress: () {
-        HapticFeedback.heavyImpact();
-        showRawMarkdownSheet(context, widget.text);
-      },
+      onLongPress: _openFocusView,
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
       onTapCancel: () => setState(() => _pressed = false),
@@ -102,56 +173,7 @@ class _BotMessageState extends State<BotMessage> {
         scale: _pressed ? 0.97 : 1.0,
         duration: const Duration(milliseconds: 100),
         curve: Curves.easeInOut,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: AppSpacing.sm,
-              right: AppSpacing.sm,
-              top: widget.isCompact
-                  ? 0
-                  : (widget.isFirstInGroup ? AppSpacing.xs : 1),
-              bottom: widget.isCompact
-                  ? 0
-                  : (widget.isLastInGroup ? AppSpacing.xs : 1),
-            ),
-            child: Semantics(
-              label: widget.isStreaming
-                  ? 'AI response streaming'
-                  : 'AI message: ${_truncateForLabel(widget.text)}',
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: widget.isCompact ? AppSpacing.xs : AppSpacing.md,
-                ),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerLow,
-                  borderRadius: radius,
-                  border: Border.all(
-                    color: cs.outlineVariant.withValues(
-                      alpha: AppOpacity.subtle,
-                    ),
-                    width: 0.5,
-                  ),
-                ),
-                child: DefaultTextStyle.merge(
-                  style: TextStyle(color: cs.onSurface),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      MarkdownView(
-                        markdown: widget.text,
-                        onOptionPress: widget.onOptionPress,
-                      ),
-                      if (widget.isStreaming) const StreamingCursor(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+        child: KeyedSubtree(key: _anchorKey, child: _row(context)),
       ),
     );
   }

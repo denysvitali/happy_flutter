@@ -2530,6 +2530,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageDetailBookmark => 'Bookmark';
 
   @override
+  String get messageFocusSelectText => 'Select text';
+
+  @override
+  String get messageFocusSpeak => 'Speak';
+
+  @override
+  String get messageFocusStopSpeaking => 'Stop';
+
+  @override
   String get commonCopiedToClipboard => 'Copied to clipboard';
 
   @override
