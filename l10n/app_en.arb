@@ -1268,6 +1268,14 @@
   "settingsNoUserCertificates": "No user certificates installed",
   "chatOnline": "Online",
   "chatConversationCleared": "Conversation cleared",
+  "chatModelChanged": "Model changed: {from} → {to}",
+  "@chatModelChanged": {
+    "description": "Inline chat divider shown when the agent starts replying with a different model",
+    "placeholders": {
+      "from": { "type": "String", "example": "Opus 4.5" },
+      "to": { "type": "String", "example": "Sonnet 5" }
+    }
+  },
   "chatMoreOptions": "More options",
   "settingsClaudeCode": "Claude Code",
   "settingsConnected": "Connected",

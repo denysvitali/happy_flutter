@@ -6217,6 +6217,12 @@ abstract class AppLocalizations {
   /// **'Conversation cleared'**
   String get chatConversationCleared;
 
+  /// Inline chat divider shown when the agent starts replying with a different model
+  ///
+  /// In en, this message translates to:
+  /// **'Model changed: {from} → {to}'**
+  String chatModelChanged(String from, String to);
+
   /// No description provided for @chatMoreOptions.
   ///
   /// In en, this message translates to:

@@ -29,6 +29,10 @@ typedef MessageErrorHandler =
 ///   `tools` (tool-calls only, drives the counts label) and
 ///   `items` (everything collapsed, in original order).
 /// - Inserts a `null` sentinel after a user `/clear` message (divider)
+/// - Inserts a `model-change` marker row when the model reported by the
+///   agent changes mid-session (a fallback, a `/model` switch, or the CLI
+///   downgrading under load). The first model seen produces no marker —
+///   only transitions are worth surfacing.
 ///
 /// Items may be `null` (cleared-divider markers). Callers that need a
 /// non-null list should filter afterward.
@@ -41,6 +45,7 @@ List<Map<String, dynamic>?> buildChatListItems({
 }) {
   final items = <Map<String, dynamic>?>[];
   var hiddenGroup = <Map<String, dynamic>>[];
+  String? lastModel;
 
   void flushHiddenGroup() {
     if (hiddenGroup.isEmpty) return;
@@ -69,6 +74,24 @@ List<Map<String, dynamic>?> buildChatListItems({
       if (msg['kind'] == 'agent-event' &&
           !shouldRenderAgentEvent(msg['event'])) {
         continue;
+      }
+      // A model switch is worth showing even when it happens inside a
+      // run of hidden tool calls, so the check runs before the
+      // hide-filters and flushes the group to keep the divider in
+      // chronological place.
+      final model = _reportedModel(msg);
+      if (model != null) {
+        if (lastModel != null && lastModel != model) {
+          flushHiddenGroup();
+          items.add({
+            'kind': 'model-change',
+            'id': 'model-change-${msg['id'] ?? items.length}',
+            'role': 'system',
+            'fromModel': lastModel,
+            'toModel': model,
+          });
+        }
+        lastModel = model;
       }
       // With tool calls hidden, thinking blocks fold into the same
       // collapsed group — they are working noise too, and leaving them
@@ -99,4 +122,20 @@ List<Map<String, dynamic>?> buildChatListItems({
   }
   flushHiddenGroup();
   return items;
+}
+
+/// The inference model a message was produced by, or null when the
+/// message says nothing about the model.
+///
+/// Sidechains are excluded: a subagent legitimately runs a different
+/// model, and letting it move [buildChatListItems]'s cursor would emit a
+/// spurious pair of dividers around every Task tool call.
+String? _reportedModel(Map<String, dynamic> msg) {
+  if (msg['role'] != 'agent') return null;
+  if (msg['isSidechain'] == true) return null;
+  if (msg['parentToolUseId'] != null) return null;
+  final model = msg['model'];
+  if (model is! String) return null;
+  final trimmed = model.trim();
+  return trimmed.isEmpty ? null : trimmed;
 }

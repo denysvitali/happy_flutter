@@ -174,4 +174,143 @@ void main() {
       expect(items[1], isNull);
     });
   });
+
+  group('buildChatListItems model-change markers', () {
+    List<Map<String, dynamic>?> build(
+      List<Map<String, dynamic>> messages, {
+      bool hideToolCalls = false,
+    }) {
+      return buildChatListItems(
+        visibleMessages: messages,
+        hideToolCalls: hideToolCalls,
+        shouldRenderAgentEvent: (_) => true,
+        shouldHideToolCall: (msg, {required hideToolCalls}) =>
+            hideToolCalls && msg['kind'] == 'tool-call',
+      );
+    }
+
+    Map<String, dynamic> agent(
+      String id, {
+      String? model,
+      bool sidechain = false,
+    }) {
+      return {
+        'id': id,
+        'role': 'agent',
+        'kind': 'text',
+        'content': id,
+        if (model != null) 'model': model,
+        if (sidechain) 'isSidechain': true,
+      };
+    }
+
+    test('emits no marker for the first model seen', () {
+      final items = build([agent('a1', model: 'claude-opus-4-5')]);
+      expect(items.length, 1);
+      expect(items.single?['id'], 'a1');
+    });
+
+    test('emits no marker while the model is unchanged', () {
+      final items = build([
+        agent('a1', model: 'claude-opus-4-5'),
+        agent('a2', model: 'claude-opus-4-5'),
+      ]);
+      expect(items.map((i) => i?['kind']), everyElement(isNot('model-change')));
+    });
+
+    test('inserts a marker before the first message of the new model', () {
+      final items = build([
+        agent('a1', model: 'claude-opus-4-5'),
+        agent('a2', model: 'claude-sonnet-5'),
+      ]);
+      expect(items.length, 3);
+      expect(items[0]?['id'], 'a1');
+      expect(items[1]?['kind'], 'model-change');
+      expect(items[1]?['fromModel'], 'claude-opus-4-5');
+      expect(items[1]?['toModel'], 'claude-sonnet-5');
+      expect(items[2]?['id'], 'a2');
+    });
+
+    test('tracks a switch back to the original model', () {
+      final items = build([
+        agent('a1', model: 'claude-opus-4-5'),
+        agent('a2', model: 'claude-sonnet-5'),
+        agent('a3', model: 'claude-opus-4-5'),
+      ]);
+      final markers = items
+          .where((i) => i?['kind'] == 'model-change')
+          .toList(growable: false);
+      expect(markers.length, 2);
+      expect(markers[1]?['fromModel'], 'claude-sonnet-5');
+      expect(markers[1]?['toModel'], 'claude-opus-4-5');
+    });
+
+    test('ignores messages that report no model', () {
+      final items = build([
+        agent('a1', model: 'claude-opus-4-5'),
+        {'id': 'u1', 'role': 'user', 'content': 'hi'},
+        agent('a2'),
+        agent('a3', model: 'claude-opus-4-5'),
+      ]);
+      expect(items.map((i) => i?['kind']), everyElement(isNot('model-change')));
+    });
+
+    test('ignores sidechain models so subagents emit no marker', () {
+      final items = build([
+        agent('a1', model: 'claude-opus-4-5'),
+        agent('s1', model: 'claude-haiku-4-5', sidechain: true),
+        agent('a2', model: 'claude-opus-4-5'),
+      ]);
+      expect(items.map((i) => i?['kind']), everyElement(isNot('model-change')));
+    });
+
+    test('ignores models reported by nested tool-scoped messages', () {
+      final items = build([
+        agent('a1', model: 'claude-opus-4-5'),
+        {
+          'id': 'n1',
+          'role': 'agent',
+          'kind': 'text',
+          'model': 'claude-haiku-4-5',
+          'parentToolUseId': 'toolu_1',
+        },
+        agent('a2', model: 'claude-opus-4-5'),
+      ]);
+      expect(items.map((i) => i?['kind']), everyElement(isNot('model-change')));
+    });
+
+    test('flushes the hidden-tool group so the marker stays in order', () {
+      final items = build(
+        [
+          agent('a1', model: 'claude-opus-4-5'),
+          {
+            'id': 't1',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'state': 'completed',
+            'model': 'claude-opus-4-5',
+          },
+          {
+            'id': 't2',
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Grep',
+            'state': 'completed',
+            'model': 'claude-sonnet-5',
+          },
+          agent('a2', model: 'claude-sonnet-5'),
+        ],
+        hideToolCalls: true,
+      );
+      expect(items.length, 5);
+      expect(items[0]?['id'], 'a1');
+      expect(items[1]?['kind'], 'hidden-tool-summary');
+      expect((items[1]!['tools'] as List).length, 1);
+      expect(items[2]?['kind'], 'model-change');
+      expect(items[3]?['kind'], 'hidden-tool-summary');
+      expect((items[3]!['tools'] as List).length, 1);
+      expect(items[4]?['id'], 'a2');
+    });
+  });
 }

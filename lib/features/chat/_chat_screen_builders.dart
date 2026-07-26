@@ -231,6 +231,17 @@ extension _ChatScreenBuilders on _ChatScreenState {
     }
 
     final message = item;
+
+    if (message['kind'] == 'model-change') {
+      final markerId =
+          message['id'] as String? ?? 'model-change-$reversedIndex';
+      return ModelChangeDivider(
+        key: ValueKey(markerId),
+        fromModel: message['fromModel'] as String? ?? '',
+        toModel: message['toModel'] as String? ?? '',
+      );
+    }
+
     final (prevMessage, nextMessage) =
         _neighborCache[reversedIndex] ?? (null, null);
 

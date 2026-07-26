@@ -3361,6 +3361,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatConversationCleared => 'Conversation cleared';
 
   @override
+  String chatModelChanged(String from, String to) {
+    return 'Model changed: $from → $to';
+  }
+
+  @override
   String get chatMoreOptions => 'More options';
 
   @override

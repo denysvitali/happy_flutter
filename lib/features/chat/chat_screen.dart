@@ -57,6 +57,7 @@ import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_messages_body.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
+import 'widgets/model_change_divider.dart';
 import 'widgets/pending_permission_bar.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
