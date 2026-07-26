@@ -298,6 +298,35 @@ void main() {
     );
 
     test(
+      'gives a recently-spawned session its full recentlySpawnedWaitMs '
+      'instead of clamping it into the ordinary send deadline',
+      () async {
+        final stopwatch = Stopwatch()..start();
+        await instance.sendMessage('sess-spawn', 'wait for me');
+        await instance.lastCompleteSendFuture;
+        stopwatch.stop();
+
+        // The ordinary 12 s send deadline reserves 6 s for the POST, so
+        // clamping the readiness wait into it caps the wait at 6 s — a
+        // pod that needs >10 s to come up could never be waited for, and
+        // every spawn-then-send raised a bogus spawn-timeout alarm.
+        expect(
+          stopwatch.elapsedMilliseconds,
+          greaterThanOrEqualTo(Sync.recentlySpawnedWaitMs - 1500),
+          reason:
+              'the readiness wait must not be clamped below '
+              'Sync.recentlySpawnedWaitMs for a freshly-spawned session',
+        );
+
+        // And the telemetry must report what was actually waited.
+        final capture = instance.testSpawnReadinessTimeoutCaptures.single;
+        expect(capture['waitMs'], Sync.recentlySpawnedWaitMs);
+        expect(capture['requestedWaitMs'], Sync.recentlySpawnedWaitMs);
+      },
+      timeout: const Timeout(Duration(seconds: 90)),
+    );
+
+    test(
       'does NOT emit a spawn-timeout capture when the session becomes '
       'ready during the wait',
       () async {
