@@ -65,22 +65,27 @@ Future<void> showMessageFocusView(
   Map<String, dynamic>? messageData,
 }) async {
   final anchorRect = _globalRectOf(anchorKey);
-  final followUp = await Navigator.of(context, rootNavigator: true)
-      .push<_FocusFollowUp>(
-        PageRouteBuilder<_FocusFollowUp>(
-          opaque: false,
-          barrierColor: Colors.transparent,
-          transitionDuration: const Duration(milliseconds: 260),
-          reverseTransitionDuration: const Duration(milliseconds: 180),
-          pageBuilder: (ctx, animation, _) => MessageFocusOverlay(
-            animation: animation,
-            anchorRect: anchorRect,
-            messageBuilder: messageBuilder,
-            text: text,
-            messageData: messageData,
-          ),
-        ),
-      );
+
+  // A PopupRoute, not a PageRoute: the chat route's iOS-style transition
+  // parallaxes the outgoing page a third of the screen to the left whenever
+  // a PageRoute is pushed on top of it. Behind a transparent route that
+  // left the right third of the backdrop genuinely empty — a hard-edged
+  // band the blur had nothing to sample. `canTransitionTo` is false for a
+  // PopupRoute, so the conversation stays exactly where it is.
+  final followUp = await showGeneralDialog<_FocusFollowUp>(
+    context: context,
+    useRootNavigator: true,
+    barrierDismissible: false,
+    barrierColor: Colors.transparent,
+    transitionDuration: const Duration(milliseconds: 240),
+    pageBuilder: (ctx, animation, _) => MessageFocusOverlay(
+      animation: animation,
+      anchorRect: anchorRect,
+      messageBuilder: messageBuilder,
+      text: text,
+      messageData: messageData,
+    ),
+  );
 
   if (followUp == null || !context.mounted) return;
 
