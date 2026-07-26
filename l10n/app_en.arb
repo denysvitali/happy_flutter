@@ -2498,5 +2498,101 @@
   "mcpUrlInvalid": "Enter a full URL including https://",
   "@mcpUrlInvalid": {
     "description": "Validation error for a malformed endpoint URL"
+  },
+  "sandboxTitle": "Sandbox",
+  "@sandboxTitle": {
+    "description": "Title of the per-project sandbox screen"
+  },
+  "sandboxMachineSection": "Machine",
+  "@sandboxMachineSection": {
+    "description": "Section title for the machine picker on the sandbox screen"
+  },
+  "sandboxProjectSection": "Project",
+  "@sandboxProjectSection": {
+    "description": "Section title for the project picker on the sandbox screen"
+  },
+  "sandboxUnavailableTitle": "Sandboxing unavailable",
+  "@sandboxUnavailableTitle": {
+    "description": "Shown when the machine cannot run sandboxed sessions"
+  },
+  "sandboxMachineDisabled": "Sandboxing is turned off for this machine. Sessions run with full access to the file system.",
+  "@sandboxMachineDisabled": {
+    "description": "Shown when the machine config opted out of sandboxing"
+  },
+  "sandboxExplainer": "Sandboxed sessions see this project directory and the public internet. Everything else on the machine — your home directory, SSH keys, other projects — is not there.",
+  "@sandboxExplainer": {
+    "description": "Explains what the sandbox does"
+  },
+  "sandboxEnabledForProject": "Sandbox this project",
+  "@sandboxEnabledForProject": {
+    "description": "Label of the per-project sandbox switch"
+  },
+  "sandboxFollowsMachine": "Following the machine default",
+  "@sandboxFollowsMachine": {
+    "description": "Subtitle when a project has no explicit sandbox choice"
+  },
+  "sandboxFoldersSection": "Extra folders",
+  "@sandboxFoldersSection": {
+    "description": "Section title for the granted folders list"
+  },
+  "sandboxNoFolders": "No extra folders",
+  "@sandboxNoFolders": {
+    "description": "Empty state title for granted folders"
+  },
+  "sandboxNoFoldersSubtitle": "Sessions can only reach the project directory itself. Add a folder if this project needs one.",
+  "@sandboxNoFoldersSubtitle": {
+    "description": "Empty state subtitle for granted folders"
+  },
+  "sandboxAddFolder": "Add folder",
+  "@sandboxAddFolder": {
+    "description": "Button that grants another folder to the project"
+  },
+  "sandboxFolderPath": "Absolute path",
+  "@sandboxFolderPath": {
+    "description": "Label of the folder path field"
+  },
+  "sandboxFolderPathHint": "/home/you/go/pkg/mod",
+  "@sandboxFolderPathHint": {
+    "description": "Hint for the folder path field"
+  },
+  "sandboxFolderPathRequired": "Enter an absolute path",
+  "@sandboxFolderPathRequired": {
+    "description": "Validation error for an empty or relative folder path"
+  },
+  "sandboxModeReadWrite": "Read and write",
+  "@sandboxModeReadWrite": {
+    "description": "Grant mode label"
+  },
+  "sandboxModeReadOnly": "Read only",
+  "@sandboxModeReadOnly": {
+    "description": "Grant mode label"
+  },
+  "sandboxRemoveFolder": "Remove folder",
+  "@sandboxRemoveFolder": {
+    "description": "Tooltip for removing a granted folder"
+  },
+  "sandboxRemoveFolderConfirm": "Sessions in this project will no longer reach {path}.",
+  "@sandboxRemoveFolderConfirm": {
+    "description": "Confirmation body when revoking a folder"
+  },
+  "sandboxSaveFailed": "Could not save the sandbox policy",
+  "@sandboxSaveFailed": {
+    "description": "Fallback error when a sandbox write fails"
+  },
+  "sandboxLoadFailed": "Could not load the sandbox policy",
+  "@sandboxLoadFailed": {
+    "description": "Fallback error when the sandbox read fails"
+  },
+  "sandboxNetworkPublic": "Network: public internet only — the local network, other machines and localhost are refused.",
+  "@sandboxNetworkPublic": {
+    "description": "Describes the public egress mode"
+  },
+  "sandboxNetworkAllowlist": "Network: only the hosts allowed below.",
+  "@sandboxNetworkAllowlist": {
+    "description": "Describes the allowlist egress mode"
+  },
+  "sandboxNetworkNone": "Network: no egress at all.",
+  "@sandboxNetworkNone": {
+    "description": "Describes the disabled egress mode"
   }
 }

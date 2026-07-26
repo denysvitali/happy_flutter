@@ -69,7 +69,9 @@ void main() {
       expect(find.text('Copy'), findsOneWidget);
     });
 
-    testWidgets('the focused copy is not interactive', (tester) async {
+    testWidgets('the focused copy is inert — tapping it dismisses', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const BotMessage(
@@ -81,14 +83,21 @@ void main() {
 
       await tester.longPress(find.textContaining('focus me'));
       await tester.pumpAndSettle();
+      expect(_blurLayer(), findsOneWidget);
 
-      final copy = find
-          .descendant(
-            of: find.byType(MessageFocusOverlay),
-            matching: find.byType(IgnorePointer),
-          )
-          .first;
-      expect(tester.widget<IgnorePointer>(copy).ignoring, isTrue);
+      // The copy is the second instance of the text — the one above the
+      // blur. Taps on it must fall through to the dismiss barrier rather
+      // than being swallowed (or worse, re-triggering message gestures).
+      final copy = find.textContaining('focus me').last;
+      final ignorers = tester.widgetList<IgnorePointer>(
+        find.ancestor(of: copy, matching: find.byType(IgnorePointer)),
+      );
+      expect(ignorers.any((widget) => widget.ignoring), isTrue);
+
+      await tester.tapAt(tester.getCenter(copy));
+      await tester.pumpAndSettle();
+
+      expect(_blurLayer(), findsNothing);
     });
 
     testWidgets('tapping the blurred background dismisses it', (tester) async {
@@ -131,6 +140,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_blurLayer(), findsNothing);
+
+      // The clipboard write and the confirmation happen after the overlay
+      // has popped, so they need a second settle.
+      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('Copied to clipboard'), findsOneWidget);
     });
 
