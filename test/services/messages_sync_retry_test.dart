@@ -95,6 +95,74 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
+
+  // The resume batch and the socket-event handler create the SAME per-session
+  // instance (all creation sites are guarded by `!containsKey`), so whichever
+  // fires first owns it for the session lifetime. If the resume path builds a
+  // retry-less instance, onSessionVisible reuses it and the retry fix is
+  // silently defeated on the most common path.
+  test(
+    'messagesSync created by the resume batch also retries a stalled page',
+    () async {
+      const sessionId = 'retry-s1';
+      sync.testSessions[sessionId] = _makeRetrySession(sessionId, lastSeq: 10);
+      sync.testSetSessionLastSeq(sessionId, 0);
+
+      var attempts = 0;
+      var failNextPage = false;
+      sync.testFetchMessagesOverride = (id, afterSeq, limit) async {
+        attempts++;
+        if (failNextPage) {
+          failNextPage = false;
+          throw DioException(
+            requestOptions: RequestOptions(path: '/v3/sessions/$id/messages'),
+            type: DioExceptionType.receiveTimeout,
+          );
+        }
+        return {'messages': <Map<String, dynamic>>[], 'hasMore': false};
+      };
+
+      // Build the instance via the resume path, NOT via onSessionVisible.
+      sync.testSetPendingSocketMessages({sessionId});
+      sync.testScheduleResumeMessageBatch();
+      await Future<void>.delayed(const Duration(milliseconds: 2500));
+      final messagesSync = sync.messagesSync[sessionId];
+      expect(
+        messagesSync,
+        isNotNull,
+        reason: 'the resume batch must have created the per-session sync',
+      );
+      try {
+        await messagesSync!.awaitQueue();
+      } on Object {
+        // First run outcome is irrelevant here.
+      }
+
+      // Now the visible-session path reuses that instance.
+      sync.testSetVisibleSessionId(sessionId);
+      await sync.onSessionVisible(sessionId);
+      expect(identical(sync.messagesSync[sessionId], messagesSync), isTrue);
+
+      attempts = 0;
+      failNextPage = true;
+      sync.testAddFetchProbe(sessionId);
+      messagesSync!.invalidate();
+      try {
+        await messagesSync.awaitQueue();
+      } on Object {
+        // The retry itself is what we assert on.
+      }
+
+      expect(
+        attempts,
+        greaterThanOrEqualTo(2),
+        reason:
+            'the resume-batch instance must use Sync._messagesSyncMaxRetries '
+            'too, otherwise a single receive timeout discards the page',
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
 }
 
 Session _makeRetrySession(String id, {required int lastSeq}) {

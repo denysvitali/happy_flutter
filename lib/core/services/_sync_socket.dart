@@ -584,7 +584,10 @@ extension SyncSocket on Sync {
     // SessionsCacheStorage abstracts IndexedDB on web / MMKV on native.
     final cache = await SessionsCacheStorage.instance.getSessionsCacheAsync();
     if (cache == null) return;
+    await _restoreSessionsCacheFrom(cache);
+  }
 
+  Future<void> _restoreSessionsCacheFrom(Map<String, dynamic> cache) async {
     try {
       final sessionsRaw = cache['sessions'];
       final encryptedKeysRaw = cache['encryptedDataKeys'];
@@ -640,8 +643,25 @@ extension SyncSocket on Sync {
           _sessionEncryptedDataKeys[id] = key;
         }
         if (entries.isNotEmpty) {
+          // Per-entry guard: one undecryptable key (rotated key, corrupt
+          // cache row) must not reject the whole Future.wait and fall into
+          // the catch-all below, which clears every restored session AND
+          // wipes the on-disk cache. The session is simply left without a
+          // data key and is re-fetched from the server on the next sync.
           final decrypted = await Future.wait(
-            entries.map((e) => encryption.decryptEncryptionKey(e.$2)),
+            entries.map((e) async {
+              try {
+                return await encryption.decryptEncryptionKey(e.$2);
+              } catch (error, stack) {
+                logger.warning(
+                  'Skipping cached session ${e.$1}: data key could not be '
+                  'decrypted during restore',
+                  error,
+                  stack,
+                );
+                return null;
+              }
+            }),
           );
           for (var i = 0; i < decrypted.length; i++) {
             final dk = decrypted[i];
@@ -657,13 +677,25 @@ extension SyncSocket on Sync {
           // so the wait time is the slowest single call instead of
           // the sum.
           //
-          // Errors are caught per-session inside the helper so a
-          // single bad row cannot fail the whole fan-out and abort
-          // the cold-start restore (unhandled async error → crash).
+          // Errors are caught per-session so a single bad row cannot fail
+          // the whole fan-out and abort the cold-start restore. Only the
+          // `openEncryption` call inside the helper is guarded, so the guard
+          // is repeated here for the surrounding lookup/eviction steps —
+          // otherwise one throw rejects the Future.wait and the catch-all
+          // below drops every restored session and the on-disk cache.
           await Future.wait(
-            sessionKeys.entries.map(
-              (e) => _ensureSessionEncryptionInitialized(e.key, e.value),
-            ),
+            sessionKeys.entries.map((e) async {
+              try {
+                await _ensureSessionEncryptionInitialized(e.key, e.value);
+              } catch (error, stack) {
+                logger.warning(
+                  'Skipping cached session ${e.key}: encryption could not be '
+                  'initialized during restore',
+                  error,
+                  stack,
+                );
+              }
+            }),
           );
         }
       }

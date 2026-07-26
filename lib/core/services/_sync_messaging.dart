@@ -1636,11 +1636,17 @@ extension SyncMessaging on Sync {
       _applyPermissionRequests(sessionId);
 
       // Move the lower boundary back to cover the page we just fetched.
-      if (startSeq == 0) {
-        // Reaching seq 0 means the whole history has been paginated. Pin it
-        // so [_ensureFirstLoadedSeq] cannot re-arm the boundary from the
-        // in-memory minimum after the newest-N trim drops the oldest rows —
-        // that turned every tail message into another history re-download.
+      if (startSeq == 0 && !_sessionWindowAtVisibleCap(sessionId)) {
+        // Pin only on the genuine end-of-history signal: the request reached
+        // seq 0 AND the window is below the newest-N cap, so the rows we just
+        // fetched actually survived the trim and the whole history really is
+        // in memory. The pin stops [_ensureFirstLoadedSeq] from re-arming the
+        // boundary from the in-memory minimum after the trim drops the oldest
+        // rows — that turned every tail message into another history
+        // re-download. Pinning on `startSeq == 0` alone also pinned sessions
+        // larger than [Sync._maxVisibleSessionMessages], whose fetched pages
+        // are trimmed away again immediately, permanently killing "load
+        // older" for them.
         _sessionsHistoryFullyLoaded.add(sessionId);
       }
       _sessionFirstLoadedSeq[sessionId] = startSeq == 0 ? 0 : startSeq + 1;
@@ -1689,6 +1695,12 @@ extension SyncMessaging on Sync {
   /// return false because nothing updates the boundary.  This method
   /// detects that staleness and corrects it by scanning the in-memory
   /// messages for their minimum seq.
+  /// Whether the in-memory window for [sessionId] is at the newest-N trim
+  /// cap, i.e. older rows are discarded as soon as they are fetched.
+  bool _sessionWindowAtVisibleCap(String sessionId) =>
+      (_sessionMessages[sessionId]?.length ?? 0) >=
+      Sync._maxVisibleSessionMessages;
+
   void _ensureFirstLoadedSeq(String sessionId) {
     // A session that has already been paginated back to seq 0 has no older
     // history on the server, so a rising in-memory minimum only means the

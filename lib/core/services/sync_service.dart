@@ -235,8 +235,6 @@ class Sync {
   /// far back the aggressive phase can reach.
   static const int _orphanAggressiveWalkbackSequences = 2500;
 
-  /// Floor between two consecutive walk-back pages in aggressive mode.
-  ///
   /// Per-page fetch size for [/v3/sessions/:id/messages].
   ///
   /// Previously 1000 — which on outlier sessions with large encrypted
@@ -256,16 +254,6 @@ class Sync {
 
   /// Per-page fetch size for the automatic orphan-recovery walk-back.
   ///
-  /// Was 500 — the only call site in the app that asked for that many rows.
-  /// On sessions with large encrypted payloads (~7.6 KB/row observed) that is
-  /// ~1.5 MB per request, which needs ~1.2 Mbit/s sustained to fit the
-  /// per-page timeout; production traces show these requests timing out
-  /// client-side at 8.1 s while the server had produced the body in 94.8 ms.
-  ///
-  /// The walk-back's reach is budgeted in *sequences*
-  /// ([_orphanFetchOlderMaxPageSequences] and
-  /// [_orphanAggressiveWalkbackSequences]), not pages, so a smaller page
-  /// costs more round-trips but covers exactly the same seq range.
   /// Kept at 500 deliberately. Production traces showed this request
   /// timing out client-side at 8.1 s on ~1.5 MB bodies the server had
   /// produced in 94.8 ms — but the cause was the 8 s receive budget, now

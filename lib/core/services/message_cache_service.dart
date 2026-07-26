@@ -135,6 +135,22 @@ class MessageCacheService {
       _touchWebLru(sessionId);
     }
 
+    // Emit the read span for EVERY read, hit or miss. Emitting it only on
+    // slow reads made the metric self-selecting: the dashboard could not tell
+    // "cache is fast" from "cache is never read", and misses were invisible.
+    OpenTelemetryService()
+        .startTrace(
+          'cache.messages.read',
+          attributes: {
+            'session.id': sessionId,
+            'message.count': messages.length,
+            'cache.elapsed_ms': elapsedMs,
+            'cache.hit': messages.isNotEmpty,
+            'cache.slow': elapsedMs >= _slowCacheReadMs,
+          },
+        )
+        ?.end();
+
     if (messages.isEmpty) {
       return [];
     }
@@ -156,16 +172,6 @@ class MessageCacheService {
           },
         ),
       );
-      OpenTelemetryService()
-          .startTrace(
-            'cache.messages.read',
-            attributes: {
-              'session.id': sessionId,
-              'message.count': messages.length,
-              'cache.elapsed_ms': elapsedMs,
-            },
-          )
-          ?.end();
     }
     return messages;
   }

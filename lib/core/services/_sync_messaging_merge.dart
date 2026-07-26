@@ -505,9 +505,10 @@ extension SyncMessagingMerge on Sync {
     // the early Agents, which is why the cadence is a pinned contract (see
     // test/integration/orphan_cold_start_15_agents_e2e_test.dart). The cost
     // that originally motivated a floor here came from 500-row ~1.5 MB pages
-    // that were then discarded; the page is now 100 rows and the at-visible-cap
-    // case below returns before fetching at all, so the remaining aggressive
-    // pages are the productive ones.
+    // that were then discarded: the page is still 500 rows, but that cost is
+    // now absorbed by the 30 s receive timeout plus the InvalidateSync retry,
+    // and the at-visible-cap case below returns before fetching at all, so the
+    // remaining aggressive pages are the productive ones.
     final canRetryFetch =
         useAggressiveThrottle ||
         nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
