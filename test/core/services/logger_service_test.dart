@@ -460,6 +460,19 @@ void main() {
       expect(testLogger.debugSentryEmitCount, 1);
     });
 
+    test('a backwards clock jump does not stall the token bucket', () {
+      for (var i = 0; i < 100; i++) {
+        testLogger.warning('drain shape ${_alphabet[i % 26]}$i x');
+      }
+      expect(testLogger.debugSentryEmitCount, 20);
+
+      // NTP corrects a 30-minutes-fast device backwards.
+      fakeNowMs -= const Duration(minutes: 30).inMilliseconds;
+      testLogger.warning('post jump warning zzz');
+
+      expect(testLogger.debugSentryEmitCount, 21);
+    });
+
     test('errors are never throttled', () {
       for (var i = 0; i < 50; i++) {
         testLogger.error('identical failure');

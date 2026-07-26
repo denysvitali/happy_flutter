@@ -338,7 +338,15 @@ class LoggerService {
   /// Refill and consume one token. Returns false when the bucket is empty.
   bool _takeSentryToken(int nowMs) {
     final elapsedMs = nowMs - _sentryBucketRefilledAtMs;
-    if (elapsedMs > 0) {
+    if (elapsedMs < 0) {
+      // The wall clock jumped backwards (NTP correction, manual set, timezone
+      // hardware quirk). Without this the elapsed stays negative for the whole
+      // size of the jump and the bucket never refills again, silently dropping
+      // every warning. Treat a backwards jump as "time is unknown": rebase the
+      // stamp and refill, which errs towards sending rather than losing signal.
+      _sentryBucketRefilledAtMs = nowMs;
+      _sentryTokens = _sentryBucketCapacity.toDouble();
+    } else if (elapsedMs > 0) {
       final refill = elapsedMs * _sentryRefillPerMinute / 60000;
       if (refill >= 1) {
         _sentryTokens = (_sentryTokens + refill)
