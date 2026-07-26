@@ -51,9 +51,13 @@ extension SyncSocketEvents on Sync {
     );
     _unsubscribeSocketReconnected = socketIoClient.onReconnected(() {
       logger.info('Socket reconnected');
-      // Cancel reconnect watchdog — connection succeeded.
+      // Cancel reconnect watchdog — connection succeeded. Reset the
+      // backoff index too: without this the escalation from one outage
+      // (up to 120s) is inherited by the NEXT unrelated outage, so a
+      // later exhaustion would wait minutes before its first probe.
       _reconnectWatchdogTimer?.cancel();
       _reconnectWatchdogTimer = null;
+      _reconnectWatchdogAttempt = 0;
       // A reconnect may be due to a daemon upgrade that now supports
       // workflow-list. Clear the capability block so the next refresh
       // re-probes instead of silently skipping.

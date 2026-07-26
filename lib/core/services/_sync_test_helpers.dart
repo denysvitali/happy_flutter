@@ -379,6 +379,14 @@ extension SyncTestHelpers on Sync {
     _reconnectWatchdogTimer = null;
   }
 
+  /// Test helper: current reconnect-watchdog backoff index.
+  @visibleForTesting
+  int get testReconnectWatchdogAttempt => _reconnectWatchdogAttempt;
+
+  @visibleForTesting
+  set testReconnectWatchdogAttempt(int value) =>
+      _reconnectWatchdogAttempt = value;
+
   /// Test helper: check if _pendingUpdateSessionIds is empty.
   @visibleForTesting
   bool testPendingUpdateSessionIdsEmpty() => _pendingUpdateSessionIds.isEmpty;

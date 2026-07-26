@@ -631,6 +631,12 @@ what you have, you must use the options mode.
   Timer? _deferredSocketDisconnectTimer;
   Timer? _deferredResumeInvalidationTimer;
   Timer? _reconnectWatchdogTimer;
+
+  /// Consecutive watchdog fires since the last deliberate reconnect entry
+  /// point (resume / manual) or the last observed connection. Drives the
+  /// watchdog's exponential backoff; reset whenever the socket connects so
+  /// an unrelated later outage starts from the fast 15s probe again.
+  int _reconnectWatchdogAttempt = 0;
   Timer? _resumeBatchTimer;
   int? _lastResumeHttpFallbackAtMs;
   int _resumeConversationRefreshTotal = 0;
