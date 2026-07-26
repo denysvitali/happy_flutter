@@ -36,8 +36,26 @@ class FrameMetricsService {
   int _rasterMicros = 0;
   int _totalMicros = 0;
 
+  /// The `ui.jank` span for the current window, opened by the first frozen
+  /// frame and closed at the next flush.
+  ///
+  /// The span used to be started and ended in the same statement, which gave
+  /// it a duration of zero — `traces_span_metrics_duration_seconds{span_name=
+  /// "ui.jank"}` was therefore meaningless and the entire payload lived in
+  /// attributes. Spanning the real jank episode makes the duration usable.
+  OTelSpan? _jankSpan;
+  DateTime? _jankSpanStartedAt;
+  Duration? _lastJankWindow;
+
   @visibleForTesting
   bool get debugIsAttached => _attached;
+
+  /// Duration covered by the most recently emitted `ui.jank` span.
+  @visibleForTesting
+  Duration? get debugLastJankWindow => _lastJankWindow;
+
+  @visibleForTesting
+  void debugFlush() => _flush();
 
   @visibleForTesting
   bool get debugHasFlushTimer => _flushTimer?.isActive ?? false;
@@ -94,7 +112,24 @@ class FrameMetricsService {
       if (_recentJank.length > _maxJankBuffer) {
         _recentJank.removeAt(0);
       }
+      _openJankSpan();
     }
+  }
+
+  /// Open the jank span on the first frozen frame of a window so it covers
+  /// the episode rather than an instant. Cheap: at most one span per flush
+  /// interval, and a no-op while OTel is still initialising.
+  void _openJankSpan() {
+    if (_jankSpan != null) return;
+    _jankSpanStartedAt = DateTime.now();
+    _jankSpan = OpenTelemetryService().startTrace(
+      'ui.jank',
+      attributes: {
+        // Stamped at the moment the jank happened, not at flush time — the
+        // user may well have navigated away by then.
+        'current_route': PerformanceContextService().currentRoute ?? 'unknown',
+      },
+    );
   }
 
   @visibleForTesting
@@ -115,6 +150,11 @@ class FrameMetricsService {
 
     final snapshot = List<int>.from(_recentJank);
     _recentJank.clear();
+    final jankSpan = _jankSpan;
+    final jankStartedAt = _jankSpanStartedAt;
+    _jankSpan = null;
+    _jankSpanStartedAt = null;
+    _lastJankWindow = null;
     final frameCount = _frameCount;
     final slowFrameCount = _slowFrameCount;
     final frozenFrameCount = _frozenFrameCount;
@@ -151,10 +191,19 @@ class FrameMetricsService {
         attributes: {...attributes, 'classification': 'frozen'},
       );
 
-    if (snapshot.isEmpty) return;
+    if (snapshot.isEmpty) {
+      // Defensive: the span is only opened alongside a jank sample, but never
+      // leak an unended span if that ever stops holding.
+      jankSpan?.end();
+      return;
+    }
 
     final avgMs = snapshot.reduce((a, b) => a + b) / snapshot.length;
     final maxMs = snapshot.reduce((a, b) => a > b ? a : b);
+    final window = jankStartedAt == null
+        ? null
+        : DateTime.now().difference(jankStartedAt);
+    _lastJankWindow = window;
 
     if (_enableSentryTransactions) {
       final transaction =
@@ -170,17 +219,27 @@ class FrameMetricsService {
       unawaited(transaction.finish());
     }
 
-    OpenTelemetryService()
-        .startTrace(
-          'ui.jank',
-          attributes: {
-            'frame.count': snapshot.length,
-            'frame.avg_ms': avgMs.round(),
-            'frame.max_ms': maxMs,
-            'current_route': route,
-          },
-        )
-        ?.end();
+    if (window != null) {
+      otel.recordDuration(
+        'app.ui.jank_window',
+        window,
+        attributes: attributes,
+        description: 'Length of a janky-frame episode',
+      );
+    }
+
+    // The span was opened by the first frozen frame of this window (see
+    // [_openJankSpan]), so it carries a real duration. Correlating counts go
+    // on at close, when they are known.
+    jankSpan
+      ?..setAttribute('frame.count', snapshot.length)
+      ..setAttribute('frame.avg_ms', avgMs.round())
+      ..setAttribute('frame.max_ms', maxMs)
+      ..setAttribute('frame.frozen_count', frozenFrameCount)
+      ..setAttribute('frame.slow_count', slowFrameCount)
+      ..setAttribute('frame.window_count', frameCount)
+      ..setAttribute('route.at_flush', route)
+      ..end();
   }
 
   /// Detach and clean up. Call on app dispose.

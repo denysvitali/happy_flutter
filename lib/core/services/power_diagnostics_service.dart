@@ -318,7 +318,9 @@ class PowerDiagnosticsService extends ChangeNotifier {
         PowerDiagnosticsOtelReporter.instance.recordSocketDisconnect();
       case ConnectionStatus.error:
         _socketErrors++;
-        PowerDiagnosticsOtelReporter.instance.recordSocketError();
+        PowerDiagnosticsOtelReporter.instance.recordSocketError(
+          reason: 'status_error',
+        );
       case ConnectionStatus.connecting:
         break;
     }
@@ -327,8 +329,54 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordSocketError(String error) {
     _socketErrors++;
-    PowerDiagnosticsOtelReporter.instance.recordSocketError();
+    // The raw string is kept for the local event log but bucketed before it
+    // becomes a metric label — socket error strings embed hosts, ports and
+    // errno text, so exporting them raw would be unbounded cardinality.
+    PowerDiagnosticsOtelReporter.instance.recordSocketError(
+      reason: classifySocketError(error),
+    );
     _addEvent(PowerDiagnosticEventType.socket, 'error=$error');
+  }
+
+  /// Bucket a raw socket error string into one of a fixed set of reasons.
+  ///
+  /// The returned value is safe to use as a metric label. Order matters:
+  /// the more specific patterns are checked first.
+  static String classifySocketError(String error) {
+    final text = error.toLowerCase();
+    if (text.contains('timeout') || text.contains('timed out')) {
+      return 'timeout';
+    }
+    if (text.contains('unauthor') ||
+        text.contains('forbidden') ||
+        text.contains('401') ||
+        text.contains('403')) {
+      return 'unauthorized';
+    }
+    if (text.contains('certificate') ||
+        text.contains('handshake') ||
+        text.contains('tls') ||
+        text.contains('ssl')) {
+      return 'tls';
+    }
+    if (text.contains('failed host lookup') ||
+        text.contains('nodename') ||
+        text.contains('dns')) {
+      return 'dns';
+    }
+    if (text.contains('refused')) return 'connection_refused';
+    if (text.contains('unreachable') || text.contains('no route')) {
+      return 'network_unreachable';
+    }
+    if (text.contains('reset') || text.contains('broken pipe')) {
+      return 'connection_reset';
+    }
+    if (text.contains('closed')) return 'closed';
+    if (text.contains('websocket') || text.contains('transport')) {
+      return 'transport';
+    }
+    if (text.isEmpty) return 'empty';
+    return 'unknown';
   }
 
   void recordSocketEvent(String event, {String? updateType}) {
@@ -388,11 +436,16 @@ class PowerDiagnosticsService extends ChangeNotifier {
   void recordSyncInvalidation(String name, {bool global = false}) {
     _syncInvalidations++;
     _recordActivity(sync: true);
+    final domain = _boundedLabel(name);
     if (global) {
       _globalSyncInvalidations++;
-      PowerDiagnosticsOtelReporter.instance.recordGlobalSyncInvalidation();
+      PowerDiagnosticsOtelReporter.instance.recordGlobalSyncInvalidation(
+        domain: domain,
+      );
     }
-    PowerDiagnosticsOtelReporter.instance.recordSyncInvalidation();
+    PowerDiagnosticsOtelReporter.instance.recordSyncInvalidation(
+      domain: domain,
+    );
     _increment(_syncInvalidationCounts, name);
     _addEvent(
       PowerDiagnosticEventType.sync,
@@ -402,7 +455,9 @@ class PowerDiagnosticsService extends ChangeNotifier {
 
   void recordSyncBackgroundSkip(String name) {
     _syncBackgroundSkips++;
-    PowerDiagnosticsOtelReporter.instance.recordSyncBackgroundSkip();
+    PowerDiagnosticsOtelReporter.instance.recordSyncBackgroundSkip(
+      domain: _boundedLabel(name),
+    );
     _increment(_syncBackgroundSkipCounts, name);
     _addEvent(PowerDiagnosticEventType.sync, 'background skip $name');
   }
@@ -422,10 +477,20 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _addEvent(PowerDiagnosticEventType.outbox, 'attempt localId=$localId');
   }
 
-  void recordOutboxFailure(String localId) {
+  /// [localId] identifies one message and is deliberately NOT exported as a
+  /// metric label — it would create a new Prometheus series per sent message.
+  /// Pass [reason] (a bucketed failure class such as `network`, `timeout`,
+  /// `rejected`) when the caller knows why the delivery failed.
+  void recordOutboxFailure(String localId, {String? reason}) {
     _outboxFailures++;
-    PowerDiagnosticsOtelReporter.instance.recordOutboxFailure();
-    _addEvent(PowerDiagnosticEventType.outbox, 'failure localId=$localId');
+    PowerDiagnosticsOtelReporter.instance.recordOutboxFailure(
+      reason: reason == null ? 'unknown' : _boundedLabel(reason),
+    );
+    final reasonText = reason == null ? '' : ' reason=$reason';
+    _addEvent(
+      PowerDiagnosticEventType.outbox,
+      'failure localId=$localId$reasonText',
+    );
   }
 
   String exportText() {
@@ -499,6 +564,22 @@ class PowerDiagnosticsService extends ChangeNotifier {
     counts[key] = (counts[key] ?? 0) + 1;
   }
 
+  static final RegExp _labelUnsafe = RegExp('[^a-z0-9_.-]+');
+
+  /// Normalise a caller-supplied identifier into something safe to export as
+  /// a metric label: lower-cased, punctuation collapsed, length-capped.
+  ///
+  /// This is a guard rail, not a licence — it bounds the *shape* of a value,
+  /// not the number of distinct values. Never pass an id through it.
+  static String _boundedLabel(String value) {
+    final normalized = value
+        .toLowerCase()
+        .replaceAll(_labelUnsafe, '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+    if (normalized.isEmpty) return 'unknown';
+    return normalized.length <= 48 ? normalized : normalized.substring(0, 48);
+  }
+
   static final RegExp _uuidPathSegment = RegExp(
     r'/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
     r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)',
@@ -561,7 +642,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
     if (!socket && !rpc && !http && !sync) return;
     final bucketStartMs =
         (DateTime.now().millisecondsSinceEpoch ~/ _activityBucketMs) *
-            _activityBucketMs;
+        _activityBucketMs;
     if (_activity.isEmpty) {
       _activity.add(_MutableActivityBucket(bucketStartMs));
     } else {
@@ -624,12 +705,12 @@ class _MutableActivityBucket {
   int sync = 0;
 
   PowerDiagnosticSample toSample() => PowerDiagnosticSample(
-        bucketStartMs: bucketStartMs,
-        socket: socket,
-        rpc: rpc,
-        http: http,
-        sync: sync,
-      );
+    bucketStartMs: bucketStartMs,
+    socket: socket,
+    rpc: rpc,
+    http: http,
+    sync: sync,
+  );
 }
 
 class _MutableHttpEndpointStats {

@@ -20,12 +20,43 @@ const sentryDsn =
 /// Performance sampling:
 /// - release: very low rate to limit runtime overhead
 /// - non-release: higher rate to make local/preview diagnosis practical
-double get sentryTracesSampleRate => kReleaseMode ? 0.02 : 0.10;
+///
+/// The release rate is the single biggest lever on how much performance data
+/// we can see: at 0.02, 98% of transactions are dropped, so a regression has
+/// to be ~50x more frequent than a competing hypothesis before it is
+/// distinguishable in GlitchTip. Raising it is not free — every sampled
+/// transaction costs main-thread serialization on a mobile device and
+/// GlitchTip storage — so the default stays conservative and the value is
+/// overridable per build instead:
+///
+///   flutter build apk --dart-define=SENTRY_TRACES_SAMPLE_RATE=0.2
+///
+/// Prefer bumping this temporarily on a debug build when chasing a specific
+/// latency question, rather than raising the shipped default.
+const _sentryTracesSampleRateOverride = String.fromEnvironment(
+  'SENTRY_TRACES_SAMPLE_RATE',
+);
+double get sentryTracesSampleRate {
+  final override = double.tryParse(_sentryTracesSampleRateOverride);
+  if (override != null && override >= 0 && override <= 1) return override;
+  return kReleaseMode ? 0.02 : 0.10;
+}
 const sentryProfilesSampleRate = 0.0;
 const sentryReplaySessionSampleRate = 0.0;
 const sentryReplayOnErrorSampleRate = 0.0;
 const sentryAttachScreenshot = false;
-const sentryEnableFrameMetrics = false;
+
+/// Frame-metrics transactions from `FrameMetricsService`.
+///
+/// Off by default: jank is already exported to OTel as
+/// `app.ui.frame_*` histograms and a `ui.jank` span, and duplicating it into
+/// Sentry transactions doubles the main-thread cost for no extra signal.
+/// Build with `--dart-define=SENTRY_ENABLE_FRAME_METRICS=true` to compare the
+/// two pipelines. This used to be a plain `const false`, which made the
+/// Sentry branch in `FrameMetricsService._flush` unreachable dead code.
+const sentryEnableFrameMetrics = bool.fromEnvironment(
+  'SENTRY_ENABLE_FRAME_METRICS',
+);
 const sentrySendDefaultPii = bool.fromEnvironment(
   'SENTRY_SEND_DEFAULT_PII',
   defaultValue: false,

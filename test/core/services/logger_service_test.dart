@@ -299,4 +299,96 @@ void main() {
       expect(testLogger.count, equals(1));
     });
   });
+
+  // Regression guard for the release-mode signal blackhole: `log()` used to
+  // bail on `!shouldLog(level)` before reaching `_forwardToSentry` /
+  // `_forwardToOtel`, so a shipped build with developer mode off exported
+  // ONLY `LogLevel.error`. All ~400 `logger.warning` call sites produced
+  // zero Sentry events and zero OTel log records.
+  group('LoggerService release-mode telemetry export', () {
+    final testLogger = logger;
+    late List<LogEntry> forwarded;
+
+    /// Entries the logger emits about its own Sentry transport are noise
+    /// here — they are triggered asynchronously by the un-initialised
+    /// Sentry hub in the test environment.
+    List<String> exportedMessages() => forwarded
+        .map((entry) => entry.message)
+        .where((message) => !message.startsWith('[Sentry]'))
+        .toList();
+
+    setUp(() {
+      forwarded = <LogEntry>[];
+      testLogger
+        ..clear()
+        ..setMinLevel(LogLevel.debug)
+        ..setDeveloperMode(false)
+        ..installOtelSink(forwarded.add)
+        ..debugReleaseModeOverride = true;
+    });
+
+    tearDown(() {
+      testLogger
+        ..removeOtelSink()
+        ..debugReleaseModeOverride = null
+        ..clear();
+    });
+
+    test('warning in a release build still reaches the forwarders', () {
+      testLogger.warning('socket reconnect storm');
+
+      expect(exportedMessages(), contains('socket reconnect storm'));
+    });
+
+    test('warning in a release build stays out of the ring buffer', () {
+      testLogger.warning('socket reconnect storm');
+
+      // Console/DevLogs noise suppression is preserved: only the export
+      // path was ever supposed to be unconditional.
+      expect(testLogger.getLogsByLevel(LogLevel.warning), isEmpty);
+    });
+
+    test('error in a release build is both buffered and forwarded', () {
+      testLogger.error('decrypt failed');
+
+      expect(exportedMessages(), contains('decrypt failed'));
+      expect(testLogger.getLogsByLevel(LogLevel.error), hasLength(1));
+    });
+
+    test('debug and info in a release build are dropped entirely', () {
+      testLogger
+        ..debug('chatty')
+        ..info('also chatty');
+
+      expect(exportedMessages(), isEmpty);
+      expect(testLogger.count, equals(0));
+    });
+
+    test('shouldLog admits warnings but not info in a release build', () {
+      expect(testLogger.shouldLog(LogLevel.debug), isFalse);
+      expect(testLogger.shouldLog(LogLevel.info), isFalse);
+      expect(testLogger.shouldLog(LogLevel.warning), isTrue);
+      expect(testLogger.shouldLog(LogLevel.error), isTrue);
+    });
+
+    test('minLevel still wins over the release export path', () {
+      testLogger.setMinLevel(LogLevel.error);
+      addTearDown(() => testLogger.setMinLevel(LogLevel.debug));
+
+      testLogger.warning('suppressed by minLevel');
+
+      expect(exportedMessages(), isEmpty);
+      expect(testLogger.shouldLog(LogLevel.warning), isFalse);
+    });
+
+    test('developer mode restores full capture in a release build', () {
+      testLogger.setDeveloperMode(true);
+      addTearDown(() => testLogger.setDeveloperMode(false));
+
+      testLogger.info('operational detail');
+
+      expect(exportedMessages(), contains('operational detail'));
+      expect(testLogger.getLogsByLevel(LogLevel.info), hasLength(1));
+    });
+  });
 }
