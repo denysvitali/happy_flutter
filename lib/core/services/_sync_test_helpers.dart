@@ -330,6 +330,12 @@ extension SyncTestHelpers on Sync {
     _sessionsWithPendingSocketMessages.addAll(sessionIds);
   }
 
+  /// Test helper: restore sessions from an explicit cache payload, skipping
+  /// the platform storage read (MMKV is not initialized under `flutter test`).
+  @visibleForTesting
+  Future<void> testRestoreSessionsCacheFrom(Map<String, dynamic> cache) =>
+      _restoreSessionsCacheFrom(cache);
+
   /// Test helper: run the deferred-resume message batch (normally driven by
   /// a repeating 2 s timer) so tests can exercise the InvalidateSync
   /// instances it creates.
