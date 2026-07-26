@@ -1282,6 +1282,56 @@ extension SyncMessagingSend on Sync {
     }
   }
 
+  /// Whether the outbox currently owns a retry for [localId].
+  ///
+  /// The chat screen's stall watchdog uses this to avoid telling the user
+  /// "Retry queued" while the original send is still in flight and no
+  /// retry exists.
+  bool isOutboxPending(String localId) => messageOutbox.contains(localId);
+
+  /// Re-apply outbox ownership to a session's rows.
+  ///
+  /// The outbox republishes statuses through `onStatusChanged`, but that
+  /// callback drops everything for sessions whose messages are not loaded
+  /// yet — which is every session at cold start except the few warmed by
+  /// `_restoreRecentCachedMessagesAsync()`. A row restored from MMKV with
+  /// its last persisted `'sending'` status would therefore spin forever
+  /// and never show the retry affordance (which only renders for
+  /// `'failed'`), leaving the preserved dead-letter payload unreachable.
+  ///
+  /// Call this whenever a session's messages become visible/loaded.
+  /// Returns the number of rows whose status changed.
+  int reconcileOutboxStatuses(String sessionId) {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs == null || msgs.isEmpty) return 0;
+    var changed = 0;
+    void apply(String localId, String status) {
+      final idx = msgs.indexWhere((m) => _matchesLocalId(m, localId));
+      if (idx == -1) return;
+      if (msgs[idx]['sendStatus'] == status) return;
+      msgs[idx] = {...msgs[idx], 'sendStatus': status};
+      changed++;
+    }
+
+    for (final entry in messageOutbox.entries) {
+      if (entry.sessionId != sessionId) continue;
+      apply(entry.localId, 'pending');
+    }
+    for (final entry in messageOutbox.deadEntries) {
+      if (entry.sessionId != sessionId) continue;
+      apply(entry.localId, 'failed');
+    }
+    if (changed > 0) {
+      logger.info(
+        '[reconcileOutboxStatuses] restored outbox state for '
+        'session=$sessionId rows=$changed',
+      );
+      _invalidateMessageCaches(sessionId);
+      _notifySessionMessagesChanged(sessionId);
+    }
+    return changed;
+  }
+
   /// Last-resort retry path: rebuild the send from the outbox
   /// dead-letter bucket when the in-memory chat row can no longer
   /// supply the original `raw` record (cold start, evicted cache, or a

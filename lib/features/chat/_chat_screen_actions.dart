@@ -244,6 +244,13 @@ extension _ChatScreenActions on _ChatScreenState {
         );
       }
       final restoredCount = sync.messagesForSession(sessionId).length;
+      // Rows restored from the MMKV cache carry their last persisted
+      // status, which is 'sending' for anything the outbox took over
+      // before the app was killed. The outbox republishes statuses only
+      // at startup, into a message map this session was not yet part of,
+      // so reconcile here — otherwise the row spins forever and the
+      // 'failed'-only retry affordance never appears.
+      sync.reconcileOutboxStatuses(sessionId);
       cacheSpan
         ..setData('cachedCount', restoredCount)
         ..setData('timedOut', cacheRestoreTimedOut);
