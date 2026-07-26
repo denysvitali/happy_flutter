@@ -257,6 +257,10 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
           fontFamily: 'monospace',
           fontSize: widget.fontSize,
           height: widget.lineHeight / widget.fontSize,
+          // Pinned, not inherited: code is rendered in overlays and routes
+          // that may lack a Material ancestor, whose fallback text style
+          // carries a yellow double underline.
+          decoration: TextDecoration.none,
         ),
       ),
     );

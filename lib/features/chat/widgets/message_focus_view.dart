@@ -218,20 +218,29 @@ class _MessageFocusOverlayState extends State<MessageFocusOverlay> {
               ),
             ),
             Positioned.fill(
-              child: SafeArea(
-                left: false,
-                right: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.md,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Flexible(child: _focusedCopy()),
-                      const SizedBox(height: _kFocusGap),
-                      _card(),
-                    ],
+              // A transparent Material over the whole overlay. This route is
+              // a PopupRoute, so without one the message copy inherits
+              // MaterialApp's "consider putting your text in a Material"
+              // fallback style — which paints a yellow double underline under
+              // every span that does not set `decoration` itself (code
+              // blocks, inline code, line numbers).
+              child: Material(
+                type: MaterialType.transparency,
+                child: SafeArea(
+                  left: false,
+                  right: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Flexible(child: _focusedCopy()),
+                        const SizedBox(height: _kFocusGap),
+                        _card(),
+                      ],
+                    ),
                   ),
                 ),
               ),
