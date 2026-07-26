@@ -352,109 +352,110 @@ class MessageFocusCard extends StatelessWidget {
         ),
     ];
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      decoration: BoxDecoration(
+    // A Material surface (not a plain Container) so the action row's ink
+    // responses have the ancestor they require, and so the card gets its
+    // elevation shadow over the blurred conversation.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      child: Material(
         color: cs.surfaceContainerHigh.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: cs.shadow.withValues(alpha: AppOpacity.subtle),
-            blurRadius: AppSpacing.xxl,
-            offset: const Offset(0, 8),
+        elevation: 6,
+        shadowColor: cs.shadow.withValues(alpha: AppOpacity.medium),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          side: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
           ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.xs,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l10n.messageDetailDetails,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.messageDetailDetails,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
+                  IconButton(
+                    onPressed: onClose,
+                    visualDensity: VisualDensity.compact,
+                    tooltip: l10n.commonClose,
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (rows.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
                 ),
-                IconButton(
-                  onPressed: onClose,
-                  visualDensity: VisualDensity.compact,
-                  tooltip: l10n.commonClose,
-                  icon: Icon(
-                    Icons.close_rounded,
-                    size: 18,
+                child: Text(
+                  l10n.messageDetailNoDetails,
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: cs.onSurfaceVariant,
                   ),
                 ),
-              ],
+              )
+            else
+              ...rows,
+            Divider(
+              height: AppSpacing.lg,
+              color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
             ),
-          ),
-          if (rows.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.sm,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
               ),
-              child: Text(
-                l10n.messageDetailNoDetails,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            )
-          else
-            ...rows,
-          Divider(
-            height: AppSpacing.lg,
-            color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              0,
-              AppSpacing.md,
-              AppSpacing.md,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _FocusAction(
-                    icon: Icons.copy_rounded,
-                    label: l10n.commonCopy,
-                    onPressed: onCopy,
-                  ),
-                ),
-                Expanded(
-                  child: _FocusAction(
-                    icon: Icons.text_fields_rounded,
-                    label: l10n.messageFocusSelectText,
-                    onPressed: onSelectText,
-                  ),
-                ),
-                if (!kIsWeb && text.trim().isNotEmpty && messageId != null)
+              child: Row(
+                children: [
                   Expanded(
-                    child: _SpeakAction(
-                      messageId: messageId,
-                      messageText: text,
+                    child: _FocusAction(
+                      icon: Icons.copy_rounded,
+                      label: l10n.commonCopy,
+                      onPressed: onCopy,
                     ),
                   ),
-              ],
+                  Expanded(
+                    child: _FocusAction(
+                      icon: Icons.text_fields_rounded,
+                      label: l10n.messageFocusSelectText,
+                      onPressed: onSelectText,
+                    ),
+                  ),
+                  if (!kIsWeb && text.trim().isNotEmpty && messageId != null)
+                    Expanded(
+                      child: _SpeakAction(
+                        messageId: messageId,
+                        messageText: text,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
