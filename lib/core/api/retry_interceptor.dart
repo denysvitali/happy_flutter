@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
-import '../models/auth.dart';
 import '../services/logger_service.dart' show logger;
 import '../services/token_refresh_manager.dart';
 
@@ -26,38 +25,117 @@ bool isTransientConnectionError(DioException error) {
       inner.contains('Software caused connection abort');
 }
 
-/// Retry interceptor for Dio with exponential backoff and token refresh.
+/// Retry interceptor for Dio with exponential backoff.
 ///
-/// Retries transient failures:
+/// **Status failures never reach [onError].** [ApiClient] configures Dio
+/// with `validateStatus: (_) => true` so every call site can inspect a
+/// [Response] for any status instead of catching a [DioException] — which
+/// also means Dio never raises for a 500/503/429 and the error chain only
+/// ever sees transport failures (timeouts, connection errors, cancel).
+/// Status-code classification therefore lives in [onResponse]; [onError]
+/// keeps handling transport failures. Both funnel into the same
+/// backoff-and-refetch path.
+///
+/// Retries:
 /// - 5xx server errors (500-599)
+/// - 429 (rate limit)
 /// - Network timeouts (connection, receive, send)
-/// - Connection errors (SocketException, HttpException)
-/// - 401 Unauthorized (triggers token refresh, then retries)
+/// - Connection errors (SocketException, HttpException, Cronet aborts)
 ///
 /// Does NOT retry:
-/// - 4xx client errors (400-499) except 429 (rate limit)
-/// - 403 Forbidden (requires re-authentication)
+/// - 4xx client errors (400-499) except 429
+/// - 401 Unauthorized — see [_handleUnauthorized]; the server has no
+///   refresh endpoint, so a 401 means "sign in again", not "retry"
 /// - Cancellation errors
-/// - Token refresh requests themselves
+/// - Requests carrying `extra['disableRetry'] == true`
+///
+/// The whole retry sequence is additionally bounded by
+/// [maxTotalElapsedMs]: without it, 4 attempts plus 1s+2s+4s of backoff
+/// (plus per-attempt timeouts) could keep a single logical send in flight
+/// for the better part of a minute.
 class RetryInterceptor extends Interceptor {
   RetryInterceptor({
     required Dio Function() dioGetter,
     int maxRetries = 3,
     int baseDelayMs = 1000,
     int maxDelayMs = 10000,
+    int maxTotalElapsedMs = 20000,
   }) : _dioGetter = dioGetter,
        _maxRetries = maxRetries,
        _baseDelayMs = baseDelayMs,
-       _maxDelayMs = maxDelayMs;
+       _maxDelayMs = maxDelayMs,
+       _maxTotalElapsedMs = maxTotalElapsedMs;
 
   final Dio Function() _dioGetter;
   final int _maxRetries;
   final int _baseDelayMs;
   final int _maxDelayMs;
+  final int _maxTotalElapsedMs;
   final Random _jitterRng = Random();
 
-  /// Path of the token refresh endpoint (to avoid infinite loops).
-  static const _refreshPath = '/v1/auth/refresh';
+  /// [RequestOptions.extra] key holding the number of retries already
+  /// performed for this request.
+  static const retryCountKey = '_retryCount';
+
+  /// [RequestOptions.extra] key holding the status code of the attempt
+  /// that was just retried (null when the attempt failed at the transport
+  /// level). Read by the tracing interceptor to close the failed attempt's
+  /// span before the next attempt opens a new one.
+  static const lastStatusKey = '_retryLastStatus';
+
+  /// [RequestOptions.extra] key holding the [DioExceptionType] name of the
+  /// attempt that was just retried.
+  static const lastErrorTypeKey = '_retryLastErrorType';
+
+  /// [RequestOptions.extra] key holding the epoch-ms timestamp at which the
+  /// retry sequence for this request started.
+  static const _retryStartKey = '_retryStartedAtMs';
+
+  /// Requests under this prefix are part of the (re-)authentication flow
+  /// itself and must not trigger another re-auth notification.
+  static const _authPathPrefix = '/v1/auth/';
+
+  @override
+  void onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) async {
+    final options = response.requestOptions;
+    final statusCode = response.statusCode;
+
+    if (statusCode == null || statusCode < 400) {
+      return handler.next(response);
+    }
+
+    if (statusCode == 401) {
+      _handleUnauthorized(options);
+      return handler.next(response);
+    }
+
+    if (options.extra['disableRetry'] == true ||
+        !_isRetryableStatus(statusCode)) {
+      return handler.next(response);
+    }
+
+    final delay = _nextRetryDelay(options, statusCode: statusCode);
+    if (delay == null) {
+      return handler.next(response);
+    }
+
+    await Future<void>.delayed(delay);
+    _markAttempt(options, statusCode: statusCode);
+
+    try {
+      // `fetch` replays the full interceptor chain, so the retried attempt
+      // gets its own span / tracker entry; resolve (not next) here so the
+      // outer attempt does not record the same response a second time.
+      return handler.resolve(await _dioGetter().fetch<dynamic>(options));
+    } on DioException catch (e) {
+      return handler.reject(e);
+    } catch (e, s) {
+      return handler.reject(_unexpectedRetryError(options, e, s));
+    }
+  }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
@@ -66,85 +144,22 @@ class RetryInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    final responseStatusCode = err.response?.statusCode;
-    final requestPath = err.requestOptions.path;
+    final options = err.requestOptions;
+    final statusCode = err.response?.statusCode;
 
-    // Handle 401 Unauthorized: attempt token refresh then retry.
-    if (responseStatusCode == 401) {
-      // Don't attempt refresh on the refresh endpoint itself.
-      if (requestPath == _refreshPath) {
-        logger.warning(
-          'RetryInterceptor: 401 on refresh endpoint - '
-          'passing through (re-auth required)',
-        );
-        return handler.next(err);
-      }
-
-      // Don't retry if we've already attempted a token refresh for this
-      // request (prevents infinite loops).
-      final alreadyRefreshed =
-          err.requestOptions.extra['_refreshedToken'] as bool? ?? false;
-      if (alreadyRefreshed) {
-        logger.warning(
-          'RetryInterceptor: 401 after token refresh - '
-          're-authentication required',
-        );
-        return handler.next(err);
-      }
-
-      // Attempt token refresh.
-      logger.info(
-        'RetryInterceptor: 401 received - attempting token refresh for '
-        '${err.requestOptions.method} ${err.requestOptions.path}',
-      );
-
-      try {
-        final newToken = await tokenRefreshManager.refreshToken();
-
-        // Token refresh succeeded - update auth header and retry.
-        err.requestOptions.headers['Authorization'] = 'Bearer $newToken';
-        err.requestOptions.extra['_refreshedToken'] = true;
-
-        logger.info(
-          'RetryInterceptor: token refresh succeeded - retrying '
-          '${err.requestOptions.method} ${err.requestOptions.path}',
-        );
-
-        final response = await _dioGetter().fetch(err.requestOptions);
-        return handler.resolve(response);
-      } on AuthForbiddenError {
-        // Token refresh failed - credentials are invalid/expired.
-        // Pass the error through so the app can handle re-authentication.
-        logger.warning(
-          'RetryInterceptor: token refresh failed - '
-          're-authentication required',
-        );
-        return handler.next(err);
-      } catch (e) {
-        // Token refresh failed for other reasons (network, etc.).
-        // Pass the original 401 error through.
-        logger.warning(
-          'RetryInterceptor: token refresh threw $e - '
-          'passing through original 401',
-        );
-        return handler.next(err);
-      }
-    }
-
-    if (err.requestOptions.extra['disableRetry'] == true) {
+    // Reachable only for adapters/tests that do raise on status codes —
+    // the app's own Dio never does (see the class doc).
+    if (statusCode == 401) {
+      _handleUnauthorized(options);
       return handler.next(err);
     }
 
-    // Don't retry 4xx client errors except 429 (rate limit)
-    if (responseStatusCode != null &&
-        responseStatusCode >= 400 &&
-        responseStatusCode < 500 &&
-        responseStatusCode != 429) {
+    if (options.extra['disableRetry'] == true) {
       return handler.next(err);
     }
 
-    // Don't retry auth errors (403)
-    if (responseStatusCode == 403) {
+    // Don't retry 4xx client errors except 429 (rate limit).
+    if (statusCode != null && !_isRetryableStatus(statusCode)) {
       return handler.next(err);
     }
 
@@ -153,59 +168,148 @@ class RetryInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    // Get current retry count from request options
-    final currentRetry = err.requestOptions.extra['_retryCount'] as int? ?? 0;
-
-    if (currentRetry >= _maxRetries) {
-      logger.warning(
-        'RetryInterceptor: max retries ($_maxRetries) exceeded for '
-        '${err.requestOptions.method} ${err.requestOptions.path}',
-      );
+    final delay = _nextRetryDelay(
+      options,
+      statusCode: statusCode,
+      errorType: err.type,
+    );
+    if (delay == null) {
       return handler.next(err);
     }
 
-    // Calculate delay with exponential backoff and jitter
-    final delay = (_baseDelayMs * pow(2, currentRetry)).toInt();
-    final jitter = _jitterRng.nextInt(251); // 0–250ms
-    final clampedDelay = min(delay + jitter, _maxDelayMs);
-
-    logger.info(
-      'RetryInterceptor: retry ${currentRetry + 1}/$_maxRetries for '
-      '${err.requestOptions.method} ${err.requestOptions.path} '
-      'after $clampedDelay ms '
-      '(error: ${err.type}, status: $responseStatusCode)',
-    );
-
-    // Wait before retry
-    await Future<void>.delayed(Duration(milliseconds: clampedDelay));
-
-    // Increment retry count and retry request
-    final retryOptions = err.requestOptions;
-    retryOptions.extra['_retryCount'] = currentRetry + 1;
+    await Future<void>.delayed(delay);
+    _markAttempt(options, statusCode: statusCode, errorType: err.type);
 
     try {
-      final response = await _dioGetter().fetch(retryOptions);
+      final response = await _dioGetter().fetch<dynamic>(options);
       return handler.resolve(response);
     } on DioException catch (e) {
       // If retry fails, pass through onError again for potential retry
       return handler.next(e);
     } catch (e, s) {
       // Non-Dio errors should not be retried; log since this is unexpected
-      logger.error(
-        'RetryInterceptor: unexpected non-Dio error during retry for '
-        '${err.requestOptions.method} ${err.requestOptions.path}: $e',
-        e,
-        s,
-      );
-      unawaited(Sentry.captureException(e, stackTrace: s));
-      return handler.next(
-        DioException(
-          requestOptions: err.requestOptions,
-          error: e,
-          type: DioExceptionType.unknown,
-        ),
-      );
+      return handler.next(_unexpectedRetryError(options, e, s));
     }
+  }
+
+  /// Handles a 401 by telling the app to re-authenticate.
+  ///
+  /// SERVER CONTRACT (verified against the happy-server Go implementation):
+  /// there is no `POST /v1/auth/refresh` route — such a request falls
+  /// through to the grpc-gateway catch-all and returns 404 — and issued
+  /// tokens carry no `exp` claim, so they never expire
+  /// (`internal/server/auth/tokens.go`). A 401 therefore never means
+  /// "token expired": it means the signature no longer verifies (rotated
+  /// server secret, revoked or foreign token). Neither retrying nor
+  /// refreshing can fix that, so the only honest response is to surface
+  /// "re-authentication required" and let the request fail.
+  void _handleUnauthorized(RequestOptions options) {
+    if (options.path.startsWith(_authPathPrefix)) {
+      // The re-auth listener re-verifies the token via /v1/auth/verify;
+      // notifying from there would loop.
+      logger.info(
+        'RetryInterceptor: 401 on ${options.path} - '
+        'auth flow already in progress',
+      );
+      return;
+    }
+    logger.warning(
+      'RetryInterceptor: 401 on ${options.method} ${options.path} - '
+      're-authentication required (server tokens never expire, so this is '
+      'a revoked or otherwise unverifiable token)',
+    );
+    tokenRefreshManager.notifyReauthRequired();
+  }
+
+  /// Returns the backoff to wait before the next attempt, or null when the
+  /// request has exhausted its attempt count or its total time budget.
+  Duration? _nextRetryDelay(
+    RequestOptions options, {
+    int? statusCode,
+    DioExceptionType? errorType,
+  }) {
+    final label = '${options.method} ${options.path}';
+    final currentRetry = options.extra[retryCountKey] as int? ?? 0;
+    if (currentRetry >= _maxRetries) {
+      logger.warning(
+        'RetryInterceptor: max retries ($_maxRetries) exceeded for $label',
+      );
+      return null;
+    }
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final startedAtMs = options.extra[_retryStartKey] as int? ?? nowMs;
+    options.extra[_retryStartKey] = startedAtMs;
+    final elapsedMs = nowMs - startedAtMs;
+
+    // Exponential backoff with jitter, clamped to the per-wait maximum.
+    final backoffMs = min(
+      (_baseDelayMs * pow(2, currentRetry)).toInt() + _jitterRng.nextInt(251),
+      _maxDelayMs,
+    );
+
+    if (elapsedMs + backoffMs > _maxTotalElapsedMs) {
+      logger.warning(
+        'RetryInterceptor: retry budget ($_maxTotalElapsedMs ms) exhausted '
+        'after $elapsedMs ms for $label (giving up after $currentRetry '
+        'retries)',
+      );
+      return null;
+    }
+
+    logger.info(
+      'RetryInterceptor: retry ${currentRetry + 1}/$_maxRetries for $label '
+      'after $backoffMs ms '
+      '(status: $statusCode, error: $errorType)',
+    );
+    return Duration(milliseconds: backoffMs);
+  }
+
+  /// Records that the attempt described by [statusCode]/[errorType] failed
+  /// and a new one is about to start.
+  void _markAttempt(
+    RequestOptions options, {
+    int? statusCode,
+    DioExceptionType? errorType,
+  }) {
+    final currentRetry = options.extra[retryCountKey] as int? ?? 0;
+    options.extra[retryCountKey] = currentRetry + 1;
+    if (statusCode != null) {
+      options.extra[lastStatusKey] = statusCode;
+    } else {
+      options.extra.remove(lastStatusKey);
+    }
+    if (errorType != null) {
+      options.extra[lastErrorTypeKey] = errorType.name;
+    } else {
+      options.extra.remove(lastErrorTypeKey);
+    }
+  }
+
+  DioException _unexpectedRetryError(
+    RequestOptions options,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    logger.error(
+      'RetryInterceptor: unexpected non-Dio error during retry for '
+      '${options.method} ${options.path}: $error',
+      error,
+      stackTrace,
+    );
+    unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+    return DioException(
+      requestOptions: options,
+      error: error,
+      type: DioExceptionType.unknown,
+    );
+  }
+
+  /// 5xx and 429 are worth another attempt; every other 4xx is a client
+  /// error that will fail identically on retry.
+  static bool _isRetryableStatus(int statusCode) {
+    if (statusCode == 429) return true;
+    return statusCode >= 500 && statusCode < 600;
   }
 
   bool _isRetryable(DioException err) {
@@ -216,15 +320,10 @@ class RetryInterceptor extends Interceptor {
       return true;
     }
 
-    // Retry on 5xx server errors
-    if (err.response?.statusCode != null &&
-        err.response!.statusCode! >= 500 &&
-        err.response!.statusCode! < 600) {
-      return true;
-    }
-
-    // Retry on 429 (rate limit)
-    if (err.response?.statusCode == 429) {
+    // Retry on retryable status codes (only reachable when an adapter does
+    // raise for status; see the class doc).
+    final statusCode = err.response?.statusCode;
+    if (statusCode != null && _isRetryableStatus(statusCode)) {
       return true;
     }
 

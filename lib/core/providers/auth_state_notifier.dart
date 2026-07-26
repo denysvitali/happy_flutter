@@ -45,13 +45,16 @@ class AuthStateNotifier extends Notifier<AuthState> {
 
   void _handleTokenRefreshFailed() {
     logger.warning(
-      'AuthStateNotifier: token refresh failed - '
+      'AuthStateNotifier: token rejected by server - '
       're-verifying credentials',
     );
-    // Re-check authentication after a failed token refresh.
-    // This will attempt to verify the current token. If it fails
-    // (expected after refresh failure), the user will be signed out.
-    checkAuth();
+    // Re-check authentication after the server rejected the token.
+    // This runs while the user is mid-session, so it must NOT flip the
+    // state to `authenticating`: AuthGate swaps the whole subtree to the
+    // "checking sign-in" view for that state, which unmounts the chat
+    // screen and throws away the composer's staged input. Stay on the
+    // current state until the check produces a verdict.
+    unawaited(checkAuth(showProgress: false));
   }
 
   void beginAuthCheck() {
@@ -62,8 +65,17 @@ class AuthStateNotifier extends Notifier<AuthState> {
     state = AuthState.error;
   }
 
-  Future<void> checkAuth() async {
-    state = AuthState.authenticating;
+  /// Verifies the stored credentials and restores the synced state.
+  ///
+  /// Set [showProgress] to false for background re-checks of an already
+  /// mounted session: [AuthState.authenticating] makes `AuthGate` replace
+  /// the whole app subtree with the "checking sign-in" view, unmounting
+  /// whatever screen the user is on. The state then only changes once the
+  /// check has a verdict.
+  Future<void> checkAuth({bool showProgress = true}) async {
+    if (showProgress) {
+      state = AuthState.authenticating;
+    }
     try {
       logger.info('AuthStateNotifier: checking stored credentials');
       final credentials = await TokenStorage().getCredentials();

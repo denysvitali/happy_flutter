@@ -96,5 +96,37 @@ void main() {
       final notifier = container.read(authStateNotifierProvider.notifier);
       expect(notifier, isA<AuthStateNotifier>());
     });
+
+    test('checkAuth(showProgress: false) never publishes authenticating '
+        '(regression: a background re-check after the server rejected the '
+        'token flipped the state to authenticating, and AuthGate then '
+        'unmounted the live chat screen along with the composer input)',
+        () async {
+      final notifier = container.read(authStateNotifierProvider.notifier);
+      final seen = <AuthState>[];
+      container.listen<AuthState>(
+        authStateNotifierProvider,
+        (_, next) => seen.add(next),
+        fireImmediately: true,
+      );
+
+      await notifier.checkAuth(showProgress: false);
+
+      expect(seen, isNot(contains(AuthState.authenticating)));
+    });
+
+    test('checkAuth() still shows progress for a foreground check', () async {
+      final notifier = container.read(authStateNotifierProvider.notifier);
+      final seen = <AuthState>[];
+      container.listen<AuthState>(
+        authStateNotifierProvider,
+        (_, next) => seen.add(next),
+        fireImmediately: true,
+      );
+
+      await notifier.checkAuth();
+
+      expect(seen, contains(AuthState.authenticating));
+    });
   });
 }

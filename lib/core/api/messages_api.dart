@@ -8,6 +8,12 @@ import 'base_api_exception.dart';
 /// Messages API client
 /// Provides message operations for sessions
 /// Based on React Native's apiMessages.ts
+///
+/// NOTE: nothing in `lib/` constructs this class today — the sync layer
+/// talks to `/v3/sessions/<id>/messages` through raw [ApiClient] calls, so
+/// this class (and its tests) do not cover the shipping path. It is kept as
+/// the intended home for that transport; routing the sync layer through it
+/// is tracked separately.
 class MessagesApi {
   MessagesApi({ApiClient? client}) : _client = client ?? ApiClient();
   final ApiClient _client;

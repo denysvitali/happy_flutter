@@ -107,14 +107,18 @@ class ApiClient {
     final generation = ++_dioGeneration;
     final baseOptions = BaseOptions(
       baseUrl: serverUrl,
-      // 8s connect — bounds only the TCP+TLS handshake, not transfer.
-      // A healthy mobile connection establishes in well under a second;
-      // the previous 30s let a black-holed route (stale cellular dial
-      // after wake) hang the bootstrap calls (profile/settings/machines/
-      // sessions) for ~28-34s before failing, which Jaeger traced as the
-      // dominant cold-start/resume stall. 8s matches the proven
-      // Sync._messageFetchConnectTimeout and fails fast enough for the
-      // RetryInterceptor below to recover on the next backoff cycle.
+      // NOTE: on mobile these two are ONE budget, not two phases. The app
+      // runs on NativeAdapter (Cronet / cupertino_http) via
+      // ConversionLayerAdapter, which has no separate connect phase: it
+      // computes `connectTimeout + receiveTimeout` and applies the sum as a
+      // single `client.send(request).timeout(...)`, surfacing expiry as
+      // DioExceptionType.receiveTimeout. So connectTimeout is NOT an
+      // independent handshake bound and does NOT fail fast on a black-holed
+      // route (stale cellular dial after wake) — the effective ceiling for
+      // response headers is 8s + 15s = 23s here, and 8s + the per-request
+      // receiveTimeout on calls that override it (e.g. message fetches).
+      // Lower the *sum* to make requests fail faster; lowering only
+      // connectTimeout does nothing on device.
       connectTimeout: const Duration(seconds: 8),
       // 15s default receive — the 60s fallback was excessive for chat
       // fetches and allowed Cronet stalls to hang for too long.
@@ -122,6 +126,10 @@ class ApiClient {
       sendTimeout: const Duration(seconds: 30),
       contentType: 'application/json',
       responseType: ResponseType.json,
+      // Every status is "valid": call sites inspect `response.statusCode`
+      // instead of catching DioException. Consequence: Dio never raises for
+      // a 4xx/5xx, so status-based classification (retry, re-auth) must
+      // live in an onResponse interceptor — see [RetryInterceptor].
       validateStatus: (_) => true,
     );
 
@@ -132,13 +140,16 @@ class ApiClient {
     // lazily on the first request via [_ensureNativeAdapter];
     // see [initialize] for the rationale.
 
-    // Add retry interceptor first (executes last on error)
+    // Add retry interceptor first: it runs first on the response chain (so
+    // it can classify status failures, which `validateStatus` keeps out of
+    // the error chain) and last on the error chain.
     dio.interceptors.add(
       RetryInterceptor(
         dioGetter: () => dio,
-        maxRetries: 4,
+        maxRetries: 3,
         baseDelayMs: 1000,
         maxDelayMs: 10000,
+        maxTotalElapsedMs: 20000,
       ),
     );
 
@@ -166,7 +177,15 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          options.extra['_otelStart'] = DateTime.now().millisecondsSinceEpoch;
+          // A retried request re-enters onRequest with the *same*
+          // RequestOptions instance, so close the previous attempt's span
+          // before overwriting it — otherwise every failed attempt's span
+          // is created and never ended (never exported), and the surviving
+          // span reports only the last attempt's duration.
+          _endRetriedAttemptSpan(options);
+          final startedAtMs = DateTime.now().millisecondsSinceEpoch;
+          options.extra['_otelStart'] = startedAtMs;
+          options.extra['_otelFirstStart'] ??= startedAtMs;
           options.extra['_otelReqBytes'] = _estimateRequestBytes(options.data);
           // Parent the HTTP span under the active OTel span when one is
           // set on this isolate (e.g. chat.send_message wrapping the
@@ -176,22 +195,22 @@ class ApiClient {
           // from these headers) becomes a grandchild of chat.send_message
           // in the same trace.
           final activeSpan = OpenTelemetryService().currentSpan;
-          if (activeSpan != null) {
-            options.extra['_otelSpan'] = OpenTelemetryService().startChildSpan(
-              _otelHttpSpanName(options),
-              parent: activeSpan,
-              kind: SpanKind.client,
-              attributes: _otelHttpAttributes(options),
-            );
-          } else {
-            options.extra['_otelSpan'] = OpenTelemetryService().startTrace(
-              _otelHttpSpanName(options),
-              kind: SpanKind.client,
-              attributes: _otelHttpAttributes(options),
-            );
-          }
-          final span = options.extra['_otelSpan'] as OTelSpan?;
+          final span = activeSpan != null
+              ? OpenTelemetryService().startChildSpan(
+                  _otelHttpSpanName(options),
+                  parent: activeSpan,
+                  kind: SpanKind.client,
+                  attributes: _otelHttpAttributes(options),
+                )
+              : OpenTelemetryService().startTrace(
+                  _otelHttpSpanName(options),
+                  kind: SpanKind.client,
+                  attributes: _otelHttpAttributes(options),
+                );
           if (span != null) {
+            // Only store live spans: the presence of this key means "a span
+            // is open for the current attempt".
+            options.extra['_otelSpan'] = span;
             injectTraceContext(span.spanContext, options);
           }
           return handler.next(options);
@@ -267,6 +286,11 @@ class ApiClient {
                   extra: cachedResponse.extra,
                   headers: cachedResponse.headers,
                 ),
+                // Run the response chain for cache hits too, otherwise the
+                // span opened in onRequest is never ended (never exported)
+                // and the request tracker never sees the hit. The cache's
+                // own onResponse is a no-op here because `fromCache` is set.
+                true,
               );
             }
           }
@@ -354,9 +378,52 @@ class ApiClient {
       'http.request.body.size':
           options.extra['_otelReqBytes'] ?? _estimateRequestBytes(options.data),
       'http.cache_hit': options.extra['fromCache'] == true,
-      if (options.extra['_retryCount'] is int)
-        'http.retry_count': options.extra['_retryCount'] as int,
+      if (options.extra[RetryInterceptor.retryCountKey] is int) ...{
+        'http.retry_count':
+            options.extra[RetryInterceptor.retryCountKey] as int,
+        // 1-based index of the attempt this span covers.
+        'http.attempt':
+            (options.extra[RetryInterceptor.retryCountKey] as int) + 1,
+      },
     };
+  }
+
+  /// Ends the span of the attempt that just failed, if this request is
+  /// being retried.
+  ///
+  /// [RetryInterceptor] re-issues the failed [RequestOptions] as-is, so the
+  /// tracing interceptor sees the same `extra` map again. Without this the
+  /// previous span is simply overwritten: it never ends, so the span
+  /// processor never exports it and the retry sequence is invisible in
+  /// Jaeger except for a `http.retry_count` attribute on the last attempt.
+  static void _endRetriedAttemptSpan(RequestOptions options) {
+    final span = options.extra['_otelSpan'] as OTelSpan?;
+    if (span == null) return;
+    options.extra.remove('_otelSpan');
+
+    final startMs = options.extra['_otelStart'] as int?;
+    if (startMs != null) {
+      span.setAttribute(
+        'http.duration_ms',
+        DateTime.now().millisecondsSinceEpoch - startMs,
+      );
+    }
+    final retryCount = options.extra[RetryInterceptor.retryCountKey] as int?;
+    if (retryCount != null) {
+      span.setAttribute('http.attempt', retryCount);
+    }
+    final lastStatus = options.extra[RetryInterceptor.lastStatusKey] as int?;
+    if (lastStatus != null) {
+      span.setAttribute('http.response.status_code', lastStatus);
+    }
+    final lastErrorType =
+        options.extra[RetryInterceptor.lastErrorTypeKey] as String?;
+    if (lastErrorType != null) {
+      span.setAttribute('error.type', lastErrorType);
+    }
+    span
+      ..setAttribute('http.attempt.retried', true)
+      ..end(ok: false);
   }
 
   static String _otelHttpSpanName(RequestOptions options) {
@@ -372,23 +439,30 @@ class ApiClient {
   }) {
     final span = options.extra['_otelSpan'] as OTelSpan?;
     if (span == null) return;
+    // Drop the reference so a later interceptor pass (or a retry that
+    // reuses these options) cannot end the same span twice.
+    options.extra.remove('_otelSpan');
 
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
     final startMs = options.extra['_otelStart'] as int?;
     if (startMs != null) {
-      span.setAttribute(
-        'http.duration_ms',
-        DateTime.now().millisecondsSinceEpoch - startMs,
-      );
+      span.setAttribute('http.duration_ms', nowMs - startMs);
+    }
+    // Elapsed time across every attempt plus the backoff waits between
+    // them — the number the user actually experienced.
+    final firstStartMs = options.extra['_otelFirstStart'] as int?;
+    if (firstStartMs != null) {
+      span.setAttribute('http.total_duration_ms', nowMs - firstStartMs);
     }
     span
       ..setAttribute('http.response.status_code', statusCode)
       ..setAttribute('http.response.body.size', responseBytes)
       ..setAttribute('http.cache_hit', options.extra['fromCache'] == true);
-    if (options.extra['_retryCount'] is int) {
-      span.setAttribute(
-        'http.retry_count',
-        options.extra['_retryCount'] as int,
-      );
+    final retryCount = options.extra[RetryInterceptor.retryCountKey] as int?;
+    if (retryCount != null) {
+      span
+        ..setAttribute('http.retry_count', retryCount)
+        ..setAttribute('http.attempt', retryCount + 1);
     }
     if (error != null) {
       span

@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     show BatchSpanProcessor, ConsoleExporter, OTel;
 import 'package:happy_flutter/core/api/api_client.dart';
+import 'package:happy_flutter/core/api/retry_interceptor.dart';
 
 void main() {
   group('ApiClient Retry Logic', () {
@@ -27,18 +28,48 @@ void main() {
       expect(apiClient.getCurrentServerUrl(), 'https://test.example.com');
     });
 
-    test('connect timeout is bounded to 8s for fast failure on '
-        'black-holed mobile routes', () {
+    test('connect + receive timeouts bound the request to 23s on the '
+        'native adapter', () {
       // P0-1: connectTimeout was 30s, which Jaeger traced as ~28-34s
       // cold-start/resume stalls on the bootstrap fan-out (profile/
-      // settings/machines/sessions). 8s bounds only the TCP+TLS
-      // handshake (a healthy mobile connect is well under 1s) and
-      // matches the proven Sync._messageFetchConnectTimeout, letting
-      // the RetryInterceptor recover on the next backoff cycle.
+      // settings/machines/sessions).
+      //
+      // These are NOT two independent phases on device: NativeAdapter
+      // (Cronet / cupertino_http) runs through ConversionLayerAdapter,
+      // which applies `connectTimeout + receiveTimeout` as a single
+      // `client.send(...).timeout(...)` and reports expiry as
+      // DioExceptionType.receiveTimeout. The number that matters is the
+      // sum — 23s here — and there is no separate handshake bound.
       final options = apiClient.testDio!.options;
       expect(options.connectTimeout, const Duration(seconds: 8));
       expect(options.receiveTimeout, const Duration(seconds: 15));
       expect(options.sendTimeout, const Duration(seconds: 30));
+      expect(
+        options.connectTimeout! + options.receiveTimeout!,
+        const Duration(seconds: 23),
+        reason: 'the effective single budget applied by the native adapter',
+      );
+    });
+
+    test('server status failures reach the retry interceptor even though '
+        'validateStatus accepts every status', () {
+      // validateStatus: (_) => true means Dio never raises a DioException
+      // for a 5xx, so the retry classification has to run on the response
+      // chain. The retry interceptor must therefore be registered first
+      // (response interceptors run in registration order).
+      final options = apiClient.testDio!.options;
+      expect(options.validateStatus(503), isTrue);
+      final interceptors = apiClient.testDio!.interceptors;
+      final retryIndex = interceptors.indexWhere((i) => i is RetryInterceptor);
+      final firstWrapperIndex = interceptors.indexWhere(
+        (i) => i is InterceptorsWrapper,
+      );
+      expect(retryIndex, isNonNegative);
+      expect(
+        retryIndex,
+        lessThan(firstWrapperIndex),
+        reason: 'the retry interceptor classifies responses first',
+      );
     });
 
     test('should not retry on 4xx client errors', () async {
@@ -404,6 +435,95 @@ void main() {
       expect(response.requestOptions.extra['_trackId'], isA<int>());
       expect(response.requestOptions.extra['_trackStart'], isA<int>());
       expect(hitCount, 0);
+    });
+
+    test('cache hits run the response chain so their span is closed', () async {
+      // The cache interceptor resolves during onRequest. Without
+      // `callFollowingResponseInterceptor`, every response interceptor —
+      // including the one that ends the tracing span opened moments
+      // earlier — is skipped, leaking one span per cache hit.
+      final response = await apiClient.get('/cached');
+
+      expect(response.requestOptions.extra['fromCache'], true);
+      expect(
+        response.requestOptions.extra['_otelSpan'],
+        isNull,
+        reason: 'no span is left open once the cached response is returned',
+      );
+    });
+  });
+
+  group('ApiClient retry instrumentation', () {
+    late ApiClient apiClient;
+
+    setUp(() async {
+      apiClient = ApiClient();
+      await apiClient.initialize(serverUrl: 'https://test.example.com');
+    });
+
+    tearDown(() {
+      apiClient.dispose();
+    });
+
+    test('a retried request keeps the first attempt start so the total '
+        'elapsed time is recorded, and each attempt gets fresh span '
+        'bookkeeping', () async {
+      var attempts = 0;
+      apiClient.testDio!.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            attempts++;
+            handler.resolve(
+              Response<dynamic>(
+                data: {'attempt': attempts},
+                statusCode: attempts == 1 ? 503 : 200,
+                requestOptions: options,
+              ),
+              // Run the response chain, mirroring how a real adapter
+              // response flows through the interceptors.
+              true,
+            );
+          },
+        ),
+      );
+
+      final response = await apiClient.get('/v1/machines');
+
+      expect(attempts, 2, reason: 'the 503 must be retried');
+      expect(response.statusCode, 200);
+
+      final extra = response.requestOptions.extra;
+      expect(extra[RetryInterceptor.retryCountKey], 1);
+      final firstStart = extra['_otelFirstStart'] as int;
+      final lastStart = extra['_otelStart'] as int;
+      expect(
+        lastStart,
+        greaterThan(firstStart),
+        reason:
+            'the second attempt has its own start; the first attempt start '
+            'survives so http.total_duration_ms covers the whole sequence',
+      );
+      expect(
+        extra['_otelSpan'],
+        isNull,
+        reason:
+            'both the retried attempt span and the final span are ended and '
+            'their reference cleared — nothing is left open and unexported',
+      );
+    });
+
+    test('retry attributes expose the attempt index alongside the count', () {
+      final options = RequestOptions(
+        baseUrl: 'https://test.example.com',
+        path: '/v1/push/send-all',
+        method: 'POST',
+        extra: {RetryInterceptor.retryCountKey: 2},
+      );
+
+      final attributes = ApiClient.debugBuildOtelHttpAttributes(options);
+
+      expect(attributes['http.retry_count'], 2);
+      expect(attributes['http.attempt'], 3);
     });
   });
 }

@@ -19,6 +19,22 @@ import 'sync_service.dart';
 
 part '_auth_approval_flow.dart';
 
+/// Why an authentication check failed.
+///
+/// [AuthState.error] is a single bucket; this tells the causes apart so the
+/// UI can offer "retry" for a transient network failure instead of the same
+/// generic "sign in again" for everything.
+enum AuthFailureKind {
+  /// The request never reached the server (offline, timeout, DNS, TLS).
+  network,
+
+  /// The server rejected the stored token (401/403).
+  rejected,
+
+  /// The server answered, but not with a usable result (5xx, malformed).
+  server,
+}
+
 /// Authentication service handling QR-based authentication flow.
 class AuthService {
   factory AuthService() => _instance;
@@ -47,9 +63,19 @@ class AuthService {
   /// Calls POST /v1/auth/refresh with the current token to obtain a new token.
   /// Updates the stored credentials with the new token.
   ///
+  /// SERVER CONTRACT: happy-server does **not** implement this endpoint —
+  /// the request falls through to the grpc-gateway catch-all and returns
+  /// 404 — and its tokens carry no `exp` claim, so they never expire. Against
+  /// that server this method always ends in [AuthForbiddenError], which is
+  /// the honest outcome: a rejected token can only be replaced by a fresh
+  /// sign-in. The method is kept for deployments that do expose a refresh
+  /// endpoint; the HTTP layer no longer calls it on a 401 (see
+  /// [TokenRefreshManager.notifyReauthRequired]).
+  ///
   /// Returns the new token on success.
-  /// Throws [AuthForbiddenError] if the refresh token is invalid or expired
-  /// (user must re-authenticate).
+  /// Throws [AuthForbiddenError] if the token is rejected (401/403) or the
+  /// endpoint does not exist (404) — in both cases the user must
+  /// re-authenticate.
   /// Throws [AuthException] on other errors.
   Future<String> refreshToken() async {
     final credentials = await TokenStorage().getCredentials();
@@ -81,9 +107,10 @@ class AuthService {
 
         logger.info('Token refreshed successfully');
         return newToken;
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
+      } else if (_isReauthStatus(response.statusCode)) {
         throw AuthForbiddenError(
-          'Refresh token is invalid or expired',
+          'Token cannot be refreshed (${response.statusCode}) - '
+          're-authentication required',
           serverResponse: response.data?.toString(),
         );
       } else {
@@ -92,9 +119,10 @@ class AuthService {
         );
       }
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+      if (_isReauthStatus(e.response?.statusCode)) {
         throw AuthForbiddenError(
-          'Refresh token is invalid or expired',
+          'Token cannot be refreshed (${e.response?.statusCode}) - '
+          're-authentication required',
           serverResponse: e.response?.data?.toString(),
         );
       }
@@ -104,6 +132,13 @@ class AuthService {
       }
       throw AuthException('Token refresh request failed: ${e.message}');
     }
+  }
+
+  /// Statuses from the refresh endpoint that mean "sign in again": the
+  /// token was rejected (401/403) or the endpoint does not exist on this
+  /// server (404), which is the case for happy-server.
+  static bool _isReauthStatus(int? statusCode) {
+    return statusCode == 401 || statusCode == 403 || statusCode == 404;
   }
 
   /// Start QR authentication.
@@ -221,34 +256,74 @@ class AuthService {
     return TokenStorage().isAuthenticated();
   }
 
+  /// Why the last [getAuthState] call ended in [AuthState.error].
+  ///
+  /// [AuthState] itself only has a single `error` value, so a network blip,
+  /// a rejected token and a 500 all render the same screen. This field lets
+  /// callers (and bug reports) tell them apart.
+  AuthFailureKind? get lastAuthFailure => _lastAuthFailure;
+  AuthFailureKind? _lastAuthFailure;
+
   /// Get current authentication state.
   Future<AuthState> getAuthState() async {
     final credentials = await TokenStorage().getCredentials();
     if (credentials == null) {
+      _lastAuthFailure = null;
       return AuthState.unauthenticated;
     }
 
     try {
       await _verifyToken(credentials.token);
+      _lastAuthFailure = null;
       return AuthState.authenticated;
-    } catch (e) {
-      if (e is AuthForbiddenError) {
-        await signOut();
-        return AuthState.unauthenticated;
-      }
+    } on AuthForbiddenError catch (e, stack) {
+      _lastAuthFailure = AuthFailureKind.rejected;
+      logger.warning(
+        'AuthService: stored token rejected by server - signing out: '
+        '${e.message}',
+        e,
+        stack,
+      );
+      await signOut();
+      return AuthState.unauthenticated;
+    } on DioException catch (e, stack) {
+      _lastAuthFailure = AuthFailureKind.network;
+      logger.error(
+        'AuthService: token verification failed at the transport level '
+        '(${e.type.name}): ${e.message ?? e.error}',
+        e,
+        stack,
+      );
+      return AuthState.error;
+    } catch (e, stack) {
+      _lastAuthFailure = AuthFailureKind.server;
+      logger.error('AuthService: token verification failed: $e', e, stack);
       return AuthState.error;
     }
   }
 
   /// Verify token with server.
+  ///
+  /// [ApiClient] is configured with `validateStatus: (_) => true`, so a
+  /// rejected token arrives as an ordinary [Response] with a 401/403 status
+  /// and never as a [DioException] — the status check below is what
+  /// actually fires in production; the catch clause only covers transport
+  /// failures.
   Future<void> _verifyToken(String token) async {
     try {
       final response = await _apiClient.get(
         '/v1/auth/verify',
         queryParameters: {'token': token},
       );
+      if (_apiClient.isAuthError(response)) {
+        throw AuthForbiddenError(
+          'Token is invalid or has been revoked '
+          '(${response.statusCode})',
+          serverResponse: response.data?.toString(),
+        );
+      }
       if (!_apiClient.isSuccess(response)) {
-        throw Exception(
+        throw AuthException(
           'Token verification failed: ${response.statusCode}',
         );
       }
