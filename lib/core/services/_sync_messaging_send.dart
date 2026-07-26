@@ -382,7 +382,9 @@ extension SyncMessagingSend on Sync {
     unawaited(encryptSpan.finish());
 
     // lastCompleteSendFuture is exposed for tests to synchronise on.
+    final prepareMs = prepareStopwatch.elapsedMilliseconds;
     Future<void> completeSend() => _completeSend(
+      prepareMs: prepareMs,
       targetSessionId: targetSessionId,
       localId: localId,
       text: displayContent,
@@ -422,6 +424,7 @@ extension SyncMessagingSend on Sync {
   /// Background half of [sendMessage]: waits for agent, POSTs to REST,
   /// emits socket event, and updates the optimistic message status.
   Future<void> _completeSend({
+    required int prepareMs,
     required String targetSessionId,
     required String localId,
     required String text,
@@ -819,6 +822,11 @@ extension SyncMessagingSend on Sync {
       otelSpan
         ?..setAttribute('send.outcome', outcome)
         ..setAttribute('send.elapsed_ms', elapsedMs)
+        // `send.elapsed_ms` covers only the post-prepare budget. The
+        // prepare phase (encryption recovery, up to three bounded
+        // sessions refreshes, an auto-restore spawn) runs before the
+        // deadline starts, so the user-perceived latency is the sum.
+        ..setAttribute('send.total_ms', prepareMs + elapsedMs)
         ..setAttribute('send.agent_ready', ready)
         ..setAttribute('send.acked_by_server', ackedByServer)
         ..setAttribute('send.degraded', degraded)
