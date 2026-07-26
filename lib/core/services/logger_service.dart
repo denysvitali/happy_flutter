@@ -256,6 +256,9 @@ class LoggerService {
     // Break circular forwarding for our own diagnostics.
     if (entry.message.startsWith('[Sentry]')) return;
 
+    if (!_admitToSentry(entry)) return;
+    _sentryEmitCount++;
+
     try {
       final Future<SentryId> future;
       if (entry.level == LogLevel.error) {
@@ -289,6 +292,120 @@ class LoggerService {
     } catch (e) {
       warning('[Sentry] Forward failed: $e');
     }
+  }
+
+  /// Bounded emission policy for the Sentry path.
+  ///
+  /// Warnings are emitted from hot loops (per session per sync round, per
+  /// socket event, per storage write) and their messages interpolate ids and
+  /// counts, so an unguarded `Sentry.captureMessage` per warning is unbounded
+  /// in BOTH volume and issue cardinality. Two independent guards:
+  ///
+  /// 1. Fingerprint dedup — the message is normalised (digits, hex ids and
+  ///    UUIDs collapsed to `#`) and a fingerprint may only be sent once per
+  ///    [_sentryDedupWindow]. This is what makes a per-session or per-id
+  ///    message shape cost one event instead of N.
+  /// 2. Token bucket — a global ceiling of [_sentryBucketCapacity] warnings,
+  ///    refilled at [_sentryRefillPerMinute]/min, so even a stream of
+  ///    genuinely distinct shapes cannot exhaust the project quota.
+  ///
+  /// Errors bypass both: they are rare, carry stack traces, and are the
+  /// signal the quota exists to protect. The OTel path is left unthrottled —
+  /// it is aggregated and not billed per event.
+  bool _admitToSentry(LogEntry entry) {
+    if (entry.level == LogLevel.error) return true;
+
+    final nowMs = _nowMs();
+    final key = _sentryFingerprint(entry.message);
+    final lastMs = _sentrySeen.remove(key);
+    if (lastMs != null && nowMs - lastMs < _sentryDedupWindow.inMilliseconds) {
+      // Re-insert without refreshing the timestamp: a hot repeat must not be
+      // able to keep itself alive at the head of the LRU forever, but it also
+      // must not extend its own cooldown.
+      _sentrySeen[key] = lastMs;
+      return false;
+    }
+
+    if (!_takeSentryToken(nowMs)) return false;
+
+    _sentrySeen[key] = nowMs;
+    if (_sentrySeen.length > _sentrySeenCapacity) {
+      _sentrySeen.remove(_sentrySeen.keys.first);
+    }
+    return true;
+  }
+
+  /// Refill and consume one token. Returns false when the bucket is empty.
+  bool _takeSentryToken(int nowMs) {
+    final elapsedMs = nowMs - _sentryBucketRefilledAtMs;
+    if (elapsedMs > 0) {
+      final refill = elapsedMs * _sentryRefillPerMinute / 60000;
+      if (refill >= 1) {
+        _sentryTokens = (_sentryTokens + refill)
+            .clamp(0, _sentryBucketCapacity)
+            .toDouble();
+        _sentryBucketRefilledAtMs = nowMs;
+      }
+    }
+    if (_sentryTokens < 1) return false;
+    _sentryTokens -= 1;
+    return true;
+  }
+
+  /// Collapse variable parts of a message so `dropped 3 item(s)` for session A
+  /// and `dropped 17 item(s)` for session B share one fingerprint.
+  static String _sentryFingerprint(String message) {
+    final normalised = message
+        .replaceAll(_hexIdPattern, '#')
+        .replaceAll(_digitsPattern, '#');
+    return normalised.length > _sentryFingerprintMaxLength
+        ? normalised.substring(0, _sentryFingerprintMaxLength)
+        : normalised;
+  }
+
+  static final RegExp _hexIdPattern = RegExp(
+    r'\b[0-9a-fA-F-]{8,}\b',
+  );
+  static final RegExp _digitsPattern = RegExp(r'\d+');
+
+  static const Duration _sentryDedupWindow = Duration(minutes: 5);
+  static const int _sentrySeenCapacity = 256;
+  static const int _sentryBucketCapacity = 20;
+  static const int _sentryRefillPerMinute = 10;
+  static const int _sentryFingerprintMaxLength = 160;
+
+  /// Fingerprint → epoch-ms of the last emitted event. Insertion-ordered, so
+  /// `keys.first` is the oldest entry and eviction is O(1)-ish.
+  final LinkedHashMap<String, int> _sentrySeen = LinkedHashMap<String, int>();
+
+  double _sentryTokens = _sentryBucketCapacity.toDouble();
+  int _sentryBucketRefilledAtMs = 0;
+  int _sentryEmitCount = 0;
+
+  /// Test-only clock override so throttle windows can be advanced without
+  /// real time passing.
+  int Function()? _nowMsOverride;
+
+  int _nowMs() =>
+      _nowMsOverride?.call() ?? DateTime.now().millisecondsSinceEpoch;
+
+  /// Number of entries actually handed to Sentry (post-throttle).
+  @visibleForTesting
+  int get debugSentryEmitCount => _sentryEmitCount;
+
+  @visibleForTesting
+  // ignore: avoid_setters_without_getters
+  set debugSentryClock(int Function()? clock) {
+    _nowMsOverride = clock;
+  }
+
+  /// Reset the Sentry emission policy — tests only.
+  @visibleForTesting
+  void debugResetSentryThrottle() {
+    _sentrySeen.clear();
+    _sentryTokens = _sentryBucketCapacity.toDouble();
+    _sentryBucketRefilledAtMs = _nowMs();
+    _sentryEmitCount = 0;
   }
 
   /// Forward a log entry to the installed OTel sink.
