@@ -1,5 +1,5 @@
 import '../models/message.dart';
-import 'wire_parsers.dart';
+import '../wire/wire_parsers.dart';
 
 /// Extracts plain text from markdown by removing formatting
 String stripMarkdown(String text) {
