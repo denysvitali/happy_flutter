@@ -338,7 +338,15 @@ class LoggerService {
   /// Refill and consume one token. Returns false when the bucket is empty.
   bool _takeSentryToken(int nowMs) {
     final elapsedMs = nowMs - _sentryBucketRefilledAtMs;
-    if (elapsedMs > 0) {
+    if (elapsedMs < 0) {
+      // The wall clock jumped backwards (NTP correction, manual set, timezone
+      // hardware quirk). Without this the elapsed stays negative for the whole
+      // size of the jump and the bucket never refills again, silently dropping
+      // every warning. Treat a backwards jump as "time is unknown": rebase the
+      // stamp and refill, which errs towards sending rather than losing signal.
+      _sentryBucketRefilledAtMs = nowMs;
+      _sentryTokens = _sentryBucketCapacity.toDouble();
+    } else if (elapsedMs > 0) {
       final refill = elapsedMs * _sentryRefillPerMinute / 60000;
       if (refill >= 1) {
         _sentryTokens = (_sentryTokens + refill)
@@ -356,12 +364,23 @@ class LoggerService {
   /// and `dropped 17 item(s)` for session B share one fingerprint.
   static String _sentryFingerprint(String message) {
     final normalised = message
+        .replaceAll(_mixedIdPattern, '#')
         .replaceAll(_hexIdPattern, '#')
         .replaceAll(_digitsPattern, '#');
     return normalised.length > _sentryFingerprintMaxLength
         ? normalised.substring(0, _sentryFingerprintMaxLength)
         : normalised;
   }
+
+  /// Session/machine ids in this app are nanoid-style: mixed-case
+  /// alphanumeric, neither pure hex nor digit-only, so the hex and digit
+  /// patterns leave them intact and every session gets its own fingerprint.
+  /// Collapse any >= 8 char token that contains BOTH a letter and a digit;
+  /// requiring a digit keeps ordinary English words (and identifiers like
+  /// `fetchMessages`) untouched.
+  static final RegExp _mixedIdPattern = RegExp(
+    r'\b(?=[0-9A-Za-z_-]*\d)(?=[0-9A-Za-z_-]*[A-Za-z])[0-9A-Za-z][0-9A-Za-z_-]{6,}[0-9A-Za-z]\b',
+  );
 
   static final RegExp _hexIdPattern = RegExp(
     r'\b[0-9a-fA-F-]{8,}\b',

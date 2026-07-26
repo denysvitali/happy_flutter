@@ -444,6 +444,35 @@ void main() {
       expect(testLogger.debugSentryEmitCount, lessThanOrEqualTo(20));
     });
 
+    test('nanoid-style session ids collapse to a single Sentry event', () {
+      // Real ids are mixed-case alphanumeric (neither hex nor digit-only).
+      const ids = [
+        'MtY7xKp2Qr9Zb3',
+        'aB3kLm9Xz1Qw7T',
+        'Zq8Vn2Ry6Hd4Lp',
+        'Kf5Tg1Wb7Nc3Xs',
+        'Pj9Dh4Yr2Mv8Qa',
+      ];
+      for (final id in ids) {
+        testLogger.warning('[fetchMessages] $id dropped 3 item(s)');
+      }
+
+      expect(testLogger.debugSentryEmitCount, 1);
+    });
+
+    test('a backwards clock jump does not stall the token bucket', () {
+      for (var i = 0; i < 100; i++) {
+        testLogger.warning('drain shape ${_alphabet[i % 26]}$i x');
+      }
+      expect(testLogger.debugSentryEmitCount, 20);
+
+      // NTP corrects a 30-minutes-fast device backwards.
+      fakeNowMs -= const Duration(minutes: 30).inMilliseconds;
+      testLogger.warning('post jump warning zzz');
+
+      expect(testLogger.debugSentryEmitCount, 21);
+    });
+
     test('errors are never throttled', () {
       for (var i = 0; i < 50; i++) {
         testLogger.error('identical failure');
