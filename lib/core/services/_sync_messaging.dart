@@ -1636,7 +1636,7 @@ extension SyncMessaging on Sync {
       _applyPermissionRequests(sessionId);
 
       // Move the lower boundary back to cover the page we just fetched.
-      if (startSeq == 0 && !_sessionWindowAtVisibleCap(sessionId)) {
+      if (startSeq == 0 && !_sessionWindowAtTrimCap(sessionId)) {
         // Pin only on the genuine end-of-history signal: the request reached
         // seq 0 AND the window is below the newest-N cap, so the rows we just
         // fetched actually survived the trim and the whole history really is
@@ -1685,6 +1685,18 @@ extension SyncMessaging on Sync {
     }
   }
 
+  /// The newest-N cap [_upsertSessionMessages] will actually apply to
+  /// [sessionId]: the visible session keeps a larger window than background
+  /// sessions, so a single constant would misjudge every background session.
+  int _sessionTrimCap(String sessionId) => sessionId == _visibleSessionId
+      ? Sync._maxVisibleSessionMessages
+      : Sync._maxBackgroundSessionMessages;
+
+  /// Whether the in-memory window for [sessionId] is at its newest-N trim
+  /// cap, i.e. older rows are discarded as soon as they are fetched.
+  bool _sessionWindowAtTrimCap(String sessionId) =>
+      (_sessionMessages[sessionId]?.length ?? 0) >= _sessionTrimCap(sessionId);
+
   /// Ensure [_sessionFirstLoadedSeq] reflects the actual boundary of
   /// in-memory messages for [sessionId].
   ///
@@ -1695,12 +1707,6 @@ extension SyncMessaging on Sync {
   /// return false because nothing updates the boundary.  This method
   /// detects that staleness and corrects it by scanning the in-memory
   /// messages for their minimum seq.
-  /// Whether the in-memory window for [sessionId] is at the newest-N trim
-  /// cap, i.e. older rows are discarded as soon as they are fetched.
-  bool _sessionWindowAtVisibleCap(String sessionId) =>
-      (_sessionMessages[sessionId]?.length ?? 0) >=
-      Sync._maxVisibleSessionMessages;
-
   void _ensureFirstLoadedSeq(String sessionId) {
     // A session that has already been paginated back to seq 0 has no older
     // history on the server, so a rising in-memory minimum only means the
