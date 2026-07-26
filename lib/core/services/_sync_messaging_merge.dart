@@ -514,21 +514,24 @@ extension SyncMessagingMerge on Sync {
         nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
 
     // The walk-back exists to pull a parent Task into the loaded window. When
-    // the session is already at the visible message cap, `_upsertSessionMessages`
+    // the session is already at its message cap, `_upsertSessionMessages`
     // trims back to the newest N on every upsert and throws the entire fetched
     // page away — including the parent we went looking for. Every page is then
     // guaranteed to make zero progress, and the no-progress counter simply
     // climbs to the hard cap while burning bandwidth and decrypt time.
+    // The cap is per-session: background sessions trim to
+    // [Sync._maxBackgroundSessionMessages], so comparing against the visible
+    // constant left this skip dead for every non-visible session.
     final loadedCount = messagesNow.length;
-    final atVisibleCap = loadedCount >= Sync._maxVisibleSessionMessages;
-    if (atVisibleCap) {
+    final trimCap = _sessionTrimCap(sessionId);
+    if (loadedCount >= trimCap) {
       _sidechainRegroupSweepCount.remove(sessionId);
       _orphanSuppressedUntilMs[sessionId] =
           nowMs + _orphanFetchOlderExhaustedThrottleMs;
       logger.info(
         '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
-        'session=$sessionId — session is at the visible cap '
-        '($loadedCount messages), so any fetched older page would be '
+        'session=$sessionId — session is at its message cap '
+        '($loadedCount/$trimCap messages), so any fetched older page would be '
         'trimmed away; rendering inline',
       );
       return;
@@ -874,9 +877,7 @@ extension SyncMessagingMerge on Sync {
     // sweep's progress path clears the counter; if it delivers new
     // orphans, the sweep's signature check opens a fresh budget.
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
-    final maxMessages = sessionId == _visibleSessionId
-        ? Sync._maxVisibleSessionMessages
-        : Sync._maxBackgroundSessionMessages;
+    final maxMessages = _sessionTrimCap(sessionId);
 
     if (_canAppendMessagesFastPath(existing, messages)) {
       final appended = <Map<String, dynamic>>[...existing, ...messages];

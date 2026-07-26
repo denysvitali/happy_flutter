@@ -107,6 +107,34 @@ void main() {
     },
   );
 
+  test(
+    'a BACKGROUND session at the background trim cap is not pinned',
+    () async {
+      // Background sessions trim to _maxBackgroundSessionMessages (200), not
+      // the visible cap (1000). Comparing the window against the visible
+      // constant declared a 200-message background session "below cap", so
+      // reaching seq 0 pinned it as fully loaded even though the fetched page
+      // was trimmed straight back off again — permanently killing "load
+      // older" once the user opened the session.
+      sync.testSetVisibleSessionId('some-other-session');
+      final cap = Sync.maxBackgroundSessionMessagesForTesting;
+      sync.testSetSessionMessages(sessionId, [
+        for (var i = 0; i < cap; i++) _msg('m-${4000 + i}', 4000 + i),
+      ]);
+      sync.testSetSessionFirstLoadedSeq(sessionId, 50);
+
+      await sync.fetchOlderMessages(sessionId, pageSize: 100);
+
+      expect(
+        sync.testHistoryFullyLoaded(sessionId),
+        isFalse,
+        reason:
+            'a background session at ITS cap has its fetched pages trimmed '
+            'away, so it has NOT loaded all its history',
+      );
+    },
+  );
+
   test('an unpinned session still re-arms its boundary after a trim', () async {
     // Control case: a session that never reached seq 0 keeps the existing
     // self-healing behaviour so the user can scroll back.
