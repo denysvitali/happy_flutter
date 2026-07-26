@@ -82,6 +82,31 @@ void main() {
     },
   );
 
+  test(
+    'a session whose window is at the trim cap is not pinned',
+    () async {
+      // A large session: every page fetched by "load older" is sorted and
+      // trimmed back to the newest-N cap, so the rows never actually land in
+      // memory. Pinning here permanently kills "load older" for the session
+      // even though nothing older is loaded.
+      final cap = Sync.maxVisibleSessionMessagesForTesting;
+      sync.testSetSessionMessages(sessionId, [
+        for (var i = 0; i < cap; i++) _msg('m-${4000 + i}', 4000 + i),
+      ]);
+      sync.testSetSessionFirstLoadedSeq(sessionId, 50);
+
+      await sync.fetchOlderMessages(sessionId, pageSize: 100);
+
+      expect(
+        sync.testHistoryFullyLoaded(sessionId),
+        isFalse,
+        reason:
+            'a full window means the fetched page was trimmed away — the '
+            'session has NOT loaded all its history',
+      );
+    },
+  );
+
   test('an unpinned session still re-arms its boundary after a trim', () async {
     // Control case: a session that never reached seq 0 keeps the existing
     // self-healing behaviour so the user can scroll back.
