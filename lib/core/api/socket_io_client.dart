@@ -600,8 +600,9 @@ class SocketIoClient {
     );
     _connectionGeneration++;
     // `Socket.dispose()` already calls `disconnect()` internally
-    // (socket_io_client/src/socket.dart), so calling both emitted a
-    // second close event for every teardown.
+    // (socket_io_client/src/socket.dart), so an explicit `disconnect()`
+    // before it was redundant. (It was not harmful: the second call is a
+    // no-op because the first already set `connected = false`.)
     _socket?.dispose();
     _socket = null;
     if (!preserveConnectionHistory) {
@@ -740,6 +741,15 @@ class SocketIoClient {
     if (socket == null) {
       throw SocketNotConnectedException(event);
     }
+    // Check the remaining budget BEFORE emitting: emitting and then
+    // immediately declaring an ACK timeout would put the payload on the
+    // wire while telling the caller it never went out, and the caller's
+    // retry layer treats SocketAckTimeoutException as transient — that is
+    // a duplicate write, not a timeout.
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      throw SocketAckTimeoutException(event);
+    }
     powerDiagnostics.recordSocketSend(event, ack: true);
     final completer = Completer<dynamic>();
     socket.emitWithAck(
@@ -749,10 +759,6 @@ class SocketIoClient {
         if (!completer.isCompleted) completer.complete(response);
       },
     );
-    final remaining = deadline.difference(DateTime.now());
-    if (remaining <= Duration.zero) {
-      throw SocketAckTimeoutException(event);
-    }
     try {
       return await completer.future.timeout(remaining);
     } on TimeoutException {
@@ -1004,6 +1010,11 @@ class SocketIoClient {
 
   @visibleForTesting
   int get testConnectionGeneration => _connectionGeneration;
+
+  /// Test-only hook to fire the reconnection listeners without a live
+  /// server round-trip.
+  @visibleForTesting
+  void testNotifyReconnected() => _notifyReconnected();
 
   /// Dispose resources
   void dispose() {

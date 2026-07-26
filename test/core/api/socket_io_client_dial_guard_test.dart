@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
+import 'package:happy_flutter/core/services/power_diagnostics_service.dart';
 
 /// Regression coverage for the overlapping-dial defect.
 ///
@@ -132,6 +133,62 @@ void main() {
       );
 
       expect(sw.elapsed, lessThan(const Duration(seconds: 1)));
+    });
+
+    test(
+      'a socket torn down inside the await gap throws '
+      'SocketNotConnectedException, not a null-check TypeError',
+      () async {
+        // Install a real Socket object (it never reaches the unroutable
+        // port, which is fine — we only need `_socket != null`) so
+        // waitForConnection takes its "already connected" fast path
+        // instead of the null short-circuit.
+        socketIoClient.connect(
+          serverUrl: 'http://127.0.0.1:1',
+          token: 'token',
+        );
+        socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+        // emitWithAck runs up to its `await waitForConnection(...)` and
+        // suspends. Tearing the socket down here — exactly what a
+        // lifecycle suspend or watchdog reconnect does — nulls `_socket`
+        // before the emit resumes.
+        final pending = socketIoClient.emitWithAck(
+          'rpc-call',
+          <String, dynamic>{},
+        );
+        socketIoClient.disconnect();
+
+        await expectLater(pending, throwsA(isA<SocketNotConnectedException>()));
+      },
+    );
+  });
+
+  group('SocketIoClient.emitWithAck budget exhaustion', () {
+    test('does not put the payload on the wire when no budget is left', () async {
+      socketIoClient.connect(serverUrl: 'http://127.0.0.1:1', token: 'token');
+      socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+      final acksBefore = powerDiagnostics.snapshot().socketAckCalls;
+
+      // Zero budget models the real case: waitForConnection consumed the
+      // whole timeout and the socket connected at the last millisecond.
+      await expectLater(
+        socketIoClient.emitWithAck(
+          'rpc-call',
+          <String, dynamic>{},
+          timeout: Duration.zero,
+        ),
+        throwsA(isA<SocketAckTimeoutException>()),
+      );
+
+      expect(
+        powerDiagnostics.snapshot().socketAckCalls,
+        acksBefore,
+        reason:
+            'emitting and then immediately reporting an ACK timeout makes '
+            'the caller retry a message the server already received',
+      );
     });
   });
 }

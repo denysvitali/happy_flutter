@@ -16,14 +16,6 @@ const int _reconnectWatchdogMaxDelayMs = 120 * 1000;
 /// lockstep.
 const double _reconnectWatchdogJitterRatio = 0.25;
 
-/// Consecutive watchdog fires since the last deliberate reconnect entry
-/// point (resume / manual) or the last observed connection.
-///
-/// Lives at library scope because [SyncLifecycle] is an extension and
-/// Dart extensions cannot declare fields. `Sync` is a singleton, so this
-/// is equivalent to an instance field.
-int _reconnectWatchdogAttempt = 0;
-
 final Random _reconnectWatchdogRandom = Random();
 
 /// Un-jittered watchdog delay for a 0-based [attempt]:
@@ -85,6 +77,7 @@ extension SyncLifecycle on Sync {
     _deferredSocketDisconnectTimer = null;
     _reconnectWatchdogTimer?.cancel();
     _reconnectWatchdogTimer = null;
+    _reconnectWatchdogAttempt = 0;
     _resumeBatchTimer?.cancel();
     _resumeBatchTimer = null;
     _resumeConversationProgressSafetyTimer?.cancel();
@@ -896,6 +889,7 @@ extension SyncLifecycle on Sync {
     _deferredSocketDisconnectTimer = null;
     _reconnectWatchdogTimer?.cancel();
     _reconnectWatchdogTimer = null;
+    _reconnectWatchdogAttempt = 0;
     _resumeBatchTimer?.cancel();
     _resumeBatchTimer = null;
     _resumeConversationProgressSafetyTimer?.cancel();
