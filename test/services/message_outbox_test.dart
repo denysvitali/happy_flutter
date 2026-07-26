@@ -14,11 +14,15 @@ class _FakeMMKVStorage extends MMKVStorage {
 
   String? _outboxData;
 
+  /// How many times the whole blob was re-encoded and written.
+  int writeCount = 0;
+
   @override
   Future<String?> getOutboxEntries() async => _outboxData;
 
   @override
   Future<void> saveOutboxEntries(String json) async {
+    writeCount++;
     _outboxData = json;
   }
 }
@@ -399,6 +403,27 @@ void main() {
       expect(saved.single['localId'], 'flush-me');
       // Entry survives the suspend so resume() can retry it.
       expect(outbox.contains('flush-me'), isTrue);
+    });
+
+    test('suspendAndFlush skips the write when no persist is pending',
+        () async {
+      outbox.configure(deliver: (e) async => false);
+
+      await outbox.add(_makeEntry(localId: 'already-persisted'));
+      // Let the debounced persist fire on its own.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(storage.writeCount, 1);
+
+      // Nothing changed since, so the suspend has nothing to flush: the
+      // completed debounce timer must not masquerade as pending work.
+      await outbox.suspendAndFlush();
+      await outbox.suspendAndFlush();
+
+      expect(
+        storage.writeCount,
+        1,
+        reason: 'an idle suspend must not re-encode the whole outbox blob',
+      );
     });
 
     test('suspend() flushes the debounced persist without an await', () async {

@@ -24,6 +24,10 @@ class PermanentSendFailure extends StateError {
 /// 54e38e087cdd4f51912fffeed3d52383. On expiry the message is handed to
 /// the outbox and the row flips to 'pending' ("Retry queued") instead of
 /// spinning forever.
+///
+/// Exception: a session spawned within [Sync.recentlySpawnedFlagMs] gets
+/// `Sync.recentlySpawnedWaitMs + _kSendMinPostWindow` instead, so the
+/// readiness wait it genuinely needs is not silently clamped to 6 s.
 const Duration _kSendDeadline = Duration(seconds: 12);
 
 /// Slice of [_kSendDeadline] reserved for the HTTP POST, so a slow
@@ -378,7 +382,9 @@ extension SyncMessagingSend on Sync {
     unawaited(encryptSpan.finish());
 
     // lastCompleteSendFuture is exposed for tests to synchronise on.
+    final prepareMs = prepareStopwatch.elapsedMilliseconds;
     Future<void> completeSend() => _completeSend(
+      prepareMs: prepareMs,
       targetSessionId: targetSessionId,
       localId: localId,
       text: displayContent,
@@ -418,6 +424,7 @@ extension SyncMessagingSend on Sync {
   /// Background half of [sendMessage]: waits for agent, POSTs to REST,
   /// emits socket event, and updates the optimistic message status.
   Future<void> _completeSend({
+    required int prepareMs,
     required String targetSessionId,
     required String localId,
     required String text,
@@ -428,7 +435,24 @@ extension SyncMessagingSend on Sync {
   }) async {
     final apiClient = ApiClient();
     final sendStopwatch = Stopwatch()..start();
-    final sendDeadline = DateTime.now().add(_kSendDeadline);
+    // A freshly-spawned session legitimately needs up to
+    // Sync.recentlySpawnedWaitMs before it can receive anything (pod
+    // start is routinely >10 s). Clamping that wait into the ordinary
+    // 12 s budget would leave it 6 s, turn every spawn-then-send into a
+    // spurious 'spawn readiness timeout' alarm, and lie about how long
+    // the client actually waited. Spawned sends therefore get their own,
+    // longer deadline: the full readiness wait PLUS the reserved POST
+    // window. Ordinary sends keep _kSendDeadline.
+    final spawnedAt = _sessionSpawnedAt[targetSessionId];
+    final recentlySpawned =
+        spawnedAt != null &&
+        DateTime.now().millisecondsSinceEpoch - spawnedAt <
+            Sync.recentlySpawnedFlagMs;
+    final sendBudget = recentlySpawned
+        ? Duration(milliseconds: Sync.recentlySpawnedWaitMs) +
+              _kSendMinPostWindow
+        : _kSendDeadline;
+    final sendDeadline = DateTime.now().add(sendBudget);
     var sent = false;
     var ackedByServer = false;
     var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
@@ -463,24 +487,24 @@ extension SyncMessagingSend on Sync {
         'chat.waitForAgent',
         description: 'Wait for agent readiness',
       );
-      final spawnedAt = _sessionSpawnedAt[targetSessionId];
-      final recentlySpawned =
-          spawnedAt != null &&
-          DateTime.now().millisecondsSinceEpoch - spawnedAt <
-              Sync.recentlySpawnedFlagMs;
       final requestedWaitBudget = recentlySpawned
           ? Sync.recentlySpawnedWaitMs
           : Sync.sessionReadyTimeoutMs;
       // Clamp the wait so it can never eat the whole send budget: the
-      // POST always keeps at least _kSendMinPostWindow.
-      final waitBudget = min(
-        requestedWaitBudget,
-        max(
-          0,
-          _remainingSendBudget(sendDeadline).inMilliseconds -
-              _kSendMinPostWindow.inMilliseconds,
-        ),
-      );
+      // POST always keeps at least _kSendMinPostWindow. Spawned sends
+      // are exempt — their deadline was sized above to fit the full
+      // readiness wait plus that same POST window, so clamping them
+      // again would only shave off the elapsed milliseconds.
+      final waitBudget = recentlySpawned
+          ? requestedWaitBudget
+          : min(
+              requestedWaitBudget,
+              max(
+                0,
+                _remainingSendBudget(sendDeadline).inMilliseconds -
+                    _kSendMinPostWindow.inMilliseconds,
+              ),
+            );
       final otelWaitSpan = otelSpan == null
           ? null
           : OpenTelemetryService().startChildSpan(
@@ -529,10 +553,14 @@ extension SyncMessagingSend on Sync {
             Sentry.captureMessage(
               'sendMessage: spawn readiness timeout',
               level: SentryLevel.warning,
+              // waitMs must be what the client ACTUALLY waited, not the
+              // nominal constant: a clamped budget used to be reported
+              // as 15 000 ms on a 6 s wait.
               hint: Hint.withMap({
                 'sessionId': targetSessionId,
                 'spawnedAt': spawnedAt,
-                'waitMs': Sync.recentlySpawnedWaitMs,
+                'waitMs': waitBudget,
+                'requestedWaitMs': requestedWaitBudget,
                 'recentlySpawned': true,
               }),
             ),
@@ -542,7 +570,8 @@ extension SyncMessagingSend on Sync {
           _spawnReadinessTimeoutCaptures.add({
             'sessionId': targetSessionId,
             'spawnedAt': spawnedAt,
-            'waitMs': Sync.recentlySpawnedWaitMs,
+            'waitMs': waitBudget,
+            'requestedWaitMs': requestedWaitBudget,
             'recentlySpawned': true,
           });
           PowerDiagnosticsOtelReporter.instance.recordAppError(
@@ -793,6 +822,11 @@ extension SyncMessagingSend on Sync {
       otelSpan
         ?..setAttribute('send.outcome', outcome)
         ..setAttribute('send.elapsed_ms', elapsedMs)
+        // `send.elapsed_ms` covers only the post-prepare budget. The
+        // prepare phase (encryption recovery, up to three bounded
+        // sessions refreshes, an auto-restore spawn) runs before the
+        // deadline starts, so the user-perceived latency is the sum.
+        ..setAttribute('send.total_ms', prepareMs + elapsedMs)
         ..setAttribute('send.agent_ready', ready)
         ..setAttribute('send.acked_by_server', ackedByServer)
         ..setAttribute('send.degraded', degraded)
@@ -1246,6 +1280,56 @@ extension SyncMessagingSend on Sync {
       msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
       _invalidateMessageCaches(sessionId);
     }
+  }
+
+  /// Whether the outbox currently owns a retry for [localId].
+  ///
+  /// The chat screen's stall watchdog uses this to avoid telling the user
+  /// "Retry queued" while the original send is still in flight and no
+  /// retry exists.
+  bool isOutboxPending(String localId) => messageOutbox.contains(localId);
+
+  /// Re-apply outbox ownership to a session's rows.
+  ///
+  /// The outbox republishes statuses through `onStatusChanged`, but that
+  /// callback drops everything for sessions whose messages are not loaded
+  /// yet — which is every session at cold start except the few warmed by
+  /// `_restoreRecentCachedMessagesAsync()`. A row restored from MMKV with
+  /// its last persisted `'sending'` status would therefore spin forever
+  /// and never show the retry affordance (which only renders for
+  /// `'failed'`), leaving the preserved dead-letter payload unreachable.
+  ///
+  /// Call this whenever a session's messages become visible/loaded.
+  /// Returns the number of rows whose status changed.
+  int reconcileOutboxStatuses(String sessionId) {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs == null || msgs.isEmpty) return 0;
+    var changed = 0;
+    void apply(String localId, String status) {
+      final idx = msgs.indexWhere((m) => _matchesLocalId(m, localId));
+      if (idx == -1) return;
+      if (msgs[idx]['sendStatus'] == status) return;
+      msgs[idx] = {...msgs[idx], 'sendStatus': status};
+      changed++;
+    }
+
+    for (final entry in messageOutbox.entries) {
+      if (entry.sessionId != sessionId) continue;
+      apply(entry.localId, 'pending');
+    }
+    for (final entry in messageOutbox.deadEntries) {
+      if (entry.sessionId != sessionId) continue;
+      apply(entry.localId, 'failed');
+    }
+    if (changed > 0) {
+      logger.info(
+        '[reconcileOutboxStatuses] restored outbox state for '
+        'session=$sessionId rows=$changed',
+      );
+      _invalidateMessageCaches(sessionId);
+      _notifySessionMessagesChanged(sessionId);
+    }
+    return changed;
   }
 
   /// Last-resort retry path: rebuild the send from the outbox

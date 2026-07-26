@@ -32,11 +32,14 @@ const Duration _backgroundAwaitBudget = Duration(seconds: 30);
 /// first page rendered a WRONG "no messages" empty state.
 const Duration _blockingAwaitBudget = Duration(seconds: 12);
 
-/// How long an optimistic row may sit in `'sending'` before the UI
-/// escalates it to `'pending'` ("Retry queued").
+/// Poll interval of the send-stall watchdog: how often the UI re-checks
+/// whether the outbox has taken over a row still shown as `'sending'`,
+/// in which case it escalates to `'pending'` ("Retry queued").
 ///
 /// A long stall is otherwise visually indistinguishable from a fast send
-/// except by how long the spinner spins.
+/// except by how long the spinner spins. The escalation is gated on real
+/// outbox ownership, so this interval only controls how quickly a genuine
+/// hand-off becomes visible — it never invents a retry that is not there.
 const Duration _sendStallThreshold = Duration(seconds: 5);
 
 extension _ChatScreenActions on _ChatScreenState {
@@ -244,6 +247,13 @@ extension _ChatScreenActions on _ChatScreenState {
         );
       }
       final restoredCount = sync.messagesForSession(sessionId).length;
+      // Rows restored from the MMKV cache carry their last persisted
+      // status, which is 'sending' for anything the outbox took over
+      // before the app was killed. The outbox republishes statuses only
+      // at startup, into a message map this session was not yet part of,
+      // so reconcile here — otherwise the row spins forever and the
+      // 'failed'-only retry affordance never appears.
+      sync.reconcileOutboxStatuses(sessionId);
       cacheSpan
         ..setData('cachedCount', restoredCount)
         ..setData('timedOut', cacheRestoreTimedOut);
@@ -816,13 +826,33 @@ extension _ChatScreenActions on _ChatScreenState {
     // returns as soon as the optimistic row is inserted, while the POST
     // it stalls on runs afterwards in `Sync._completeSend`. The callback
     // is a no-op once the row leaves `'sending'`.
-    final stallWatchdog = Timer(_sendStallThreshold, () {
-      if (!mounted) return;
+    //
+    // The escalation is gated on the outbox genuinely owning a retry:
+    // the send path only hands the message over at its own deadline (or
+    // on an exception), so a bare timer would announce "Retry queued" —
+    // to the screen too, and to VoiceOver — during a send that is simply
+    // slow and about to succeed. Hence a periodic poll instead of a
+    // one-shot: it fires the first time the outbox actually has the
+    // message, and cancels itself once the row leaves 'sending'.
+    final stallWatchdog = Timer.periodic(_sendStallThreshold, (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (!isOptimisticMessageSending(_messages, localId)) {
+        // Terminal state reached ('sent'/'failed'/'pending') — nothing
+        // left to escalate.
+        timer.cancel();
+        return;
+      }
+      if (!sync.isOutboxPending(localId)) return;
       final next = markOptimisticMessageStalled(_messages, localId);
+      timer.cancel();
       if (identical(next, _messages)) return;
       logger.warning(
-        '[ChatScreen] send still in flight after '
-        '${_sendStallThreshold.inSeconds}s; showing "Retry queued" '
+        '[ChatScreen] send handed to the outbox after '
+        '${timer.tick * _sendStallThreshold.inSeconds}s; '
+        'showing "Retry queued" '
         'session=${widget.sessionId} localId=$localId',
       );
       setState(() {

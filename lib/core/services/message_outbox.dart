@@ -192,6 +192,10 @@ class MessageOutbox {
       // Republish the terminal state of every dead-lettered entry so the
       // chat row comes back as 'failed' (and therefore retryable) after a
       // cold start, instead of a row stuck on 'sending' forever.
+      //
+      // This only lands for sessions whose messages are already loaded.
+      // Sessions opened later are reconciled by
+      // `Sync.reconcileOutboxStatuses`, called from the chat load path.
       for (final entry in _dead.values) {
         _onStatusChanged?.call(entry.sessionId, entry.localId, 'failed');
       }
@@ -230,6 +234,20 @@ class MessageOutbox {
       _schedulePersist();
       logger.info('[MessageOutbox] removed localId=$localId');
     }
+  }
+
+  /// Test-only: place [entry] in the pending bucket WITHOUT scheduling a
+  /// retry timer or a persist. Lets widget tests reproduce "the outbox
+  /// now owns this message" without leaving pending timers behind.
+  @visibleForTesting
+  void testInsertPending(OutboxEntry entry) {
+    _entries[entry.localId] = entry.copyWith(dead: false);
+  }
+
+  /// Test-only: place [entry] in the dead-letter bucket directly.
+  @visibleForTesting
+  void testInsertDead(OutboxEntry entry) {
+    _dead[entry.localId] = entry.copyWith(dead: true);
   }
 
   /// Whether the outbox contains an entry with the given [localId].
@@ -435,6 +453,10 @@ class MessageOutbox {
   void _schedulePersist() {
     _persistTimer?.cancel();
     _persistTimer = Timer(const Duration(milliseconds: 100), () {
+      // Clear before persisting: a completed timer left in place makes
+      // the `hadPendingPersist` guard in suspendAndFlush() permanently
+      // true, so every suspend re-encodes and rewrites the whole blob.
+      _persistTimer = null;
       unawaited(_persist());
     });
   }
